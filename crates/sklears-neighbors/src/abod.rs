@@ -96,7 +96,7 @@ impl Fit<Features, ()> for AngleBasedOutlierDetection {
 
         // Determine threshold based on contamination rate
         let mut sorted_scores = abod_scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let threshold_idx = (self.contamination * sorted_scores.len() as Float) as usize;
         let threshold = if threshold_idx < sorted_scores.len() {
             sorted_scores[threshold_idx]
@@ -282,7 +282,7 @@ impl<State> AngleBasedOutlierDetection<State> {
         }
 
         // Sort by distance and take k nearest
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k = self.k.min(distances.len());
 
         Ok(distances.into_iter().take(k).map(|(_, idx)| idx).collect())
@@ -301,7 +301,7 @@ impl AngleBasedOutlierDetection<sklears_core::traits::Trained> {
             return Err(NeighborsError::EmptyInput);
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
                 expected: vec![x_train.ncols()],
@@ -337,7 +337,7 @@ impl AngleBasedOutlierDetection<sklears_core::traits::Trained> {
             return Err(NeighborsError::EmptyInput);
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
                 expected: vec![x_train.ncols()],
@@ -411,15 +411,15 @@ mod tests {
                 10.0, 10.0, // Outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let abod = AngleBasedOutlierDetection::new()
             .with_k(3)
             .with_contamination(0.2)
             .with_fast_abod(false);
 
-        let fitted = abod.fit(&data, &()).unwrap();
-        let predictions = fitted.predict(&data).unwrap();
+        let fitted = abod.fit(&data, &()).expect("operation should succeed");
+        let predictions = fitted.predict(&data).expect("operation should succeed");
 
         // Should detect 1 outlier
         let outlier_count = predictions.iter().filter(|&&x| x == 1).count();
@@ -440,14 +440,16 @@ mod tests {
                 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 10.0, 10.0, // Outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let abod = AngleBasedOutlierDetection::new()
             .with_k(2)
             .with_fast_abod(false);
 
-        let fitted = abod.fit(&data, &()).unwrap();
-        let scores = fitted.decision_function(&data).unwrap();
+        let fitted = abod.fit(&data, &()).expect("operation should succeed");
+        let scores = fitted
+            .decision_function(&data)
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 4);
         // All scores should be finite
@@ -467,7 +469,7 @@ mod tests {
 
         let angle = abod
             .compute_angle(&query.view(), &p1.view(), &p2.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert_abs_diff_eq!(angle, std::f64::consts::PI / 2.0, epsilon = 1e-10);
     }
 
@@ -479,15 +481,15 @@ mod tests {
                 1.0, 1.0, 1.5, 1.5, 2.0, 2.0, 2.5, 2.5, 3.0, 3.0, 10.0, 10.0, // Outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let abod = AngleBasedOutlierDetection::new()
             .with_k(3)
             .with_contamination(0.2)
             .with_fast_abod(true);
 
-        let fitted = abod.fit(&data, &()).unwrap();
-        let predictions = fitted.predict(&data).unwrap();
+        let fitted = abod.fit(&data, &()).expect("operation should succeed");
+        let predictions = fitted.predict(&data).expect("operation should succeed");
 
         // Should work correctly in fast mode
         assert_eq!(predictions.len(), 6);
@@ -505,7 +507,8 @@ mod tests {
 
     #[test]
     fn test_abod_invalid_k() {
-        let data = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
         let abod = AngleBasedOutlierDetection::new().with_k(5); // k > n_samples
         let result = abod.fit(&data, &());
         assert!(result.is_err());
@@ -513,25 +516,26 @@ mod tests {
 
     #[test]
     fn test_abod_threshold() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
         let abod = AngleBasedOutlierDetection::new()
             .with_k(2) // Use k=2 for small dataset
             .with_contamination(0.25);
-        let fitted = abod.fit(&data, &()).unwrap();
+        let fitted = abod.fit(&data, &()).expect("operation should succeed");
 
         assert!(fitted.threshold().is_some());
-        assert!(fitted.threshold().unwrap() >= 0.0);
+        assert!(fitted.threshold().expect("operation should succeed") >= 0.0);
     }
 
     #[test]
     fn test_abod_training_scores() {
-        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let abod = AngleBasedOutlierDetection::new().with_k(2); // Use k=2 for small dataset
-        let fitted = abod.fit(&data, &()).unwrap();
+        let fitted = abod.fit(&data, &()).expect("operation should succeed");
 
         let scores = fitted.training_scores();
         assert!(scores.is_some());
-        assert_eq!(scores.unwrap().len(), 3);
+        assert_eq!(scores.expect("operation should succeed").len(), 3);
     }
 }

@@ -15,9 +15,13 @@ fn test_dictionary_learning() {
         .n_components(2)
         .alpha(0.1)
         .max_iter(10);
-    let fitted = dict_learner.fit(&X.view(), &()).unwrap();
+    let fitted = dict_learner
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
 
-    let codes = fitted.transform(&X.view()).unwrap();
+    let codes = fitted
+        .transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(codes.dim(), (3, 2));
 
     let dictionary = fitted.get_dictionary();
@@ -39,8 +43,12 @@ fn test_mini_batch_dictionary_learning() {
         .batch_size(2)
         .max_iter(10);
 
-    let fitted = mini_batch_dict.fit(&X.view(), &()).unwrap();
-    let codes = fitted.transform(&X.view()).unwrap();
+    let fitted = mini_batch_dict
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let codes = fitted
+        .transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(codes.dim(), (4, 2)); // 4 samples, 2 components
 
@@ -62,8 +70,10 @@ fn test_nmf() {
         .max_iter(50)
         .solver("cd".to_string());
 
-    let fitted = nmf.fit(&X.view(), &()).unwrap();
-    let W = fitted.transform(&X.view()).unwrap();
+    let fitted = nmf.fit(&X.view(), &()).expect("operation should succeed");
+    let W = fitted
+        .transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(W.dim(), (4, 2)); // 4 samples, 2 components
 
@@ -81,7 +91,9 @@ fn test_nmf() {
     }
 
     // Test reconstruction
-    let reconstruction = fitted.inverse_transform(&W.view()).unwrap();
+    let reconstruction = fitted
+        .inverse_transform(&W.view())
+        .expect("operation should succeed");
     assert_eq!(reconstruction.dim(), X.dim());
 
     // Test multiplicative update solver
@@ -90,8 +102,12 @@ fn test_nmf() {
         .max_iter(20)
         .solver("mu".to_string());
 
-    let fitted_mu = nmf_mu.fit(&X.view(), &()).unwrap();
-    let W_mu = fitted_mu.transform(&X.view()).unwrap();
+    let fitted_mu = nmf_mu
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let W_mu = fitted_mu
+        .transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(W_mu.dim(), (4, 2));
 }
 
@@ -122,8 +138,10 @@ fn test_ica() {
         .max_iter(50)
         .tol(1e-3);
 
-    let fitted = ica.fit(&X.view(), &()).unwrap();
-    let sources = fitted.transform(&X.view()).unwrap();
+    let fitted = ica.fit(&X.view(), &()).expect("operation should succeed");
+    let sources = fitted
+        .transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(sources.dim(), (5, 2)); // 5 samples, 2 components
 
@@ -137,8 +155,12 @@ fn test_ica() {
         .fun("exp".to_string())
         .max_iter(20);
 
-    let fitted_exp = ica_exp.fit(&X.view(), &()).unwrap();
-    let sources_exp = fitted_exp.transform(&X.view()).unwrap();
+    let fitted_exp = ica_exp
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let sources_exp = fitted_exp
+        .transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(sources_exp.dim(), (5, 2));
 
     // Test cube contrast function
@@ -147,8 +169,12 @@ fn test_ica() {
         .fun("cube".to_string())
         .max_iter(20);
 
-    let fitted_cube = ica_cube.fit(&X.view(), &()).unwrap();
-    let sources_cube = fitted_cube.transform(&X.view()).unwrap();
+    let fitted_cube = ica_cube
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let sources_cube = fitted_cube
+        .transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(sources_cube.dim(), (5, 2));
 
     // Test parallel algorithm
@@ -157,8 +183,12 @@ fn test_ica() {
         .algorithm("parallel".to_string())
         .max_iter(20);
 
-    let fitted_parallel = ica_parallel.fit(&X.view(), &()).unwrap();
-    let sources_parallel = fitted_parallel.transform(&X.view()).unwrap();
+    let fitted_parallel = ica_parallel
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let sources_parallel = fitted_parallel
+        .transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(sources_parallel.dim(), (5, 2));
 }
 
@@ -194,8 +224,10 @@ fn test_pca() {
 
     let pca = dict_learning::PCA::new().n_components(2).whiten(false);
 
-    let fitted = pca.fit(&X.view(), &()).unwrap();
-    let transformed = fitted.transform(&X.view()).unwrap();
+    let fitted = pca.fit(&X.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 2)); // 5 samples, 2 components
 
@@ -210,18 +242,24 @@ fn test_pca() {
     assert_eq!(explained_variance_ratio.len(), 2);
 
     // Test inverse transform
-    let reconstructed = fitted.inverse_transform(&transformed.view()).unwrap();
+    let reconstructed = fitted
+        .inverse_transform(&transformed.view())
+        .expect("operation should succeed");
     assert_eq!(reconstructed.dim(), X.dim());
 
     // Test score (reconstruction quality)
-    let score = fitted.score(&X.view()).unwrap();
+    let score = fitted.score(&X.view()).expect("operation should succeed");
     assert!(score.is_finite()); // Score should be a finite number
 
     // Test with whitening
     let pca_whitened = dict_learning::PCA::new().n_components(2).whiten(true);
 
-    let fitted_whitened = pca_whitened.fit(&X.view(), &()).unwrap();
-    let transformed_whitened = fitted_whitened.transform(&X.view()).unwrap();
+    let fitted_whitened = pca_whitened
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let transformed_whitened = fitted_whitened
+        .transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(transformed_whitened.dim(), (5, 2));
 }
 
@@ -255,8 +293,10 @@ fn test_factor_analysis() {
         .max_iter(50)
         .tol(1e-4);
 
-    let fitted = fa.fit(&X.view(), &()).unwrap();
-    let factors = fitted.transform(&X.view()).unwrap();
+    let fitted = fa.fit(&X.view(), &()).expect("operation should succeed");
+    let factors = fitted
+        .transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(factors.dim(), (5, 2)); // 5 samples, 2 factors
 
@@ -276,11 +316,11 @@ fn test_factor_analysis() {
     assert_eq!(explained_variance.len(), 2);
 
     // Test covariance reconstruction
-    let reconstructed_cov = fitted.get_covariance().unwrap();
+    let reconstructed_cov = fitted.get_covariance().expect("operation should succeed");
     assert_eq!(reconstructed_cov.dim(), (4, 4));
 
     // Test score (log-likelihood)
-    let score = fitted.score(&X.view()).unwrap();
+    let score = fitted.score(&X.view()).expect("operation should succeed");
     assert!(score.is_finite()); // Score should be a finite number
 
     // Test with rotation
@@ -289,8 +329,12 @@ fn test_factor_analysis() {
         .rotation("varimax")
         .max_iter(20);
 
-    let fitted_rotated = fa_rotated.fit(&X.view(), &()).unwrap();
-    let factors_rotated = fitted_rotated.transform(&X.view()).unwrap();
+    let fitted_rotated = fa_rotated
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let factors_rotated = fitted_rotated
+        .transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(factors_rotated.dim(), (5, 2));
 }
 
@@ -328,7 +372,7 @@ fn test_probabilistic_matrix_factorization() {
         .max_iter(50)
         .random_state(Some(42));
 
-    let fitted = pmf.fit(&X.view(), &()).unwrap();
+    let fitted = pmf.fit(&X.view(), &()).expect("operation should succeed");
 
     // Check dimensions
     let U = fitted.get_user_features();
@@ -337,13 +381,15 @@ fn test_probabilistic_matrix_factorization() {
     assert_eq!(V.dim(), (4, 2)); // 4 items, 2 components
 
     // Test prediction functionality
-    let prediction = fitted.predict(0, 0).unwrap();
+    let prediction = fitted.predict(0, 0).expect("operation should succeed");
     assert!(prediction.is_finite());
 
     // Test batch prediction
     let user_indices = vec![0, 1, 2];
     let item_indices = vec![0, 1, 2];
-    let predictions = fitted.predict_batch(&user_indices, &item_indices).unwrap();
+    let predictions = fitted
+        .predict_batch(&user_indices, &item_indices)
+        .expect("operation should succeed");
     assert_eq!(predictions.len(), 3);
 
     // Test matrix reconstruction
@@ -356,7 +402,9 @@ fn test_probabilistic_matrix_factorization() {
     assert!(loss >= 0.0);
 
     // Test log probability
-    let log_prob = fitted.log_probability(0, 0, 5.0).unwrap();
+    let log_prob = fitted
+        .log_probability(0, 0, 5.0)
+        .expect("operation should succeed");
     assert!(log_prob.is_finite());
 }
 
@@ -380,7 +428,7 @@ fn test_pmf_error_cases() {
         .n_components(2)
         .max_iter(5)
         .fit(&X.view(), &())
-        .unwrap();
+        .expect("operation should succeed");
 
     // Test out of bounds predictions
     assert!(pmf_fitted.predict(10, 0).is_err()); // User index out of bounds
@@ -417,7 +465,7 @@ fn test_pmf_convergence() {
         .max_iter(50)
         .random_state(Some(42));
 
-    let fitted = pmf.fit(&X.view(), &()).unwrap();
+    let fitted = pmf.fit(&X.view(), &()).expect("operation should succeed");
     let reconstructed = fitted.reconstruct();
 
     // Check that reconstruction produces finite values
@@ -434,8 +482,8 @@ fn test_pmf_convergence() {
 
     // Test that predictions for observed entries are reasonable
     // (they should be positive for positive ratings)
-    let pred_00 = fitted.predict(0, 0).unwrap(); // Original: 5.0
-    let pred_03 = fitted.predict(0, 3).unwrap(); // Original: 1.0
+    let pred_00 = fitted.predict(0, 0).expect("operation should succeed"); // Original: 5.0
+    let pred_03 = fitted.predict(0, 3).expect("operation should succeed"); // Original: 1.0
 
     assert!(pred_00.is_finite());
     assert!(pred_03.is_finite());
@@ -475,7 +523,7 @@ fn test_pmf_sparsity_handling() {
         .max_iter(30)
         .random_state(Some(42));
 
-    let fitted = pmf.fit(&X.view(), &()).unwrap();
+    let fitted = pmf.fit(&X.view(), &()).expect("operation should succeed");
 
     // Model should fit without errors
     let U = fitted.get_user_features();
@@ -486,7 +534,7 @@ fn test_pmf_sparsity_handling() {
     // Test predictions for sparse entries
     for i in 0..X.nrows() {
         for j in 0..X.ncols() {
-            let pred = fitted.predict(i, j).unwrap();
+            let pred = fitted.predict(i, j).expect("operation should succeed");
             assert!(pred.is_finite());
         }
     }
@@ -516,8 +564,12 @@ fn test_pmf_regularization_effect() {
         .max_iter(20)
         .random_state(Some(42));
 
-    let fitted_low = pmf_low_reg.fit(&X.view(), &()).unwrap();
-    let fitted_high = pmf_high_reg.fit(&X.view(), &()).unwrap();
+    let fitted_low = pmf_low_reg
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let fitted_high = pmf_high_reg
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
 
     // Both should produce finite features, but with different magnitudes
     let U_low = fitted_low.get_user_features();

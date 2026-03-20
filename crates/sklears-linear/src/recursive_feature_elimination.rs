@@ -322,7 +322,10 @@ impl RecursiveFeatureElimination {
             });
         }
 
-        let rfe_result = self.rfe_result.as_ref().unwrap();
+        let rfe_result = self
+            .rfe_result
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.is_empty() {
             return Ok(Vec::new());
@@ -494,8 +497,14 @@ impl RecursiveFeatureElimination {
                 }
             };
 
-            let score =
-                self.calculate_score(y_val.as_slice().unwrap(), predictions.as_slice().unwrap())?;
+            let score = self.calculate_score(
+                y_val.as_slice().ok_or_else(|| {
+                    SklearsError::NumericalError("array should be contiguous".into())
+                })?,
+                predictions.as_slice().ok_or_else(|| {
+                    SklearsError::NumericalError("array should be contiguous".into())
+                })?,
+            )?;
             scores.push(score);
         }
 
@@ -712,7 +721,7 @@ mod tests {
         let result = rfe.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select 3 features
         assert_eq!(transformed[0].len(), 3);
@@ -732,7 +741,7 @@ mod tests {
         let result = rfe.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select 2 features
         assert_eq!(transformed[0].len(), 2);
@@ -765,7 +774,7 @@ mod tests {
         let result = rfe.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select 3 features
         assert_eq!(transformed[0].len(), 3);
@@ -776,13 +785,15 @@ mod tests {
         let mut rfe = RecursiveFeatureElimination::new().with_n_features_to_select(Some(3));
 
         let (x, y) = create_sample_data();
-        rfe.fit(&x, &y).unwrap();
+        rfe.fit(&x, &y).expect("model fitting should succeed");
 
-        let ranking = rfe.get_feature_ranking().unwrap();
+        let ranking = rfe.get_feature_ranking().expect("operation should succeed");
         assert_eq!(ranking.len(), 5); // 5 original features
 
         // Selected features should have rank 1
-        let selected_features = rfe.get_selected_features().unwrap();
+        let selected_features = rfe
+            .get_selected_features()
+            .expect("operation should succeed");
         for &feature_idx in selected_features {
             assert_eq!(ranking[feature_idx], 1);
         }
@@ -795,9 +806,9 @@ mod tests {
             .with_cv(Some(3));
 
         let (x, y) = create_sample_data();
-        rfe.fit(&x, &y).unwrap();
+        rfe.fit(&x, &y).expect("model fitting should succeed");
 
-        let cv_scores = rfe.get_cv_scores().unwrap();
+        let cv_scores = rfe.get_cv_scores().expect("operation should succeed");
         assert!(!cv_scores.is_empty());
 
         // Scores should be finite
@@ -826,7 +837,7 @@ mod tests {
             let result = rfe.fit_transform(&x, &y);
             assert!(result.is_ok(), "Failed with scoring metric: {:?}", scoring);
 
-            let transformed = result.unwrap();
+            let transformed = result.expect("operation should succeed");
             assert_eq!(transformed[0].len(), 3);
         }
     }
@@ -841,7 +852,7 @@ mod tests {
         let result = rfe.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should still select 2 features
         assert_eq!(transformed[0].len(), 2);
@@ -884,7 +895,7 @@ mod tests {
         let result = rfe.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select half of the features (5/2 = 2)
         assert_eq!(transformed[0].len(), 2);

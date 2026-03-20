@@ -48,7 +48,7 @@ impl InducingPointSelector {
 
         // Fisher-Yates shuffle
         for i in (1..n_samples).rev() {
-            let j = rng.gen_range(0..i + 1);
+            let j = rng.random_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -74,7 +74,7 @@ impl InducingPointSelector {
         let mut rng = thread_rng();
         let mut centroids = Array2::zeros((num_inducing, n_features));
         for i in 0..num_inducing {
-            let idx = rng.gen_range(0..n_samples);
+            let idx = rng.random_range(0..n_samples);
             centroids.row_mut(i).assign(&x.row(idx));
         }
 
@@ -232,7 +232,7 @@ impl InducingPointSelector {
 
         // Select first point randomly
         let mut rng = thread_rng();
-        let first_idx = rng.gen_range(0..remaining_indices.len());
+        let first_idx = rng.random_range(0..remaining_indices.len());
         selected_indices.push(remaining_indices.remove(first_idx));
 
         // Greedily select remaining points
@@ -541,7 +541,8 @@ mod tests {
     fn test_random_inducing_selection() {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]];
 
-        let inducing = InducingPointSelector::random_selection(&x, 3).unwrap();
+        let inducing =
+            InducingPointSelector::random_selection(&x, 3).expect("operation should succeed");
         assert_eq!(inducing.shape(), &[3, 2]);
         assert!(inducing.iter().all(|&x| x.is_finite()));
     }
@@ -550,7 +551,8 @@ mod tests {
     fn test_kmeans_inducing_selection() {
         let x = array![[0.0, 0.0], [0.1, 0.1], [5.0, 5.0], [5.1, 5.1], [10.0, 10.0]];
 
-        let inducing = InducingPointSelector::kmeans_selection(&x, 2).unwrap();
+        let inducing =
+            InducingPointSelector::kmeans_selection(&x, 2).expect("operation should succeed");
         assert_eq!(inducing.shape(), &[2, 2]);
         assert!(inducing.iter().all(|&x| x.is_finite()));
     }
@@ -560,7 +562,8 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]];
         let grid_size = vec![2, 2];
 
-        let inducing = InducingPointSelector::uniform_grid_selection(&x, &grid_size).unwrap();
+        let inducing = InducingPointSelector::uniform_grid_selection(&x, &grid_size)
+            .expect("operation should succeed");
         assert_eq!(inducing.shape(), &[4, 2]);
         assert!(inducing.iter().all(|&x| x.is_finite()));
     }
@@ -573,7 +576,8 @@ mod tests {
         let inducing_points = array![[0.0, 0.0], [2.0, 2.0]];
 
         let (alpha, k_mm_inv) =
-            SparseApproximationMethods::fit_sor(&x, &y, &inducing_points, &kernel, 0.1).unwrap();
+            SparseApproximationMethods::fit_sor(&x, &y, &inducing_points, &kernel, 0.1)
+                .expect("operation should succeed");
 
         assert_eq!(alpha.len(), 2);
         assert_eq!(k_mm_inv.shape(), &[2, 2]);
@@ -588,7 +592,8 @@ mod tests {
         let inducing_points = array![[0.0, 0.0], [2.0, 2.0]];
 
         let (alpha, k_mm_inv) =
-            SparseApproximationMethods::fit_fic(&x, &y, &inducing_points, &kernel, 0.1).unwrap();
+            SparseApproximationMethods::fit_fic(&x, &y, &inducing_points, &kernel, 0.1)
+                .expect("operation should succeed");
 
         assert_eq!(alpha.len(), 3);
         assert_eq!(k_mm_inv.shape(), &[2, 2]);

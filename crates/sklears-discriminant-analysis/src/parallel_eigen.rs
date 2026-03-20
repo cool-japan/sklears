@@ -290,7 +290,7 @@ impl ParallelEigenDecomposition {
         // For simplicity, return first eigenvector matrix
         // In a full implementation, we would need to properly merge eigenvectors
         let merged_eigenvectors = if !all_eigenvectors.is_empty() {
-            all_eigenvectors.into_iter().next().unwrap()
+            all_eigenvectors.into_iter().next().expect("empty iterator")
         } else {
             Array2::zeros((0, 0))
         };
@@ -488,7 +488,7 @@ mod tests {
         let result = decomposer.decompose(&matrix);
         assert!(result.is_ok());
 
-        let (eigenvalues, _) = result.unwrap();
+        let (eigenvalues, _) = result.expect("operation should succeed");
         // Expected eigenvalues: 3.0, 1.0 (sorted descending)
         assert_abs_diff_eq!(eigenvalues[0], 3.0, epsilon = 1e-6);
         assert_abs_diff_eq!(eigenvalues[1], 1.0, epsilon = 1e-6);
@@ -524,7 +524,7 @@ mod tests {
         let result = matrix.parallel_eigen();
         assert!(result.is_ok());
 
-        let (eigenvalues, _) = result.unwrap();
+        let (eigenvalues, _) = result.expect("operation should succeed");
         assert!(eigenvalues[0] >= eigenvalues[1]); // Should be sorted descending
     }
 }

@@ -1091,7 +1091,7 @@ mod tests {
         let predictions = model.predict(&X);
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.len(), y.len());
 
         for &p in pred.iter() {

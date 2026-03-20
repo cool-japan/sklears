@@ -455,7 +455,7 @@ impl BayesianModelAverager {
             .iter()
             .map(|(id, &weight)| (id.clone(), weight))
             .collect();
-        rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         rankings
     }
 
@@ -541,7 +541,8 @@ mod tests {
     fn test_basic_bma() {
         let models = create_test_models();
         let config = BMAConfig::default();
-        let result = bayesian_model_average(models, None, Some(config)).unwrap();
+        let result =
+            bayesian_model_average(models, None, Some(config)).expect("operation should succeed");
 
         assert_eq!(result.averaged_predictions.len(), 5);
         assert_eq!(result.prediction_variance.len(), 5);
@@ -556,7 +557,8 @@ mod tests {
         let y_true = arr1(&[0.8, 0.7, 0.8, 0.7, 0.6]);
         let config = BMAConfig::default();
 
-        let result = bayesian_model_average(models, Some(&y_true.view()), Some(config)).unwrap();
+        let result = bayesian_model_average(models, Some(&y_true.view()), Some(config))
+            .expect("operation should succeed");
 
         assert_eq!(result.averaged_predictions.len(), 5);
         assert!(result.ensemble_accuracy > 0.0);
@@ -572,7 +574,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = bayesian_model_average(models, None, Some(config)).unwrap();
+        let result =
+            bayesian_model_average(models, None, Some(config)).expect("operation should succeed");
         assert!(result.model_weights.values().all(|&w| w > 0.0));
     }
 
@@ -585,7 +588,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = bayesian_model_average(models, None, Some(config)).unwrap();
+        let result =
+            bayesian_model_average(models, None, Some(config)).expect("operation should succeed");
         assert!(result.model_weights.values().all(|&w| w >= 0.0));
     }
 
@@ -594,7 +598,9 @@ mod tests {
         let models = create_test_models();
         let config = BMAConfig::default();
         let mut averager = BayesianModelAverager::new(config);
-        averager.add_models(models).unwrap();
+        averager
+            .add_models(models)
+            .expect("operation should succeed");
 
         let initial_count = averager.models.len();
         let pruned = averager.prune_models(0.1);
@@ -633,10 +639,16 @@ mod tests {
         };
 
         let mut averager = BayesianModelAverager::new(config);
-        averager = averager.with_prior_weights(prior_weights).unwrap();
-        averager.add_models(models).unwrap();
+        averager = averager
+            .with_prior_weights(prior_weights)
+            .expect("operation should succeed");
+        averager
+            .add_models(models)
+            .expect("operation should succeed");
 
-        let result = averager.compute_average(None).unwrap();
+        let result = averager
+            .compute_average(None)
+            .expect("operation should succeed");
         assert!(result.model_weights.values().all(|&w| w >= 0.0));
     }
 }

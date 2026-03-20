@@ -139,40 +139,74 @@ pub type TrainedDiagonalLinearDiscriminantAnalysis = DiagonalLinearDiscriminantA
 
 impl DiagonalLinearDiscriminantAnalysis<Trained> {
     pub fn class_means(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().class_means
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .class_means
     }
 
     pub fn diagonal_covariance(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().diagonal_covariance
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .diagonal_covariance
     }
 
     pub fn class_priors(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().class_priors
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .class_priors
     }
 
     pub fn classes(&self) -> &Array1<i32> {
-        &self.data.as_ref().unwrap().classes
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .classes
     }
 
     pub fn n_features(&self) -> usize {
-        self.data.as_ref().unwrap().n_features
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .n_features
     }
 
     pub fn feature_scales(&self) -> Option<&Array1<Float>> {
-        self.data.as_ref().unwrap().feature_scales.as_ref()
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .feature_scales
+            .as_ref()
     }
 
     pub fn feature_means(&self) -> Option<&Array1<Float>> {
-        self.data.as_ref().unwrap().feature_means.as_ref()
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .feature_means
+            .as_ref()
     }
 
     pub fn selected_features(&self) -> Option<&Array1<bool>> {
-        self.data.as_ref().unwrap().selected_features.as_ref()
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .selected_features
+            .as_ref()
     }
 
     /// Get the discriminant function coefficients for each class
     pub fn discriminant_coefficients(&self) -> Array2<Float> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let n_classes = data.classes.len();
         let n_features = data.n_features;
         let mut coefficients = Array2::zeros((n_classes, n_features));
@@ -190,7 +224,10 @@ impl DiagonalLinearDiscriminantAnalysis<Trained> {
 
     /// Get the discriminant intercepts for each class
     pub fn discriminant_intercepts(&self) -> Array1<Float> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let n_classes = data.classes.len();
         let mut intercepts = Array1::zeros(n_classes);
 
@@ -211,18 +248,23 @@ impl DiagonalLinearDiscriminantAnalysis<Trained> {
 
     /// Compute feature importance scores
     pub fn feature_importance(&self) -> Array1<Float> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let n_features = data.n_features;
         let mut importance = Array1::zeros(n_features);
 
         for j in 0..n_features {
             // Compute variance of class means for this feature
             let means_j: Array1<Float> = data.class_means.column(j).to_owned();
-            let mean_of_means = means_j.mean().unwrap();
+            let mean_of_means = means_j
+                .mean()
+                .expect("mean should not fail on non-empty array");
             let between_class_var = means_j
                 .mapv(|x| (x - mean_of_means).powi(2))
                 .mean()
-                .unwrap();
+                .expect("value should be present");
 
             // Feature importance is between-class variance / within-class variance
             importance[j] = between_class_var / data.diagonal_covariance[j];
@@ -277,7 +319,9 @@ impl Fit<Array2<Float>, Array1<i32>> for DiagonalLinearDiscriminantAnalysis<Untr
 
         // Feature normalization
         if self.config.normalize_features {
-            let means = x.mean_axis(Axis(0)).unwrap();
+            let means = x
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
             let stds = self.compute_feature_stds(x, &means);
 
             for (_i, mut sample) in x_processed.axis_iter_mut(Axis(0)).enumerate() {
@@ -398,7 +442,10 @@ impl DiagonalLinearDiscriminantAnalysis<Untrained> {
 impl DiagonalLinearDiscriminantAnalysis<Trained> {
     /// Preprocess input data according to training normalization
     fn preprocess_input(&self, x: &Array2<Float>) -> Array2<Float> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let mut x_processed = x.clone();
 
         if let (Some(means), Some(scales)) = (&data.feature_means, &data.feature_scales) {
@@ -414,7 +461,10 @@ impl DiagonalLinearDiscriminantAnalysis<Trained> {
 
     /// Apply feature selection if enabled
     fn apply_feature_selection(&self, x: &Array2<Float>) -> Array2<Float> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
 
         if let Some(feature_mask) = &data.selected_features {
             let selected_indices: Vec<usize> = feature_mask
@@ -443,7 +493,7 @@ impl Predict<Array2<Float>, Array1<i32>> for DiagonalLinearDiscriminantAnalysis<
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes()[max_idx];
         }
@@ -455,7 +505,10 @@ impl Predict<Array2<Float>, Array1<i32>> for DiagonalLinearDiscriminantAnalysis<
 impl PredictProba<Array2<Float>, Array2<Float>> for DiagonalLinearDiscriminantAnalysis<Trained> {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features_input) = x.dim();
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
 
         // Check input dimensions before preprocessing
         if n_features_input != data.n_features {
@@ -511,7 +564,10 @@ impl PredictProba<Array2<Float>, Array2<Float>> for DiagonalLinearDiscriminantAn
 
 impl Transform<Array2<Float>, Array2<Float>> for DiagonalLinearDiscriminantAnalysis<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let (n_samples, n_features_input) = x.dim();
 
         if n_features_input != data.n_features {
@@ -560,8 +616,8 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new();
-        let fitted = dlda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -574,8 +630,10 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new();
-        let fitted = dlda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -592,8 +650,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new().reg_param(0.1);
-        let fitted = dlda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -605,8 +663,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new().normalize_features(true);
-        let fitted = dlda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -620,8 +678,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new();
-        let fitted = dlda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 2));
     }
@@ -632,7 +690,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new();
-        let fitted = dlda.fit(&x, &y).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
         let coefficients = fitted.discriminant_coefficients();
         let intercepts = fitted.discriminant_intercepts();
 
@@ -651,7 +709,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new();
-        let fitted = dlda.fit(&x, &y).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
         let importance = fitted.feature_importance();
 
         assert_eq!(importance.len(), 3);
@@ -673,12 +731,12 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new().feature_threshold(Some(1e-5));
-        let fitted = dlda.fit(&x, &y).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
 
         // Feature selection should remove the low-variance feature
         assert!(fitted.selected_features().is_some());
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -688,7 +746,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new();
-        let fitted = dlda.fit(&x, &y).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
         let diag_cov = fitted.diagonal_covariance();
 
         assert_eq!(diag_cov.len(), 2);
@@ -708,9 +766,11 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let dlda = DiagonalLinearDiscriminantAnalysis::new();
-        let fitted = dlda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = dlda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 3);

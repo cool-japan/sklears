@@ -193,7 +193,7 @@ impl DtwDistance {
             let (_, (new_i, new_j)) = costs
                 .iter()
                 .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap();
+                .expect("operation should succeed");
 
             i = *new_i;
             j = *new_j;
@@ -390,7 +390,7 @@ impl ShapeletDiscovery {
         }
 
         // Compute information gain using class labels
-        let labels = labels.unwrap();
+        let labels = labels.expect("operation should succeed");
         let mut class_distances: HashMap<usize, Vec<Float>> = HashMap::new();
 
         for (i, &label) in labels.iter().enumerate() {
@@ -808,7 +808,9 @@ mod tests {
         let shapelet = Shapelet::new(shapelet_data, 0, 0.5);
 
         let time_series = create_test_time_series();
-        let (position, distance) = shapelet.best_match(&time_series.view()).unwrap();
+        let (position, distance) = shapelet
+            .best_match(&time_series.view())
+            .expect("operation should succeed");
 
         assert!(position < time_series.len());
         assert!(distance >= 0.0);
@@ -823,7 +825,7 @@ mod tests {
                 4.0, 5.0, 4.0, 3.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let labels = Array1::from_vec(vec![0, 1]);
         let discovery = ShapeletDiscovery::new(3, 5);
@@ -843,9 +845,11 @@ mod tests {
                 4.0, 5.0, 4.0, 3.0, 3.0, 4.0, 5.0, 4.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let (indices, distances) = search.find_neighbors(&query.view(), &db.view(), 2).unwrap();
+        let (indices, distances) = search
+            .find_neighbors(&query.view(), &db.view(), 2)
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 2);
         assert_eq!(distances.len(), 2);
     }
@@ -861,12 +865,12 @@ mod tests {
                 4.0, 5.0, 4.0, 3.0, 3.0, 4.0, 5.0, 4.0, 3.0, 4.0, 5.0, 6.0, 5.0, 4.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let timestamps = Array1::from_vec(vec![1.0, 2.0, 10.0]);
 
         let (indices, distances) = search
             .find_neighbors_in_window(&query.view(), &db.view(), &timestamps.view(), 1.5, 1.0)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(indices.len(), 2); // Only first two should be in window
         assert_eq!(distances.len(), 2);

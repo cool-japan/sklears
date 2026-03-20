@@ -24,7 +24,7 @@ where
 
     let mean_predictions = all_predictions
         .mean_axis(scirs2_core::ndarray::Axis(0))
-        .unwrap();
+        .expect("operation should succeed");
     let uncertainties = all_predictions.var_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
     Ok((mean_predictions, uncertainties))

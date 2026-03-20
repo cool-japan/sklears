@@ -467,7 +467,9 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let initializer = WeightInitializer::<f64>::xavier_uniform();
 
-        let weights = initializer.initialize_2d(&mut rng, (100, 50)).unwrap();
+        let weights = initializer
+            .initialize_2d(&mut rng, (100, 50))
+            .expect("operation should succeed");
 
         // Check shape
         assert_eq!(weights.dim(), (100, 50));
@@ -482,8 +484,11 @@ mod tests {
         }
 
         // Check approximate mean and variance
-        let mean = weights.mean().unwrap();
-        let variance = weights.mapv(|x| (x - mean) * (x - mean)).mean().unwrap();
+        let mean = weights.mean().expect("operation should succeed");
+        let variance = weights
+            .mapv(|x| (x - mean) * (x - mean))
+            .mean()
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(mean, 0.0, epsilon = 0.1);
         assert!(variance > 0.001); // Should have some variance
@@ -494,7 +499,9 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let initializer = WeightInitializer::<f64>::he_normal();
 
-        let weights = initializer.initialize_2d(&mut rng, (128, 64)).unwrap();
+        let weights = initializer
+            .initialize_2d(&mut rng, (128, 64))
+            .expect("operation should succeed");
 
         // Check shape
         assert_eq!(weights.dim(), (128, 64));
@@ -503,8 +510,11 @@ mod tests {
         let fan_in = 128;
         let expected_variance = 2.0 / fan_in as f64;
 
-        let mean = weights.mean().unwrap();
-        let actual_variance = weights.mapv(|x| (x - mean) * (x - mean)).mean().unwrap();
+        let mean = weights.mean().expect("operation should succeed");
+        let actual_variance = weights
+            .mapv(|x| (x - mean) * (x - mean))
+            .mean()
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(mean, 0.0, epsilon = 0.1);
         assert_abs_diff_eq!(actual_variance, expected_variance, epsilon = 0.01);
@@ -515,7 +525,9 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let initializer = WeightInitializer::<f64>::orthogonal();
 
-        let weights = initializer.initialize_2d(&mut rng, (10, 10)).unwrap();
+        let weights = initializer
+            .initialize_2d(&mut rng, (10, 10))
+            .expect("operation should succeed");
 
         // Check shape
         assert_eq!(weights.dim(), (10, 10));
@@ -550,7 +562,9 @@ mod tests {
             high: 2.0,
         });
 
-        let weights = initializer.initialize_2d(&mut rng, (100, 100)).unwrap();
+        let weights = initializer
+            .initialize_2d(&mut rng, (100, 100))
+            .expect("operation should succeed");
 
         // Check that all values are within bounds
         for &val in weights.iter() {
@@ -558,7 +572,7 @@ mod tests {
         }
 
         // Check approximate mean
-        let mean = weights.mean().unwrap();
+        let mean = weights.mean().expect("operation should succeed");
         assert_abs_diff_eq!(mean, 0.0, epsilon = 0.2);
     }
 
@@ -567,8 +581,12 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let initializer = WeightInitializer::<f64>::zeros();
 
-        let weights = initializer.initialize_2d(&mut rng, (50, 30)).unwrap();
-        let biases = initializer.initialize_1d(&mut rng, 30).unwrap();
+        let weights = initializer
+            .initialize_2d(&mut rng, (50, 30))
+            .expect("operation should succeed");
+        let biases = initializer
+            .initialize_1d(&mut rng, 30)
+            .expect("operation should succeed");
 
         // Check that all values are zero
         for &val in weights.iter() {
@@ -585,7 +603,9 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let initializer = WeightInitializer::<f64>::uniform(-0.5, 0.5);
 
-        let weights = initializer.initialize_2d(&mut rng, (100, 50)).unwrap();
+        let weights = initializer
+            .initialize_2d(&mut rng, (100, 50))
+            .expect("operation should succeed");
 
         // Check that all values are within bounds
         for &val in weights.iter() {
@@ -593,7 +613,7 @@ mod tests {
         }
 
         // Check approximate mean (should be close to 0 for symmetric range)
-        let mean = weights.mean().unwrap();
+        let mean = weights.mean().expect("operation should succeed");
         assert_abs_diff_eq!(mean, 0.0, epsilon = 0.1);
     }
 
@@ -606,14 +626,19 @@ mod tests {
             distribution: ScalingDistribution::Normal,
         });
 
-        let weights = initializer.initialize_2d(&mut rng, (100, 50)).unwrap();
+        let weights = initializer
+            .initialize_2d(&mut rng, (100, 50))
+            .expect("operation should succeed");
 
         // Check variance
         let fan_in = 100;
         let expected_variance = 2.0 / fan_in as f64;
 
-        let mean = weights.mean().unwrap();
-        let actual_variance = weights.mapv(|x| (x - mean) * (x - mean)).mean().unwrap();
+        let mean = weights.mean().expect("operation should succeed");
+        let actual_variance = weights
+            .mapv(|x| (x - mean) * (x - mean))
+            .mean()
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(mean, 0.0, epsilon = 0.1);
         assert_abs_diff_eq!(actual_variance, expected_variance, epsilon = 0.005);
@@ -625,7 +650,9 @@ mod tests {
 
         // Test zeros bias initialization (default for most strategies)
         let initializer = WeightInitializer::<f64>::xavier_uniform();
-        let biases = initializer.initialize_1d(&mut rng, 10).unwrap();
+        let biases = initializer
+            .initialize_1d(&mut rng, 10)
+            .expect("operation should succeed");
 
         for &val in biases.iter() {
             assert_eq!(val, 0.0);
@@ -633,7 +660,9 @@ mod tests {
 
         // Test custom bias initialization
         let initializer = WeightInitializer::<f64>::uniform(-0.1, 0.1);
-        let biases = initializer.initialize_1d(&mut rng, 10).unwrap();
+        let biases = initializer
+            .initialize_1d(&mut rng, 10)
+            .expect("operation should succeed");
 
         for &val in biases.iter() {
             assert!(val >= -0.1 && val <= 0.1);

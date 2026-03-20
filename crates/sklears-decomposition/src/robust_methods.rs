@@ -8,7 +8,7 @@
 //! - Influence function diagnostics
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, RandNormal, Rng};
+use scirs2_core::random::{thread_rng, RandNormal};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -149,7 +149,7 @@ impl RobustPCA {
         let mut rng = thread_rng();
         let mut components = Array2::zeros((n_components, n_features));
         for elem in components.iter_mut() {
-            *elem = rng.sample(RandNormal::new(0.0, 1.0).unwrap());
+            *elem = rng.sample(RandNormal::new(0.0, 1.0).expect("sampling should succeed"));
         }
 
         // Orthogonalize initial components
@@ -234,7 +234,9 @@ impl RobustPCA {
     /// Compute robust mean using iterative M-estimator
     fn compute_robust_mean(&self, data: &Array2<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = data.dim();
-        let mut mean = data.mean_axis(Axis(0)).unwrap();
+        let mut mean = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         for _ in 0..self.config.max_iterations {
             let mut new_mean = Array1::zeros(n_features);
@@ -433,7 +435,7 @@ impl RobustPCA {
         // Use median absolute deviation (MAD) as robust variance estimate
         let median = self.compute_median(data);
         let mut abs_deviations: Vec<Float> = data.iter().map(|&x| (x - median).abs()).collect();
-        abs_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        abs_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let mad = if abs_deviations.len() % 2 == 0 {
             let mid = abs_deviations.len() / 2;
@@ -449,7 +451,7 @@ impl RobustPCA {
     /// Compute median of 1D array
     fn compute_median(&self, data: &Array1<Float>) -> Float {
         let mut sorted_data: Vec<Float> = data.iter().cloned().collect();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_data.len();
         if n % 2 == 0 {
@@ -590,10 +592,10 @@ impl MEstimatorDecomposition {
 
         // Fill with normal random values
         for elem in u.iter_mut() {
-            *elem = rng.sample(RandNormal::new(0.0, 1.0).unwrap());
+            *elem = rng.sample(RandNormal::new(0.0, 1.0).expect("sampling should succeed"));
         }
         for elem in v.iter_mut() {
-            *elem = rng.sample(RandNormal::new(0.0, 1.0).unwrap());
+            *elem = rng.sample(RandNormal::new(0.0, 1.0).expect("sampling should succeed"));
         }
 
         // Iterative M-estimator updates
@@ -839,7 +841,9 @@ impl BreakdownPointAnalysis {
         let mut contaminated_data = data.clone();
 
         // Generate outliers at large distances from the data center
-        let data_center = data.mean_axis(Axis(0)).unwrap();
+        let data_center = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let data_scale = self.estimate_scale(data);
         let mut rng = thread_rng();
 
@@ -847,7 +851,7 @@ impl BreakdownPointAnalysis {
             for j in 0..n_features {
                 // Place outliers at 10 times the data scale
                 contaminated_data[[i, j]] =
-                    data_center[j] + 10.0 * data_scale * (2.0 * (rng.gen::<Float>()) - 1.0);
+                    data_center[j] + 10.0 * data_scale * (2.0 * (rng.random::<Float>()) - 1.0);
             }
         }
 
@@ -856,7 +860,9 @@ impl BreakdownPointAnalysis {
 
     /// Estimate data scale using MAD
     fn estimate_scale(&self, data: &Array2<Float>) -> Float {
-        let center = data.mean_axis(Axis(0)).unwrap();
+        let center = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let distances: Vec<Float> = data
             .axis_iter(Axis(0))
             .map(|row| {
@@ -867,7 +873,7 @@ impl BreakdownPointAnalysis {
 
         // Compute median of distances
         let mut sorted_distances = distances;
-        sorted_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_distances.len();
         if n % 2 == 0 {
@@ -882,7 +888,9 @@ impl BreakdownPointAnalysis {
         let (n_samples, n_features) = data.dim();
 
         // Center data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let centered_data = data - &mean.view().insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -987,10 +995,10 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 2.0, 3.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut rpca = RobustPCA::new().n_components(2);
-        let result = rpca.fit_transform(&data).unwrap();
+        let result = rpca.fit_transform(&data).expect("operation should succeed");
 
         assert_eq!(result.transformed_data.dim(), (4, 2));
         assert_eq!(result.components.dim(), (2, 3));
@@ -1007,13 +1015,13 @@ mod tests {
                 100.0, // Clear outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut rpca = RobustPCA::new()
             .n_components(2)
             .loss_function(LossFunction::Tukey);
 
-        let result = rpca.fit_transform(&data).unwrap();
+        let result = rpca.fit_transform(&data).expect("operation should succeed");
 
         // Check that outlier has low weights
         let outlier_weights = result.outlier_weights.row(4);
@@ -1032,13 +1040,13 @@ mod tests {
     fn test_m_estimator_decomposition() {
         let matrix =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let m_est = MEstimatorDecomposition::new()
             .rank(2)
             .loss_function(LossFunction::Huber);
 
-        let result = m_est.decompose(&matrix).unwrap();
+        let result = m_est.decompose(&matrix).expect("operation should succeed");
 
         assert_eq!(result.u_factor.dim(), (3, 2));
         assert_eq!(result.v_factor.dim(), (3, 2));
@@ -1071,14 +1079,14 @@ mod tests {
                 30.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let breakdown_analysis = BreakdownPointAnalysis::new();
         let contamination_levels = vec![0.1, 0.2, 0.3];
 
         let result = breakdown_analysis
             .empirical_breakdown_point(&data, &contamination_levels)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(
             result.contamination_levels.len(),
@@ -1099,10 +1107,12 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 2.0, 3.0, 100.0, 100.0, // Outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let rpca = RobustPCA::new();
-        let robust_mean = rpca.compute_robust_mean(&data).unwrap();
+        let robust_mean = rpca
+            .compute_robust_mean(&data)
+            .expect("operation should succeed");
 
         // Robust mean should be less affected by the outlier
         assert!(robust_mean[0] < 50.0); // Should be much less than simple mean
@@ -1115,12 +1125,14 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 2.0, 3.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut rpca = RobustPCA::new().n_components(2);
-        let result = rpca.fit_transform(&data).unwrap();
+        let result = rpca.fit_transform(&data).expect("operation should succeed");
 
-        let errors = result.reconstruction_error(&data).unwrap();
+        let errors = result
+            .reconstruction_error(&data)
+            .expect("operation should succeed");
         assert_eq!(errors.len(), 4);
 
         // All errors should be non-negative

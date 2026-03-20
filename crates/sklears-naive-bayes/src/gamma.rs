@@ -198,10 +198,17 @@ impl Fit<Array2<Float>, Array1<i32>> for GammaNB<Untrained> {
 impl GammaNB<Trained> {
     /// Compute the unnormalized posterior log probability of X
     fn joint_log_likelihood(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
-        let shape = self.shape_.as_ref().unwrap();
-        let scale = self.scale_.as_ref().unwrap();
-        let class_prior = self.class_prior_.as_ref().unwrap();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let shape = self.shape_.as_ref().expect("operation should succeed");
+        let scale = self.scale_.as_ref().expect("operation should succeed");
+        let class_prior = self
+            .class_prior_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let n_samples = x.nrows();
 
         let mut joint_log_likelihood = Array2::zeros((n_samples, n_classes));
@@ -245,14 +252,14 @@ impl GammaNB<Trained> {
 impl Predict<Array2<Float>, Array1<i32>> for GammaNB<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
         let log_prob = self.joint_log_likelihood(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Find the class with maximum log probability for each sample
         Ok(log_prob.map_axis(Axis(1), |row| {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             classes[max_idx]
@@ -264,7 +271,11 @@ impl PredictProba<Array2<Float>, Array2<f64>> for GammaNB<Trained> {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
         let log_prob = self.joint_log_likelihood(x)?;
         let n_samples = x.nrows();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut proba = Array2::zeros((n_samples, n_classes));
 
         // Normalize to get probabilities
@@ -307,16 +318,18 @@ impl Score<Array2<Float>, Array1<i32>> for GammaNB<Trained> {
 
 impl NaiveBayesMixin for GammaNB<Trained> {
     fn class_log_prior(&self) -> &Array1<f64> {
-        self.class_prior_.as_ref().unwrap()
+        self.class_prior_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     fn feature_log_prob(&self) -> &Array2<f64> {
         // For Gamma NB, return shape parameters as a proxy
-        self.shape_.as_ref().unwrap()
+        self.shape_.as_ref().expect("operation should succeed")
     }
 
     fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 }
 
@@ -429,14 +442,16 @@ mod tests {
         ];
         let y = array![0, 0, 0, 0, 1, 1, 1, 1];
 
-        let model = GammaNB::new().fit(&x, &y).unwrap();
+        let model = GammaNB::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
 
         // Test predictions
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
 
         // Test score
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("operation should succeed");
         assert!(score > 0.5); // Should perform reasonably well
     }
 
@@ -445,8 +460,10 @@ mod tests {
         let x = array![[1.0, 1.0], [2.0, 2.0], [0.5, 0.5], [1.5, 1.5]];
         let y = array![0, 0, 1, 1];
 
-        let model = GammaNB::new().fit(&x, &y).unwrap();
-        let proba = model.predict_proba(&x).unwrap();
+        let model = GammaNB::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
+        let proba = model.predict_proba(&x).expect("operation should succeed");
 
         // Check that probabilities sum to 1
         for i in 0..x.nrows() {
@@ -468,10 +485,13 @@ mod tests {
 
         // Set custom priors
         let priors = array![0.3, 0.7];
-        let model = GammaNB::new().priors(priors).fit(&x, &y).unwrap();
+        let model = GammaNB::new()
+            .priors(priors)
+            .fit(&x, &y)
+            .expect("operation should succeed");
 
         // The model should still work with custom priors
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
     }
 

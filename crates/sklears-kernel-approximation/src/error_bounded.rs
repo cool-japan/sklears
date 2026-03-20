@@ -344,7 +344,7 @@ impl ErrorBoundedRBFSampler {
         _n_components: usize,
     ) -> Result<ErrorBound> {
         let mut sorted_errors = trial_errors.to_vec();
-        sorted_errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_errors.len();
         let alpha = 1.0 - confidence;
@@ -678,7 +678,7 @@ mod tests {
     #[test]
     fn test_error_bounded_rbf_sampler() {
         let x = Array2::from_shape_vec((100, 4), (0..400).map(|i| (i as f64) * 0.01).collect())
-            .unwrap();
+            .expect("operation should succeed");
 
         let config = ErrorBoundedConfig {
             max_error: 0.5,
@@ -691,8 +691,8 @@ mod tests {
 
         let sampler = ErrorBoundedRBFSampler::new().gamma(0.5).config(config);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 100);
         assert!(fitted.n_components() >= 10);
@@ -703,8 +703,8 @@ mod tests {
 
     #[test]
     fn test_error_bounded_nystroem() {
-        let x =
-            Array2::from_shape_vec((80, 3), (0..240).map(|i| (i as f64) * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((80, 3), (0..240).map(|i| (i as f64) * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = ErrorBoundedConfig {
             max_error: 0.3,
@@ -717,8 +717,8 @@ mod tests {
 
         let nystroem = ErrorBoundedNystroem::new().gamma(1.0).config(config);
 
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 80);
         assert!(fitted.n_components() >= 5);
@@ -728,8 +728,8 @@ mod tests {
 
     #[test]
     fn test_error_bound_methods() {
-        let x =
-            Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.05).collect())
+            .expect("operation should succeed");
 
         let methods = vec![
             ErrorBoundMethod::SpectralBound,
@@ -753,7 +753,7 @@ mod tests {
 
             let sampler = ErrorBoundedRBFSampler::new().gamma(0.8).config(config);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
             let error_bound = fitted.error_bound();
 
             assert!(error_bound.upper_bound >= error_bound.lower_bound);
@@ -764,8 +764,8 @@ mod tests {
 
     #[test]
     fn test_bound_satisfaction() {
-        let x =
-            Array2::from_shape_vec((40, 3), (0..120).map(|i| (i as f64) * 0.03).collect()).unwrap();
+        let x = Array2::from_shape_vec((40, 3), (0..120).map(|i| (i as f64) * 0.03).collect())
+            .expect("operation should succeed");
 
         let config = ErrorBoundedConfig {
             max_error: 0.2,
@@ -778,7 +778,7 @@ mod tests {
 
         let sampler = ErrorBoundedRBFSampler::new().gamma(0.3).config(config);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
 
         // The fitted sampler should have computed an error bound
         let actual_bound = fitted.error_bound().upper_bound;
@@ -796,12 +796,14 @@ mod tests {
 
     #[test]
     fn test_min_components_search() {
-        let x =
-            Array2::from_shape_vec((60, 4), (0..240).map(|i| (i as f64) * 0.01).collect()).unwrap();
+        let x = Array2::from_shape_vec((60, 4), (0..240).map(|i| (i as f64) * 0.01).collect())
+            .expect("operation should succeed");
 
         let sampler = ErrorBoundedRBFSampler::new().gamma(0.5).max_error(0.3);
 
-        let (n_components, error_bound) = sampler.find_min_components(&x).unwrap();
+        let (n_components, error_bound) = sampler
+            .find_min_components(&x)
+            .expect("operation should succeed");
 
         assert!(n_components >= sampler.config.min_components);
         assert!(n_components <= sampler.config.max_components);
@@ -812,8 +814,8 @@ mod tests {
 
     #[test]
     fn test_reproducibility() {
-        let x =
-            Array2::from_shape_vec((50, 3), (0..150).map(|i| (i as f64) * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 3), (0..150).map(|i| (i as f64) * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = ErrorBoundedConfig {
             max_error: 0.25,
@@ -831,8 +833,8 @@ mod tests {
 
         let sampler2 = ErrorBoundedRBFSampler::new().gamma(0.7).config(config);
 
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
 
         // The key reproducibility requirement is that we get the same number of components
         assert_eq!(fitted1.n_components(), fitted2.n_components());

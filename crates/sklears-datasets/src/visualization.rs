@@ -885,9 +885,9 @@ mod tests {
     #[cfg(not(feature = "visualization"))]
     #[test]
     fn test_visualization_disabled() {
-        let (features, targets) = make_classification(50, 2, 2, 0, 2, Some(42)).unwrap();
+        let (features, targets) = make_classification(50, 2, 2, 0, 2, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test.png");
 
         let result = plot_2d_classification(&file_path, &features, &targets, None);
@@ -898,9 +898,9 @@ mod tests {
     #[cfg(feature = "visualization")]
     #[test]
     fn test_2d_classification_plot() {
-        let (features, targets) = make_classification(100, 2, 2, 0, 2, Some(42)).unwrap();
+        let (features, targets) = make_classification(100, 2, 2, 0, 2, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_classification.png");
 
         let config = PlotConfig {
@@ -918,9 +918,9 @@ mod tests {
     #[cfg(feature = "visualization")]
     #[test]
     fn test_2d_regression_plot() {
-        let (features, targets) = make_regression(100, 2, 1, 0.1, Some(42)).unwrap();
+        let (features, targets) = make_regression(100, 2, 1, 0.1, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_regression.png");
 
         let result = plot_2d_regression(&file_path, &features, &targets, None);
@@ -931,10 +931,10 @@ mod tests {
     #[cfg(feature = "visualization")]
     #[test]
     fn test_feature_distributions_plot() {
-        let (features, _) = make_blobs(200, 3, 2, 1.0, Some(42)).unwrap();
+        let (features, _) = make_blobs(200, 3, 2, 1.0, Some(42)).expect("operation should succeed");
         let feature_names = vec!["F1".to_string(), "F2".to_string(), "F3".to_string()];
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_distributions.png");
 
         let result = plot_feature_distributions(&file_path, &features, Some(&feature_names), None);
@@ -945,7 +945,7 @@ mod tests {
     #[cfg(feature = "visualization")]
     #[test]
     fn test_correlation_matrix_plot() {
-        let (features, _) = make_classification(100, 4, 3, 1, 3, Some(42)).unwrap();
+        let (features, _) = make_classification(100, 4, 3, 1, 3, Some(42)).expect("operation should succeed");
         let feature_names = vec![
             "Feature1".to_string(),
             "Feature2".to_string(),
@@ -953,7 +953,7 @@ mod tests {
             "Feature4".to_string(),
         ];
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_correlation.png");
 
         let config = PlotConfig {
@@ -977,7 +977,7 @@ mod tests {
         metrics.insert("Accuracy".to_string(), 0.86);
         metrics.insert("Overall".to_string(), 0.90);
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_quality.png");
 
         let config = PlotConfig {
@@ -993,10 +993,10 @@ mod tests {
     #[cfg(feature = "visualization")]
     #[test]
     fn test_dataset_comparison_plot() {
-        let (features1, targets1) = make_blobs(100, 2, 3, 1.0, Some(42)).unwrap();
-        let (features2, targets2) = make_blobs(100, 2, 3, 1.2, Some(24)).unwrap();
+        let (features1, targets1) = make_blobs(100, 2, 3, 1.0, Some(42)).expect("operation should succeed");
+        let (features2, targets2) = make_blobs(100, 2, 3, 1.2, Some(24)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_comparison.png");
 
         let config = PlotConfig {
@@ -1018,9 +1018,9 @@ mod tests {
     #[test]
     fn test_error_handling() {
         // Test with insufficient features
-        let (features, targets) = make_blobs(50, 1, 2, 1.0, Some(42)).unwrap();
+        let (features, targets) = make_blobs(50, 1, 2, 1.0, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_error.png");
 
         let result = plot_2d_classification(&file_path, &features, &targets, None);

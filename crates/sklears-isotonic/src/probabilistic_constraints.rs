@@ -216,7 +216,7 @@ impl Fit<Array1<Float>, Array1<Float>> for ProbabilisticIsotonicRegression<Untra
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Vec<Float> = indices.iter().map(|&i| x[i]).collect();
         let sorted_y: Vec<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -788,13 +788,13 @@ mod tests {
             .add_constraint(constraint)
             .enforcement(ConstraintEnforcement::SoftPenalty);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         assert_eq!(fitted_y.len(), 5);
 
         // Constraints should be mostly satisfied
-        let violations = fitted_model.constraint_violations().unwrap();
+        let violations = fitted_model.constraint_violations().expect("operation should succeed");
         let total_violation = violations.sum();
         assert!(total_violation >= 0.0); // Non-negative violations
     }
@@ -816,13 +816,13 @@ mod tests {
             .enforcement(ConstraintEnforcement::ChanceConstraint)
             .n_samples(100);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         assert_eq!(fitted_y.len(), 4);
 
         // Check that we can get confidence intervals
-        let intervals = fitted_model.confidence_intervals().unwrap();
+        let intervals = fitted_model.confidence_intervals().expect("operation should succeed");
         assert_eq!(intervals.shape(), &[4, 2]);
 
         // Lower bounds should be less than upper bounds
@@ -838,10 +838,10 @@ mod tests {
 
         let model = ProbabilisticIsotonicRegression::new().probabilistic_monotonic(true, 0.95, 0.1);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         let x_new = Array1::from(vec![1.5, 2.5, 3.5]);
-        let (predictions, uncertainty) = fitted_model.predict_with_uncertainty(&x_new).unwrap();
+        let (predictions, uncertainty) = fitted_model.predict_with_uncertainty(&x_new).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(uncertainty.shape(), &[3, 2]);
@@ -869,13 +869,13 @@ mod tests {
             .add_constraint(constraint)
             .enforcement(ConstraintEnforcement::SoftPenalty);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let violation_score = fitted_model.violation_score().unwrap();
+        let violation_score = fitted_model.violation_score().expect("operation should succeed");
         assert!(violation_score >= 0.0);
 
         // With highly non-monotonic data, constraints likely won't be perfectly satisfied
-        let satisfied = fitted_model.constraints_satisfied().unwrap();
+        let satisfied = fitted_model.constraints_satisfied().expect("operation should succeed");
         // This might be true or false depending on the optimization
     }
 
@@ -903,8 +903,8 @@ mod tests {
             .add_constraints(constraints)
             .enforcement(ConstraintEnforcement::SoftPenalty);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         assert_eq!(fitted_y.len(), 6);
     }
@@ -929,7 +929,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let (fitted_x, fitted_y, violations, confidence_intervals) = result.unwrap();
+        let (fitted_x, fitted_y, violations, confidence_intervals) = result.expect("operation should succeed");
         assert_eq!(fitted_x.len(), 4);
         assert_eq!(fitted_y.len(), 4);
         assert_eq!(violations.len(), 4);

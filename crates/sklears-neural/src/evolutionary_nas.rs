@@ -456,7 +456,9 @@ impl EvolutionaryNAS {
                 .map(|f| f.score(&self.config.fitness_weights))
                 .unwrap_or(f64::NEG_INFINITY);
 
-            score_b.partial_cmp(&score_a).unwrap()
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Update best individual
@@ -466,9 +468,9 @@ impl EvolutionaryNAS {
                     > self
                         .best_individual
                         .as_ref()
-                        .unwrap()
+                        .expect("value should be present")
                         .fitness
-                        .unwrap()
+                        .expect("value should be present")
                         .score(&self.config.fitness_weights)
             {
                 self.best_individual = Some(self.population[0].clone());
@@ -688,7 +690,7 @@ mod tests {
             individual.set_fitness(fitness);
         }
 
-        nas.evolve_generation().unwrap();
+        nas.evolve_generation().expect("operation should succeed");
 
         assert_eq!(nas.get_generation(), 1);
         assert_eq!(nas.population.len(), 10);
@@ -709,7 +711,7 @@ mod tests {
             individual.set_fitness(fitness);
         }
 
-        nas.evolve_generation().unwrap();
+        nas.evolve_generation().expect("operation should succeed");
 
         assert!(nas.get_best_individual().is_some());
     }

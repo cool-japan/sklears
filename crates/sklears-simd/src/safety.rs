@@ -530,10 +530,22 @@ mod tests {
 
     #[test]
     fn test_safe_arithmetic() {
-        assert_eq!(SafeSimdOps::safe_add_f32(2.0, 3.0).unwrap(), 5.0);
-        assert_eq!(SafeSimdOps::safe_sub_f32(5.0, 3.0).unwrap(), 2.0);
-        assert_eq!(SafeSimdOps::safe_mul_f32(3.0, 4.0).unwrap(), 12.0);
-        assert_eq!(SafeSimdOps::safe_div_f32(12.0, 4.0).unwrap(), 3.0);
+        assert_eq!(
+            SafeSimdOps::safe_add_f32(2.0, 3.0).expect("operation should succeed"),
+            5.0
+        );
+        assert_eq!(
+            SafeSimdOps::safe_sub_f32(5.0, 3.0).expect("operation should succeed"),
+            2.0
+        );
+        assert_eq!(
+            SafeSimdOps::safe_mul_f32(3.0, 4.0).expect("operation should succeed"),
+            12.0
+        );
+        assert_eq!(
+            SafeSimdOps::safe_div_f32(12.0, 4.0).expect("operation should succeed"),
+            3.0
+        );
 
         assert!(SafeSimdOps::safe_div_f32(1.0, 0.0).is_err());
         assert!(SafeSimdOps::safe_sqrt_f32(-1.0).is_err());
@@ -546,7 +558,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let result = SafeSimdOps::safe_dot_product_f32(&a, &b).unwrap();
+        let result = SafeSimdOps::safe_dot_product_f32(&a, &b).expect("operation should succeed");
         assert_eq!(result, 32.0); // 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
 
         let c = vec![1.0, 2.0];
@@ -556,7 +568,8 @@ mod tests {
     #[test]
     fn test_safe_normalize() {
         let vector = vec![3.0, 4.0];
-        let normalized = SafeSimdOps::safe_normalize_f32(&vector).unwrap();
+        let normalized =
+            SafeSimdOps::safe_normalize_f32(&vector).expect("operation should succeed");
 
         assert!((normalized[0] - 0.6).abs() < 1e-6);
         assert!((normalized[1] - 0.8).abs() < 1e-6);
@@ -572,10 +585,13 @@ mod tests {
     fn test_safe_indexing() {
         let data = vec![1, 2, 3, 4, 5];
 
-        assert_eq!(*SafeSimdOps::safe_get(&data, 2).unwrap(), 3);
+        assert_eq!(
+            *SafeSimdOps::safe_get(&data, 2).expect("operation should succeed"),
+            3
+        );
         assert!(SafeSimdOps::safe_get(&data, 10).is_err());
 
-        let slice = SafeSimdOps::safe_slice(&data, 1, 4).unwrap();
+        let slice = SafeSimdOps::safe_slice(&data, 1, 4).expect("slice operation should succeed");
         assert_eq!(slice, &[2, 3, 4]);
 
         assert!(SafeSimdOps::safe_slice(&data, 4, 1).is_err());
@@ -613,7 +629,7 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
         let checker = DebugBoundsChecker::new(data, "test".to_string());
 
-        assert_eq!(*checker.get(2).unwrap(), 3);
+        assert_eq!(*checker.get(2).expect("index should be valid"), 3);
         assert!(checker.get(10).is_err());
         assert_eq!(checker.len(), 5);
         assert!(!checker.is_empty());

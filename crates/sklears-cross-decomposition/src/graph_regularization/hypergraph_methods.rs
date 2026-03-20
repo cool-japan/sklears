@@ -13,7 +13,7 @@
 //! - Spectral hypergraph methods for dimensionality reduction
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::{HashMap, HashSet};
@@ -476,7 +476,9 @@ impl HypergraphCCA {
 
     /// Center data by removing column means
     fn center_data(&self, data: &Array2<Float>) -> Array2<Float> {
-        let means = data.mean_axis(Axis(0)).unwrap();
+        let means = data
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
         data - &means.view().insert_axis(Axis(0))
     }
 
@@ -556,10 +558,10 @@ impl HypergraphCCA {
         // Create random orthogonal matrices as placeholder
         let mut rng = thread_rng();
         let mut x_weights = Array2::<Float>::from_shape_fn((n_x, self.config.n_components), |_| {
-            rng.gen::<Float>() * 2.0 - 1.0
+            rng.random::<Float>() * 2.0 - 1.0
         });
         let mut y_weights = Array2::<Float>::from_shape_fn((n_y, self.config.n_components), |_| {
-            rng.gen::<Float>() * 2.0 - 1.0
+            rng.random::<Float>() * 2.0 - 1.0
         });
 
         // Orthogonalize columns (simplified Gram-Schmidt)
@@ -821,7 +823,7 @@ mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::thread_rng;
+    use scirs2_core::random::{thread_rng, RngExt};
 
     #[test]
     fn test_hypergraph_creation() {
@@ -829,12 +831,12 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let hypergraph = Hypergraph::new(incidence);
         assert!(hypergraph.is_ok());
 
-        let hg = hypergraph.unwrap();
+        let hg = hypergraph.expect("operation should succeed");
         assert_eq!(hg.n_vertices, 4);
         assert_eq!(hg.n_hyperedges, 3);
         assert_eq!(hg.vertex_weights.len(), 4);
@@ -848,7 +850,7 @@ mod tests {
         let hypergraph = Hypergraph::from_hyperedges(4, &hyperedges);
         assert!(hypergraph.is_ok());
 
-        let hg = hypergraph.unwrap();
+        let hg = hypergraph.expect("operation should succeed");
         assert_eq!(hg.n_vertices, 4);
         assert_eq!(hg.n_hyperedges, 3);
     }
@@ -857,7 +859,8 @@ mod tests {
     fn test_hypergraph_laplacian() {
         let hyperedges = vec![vec![0, 1], vec![1, 2], vec![0, 2]];
 
-        let hypergraph = Hypergraph::from_hyperedges(3, &hyperedges).unwrap();
+        let hypergraph =
+            Hypergraph::from_hyperedges(3, &hyperedges).expect("operation should succeed");
 
         let unnormalized = hypergraph.compute_laplacian(HypergraphLaplacianType::Unnormalized);
         let normalized = hypergraph.compute_laplacian(HypergraphLaplacianType::Normalized);
@@ -872,7 +875,8 @@ mod tests {
     fn test_hypergraph_centrality() {
         let hyperedges = vec![vec![0, 1, 2], vec![1, 3]];
 
-        let hypergraph = Hypergraph::from_hyperedges(4, &hyperedges).unwrap();
+        let hypergraph =
+            Hypergraph::from_hyperedges(4, &hyperedges).expect("operation should succeed");
         let centrality = hypergraph.compute_centrality();
 
         assert_eq!(centrality.vertex_centrality.len(), 4);
@@ -900,8 +904,8 @@ mod tests {
         let x_hyperedges = vec![vec![0, 1], vec![1, 2], vec![0, 2]];
         let y_hyperedges = vec![vec![0, 1], vec![1, 2]];
 
-        let x_hg = Hypergraph::from_hyperedges(3, &x_hyperedges).unwrap();
-        let y_hg = Hypergraph::from_hyperedges(3, &y_hyperedges).unwrap();
+        let x_hg = Hypergraph::from_hyperedges(3, &x_hyperedges).expect("operation should succeed");
+        let y_hg = Hypergraph::from_hyperedges(3, &y_hyperedges).expect("operation should succeed");
 
         let hcca = HypergraphCCA::new(config)
             .with_x_hypergraph(x_hg)
@@ -909,17 +913,17 @@ mod tests {
 
         let x = Array2::from_shape_fn((50, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((50, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let result = hcca.fit(&x, &y);
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert_eq!(results.x_weights.dim(), (3, 2));
         assert_eq!(results.y_weights.dim(), (3, 2));
         assert_eq!(results.correlations.len(), 2);
@@ -932,18 +936,22 @@ mod tests {
         // Create data with some structure
         let mut data = Array2::from_shape_fn((100, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         // Make variables 0 and 1 correlated
         let mut rng = thread_rng();
         for i in 0..data.nrows() {
-            data[[i, 1]] = data[[i, 0]] + 0.1 * rng.sample(&Normal::new(0.0, 1.0).unwrap());
+            data[[i, 1]] = data[[i, 0]]
+                + 0.1
+                    * rng.sample(
+                        &Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"),
+                    );
         }
 
         let result = analyzer.detect_interactions(&data);
         assert!(result.is_ok());
 
-        let hypergraph = result.unwrap();
+        let hypergraph = result.expect("operation should succeed");
         assert!(hypergraph.n_hyperedges > 0);
     }
 
@@ -963,11 +971,11 @@ mod tests {
 
         let communities = Array1::<usize>::from_vec(vec![0, 0, 1, 1]);
         let hypergraph = Hypergraph::from_hyperedges(4, &hyperedges)
-            .unwrap()
+            .expect("operation should succeed")
             .with_communities(communities);
 
         assert!(hypergraph.is_ok());
-        let hg = hypergraph.unwrap();
+        let hg = hypergraph.expect("operation should succeed");
         assert!(hg.communities.is_some());
     }
 
@@ -981,8 +989,8 @@ mod tests {
         let x_hyperedges = vec![vec![0, 1], vec![1, 2]];
         let y_hyperedges = vec![vec![0, 1]];
 
-        let x_hg = Hypergraph::from_hyperedges(3, &x_hyperedges).unwrap();
-        let y_hg = Hypergraph::from_hyperedges(2, &y_hyperedges).unwrap();
+        let x_hg = Hypergraph::from_hyperedges(3, &x_hyperedges).expect("operation should succeed");
+        let y_hg = Hypergraph::from_hyperedges(2, &y_hyperedges).expect("operation should succeed");
 
         let hcca = HypergraphCCA::new(config)
             .with_x_hypergraph(x_hg)
@@ -990,22 +998,22 @@ mod tests {
 
         let x_train = Array2::from_shape_fn((30, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_train = Array2::from_shape_fn((30, 2), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let x_test = Array2::from_shape_fn((10, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_test = Array2::from_shape_fn((10, 2), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
-        let results = hcca.fit(&x_train, &y_train).unwrap();
+        let results = hcca.fit(&x_train, &y_train).expect("fit should succeed");
         let (x_transformed, y_transformed) = hcca.transform(&x_test, &y_test, &results);
 
         assert_eq!(x_transformed.dim(), (10, 2));

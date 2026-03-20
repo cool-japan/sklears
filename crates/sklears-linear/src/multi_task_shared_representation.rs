@@ -1027,8 +1027,8 @@ mod tests {
             .max_iter(100)
             .build();
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[4, 2]);
 
@@ -1052,8 +1052,8 @@ mod tests {
             .max_iter(50)
             .build();
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[3, 2]);
     }
@@ -1071,8 +1071,8 @@ mod tests {
             .max_iter(50)
             .build();
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[3, 2]);
 
@@ -1092,8 +1092,10 @@ mod tests {
             .max_iter(10)
             .build();
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let shared_features = fitted.transform_to_shared(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let shared_features = fitted
+            .transform_to_shared(&x)
+            .expect("operation should succeed");
 
         assert_eq!(shared_features.shape(), &[2, 2]);
     }

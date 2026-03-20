@@ -358,11 +358,11 @@ impl PerformanceAnalyzer {
     }
 
     fn generate_analysis_id(&self) -> String {
-        format!("analysis_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis())
+        format!("analysis_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_recommendation_id(&self) -> String {
-        format!("rec_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis())
+        format!("rec_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_cache_key(&self, results: &[BenchmarkResult]) -> String {
@@ -527,7 +527,7 @@ impl StatisticalMethods {
         let mean = data.iter().sum::<f64>() / data.len() as f64;
 
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted_data.len() % 2 == 0 {
             (sorted_data[sorted_data.len() / 2 - 1] + sorted_data[sorted_data.len() / 2]) / 2.0
@@ -1022,7 +1022,7 @@ impl AnomalyDetector {
         // Real implementation would use proper isolation forest algorithm
         let median = {
             let mut sorted = values.to_vec();
-            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             sorted[sorted.len() / 2]
         };
 
@@ -1031,7 +1031,7 @@ impl AnomalyDetector {
                 .map(|&x| (x - median).abs())
                 .collect();
             let mut sorted_deviations = deviations;
-            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             sorted_deviations[sorted_deviations.len() / 2]
         };
 
@@ -1579,7 +1579,7 @@ mod tests {
         let methods = StatisticalMethods::new();
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let stats = methods.calculate_descriptive_stats(&data).unwrap();
+        let stats = methods.calculate_descriptive_stats(&data).unwrap_or_default();
         assert_eq!(stats.mean, 3.0);
         assert_eq!(stats.median, 3.0);
         assert_eq!(stats.count, 5);
@@ -1590,7 +1590,7 @@ mod tests {
         let analyzer = TrendAnalyzer::new();
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let trend_result = analyzer.analyze_metric_trend(&values).unwrap();
+        let trend_result = analyzer.analyze_metric_trend(&values).unwrap_or_default();
         assert!(matches!(trend_result.trend_direction, TrendDirection::Increasing));
     }
 
@@ -1599,7 +1599,7 @@ mod tests {
         let detector = AnomalyDetector::new();
         let values = vec![1.0, 2.0, 3.0, 100.0, 5.0]; // 100.0 is an outlier
 
-        let anomaly_result = detector.detect_metric_anomalies(&values).unwrap();
+        let anomaly_result = detector.detect_metric_anomalies(&values).unwrap_or_default();
         assert!(!anomaly_result.anomalous_points.is_empty());
     }
 

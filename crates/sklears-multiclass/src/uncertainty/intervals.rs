@@ -4,7 +4,7 @@
 //! class probabilities in multiclass classification problems.
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom, Rng};
+use scirs2_core::random::{rngs::StdRng, seeded_rng, CoreRandom};
 use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Methods for interval estimation
@@ -175,7 +175,7 @@ impl IntervalEstimator {
             for j in 0..n_classes {
                 let mut class_samples: Vec<f64> =
                     bootstrap_samples.iter().map(|sample| sample[j]).collect();
-                class_samples.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                class_samples.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                 let alpha = 1.0 - self.confidence_level;
                 let lower_idx = ((alpha / 2.0) * n_bootstrap as f64) as usize;
@@ -202,7 +202,7 @@ impl IntervalEstimator {
         // Apply random perturbation to each probability
         let mut perturbed = Array1::zeros(n_classes);
         for (i, &p) in probabilities.iter().enumerate() {
-            let perturbation: f64 = rng.gen::<f64>() * 0.4 + 0.8; // Perturbation range (0.8 to 1.2)
+            let perturbation: f64 = rng.random::<f64>() * 0.4 + 0.8; // Perturbation range (0.8 to 1.2)
             perturbed[i] = (p * perturbation).max(1e-6);
         }
 
@@ -399,7 +399,7 @@ impl IntervalEstimator {
         for j in 0..n_classes {
             let cal_class_scores = calibration_scores.column(j);
             let mut sorted_scores = cal_class_scores.to_vec();
-            sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let n_cal = sorted_scores.len();
             if n_cal == 0 {
@@ -542,7 +542,9 @@ mod tests {
 
         let probabilities = array![[0.8, 0.1, 0.1], [0.3, 0.4, 0.3]];
 
-        let intervals = estimator.estimate_intervals(&probabilities, None).unwrap();
+        let intervals = estimator
+            .estimate_intervals(&probabilities, None)
+            .expect("operation should succeed");
 
         // Check dimensions: [n_samples, n_classes * 2]
         assert_eq!(intervals.dim(), (2, 6));
@@ -572,7 +574,9 @@ mod tests {
 
         let probabilities = array![[0.7, 0.2, 0.1], [0.4, 0.4, 0.2]];
 
-        let intervals = estimator.estimate_intervals(&probabilities, None).unwrap();
+        let intervals = estimator
+            .estimate_intervals(&probabilities, None)
+            .expect("operation should succeed");
 
         assert_eq!(intervals.dim(), (2, 6));
 
@@ -598,7 +602,9 @@ mod tests {
 
         let probabilities = array![[0.5, 0.3, 0.2]];
 
-        let intervals = estimator.estimate_intervals(&probabilities, None).unwrap();
+        let intervals = estimator
+            .estimate_intervals(&probabilities, None)
+            .expect("operation should succeed");
 
         assert_eq!(intervals.dim(), (1, 6));
 
@@ -628,7 +634,9 @@ mod tests {
 
         let probabilities = array![[0.6, 0.3, 0.1]];
 
-        let intervals = estimator.estimate_intervals(&probabilities, None).unwrap();
+        let intervals = estimator
+            .estimate_intervals(&probabilities, None)
+            .expect("operation should succeed");
 
         assert_eq!(intervals.dim(), (1, 6));
 
@@ -650,7 +658,9 @@ mod tests {
 
         let probabilities = array![[0.8, 0.1, 0.1], [0.3, 0.4, 0.3]];
 
-        let detailed = estimator.estimate_detailed(&probabilities, None).unwrap();
+        let detailed = estimator
+            .estimate_detailed(&probabilities, None)
+            .expect("operation should succeed");
 
         assert_eq!(detailed.lower_bounds.dim(), (2, 3));
         assert_eq!(detailed.upper_bounds.dim(), (2, 3));

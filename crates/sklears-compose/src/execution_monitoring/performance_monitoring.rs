@@ -262,7 +262,7 @@ impl PerformanceMonitoringSystem {
         // Initialize system if enabled
         if config.enabled {
             {
-                let mut state = system.state.write().unwrap();
+                let mut state = system.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = PerformanceStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -280,31 +280,31 @@ impl PerformanceMonitoringSystem {
 
         // Add to active sessions
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.to_string(), session_monitor);
         }
 
         // Initialize session in resource tracker
         {
-            let mut tracker = self.resource_tracker.write().unwrap();
+            let mut tracker = self.resource_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.initialize_session(session_id)?;
         }
 
         // Initialize session in baseline manager
         {
-            let mut baseline_mgr = self.baseline_manager.write().unwrap();
+            let mut baseline_mgr = self.baseline_manager.write().unwrap_or_else(|e| e.into_inner());
             baseline_mgr.initialize_session(session_id)?;
         }
 
         // Initialize session in profiler
         {
-            let mut profiler = self.profiler.write().unwrap();
+            let mut profiler = self.profiler.write().unwrap_or_else(|e| e.into_inner());
             profiler.initialize_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count += 1;
             state.total_sessions_initialized += 1;
         }
@@ -319,7 +319,7 @@ impl PerformanceMonitoringSystem {
 
         // Remove from active sessions
         let monitor = {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.remove(session_id)
         };
 
@@ -330,25 +330,25 @@ impl PerformanceMonitoringSystem {
 
         // Shutdown session in resource tracker
         {
-            let mut tracker = self.resource_tracker.write().unwrap();
+            let mut tracker = self.resource_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.shutdown_session(session_id)?;
         }
 
         // Shutdown session in baseline manager
         {
-            let mut baseline_mgr = self.baseline_manager.write().unwrap();
+            let mut baseline_mgr = self.baseline_manager.write().unwrap_or_else(|e| e.into_inner());
             baseline_mgr.shutdown_session(session_id)?;
         }
 
         // Shutdown session in profiler
         {
-            let mut profiler = self.profiler.write().unwrap();
+            let mut profiler = self.profiler.write().unwrap_or_else(|e| e.into_inner());
             profiler.shutdown_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count = state.active_sessions_count.saturating_sub(1);
             state.total_sessions_finalized += 1;
         }
@@ -371,7 +371,7 @@ impl PerformanceMonitoringSystem {
 
         // Update in session monitor
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(monitor) = sessions.get_mut(session_id) {
                 monitor.update_performance_data(timestamped_metric.clone()).await?;
             } else {
@@ -381,49 +381,49 @@ impl PerformanceMonitoringSystem {
 
         // Analyze performance data
         {
-            let mut analyzer = self.performance_analyzer.write().unwrap();
+            let mut analyzer = self.performance_analyzer.write().unwrap_or_else(|e| e.into_inner());
             analyzer.analyze_metric(session_id, &timestamped_metric).await?;
         }
 
         // Update resource tracking
         {
-            let mut tracker = self.resource_tracker.write().unwrap();
+            let mut tracker = self.resource_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.update_from_metric(session_id, metric).await?;
         }
 
         // Check for bottlenecks
         {
-            let mut detector = self.bottleneck_detector.write().unwrap();
+            let mut detector = self.bottleneck_detector.write().unwrap_or_else(|e| e.into_inner());
             detector.analyze_metric(session_id, &timestamped_metric).await?;
         }
 
         // Update trend analysis
         {
-            let mut trend_analyzer = self.trend_analyzer.write().unwrap();
+            let mut trend_analyzer = self.trend_analyzer.write().unwrap_or_else(|e| e.into_inner());
             trend_analyzer.update_trend(session_id, &timestamped_metric).await?;
         }
 
         // Check against baseline
         {
-            let mut baseline_mgr = self.baseline_manager.write().unwrap();
+            let mut baseline_mgr = self.baseline_manager.write().unwrap_or_else(|e| e.into_inner());
             baseline_mgr.compare_against_baseline(session_id, &timestamped_metric).await?;
         }
 
         // Process alerts
         {
-            let mut alert_processor = self.alert_processor.write().unwrap();
+            let mut alert_processor = self.alert_processor.write().unwrap_or_else(|e| e.into_inner());
             alert_processor.process_metric(session_id, metric).await?;
         }
 
         // Update statistics
         {
-            let mut stats = self.statistics_engine.write().unwrap();
+            let mut stats = self.statistics_engine.write().unwrap_or_else(|e| e.into_inner());
             stats.update_statistics(session_id, &timestamped_metric).await?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.total_metrics_processed += 1;
             state.last_metric_time = Some(SystemTime::now());
         }
@@ -447,13 +447,13 @@ impl PerformanceMonitoringSystem {
 
         // Profile task execution if profiling is enabled
         if self.config.profiling.enabled {
-            let mut profiler = self.profiler.write().unwrap();
+            let mut profiler = self.profiler.write().unwrap_or_else(|e| e.into_inner());
             profiler.profile_task_event(session_id, event).await?;
         }
 
         // Update comparative analysis
         {
-            let mut comparative = self.comparative_analyzer.write().unwrap();
+            let mut comparative = self.comparative_analyzer.write().unwrap_or_else(|e| e.into_inner());
             comparative.process_task_event(session_id, event).await?;
         }
 
@@ -462,7 +462,7 @@ impl PerformanceMonitoringSystem {
 
     /// Get session performance status
     pub fn get_session_status(&self, session_id: &str) -> SklResult<SessionPerformanceStatus> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(monitor) = sessions.get(session_id) {
             Ok(monitor.get_status())
         } else {
@@ -476,7 +476,7 @@ impl PerformanceMonitoringSystem {
         session_id: &str,
         metric_types: Option<Vec<String>>,
     ) -> SklResult<RealTimePerformanceSnapshot> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(monitor) = sessions.get(session_id) {
             monitor.get_real_time_snapshot(metric_types).await
         } else {
@@ -490,7 +490,7 @@ impl PerformanceMonitoringSystem {
         session_id: &str,
         analysis_type: AnalysisType,
     ) -> SklResult<PerformanceAnalysisResult> {
-        let analyzer = self.performance_analyzer.read().unwrap();
+        let analyzer = self.performance_analyzer.read().unwrap_or_else(|e| e.into_inner());
         analyzer.get_analysis_result(session_id, analysis_type).await
     }
 
@@ -499,7 +499,7 @@ impl PerformanceMonitoringSystem {
         &self,
         session_id: &str,
     ) -> SklResult<BottleneckAnalysisResult> {
-        let detector = self.bottleneck_detector.read().unwrap();
+        let detector = self.bottleneck_detector.read().unwrap_or_else(|e| e.into_inner());
         detector.get_analysis_result(session_id).await
     }
 
@@ -508,7 +508,7 @@ impl PerformanceMonitoringSystem {
         &self,
         session_id: &str,
     ) -> SklResult<Vec<OptimizationRecommendation>> {
-        let optimization_engine = self.optimization_engine.read().unwrap();
+        let optimization_engine = self.optimization_engine.read().unwrap_or_else(|e| e.into_inner());
         optimization_engine.generate_recommendations(session_id).await
     }
 
@@ -518,7 +518,7 @@ impl PerformanceMonitoringSystem {
         session_ids: Vec<String>,
         comparison_type: ComparisonType,
     ) -> SklResult<ComparativeAnalysisResult> {
-        let comparative = self.comparative_analyzer.read().unwrap();
+        let comparative = self.comparative_analyzer.read().unwrap_or_else(|e| e.into_inner());
         comparative.compare_sessions(session_ids, comparison_type).await
     }
 
@@ -528,7 +528,7 @@ impl PerformanceMonitoringSystem {
         session_id: &str,
         profile_config: ProfilingConfiguration,
     ) -> SklResult<String> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(monitor) = sessions.get_mut(session_id) {
             monitor.start_profiling(profile_config).await
         } else {
@@ -542,7 +542,7 @@ impl PerformanceMonitoringSystem {
         session_id: &str,
         profile_id: &str,
     ) -> SklResult<ProfileResult> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(monitor) = sessions.get_mut(session_id) {
             monitor.stop_profiling(profile_id).await
         } else {
@@ -552,8 +552,8 @@ impl PerformanceMonitoringSystem {
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let health = self.health_monitor.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let health = self.health_monitor.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -571,7 +571,7 @@ impl PerformanceMonitoringSystem {
 
     /// Get performance monitoring statistics
     pub fn get_monitoring_statistics(&self) -> SklResult<PerformanceMonitoringStatistics> {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(PerformanceMonitoringStatistics {
             total_metrics_processed: state.total_metrics_processed,
@@ -580,13 +580,13 @@ impl PerformanceMonitoringSystem {
             bottlenecks_detected: state.bottlenecks_detected,
             optimizations_suggested: state.optimizations_suggested,
             average_analysis_latency: self.calculate_average_analysis_latency()?,
-            system_health_score: self.health_monitor.read().unwrap().calculate_health_score(),
+            system_health_score: self.health_monitor.read().unwrap_or_else(|e| e.into_inner()).calculate_health_score(),
         })
     }
 
     /// Private helper methods
     async fn generate_session_report(&self, session_id: &str) -> SklResult<SessionPerformanceReport> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(monitor) = sessions.get(session_id) {
             monitor.generate_final_report().await
         } else {
@@ -595,7 +595,7 @@ impl PerformanceMonitoringSystem {
     }
 
     fn validate_session_exists(&self, session_id: &str) -> SklResult<()> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if !sessions.contains_key(session_id) {
             return Err(SklearsError::NotFound(format!("Session {} not found", session_id)));
         }
@@ -1131,7 +1131,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_initialization() {
         let config = PerformanceMonitoringConfig::default();
-        let mut system = PerformanceMonitoringSystem::new(&config).unwrap();
+        let mut system = PerformanceMonitoringSystem::new(&config).unwrap_or_default();
 
         let result = system.initialize_session("test_session").await;
         assert!(result.is_ok());

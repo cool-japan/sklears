@@ -999,12 +999,12 @@ impl SchedulingEngine {
         let mut current_priority = None;
 
         for request in sorted_requests {
-            if current_priority.is_none() || current_priority.unwrap() != request.priority {
+            if current_priority.is_none() || current_priority.unwrap_or_default() != request.priority {
                 if !current_batch.is_empty() {
                     batches.push(ExecutionBatch {
                         batch_id: Uuid::new_v4().to_string(),
                         patterns: current_batch,
-                        priority: current_priority.unwrap(),
+                        priority: current_priority.unwrap_or_default(),
                         estimated_completion: Duration::from_secs(60),
                         dependencies: HashSet::new(),
                     });
@@ -1019,7 +1019,7 @@ impl SchedulingEngine {
             batches.push(ExecutionBatch {
                 batch_id: Uuid::new_v4().to_string(),
                 patterns: current_batch,
-                priority: current_priority.unwrap(),
+                priority: current_priority.unwrap_or_default(),
                 estimated_completion: Duration::from_secs(60),
                 dependencies: HashSet::new(),
             });

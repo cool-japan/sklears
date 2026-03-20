@@ -420,7 +420,7 @@ impl PerformanceMonitor {
                 if let Some(&threshold) = request.alert_thresholds.get(&agent.metrics[0]) {
                     if data_point.value > threshold {
                         let alert = PerformanceAlert {
-                            alert_id: format!("temp_alert_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+                            alert_id: format!("temp_alert_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
                             rule_id: "threshold_rule".to_string(),
                             timestamp: SystemTime::now(),
                             message: format!("Metric {} exceeded threshold: {} > {}", agent.metrics[0], data_point.value, threshold),
@@ -647,8 +647,8 @@ impl RealTimeMetrics {
         }
 
         // Simple trend calculation
-        let first = values.last().unwrap();
-        let last = values.first().unwrap();
+        let first = values.last().unwrap_or_default();
+        let last = values.first().unwrap_or_default();
         let velocity = (last - first) / values.len() as f64;
 
         let direction = if velocity > 0.1 {
@@ -667,13 +667,13 @@ impl RealTimeMetrics {
             let second_half = &values[..mid];
 
             let v1 = if first_half.len() >= 2 {
-                (first_half.first().unwrap() - first_half.last().unwrap()) / first_half.len() as f64
+                (first_half.first().unwrap_or_default() - first_half.last().unwrap_or_default()) / first_half.len() as f64
             } else {
                 0.0
             };
 
             let v2 = if second_half.len() >= 2 {
-                (second_half.first().unwrap() - second_half.last().unwrap()) / second_half.len() as f64
+                (second_half.first().unwrap_or_default() - second_half.last().unwrap_or_default()) / second_half.len() as f64
             } else {
                 0.0
             };
@@ -768,7 +768,7 @@ impl PerformanceAlerts {
             if let Some(metric_value) = metrics.current.get(&rule.condition.metric) {
                 if self.evaluate_condition(&rule.condition, metric_value.value) {
                     let alert = PerformanceAlert {
-                        alert_id: format!("alert_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+                        alert_id: format!("alert_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
                         rule_id: rule.rule_id.clone(),
                         timestamp: SystemTime::now(),
                         message: format!("Rule '{}' triggered: {} {} {}",
@@ -806,7 +806,7 @@ impl PerformanceAlerts {
     pub fn acknowledge_alert(&mut self, alert_id: &str) -> Result<(), String> {
         if let Some(alert) = self.active_alerts.get(alert_id) {
             let record = AlertRecord {
-                record_id: format!("record_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+                record_id: format!("record_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
                 alert_id: alert_id.to_string(),
                 timestamp: SystemTime::now(),
                 event_type: AlertEventType::Acknowledged,
@@ -823,7 +823,7 @@ impl PerformanceAlerts {
     pub fn resolve_alert(&mut self, alert_id: &str) -> Result<(), String> {
         if let Some(_alert) = self.active_alerts.remove(alert_id) {
             let record = AlertRecord {
-                record_id: format!("record_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+                record_id: format!("record_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
                 alert_id: alert_id.to_string(),
                 timestamp: SystemTime::now(),
                 event_type: AlertEventType::Resolved,

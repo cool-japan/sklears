@@ -419,7 +419,7 @@ impl WebInterfaceSystem {
 
         // Start server instance
         {
-            let mut server_manager = self.server_manager.write().unwrap();
+            let mut server_manager = self.server_manager.write().unwrap_or_else(|e| e.into_inner());
             server_manager.start_server(server_id.clone(), config).await?;
         }
 
@@ -442,13 +442,13 @@ impl WebInterfaceSystem {
 
         // Register with REST API manager
         {
-            let mut rest_api_manager = self.rest_api_manager.write().unwrap();
+            let mut rest_api_manager = self.rest_api_manager.write().unwrap_or_else(|e| e.into_inner());
             rest_api_manager.register_endpoint(endpoint.clone()).await?;
         }
 
         // Update API documentation
         {
-            let mut documentation_system = self.documentation_system.write().unwrap();
+            let mut documentation_system = self.documentation_system.write().unwrap_or_else(|e| e.into_inner());
             documentation_system.update_endpoint_documentation(&endpoint).await?;
         }
 
@@ -462,13 +462,13 @@ impl WebInterfaceSystem {
 
         // Register with GraphQL manager
         {
-            let mut graphql_manager = self.graphql_manager.write().unwrap();
+            let mut graphql_manager = self.graphql_manager.write().unwrap_or_else(|e| e.into_inner());
             graphql_manager.register_schema(schema.clone()).await?;
         }
 
         // Update documentation
         {
-            let mut documentation_system = self.documentation_system.write().unwrap();
+            let mut documentation_system = self.documentation_system.write().unwrap_or_else(|e| e.into_inner());
             documentation_system.update_graphql_documentation(&schema).await?;
         }
 
@@ -487,7 +487,7 @@ impl WebInterfaceSystem {
 
         // Establish connection
         {
-            let mut websocket_manager = self.websocket_manager.write().unwrap();
+            let mut websocket_manager = self.websocket_manager.write().unwrap_or_else(|e| e.into_inner());
             websocket_manager.establish_connection(connection_id.clone(), connection_request).await?;
         }
 
@@ -517,25 +517,25 @@ impl WebInterfaceSystem {
 
     /// Authenticate user credentials
     pub async fn authenticate_user(&self, credentials: UserCredentials) -> Result<AuthenticationResult> {
-        let auth_system = self.auth_system.read().unwrap();
+        let auth_system = self.auth_system.read().unwrap_or_else(|e| e.into_inner());
         auth_system.authenticate_user(credentials).await
     }
 
     /// Authorize user action
     pub async fn authorize_action(&self, user_id: &str, action: &str, resource: &str) -> Result<AuthorizationResult> {
-        let authorization_manager = self.authorization_manager.read().unwrap();
+        let authorization_manager = self.authorization_manager.read().unwrap_or_else(|e| e.into_inner());
         authorization_manager.authorize_action(user_id, action, resource).await
     }
 
     /// Generate API documentation
     pub async fn generate_documentation(&self, format: DocumentationFormat) -> Result<GeneratedDocumentation> {
-        let documentation_system = self.documentation_system.read().unwrap();
+        let documentation_system = self.documentation_system.read().unwrap_or_else(|e| e.into_inner());
         documentation_system.generate_documentation(format).await
     }
 
     /// Get server metrics
     pub async fn get_server_metrics(&self) -> Result<ServerMetrics> {
-        let server_manager = self.server_manager.read().unwrap();
+        let server_manager = self.server_manager.read().unwrap_or_else(|e| e.into_inner());
         server_manager.get_comprehensive_metrics().await
     }
 
@@ -547,7 +547,7 @@ impl WebInterfaceSystem {
 
     /// Initialize middleware pipeline
     async fn initialize_middleware_pipeline(&self, server_id: &str) -> Result<()> {
-        let middleware_manager = self.middleware_manager.read().unwrap();
+        let middleware_manager = self.middleware_manager.read().unwrap_or_else(|e| e.into_inner());
         middleware_manager.initialize_pipeline(server_id).await
     }
 
@@ -571,43 +571,43 @@ impl WebInterfaceSystem {
 
     /// Validate GraphQL schema
     async fn validate_graphql_schema(&self, schema: &GraphQlSchema) -> Result<()> {
-        let graphql_manager = self.graphql_manager.read().unwrap();
+        let graphql_manager = self.graphql_manager.read().unwrap_or_else(|e| e.into_inner());
         graphql_manager.validate_schema(schema).await
     }
 
     /// Authenticate WebSocket connection
     async fn authenticate_websocket_connection(&self, request: &WebSocketConnectionRequest) -> Result<()> {
-        let auth_system = self.auth_system.read().unwrap();
+        let auth_system = self.auth_system.read().unwrap_or_else(|e| e.into_inner());
         auth_system.authenticate_websocket(request).await
     }
 
     /// Authorize WebSocket connection
     async fn authorize_websocket_connection(&self, request: &WebSocketConnectionRequest) -> Result<()> {
-        let authorization_manager = self.authorization_manager.read().unwrap();
+        let authorization_manager = self.authorization_manager.read().unwrap_or_else(|e| e.into_inner());
         authorization_manager.authorize_websocket(request).await
     }
 
     /// Apply middleware pipeline to request
     async fn apply_middleware_pipeline(&self, request: ApiRequest) -> Result<ApiRequest> {
-        let middleware_manager = self.middleware_manager.read().unwrap();
+        let middleware_manager = self.middleware_manager.read().unwrap_or_else(|e| e.into_inner());
         middleware_manager.apply_request_middleware(request).await
     }
 
     /// Route request to handler
     async fn route_request(&self, request: ApiRequest) -> Result<ApiResponse> {
-        let rest_api_manager = self.rest_api_manager.read().unwrap();
+        let rest_api_manager = self.rest_api_manager.read().unwrap_or_else(|e| e.into_inner());
         rest_api_manager.handle_request(request).await
     }
 
     /// Apply response middleware
     async fn apply_response_middleware(&self, response: ApiResponse) -> Result<ApiResponse> {
-        let middleware_manager = self.middleware_manager.read().unwrap();
+        let middleware_manager = self.middleware_manager.read().unwrap_or_else(|e| e.into_inner());
         middleware_manager.apply_response_middleware(response).await
     }
 
     /// Record request metrics
     async fn record_request_metrics(&self, response: &ApiResponse, processing_time: Duration) -> Result<()> {
-        let server_manager = self.server_manager.read().unwrap();
+        let server_manager = self.server_manager.read().unwrap_or_else(|e| e.into_inner());
         server_manager.record_request_metrics(response, processing_time).await
     }
 }

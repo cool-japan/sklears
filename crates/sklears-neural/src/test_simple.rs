@@ -16,8 +16,8 @@ fn test_neural_network_basic() {
         .max_iter(50)
         .random_state(42);
 
-    let trained_mlp = mlp.fit(&x, &y).unwrap();
-    let predictions = trained_mlp.predict(&x).unwrap();
+    let trained_mlp = mlp.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = trained_mlp.predict(&x).expect("prediction should succeed");
 
     // Just verify we get predictions of the right shape
     assert_eq!(predictions.len(), 4);
@@ -26,7 +26,9 @@ fn test_neural_network_basic() {
     assert_eq!(trained_mlp.classes(), &[0, 1]);
 
     // Verify probabilities
-    let probabilities = trained_mlp.predict_proba(&x).unwrap();
+    let probabilities = trained_mlp
+        .predict_proba(&x)
+        .expect("probability prediction should succeed");
     assert_eq!(probabilities.dim(), (4, 2));
 
     // Verify probabilities sum to 1

@@ -722,7 +722,7 @@ impl BaggingClassifier<Trained> {
 
             // Bootstrap confidence interval
             let mut sorted_predictions: Vec<Float> = sample_predictions.to_vec();
-            sorted_predictions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_predictions.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let alpha = 1.0 - self.config.confidence_level;
             let lower_idx = ((alpha / 2.0) * n_estimators as Float) as usize;
@@ -779,7 +779,9 @@ impl Predict<Array2<Float>, Array1<Int>> for BaggingClassifier<Trained> {
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &Float), (_, b): &(_, &Float)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a): &(_, &Float), (_, b): &(_, &Float)| {
+                    a.partial_cmp(b).expect("operation should succeed")
+                })
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             final_predictions[i] = classes[max_idx];
@@ -1046,8 +1048,10 @@ mod tests {
 
         let classifier = BaggingClassifier::new().n_estimators(5).random_state(42);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.n_classes(), 3);
@@ -1077,13 +1081,15 @@ mod tests {
             .oob_score(true)
             .bootstrap(true);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         assert!(fitted.oob_score().is_some());
-        let oob_score = fitted.oob_score().unwrap();
+        let oob_score = fitted.oob_score().expect("operation should succeed");
         assert!(oob_score >= 0.0 && oob_score <= 1.0);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 10);
     }
 
@@ -1105,8 +1111,10 @@ mod tests {
             .bootstrap_features(false)
             .random_state(42);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.n_features_in(), 4);
@@ -1130,8 +1138,12 @@ mod tests {
             .random_state(42)
             .confidence_level(0.95);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let (predictions, confidence_intervals) = fitted.predict_with_confidence(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let (predictions, confidence_intervals) = fitted
+            .predict_with_confidence(&x)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(confidence_intervals.dim(), (4, 2));
@@ -1192,7 +1204,9 @@ mod tests {
         let x_test = array![[1.0, 2.0]]; // Wrong number of features
 
         let classifier = BaggingClassifier::new();
-        let fitted = classifier.fit(&x_train, &y_train).unwrap();
+        let fitted = classifier
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         assert!(fitted.predict(&x_test).is_err());
     }
 
@@ -1215,16 +1229,16 @@ mod tests {
                 .n_estimators(n_estimators)
                 .random_state(random_seed)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
             let classifier2 = BaggingClassifier::new()
                 .n_estimators(n_estimators)
                 .random_state(random_seed)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
-            let pred1 = classifier1.predict(&x).unwrap();
-            let pred2 = classifier2.predict(&x).unwrap();
+            let pred1 = classifier1.predict(&x).expect("prediction should succeed");
+            let pred2 = classifier2.predict(&x).expect("prediction should succeed");
 
             // Predictions should be identical with same seed
             prop_assert_eq!(pred1, pred2);
@@ -1246,7 +1260,7 @@ mod tests {
                 .max_features(Some(max_features))
                 .random_state(42)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
             let importances = classifier.feature_importances();
             let sum: Float = importances.sum();
@@ -1276,7 +1290,7 @@ mod tests {
                 .bootstrap(true)
                 .random_state(42)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
             let estimators_samples = classifier.estimators_samples();
 
@@ -1307,9 +1321,9 @@ mod tests {
                 .n_estimators(n_estimators)
                 .random_state(42)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
-            let predictions = classifier.predict(&x).unwrap();
+            let predictions = classifier.predict(&x).expect("prediction should succeed");
 
             // All predictions should be valid class labels
             let classes = classifier.classes();
@@ -1338,7 +1352,7 @@ mod tests {
                 .bootstrap(true)
                 .random_state(42)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
             if let Some(oob_score) = classifier.oob_score() {
                 // OOB score should be between 0 and 1 (accuracy)
@@ -1361,9 +1375,9 @@ mod tests {
                 .confidence_level(confidence_level)
                 .random_state(42)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
-            let (predictions, confidence_intervals) = classifier.predict_with_confidence(&x).unwrap();
+            let (predictions, confidence_intervals) = classifier.predict_with_confidence(&x).expect("operation should succeed");
 
             // Check confidence interval properties
             for i in 0..predictions.len() {

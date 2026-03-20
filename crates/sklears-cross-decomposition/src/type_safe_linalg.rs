@@ -37,13 +37,13 @@ impl<const ROWS: usize, const COLS: usize> MatrixDimension for Dim<ROWS, COLS> {
 ///
 /// // Create a 4x3 matrix with compile-time dimension checking
 /// let data = Array2::zeros((4, 3));
-/// let matrix: TypeSafeMatrix<f64, Dim<4, 3>> = TypeSafeMatrix::new(data).unwrap();
+/// let matrix: TypeSafeMatrix<f64, Dim<4, 3>> = TypeSafeMatrix::new(data).expect("operation should succeed");
 ///
 /// // Matrix multiplication with dimension checking
 /// let other_data = Array2::zeros((3, 5));
-/// let other: TypeSafeMatrix<f64, Dim<3, 5>> = TypeSafeMatrix::new(other_data).unwrap();
+/// let other: TypeSafeMatrix<f64, Dim<3, 5>> = TypeSafeMatrix::new(other_data).expect("operation should succeed");
 ///
-/// let result = matrix.matmul(&other).unwrap(); // Results in TypeSafeMatrix<f64, Dim<4, 5>>
+/// let result = matrix.matmul(&other).expect("matrix multiplication should succeed"); // Results in TypeSafeMatrix<f64, Dim<4, 5>>
 /// ```
 #[derive(Debug, Clone)]
 pub struct TypeSafeMatrix<T, D: MatrixDimension> {
@@ -788,30 +788,40 @@ mod tests {
 
     #[test]
     fn test_type_safe_matrix_creation() {
-        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let matrix: TypeSafeMatrix<f64, Dim<2, 3>> = TypeSafeMatrix::new(data).unwrap();
+        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
+        let matrix: TypeSafeMatrix<f64, Dim<2, 3>> =
+            TypeSafeMatrix::new(data).expect("operation should succeed");
 
         assert_eq!(matrix.shape(), (2, 3));
     }
 
     #[test]
     fn test_matrix_multiplication() {
-        let data_a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let matrix_a: TypeSafeMatrix<f64, Dim<2, 3>> = TypeSafeMatrix::new(data_a).unwrap();
+        let data_a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
+        let matrix_a: TypeSafeMatrix<f64, Dim<2, 3>> =
+            TypeSafeMatrix::new(data_a).expect("operation should succeed");
 
-        let data_b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let matrix_b: TypeSafeMatrix<f64, Dim<3, 2>> = TypeSafeMatrix::new(data_b).unwrap();
+        let data_b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
+        let matrix_b: TypeSafeMatrix<f64, Dim<3, 2>> =
+            TypeSafeMatrix::new(data_b).expect("operation should succeed");
 
-        let result = matrix_a.matmul(&matrix_b).unwrap();
+        let result = matrix_a
+            .matmul(&matrix_b)
+            .expect("matrix multiplication should succeed");
         assert_eq!(result.dim(), (2, 2));
     }
 
     #[test]
     fn test_matrix_inverse_2x2() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let matrix: TypeSafeMatrix<f64, Dim<2, 2>> = TypeSafeMatrix::new(data).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape should match data length");
+        let matrix: TypeSafeMatrix<f64, Dim<2, 2>> =
+            TypeSafeMatrix::new(data).expect("operation should succeed");
 
-        let inverse = matrix.inverse().unwrap();
+        let inverse = matrix.inverse().expect("operation should succeed");
         let identity = matrix.data().dot(inverse.data());
 
         // Check that A * A^-1 ≈ I
@@ -824,7 +834,8 @@ mod tests {
     #[test]
     fn test_vector_operations() {
         let data = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-        let vector: TypeSafeVector<f64, Dim<3, 1>> = TypeSafeVector::new(data).unwrap();
+        let vector: TypeSafeVector<f64, Dim<3, 1>> =
+            TypeSafeVector::new(data).expect("operation should succeed");
 
         let dot_product = vector.dot(&vector);
         assert_abs_diff_eq!(dot_product, 14.0, epsilon = 1e-10); // 1² + 2² + 3² = 14
@@ -835,11 +846,15 @@ mod tests {
 
     #[test]
     fn test_kronecker_product() {
-        let data_a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let matrix_a: TypeSafeMatrix<f64, Dim<2, 2>> = TypeSafeMatrix::new(data_a).unwrap();
+        let data_a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape should match data length");
+        let matrix_a: TypeSafeMatrix<f64, Dim<2, 2>> =
+            TypeSafeMatrix::new(data_a).expect("operation should succeed");
 
-        let data_b = Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0]).unwrap();
-        let matrix_b: TypeSafeMatrix<f64, Dim<2, 2>> = TypeSafeMatrix::new(data_b).unwrap();
+        let data_b = Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0])
+            .expect("shape should match data length");
+        let matrix_b: TypeSafeMatrix<f64, Dim<2, 2>> =
+            TypeSafeMatrix::new(data_b).expect("operation should succeed");
 
         let kron = ops::kronecker(&matrix_a, &matrix_b);
         assert_eq!(kron.dim(), (4, 4));

@@ -449,7 +449,7 @@ where
 
     fn r2_score(&self, x: &Array2<Float>, y: &Array2<Float>) -> Result<Float> {
         let y_pred = self.predict(x)?;
-        let y_mean = y.mean().unwrap();
+        let y_mean = y.mean().unwrap_or_default();
         let ss_res = (y - &y_pred).mapv(|x| x * x).sum();
         let ss_tot = (y - y_mean).mapv(|x| x * x).sum();
         Ok(1.0 - (ss_res / ss_tot))
@@ -528,7 +528,7 @@ mod tests {
                 &x,
                 &y,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.n_permutations, 100);
         assert_eq!(result.null_distribution.len(), 100);
@@ -563,7 +563,7 @@ mod tests {
                 &x,
                 &y,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.selected_n_components.is_some());
         assert!(!result.selection_frequencies.is_empty());
@@ -583,19 +583,19 @@ mod tests {
         assert_eq!(
             TestStatistic::ExplainedVarianceRatio
                 .compute(&model, &x, &y)
-                .unwrap(),
+                .expect("operation should succeed"),
             0.75
         );
         assert_eq!(
             TestStatistic::MaxCanonicalCorrelation
                 .compute(&model, &x, &y)
-                .unwrap(),
+                .expect("operation should succeed"),
             0.9
         );
         assert_eq!(
             TestStatistic::SumCanonicalCorrelations
                 .compute(&model, &x, &y)
-                .unwrap(),
+                .expect("operation should succeed"),
             0.9
         );
     }
@@ -610,7 +610,7 @@ mod tests {
             .alpha(0.05)
             .random_state(42);
 
-        let result = perm_test.test(|| PLSRegression::new(1), &x, &y).unwrap();
+        let result = perm_test.test(|| PLSRegression::new(1), &x, &y).expect("operation should succeed");
 
         // Check that the test runs and produces reasonable results
         assert_eq!(result.n_permutations, 50);

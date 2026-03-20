@@ -83,7 +83,7 @@ impl TransformationPerformanceMonitor {
 
         // Store metrics in performance storage
         {
-            let mut storage = self.performance_storage.write().unwrap();
+            let mut storage = self.performance_storage.write().unwrap_or_else(|e| e.into_inner());
             storage.store_metrics(pipeline_id.to_string(), metrics.clone())?;
         }
 
@@ -95,7 +95,7 @@ impl TransformationPerformanceMonitor {
 
     /// Get performance analytics for a pipeline
     pub async fn get_performance_analytics(&self, pipeline_id: &str, time_range: &TimeRange) -> Result<PerformanceAnalytics, ProcessingError> {
-        let storage = self.performance_storage.read().unwrap();
+        let storage = self.performance_storage.read().unwrap_or_else(|e| e.into_inner());
         let metrics = storage.get_metrics_for_range(pipeline_id, time_range)?;
 
         self.analytics_engine.analyze_performance(&metrics).await
@@ -115,7 +115,7 @@ impl TransformationPerformanceMonitor {
         let mut report_builder = PerformanceReportBuilder::new(request.clone());
 
         // Collect metrics from storage
-        let storage = self.performance_storage.read().unwrap();
+        let storage = self.performance_storage.read().unwrap_or_else(|e| e.into_inner());
         for pipeline_id in &request.pipeline_ids {
             let metrics = storage.get_metrics_for_range(pipeline_id, &request.time_range)?;
             report_builder.add_pipeline_metrics(pipeline_id.clone(), metrics);
@@ -138,7 +138,7 @@ impl TransformationPerformanceMonitor {
     pub async fn stop_monitoring(&mut self, pipeline_id: &str) -> Result<MonitoringSummary, ProcessingError> {
         // Get final metrics
         let final_metrics = {
-            let storage = self.performance_storage.read().unwrap();
+            let storage = self.performance_storage.read().unwrap_or_else(|e| e.into_inner());
             storage.get_latest_metrics(pipeline_id)?
         };
 
@@ -161,7 +161,7 @@ impl TransformationPerformanceMonitor {
 
     /// Generate performance summary
     async fn generate_performance_summary(&self, pipeline_id: &str) -> Result<PerformanceSummary, ProcessingError> {
-        let storage = self.performance_storage.read().unwrap();
+        let storage = self.performance_storage.read().unwrap_or_else(|e| e.into_inner());
         let all_metrics = storage.get_all_metrics(pipeline_id)?;
 
         if all_metrics.is_empty() {
@@ -377,7 +377,7 @@ impl MetricsCollector {
     pub async fn collect_metrics(&self, metrics: TransformationMetrics) -> Result<(), ProcessingError> {
         // Add to buffer
         {
-            let mut buffer = self.metrics_buffer.lock().unwrap();
+            let mut buffer = self.metrics_buffer.lock().unwrap_or_else(|e| e.into_inner());
             buffer.push(metrics);
 
             // Maintain buffer size
@@ -388,7 +388,7 @@ impl MetricsCollector {
 
         // Update collection statistics
         {
-            let mut stats = self.collection_stats.write().unwrap();
+            let mut stats = self.collection_stats.write().unwrap_or_else(|e| e.into_inner());
             stats.total_collections += 1;
             stats.last_collection_time = Utc::now();
         }
@@ -398,19 +398,19 @@ impl MetricsCollector {
 
     /// Get buffered metrics
     pub fn get_buffered_metrics(&self) -> Vec<TransformationMetrics> {
-        let buffer = self.metrics_buffer.lock().unwrap();
+        let buffer = self.metrics_buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.clone()
     }
 
     /// Get collection statistics
     pub fn get_collection_statistics(&self) -> CollectionStatistics {
-        let stats = self.collection_stats.read().unwrap();
+        let stats = self.collection_stats.read().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 
     /// Clear metrics buffer
     pub fn clear_buffer(&self) {
-        let mut buffer = self.metrics_buffer.lock().unwrap();
+        let mut buffer = self.metrics_buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.clear();
     }
 }
@@ -449,13 +449,13 @@ impl RealtimeMonitor {
     pub async fn update_metrics(&self, metrics: &TransformationMetrics) -> Result<(), ProcessingError> {
         // Update current metrics
         {
-            let mut current = self.current_metrics.write().unwrap();
+            let mut current = self.current_metrics.write().unwrap_or_else(|e| e.into_inner());
             *current = Some(metrics.clone());
         }
 
         // Update monitoring windows
         {
-            let mut windows = self.monitoring_windows.write().unwrap();
+            let mut windows = self.monitoring_windows.write().unwrap_or_else(|e| e.into_inner());
 
             // Add to appropriate windows
             for window in windows.iter_mut() {
@@ -493,17 +493,17 @@ impl RealtimeMonitor {
     /// Get real-time dashboard
     pub async fn get_dashboard(&self) -> Result<PerformanceDashboard, ProcessingError> {
         let current_metrics = {
-            let current = self.current_metrics.read().unwrap();
+            let current = self.current_metrics.read().unwrap_or_else(|e| e.into_inner());
             current.clone()
         };
 
         let monitoring_windows = {
-            let windows = self.monitoring_windows.read().unwrap();
+            let windows = self.monitoring_windows.read().unwrap_or_else(|e| e.into_inner());
             windows.clone()
         };
 
         let alert_states = {
-            let alerts = self.alert_states.read().unwrap();
+            let alerts = self.alert_states.read().unwrap_or_else(|e| e.into_inner());
             alerts.clone()
         };
 
@@ -519,7 +519,7 @@ impl RealtimeMonitor {
 
     /// Update alert state
     pub fn update_alert_state(&self, alert_id: String, state: AlertState) {
-        let mut alert_states = self.alert_states.write().unwrap();
+        let mut alert_states = self.alert_states.write().unwrap_or_else(|e| e.into_inner());
         alert_states.insert(alert_id, state);
     }
 }
@@ -613,7 +613,7 @@ impl PerformanceAlertingEngine {
 
         // Record alert in history
         {
-            let mut history = self.alert_history.write().unwrap();
+            let mut history = self.alert_history.write().unwrap_or_else(|e| e.into_inner());
             history.push(alert_event.clone());
 
             // Maintain history size
@@ -663,7 +663,7 @@ impl PerformanceAlertingEngine {
 
     /// Get alert history
     pub fn get_alert_history(&self, pipeline_id: Option<&str>) -> Vec<AlertEvent> {
-        let history = self.alert_history.read().unwrap();
+        let history = self.alert_history.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(pid) = pipeline_id {
             history.iter()
@@ -785,7 +785,7 @@ impl PerformanceAnalyticsEngine {
 
         let mean = throughputs.iter().sum::<f64>() / throughputs.len() as f64;
         let mut sorted = throughputs.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted.len() % 2 == 0 {
             (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
@@ -821,7 +821,7 @@ impl PerformanceAnalyticsEngine {
 
         let mean = latencies.iter().sum::<f64>() / latencies.len() as f64;
         let mut sorted = latencies.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted.len() % 2 == 0 {
             (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
@@ -868,8 +868,8 @@ impl PerformanceAnalyticsEngine {
 
         let cpu_stats = if !cpu_usages.is_empty() {
             let mean = cpu_usages.iter().sum::<f64>() / cpu_usages.len() as f64;
-            let max = cpu_usages.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).copied().unwrap_or(0.0);
-            let min = cpu_usages.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).copied().unwrap_or(0.0);
+            let max = cpu_usages.iter().max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).copied().unwrap_or(0.0);
+            let min = cpu_usages.iter().min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)).copied().unwrap_or(0.0);
 
             CpuUsageStatistics {
                 mean_percent: mean,

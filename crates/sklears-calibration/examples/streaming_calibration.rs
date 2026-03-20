@@ -155,7 +155,7 @@ fn generate_batch(
     total_batches: usize,
 ) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     // Introduce gradual drift across batches
     let drift_factor = (batch_idx as f64) / (total_batches as f64) * 0.5;
@@ -178,7 +178,7 @@ fn generate_batch(
 /// Generate full dataset for batch comparison
 fn generate_full_dataset(n_samples: usize) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     let x = Array2::from_shape_fn((n_samples, 2), |_| normal.sample(&mut rng));
     let y = Array1::from_shape_fn(n_samples, |i| if i < n_samples / 2 { 0 } else { 1 });

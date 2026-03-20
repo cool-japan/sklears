@@ -235,7 +235,10 @@ fn compute_score_for_classification(
         "accuracy" => Ok(accuracy_score(y_true, y_pred)?),
         _ => {
             let scorer = get_scorer(metric_name)?;
-            scorer.score(y_true.as_slice().unwrap(), y_pred.as_slice().unwrap())
+            scorer.score(
+                y_true.as_slice().expect("operation should succeed"),
+                y_pred.as_slice().expect("operation should succeed"),
+            )
         }
     }
 }
@@ -459,7 +462,7 @@ where
         let best_idx = results
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.0.partial_cmp(&b.0).unwrap())
+            .max_by(|(_, a), (_, b)| a.0.partial_cmp(&b.0).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .ok_or_else(|| SklearsError::NumericalError("No valid scores found".to_string()))?;
 
@@ -478,7 +481,7 @@ where
             .enumerate()
             .map(|(i, &score)| (score, i))
             .collect();
-        scores_with_idx.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        scores_with_idx.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         let mut ranks = vec![0; param_combinations.len()];
         for (rank, (_, idx)) in scores_with_idx.iter().enumerate() {
@@ -570,25 +573,29 @@ impl ParameterDistribution {
         use scirs2_core::random::Distribution;
 
         match self {
-            ParameterDistribution::Choice(values) => values.as_slice().choose(rng).unwrap().clone(),
+            ParameterDistribution::Choice(values) => values
+                .as_slice()
+                .choose(rng)
+                .expect("operation should succeed")
+                .clone(),
             ParameterDistribution::RandInt { low, high } => {
-                let dist = Uniform::new(*low, *high).unwrap();
+                let dist = Uniform::new(*low, *high).expect("operation should succeed");
                 ParameterValue::Int(dist.sample(rng))
             }
             ParameterDistribution::Uniform { low, high } => {
-                let dist = Uniform::new(*low, *high).unwrap();
+                let dist = Uniform::new(*low, *high).expect("operation should succeed");
                 ParameterValue::Float(dist.sample(rng))
             }
             ParameterDistribution::LogUniform { low, high } => {
                 // Implement log-uniform manually: sample from log scale then exponentiate
                 let log_low = low.ln();
                 let log_high = high.ln();
-                let dist = Uniform::new(log_low, log_high).unwrap();
+                let dist = Uniform::new(log_low, log_high).expect("operation should succeed");
                 let log_sample = dist.sample(rng);
                 ParameterValue::Float(log_sample.exp())
             }
             ParameterDistribution::Normal { mean, std } => {
-                let dist = RandNormal::new(*mean, *std).unwrap();
+                let dist = RandNormal::new(*mean, *std).expect("operation should succeed");
                 ParameterValue::Float(dist.sample(rng))
             }
         }
@@ -878,7 +885,7 @@ where
         let best_idx = results
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.0.partial_cmp(&b.0).unwrap())
+            .max_by(|(_, a), (_, b)| a.0.partial_cmp(&b.0).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .ok_or_else(|| SklearsError::NumericalError("No valid scores found".to_string()))?;
 
@@ -897,7 +904,7 @@ where
             .enumerate()
             .map(|(i, &score)| (score, i))
             .collect();
-        scores_with_idx.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        scores_with_idx.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         let mut ranks = vec![0; param_combinations.len()];
         for (rank, (_, idx)) in scores_with_idx.iter().enumerate() {
@@ -1097,7 +1104,7 @@ mod tests {
         let grid_search = GridSearchCV::new(base_estimator, param_grid, config_fn)
             .cv(KFold::new(3))
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that we have results
         assert!(grid_search.best_score().is_some());
@@ -1106,17 +1113,21 @@ mod tests {
         assert!(grid_search.cv_results().is_some());
 
         // Check CV results structure
-        let cv_results = grid_search.cv_results().unwrap();
+        let cv_results = grid_search.cv_results().expect("operation should succeed");
         assert_eq!(cv_results.params.len(), 4); // 2 x 2 = 4 combinations
         assert_eq!(cv_results.mean_test_scores.len(), 4);
         assert_eq!(cv_results.rank_test_scores.len(), 4);
 
         // Best rank should be 1
-        let best_rank = cv_results.rank_test_scores.iter().min().unwrap();
+        let best_rank = cv_results
+            .rank_test_scores
+            .iter()
+            .min()
+            .expect("operation should succeed");
         assert_eq!(*best_rank, 1);
 
         // Test prediction with best estimator
-        let predictions = grid_search.predict(&x).unwrap();
+        let predictions = grid_search.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), x.nrows());
     }
 
@@ -1138,10 +1149,10 @@ mod tests {
 
         // Empty grid should succeed with default parameters
         assert!(result.is_ok());
-        let grid_search = result.unwrap();
+        let grid_search = result.expect("operation should succeed");
 
         // Should have one parameter combination (empty set = default params)
-        let cv_results = grid_search.cv_results().unwrap();
+        let cv_results = grid_search.cv_results().expect("operation should succeed");
         assert_eq!(cv_results.params.len(), 1);
         assert!(cv_results.params[0].is_empty()); // Empty parameter set
     }
@@ -1245,7 +1256,7 @@ mod tests {
                 .cv(KFold::new(3))
                 .random_state(Some(42))
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
         // Check that we have results
         assert!(randomized_search.best_score().is_some());
@@ -1254,17 +1265,25 @@ mod tests {
         assert!(randomized_search.cv_results().is_some());
 
         // Check CV results structure
-        let cv_results = randomized_search.cv_results().unwrap();
+        let cv_results = randomized_search
+            .cv_results()
+            .expect("operation should succeed");
         assert_eq!(cv_results.params.len(), 8); // Should have 8 sampled combinations
         assert_eq!(cv_results.mean_test_scores.len(), 8);
         assert_eq!(cv_results.rank_test_scores.len(), 8);
 
         // Best rank should be 1
-        let best_rank = cv_results.rank_test_scores.iter().min().unwrap();
+        let best_rank = cv_results
+            .rank_test_scores
+            .iter()
+            .min()
+            .expect("operation should succeed");
         assert_eq!(*best_rank, 1);
 
         // Test prediction with best estimator
-        let predictions = randomized_search.predict(&x).unwrap();
+        let predictions = randomized_search
+            .predict(&x)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), x.nrows());
 
         // Check that parameter values are within expected ranges
@@ -1331,7 +1350,7 @@ mod tests {
                 .random_state(Some(123))
                 .cv(KFold::new(2))
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
         let base_estimator2 = GradientBoostingRegressor::new().random_state(Some(42));
         let result2 = RandomizedSearchCV::new(base_estimator2, param_distributions, config_fn)
@@ -1339,13 +1358,13 @@ mod tests {
             .random_state(Some(123))
             .cv(KFold::new(2))
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should get identical results
         assert_eq!(result1.best_score(), result2.best_score());
 
-        let params1 = result1.cv_results().unwrap();
-        let params2 = result2.cv_results().unwrap();
+        let params1 = result1.cv_results().expect("operation should succeed");
+        let params2 = result2.cv_results().expect("operation should succeed");
 
         // Check that the same parameters were sampled
         for (p1, p2) in params1.params.iter().zip(params2.params.iter()) {

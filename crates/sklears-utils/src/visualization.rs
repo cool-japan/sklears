@@ -148,7 +148,7 @@ impl ChartData {
         }
 
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let len = sorted_data.len();
         let q1 = Self::calculate_quantile(&sorted_data, 0.25);
@@ -645,7 +645,8 @@ mod tests {
             "D".to_string()
         ];
 
-        let scatter_data = ChartData::prepare_scatter_plot(&x, &y, Some(&labels)).unwrap();
+        let scatter_data = ChartData::prepare_scatter_plot(&x, &y, Some(&labels))
+            .expect("operation should succeed");
 
         assert_eq!(scatter_data.points.len(), 4);
         assert_eq!(scatter_data.labels.len(), 4);
@@ -668,8 +669,8 @@ mod tests {
         let x = array![1.0, 2.0, 3.0];
         let y = array![1.0, 4.0, 9.0];
 
-        let line_data =
-            ChartData::prepare_line_plot(&x, &y, Some("Quadratic".to_string())).unwrap();
+        let line_data = ChartData::prepare_line_plot(&x, &y, Some("Quadratic".to_string()))
+            .expect("operation should succeed");
 
         assert_eq!(line_data.points.len(), 3);
         assert_eq!(line_data.name, "Quadratic");
@@ -681,7 +682,8 @@ mod tests {
     fn test_histogram_preparation() {
         let data = array![1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 5.0];
 
-        let hist_data = ChartData::prepare_histogram(&data, Some(4)).unwrap();
+        let hist_data =
+            ChartData::prepare_histogram(&data, Some(4)).expect("operation should succeed");
 
         assert_eq!(hist_data.counts.len(), 4);
         assert_eq!(hist_data.bin_edges.len(), 5);
@@ -703,8 +705,8 @@ mod tests {
         let row_labels = vec!["Row1".to_string(), "Row2".to_string()];
         let col_labels = vec!["Col1".to_string(), "Col2".to_string(), "Col3".to_string()];
 
-        let heatmap_data =
-            ChartData::prepare_heatmap(&data, Some(&row_labels), Some(&col_labels)).unwrap();
+        let heatmap_data = ChartData::prepare_heatmap(&data, Some(&row_labels), Some(&col_labels))
+            .expect("operation should succeed");
 
         assert_eq!(heatmap_data.values.len(), 2);
         assert_eq!(heatmap_data.values[0].len(), 3);
@@ -718,7 +720,8 @@ mod tests {
     fn test_box_plot_preparation() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
 
-        let box_data = ChartData::prepare_box_plot(&data, Some("Test Data".to_string())).unwrap();
+        let box_data = ChartData::prepare_box_plot(&data, Some("Test Data".to_string()))
+            .expect("operation should succeed");
 
         assert_eq!(box_data.label, "Test Data");
         assert_abs_diff_eq!(box_data.median, 5.5, epsilon = 1e-10);
@@ -731,7 +734,7 @@ mod tests {
     fn test_box_plot_with_outliers() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 100.0]; // 100 is an outlier
 
-        let box_data = ChartData::prepare_box_plot(&data, None).unwrap();
+        let box_data = ChartData::prepare_box_plot(&data, None).expect("operation should succeed");
 
         assert!(!box_data.outliers.is_empty());
         assert!(box_data.outliers.contains(&100.0));
@@ -797,13 +800,14 @@ mod tests {
     fn test_json_export() {
         let x = array![1.0, 2.0];
         let y = array![3.0, 4.0];
-        let scatter_data = ChartData::prepare_scatter_plot(&x, &y, None).unwrap();
+        let scatter_data =
+            ChartData::prepare_scatter_plot(&x, &y, None).expect("operation should succeed");
         let plot_data = PlotData::Scatter(scatter_data);
 
         let json_result = PlotUtils::to_json(&plot_data);
         assert!(json_result.is_ok());
 
-        let json = json_result.unwrap();
+        let json = json_result.expect("operation should succeed");
         assert!(json.contains("Scatter"));
         assert!(json.contains("points"));
     }
@@ -812,9 +816,10 @@ mod tests {
     fn test_csv_export() {
         let x = array![1.0, 2.0];
         let y = array![3.0, 4.0];
-        let scatter_data = ChartData::prepare_scatter_plot(&x, &y, None).unwrap();
+        let scatter_data =
+            ChartData::prepare_scatter_plot(&x, &y, None).expect("operation should succeed");
 
-        let csv = PlotUtils::to_csv(&scatter_data).unwrap();
+        let csv = PlotUtils::to_csv(&scatter_data).expect("operation should succeed");
 
         assert!(csv.contains("x,y,label"));
         assert!(csv.contains("1,3"));
@@ -825,7 +830,8 @@ mod tests {
     fn test_plot_summary_generation() {
         let x = array![1.0, 2.0, 3.0];
         let y = array![2.0, 4.0, 6.0];
-        let scatter_data = ChartData::prepare_scatter_plot(&x, &y, None).unwrap();
+        let scatter_data =
+            ChartData::prepare_scatter_plot(&x, &y, None).expect("operation should succeed");
         let plot_data = PlotData::Scatter(scatter_data);
 
         let summary = PlotUtils::generate_plot_summary(&plot_data);
@@ -850,7 +856,7 @@ mod tests {
 
         let heatmap =
             MLVisualizationUtils::prepare_confusion_matrix(&y_true, &y_pred, Some(&class_names))
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(heatmap.values.len(), 3);
         assert_eq!(heatmap.values[0].len(), 3);
@@ -871,7 +877,7 @@ mod tests {
 
         let (train_line, val_line) =
             MLVisualizationUtils::prepare_learning_curve(&train_sizes, &train_scores, &val_scores)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(train_line.name, "Training Score");
         assert_eq!(val_line.name, "Validation Score");
@@ -893,8 +899,8 @@ mod tests {
         ];
         let importance = array![0.5, 0.3, 0.2];
 
-        let scatter_data =
-            MLVisualizationUtils::prepare_feature_importance(&features, &importance).unwrap();
+        let scatter_data = MLVisualizationUtils::prepare_feature_importance(&features, &importance)
+            .expect("operation should succeed");
 
         assert_eq!(scatter_data.points.len(), 3);
         assert_eq!(scatter_data.labels.len(), 3);
@@ -909,7 +915,8 @@ mod tests {
         let tpr = array![0.0, 0.6, 0.8, 1.0];
         let auc = 0.85;
 
-        let roc_line = MLVisualizationUtils::prepare_roc_curve(&fpr, &tpr, auc).unwrap();
+        let roc_line = MLVisualizationUtils::prepare_roc_curve(&fpr, &tpr, auc)
+            .expect("operation should succeed");
 
         assert_eq!(roc_line.points.len(), 4);
         assert!(roc_line.name.contains("ROC Curve"));
@@ -924,7 +931,8 @@ mod tests {
     fn test_plot_summary_display() {
         let x = array![1.0, 2.0];
         let y = array![3.0, 4.0];
-        let scatter_data = ChartData::prepare_scatter_plot(&x, &y, None).unwrap();
+        let scatter_data =
+            ChartData::prepare_scatter_plot(&x, &y, None).expect("operation should succeed");
         let plot_data = PlotData::Scatter(scatter_data);
 
         let summary = PlotUtils::generate_plot_summary(&plot_data);

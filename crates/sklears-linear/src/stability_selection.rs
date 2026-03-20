@@ -10,7 +10,7 @@ use crate::lasso_cv::{LassoCV, LassoCVConfig};
 use crate::ridge_cv::{RidgeCV, RidgeCVConfig};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{error::SklearsError, traits::Fit};
 use std::cmp::Ordering;
 
@@ -314,7 +314,10 @@ impl StabilitySelection {
             });
         }
 
-        let selection_result = self.selection_result.as_ref().unwrap();
+        let selection_result = self
+            .selection_result
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.is_empty() {
             return Ok(Vec::new());
@@ -384,7 +387,10 @@ impl StabilitySelection {
             });
         }
 
-        let selection_result = self.selection_result.as_ref().unwrap();
+        let selection_result = self
+            .selection_result
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (min_thresh, max_thresh, n_points) = threshold_range.unwrap_or((0.1, 1.0, 100));
 
         let mut thresholds = Vec::new();
@@ -433,7 +439,7 @@ impl StabilitySelection {
         if self.config.replace {
             // Sample with replacement
             for _ in 0..sample_size {
-                indices.push(self.rng.gen_range(0..n_samples));
+                indices.push(self.rng.random_range(0..n_samples));
             }
         } else {
             // Sample without replacement
@@ -443,7 +449,7 @@ impl StabilitySelection {
                 if all_indices.is_empty() {
                     break;
                 }
-                let idx = self.rng.gen_range(0..all_indices.len());
+                let idx = self.rng.random_range(0..all_indices.len());
                 indices.push(all_indices.remove(idx));
             }
         }
@@ -809,7 +815,7 @@ mod tests {
         let result = stability.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select some features
         assert!(!transformed.is_empty());
@@ -830,7 +836,7 @@ mod tests {
         let result = stability.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         assert_eq!(transformed.len(), 10); // Same number of samples
         assert!(!transformed[0].is_empty()); // Some features selected
@@ -845,9 +851,11 @@ mod tests {
             .with_n_bootstrap_iterations(5);
 
         let (x, y) = create_sample_data();
-        stability.fit(&x, &y).unwrap();
+        stability.fit(&x, &y).expect("model fitting should succeed");
 
-        let probabilities = stability.get_selection_probabilities().unwrap();
+        let probabilities = stability
+            .get_selection_probabilities()
+            .expect("operation should succeed");
         assert_eq!(probabilities.len(), 8); // 8 original features
 
         // Probabilities should be between 0 and 1
@@ -865,9 +873,11 @@ mod tests {
             .with_n_bootstrap_iterations(5);
 
         let (x, y) = create_sample_data();
-        stability.fit(&x, &y).unwrap();
+        stability.fit(&x, &y).expect("model fitting should succeed");
 
-        let stability_scores = stability.get_stability_scores().unwrap();
+        let stability_scores = stability
+            .get_stability_scores()
+            .expect("operation should succeed");
         assert_eq!(stability_scores.len(), 8);
 
         // Stability scores should be between 0 and 1
@@ -885,11 +895,11 @@ mod tests {
             .with_n_bootstrap_iterations(5);
 
         let (x, y) = create_sample_data();
-        stability.fit(&x, &y).unwrap();
+        stability.fit(&x, &y).expect("model fitting should succeed");
 
         let path = stability
             .compute_stability_path(Some((0.1, 0.9, 10)))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(path.thresholds.len(), 10);
         assert_eq!(path.n_selected.len(), 10);
@@ -915,7 +925,7 @@ mod tests {
         let result = stability.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // FDR control should limit the number of selected features
         assert!(transformed[0].len() <= 8);
@@ -937,7 +947,7 @@ mod tests {
             let result = stability.fit_transform(&x, &y);
             assert!(result.is_ok(), "Failed with sample fraction: {}", fraction);
 
-            let transformed = result.unwrap();
+            let transformed = result.expect("operation should succeed");
             assert_eq!(transformed.len(), 10);
         }
     }
@@ -964,8 +974,12 @@ mod tests {
             ..Default::default()
         });
 
-        let result1 = stability1.fit_transform(&x, &y).unwrap();
-        let result2 = stability2.fit_transform(&x, &y).unwrap();
+        let result1 = stability1
+            .fit_transform(&x, &y)
+            .expect("operation should succeed");
+        let result2 = stability2
+            .fit_transform(&x, &y)
+            .expect("operation should succeed");
 
         // Results should be identical with same seed
         assert_eq!(result1, result2);

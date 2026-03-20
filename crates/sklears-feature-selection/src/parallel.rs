@@ -140,9 +140,10 @@ impl ParallelFeatureRanker {
 
         // Sort by score descending (parallel sort for large arrays)
         if indexed_scores.len() > 1000 {
-            indexed_scores.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            indexed_scores
+                .par_sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         } else {
-            indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         }
 
         indexed_scores.into_iter().map(|(idx, _)| idx).collect()
@@ -246,8 +247,8 @@ impl ParallelCorrelationComputer {
             return Ok(0.0);
         }
 
-        let mean_x = x.mean().unwrap();
-        let mean_y = y.mean().unwrap();
+        let mean_x = x.mean().expect("operation should succeed");
+        let mean_y = y.mean().expect("operation should succeed");
 
         let mut sum_xy = 0.0;
         let mut sum_xx = 0.0;
@@ -296,7 +297,7 @@ impl ParallelVarianceComputer {
             return 0.0;
         }
 
-        let mean = x.mean().unwrap();
+        let mean = x.mean().expect("operation should succeed");
         let sum_sq_diff: Float = x.iter().map(|&val| (val - mean).powi(2)).sum();
         sum_sq_diff / (n - 1) as Float
     }
@@ -317,7 +318,7 @@ impl ParallelSelectionUtils {
     /// Apply percentile-based selection in parallel
     pub fn apply_percentile_parallel(scores: &Array1<Float>, percentile: Float) -> Vec<usize> {
         let mut sorted_scores = scores.to_vec();
-        sorted_scores.par_sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_scores.par_sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         let threshold_idx = ((1.0 - percentile / 100.0) * sorted_scores.len() as Float) as usize;
         let threshold = if threshold_idx < sorted_scores.len() {
@@ -344,7 +345,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 0, 1, 0]);
 
         let scorer =
@@ -356,7 +357,9 @@ mod tests {
                     .sum())
             });
 
-        let scores = scorer.evaluate_parallel(&x, &y).unwrap();
+        let scores = scorer
+            .evaluate_parallel(&x, &y)
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 3);
     }
 
@@ -372,20 +375,20 @@ mod tests {
 
     #[test]
     fn test_parallel_correlation_computer() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 0, 1]);
 
         let correlations =
             ParallelCorrelationComputer::compute_feature_target_correlation_parallel(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
         assert_eq!(correlations.len(), 2);
     }
 
     #[test]
     fn test_parallel_variance_computer() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
         let variances = ParallelVarianceComputer::compute_feature_variances_parallel(&x);
         assert_eq!(variances.len(), 2);

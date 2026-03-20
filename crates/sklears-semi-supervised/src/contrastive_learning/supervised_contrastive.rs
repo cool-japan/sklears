@@ -412,9 +412,9 @@ mod tests {
         let scl = SupervisedContrastiveLearning::new()
             .embedding_dim(32)
             .temperature(0.05)
-            .unwrap()
+            .expect("operation should succeed")
             .augmentation_strength(0.3)
-            .unwrap()
+            .expect("operation should succeed")
             .labeled_weight(3.0)
             .random_state(42);
 
@@ -448,18 +448,22 @@ mod tests {
             .embedding_dim(4)
             .max_epochs(2)
             .batch_size(3)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
-        let fitted = scl.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = scl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 6);
         for &pred in predictions.iter() {
             assert!(pred == 0 || pred == 1);
         }
 
-        let probabilities = fitted.predict_proba(&X.view()).unwrap();
+        let probabilities = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 2));
 
         // Check that probabilities sum to 1

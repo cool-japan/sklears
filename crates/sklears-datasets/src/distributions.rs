@@ -100,7 +100,7 @@ pub fn make_gaussian_mixture(
             let mean_val = means[[component, feature_idx]];
             let std_val = covariances[[component, feature_idx]].sqrt();
 
-            let normal = Normal::new(mean_val, std_val).unwrap();
+            let normal = Normal::new(mean_val, std_val).expect("operation should succeed");
             data[[sample_idx, feature_idx]] = rng.sample(normal);
         }
     }
@@ -202,7 +202,7 @@ pub fn make_distribution_mixture(
                         "normal distribution requires 2 parameters (mean, std)".to_string(),
                     ));
                 }
-                let normal = Normal::new(params[0], params[1]).unwrap();
+                let normal = Normal::new(params[0], params[1]).expect("operation should succeed");
                 rng.sample(normal)
             }
             "uniform" => {
@@ -229,7 +229,7 @@ pub fn make_distribution_mixture(
                         "gamma distribution requires 2 parameters (shape, scale)".to_string(),
                     ));
                 }
-                let gamma_dist = Gamma::new(params[0], params[1]).unwrap();
+                let gamma_dist = Gamma::new(params[0], params[1]).expect("operation should succeed");
                 rng.sample(gamma_dist)
             }
             _ => {
@@ -487,7 +487,7 @@ pub fn make_heavy_tailed_distribution(
                 ));
             }
 
-            let normal_dist = Normal::new(mu, sigma).unwrap();
+            let normal_dist = Normal::new(mu, sigma).expect("operation should succeed");
             for i in 0..n_samples {
                 let normal_sample: f64 = rng.sample(normal_dist);
                 samples[i] = normal_sample.exp();

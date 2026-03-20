@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
@@ -206,8 +206,8 @@ impl Fit<Vec<String>, ()> for TextKernelApproximation {
         }
 
         // Generate random weights for kernel approximation
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
 
         let mut random_weights = Array2::zeros((self.n_components, vocab_size));
         for i in 0..self.n_components {
@@ -402,7 +402,9 @@ impl SemanticKernelApproximation {
 
     fn aggregate_embeddings(&self, embeddings: &Array2<f64>) -> Array1<f64> {
         match self.aggregation_method {
-            AggregationMethod::Mean => embeddings.mean_axis(Axis(0)).unwrap(),
+            AggregationMethod::Mean => embeddings
+                .mean_axis(Axis(0))
+                .expect("operation should succeed"),
             AggregationMethod::Max => {
                 let mut result = Array1::zeros(embeddings.ncols());
                 for i in 0..embeddings.ncols() {
@@ -467,8 +469,8 @@ impl Fit<Vec<String>, ()> for SemanticKernelApproximation {
     type Fitted = FittedSemanticKernelApproximation;
 
     fn fit(self, documents: &Vec<String>, _y: &()) -> Result<Self::Fitted> {
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
 
         // Generate random word embeddings (in practice, these would be pre-trained)
         let mut word_embeddings = HashMap::new();
@@ -518,7 +520,9 @@ impl Fit<Vec<String>, ()> for SemanticKernelApproximation {
 impl FittedSemanticKernelApproximation {
     fn aggregate_embeddings(&self, embeddings: &Array2<f64>) -> Array1<f64> {
         match self.aggregation_method {
-            AggregationMethod::Mean => embeddings.mean_axis(Axis(0)).unwrap(),
+            AggregationMethod::Mean => embeddings
+                .mean_axis(Axis(0))
+                .expect("operation should succeed"),
             AggregationMethod::Max => {
                 let mut result = Array1::zeros(embeddings.ncols());
                 for i in 0..embeddings.ncols() {
@@ -759,8 +763,8 @@ impl Fit<Vec<String>, ()> for SyntacticKernelApproximation {
         }
 
         // Generate random weights
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
 
         let vocab_size = feature_vocabulary.len();
         let mut random_weights = Array2::zeros((self.n_components, vocab_size));
@@ -1027,8 +1031,8 @@ impl Fit<Vec<String>, ()> for DocumentKernelApproximation {
         let feature_dim = sample_features.len();
 
         // Generate random weights
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
 
         let mut random_weights = Array2::zeros((self.n_components, feature_dim));
         for i in 0..self.n_components {
@@ -1151,8 +1155,10 @@ mod tests {
         ];
 
         let text_kernel = TextKernelApproximation::new(50);
-        let fitted = text_kernel.fit(&docs, &()).unwrap();
-        let transformed = fitted.transform(&docs).unwrap();
+        let fitted = text_kernel
+            .fit(&docs, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&docs).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 3);
         assert_eq!(transformed.shape()[1], 50);
@@ -1166,8 +1172,10 @@ mod tests {
         ];
 
         let semantic_kernel = SemanticKernelApproximation::new(30, 100);
-        let fitted = semantic_kernel.fit(&docs, &()).unwrap();
-        let transformed = fitted.transform(&docs).unwrap();
+        let fitted = semantic_kernel
+            .fit(&docs, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&docs).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 2);
         assert_eq!(transformed.shape()[1], 30);
@@ -1181,8 +1189,10 @@ mod tests {
         ];
 
         let syntactic_kernel = SyntacticKernelApproximation::new(40);
-        let fitted = syntactic_kernel.fit(&docs, &()).unwrap();
-        let transformed = fitted.transform(&docs).unwrap();
+        let fitted = syntactic_kernel
+            .fit(&docs, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&docs).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 2);
         assert_eq!(transformed.shape()[1], 40);
@@ -1197,8 +1207,10 @@ mod tests {
         ];
 
         let doc_kernel = DocumentKernelApproximation::new(25);
-        let fitted = doc_kernel.fit(&docs, &()).unwrap();
-        let transformed = fitted.transform(&docs).unwrap();
+        let fitted = doc_kernel
+            .fit(&docs, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&docs).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 2);
         assert_eq!(transformed.shape()[1], 25);

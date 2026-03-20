@@ -27,7 +27,7 @@ use std::marker::PhantomData;
 /// let tensor2 = Array3::zeros((10, 6, 3)); // (samples, mode1, mode2)
 ///
 /// let tcca = TensorCCA::new(2).regularization(0.1);
-/// let fitted = tcca.fit(&tensor1, &tensor2).unwrap();
+/// let fitted = tcca.fit(&tensor1, &tensor2).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct TensorCCA<State = Untrained> {
@@ -145,8 +145,12 @@ impl Fit<Array3<Float>, Array3<Float>> for TensorCCA<Untrained> {
 
         // Center the tensors if requested
         let (X_centered, Y_centered, mean_x, mean_y) = if self.center {
-            let mean_x = X.mean_axis(Axis(0)).unwrap();
-            let mean_y = Y.mean_axis(Axis(0)).unwrap();
+            let mean_x = X.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
+            let mean_y = Y.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
 
             let X_centered = X - &mean_x.clone().insert_axis(Axis(0));
             let Y_centered = Y - &mean_y.clone().insert_axis(Axis(0));
@@ -430,8 +434,7 @@ impl Transform<(Array3<Float>, Array3<Float>), (Array1<Float>, Array1<Float>)>
             if let Some(ref mean_x) = self.mean_x_ {
                 let mean_3d = mean_x
                     .clone()
-                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                    .unwrap();
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()?;
                 X - &mean_3d.insert_axis(Axis(0))
             } else {
                 X.clone()
@@ -444,8 +447,7 @@ impl Transform<(Array3<Float>, Array3<Float>), (Array1<Float>, Array1<Float>)>
             if let Some(ref mean_y) = self.mean_y_ {
                 let mean_3d = mean_y
                     .clone()
-                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                    .unwrap();
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()?;
                 Y - &mean_3d.insert_axis(Axis(0))
             } else {
                 Y.clone()
@@ -454,8 +456,14 @@ impl Transform<(Array3<Float>, Array3<Float>), (Array1<Float>, Array1<Float>)>
             Y.clone()
         };
 
-        let weights_x = self.weights_x_.as_ref().unwrap();
-        let weights_y = self.weights_y_.as_ref().unwrap();
+        let weights_x = self
+            .weights_x_
+            .as_ref()
+            .expect("value should be set after fitting");
+        let weights_y = self
+            .weights_y_
+            .as_ref()
+            .expect("value should be set after fitting");
 
         // Compute canonical scores for first component only (for simplicity)
         let scores_x = self.compute_tensor_scores(&X_centered, weights_x, 0, 0)?;
@@ -468,27 +476,35 @@ impl Transform<(Array3<Float>, Array3<Float>), (Array1<Float>, Array1<Float>)>
 impl TensorCCA<Trained> {
     /// Get the canonical weights for tensor X
     pub fn weights_x(&self) -> &Vec<Array2<Float>> {
-        self.weights_x_.as_ref().unwrap()
+        self.weights_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical weights for tensor Y
     pub fn weights_y(&self) -> &Vec<Array2<Float>> {
-        self.weights_y_.as_ref().unwrap()
+        self.weights_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical correlations
     pub fn correlations(&self) -> &Array1<Float> {
-        self.correlations_.as_ref().unwrap()
+        self.correlations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance
     pub fn explained_variance(&self) -> &Array1<Float> {
-        self.explained_variance_.as_ref().unwrap()
+        self.explained_variance_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations for convergence
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Helper method for transform

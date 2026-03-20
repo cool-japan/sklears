@@ -1035,7 +1035,7 @@ impl SubsystemCoordinator {
         self.event_processor.start().await?;
 
         // Initialize all subsystems
-        let mut registry = self.registry.write().unwrap();
+        let mut registry = self.registry.write().unwrap_or_else(|e| e.into_inner());
         registry.initialize_all().await?;
 
         Ok(())
@@ -1050,7 +1050,7 @@ impl SubsystemCoordinator {
         self.health_monitor.stop().await?;
 
         // Shutdown all subsystems
-        let mut registry = self.registry.write().unwrap();
+        let mut registry = self.registry.write().unwrap_or_else(|e| e.into_inner());
         registry.shutdown_all().await?;
 
         Ok(())
@@ -1058,13 +1058,13 @@ impl SubsystemCoordinator {
 
     /// Get overall status
     pub fn get_status(&self) -> SubsystemStatusSummary {
-        let registry = self.registry.read().unwrap();
+        let registry = self.registry.read().unwrap_or_else(|e| e.into_inner());
         registry.get_status_summary()
     }
 
     /// Perform comprehensive health check
     pub async fn perform_health_check(&self) -> SklResult<HealthCheckResults> {
-        let mut registry = self.registry.write().unwrap();
+        let mut registry = self.registry.write().unwrap_or_else(|e| e.into_inner());
         registry.perform_health_check().await
     }
 }
@@ -1235,7 +1235,7 @@ impl Histogram {
             if values.is_empty() {
                 return None;
             }
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let index = (percentile / 100.0 * values.len() as f64) as usize;
             Some(values[index.min(values.len() - 1)])
         } else {

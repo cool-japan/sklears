@@ -772,7 +772,7 @@ pub mod sketching {
             // Find insertion point
             let pos = self
                 .buckets
-                .binary_search_by(|(v, _)| v.partial_cmp(&value).unwrap())
+                .binary_search_by(|(v, _)| v.partial_cmp(&value).expect("operation should succeed"))
                 .unwrap_or_else(|e| e);
 
             if pos < self.buckets.len() && (self.buckets[pos].0 - value).abs() < 1e-10 {
@@ -970,10 +970,10 @@ mod tests {
         }
 
         // Test quantiles
-        let median = sketch.quantile(0.5).unwrap();
+        let median = sketch.quantile(0.5).expect("operation should succeed");
         assert!(median >= 45.0 && median <= 55.0);
 
-        let q90 = sketch.quantile(0.9).unwrap();
+        let q90 = sketch.quantile(0.9).expect("operation should succeed");
         assert!(q90 >= 85.0 && q90 <= 95.0);
     }
 

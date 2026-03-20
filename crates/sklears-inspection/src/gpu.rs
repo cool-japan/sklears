@@ -466,7 +466,7 @@ mod tests {
         let result = GpuContext::new();
         assert!(result.is_ok());
 
-        let context = result.unwrap();
+        let context = result.expect("operation should succeed");
         // Should always have CPU fallback available
         assert!(context.backend == GpuBackend::CpuFallback || !context.devices.is_empty());
     }
@@ -487,7 +487,7 @@ mod tests {
         let buffer_result = GpuBuffer::<f32>::new(100, GpuBackend::CpuFallback);
         assert!(buffer_result.is_ok());
 
-        let buffer = buffer_result.unwrap();
+        let buffer = buffer_result.expect("operation should succeed");
         assert_eq!(buffer.size(), 100);
         assert_eq!(buffer.backend(), GpuBackend::CpuFallback);
     }
@@ -532,11 +532,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_gpu_explanation_computer_creation() {
-        let mut context = GpuContext::new().unwrap();
+        let mut context = GpuContext::new().expect("operation should succeed");
         let computer_result = GpuExplanationComputer::new(&mut context);
         assert!(computer_result.is_ok());
 
-        let computer = computer_result.unwrap();
+        let computer = computer_result.expect("operation should succeed");
         // Should work even without GPU (fallback to CPU)
         assert!(computer.is_gpu_available() || computer.config.cpu_fallback);
     }
@@ -545,8 +545,8 @@ mod tests {
     async fn test_shap_computation_fallback() {
         use scirs2_core::ndarray::array;
 
-        let mut context = GpuContext::new().unwrap();
-        let computer = GpuExplanationComputer::new(&mut context).unwrap();
+        let mut context = GpuContext::new().expect("operation should succeed");
+        let computer = GpuExplanationComputer::new(&mut context).expect("operation should succeed");
 
         let features = array![[1.0, 2.0], [3.0, 4.0]];
         let background = array![[0.0, 0.0], [1.0, 1.0]];
@@ -563,7 +563,7 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
-        let shap_values = result.unwrap();
+        let shap_values = result.expect("operation should succeed");
         assert_eq!(shap_values.dim(), (2, 2));
     }
 }

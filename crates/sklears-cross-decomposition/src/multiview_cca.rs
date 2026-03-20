@@ -31,7 +31,7 @@ use std::marker::PhantomData;
 /// let other_views = vec![view2, view3].into();
 ///
 /// let mv_cca = MultiViewCCA::new(1).regularization(0.1);
-/// let fitted = mv_cca.fit(&view1, &other_views).unwrap();
+/// let fitted = mv_cca.fit(&view1, &other_views).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MultiViewCCA<State = Untrained> {
@@ -185,7 +185,11 @@ impl MultiViewCCA<Untrained> {
         }
 
         // Validate n_components
-        let min_features = views.iter().map(|v| v.ncols()).min().unwrap();
+        let min_features = views
+            .iter()
+            .map(|v| v.ncols())
+            .min()
+            .expect("operation should succeed");
         if self.n_components > min_features {
             return Err(SklearsError::InvalidInput(format!(
                 "n_components ({}) cannot exceed minimum number of features ({})",
@@ -199,7 +203,9 @@ impl MultiViewCCA<Untrained> {
         let mut stds = Vec::new();
 
         for view in views {
-            let view_mean = view.mean_axis(Axis(0)).unwrap();
+            let view_mean = view.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
             let mut centered_view = view - &view_mean.view().insert_axis(Axis(0));
 
             let view_std = if self.scale {
@@ -392,9 +398,15 @@ impl MultiViewCCA<Untrained> {
 impl Transform<Vec<Array2<Float>>, Vec<Array2<Float>>> for MultiViewCCA<Trained> {
     /// Transform views to canonical space
     fn transform(&self, views: &Vec<Array2<Float>>) -> Result<Vec<Array2<Float>>> {
-        let weights = self.weights_.as_ref().unwrap();
-        let means = self.means_.as_ref().unwrap();
-        let stds = self.stds_.as_ref().unwrap();
+        let weights = self.weights_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let means = self.means_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let stds = self.stds_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         if views.len() != weights.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -430,37 +442,49 @@ impl Transform<Vec<Array2<Float>>, Vec<Array2<Float>>> for MultiViewCCA<Trained>
 impl MultiViewCCA<Trained> {
     /// Get the canonical weights for each view
     pub fn weights(&self) -> &Vec<Array2<Float>> {
-        self.weights_.as_ref().unwrap()
+        self.weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical loadings for each view
     pub fn loadings(&self) -> &Vec<Array2<Float>> {
-        self.loadings_.as_ref().unwrap()
+        self.loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical scores for each view
     pub fn scores(&self) -> &Vec<Array2<Float>> {
-        self.scores_.as_ref().unwrap()
+        self.scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical correlations between views
     pub fn correlations(&self) -> &Array2<Float> {
-        self.correlations_.as_ref().unwrap()
+        self.correlations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance for each component
     pub fn explained_variance(&self) -> &Array1<Float> {
-        self.explained_variance_.as_ref().unwrap()
+        self.explained_variance_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance ratio for each component
     pub fn explained_variance_ratio(&self) -> &Array1<Float> {
-        self.explained_variance_ratio_.as_ref().unwrap()
+        self.explained_variance_ratio_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations for convergence
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 }
 
@@ -479,7 +503,7 @@ mod tests {
         let views = vec![view1.clone(), view2, view3];
 
         let mv_cca = MultiViewCCA::new(1);
-        let fitted = mv_cca.fit_views(&views).unwrap();
+        let fitted = mv_cca.fit_views(&views).expect("fit should succeed");
 
         // Check that weights were computed
         assert_eq!(fitted.weights().len(), 3);
@@ -502,8 +526,8 @@ mod tests {
         let views = vec![view1.clone(), view2.clone()];
 
         let mv_cca = MultiViewCCA::new(1);
-        let fitted = mv_cca.fit_views(&views).unwrap();
-        let transformed = fitted.transform(&views).unwrap();
+        let fitted = mv_cca.fit_views(&views).expect("fit should succeed");
+        let transformed = fitted.transform(&views).expect("transform should succeed");
 
         assert_eq!(transformed.len(), 2);
         assert_eq!(transformed[0].shape(), &[4, 1]);
@@ -534,7 +558,7 @@ mod tests {
         let views = vec![view1, view2, view3];
 
         let mv_cca = MultiViewCCA::new(1).regularization(0.1);
-        let fitted = mv_cca.fit_views(&views).unwrap();
+        let fitted = mv_cca.fit_views(&views).expect("fit should succeed");
 
         // Should converge with regularization
         assert!(fitted.n_iter() > 0);

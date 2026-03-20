@@ -6,7 +6,7 @@
 
 // ✅ SciRS2 Policy compliant imports
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 // use scirs2_core::simd::{SimdOps}; // Note: SimdArray and auto_vectorize not available
 // use scirs2_core::parallel::{}; // Note: ParallelExecutor, ChunkStrategy not available
 
@@ -387,12 +387,12 @@ impl ApproximateKNNImputer<Untrained> {
             let mut random_vector = Array1::<f64>::zeros(n_features);
             for i in 0..n_features {
                 // Generate standard normal using Box-Muller transform
-                let u1: f64 = rng.gen();
-                let u2: f64 = rng.gen();
+                let u1: f64 = rng.random();
+                let u2: f64 = rng.random();
                 let z = (-2.0_f64 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 random_vector[i] = z;
             }
-            let offset: f64 = rng.gen::<f64>() * bucket_width;
+            let offset: f64 = rng.random::<f64>() * bucket_width;
 
             hash_functions.push(RandomHashFunction {
                 random_vector,
@@ -496,7 +496,7 @@ impl ApproximateKNNImputer<ApproximateKNNImputerTrained> {
         }
 
         // Sort by distance and take k nearest
-        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         neighbors.truncate(self.n_neighbors);
 
         Ok(neighbors)
@@ -550,7 +550,7 @@ impl ApproximateKNNImputer<ApproximateKNNImputerTrained> {
                 }
             }
 
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             neighbors.truncate(self.n_neighbors);
 
             if neighbors.is_empty() {
@@ -596,7 +596,7 @@ impl ApproximateKNNImputer<ApproximateKNNImputerTrained> {
             }
         }
 
-        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         neighbors.truncate(self.n_neighbors);
 
         Ok(neighbors)
@@ -643,7 +643,7 @@ impl ApproximateKNNImputer<ApproximateKNNImputerTrained> {
 
         for (&x1, &x2) in row1.iter().zip(row2.iter()) {
             // Skip some features based on sampling rate
-            if rng.gen::<f64>() > sample_rate {
+            if rng.random::<f64>() > sample_rate {
                 continue;
             }
 
@@ -882,7 +882,7 @@ impl ApproximateSimpleImputer<Untrained> {
                     "mean" => sample_values.iter().sum::<f64>() / sample_values.len() as f64,
                     "median" => {
                         let mut sorted = sample_values.clone();
-                        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let mid = sorted.len() / 2;
                         if sorted.len() % 2 == 0 {
                             (sorted[mid - 1] + sorted[mid]) / 2.0
@@ -902,7 +902,8 @@ impl ApproximateSimpleImputer<Untrained> {
                     bootstrap_estimates.iter().sum::<f64>() / bootstrap_estimates.len() as f64;
 
                 // Confidence interval (5th and 95th percentiles)
-                bootstrap_estimates.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                bootstrap_estimates
+                    .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let lower_idx = (bootstrap_estimates.len() as f64 * 0.05) as usize;
                 let upper_idx = (bootstrap_estimates.len() as f64 * 0.95) as usize;
 
@@ -958,8 +959,12 @@ mod tests {
             .strategy("mean".to_string())
             .sample_size(100);
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Check that NaN was replaced (value should be reasonable)
         assert!(!X_imputed[[1, 1]].is_nan());
@@ -985,8 +990,12 @@ mod tests {
             .accuracy_level(0.8)
             .sample_size(3);
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Verify that missing value was imputed
         assert!(!X_imputed[[1, 1]].is_nan());
@@ -1026,8 +1035,12 @@ mod tests {
             .strategy(ApproximationStrategy::HashBased)
             .accuracy_level(0.9);
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Verify that missing value was imputed
         assert!(!X_imputed[[1, 1]].is_nan());
@@ -1046,7 +1059,9 @@ mod tests {
 
         let imputer = ApproximateSimpleImputer::new().strategy("mean".to_string());
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         let confidence_intervals = fitted.confidence_intervals();
 
         // Check that confidence intervals exist and make sense

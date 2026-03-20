@@ -167,12 +167,14 @@ impl<E: Clone> RFE<E, Untrained> {
     /// Set the step size for feature elimination
     /// If step >= 1, remove step features at each iteration
     /// If 0 < step < 1, remove step * n_features features at each iteration
-    pub fn step(mut self, step: f64) -> Self {
+    pub fn step(mut self, step: f64) -> Result<Self, SklearsError> {
         if step <= 0.0 {
-            panic!("step must be > 0");
+            return Err(SklearsError::InvalidInput(
+                "step must be > 0".to_string(),
+            ));
         }
         self.step = step;
-        self
+        Ok(self)
     }
 }
 
@@ -352,21 +354,25 @@ impl<E: Clone> RFECV<E, Untrained> {
     }
 
     /// Set the minimum number of features to consider
-    pub fn min_features_to_select(mut self, min_features: usize) -> Self {
+    pub fn min_features_to_select(mut self, min_features: usize) -> Result<Self, SklearsError> {
         if min_features < 1 {
-            panic!("min_features_to_select must be >= 1");
+            return Err(SklearsError::InvalidInput(
+                "min_features_to_select must be >= 1".to_string(),
+            ));
         }
         self.min_features_to_select = min_features;
-        self
+        Ok(self)
     }
 
     /// Set the step size for feature elimination
-    pub fn step(mut self, step: f64) -> Self {
+    pub fn step(mut self, step: f64) -> Result<Self, SklearsError> {
         if step <= 0.0 {
-            panic!("step must be > 0");
+            return Err(SklearsError::InvalidInput(
+                "step must be > 0".to_string(),
+            ));
         }
         self.step = step;
-        self
+        Ok(self)
     }
 
     /// Set the cross-validation strategy
@@ -833,12 +839,14 @@ impl<E: Clone> SequentialFeatureSelector<E, Untrained> {
     }
 
     /// Set the direction ("forward", "backward", or "bidirectional")
-    pub fn direction(mut self, direction: &str) -> Self {
+    pub fn direction(mut self, direction: &str) -> Result<Self, SklearsError> {
         if direction != "forward" && direction != "backward" && direction != "bidirectional" {
-            panic!("direction must be 'forward', 'backward', or 'bidirectional'");
+            return Err(SklearsError::InvalidInput(
+                "direction must be 'forward', 'backward', or 'bidirectional'".to_string(),
+            ));
         }
         self.direction = direction.to_string();
-        self
+        Ok(self)
     }
 
     /// Set the number of CV folds
@@ -1389,16 +1397,16 @@ mod tests {
         let y = array![5.0, 10.0, 15.0, 20.0, 25.0]; // y = x0 + 2*x1
 
         let estimator = MockLinearEstimator::new();
-        let rfe = RFE::new(estimator).n_features_to_select(2).step(1.0);
+        let rfe = RFE::new(estimator).n_features_to_select(2).step(1.0).expect("valid step");
 
-        let fitted_rfe = rfe.fit(&x, &y).unwrap();
+        let fitted_rfe = rfe.fit(&x, &y).expect("operation should succeed");
 
         // Check that the first two features are selected
-        let support = fitted_rfe.support().unwrap();
+        let support = fitted_rfe.support().expect("operation should succeed");
         println!("Support: {:?}", support);
 
         // Check ranking
-        let ranking = fitted_rfe.ranking().unwrap();
+        let ranking = fitted_rfe.ranking().expect("operation should succeed");
         println!("Ranking: {:?}", ranking);
 
         // The features with highest absolute coefficients should be selected
@@ -1422,7 +1430,7 @@ mod tests {
         }
 
         // Test transform
-        let x_transformed = fitted_rfe.transform(&x).unwrap();
+        let x_transformed = fitted_rfe.transform(&x).expect("operation should succeed");
         assert_eq!(x_transformed.shape(), &[5, 2]);
     }
 
@@ -1437,21 +1445,21 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let estimator = MockLinearEstimator::new();
-        let rfe = RFE::new(estimator).n_features_to_select(2).step(0.5); // Remove 50% of features at each step
+        let rfe = RFE::new(estimator).n_features_to_select(2).step(0.5).expect("valid step"); // Remove 50% of features at each step
 
-        let fitted_rfe = rfe.fit(&x, &y).unwrap();
+        let fitted_rfe = rfe.fit(&x, &y).expect("operation should succeed");
 
         // Should have selected 2 features
-        let support = fitted_rfe.support().unwrap();
+        let support = fitted_rfe.support().expect("operation should succeed");
         let n_selected = support.iter().filter(|&&x| x).count();
         assert_eq!(n_selected, 2);
     }
 
     #[test]
-    #[should_panic(expected = "step must be > 0")]
     fn test_rfe_invalid_step() {
         let estimator = MockLinearEstimator::new();
-        let _rfe = RFE::new(estimator).step(0.0);
+        let result = RFE::new(estimator).step(0.0);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -1484,12 +1492,12 @@ mod tests {
         }
 
         let estimator = MockLinearEstimator::new();
-        let rfecv = RFECV::new(estimator).min_features_to_select(1).step(1.0);
+        let rfecv = RFECV::new(estimator).min_features_to_select(1).expect("valid min_features").step(1.0).expect("valid step");
 
-        let fitted_rfecv = rfecv.fit(&x, &y).unwrap();
+        let fitted_rfecv = rfecv.fit(&x, &y).expect("operation should succeed");
 
         // Check that CV results were computed
-        let cv_results = fitted_rfecv.cv_results().unwrap();
+        let cv_results = fitted_rfecv.cv_results().expect("operation should succeed");
         assert!(cv_results.mean_test_scores.len() > 0);
         assert_eq!(
             cv_results.mean_test_scores.len(),
@@ -1501,7 +1509,7 @@ mod tests {
         );
 
         // The optimal number of features should be at least 2 (the informative ones)
-        let support = fitted_rfecv.support().unwrap();
+        let support = fitted_rfecv.support().expect("operation should succeed");
         let n_selected = support.iter().filter(|&&x| x).count();
         assert!(n_selected >= 2);
     }
@@ -1529,10 +1537,10 @@ mod tests {
         let cv = Box::new(KFold::new(3));
         let rfecv = RFECV::new(estimator).min_features_to_select(1).cv(cv);
 
-        let fitted_rfecv = rfecv.fit(&x, &y).unwrap();
+        let fitted_rfecv = rfecv.fit(&x, &y).expect("operation should succeed");
 
         // Should have computed CV scores
-        let cv_results = fitted_rfecv.cv_results().unwrap();
+        let cv_results = fitted_rfecv.cv_results().expect("operation should succeed");
         assert!(cv_results.mean_test_scores.len() > 0);
     }
 
@@ -1550,14 +1558,14 @@ mod tests {
         let estimator = MockLinearEstimator::new();
         let selector = SelectFromModel::new(estimator).threshold(0.5);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         // Should select features with high coefficients
-        let support = fitted_selector.get_support().unwrap();
+        let support = fitted_selector.get_support().expect("operation should succeed");
         let n_selected = support.iter().filter(|&&x| x).count();
         assert!(n_selected >= 1);
 
-        let x_transformed = fitted_selector.transform(&x).unwrap();
+        let x_transformed = fitted_selector.transform(&x).expect("operation should succeed");
         assert_eq!(x_transformed.ncols(), n_selected);
     }
 

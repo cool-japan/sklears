@@ -369,31 +369,35 @@ mod tests {
 
         // Test RBF sampler
         let rbf = RBFSampler::new(100);
-        let fitted_rbf = rbf.fit(&x, &()).unwrap();
-        let x_rbf = fitted_rbf.transform(&x).unwrap();
+        let fitted_rbf = rbf.fit(&x, &()).expect("operation should succeed");
+        let x_rbf = fitted_rbf.transform(&x).expect("operation should succeed");
         assert_eq!(x_rbf.shape(), &[4, 100]);
 
         // Test Laplacian sampler
         let laplacian = LaplacianSampler::new(50);
-        let fitted_laplacian = laplacian.fit(&x, &()).unwrap();
-        let x_laplacian = fitted_laplacian.transform(&x).unwrap();
+        let fitted_laplacian = laplacian.fit(&x, &()).expect("operation should succeed");
+        let x_laplacian = fitted_laplacian
+            .transform(&x)
+            .expect("operation should succeed");
         assert_eq!(x_laplacian.shape(), &[4, 50]);
 
         // Test Additive Chi2 sampler (stateless)
         let chi2 = AdditiveChi2Sampler::new(2);
-        let x_chi2 = chi2.transform(&x.mapv(|v| v.abs())).unwrap();
+        let x_chi2 = chi2
+            .transform(&x.mapv(|v| v.abs()))
+            .expect("operation should succeed");
         assert_eq!(x_chi2.shape(), &[4, 6]); // 2 features * (2*2-1) = 6
 
         // Test Polynomial sampler
         let poly = PolynomialSampler::new(30).degree(3).gamma(1.0).coef0(1.0);
-        let fitted_poly = poly.fit(&x, &()).unwrap();
-        let x_poly = fitted_poly.transform(&x).unwrap();
+        let fitted_poly = poly.fit(&x, &()).expect("operation should succeed");
+        let x_poly = fitted_poly.transform(&x).expect("operation should succeed");
         assert_eq!(x_poly.shape(), &[4, 30]);
 
         // Test Arc-cosine sampler
         let arc_cosine = ArcCosineSampler::new(25).degree(1);
-        let fitted_arc = arc_cosine.fit(&x, &()).unwrap();
-        let x_arc = fitted_arc.transform(&x).unwrap();
+        let fitted_arc = arc_cosine.fit(&x, &()).expect("operation should succeed");
+        let x_arc = fitted_arc.transform(&x).expect("operation should succeed");
         assert_eq!(x_arc.shape(), &[4, 25]);
     }
 }

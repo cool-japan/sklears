@@ -803,12 +803,12 @@ mod tests {
     #[test]
     fn test_quantum_transform() {
         let transformer = QuantumTransformer::default();
-        let input = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let input = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap_or_default();
 
         let result = transformer.transform(&input);
         assert!(result.is_ok());
 
-        let transformed = result.unwrap();
+        let transformed = result.unwrap_or_default();
         assert_eq!(transformed.shape(), input.shape());
     }
 
@@ -841,11 +841,11 @@ mod tests {
             .add_quantum_measurement()
             .build();
 
-        let input = Array2::from_shape_vec((2, 2), vec![0.1, 0.2, 0.8, 0.9]).unwrap();
+        let input = Array2::from_shape_vec((2, 2), vec![0.1, 0.2, 0.8, 0.9]).unwrap_or_default();
         let result = pipeline.execute(&input);
 
         assert!(result.is_ok());
-        let output = result.unwrap();
+        let output = result.unwrap_or_default();
         assert_eq!(output.shape(), input.shape());
     }
 

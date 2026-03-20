@@ -35,7 +35,7 @@ use crate::{MetricsError, MetricsResult};
 use scirs2_core::random::Distribution;
 // Normal distribution available via RandNormal per SciRS2 policy
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 
 /// Configuration for federated learning evaluation
 #[derive(Debug, Clone)]
@@ -138,7 +138,7 @@ pub fn privacy_preserving_aggregation(
     let scale = sensitivity / epsilon;
 
     // Manual Laplace noise generation using inverse CDF method
-    let uniform: f64 = rng.gen_range(-0.5..0.5);
+    let uniform: f64 = rng.random_range(-0.5..0.5);
     let noise = -scale * uniform.signum() * (1.0f64 - 2.0f64 * uniform.abs()).ln();
 
     Ok(true_aggregate + noise)
@@ -180,7 +180,8 @@ pub fn communication_efficient_aggregation(
     // Apply compression effect (introduces some noise/error)
     let compression_noise_std = (1.0 - compression_ratio) * 0.1;
     let mut rng = StdRng::seed_from_u64(42);
-    let normal = scirs2_core::random::RandNormal::new(0.0, compression_noise_std).unwrap();
+    let normal = scirs2_core::random::RandNormal::new(0.0, compression_noise_std)
+        .expect("operation should succeed");
 
     // Weighted aggregation with compression effects
     let total_weight: f64 = weights.iter().sum();
@@ -692,7 +693,8 @@ mod tests {
     #[test]
     fn test_privacy_preserving_aggregation() {
         let metrics = vec![0.85, 0.78, 0.92, 0.71];
-        let result = privacy_preserving_aggregation(&metrics, 1.0, 0.1, 42).unwrap();
+        let result = privacy_preserving_aggregation(&metrics, 1.0, 0.1, 42)
+            .expect("operation should succeed");
 
         // Should be close to true average with some noise
         let true_avg = metrics.iter().sum::<f64>() / metrics.len() as f64;
@@ -702,14 +704,16 @@ mod tests {
     #[test]
     fn test_demographic_parity() {
         let metrics = vec![0.85, 0.78, 0.92, 0.71, 0.88];
-        let fairness = demographic_parity_across_clients(&metrics).unwrap();
+        let fairness =
+            demographic_parity_across_clients(&metrics).expect("operation should succeed");
 
         assert!(fairness >= 0.0);
         assert!(fairness <= 1.0);
 
         // Perfect fairness case
         let equal_metrics = vec![0.85, 0.85, 0.85, 0.85];
-        let perfect_fairness = demographic_parity_across_clients(&equal_metrics).unwrap();
+        let perfect_fairness =
+            demographic_parity_across_clients(&equal_metrics).expect("operation should succeed");
         assert!(perfect_fairness > fairness); // Equal metrics should be more fair
     }
 
@@ -718,7 +722,8 @@ mod tests {
         let costs = vec![1000.0, 1200.0, 800.0];
         let improvements = vec![0.05, 0.03, 0.02];
 
-        let efficiency = communication_efficiency(&costs, &improvements).unwrap();
+        let efficiency =
+            communication_efficiency(&costs, &improvements).expect("operation should succeed");
         assert!(efficiency > 0.0);
 
         // Should be total improvement / total cost
@@ -728,33 +733,37 @@ mod tests {
 
     #[test]
     fn test_client_contribution_score() {
-        let contribution = client_contribution_score(0.80, 0.85, 1000.0).unwrap();
+        let contribution =
+            client_contribution_score(0.80, 0.85, 1000.0).expect("operation should succeed");
         assert_abs_diff_eq!(contribution, 0.05 / 1000.0, epsilon = 1e-10);
 
         // Negative contribution case
-        let negative_contribution = client_contribution_score(0.85, 0.80, 1000.0).unwrap();
+        let negative_contribution =
+            client_contribution_score(0.85, 0.80, 1000.0).expect("operation should succeed");
         assert!(negative_contribution < 0.0);
     }
 
     #[test]
     fn test_privacy_budget_allocation() {
         let (total_loss, allocations) =
-            privacy_budget_allocation(0.1, 10, PrivacyComposition::Basic).unwrap();
+            privacy_budget_allocation(0.1, 10, PrivacyComposition::Basic)
+                .expect("operation should succeed");
 
         assert_eq!(allocations.len(), 10);
         assert!(allocations.iter().all(|&x| x == 0.1));
         assert_abs_diff_eq!(total_loss, 1.0, epsilon = 1e-10); // 0.1 * 10
 
         // Advanced composition should give better bounds
-        let (advanced_loss, _) =
-            privacy_budget_allocation(0.1, 10, PrivacyComposition::Advanced).unwrap();
+        let (advanced_loss, _) = privacy_budget_allocation(0.1, 10, PrivacyComposition::Advanced)
+            .expect("operation should succeed");
         assert!(advanced_loss < total_loss);
     }
 
     #[test]
     fn test_convergence_analysis() {
         let loss_history = vec![1.0, 0.8, 0.6, 0.5, 0.45, 0.42, 0.41, 0.405];
-        let convergence = analyze_convergence(&loss_history, 0.05).unwrap();
+        let convergence =
+            analyze_convergence(&loss_history, 0.05).expect("operation should succeed");
 
         assert!(convergence.convergence_rate > 0.0);
         assert!(convergence.stability >= 0.0);
@@ -768,7 +777,8 @@ mod tests {
         let tpr = vec![0.8, 0.85, 0.75, 0.9];
         let fpr = vec![0.1, 0.15, 0.05, 0.2];
 
-        let odds_diff = equalized_odds_across_clients(&tpr, &fpr).unwrap();
+        let odds_diff =
+            equalized_odds_across_clients(&tpr, &fpr).expect("operation should succeed");
 
         // Should be max difference in either TPR or FPR
         let tpr_diff: f64 = 0.9 - 0.75;
@@ -783,7 +793,8 @@ mod tests {
         let metrics = vec![0.85, 0.78, 0.92];
         let weights = vec![100.0, 200.0, 150.0];
 
-        let result = communication_efficient_aggregation(&metrics, &weights, 0.8).unwrap();
+        let result = communication_efficient_aggregation(&metrics, &weights, 0.8)
+            .expect("operation should succeed");
 
         // Should be close to weighted average
         let weighted_sum = metrics
@@ -810,7 +821,7 @@ mod tests {
             &communication_costs,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.client_metrics.len(), 4);
         assert_eq!(result.client_contributions.len(), 4);
@@ -838,7 +849,7 @@ mod tests {
             vec![0.20, 0.15], // Client 3 shares
         ];
 
-        let result = secure_aggregation(&shares, 2).unwrap();
+        let result = secure_aggregation(&shares, 2).expect("operation should succeed");
         assert!(result.is_finite());
     }
 }

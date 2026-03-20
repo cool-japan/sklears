@@ -5,7 +5,7 @@
 //! and synthetic missing data validation.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -466,7 +466,7 @@ impl ImputationCrossValidator {
                                 missing_rate * 0.5 * self.test_fraction
                             };
 
-                            if rng.gen::<f64>() < prob {
+                            if rng.random::<f64>() < prob {
                                 X_missing[[i, j]] = f64::NAN;
                                 missing_mask[[i, j]] = true;
                             }
@@ -493,7 +493,7 @@ impl ImputationCrossValidator {
                             missing_rate * 0.3 * self.test_fraction
                         };
 
-                        if rng.gen::<f64>() < prob {
+                        if rng.random::<f64>() < prob {
                             X_missing[[i, j]] = f64::NAN;
                             missing_mask[[i, j]] = true;
                         }
@@ -787,7 +787,7 @@ fn compute_ks_test(sample1: &[f64], sample2: &[f64]) -> (f64, f64) {
 
     // Simplified KS test - compute empirical CDFs and maximum difference
     let mut all_values: Vec<f64> = sample1.iter().chain(sample2.iter()).cloned().collect();
-    all_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    all_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     all_values.dedup();
 
     let mut max_diff = 0.0;

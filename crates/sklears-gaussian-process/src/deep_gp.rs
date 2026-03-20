@@ -39,7 +39,7 @@
 
 use crate::kernels::Kernel;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{Random, Rng}; // SciRS2 Policy
+use scirs2_core::random::{Random, RngExt}; // SciRS2 Policy
 use sklears_core::error::{Result as SklResult, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict};
 
@@ -116,7 +116,7 @@ impl DeepGPLayer {
     /// Enable attention mechanism for this layer
     pub fn with_attention(mut self, n_heads: usize, attention_dim: usize) -> Self {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::{RngExt, SeedableRng};
 
         self.use_attention = true;
         self.n_attention_heads = n_heads.max(1);
@@ -132,9 +132,9 @@ impl DeepGPLayer {
 
         for i in 0..self.input_dim {
             for j in 0..attention_dim {
-                query_weights[[i, j]] = rng.gen_range(-scale..scale);
-                key_weights[[i, j]] = rng.gen_range(-scale..scale);
-                value_weights[[i, j]] = rng.gen_range(-scale..scale);
+                query_weights[[i, j]] = rng.random_range(-scale..scale);
+                key_weights[[i, j]] = rng.random_range(-scale..scale);
+                value_weights[[i, j]] = rng.random_range(-scale..scale);
             }
         }
 
@@ -395,7 +395,7 @@ impl DeepGaussianProcessRegressor<Untrained> {
     }
 
     /// Initialize inducing points for a layer
-    fn initialize_inducing_points<R: Rng>(
+    fn initialize_inducing_points<R: RngExt>(
         &self,
         x_train: &Array2<f64>,
         n_inducing: usize,
@@ -410,7 +410,7 @@ impl DeepGaussianProcessRegressor<Untrained> {
         // Random subset selection
         let mut inducing_points = Array2::zeros((n_inducing, input_dim));
         for i in 0..n_inducing {
-            let idx = rng.gen_range(0..x_train.nrows());
+            let idx = rng.random_range(0..x_train.nrows());
             for j in 0..input_dim {
                 inducing_points[[i, j]] = x_train[[idx, j]];
             }
@@ -882,13 +882,17 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0], [3.0]];
         let y_train = array![0.0, 1.0, 0.5, 2.0];
 
-        let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = deep_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         assert_eq!(trained_model.num_layers(), 2);
         assert!(trained_model.log_likelihood().is_finite());
 
         let x_test = array![[1.5], [2.5]];
-        let (predictions, uncertainties) = trained_model.predict(&x_test).unwrap();
+        let (predictions, uncertainties) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert_eq!(uncertainties.len(), 2);
@@ -907,11 +911,15 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0]];
         let y_train = array![0.0, 1.0, 0.5];
 
-        let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = deep_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         assert_eq!(trained_model.num_layers(), 1);
 
         let x_test = array![[0.5]];
-        let (predictions, _) = trained_model.predict(&x_test).unwrap();
+        let (predictions, _) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 1);
     }
 
@@ -928,11 +936,15 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0], [3.0], [4.0]];
         let y_train = array![0.0, 1.0, 0.5, 2.0, 1.5];
 
-        let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = deep_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         assert_eq!(trained_model.num_layers(), 3);
 
         let x_test = array![[1.5], [2.5], [3.5]];
-        let (predictions, uncertainties) = trained_model.predict(&x_test).unwrap();
+        let (predictions, uncertainties) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(uncertainties.len(), 3);
@@ -980,16 +992,22 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0]];
         let y_train = array![0.0, 1.0, 0.5];
 
-        let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = deep_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         let x_test = array![[0.5], [1.5]];
 
         // Test predictions from first layer
-        let (layer0_pred, _layer0_var) = trained_model.predict_layer(&x_test, 0).unwrap();
+        let (layer0_pred, _layer0_var) = trained_model
+            .predict_layer(&x_test, 0)
+            .expect("operation should succeed");
         assert_eq!(layer0_pred.nrows(), 2);
 
         // Test predictions from second layer
-        let (layer1_pred, _layer1_var) = trained_model.predict_layer(&x_test, 1).unwrap();
+        let (layer1_pred, _layer1_var) = trained_model
+            .predict_layer(&x_test, 1)
+            .expect("operation should succeed");
         assert_eq!(layer1_pred.nrows(), 2);
 
         // Test invalid layer index
@@ -1009,14 +1027,20 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0], [3.0]];
         let y_train = array![0.0, 1.0, 0.5, 2.0];
 
-        let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = deep_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         // Check inducing points for each layer
-        let inducing_0 = trained_model.get_inducing_points(0).unwrap();
+        let inducing_0 = trained_model
+            .get_inducing_points(0)
+            .expect("operation should succeed");
         assert_eq!(inducing_0.nrows(), 4);
         assert_eq!(inducing_0.ncols(), 1);
 
-        let inducing_1 = trained_model.get_inducing_points(1).unwrap();
+        let inducing_1 = trained_model
+            .get_inducing_points(1)
+            .expect("operation should succeed");
         assert_eq!(inducing_1.nrows(), 3);
 
         // Test invalid layer index
@@ -1035,9 +1059,13 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0]];
         let y_train = array![0.0, 1.0, 0.5];
 
-        let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = deep_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
-        let (var_mean, var_var) = trained_model.get_variational_params(0).unwrap();
+        let (var_mean, var_var) = trained_model
+            .get_variational_params(0)
+            .expect("operation should succeed");
         assert_eq!(var_mean.len(), 3); // Should match the minimum of n_inducing and n_data
         assert_eq!(var_var.len(), 3);
 
@@ -1107,9 +1135,13 @@ mod tests {
             let x_train = array![[0.0], [1.0], [2.0]];
             let y_train = array![0.0, 1.0, 0.5];
 
-            let trained_model = deep_gp.fit(&x_train, &y_train).unwrap();
+            let trained_model = deep_gp
+                .fit(&x_train, &y_train)
+                .expect("model fitting should succeed");
             let x_test = array![[0.5]];
-            let (predictions, _) = trained_model.predict(&x_test).unwrap();
+            let (predictions, _) = trained_model
+                .predict(&x_test)
+                .expect("prediction should succeed");
             predictions[0]
         };
 

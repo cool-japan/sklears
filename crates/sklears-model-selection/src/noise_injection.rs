@@ -164,7 +164,7 @@ impl NoiseInjector {
                     .collect();
 
                 if !available_labels.is_empty() {
-                    let new_label_idx = self.rng.gen_range(0..available_labels.len());
+                    let new_label_idx = self.rng.random_range(0..available_labels.len());
                     noisy_y[i] = available_labels[new_label_idx];
                 }
             }
@@ -179,7 +179,7 @@ impl NoiseInjector {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if self.rng.gen::<f64>() < self.config.probability {
+                if self.rng.random::<f64>() < self.config.probability {
                     let noise_std = if self.config.adaptive {
                         self.config.intensity * x[[i, j]].abs()
                     } else {
@@ -204,14 +204,15 @@ impl NoiseInjector {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if self.rng.gen::<f64>() < self.config.probability {
+                if self.rng.random::<f64>() < self.config.probability {
                     let noise_range = if self.config.adaptive {
                         self.config.intensity * x[[i, j]].abs()
                     } else {
                         self.config.intensity
                     };
 
-                    let uniform = Uniform::new(-noise_range, noise_range).unwrap();
+                    let uniform =
+                        Uniform::new(-noise_range, noise_range).expect("operation should succeed");
                     let noise = self.rng.sample(uniform);
                     noisy_x[[i, j]] += noise;
                 }
@@ -230,8 +231,8 @@ impl NoiseInjector {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if self.rng.gen::<f64>() < self.config.probability {
-                    if self.rng.gen::<f64>() < 0.5 {
+                if self.rng.random::<f64>() < self.config.probability {
+                    if self.rng.random::<f64>() < 0.5 {
                         noisy_x[[i, j]] = min_val;
                     } else {
                         noisy_x[[i, j]] = max_val;
@@ -249,7 +250,7 @@ impl NoiseInjector {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if self.rng.gen::<f64>() < self.config.intensity {
+                if self.rng.random::<f64>() < self.config.intensity {
                     noisy_x[[i, j]] = 0.0;
                 }
             }
@@ -264,7 +265,7 @@ impl NoiseInjector {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if self.rng.gen::<f64>() < self.config.probability {
+                if self.rng.random::<f64>() < self.config.probability {
                     let noise_factor = if self.config.intensity > 0.0 {
                         let gamma = Gamma::new(1.0 / self.config.intensity, self.config.intensity)
                             .map_err(|_| noise_error("Random number generation failed"))?;
@@ -300,7 +301,7 @@ impl NoiseInjector {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                let gradient_sign = if self.rng.gen::<f64>() < 0.5 {
+                let gradient_sign = if self.rng.random::<f64>() < 0.5 {
                     -1.0
                 } else {
                     1.0
@@ -322,7 +323,7 @@ impl NoiseInjector {
         for _ in 0..num_steps {
             for i in 0..n_samples {
                 for j in 0..n_features {
-                    let gradient_sign = if self.rng.gen::<f64>() < 0.5 {
+                    let gradient_sign = if self.rng.random::<f64>() < 0.5 {
                         -1.0
                     } else {
                         1.0
@@ -351,7 +352,7 @@ impl NoiseInjector {
             let mut perturbations: Vec<f64> = vec![0.0; n_features];
 
             for j in 0..n_features {
-                perturbations[j] = self.rng.gen_range(-1.0..1.0);
+                perturbations[j] = self.rng.random_range(-1.0..1.0);
                 perturbation_norm += perturbations[j].powi(2);
             }
 
@@ -374,12 +375,12 @@ impl NoiseInjector {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                let direction = if self.rng.gen::<f64>() < 0.5 {
+                let direction = if self.rng.random::<f64>() < 0.5 {
                     -1.0
                 } else {
                     1.0
                 };
-                let magnitude = self.rng.gen::<f64>() * self.config.intensity;
+                let magnitude = self.rng.random::<f64>() * self.config.intensity;
                 noisy_x[[i, j]] += direction * magnitude;
             }
         }
@@ -402,8 +403,8 @@ impl NoiseInjector {
             let std_dev = variance.sqrt();
 
             for i in 0..n_samples {
-                if self.rng.gen::<f64>() < self.config.probability {
-                    let outlier_direction = if self.rng.gen::<f64>() < 0.5 {
+                if self.rng.random::<f64>() < self.config.probability {
+                    let outlier_direction = if self.rng.random::<f64>() < 0.5 {
                         -1.0
                     } else {
                         1.0
@@ -426,9 +427,9 @@ impl NoiseInjector {
         }
 
         for i in 0..n_samples {
-            if self.rng.gen::<f64>() < self.config.feature_swap_rate {
-                let feature1 = self.rng.gen_range(0..n_features);
-                let feature2 = self.rng.gen_range(0..n_features);
+            if self.rng.random::<f64>() < self.config.feature_swap_rate {
+                let feature1 = self.rng.random_range(0..n_features);
+                let feature2 = self.rng.random_range(0..n_features);
 
                 if feature1 != feature2 {
                     let temp = noisy_x[[i, feature1]];
@@ -600,7 +601,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(noisy_x.dim(), x.dim());
         assert!(noisy_x != x);
@@ -617,7 +620,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(noisy_x.dim(), x.dim());
     }
@@ -633,7 +638,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
 
         let zero_count = noisy_x.iter().filter(|&&val| val == 0.0).count();
         assert!(zero_count > 0);
@@ -650,7 +657,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_y = injector.inject_label_noise(&y.view()).unwrap();
+        let noisy_y = injector
+            .inject_label_noise(&y.view())
+            .expect("operation should succeed");
 
         assert_eq!(noisy_y.len(), y.len());
         assert!(noisy_y != y);
@@ -668,7 +677,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(noisy_x.dim(), x.dim());
     }
@@ -685,7 +696,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(noisy_x.dim(), x.dim());
     }
@@ -701,7 +714,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(noisy_x.dim(), x.dim());
     }
@@ -717,7 +732,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
         let stats = injector.compute_noise_statistics(&x.view(), &noisy_x.view());
 
         assert!(stats.affected_samples > 0);
@@ -738,7 +755,9 @@ mod tests {
         };
 
         let mut injector = NoiseInjector::new(config);
-        let noisy_x = injector.inject_feature_noise(&x.view()).unwrap();
+        let noisy_x = injector
+            .inject_feature_noise(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(noisy_x.dim(), x.dim());
     }

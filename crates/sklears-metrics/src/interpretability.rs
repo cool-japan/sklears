@@ -52,6 +52,7 @@
 use crate::{MetricsError, MetricsResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use std::collections::{HashMap, HashSet};
 
@@ -301,7 +302,7 @@ where
             explanation[b]
                 .abs()
                 .partial_cmp(&explanation[a].abs())
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         // Incrementally permute features and measure prediction change
@@ -458,7 +459,7 @@ pub fn calculate_comprehensibility(
 
     // Calculate entropy of feature importance distribution
     let mut all_importances: Vec<f64> = explanations.iter().map(|&x| x.abs()).collect();
-    all_importances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    all_importances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let entropy = calculate_entropy(&all_importances, 10); // 10 bins
 
     // Overall comprehensibility score (weighted combination)
@@ -629,7 +630,7 @@ fn spearman_correlation(x: &[f64], y: &[f64]) -> f64 {
 fn calculate_ranks(values: &[f64]) -> Vec<f64> {
     let mut indexed_values: Vec<(usize, f64)> =
         values.iter().enumerate().map(|(i, &v)| (i, v)).collect();
-    indexed_values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    indexed_values.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
     let mut ranks = vec![0.0; values.len()];
     for (rank, &(original_index, _)) in indexed_values.iter().enumerate() {
@@ -657,7 +658,7 @@ fn get_top_k_indices(values: &ArrayView1<f64>, k: usize) -> HashSet<usize> {
         .enumerate()
         .map(|(i, &v)| (i, v.abs()))
         .collect();
-    indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
     indexed_values.iter().take(k).map(|(i, _)| *i).collect()
 }
@@ -715,7 +716,6 @@ fn bootstrap_confidence_interval(
     confidence_level: f64,
     n_bootstrap: usize,
 ) -> (f64, f64) {
-    use scirs2_core::random::Rng;
     let mut rng = StdRng::seed_from_u64(42);
 
     let mut bootstrap_means = Vec::with_capacity(n_bootstrap);
@@ -724,14 +724,14 @@ fn bootstrap_confidence_interval(
     for _ in 0..n_bootstrap {
         let mut bootstrap_sample = Vec::with_capacity(n);
         for _ in 0..n {
-            let idx = rng.gen_range(0..n);
+            let idx = rng.random_range(0..n);
             bootstrap_sample.push(values[idx]);
         }
         let mean = bootstrap_sample.iter().sum::<f64>() / n as f64;
         bootstrap_means.push(mean);
     }
 
-    bootstrap_means.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    bootstrap_means.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let alpha = 1.0 - confidence_level;
     let lower_idx = (alpha / 2.0 * n_bootstrap as f64) as usize;
@@ -847,7 +847,7 @@ fn calculate_discriminative_power(explanations: &Array2<f64>, top_k: usize) -> M
         .enumerate()
         .map(|(i, &imp)| (i, imp))
         .collect();
-    indexed_importance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    indexed_importance.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
     let top_k_importance: f64 = indexed_importance
         .iter()
@@ -881,12 +881,12 @@ mod tests {
     #[test]
     fn test_faithfulness_removal() {
         let predictions = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-        let explanations =
-            Array2::from_shape_vec((3, 2), vec![0.5, 0.5, 0.3, 0.7, 0.8, 0.2]).unwrap();
+        let explanations = Array2::from_shape_vec((3, 2), vec![0.5, 0.5, 0.3, 0.7, 0.8, 0.2])
+            .expect("operation should succeed");
 
         let result =
             calculate_faithfulness_removal(&predictions, &explanations, mock_model_predict, 0.4)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(result.score >= 0.0 && result.score <= 1.0);
         assert_eq!(result.sample_scores.len(), 3);
@@ -899,10 +899,10 @@ mod tests {
             (3, 4),
             vec![0.4, 0.3, 0.2, 0.1, 0.5, 0.2, 0.2, 0.1, 0.4, 0.3, 0.2, 0.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let result =
-            calculate_explanation_stability(&explanations, StabilityMetric::Correlation).unwrap();
+        let result = calculate_explanation_stability(&explanations, StabilityMetric::Correlation)
+            .expect("operation should succeed");
 
         assert!(result.mean_stability >= -1.0 && result.mean_stability <= 1.0);
         assert_eq!(result.pairwise_scores.shape(), &[3, 3]);
@@ -919,9 +919,10 @@ mod tests {
                 0.25, 0.25, 0.25, 0.25, // Dense explanation
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let result = calculate_comprehensibility(&explanations, 0.1).unwrap();
+        let result =
+            calculate_comprehensibility(&explanations, 0.1).expect("operation should succeed");
 
         assert!(result.score >= 0.0 && result.score <= 1.0);
         assert!(result.sparsity >= 0.0 && result.sparsity <= 1.0);
@@ -979,9 +980,10 @@ mod tests {
             (3, 4),
             vec![0.4, 0.3, 0.2, 0.1, 0.5, 0.2, 0.2, 0.1, 0.4, 0.3, 0.2, 0.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let result = evaluate_ranking_quality(&explanations, None, 2).unwrap();
+        let result =
+            evaluate_ranking_quality(&explanations, None, 2).expect("operation should succeed");
 
         assert!(result.consistency >= 0.0 && result.consistency <= 1.0);
         assert!(result.top_k_stability >= 0.0 && result.top_k_stability <= 1.0);
@@ -1013,7 +1015,7 @@ mod tests {
         let values = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let (lower, upper) = bootstrap_confidence_interval(&values, 0.95, 100);
 
-        let mean = values.mean().unwrap();
+        let mean = values.mean().expect("operation should succeed");
         assert!(lower <= mean);
         assert!(mean <= upper);
         assert!(upper > lower);

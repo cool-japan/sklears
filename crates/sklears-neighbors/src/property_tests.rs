@@ -29,7 +29,7 @@ prop_compose! {
             y_data.push((i % n_classes) as i32);
         }
 
-        let X = Array2::from_shape_vec((n_samples, n_features), x_data).unwrap();
+        let X = Array2::from_shape_vec((n_samples, n_features), x_data).expect("operation should succeed");
         let y = Array1::from_vec(y_data);
 
         (X, y)
@@ -56,7 +56,7 @@ prop_compose! {
             y_data.push(target);
         }
 
-        let X = Array2::from_shape_vec((n_samples, n_features), x_data).unwrap();
+        let X = Array2::from_shape_vec((n_samples, n_features), x_data).expect("operation should succeed");
         let y = Array1::from_vec(y_data);
 
         (X, y)
@@ -69,8 +69,8 @@ proptest! {
         let n_neighbors = (X.nrows() / 2).max(1).min(5);
         let classifier = KNeighborsClassifier::new(n_neighbors);
 
-        let fitted = classifier.fit(&X, &y).unwrap();
-        let predictions = fitted.predict(&X).unwrap();
+        let fitted = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
 
         // Predictions should have same length as input
         prop_assert_eq!(predictions.len(), y.len());
@@ -82,7 +82,7 @@ proptest! {
         }
 
         // Predictions should be deterministic for same input (skip this for now due to tie handling)
-        // let predictions2 = fitted.predict(&X).unwrap();
+        // let predictions2 = fitted.predict(&X).expect("operation should succeed");
         // prop_assert_eq!(predictions, predictions2);
     }
 
@@ -91,8 +91,8 @@ proptest! {
         let n_neighbors = (X.nrows() / 2).max(1).min(5);
         let regressor = KNeighborsRegressor::new(n_neighbors);
 
-        let fitted = regressor.fit(&X, &y).unwrap();
-        let predictions = fitted.predict(&X).unwrap();
+        let fitted = regressor.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
 
         // Predictions should have same length as input
         prop_assert_eq!(predictions.len(), y.len());
@@ -123,8 +123,8 @@ proptest! {
             let classifier = KNeighborsClassifier::new(n_neighbors)
                 .with_metric(distance);
 
-            let fitted = classifier.fit(&X, &y).unwrap();
-            let predictions = fitted.predict(&X).unwrap();
+            let fitted = classifier.fit(&X, &y).expect("operation should succeed");
+            let predictions = fitted.predict(&X).expect("operation should succeed");
 
             // All distance metrics should produce same-shaped output
             prop_assert_eq!(predictions.len(), y.len());
@@ -141,8 +141,8 @@ proptest! {
     fn test_knn_perfect_prediction_on_self((X, y) in small_classification_data()) {
         // When k=1 and we predict on training data, should get very high accuracy
         let classifier = KNeighborsClassifier::new(1);
-        let fitted = classifier.fit(&X, &y).unwrap();
-        let predictions = fitted.predict(&X).unwrap();
+        let fitted = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
 
         // Should predict mostly correct labels (allow for some ties)
         let correct = predictions.iter().zip(y.iter())
@@ -156,8 +156,8 @@ proptest! {
     fn test_knn_regressor_perfect_prediction_on_self((X, y) in small_regression_data()) {
         // When k=1 and we predict on training data, should get exact values
         let regressor = KNeighborsRegressor::new(1);
-        let fitted = regressor.fit(&X, &y).unwrap();
-        let predictions = fitted.predict(&X).unwrap();
+        let fitted = regressor.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
 
         // Should predict exactly the training targets
         for (pred, &target) in predictions.iter().zip(y.iter()) {
@@ -170,7 +170,7 @@ proptest! {
         let n_neighbors = (X.nrows() / 2).max(1).min(5);
         let classifier = KNeighborsClassifier::new(n_neighbors);
 
-        let fitted = classifier.fit(&X, &y).unwrap();
+        let fitted = classifier.fit(&X, &y).expect("operation should succeed");
 
         if let Ok(probabilities) = fitted.predict_proba(&X) {
             // Each row should sum to 1
@@ -248,8 +248,8 @@ proptest! {
         let n_neighbors = (X.nrows() / 2).max(1).min(5);
         let regressor = KNeighborsRegressor::new(n_neighbors);
 
-        let fitted = regressor.fit(&X, &y).unwrap();
-        let predictions = fitted.predict(&X).unwrap();
+        let fitted = regressor.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
 
         let y_min = y.iter().cloned().fold(f64::INFINITY, f64::min);
         let y_max = y.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
@@ -272,7 +272,7 @@ mod tests {
         // Simple test to ensure property test framework is working
         let (X, y) = small_classification_data()
             .new_tree(&mut proptest::test_runner::TestRunner::default())
-            .unwrap()
+            .expect("operation should succeed")
             .current();
 
         assert!(X.nrows() >= 5);

@@ -77,7 +77,7 @@ impl UncertaintyQuantification for StandardUncertainty {
 
             // Margin: difference between top two probabilities
             let mut sorted_probs: Vec<f64> = probs.to_vec();
-            sorted_probs.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            sorted_probs.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
             margin[i] = if sorted_probs.len() >= 2 {
                 sorted_probs[0] - sorted_probs[1]
             } else {
@@ -123,7 +123,7 @@ impl UncertaintyQuantification for StandardUncertainty {
             let max_idx = probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -286,7 +286,7 @@ impl CalibrationMethod {
             .collect();
 
         // Sort by prediction score
-        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Create calibration mapping (simplified)
         let mut calibration_map = Vec::new();
@@ -339,7 +339,7 @@ impl ReliabilityTests {
             .map(|(&prob, &label)| (prob, label))
             .collect();
 
-        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let bin_size = n / n_bins;
         let mut chi_square = 0.0;
@@ -551,7 +551,7 @@ impl ModelUncertaintyPropagation {
         }
 
         if let Some(cached) = {
-            let mut cache = BOX_MULLER_CACHE.lock().unwrap();
+            let mut cache = BOX_MULLER_CACHE.lock().expect("operation should succeed");
             cache.take()
         } {
             return mean + std * cached;
@@ -561,7 +561,7 @@ impl ModelUncertaintyPropagation {
         const INCREMENT: u64 = 12_345;
 
         let (u1, u2) = {
-            let mut state = RNG_STATE.lock().unwrap();
+            let mut state = RNG_STATE.lock().expect("operation should succeed");
             *state = state.wrapping_mul(MULTIPLIER).wrapping_add(INCREMENT);
             let first = (*state as f64) / (u64::MAX as f64);
             *state = state.wrapping_mul(MULTIPLIER).wrapping_add(INCREMENT);
@@ -575,7 +575,7 @@ impl ModelUncertaintyPropagation {
         let z0 = radius * theta.cos();
         let z1 = radius * theta.sin();
 
-        *BOX_MULLER_CACHE.lock().unwrap() = Some(z1);
+        *BOX_MULLER_CACHE.lock().expect("operation should succeed") = Some(z1);
         mean + std * z0
     }
 
@@ -766,7 +766,7 @@ mod tests {
         let uncertainty = StandardUncertainty::new();
         let intervals = uncertainty
             .prediction_intervals(&probabilities, 0.95)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that intervals are valid
         for i in 0..intervals.nrows() {
@@ -798,7 +798,8 @@ mod tests {
         let probabilities = array![0.9, 0.8, 0.3, 0.1];
         let true_labels = array![1, 1, 0, 0];
 
-        let score = ReliabilityTests::brier_score(&probabilities, &true_labels).unwrap();
+        let score = ReliabilityTests::brier_score(&probabilities, &true_labels)
+            .expect("operation should succeed");
 
         // Brier score should be between 0 and 1, lower is better
         assert!(score >= 0.0);
@@ -817,7 +818,7 @@ mod tests {
         let result = CalibrationMethod::platt_scaling(&predictions, &true_labels);
         assert!(result.is_ok());
 
-        let (a, b) = result.unwrap();
+        let (a, b) = result.expect("operation should succeed");
         // Check that parameters are finite
         assert!(a.is_finite());
         assert!(b.is_finite());
@@ -828,7 +829,8 @@ mod tests {
         let predictions = array![0.1, 0.4, 0.6, 0.9];
         let true_labels = array![0, 0, 1, 1];
 
-        let result = CalibrationMethod::isotonic_regression(&predictions, &true_labels).unwrap();
+        let result = CalibrationMethod::isotonic_regression(&predictions, &true_labels)
+            .expect("operation should succeed");
 
         // Should return some calibration mapping
         assert!(!result.is_empty());
@@ -845,8 +847,8 @@ mod tests {
         let probabilities = array![0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9];
         let true_labels = array![0, 0, 0, 1, 0, 1, 1, 1];
 
-        let chi_square =
-            ReliabilityTests::hosmer_lemeshow_test(&probabilities, &true_labels, 4).unwrap();
+        let chi_square = ReliabilityTests::hosmer_lemeshow_test(&probabilities, &true_labels, 4)
+            .expect("operation should succeed");
 
         // Chi-square statistic should be non-negative
         assert!(chi_square >= 0.0);

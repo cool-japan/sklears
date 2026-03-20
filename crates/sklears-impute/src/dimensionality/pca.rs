@@ -149,7 +149,9 @@ impl Fit<ArrayView2<'_, Float>, ()> for PCAImputer<Untrained> {
             let X_old = X_filled.clone();
 
             // Compute PCA on current estimate
-            let mean = X_filled.mean_axis(Axis(0)).unwrap();
+            let mean = X_filled
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             let X_centered = &X_filled - &mean.clone().insert_axis(Axis(0));
 
             // Compute covariance matrix
@@ -186,7 +188,9 @@ impl Fit<ArrayView2<'_, Float>, ()> for PCAImputer<Untrained> {
         }
 
         // Final PCA computation
-        let mean = X_filled.mean_axis(Axis(0)).unwrap();
+        let mean = X_filled
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let X_centered = &X_filled - &mean.clone().insert_axis(Axis(0));
         let cov = X_centered.t().dot(&X_centered) / (n_samples as f64 - 1.0);
         let (eigenvalues, eigenvectors) = self.eigen_decomposition(&cov)?;
@@ -341,7 +345,7 @@ impl PCAImputer<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
-        pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         let mut sorted_eigenvalues = Array1::zeros(n);
         let mut sorted_eigenvectors = Array2::zeros((n, n));

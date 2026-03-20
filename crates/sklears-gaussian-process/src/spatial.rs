@@ -1354,7 +1354,8 @@ mod tests {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
         let values = array![1.0, 2.0, 1.5, 2.5];
 
-        let variogram = Variogram::compute_empirical(&coords, &values, 5).unwrap();
+        let variogram =
+            Variogram::compute_empirical(&coords, &values, 5).expect("operation should succeed");
 
         assert!(variogram.distances.len() > 0);
         assert_eq!(variogram.distances.len(), variogram.semivariances.len());
@@ -1372,8 +1373,10 @@ mod tests {
             .kriging_type(KrigingType::Ordinary)
             .build();
 
-        let trained = spatial_gp.fit(&coords, &values).unwrap();
-        let predictions = trained.predict(&coords).unwrap();
+        let trained = spatial_gp
+            .fit(&coords, &values)
+            .expect("model fitting should succeed");
+        let predictions = trained.predict(&coords).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), coords.nrows());
     }
@@ -1388,8 +1391,10 @@ mod tests {
             .kriging_type(KrigingType::Simple { mean: 1.75 })
             .build();
 
-        let trained = spatial_gp.fit(&coords, &values).unwrap();
-        let predictions = trained.predict(&coords).unwrap();
+        let trained = spatial_gp
+            .fit(&coords, &values)
+            .expect("model fitting should succeed");
+        let predictions = trained.predict(&coords).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), coords.nrows());
     }
@@ -1405,10 +1410,14 @@ mod tests {
             .kriging_type(KrigingType::Ordinary)
             .build();
 
-        let trained = spatial_gp.fit(&coords, &values).unwrap();
+        let trained = spatial_gp
+            .fit(&coords, &values)
+            .expect("model fitting should succeed");
 
         let test_coords = array![[1.0, 1.0]]; // Center point
-        let (predictions, variances) = trained.predict_with_variance(&test_coords).unwrap();
+        let (predictions, variances) = trained
+            .predict_with_variance(&test_coords)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 1);
         assert_eq!(variances.len(), 1);
@@ -1435,7 +1444,9 @@ mod tests {
         let aniso_kernel = SpatialKernel::anisotropic(base_kernel, anisotropy_matrix);
 
         let coords = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
-        let K = aniso_kernel.compute_kernel_matrix(&coords, None).unwrap();
+        let K = aniso_kernel
+            .compute_kernel_matrix(&coords, None)
+            .expect("operation should succeed");
 
         assert_eq!(K.shape(), &[3, 3]);
         assert_abs_diff_eq!(
@@ -1450,12 +1461,17 @@ mod tests {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0], [4.0, 0.0]];
         let values = array![1.0, 1.2, 1.8, 2.1, 2.5];
 
-        let mut variogram = Variogram::compute_empirical(&coords, &values, 4).unwrap();
-        variogram.fit_model("spherical").unwrap();
+        let mut variogram =
+            Variogram::compute_empirical(&coords, &values, 4).expect("operation should succeed");
+        variogram
+            .fit_model("spherical")
+            .expect("operation should succeed");
 
         assert!(variogram.fitted_model.is_some());
 
-        let goodness = variogram.goodness_of_fit().unwrap();
+        let goodness = variogram
+            .goodness_of_fit()
+            .expect("operation should succeed");
         assert!(goodness >= 0.0 && goodness <= 1.0);
     }
 
@@ -1470,8 +1486,12 @@ mod tests {
             .kriging_type(KrigingType::Ordinary)
             .build();
 
-        let trained = spatial_gp.fit(&coords, &values).unwrap();
-        let outliers = trained.detect_spatial_outliers(2.0).unwrap();
+        let trained = spatial_gp
+            .fit(&coords, &values)
+            .expect("model fitting should succeed");
+        let outliers = trained
+            .detect_spatial_outliers(2.0)
+            .expect("operation should succeed");
 
         // Should detect the outlier (index 3)
         assert!(!outliers.is_empty());
@@ -1488,8 +1508,12 @@ mod tests {
             .kriging_type(KrigingType::Ordinary)
             .build();
 
-        let trained = spatial_gp.fit(&coords, &values).unwrap();
-        let cv_error = trained.spatial_cross_validation().unwrap();
+        let trained = spatial_gp
+            .fit(&coords, &values)
+            .expect("model fitting should succeed");
+        let cv_error = trained
+            .spatial_cross_validation()
+            .expect("operation should succeed");
 
         assert!(cv_error >= 0.0);
     }
@@ -1519,7 +1543,9 @@ mod tests {
             .kriging_type(KrigingType::Ordinary)
             .build();
 
-        let trained = spatial_gp.fit(&coords, &values).unwrap();
+        let trained = spatial_gp
+            .fit(&coords, &values)
+            .expect("model fitting should succeed");
         let (distances, correlations) = trained.correlation_structure(5.0, 10);
 
         assert_eq!(distances.len(), 10);

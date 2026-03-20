@@ -475,21 +475,30 @@ mod tests {
             .alphas(vec![0.1, 1.0, 10.0])
             .build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that we found best alpha
         assert!(trained
             .alphas()
-            .unwrap()
-            .contains(&trained.best_alpha().unwrap()));
+            .expect("operation should succeed")
+            .contains(&trained.best_alpha().expect("operation should succeed")));
 
         // Check predictions shape
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[6, 2]);
 
         // Check coefficients shape
-        assert_eq!(trained.coef().unwrap().shape(), &[2, 2]); // 2 features, 2 tasks
-        assert_eq!(trained.intercept().unwrap().len(), 2); // 2 tasks
+        assert_eq!(
+            trained.coef().expect("operation should succeed").shape(),
+            &[2, 2]
+        ); // 2 features, 2 tasks
+        assert_eq!(
+            trained
+                .intercept()
+                .expect("intercept should be available")
+                .len(),
+            2
+        ); // 2 tasks
     }
 
     #[test]
@@ -520,13 +529,19 @@ mod tests {
         // Don't specify alphas, should use defaults
         let model = MultiTaskLassoCV::builder().cv(3).n_alphas(10).build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Should have generated 10 alphas
-        assert_eq!(trained.alphas().unwrap().len(), 10);
+        assert_eq!(
+            trained.alphas().expect("operation should succeed").len(),
+            10
+        );
 
         // Check coefficients shape
-        assert_eq!(trained.coef().unwrap().shape(), &[3, 3]); // 3 features, 3 tasks
+        assert_eq!(
+            trained.coef().expect("operation should succeed").shape(),
+            &[3, 3]
+        ); // 3 features, 3 tasks
     }
 
     #[test]
@@ -541,14 +556,14 @@ mod tests {
             .alphas(vec![0.01, 0.1, 1.0])
             .build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Intercept should be zeros when fit_intercept=false
-        let intercept = trained.intercept().unwrap();
+        let intercept = trained.intercept().expect("intercept should be available");
         assert!(intercept.iter().all(|&v| v.abs() < 1e-10));
 
         // Predictions should work
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[5, 2]);
     }
 }

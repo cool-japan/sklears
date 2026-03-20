@@ -507,12 +507,12 @@ mod tests {
         assert_eq!(queue.len(), 0);
 
         let task = TaskBuilder::new("task1".to_string(), "Test Task".to_string()).build();
-        queue.enqueue(task).unwrap();
+        queue.enqueue(task).unwrap_or_default();
 
         assert!(!queue.is_empty());
         assert_eq!(queue.len(), 1);
 
-        let dequeued = queue.dequeue().unwrap();
+        let dequeued = queue.dequeue().expect("operation should succeed");
         assert_eq!(dequeued.id, "task1");
         assert!(queue.is_empty());
     }
@@ -548,9 +548,9 @@ mod tests {
             .priority(TaskPriority::Critical)
             .build();
 
-        queue.enqueue(low_task).unwrap();
-        queue.enqueue(high_task).unwrap();
-        queue.enqueue(critical_task).unwrap();
+        queue.enqueue(low_task).unwrap_or_default();
+        queue.enqueue(high_task).unwrap_or_default();
+        queue.enqueue(critical_task).unwrap_or_default();
 
         queue.sort_by_priority();
 

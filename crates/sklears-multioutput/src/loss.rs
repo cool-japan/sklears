@@ -24,7 +24,9 @@ impl LossFunction {
         match self {
             LossFunction::MeanSquaredError => {
                 let diff = y_pred - y_true;
-                diff.map(|x| x * x).mean().unwrap()
+                diff.map(|x| x * x)
+                    .mean()
+                    .expect("array should have elements for mean computation")
             }
             LossFunction::CrossEntropy => {
                 let mut total_loss = 0.0;

@@ -29,7 +29,7 @@ pub(crate) fn compute_var_based_scores(
 /// Compute Value at Risk for a single feature
 pub(crate) fn compute_var(feature: &ArrayView1<Float>, confidence_level: Float) -> Float {
     let mut sorted_values: Vec<Float> = feature.iter().cloned().collect();
-    sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let index = ((1.0 - confidence_level) * sorted_values.len() as Float) as usize;
     sorted_values.get(index).cloned().unwrap_or(0.0)
 }
@@ -48,7 +48,9 @@ pub(crate) fn compute_cvar(feature: &ArrayView1<Float>, confidence_level: Float)
 
 /// Compute portfolio Conditional Value at Risk
 pub(crate) fn compute_portfolio_cvar(x: &Array2<Float>, confidence_level: Float) -> Result<Float> {
-    let portfolio_returns = x.mean_axis(scirs2_core::ndarray::Axis(1)).unwrap();
+    let portfolio_returns = x
+        .mean_axis(scirs2_core::ndarray::Axis(1))
+        .expect("operation should succeed");
     Ok(compute_cvar(&portfolio_returns.view(), confidence_level))
 }
 
@@ -157,7 +159,7 @@ pub(crate) fn compute_tail_risk(feature: &ArrayView1<Float>) -> Float {
 /// Compute extreme value index (Hill estimator)
 pub(crate) fn compute_extreme_value_index(feature: &ArrayView1<Float>) -> Float {
     let mut sorted: Vec<Float> = feature.iter().cloned().collect();
-    sorted.sort_by(|a, b| b.partial_cmp(a).unwrap());
+    sorted.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
     let k = (sorted.len() as Float * 0.1) as usize;
     if k < 2 {
@@ -218,6 +220,8 @@ pub(crate) fn compute_portfolio_var(x: &Array2<Float>, confidence: Float) -> Res
         ));
     }
 
-    let portfolio_returns = x.mean_axis(scirs2_core::ndarray::Axis(1)).unwrap();
+    let portfolio_returns = x
+        .mean_axis(scirs2_core::ndarray::Axis(1))
+        .expect("operation should succeed");
     Ok(compute_var(&portfolio_returns.view(), confidence))
 }

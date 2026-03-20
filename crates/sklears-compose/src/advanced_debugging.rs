@@ -39,7 +39,7 @@ impl AdvancedPipelineDebugger {
             DebugSession::new(session_id.clone(), pipeline_id, self.global_config.clone());
 
         {
-            let mut sessions = self.sessions.write().unwrap();
+            let mut sessions = self.sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.clone(), session);
         }
 
@@ -57,7 +57,7 @@ impl AdvancedPipelineDebugger {
     /// Get session handle for existing session
     #[must_use]
     pub fn get_session(&self, session_id: &str) -> Option<DebugSessionHandle> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         if sessions.contains_key(session_id) {
             Some(DebugSessionHandle {
                 session_id: session_id.to_string(),
@@ -71,20 +71,24 @@ impl AdvancedPipelineDebugger {
     /// List all active sessions
     #[must_use]
     pub fn list_sessions(&self) -> Vec<String> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         sessions.keys().cloned().collect()
     }
 
     /// Get debugging statistics
     #[must_use]
     pub fn get_debug_statistics(&self) -> DebugStatistics {
-        let sessions = self.sessions.read().unwrap();
-        let profiler = self.profiler.lock().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
+        let profiler = self.profiler.lock().unwrap_or_else(|e| e.into_inner());
 
         /// DebugStatistics
         DebugStatistics {
             active_sessions: sessions.len(),
-            total_events: self.event_log.lock().unwrap().len(),
+            total_events: self
+                .event_log
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .len(),
             memory_usage: profiler.get_memory_usage(),
             cpu_usage: profiler.get_cpu_usage(),
             uptime: profiler.get_uptime(),
@@ -92,7 +96,7 @@ impl AdvancedPipelineDebugger {
     }
 
     fn log_event(&self, event: DebugEvent) -> SklResult<()> {
-        let mut log = self.event_log.lock().unwrap();
+        let mut log = self.event_log.lock().unwrap_or_else(|e| e.into_inner());
         log.push_back(event);
 
         // Keep only last N events to prevent memory bloat
@@ -266,7 +270,11 @@ pub struct DebugSessionHandle {
 impl DebugSessionHandle {
     /// Add breakpoint to this session
     pub fn add_breakpoint(&self, breakpoint: Breakpoint) -> SklResult<()> {
-        let mut sessions = self.debugger.sessions.write().unwrap();
+        let mut sessions = self
+            .debugger
+            .sessions
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.get_mut(&self.session_id) {
             session.add_breakpoint(breakpoint);
             Ok(())
@@ -277,7 +285,11 @@ impl DebugSessionHandle {
 
     /// Step to next execution point
     pub fn step_next(&self) -> SklResult<StepResult> {
-        let mut sessions = self.debugger.sessions.write().unwrap();
+        let mut sessions = self
+            .debugger
+            .sessions
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.get_mut(&self.session_id) {
             session.step_next()
         } else {
@@ -287,7 +299,11 @@ impl DebugSessionHandle {
 
     /// Continue execution
     pub fn continue_execution(&self) -> SklResult<StepResult> {
-        let mut sessions = self.debugger.sessions.write().unwrap();
+        let mut sessions = self
+            .debugger
+            .sessions
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.get_mut(&self.session_id) {
             session.continue_execution()
         } else {
@@ -298,14 +314,22 @@ impl DebugSessionHandle {
     /// Get session state
     #[must_use]
     pub fn get_state(&self) -> Option<DebugSessionState> {
-        let sessions = self.debugger.sessions.read().unwrap();
+        let sessions = self
+            .debugger
+            .sessions
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         sessions.get(&self.session_id).map(|s| s.state.clone())
     }
 
     /// Get execution history
     #[must_use]
     pub fn get_execution_history(&self) -> Vec<ExecutionStep> {
-        let sessions = self.debugger.sessions.read().unwrap();
+        let sessions = self
+            .debugger
+            .sessions
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         sessions
             .get(&self.session_id)
             .map(|s| s.execution_history.clone())
@@ -845,7 +869,11 @@ pub mod interactive {
 
         fn show_variables(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                let sessions = self.debugger.sessions.read().unwrap();
+                let sessions = self
+                    .debugger
+                    .sessions
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner());
                 if let Some(session) = sessions.get(session_id) {
                     let variables = session.get_variable_values();
                     if variables.is_empty() {
@@ -867,7 +895,11 @@ pub mod interactive {
 
         fn show_call_stack(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                let sessions = self.debugger.sessions.read().unwrap();
+                let sessions = self
+                    .debugger
+                    .sessions
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner());
                 if let Some(session) = sessions.get(session_id) {
                     let stack = session.get_call_stack();
                     if stack.is_empty() {
@@ -909,7 +941,11 @@ pub mod interactive {
         /// Visualize the current pipeline structure
         fn visualize_pipeline(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                let sessions = self.debugger.sessions.read().unwrap();
+                let sessions = self
+                    .debugger
+                    .sessions
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner());
                 if let Some(session) = sessions.get(session_id) {
                     let mut visualization = String::from("Pipeline Visualization:\n");
 
@@ -948,7 +984,11 @@ pub mod interactive {
         /// Replay pipeline execution from the beginning
         fn replay_execution(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                let mut sessions = self.debugger.sessions.write().unwrap();
+                let mut sessions = self
+                    .debugger
+                    .sessions
+                    .write()
+                    .unwrap_or_else(|e| e.into_inner());
                 if let Some(session) = sessions.get_mut(session_id) {
                     session.current_step = 0;
                     session.state = DebugSessionState::Ready;
@@ -967,7 +1007,11 @@ pub mod interactive {
         /// Show profiling data for the current session
         fn show_profiling_data(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                let sessions = self.debugger.sessions.read().unwrap();
+                let sessions = self
+                    .debugger
+                    .sessions
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner());
                 if let Some(session) = sessions.get(session_id) {
                     let mut output = String::from("Profiling Data:\n");
 
@@ -1028,7 +1072,11 @@ pub mod interactive {
         /// Show execution timeline
         fn show_execution_timeline(&self) -> SklResult<String> {
             if let Some(session_id) = &self.current_session {
-                let sessions = self.debugger.sessions.read().unwrap();
+                let sessions = self
+                    .debugger
+                    .sessions
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner());
                 if let Some(session) = sessions.get(session_id) {
                     let mut output = String::from("Execution Timeline:\n");
 
@@ -1038,7 +1086,11 @@ pub mod interactive {
                     }
 
                     // Create a simple timeline visualization
-                    let start_time = session.execution_history.first().unwrap().timestamp;
+                    let start_time = session
+                        .execution_history
+                        .first()
+                        .map(|s| s.timestamp)
+                        .unwrap_or_else(std::time::SystemTime::now);
 
                     for (i, step) in session.execution_history.iter().enumerate() {
                         let elapsed = step
@@ -1378,7 +1430,7 @@ mod tests {
 
         let handle = debugger
             .start_session("test_session".to_string(), "test_pipeline".to_string())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(debugger.list_sessions().len(), 1);
         assert!(debugger.get_session("test_session").is_some());
@@ -1415,7 +1467,9 @@ mod tests {
 
         inspector.set_variable("test_var".to_string(), VariableValue::Scalar(42.0));
 
-        let value = inspector.get_variable("test_var").unwrap();
+        let value = inspector
+            .get_variable("test_var")
+            .expect("operation should succeed");
         match value {
             VariableValue::Scalar(v) => assert_eq!(*v, 42.0),
             _ => panic!("Expected scalar value"),

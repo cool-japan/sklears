@@ -210,7 +210,8 @@ impl SpectralEmbedding<Untrained> {
                         }
                     }
 
-                    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    distances
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                     // Connect to k nearest neighbors
                     for &(j, _) in distances.iter().take(self.n_neighbors) {

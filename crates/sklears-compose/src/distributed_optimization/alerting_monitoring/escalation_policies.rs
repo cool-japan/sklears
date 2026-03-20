@@ -873,7 +873,7 @@ impl EscalationPolicyManager {
 
     /// Add a new escalation policy
     pub fn add_policy(&self, policy: EscalationPolicy) -> EscalationResult<()> {
-        let mut policies = self.policies.write().unwrap();
+        let mut policies = self.policies.write().unwrap_or_else(|e| e.into_inner());
 
         // Validate policy
         self.validate_policy(&policy)?;
@@ -884,7 +884,7 @@ impl EscalationPolicyManager {
 
     /// Get escalation policy by ID
     pub fn get_policy(&self, policy_id: &str) -> EscalationResult<EscalationPolicy> {
-        let policies = self.policies.read().unwrap();
+        let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
         policies.get(policy_id)
             .cloned()
             .ok_or_else(|| EscalationError::PolicyNotFound(policy_id.to_string()))
@@ -910,7 +910,7 @@ impl EscalationPolicyManager {
             metrics: EscalationMetrics::default(),
         };
 
-        let mut active_executions = self.active_executions.write().unwrap();
+        let mut active_executions = self.active_executions.write().unwrap_or_else(|e| e.into_inner());
         active_executions.insert(execution_id.clone(), execution);
 
         // Schedule first level execution
@@ -921,12 +921,12 @@ impl EscalationPolicyManager {
 
     /// Cancel escalation execution
     pub fn cancel_escalation(&self, execution_id: &str) -> EscalationResult<()> {
-        let mut active_executions = self.active_executions.write().unwrap();
+        let mut active_executions = self.active_executions.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(mut execution) = active_executions.remove(execution_id) {
             execution.status = EscalationStatus::Cancelled;
 
-            let mut history = self.execution_history.write().unwrap();
+            let mut history = self.execution_history.write().unwrap_or_else(|e| e.into_inner());
             history.push_back(execution);
 
             Ok(())
@@ -937,7 +937,7 @@ impl EscalationPolicyManager {
 
     /// Get escalation status
     pub fn get_escalation_status(&self, execution_id: &str) -> EscalationResult<EscalationStatus> {
-        let active_executions = self.active_executions.read().unwrap();
+        let active_executions = self.active_executions.read().unwrap_or_else(|e| e.into_inner());
 
         active_executions.get(execution_id)
             .map(|exec| exec.status.clone())
@@ -946,9 +946,9 @@ impl EscalationPolicyManager {
 
     /// Update escalation metrics
     pub fn update_metrics(&self) -> EscalationResult<()> {
-        let mut metrics = self.metrics.write().unwrap();
-        let active_executions = self.active_executions.read().unwrap();
-        let history = self.execution_history.read().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
+        let active_executions = self.active_executions.read().unwrap_or_else(|e| e.into_inner());
+        let history = self.execution_history.read().unwrap_or_else(|e| e.into_inner());
 
         metrics.active_executions = active_executions.len() as u32;
         metrics.completed_executions = history.iter()
@@ -968,7 +968,7 @@ impl EscalationPolicyManager {
 
     /// Generate analytics report
     pub fn generate_analytics(&self) -> EscalationResult<EscalationAnalytics> {
-        let history = self.execution_history.read().unwrap();
+        let history = self.execution_history.read().unwrap_or_else(|e| e.into_inner());
         let mut analytics = EscalationAnalytics::default();
 
         analytics.total_escalations = history.len() as u64;

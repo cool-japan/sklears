@@ -1,7 +1,6 @@
 use scirs2_core::essentials::{Normal, Uniform};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -73,7 +72,7 @@ impl AutoencoderManifold<Untrained> {
             let weight = Array2::from_shape_fn((input_size, output_size), |(_, _)| {
                 let mut rng = thread_rng();
                 Normal::new(0.0, (2.0 / (input_size + output_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(output_size);
@@ -93,7 +92,7 @@ impl AutoencoderManifold<Untrained> {
             let weight = Array2::from_shape_fn((input_size, output_size), |(_, _)| {
                 let mut rng = thread_rng();
                 Normal::new(0.0, (2.0 / (input_size + output_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(output_size);
@@ -135,7 +134,13 @@ impl AutoencoderManifold<TrainedAutoencoder> {
             .zip(self.state.decoder_biases.iter())
         {
             activations = activations.dot(weights) + biases;
-            if weights != self.state.decoder_weights.last().unwrap() {
+            if weights
+                != self
+                    .state
+                    .decoder_weights
+                    .last()
+                    .expect("operation should succeed")
+            {
                 activations.mapv_inplace(|x| x.max(0.0)); // ReLU
             }
         }
@@ -265,7 +270,9 @@ impl VariationalAutoencoder<TrainedVAE> {
         let std = logvar.mapv(|x| (0.5 * x).exp());
         let mut rng = thread_rng();
         let epsilon = Array2::from_shape_fn(mu.dim(), |(_, _)| {
-            Normal::new(0.0, 1.0).unwrap().sample(&mut rng)
+            Normal::new(0.0, 1.0)
+                .expect("operation should succeed")
+                .sample(&mut rng)
         });
         mu + &std * &epsilon
     }
@@ -409,7 +416,7 @@ impl AdversarialAutoencoder<Untrained> {
 
             let weight = Array2::from_shape_fn((input_size, output_size), |(_, _)| {
                 Normal::new(0.0, (2.0 / (input_size + output_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(output_size);
@@ -431,7 +438,7 @@ impl AdversarialAutoencoder<Untrained> {
 
             let weight = Array2::from_shape_fn((input_size, output_size), |(_, _)| {
                 Normal::new(0.0, (2.0 / (input_size + output_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(output_size);
@@ -454,7 +461,7 @@ impl AdversarialAutoencoder<Untrained> {
 
             let weight = Array2::from_shape_fn((input_size, output_size), |(_, _)| {
                 Normal::new(0.0, (2.0 / (input_size + output_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(output_size);
@@ -488,7 +495,13 @@ impl AdversarialAutoencoder<TrainedAAE> {
         {
             activations = activations.dot(weights) + biases;
             // Apply ReLU except for the final layer
-            if weights != self.state.encoder_weights.last().unwrap() {
+            if weights
+                != self
+                    .state
+                    .encoder_weights
+                    .last()
+                    .expect("operation should succeed")
+            {
                 activations.mapv_inplace(|x| x.max(0.0));
             }
         }
@@ -546,12 +559,16 @@ impl AdversarialAutoencoder<TrainedAAE> {
         match &self.state.prior_type {
             PriorType::Gaussian => {
                 Array2::from_shape_fn((n_samples, self.n_components), |(_, _)| {
-                    Normal::new(0.0, 1.0).unwrap().sample(&mut rng)
+                    Normal::new(0.0, 1.0)
+                        .expect("operation should succeed")
+                        .sample(&mut rng)
                 })
             }
             PriorType::Uniform => {
                 Array2::from_shape_fn((n_samples, self.n_components), |(_, _)| {
-                    Uniform::new(-1.0, 1.0).unwrap().sample(&mut rng)
+                    Uniform::new(-1.0, 1.0)
+                        .expect("operation should succeed")
+                        .sample(&mut rng)
                 })
             }
             PriorType::Categorical(n_cats) => {
@@ -734,7 +751,7 @@ impl NeuralODE<Untrained> {
 
             let weight = Array2::from_shape_fn((in_size, out_size), |(_, _)| {
                 Normal::new(0.0, (2.0 / (in_size + out_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(out_size);
@@ -757,7 +774,7 @@ impl NeuralODE<Untrained> {
 
             let weight = Array2::from_shape_fn((in_size, out_size), |(_, _)| {
                 Normal::new(0.0, (2.0 / (in_size + out_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(out_size);
@@ -777,7 +794,7 @@ impl NeuralODE<Untrained> {
 
             let weight = Array2::from_shape_fn((in_size, out_size), |(_, _)| {
                 Normal::new(0.0, (2.0 / (in_size + out_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
             let bias = Array1::zeros(out_size);
@@ -1092,14 +1109,16 @@ impl ContinuousNormalizingFlow<Untrained> {
 
             let weight = Array2::from_shape_fn((in_size, out_size), |(_, _)| {
                 Normal::new(0.0, (2.0 / (in_size + out_size) as f64).sqrt())
-                    .unwrap()
+                    .expect("operation should succeed")
                     .sample(&mut rng)
             });
 
             // Initialize biases to zero except for the final layer (small random bias)
             let bias = if i == dynamics_layer_sizes.len() - 2 {
                 Array1::from_shape_fn(out_size, |_| {
-                    Normal::new(0.0, 0.01).unwrap().sample(&mut rng)
+                    Normal::new(0.0, 0.01)
+                        .expect("operation should succeed")
+                        .sample(&mut rng)
                 })
             } else {
                 Array1::zeros(out_size)
@@ -1290,7 +1309,7 @@ impl ContinuousNormalizingFlow<TrainedCNF> {
 
                     // Generate random Rademacher vector
                     let epsilon_vec = Array1::from_shape_fn(n_dims, |_| {
-                        if rng.gen::<f64>() < 0.5 {
+                        if rng.random::<f64>() < 0.5 {
                             -1.0
                         } else {
                             1.0
@@ -1328,7 +1347,9 @@ impl ContinuousNormalizingFlow<TrainedCNF> {
 
                     // Generate random Gaussian vector
                     let epsilon_vec = Array1::from_shape_fn(n_dims, |_| {
-                        Normal::new(0.0, 1.0).unwrap().sample(&mut rng)
+                        Normal::new(0.0, 1.0)
+                            .expect("operation should succeed")
+                            .sample(&mut rng)
                     });
 
                     let z_plus = &z_sample + &epsilon_vec * epsilon;
@@ -1486,8 +1507,10 @@ mod tests {
             .with_epochs(10)
             .with_batch_size(16);
 
-        let fitted = autoencoder.fit(&data, &()).unwrap();
-        let encoded = fitted.transform(&data).unwrap();
+        let fitted = autoencoder
+            .fit(&data, &())
+            .expect("operation should succeed");
+        let encoded = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(encoded.ncols(), 5);
         assert_eq!(encoded.nrows(), 100);
@@ -1539,8 +1562,8 @@ mod tests {
             .with_batch_size(16)
             .with_adversarial_weight(0.5);
 
-        let fitted = aae.fit(&data, &()).unwrap();
-        let encoded = fitted.transform(&data).unwrap();
+        let fitted = aae.fit(&data, &()).expect("operation should succeed");
+        let encoded = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(encoded.ncols(), 5);
         assert_eq!(encoded.nrows(), 100);
@@ -1602,8 +1625,8 @@ mod tests {
             .with_num_time_steps(5)
             .with_solver_type(ODESolverType::RungeKutta4);
 
-        let fitted = node.fit(&data, &()).unwrap();
-        let encoded = fitted.transform(&data).unwrap();
+        let fitted = node.fit(&data, &()).expect("operation should succeed");
+        let encoded = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(encoded.ncols(), 3);
         assert_eq!(encoded.nrows(), 50);
@@ -1666,8 +1689,10 @@ mod tests {
         let data = Array2::from_shape_fn((10, 6), |(i, j)| i as f64 * 0.1 + j as f64 * 0.01);
         let node = NeuralODE::new(2).with_num_time_steps(3);
 
-        let fitted = node.fit(&data, &()).unwrap();
-        let trajectory = fitted.get_manifold_trajectory(&data.view()).unwrap();
+        let fitted = node.fit(&data, &()).expect("operation should succeed");
+        let trajectory = fitted
+            .get_manifold_trajectory(&data.view())
+            .expect("operation should succeed");
 
         // Should have initial state + 3 time steps = 4 total states
         assert_eq!(trajectory.len(), 4);
@@ -1687,8 +1712,8 @@ mod tests {
             .with_num_time_steps(8)
             .with_trace_estimator(TraceEstimator::Hutchinson);
 
-        let fitted = cnf.fit(&data, &()).unwrap();
-        let transformed = fitted.transform(&data).unwrap();
+        let fitted = cnf.fit(&data, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 3);
         assert_eq!(transformed.nrows(), 30);
@@ -1742,15 +1767,19 @@ mod tests {
             .with_num_time_steps(5)
             .with_integration_time(1.0);
 
-        let fitted = cnf.fit(&data, &()).unwrap();
+        let fitted = cnf.fit(&data, &()).expect("operation should succeed");
 
         // Test forward flow
-        let (z, log_det_forward) = fitted.forward_flow(&data.view()).unwrap();
+        let (z, log_det_forward) = fitted
+            .forward_flow(&data.view())
+            .expect("operation should succeed");
         assert_eq!(z.dim(), data.dim());
         assert_eq!(log_det_forward.len(), data.nrows());
 
         // Test backward flow
-        let (x_reconstructed, log_det_backward) = fitted.backward_flow(&z.view()).unwrap();
+        let (x_reconstructed, log_det_backward) = fitted
+            .backward_flow(&z.view())
+            .expect("operation should succeed");
         assert_eq!(x_reconstructed.dim(), data.dim());
         assert_eq!(log_det_backward.len(), data.nrows());
 
@@ -1764,8 +1793,10 @@ mod tests {
         let data = Array2::from_shape_fn((10, 2), |(i, j)| i as f64 * 0.1 + j as f64 * 0.01);
         let cnf = ContinuousNormalizingFlow::new(2).with_num_time_steps(5);
 
-        let fitted = cnf.fit(&data, &()).unwrap();
-        let log_likelihood = fitted.log_likelihood(&data.view(), 0.0).unwrap();
+        let fitted = cnf.fit(&data, &()).expect("operation should succeed");
+        let log_likelihood = fitted
+            .log_likelihood(&data.view(), 0.0)
+            .expect("operation should succeed");
 
         assert_eq!(log_likelihood.len(), data.nrows());
         // Check that all likelihood values are finite
@@ -1779,17 +1810,21 @@ mod tests {
         let data = Array2::from_shape_fn((20, 3), |(i, j)| i as f64 * 0.1 + j as f64 * 0.01);
         let cnf = ContinuousNormalizingFlow::new(3).with_num_time_steps(5);
 
-        let fitted = cnf.fit(&data, &()).unwrap();
+        let fitted = cnf.fit(&data, &()).expect("operation should succeed");
 
         // Define a simple Gaussian base distribution
         let gaussian_sampler = |n_samples: usize, n_dims: usize| -> Array2<f64> {
             let mut rng = thread_rng();
             Array2::from_shape_fn((n_samples, n_dims), |(_, _)| {
-                Normal::new(0.0, 1.0).unwrap().sample(&mut rng)
+                Normal::new(0.0, 1.0)
+                    .expect("operation should succeed")
+                    .sample(&mut rng)
             })
         };
 
-        let samples = fitted.sample(15, &gaussian_sampler).unwrap();
+        let samples = fitted
+            .sample(15, &gaussian_sampler)
+            .expect("operation should succeed");
         assert_eq!(samples.nrows(), 15);
         assert_eq!(samples.ncols(), 3);
 

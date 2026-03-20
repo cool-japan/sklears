@@ -457,12 +457,16 @@ mod tests {
 
     #[test]
     fn test_matrix_multiplication() {
-        let gpu_ops = GpuLinearOps::default().unwrap();
+        let gpu_ops = GpuLinearOps::default().expect("operation should succeed");
 
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
+        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
 
-        let result = gpu_ops.matrix_multiply(&a, &b).unwrap();
+        let result = gpu_ops
+            .matrix_multiply(&a, &b)
+            .expect("operation should succeed");
 
         // Expected result: [[22, 28], [49, 64]]
         assert_eq!(result.shape(), &[2, 2]);
@@ -474,12 +478,15 @@ mod tests {
 
     #[test]
     fn test_matrix_vector_multiplication() {
-        let gpu_ops = GpuLinearOps::default().unwrap();
+        let gpu_ops = GpuLinearOps::default().expect("operation should succeed");
 
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let result = gpu_ops.matrix_vector_multiply(&a, &x).unwrap();
+        let result = gpu_ops
+            .matrix_vector_multiply(&a, &x)
+            .expect("operation should succeed");
 
         // Expected result: [14, 32]
         assert_eq!(result.len(), 2);
@@ -489,13 +496,15 @@ mod tests {
 
     #[test]
     fn test_vector_operations() {
-        let gpu_ops = GpuLinearOps::default().unwrap();
+        let gpu_ops = GpuLinearOps::default().expect("operation should succeed");
 
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0]);
         let mut y = Array1::from_vec(vec![4.0, 5.0, 6.0]);
 
         // Test AXPY: y = 2.0 * x + y
-        gpu_ops.vector_axpy(2.0, &x, &mut y).unwrap();
+        gpu_ops
+            .vector_axpy(2.0, &x, &mut y)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(y[0], 6.0, epsilon = 1e-10); // 2*1 + 4 = 6
         assert_abs_diff_eq!(y[1], 9.0, epsilon = 1e-10); // 2*2 + 5 = 9
         assert_abs_diff_eq!(y[2], 12.0, epsilon = 1e-10); // 2*3 + 6 = 12
@@ -503,7 +512,7 @@ mod tests {
         // Test dot product
         let dot = gpu_ops
             .vector_dot(&x, &Array1::from_vec(vec![1.0, 1.0, 1.0]))
-            .unwrap();
+            .expect("operation should succeed");
         assert_abs_diff_eq!(dot, 6.0, epsilon = 1e-10); // 1*1 + 2*1 + 3*1 = 6
     }
 
@@ -513,7 +522,7 @@ mod tests {
 
         assert_eq!(pool.available_memory(), 1024);
 
-        pool.allocate(512).unwrap();
+        pool.allocate(512).expect("operation should succeed");
         assert_eq!(pool.available_memory(), 512);
 
         pool.deallocate(256);
@@ -525,14 +534,14 @@ mod tests {
 
     #[test]
     fn test_gpu_availability() {
-        let gpu_ops = GpuLinearOps::default().unwrap();
+        let gpu_ops = GpuLinearOps::default().expect("operation should succeed");
         // Should return false since we're using CPU fallback
         assert!(!gpu_ops.is_gpu_available());
     }
 
     #[test]
     fn test_performance_stats() {
-        let gpu_ops = GpuLinearOps::default().unwrap();
+        let gpu_ops = GpuLinearOps::default().expect("operation should succeed");
         let stats = gpu_ops.get_performance_stats();
         assert_eq!(stats.total_operations, 0);
         assert_eq!(stats.gpu_operations, 0);

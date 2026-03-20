@@ -6,7 +6,7 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, Rng, RngExt};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -322,7 +322,7 @@ impl RandomLabelCombinations {
 
         for i in 0..self.n_combinations {
             for j in 0..self.n_labels {
-                combinations[[i, j]] = if rng.gen::<Float>() < self.label_density {
+                combinations[[i, j]] = if rng.random::<Float>() < self.label_density {
                     1
                 } else {
                     0
@@ -506,7 +506,7 @@ impl MLkNN<Untrained> {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbors = distances
             .into_iter()
             .take(self.k)
@@ -594,7 +594,7 @@ impl MLkNN<MLkNNTrained> {
             distances.push((distance, train_idx));
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbors = distances
             .into_iter()
             .take(self.state.k)
@@ -915,8 +915,12 @@ mod tests {
         let y = array![[1, 0], [0, 1], [1, 1], [0, 0]];
 
         let cbr = CalibratedBinaryRelevance::new().calibration_method(CalibrationMethod::Platt);
-        let trained_cbr = cbr.fit(&X.view(), &y).unwrap();
-        let predictions = trained_cbr.predict(&X.view()).unwrap();
+        let trained_cbr = cbr
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
+        let predictions = trained_cbr
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (4, 2));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));
@@ -929,8 +933,12 @@ mod tests {
         let y = array![[1, 0], [0, 1]];
 
         let cbr = CalibratedBinaryRelevance::new();
-        let trained_cbr = cbr.fit(&X.view(), &y).unwrap();
-        let probabilities = trained_cbr.predict_proba(&X.view()).unwrap();
+        let trained_cbr = cbr
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
+        let probabilities = trained_cbr
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(probabilities.dim(), (2, 2));
         assert!(probabilities.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -955,8 +963,12 @@ mod tests {
         let y = array![[1, 0], [0, 1], [1, 1], [0, 0], [1, 0]];
 
         let mlknn = MLkNN::new().k(3).smooth(1.0);
-        let trained_mlknn = mlknn.fit(&X.view(), &y).unwrap();
-        let predictions = trained_mlknn.predict(&X.view()).unwrap();
+        let trained_mlknn = mlknn
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
+        let predictions = trained_mlknn
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (5, 2));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));
@@ -970,13 +982,21 @@ mod tests {
         let y = array![[1, 0], [0, 1], [1, 1]];
 
         let mlknn_euclidean = MLkNN::new().k(2).distance_metric(DistanceMetric::Euclidean);
-        let trained_euclidean = mlknn_euclidean.fit(&X.view(), &y).unwrap();
+        let trained_euclidean = mlknn_euclidean
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
         let mlknn_manhattan = MLkNN::new().k(2).distance_metric(DistanceMetric::Manhattan);
-        let trained_manhattan = mlknn_manhattan.fit(&X.view(), &y).unwrap();
+        let trained_manhattan = mlknn_manhattan
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
-        let pred_euclidean = trained_euclidean.predict(&X.view()).unwrap();
-        let pred_manhattan = trained_manhattan.predict(&X.view()).unwrap();
+        let pred_euclidean = trained_euclidean
+            .predict(&X.view())
+            .expect("prediction should succeed");
+        let pred_manhattan = trained_manhattan
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(pred_euclidean.dim(), (3, 2));
         assert_eq!(pred_manhattan.dim(), (3, 2));
@@ -997,8 +1017,12 @@ mod tests {
             .learning_rate(0.01)
             .max_iterations(50);
 
-        let trained_csbr = csbr.fit(&X.view(), &y).unwrap();
-        let predictions = trained_csbr.predict(&X.view()).unwrap();
+        let trained_csbr = csbr
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
+        let predictions = trained_csbr
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (4, 2));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));
@@ -1042,7 +1066,9 @@ mod tests {
         let y = array![[1, 0], [0, 1], [1, 1], [0, 0]]; // 2/4 positive for each label
 
         let mlknn = MLkNN::new().k(2).smooth(1.0);
-        let trained_mlknn = mlknn.fit(&X.view(), &y).unwrap();
+        let trained_mlknn = mlknn
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
         let priors = trained_mlknn.prior_probabilities();
         assert_eq!(priors.len(), 2);

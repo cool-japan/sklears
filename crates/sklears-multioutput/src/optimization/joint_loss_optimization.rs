@@ -210,7 +210,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for JointLossOptimizer<Un
 
         // Initialize weights using Xavier initialization
         let std_dev = (2.0 / (n_features + n_outputs) as Float).sqrt();
-        let normal_dist = RandNormal::new(0.0, std_dev).unwrap();
+        let normal_dist = RandNormal::new(0.0, std_dev).expect("operation should succeed");
         let mut weights = Array2::<Float>::zeros((n_features, n_outputs));
         for i in 0..n_features {
             for j in 0..n_outputs {

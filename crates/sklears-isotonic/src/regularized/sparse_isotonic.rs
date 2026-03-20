@@ -182,7 +182,7 @@ impl Fit<Array1<Float>, Array1<Float>> for SparseIsotonicRegression<Untrained> {
 
         // Sort by x values
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut x_sorted = Array1::zeros(x.len());
         let mut y_sorted = Array1::zeros(y.len());
@@ -467,8 +467,8 @@ mod tests {
 
         let model = SparseIsotonicRegression::new().sparsity_threshold(0.05);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let predictions = fitted_model.predict(&x).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), x.len());
 
@@ -487,7 +487,7 @@ mod tests {
 
         let model = SparseIsotonicRegression::new().sparsity_threshold(0.15);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         let sparsity_ratio = fitted_model.sparsity_ratio();
         assert!(sparsity_ratio >= 0.0 && sparsity_ratio <= 1.0);
@@ -504,7 +504,7 @@ mod tests {
         let result = sparse_isotonic_regression(&x, &y, true, 0.05, 0.01);
         assert!(result.is_ok());
 
-        let fitted_values = result.unwrap();
+        let fitted_values = result.expect("operation should succeed");
         assert_eq!(fitted_values.len(), x.len());
     }
 
@@ -534,9 +534,11 @@ mod tests {
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 
         let model = SparseIsotonicRegression::new();
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let (predictions, mse, sparsity_penalty) = fitted_model.evaluate(&x, &y).unwrap();
+        let (predictions, mse, sparsity_penalty) = fitted_model
+            .evaluate(&x, &y)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), x.len());
         assert!(mse >= 0.0);

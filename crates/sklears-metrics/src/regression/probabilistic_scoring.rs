@@ -28,7 +28,7 @@ pub fn continuous_ranked_probability_score(
     for i in 0..n {
         let obs = y_true[i];
         let mut samples: Vec<f64> = y_pred_samples.iter().map(|arr| arr[i]).collect();
-        samples.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        samples.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let m = samples.len() as f64;
         let mut crps_i = 0.0;
@@ -253,7 +253,8 @@ mod tests {
         let y_pred_mean = array![1.0, 2.0, 3.0];
         let y_pred_std = array![0.1, 0.1, 0.1];
 
-        let crps = crps_gaussian(&y_true, &y_pred_mean, &y_pred_std).unwrap();
+        let crps =
+            crps_gaussian(&y_true, &y_pred_mean, &y_pred_std).expect("operation should succeed");
         assert!(crps >= 0.0);
         assert!(crps < 0.1); // Should be small for perfect predictions with small std
     }
@@ -265,7 +266,7 @@ mod tests {
         let sample2 = array![0.9, 1.9];
         let samples = vec![sample1.view(), sample2.view()];
 
-        let score = energy_score(&y_true, &samples, 1.0).unwrap();
+        let score = energy_score(&y_true, &samples, 1.0).expect("operation should succeed");
         assert!(score >= 0.0);
     }
 
@@ -275,14 +276,16 @@ mod tests {
         let y_pred_mean = array![1.1, 2.1, 2.9];
         let y_pred_var = array![0.1, 0.1, 0.1];
 
-        let ds = dawid_sebastiani_score(&y_true, &y_pred_mean, &y_pred_var).unwrap();
+        let ds = dawid_sebastiani_score(&y_true, &y_pred_mean, &y_pred_var)
+            .expect("operation should succeed");
 
         // Dawid-Sebastiani score can be negative (lower is better)
         // With small variances (0.1) and small errors, ln(var) dominates and makes score negative
         assert!(ds.is_finite());
 
         // Test with perfect predictions (should give ln(var) as the score)
-        let perfect_ds = dawid_sebastiani_score(&y_true, &y_true, &y_pred_var).unwrap();
+        let perfect_ds = dawid_sebastiani_score(&y_true, &y_true, &y_pred_var)
+            .expect("operation should succeed");
         assert!((perfect_ds - 0.1_f64.ln()).abs() < 1e-10);
     }
 
@@ -292,7 +295,8 @@ mod tests {
         let y_pred_mean = array![1.0, 2.0, 3.0];
         let y_pred_std = array![1.0, 1.0, 1.0];
 
-        let log_score = logarithmic_score(&y_true, &y_pred_mean, &y_pred_std).unwrap();
+        let log_score = logarithmic_score(&y_true, &y_pred_mean, &y_pred_std)
+            .expect("operation should succeed");
         assert!(log_score >= 0.0);
     }
 

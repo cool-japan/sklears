@@ -11,7 +11,7 @@
 //! - Dynamic budget reallocation based on learning curves
 
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -144,7 +144,7 @@ impl ResourceConfiguration {
         }
 
         let mut sorted_scores = all_scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let threshold_idx = (threshold_percentile * sorted_scores.len() as f64) as usize;
         let threshold = sorted_scores
@@ -307,7 +307,7 @@ impl AdaptiveResourceAllocator {
         for config in configs {
             let sample = if config.evaluations == 0 {
                 // For untested configurations, sample from prior
-                self.rng.gen::<f64>()
+                self.rng.random::<f64>()
             } else {
                 // Sample from posterior (using normal approximation)
                 let std_dev = if config.variance > 0.0 {
@@ -318,7 +318,7 @@ impl AdaptiveResourceAllocator {
 
                 use scirs2_core::random::essentials::Normal;
                 let normal = Normal::new(config.mean_score, std_dev)
-                    .unwrap_or_else(|_| Normal::new(0.0, 1.0).unwrap());
+                    .unwrap_or_else(|_| Normal::new(0.0, 1.0).expect("operation should succeed"));
                 self.rng.sample(normal)
             };
             samples.push(sample);
@@ -355,7 +355,7 @@ impl AdaptiveResourceAllocator {
             .map(|(i, config)| (i, config.mean_score))
             .collect();
 
-        config_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        config_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Determine how many configurations to keep in next round
         let num_to_keep = ((configs.len() as f64) * reduction_factor).ceil() as usize;
@@ -486,7 +486,11 @@ impl AdaptiveResourceAllocator {
         self.configurations
             .iter()
             .filter(|c| c.evaluations > 0)
-            .max_by(|a, b| a.mean_score.partial_cmp(&b.mean_score).unwrap())
+            .max_by(|a, b| {
+                a.mean_score
+                    .partial_cmp(&b.mean_score)
+                    .expect("operation should succeed")
+            })
     }
 }
 

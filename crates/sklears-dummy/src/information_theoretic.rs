@@ -8,7 +8,7 @@
 //! - Information gain baselines
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{prelude::*, Rng};
+use scirs2_core::random::{prelude::*, RngExt};
 // Note: SliceRandom not available, will implement manually where needed
 use sklears_core::error::Result;
 use sklears_core::types::{Features, Float, Int};
@@ -123,7 +123,10 @@ impl MaximumEntropyEstimator {
 
             // Update distribution to satisfy constraints
             for i in 0..n_classes {
-                let observed_constraint = *class_counts.get(&classes[i]).unwrap() as Float;
+                let observed_constraint = *class_counts
+                    .get(&classes[i])
+                    .expect("index should be valid")
+                    as Float;
                 if constraints[i] > 0.0 {
                     // Scale to match constraint
                     distribution[i] *= constraints[i] / observed_constraint.max(1e-10);
@@ -223,7 +226,9 @@ impl MDLEstimator {
         // Empirical distribution
         let empirical_dist: Array1<Float> = classes
             .iter()
-            .map(|&class| *class_counts.get(&class).unwrap() as Float / n_samples)
+            .map(|&class| {
+                *class_counts.get(&class).expect("sampling should succeed") as Float / n_samples
+            })
             .collect();
 
         // Compute data likelihood (negative log-likelihood)
@@ -390,8 +395,10 @@ impl MutualInformationEstimator {
         // Compute MI = sum p(x,y) * log(p(x,y) / (p(x) * p(y)))
         for ((f_bin, t_val), &joint_count) in joint_counts.iter() {
             let p_joint = joint_count as Float / n_samples;
-            let p_feature = *feature_counts.get(f_bin).unwrap() as Float / n_samples;
-            let p_target = *target_counts.get(t_val).unwrap() as Float / n_samples;
+            let p_feature =
+                *feature_counts.get(f_bin).expect("sampling should succeed") as Float / n_samples;
+            let p_target =
+                *target_counts.get(t_val).expect("sampling should succeed") as Float / n_samples;
 
             if p_joint > 0.0 && p_feature > 0.0 && p_target > 0.0 {
                 mi += p_joint * (p_joint / (p_feature * p_target)).ln();
@@ -496,7 +503,9 @@ impl EntropySamplingEstimator {
         // Empirical distribution
         let empirical_probs: Array1<Float> = classes
             .iter()
-            .map(|&class| *class_counts.get(&class).unwrap() as Float / n_samples)
+            .map(|&class| {
+                *class_counts.get(&class).expect("sampling should succeed") as Float / n_samples
+            })
             .collect();
 
         // Apply temperature scaling for entropy regularization
@@ -560,7 +569,7 @@ impl EntropySamplingEstimator {
 
         let mut samples = Array1::<Int>::zeros(n_samples);
         for i in 0..n_samples {
-            let rand_val: f64 = rng.gen();
+            let rand_val: f64 = rng.random();
             let idx = cumulative
                 .iter()
                 .position(|&x| x >= rand_val)
@@ -655,7 +664,7 @@ impl InformationGainEstimator {
             .enumerate()
             .map(|(i, &ig)| (i, ig))
             .collect();
-        indexed_ig.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap()); // Sort by IG descending
+        indexed_ig.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed")); // Sort by IG descending
         let feature_ranking: Array1<usize> = indexed_ig.iter().map(|(idx, _)| *idx).collect();
 
         self.information_gain_ = Some(ig_values);
@@ -801,14 +810,16 @@ mod tests {
         let result = estimator.fit_classification(&y);
         assert!(result.is_ok());
 
-        let distribution = estimator.max_entropy_distribution().unwrap();
+        let distribution = estimator
+            .max_entropy_distribution()
+            .expect("operation should succeed");
         assert_eq!(distribution.len(), 3);
 
         // Distribution should sum to 1
         let sum: Float = distribution.sum();
         assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-10);
 
-        let entropy = estimator.entropy().unwrap();
+        let entropy = estimator.entropy().expect("operation should succeed");
         assert!(entropy >= 0.0);
     }
 
@@ -824,7 +835,9 @@ mod tests {
         let result = estimator.fit_classification(&y);
         assert!(result.is_ok());
 
-        let distribution = estimator.max_entropy_distribution().unwrap();
+        let distribution = estimator
+            .max_entropy_distribution()
+            .expect("operation should succeed");
         assert_eq!(distribution.len(), 2);
 
         // Should be close to constraints
@@ -845,7 +858,9 @@ mod tests {
         assert!(estimator.data_likelihood().is_some());
         assert!(estimator.mdl_score().is_some());
 
-        let distribution = estimator.optimal_distribution().unwrap();
+        let distribution = estimator
+            .optimal_distribution()
+            .expect("operation should succeed");
         assert_eq!(distribution.len(), 3);
 
         let sum: Float = distribution.sum();
@@ -860,7 +875,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let mut estimator = MutualInformationEstimator::new()
@@ -871,7 +886,9 @@ mod tests {
         let result = estimator.fit(&x, &y);
         assert!(result.is_ok());
 
-        let mi_values = estimator.mutual_information().unwrap();
+        let mi_values = estimator
+            .mutual_information()
+            .expect("operation should succeed");
         assert_eq!(mi_values.len(), 2);
 
         // All MI values should be non-negative
@@ -879,10 +896,14 @@ mod tests {
             assert!(mi >= 0.0);
         }
 
-        let importance = estimator.feature_importance().unwrap();
+        let importance = estimator
+            .feature_importance()
+            .expect("operation should succeed");
         assert_eq!(importance.len(), 2);
 
-        let selected = estimator.selected_features().unwrap();
+        let selected = estimator
+            .selected_features()
+            .expect("operation should succeed");
         assert!(selected.len() <= 2);
     }
 
@@ -896,17 +917,19 @@ mod tests {
         let result = estimator.fit_classification(&y);
         assert!(result.is_ok());
 
-        let distribution = estimator.entropy_distribution().unwrap();
+        let distribution = estimator
+            .entropy_distribution()
+            .expect("operation should succeed");
         assert_eq!(distribution.len(), 3);
 
         let sum: Float = distribution.sum();
         assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-10);
 
-        let entropy = estimator.entropy().unwrap();
+        let entropy = estimator.entropy().expect("operation should succeed");
         assert!(entropy >= 0.0);
 
         // Test sampling
-        let samples = estimator.sample(10).unwrap();
+        let samples = estimator.sample(10).expect("sampling should succeed");
         assert_eq!(samples.len(), 10);
 
         // All samples should be valid class labels
@@ -923,7 +946,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let mut estimator = InformationGainEstimator::new()
@@ -934,7 +957,9 @@ mod tests {
         let result = estimator.fit(&x, &y);
         assert!(result.is_ok());
 
-        let ig_values = estimator.information_gain().unwrap();
+        let ig_values = estimator
+            .information_gain()
+            .expect("operation should succeed");
         assert_eq!(ig_values.len(), 2);
 
         // Information gain should be non-negative
@@ -942,7 +967,9 @@ mod tests {
             assert!(ig >= 0.0);
         }
 
-        let ranking = estimator.feature_ranking().unwrap();
+        let ranking = estimator
+            .feature_ranking()
+            .expect("operation should succeed");
         assert_eq!(ranking.len(), 2);
 
         // Ranking should contain valid feature indices

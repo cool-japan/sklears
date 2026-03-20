@@ -94,7 +94,10 @@ impl EmpiricalBayesEstimator {
             // E-step: compute expected sufficient statistics
             let mut expected_counts = Array1::<Float>::zeros(n_classes);
             for &label in y.iter() {
-                let class_idx = classes.iter().position(|&c| c == label).unwrap();
+                let class_idx = classes
+                    .iter()
+                    .position(|&c| c == label)
+                    .expect("operation should succeed");
                 expected_counts[class_idx] += 1.0;
             }
 
@@ -103,7 +106,9 @@ impl EmpiricalBayesEstimator {
 
             // Method of moments estimation for Dirichlet parameters
             let observed_props: Array1<Float> = expected_counts.mapv(|x| x / n_samples);
-            let mean_prop = observed_props.mean().unwrap();
+            let mean_prop = observed_props
+                .mean()
+                .expect("array should have elements for mean computation");
             let variance_sum: Float = observed_props.mapv(|p| (p - mean_prop).powi(2)).sum();
 
             // Estimate concentration parameter
@@ -234,7 +239,10 @@ impl HierarchicalBayesEstimator {
 
             for (i, (&label, &group_id)) in y.iter().zip(groups.iter()).enumerate() {
                 if group_id == group {
-                    let class_idx = classes.iter().position(|&c| c == label).unwrap();
+                    let class_idx = classes
+                        .iter()
+                        .position(|&c| c == label)
+                        .expect("operation should succeed");
                     group_class_counts[class_idx] += 1.0;
                     global_counts[class_idx] += 1.0;
                     group_total += 1;
@@ -333,7 +341,7 @@ impl VariationalBayesEstimator {
             // Update variational parameters (simplified mean-field update)
             let mut new_params = Array1::<Float>::zeros(n_classes);
             for (i, &class) in classes.iter().enumerate() {
-                let count = *class_counts.get(&class).unwrap() as Float;
+                let count = *class_counts.get(&class).expect("index should be valid") as Float;
                 // Add pseudo-count from prior
                 new_params[i] = count + 1.0;
             }
@@ -372,7 +380,7 @@ impl VariationalBayesEstimator {
 
         // Data likelihood term
         for (i, &class) in classes.iter().enumerate() {
-            let count = *counts.get(&class).unwrap() as Float;
+            let count = *counts.get(&class).expect("index should be valid") as Float;
             if count > 0.0 {
                 elbo += count * (params[i] / param_sum).ln();
             }
@@ -473,14 +481,15 @@ impl MCMCBayesEstimator {
 
             // Add observed counts
             for (i, &class) in classes.iter().enumerate() {
-                let count = *class_counts.get(&class).unwrap() as Float;
+                let count = *class_counts.get(&class).expect("index should be valid") as Float;
                 alpha_posterior[i] += count;
             }
 
             // Sample from Dirichlet using Gamma sampling
             let mut gamma_samples = Array1::<Float>::zeros(n_classes);
             for i in 0..n_classes {
-                let gamma_dist = Gamma::new(alpha_posterior[i], 1.0).unwrap();
+                let gamma_dist =
+                    Gamma::new(alpha_posterior[i], 1.0).expect("operation should succeed");
                 gamma_samples[i] = gamma_dist.sample(&mut rng);
             }
 
@@ -510,9 +519,11 @@ impl MCMCBayesEstimator {
 
     /// Get posterior mean
     pub fn posterior_mean(&self) -> Option<Array1<Float>> {
-        self.samples_
-            .as_ref()
-            .map(|samples| samples.mean_axis(Axis(0)).unwrap())
+        self.samples_.as_ref().map(|samples| {
+            samples
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation")
+        })
     }
 
     /// Get posterior standard deviation
@@ -531,7 +542,7 @@ impl MCMCBayesEstimator {
 
         for i in 0..n_classes {
             let mut column: Vec<Float> = samples.column(i).to_vec();
-            column.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            column.sort_by(|a, b| a.partial_cmp(b).expect("matrix indexing should be valid"));
 
             let lower_idx = ((alpha / 2.0) * (column.len() as Float)) as usize;
             let upper_idx = ((1.0 - alpha / 2.0) * (column.len() as Float)) as usize;
@@ -609,7 +620,9 @@ mod tests {
         let result = estimator.fit_classification(&y);
         assert!(result.is_ok());
 
-        let hyperparams = estimator.hyperparameters().unwrap();
+        let hyperparams = estimator
+            .hyperparameters()
+            .expect("operation should succeed");
         assert_eq!(hyperparams.len(), 3);
 
         // All hyperparameters should be positive
@@ -634,10 +647,14 @@ mod tests {
         let result = estimator.fit_classification(&y);
         assert!(result.is_ok());
 
-        let global_params = estimator.global_hyperparameters().unwrap();
+        let global_params = estimator
+            .global_hyperparameters()
+            .expect("operation should succeed");
         assert_eq!(global_params.len(), 2);
 
-        let group_params = estimator.group_parameters().unwrap();
+        let group_params = estimator
+            .group_parameters()
+            .expect("operation should succeed");
         assert_eq!(group_params.len(), 2);
 
         // Check that group parameters exist for both groups
@@ -655,7 +672,9 @@ mod tests {
         let result = estimator.fit_classification(&y);
         assert!(result.is_ok());
 
-        let params = estimator.variational_parameters().unwrap();
+        let params = estimator
+            .variational_parameters()
+            .expect("operation should succeed");
         assert_eq!(params.len(), 3);
 
         // Parameters should sum to 1 (normalized probabilities)
@@ -663,7 +682,9 @@ mod tests {
         assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-10);
 
         // ELBO should be tracked
-        let elbo = estimator.elbo_evolution().unwrap();
+        let elbo = estimator
+            .elbo_evolution()
+            .expect("operation should succeed");
         assert!(!elbo.is_empty());
     }
 
@@ -678,7 +699,7 @@ mod tests {
         let result = estimator.fit_classification(&y);
         assert!(result.is_ok());
 
-        let samples = estimator.samples().unwrap();
+        let samples = estimator.samples().expect("sampling should succeed");
         assert_eq!(samples.nrows(), 100);
         assert_eq!(samples.ncols(), 3);
 
@@ -689,11 +710,15 @@ mod tests {
         }
 
         // Posterior mean should be available
-        let mean = estimator.posterior_mean().unwrap();
+        let mean = estimator
+            .posterior_mean()
+            .expect("operation should succeed");
         assert_eq!(mean.len(), 3);
 
         // Credible intervals should be available
-        let (lower, upper) = estimator.credible_interval(0.05).unwrap();
+        let (lower, upper) = estimator
+            .credible_interval(0.05)
+            .expect("operation should succeed");
         assert_eq!(lower.len(), 3);
         assert_eq!(upper.len(), 3);
 

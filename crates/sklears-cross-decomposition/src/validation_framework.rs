@@ -530,7 +530,7 @@ impl ValidationFramework {
         let mut latent_x = Array2::zeros((n_samples, n_components));
         let mut latent_y = Array2::zeros((n_samples, n_components));
 
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("Normal distribution params should be valid");
         for i in 0..n_samples {
             for j in 0..n_components {
                 let u = rng.sample(normal);
@@ -615,7 +615,7 @@ impl ValidationFramework {
 
     fn generate_iris_like_dataset(&self) -> (Array2<Float>, Array2<Float>) {
         let mut rng = thread_rng();
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("Normal distribution params should be valid");
         let n_samples = 150;
         let n_features = 4;
         let n_classes = 3;
@@ -1029,7 +1029,7 @@ impl ValidationFramework {
 
     fn add_noise_to_data(&self, data: &Array2<Float>, noise_level: Float) -> Array2<Float> {
         let mut rng = thread_rng();
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("Normal distribution params should be valid");
         let mut noisy_data = data.clone();
 
         for value in noisy_data.iter_mut() {
@@ -1041,7 +1041,8 @@ impl ValidationFramework {
 
     fn add_missing_data(&self, data: &Array2<Float>, missing_percent: Float) -> Array2<Float> {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
         let mut data_with_missing = data.clone();
 
         for value in data_with_missing.iter_mut() {
@@ -1055,8 +1056,9 @@ impl ValidationFramework {
 
     fn add_outliers(&self, data: &Array2<Float>, outlier_percent: Float) -> Array2<Float> {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
+        let normal = RandNormal::new(0.0, 1.0).expect("Normal distribution params should be valid");
         let mut data_with_outliers = data.clone();
 
         let data_std = data.std(1.0);
@@ -1393,7 +1395,7 @@ mod tests {
 
         let accuracy = framework
             .compute_correlation_accuracy(&estimated, &true_corr)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(accuracy > 0.8);
         assert!(accuracy <= 1.0);
     }
@@ -1406,7 +1408,7 @@ mod tests {
 
         let accuracy = framework
             .compute_prediction_accuracy(&predictions, &true_values.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(accuracy > 0.8);
         assert!(accuracy <= 1.0);
     }
@@ -1427,7 +1429,9 @@ mod tests {
         let framework = ValidationFramework::new().add_case_studies();
         let case_study = &framework.case_studies[0];
 
-        let result = framework.run_case_study(case_study).unwrap();
+        let result = framework
+            .run_case_study(case_study)
+            .expect("operation should succeed");
         assert!(!result.criteria_results.is_empty());
         assert!(result.success_rate >= 0.0 && result.success_rate <= 1.0);
         assert!(!result.insights.is_empty());
@@ -1463,7 +1467,9 @@ mod tests {
             expected_performance: HashMap::new(),
         };
 
-        let result = framework.analyze_robustness(&dataset).unwrap();
+        let result = framework
+            .analyze_robustness(&dataset)
+            .expect("operation should succeed");
         assert!(!result.noise_robustness.is_empty());
         assert!(!result.missing_data_robustness.is_empty());
         assert!(!result.outlier_robustness.is_empty());

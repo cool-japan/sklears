@@ -8,7 +8,7 @@ use crate::common::CovarianceType;
 use crate::variational::{VariationalBayesianGMM, VariationalBayesianGMMTrained};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Fit, Predict},
@@ -445,9 +445,11 @@ impl PriorSensitivityAnalyzer {
 
         for perturbation_id in 0..self.n_random_perturbations {
             // Generate random perturbations
-            let weight_conc_perturbation = 1.0 + (rng.gen::<f64>() - 0.5) * self.perturbation_scale;
-            let mean_prec_perturbation = 1.0 + (rng.gen::<f64>() - 0.5) * self.perturbation_scale;
-            let dof_perturbation = 1.0 + (rng.gen::<f64>() - 0.5) * self.perturbation_scale;
+            let weight_conc_perturbation =
+                1.0 + (rng.random::<f64>() - 0.5) * self.perturbation_scale;
+            let mean_prec_perturbation =
+                1.0 + (rng.random::<f64>() - 0.5) * self.perturbation_scale;
+            let dof_perturbation = 1.0 + (rng.random::<f64>() - 0.5) * self.perturbation_scale;
 
             let perturbed_weight_concentration =
                 (self.reference_weight_concentration * weight_conc_perturbation).max(0.01);
@@ -529,7 +531,7 @@ impl PriorSensitivityAnalyzer {
 
         for _ in 0..n_samples {
             // Sample from model1
-            let component = (rng.gen::<f64>() * model1.weights().len() as f64) as usize;
+            let component = (rng.random::<f64>() * model1.weights().len() as f64) as usize;
             let component = component.min(model1.weights().len() - 1);
 
             let mean = model1.means().row(component);
@@ -539,7 +541,7 @@ impl PriorSensitivityAnalyzer {
             let mut sample = Array1::zeros(n_features);
             for d in 0..n_features {
                 let std_dev = cov[[d, d]].sqrt();
-                let normal = Normal::new(mean[d], std_dev).unwrap();
+                let normal = Normal::new(mean[d], std_dev).expect("operation should succeed");
                 sample[d] = rng.sample(normal);
             }
 
@@ -1082,7 +1084,9 @@ mod tests {
             .max_iter(5)
             .random_state(42);
 
-        let result = analyzer.analyze(&X.view()).unwrap();
+        let result = analyzer
+            .analyze(&X.view())
+            .expect("operation should succeed");
 
         assert!(!result.grid_results().is_empty());
         assert!(!result.perturbation_results().is_empty());
@@ -1106,7 +1110,9 @@ mod tests {
             .compute_prediction_variance(true)
             .random_state(42);
 
-        let result = analyzer.analyze(&X.view()).unwrap();
+        let result = analyzer
+            .analyze(&X.view())
+            .expect("operation should succeed");
 
         // Check that analysis components exist
         assert!(result.average_kl_divergence().is_finite());
@@ -1128,7 +1134,9 @@ mod tests {
             .max_iter(3)
             .random_state(42);
 
-        let result = analyzer.analyze(&X.view()).unwrap();
+        let result = analyzer
+            .analyze(&X.view())
+            .expect("operation should succeed");
         let recommendations = result.prior_recommendations();
 
         assert!(!recommendations.is_empty());
@@ -1149,7 +1157,9 @@ mod tests {
             .max_iter(3)
             .random_state(42);
 
-        let result = analyzer.analyze(&X.view()).unwrap();
+        let result = analyzer
+            .analyze(&X.view())
+            .expect("operation should succeed");
 
         // Should have grid results
         assert!(result.grid_results().len() > 0);
@@ -1179,7 +1189,9 @@ mod tests {
             .compute_influence_functions(false)
             .random_state(42);
 
-        let result = analyzer.analyze(&X.view()).unwrap();
+        let result = analyzer
+            .analyze(&X.view())
+            .expect("operation should succeed");
 
         // When features are disabled, should have empty or zero results
         assert!(result.kl_divergences.is_empty());

@@ -239,7 +239,7 @@ fn run_custom_benchmarks() -> Result<(), Box<dyn std::error::Error>> {
         sorted_energy.sort_by(|a, b| {
             b.energy_efficiency_ratio
                 .partial_cmp(&a.energy_efficiency_ratio)
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         println!("  ⚡ Most Energy Efficient Operations:");

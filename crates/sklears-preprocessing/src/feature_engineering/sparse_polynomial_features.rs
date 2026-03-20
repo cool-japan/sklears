@@ -480,12 +480,14 @@ mod tests {
         let transformer = SparsePolynomialFeatures::new().degree(2).include_bias(true);
 
         let x = array![[1.0, 2.0], [3.0, 4.0]];
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features_in(), 2);
         assert!(fitted.n_output_features() >= 5); // bias + x1 + x2 + x1^2 + x1*x2 + x2^2
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("transformation should succeed");
         assert_eq!(transformed.nrows(), 2);
         assert_eq!(transformed.ncols(), fitted.n_output_features());
     }
@@ -498,9 +500,11 @@ mod tests {
             .include_bias(false);
 
         let x = array![[1.0, 2.0, 3.0]];
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("transformation should succeed");
 
         // Should have: x1, x2, x3, x1*x2, x1*x3, x2*x3 = 6 features
         assert_eq!(transformed.ncols(), 6);
@@ -511,7 +515,9 @@ mod tests {
         let transformer = SparsePolynomialFeatures::new().degree(3).max_terms(10);
 
         let x = array![[1.0, 2.0, 3.0, 4.0, 5.0]];
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         // Should be limited to 10 terms
         assert_eq!(fitted.n_output_features(), 10);
@@ -522,7 +528,9 @@ mod tests {
         let transformer = SparsePolynomialFeatures::new().degree(2).max_terms(10);
 
         let x = array![[1.0, 2.0, 3.0]];
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         let memory_info = fitted.memory_info();
         assert_eq!(memory_info.n_sparse_terms, fitted.n_output_features());

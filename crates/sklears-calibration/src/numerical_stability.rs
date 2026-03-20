@@ -604,7 +604,9 @@ mod tests {
     fn test_numerical_stability_tests() {
         let tester = NumericalStabilityTests::new();
 
-        let issues = tester.comprehensive_stability_test().unwrap();
+        let issues = tester
+            .comprehensive_stability_test()
+            .expect("operation should succeed");
 
         // Should have no issues for basic stability
         if !issues.is_empty() {
@@ -631,7 +633,7 @@ mod tests {
                 gradient,
                 Some((-10.0, 10.0)), // bounds
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should converge close to x = 2
         println!(
@@ -669,7 +671,7 @@ mod tests {
                 0.0, // Start far from optimum
                 objective, gradient, None,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         // Verify it actually found the minimum
         assert!(
@@ -706,7 +708,7 @@ mod tests {
                 -1.0, // initial value far from optimum
                 objective1, gradient1, None, // no bounds
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         println!(
             "Test 1 - Minimize (x-3)²: result={}, expected=3.0, diff={}",
@@ -726,7 +728,7 @@ mod tests {
                 gradient2,
                 Some((-10.0, 10.0)), // with bounds
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         println!(
             "Test 2 - Minimize x²+4x+3: result={}, expected=-2.0, diff={}",
@@ -744,7 +746,7 @@ mod tests {
                 10.0, // start far from optimum
                 objective3, gradient3, None,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         println!(
             "Test 3 - Minimize (x-1)² from x=10: result={}, expected=1.0, diff={}",

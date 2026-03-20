@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -22,7 +22,7 @@ This crate exposes the top-level `sklears` API that bundles all subcrates into a
 
 ```toml
 [dependencies]
-sklears = { version = "0.1.0-beta.1", features = ["linear", "ensemble", "gpu"] }
+sklears = { version = "0.1.0", features = ["linear", "ensemble", "gpu"] }
 ```
 
 ```rust
@@ -45,6 +45,6 @@ let predictions = model.predict(&x)?;
 
 ## Status
 
-- Serves as the umbrella crate validated through the 11,292 passing workspace tests for `0.1.0-beta.1`.
+- Serves as the umbrella crate validated through the 11,292 passing workspace tests for `0.1.0`.
 - Re-export map kept in sync with individual module READMEs and documentation.
 - Further enhancements (module-level doc consolidation, feature flag audits) tracked in `TODO.md`.

@@ -526,7 +526,9 @@ impl Fit<Array2<Float>, Array1<i32>, TrainedNeuralDiscriminantAnalysis>
         );
 
         // Compute feature normalization parameters
-        let feature_means = x.mean_axis(Axis(0)).unwrap();
+        let feature_means = x
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
         let mut feature_stds = Array1::zeros(n_features);
         for j in 0..n_features {
             let variance = x
@@ -657,7 +659,9 @@ impl TrainedNeuralDiscriminantAnalysis {
         let mut between_scatter = Array2::<Float>::zeros((n_components, n_components));
 
         // Overall mean
-        let overall_mean = outputs.mean_axis(Axis(0)).unwrap();
+        let overall_mean = outputs
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
 
         // Class-wise statistics
         for &class in &self.classes {
@@ -673,7 +677,9 @@ impl TrainedNeuralDiscriminantAnalysis {
             }
 
             let class_samples = outputs.select(Axis(0), &class_indices);
-            let class_mean = class_samples.mean_axis(Axis(0)).unwrap();
+            let class_mean = class_samples
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
             let n_class_samples = class_indices.len() as Float;
 
             // Within-class scatter
@@ -772,7 +778,9 @@ impl TrainedNeuralDiscriminantAnalysis {
 
             if !class_indices.is_empty() {
                 let class_outputs = outputs.select(Axis(0), &class_indices);
-                let class_mean = class_outputs.mean_axis(Axis(0)).unwrap();
+                let class_mean = class_outputs
+                    .mean_axis(Axis(0))
+                    .expect("mean should not fail on non-empty array");
                 self.class_means.insert(class, class_mean);
             }
         }
@@ -791,7 +799,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedNeuralDiscriminantAnalysis {
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -929,8 +937,8 @@ mod tests {
             .max_epochs(10)
             .learning_rate(0.01);
 
-        let fitted = nda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = nda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.classes().len(), 2);
@@ -947,8 +955,10 @@ mod tests {
             .hidden_layers(vec![4])
             .max_epochs(5);
 
-        let fitted = nda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = nda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -968,8 +978,8 @@ mod tests {
             .hidden_layers(vec![3])
             .max_epochs(5);
 
-        let fitted = nda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = nda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.nrows(), 4);
         assert!(transformed.ncols() > 0);
@@ -1016,13 +1026,15 @@ mod tests {
             .hidden_layers(vec![6])
             .max_epochs(10);
 
-        let fitted = nda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = nda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 3);
 
-        let probas = fitted.predict_proba(&x).unwrap();
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
         assert_eq!(probas.dim(), (6, 3));
     }
 }

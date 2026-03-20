@@ -34,8 +34,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{:8.3}", normalized);
 
     // Check that normalized data has approximately zero mean and unit variance
-    let mean = normalized.mean_axis(Axis(0)).unwrap();
-    let var = normalized.mapv(|x| x * x).mean_axis(Axis(0)).unwrap();
+    let mean = normalized
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
+    let var = normalized
+        .mapv(|x| x * x)
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
     println!("\nNormalized data statistics:");
     println!("Mean: {:8.3}", mean);
     println!("Variance: {:8.3}", var);

@@ -1329,7 +1329,7 @@ impl ChannelFactory {
 
     /// Create a new channel
     pub fn create_channel(&mut self, channel_type: ChannelType, config: ChannelConfig) -> Result<NotificationChannel, String> {
-        let channel_id = format!("channel_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos());
+        let channel_id = format!("channel_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos());
 
         let channel = NotificationChannel {
             channel_id: channel_id.clone(),

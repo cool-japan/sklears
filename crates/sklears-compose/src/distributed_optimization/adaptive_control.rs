@@ -258,7 +258,7 @@ impl AdaptiveController {
         metrics.insert("RMSE".to_string(), rmse);
         metrics.insert("MaxError".to_string(), max_error);
 
-        if let Some(&max_output) = output.iter().max_by(|a, b| a.partial_cmp(b).unwrap()) {
+        if let Some(&max_output) = output.iter().max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)) {
             if let Some(&final_output) = output.last() {
                 let overshoot = if max_output > final_output {
                     ((max_output - final_output) / final_output * 100.0).abs()
@@ -708,7 +708,7 @@ mod tests {
         let result = controller.pid_control(0.5, 1.0);
         assert!(result.is_ok());
 
-        let control_output = result.unwrap();
+        let control_output = result.unwrap_or_default();
         assert!(control_output != 0.0);
     }
 
@@ -718,7 +718,7 @@ mod tests {
         let result = controller.fuzzy_control(0.5, 1.0);
         assert!(result.is_ok());
 
-        let control_output = result.unwrap();
+        let control_output = result.unwrap_or_default();
         assert!(control_output >= -1.0 && control_output <= 1.0);
     }
 
@@ -738,7 +738,7 @@ mod tests {
         let result = controller.evaluate_performance(&reference, &output);
         assert!(result.is_ok());
 
-        let metrics = result.unwrap();
+        let metrics = result.unwrap_or_default();
         assert!(metrics.contains_key("MAE"));
         assert!(metrics.contains_key("RMSE"));
         assert!(metrics.contains_key("MaxError"));
@@ -752,7 +752,7 @@ mod tests {
         let result = tuning.tune_parameters(&system_response);
         assert!(result.is_ok());
 
-        let params = result.unwrap();
+        let params = result.unwrap_or_default();
         assert!(params.proportional_gain > 0.0);
         assert!(params.integral_gain >= 0.0);
         assert!(params.derivative_gain >= 0.0);
@@ -784,7 +784,7 @@ mod tests {
         let result = tuning.analyze_step_response(&step_response);
         assert!(result.is_ok());
 
-        let analysis = result.unwrap();
+        let analysis = result.unwrap_or_default();
         assert!(analysis.steady_state_gain != 0.0);
         assert!(analysis.rise_time > 0.0);
         assert!(analysis.settling_time > 0.0);

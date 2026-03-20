@@ -635,12 +635,12 @@ impl CodeGenerator {
                     if c.is_whitespace() || c == '_' || c == '-' {
                         capitalize_next = true;
                     } else if i == 0 {
-                        result.push(c.to_lowercase().next().unwrap());
+                        result.push(c.to_lowercase().next().unwrap_or_default());
                     } else if capitalize_next {
-                        result.push(c.to_uppercase().next().unwrap());
+                        result.push(c.to_uppercase().next().unwrap_or_default());
                         capitalize_next = false;
                     } else {
-                        result.push(c.to_lowercase().next().unwrap());
+                        result.push(c.to_lowercase().next().unwrap_or_default());
                     }
                 }
                 result
@@ -652,10 +652,10 @@ impl CodeGenerator {
                     if c.is_whitespace() || c == '_' || c == '-' {
                         capitalize_next = true;
                     } else if capitalize_next {
-                        result.push(c.to_uppercase().next().unwrap());
+                        result.push(c.to_uppercase().next().unwrap_or_default());
                         capitalize_next = false;
                     } else {
-                        result.push(c.to_lowercase().next().unwrap());
+                        result.push(c.to_lowercase().next().unwrap_or_default());
                     }
                 }
                 result
@@ -1002,7 +1002,7 @@ mod tests {
         let result = generator.generate_code(&workflow);
         assert!(result.is_ok());
 
-        let generated = result.unwrap();
+        let generated = result.expect("operation should succeed");
         assert!(!generated.source_code.is_empty());
         assert!(matches!(generated.language, CodeLanguage::Rust));
         assert!(!generated.dependencies.is_empty());
@@ -1026,7 +1026,7 @@ mod tests {
         let result = generator.generate_code(&workflow);
         assert!(result.is_ok());
 
-        let generated = result.unwrap();
+        let generated = result.expect("operation should succeed");
         assert!(!generated.source_code.is_empty());
         assert!(matches!(generated.language, CodeLanguage::Python));
         assert!(generated.source_code.contains("def "));
@@ -1044,7 +1044,7 @@ mod tests {
         let result = generator.generate_code(&workflow);
         assert!(result.is_ok());
 
-        let generated = result.unwrap();
+        let generated = result.expect("operation should succeed");
         assert!(!generated.source_code.is_empty());
         assert!(generated.source_code.contains("{"));
     }

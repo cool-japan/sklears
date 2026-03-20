@@ -253,7 +253,7 @@ impl Fit<Array1<Float>, Array1<Float>> for GroupIsotonicRegression<Untrained> {
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Vec<Float> = indices.iter().map(|&i| x[i]).collect();
         let sorted_y: Vec<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -462,7 +462,7 @@ pub fn group_isotonic_regression(
 
     let fitted_x = fitted_model.fitted_x()?.clone();
     let fitted_y = fitted_model.fitted_y()?.clone();
-    let group_values = fitted_model.group_fitted_values_.clone().unwrap();
+    let group_values = fitted_model.group_fitted_values_.clone()?;
 
     Ok((fitted_x, fitted_y, group_values))
 }
@@ -497,9 +497,9 @@ mod tests {
             .add_group_constraint(group1)
             .add_group_constraint(group2);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         // Check that constraints are satisfied
         // Note: after sorting, indices might change, so we check the pattern
@@ -519,10 +519,10 @@ mod tests {
 
         let model = GroupIsotonicRegression::new()
             .auto_group_by_features(feature_groups, constraints)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         assert_eq!(fitted_y.len(), 6);
     }
@@ -540,10 +540,10 @@ mod tests {
 
         let model = GroupIsotonicRegression::new()
             .auto_group_by_segments(segment_boundaries, constraints, x.len())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         assert_eq!(fitted_y.len(), 6);
     }
@@ -561,9 +561,9 @@ mod tests {
         };
 
         let model = GroupIsotonicRegression::new().add_group_constraint(group);
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let group_values = fitted_model.group_fitted_values(0).unwrap();
+        let group_values = fitted_model.group_fitted_values(0).expect("operation should succeed");
         assert_eq!(group_values.len(), 4);
 
         // Check monotonicity within group
@@ -587,7 +587,7 @@ mod tests {
         let result = group_isotonic_regression(&x, &y, constraints);
         assert!(result.is_ok());
 
-        let (fitted_x, fitted_y, group_values) = result.unwrap();
+        let (fitted_x, fitted_y, group_values) = result.expect("operation should succeed");
         assert_eq!(fitted_x.len(), 4);
         assert_eq!(fitted_y.len(), 4);
         assert!(group_values.contains_key(&0));
@@ -614,14 +614,14 @@ mod tests {
         ];
 
         let model = GroupIsotonicRegression::new().add_group_constraints(groups);
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
         assert_eq!(fitted_y.len(), 8);
 
         // Test that we can get values for both groups
-        let group0_values = fitted_model.group_fitted_values(0).unwrap();
-        let group1_values = fitted_model.group_fitted_values(1).unwrap();
+        let group0_values = fitted_model.group_fitted_values(0).expect("operation should succeed");
+        let group1_values = fitted_model.group_fitted_values(1).expect("operation should succeed");
 
         assert_eq!(group0_values.len(), 4);
         assert_eq!(group1_values.len(), 4);

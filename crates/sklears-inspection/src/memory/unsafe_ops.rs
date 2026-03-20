@@ -137,7 +137,7 @@ unsafe fn permute_column_unsafe(
 
     // Fisher-Yates shuffle using unsafe for better performance
     for i in (1..n_samples).rev() {
-        let j = scirs2_core::random::Rng::gen_range(&mut rng, 0..=i);
+        let j = scirs2_core::random::RngExt::random_range(&mut rng, 0..=i);
         if i != j {
             let temp = *column_ptr.add(i);
             *column_ptr.add(i) = *column_ptr.add(j);
@@ -292,8 +292,8 @@ mod tests {
         // Check that all original values are still present
         let mut original_sorted = original_col0.to_vec();
         let mut permuted_sorted = permuted_col0.to_vec();
-        original_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        permuted_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        original_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+        permuted_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         for (orig, perm) in original_sorted.iter().zip(permuted_sorted.iter()) {
             assert_abs_diff_eq!(*orig, *perm, epsilon = 1e-10);
@@ -364,7 +364,7 @@ mod tests {
             3,        // n_repeats
             Some(42), // random_state
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(importances.len(), 2);
         // Both features should have some importance since they both contribute

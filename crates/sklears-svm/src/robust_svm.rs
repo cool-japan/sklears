@@ -365,16 +365,28 @@ impl Fit<Array2<Float>, Array1<Float>> for RobustSVM<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for RobustSVM<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
             ));
         }
 
-        let support_vectors = self.support_vectors_.as_ref().unwrap();
-        let alpha = self.alpha_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let support_vectors = self
+            .support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted");
+        let alpha = self
+            .alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ not available - model not fitted");
         let kernel = match &self.config.kernel {
             KernelType::Linear => Box::new(crate::kernels::LinearKernel) as Box<dyn Kernel>,
             KernelType::Rbf { gamma } => {
@@ -407,27 +419,34 @@ impl Predict<Array2<Float>, Array1<Float>> for RobustSVM<Trained> {
 impl RobustSVM<Trained> {
     /// Get the support vectors
     pub fn support_vectors(&self) -> &Array2<Float> {
-        self.support_vectors_.as_ref().unwrap()
+        self.support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted")
     }
 
     /// Get the support vector coefficients (alpha values)
     pub fn alpha(&self) -> &Array1<Float> {
-        self.alpha_.as_ref().unwrap()
+        self.alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted")
     }
 
     /// Get the intercept term
     pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+        self.intercept_
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 
     /// Get the number of iterations performed during training
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_
+            .expect("n_iter_ not available - model not fitted")
     }
 
     /// Compute the decision function values
@@ -509,12 +528,12 @@ mod tests {
             .learning_rate(0.01)
             .random_state(42);
 
-        let fitted_model = rsvm.fit(&x, &y).unwrap();
+        let fitted_model = rsvm.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert!(fitted_model.n_iter() > 0);
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Predictions should be finite

@@ -617,7 +617,7 @@ impl SharedSubtreeManager {
     ) -> Result<usize> {
         // Check if pattern already exists
         {
-            let cache = self.pattern_cache.read().unwrap();
+            let cache = self.pattern_cache.read().expect("operation should succeed");
             if let Some(&shared_id) = cache.get(pattern) {
                 return Ok(shared_id);
             }
@@ -625,7 +625,7 @@ impl SharedSubtreeManager {
 
         // Create new shared subtree
         let shared_id = {
-            let mut next_id = self.next_node_id.write().unwrap();
+            let mut next_id = self.next_node_id.write().expect("operation should succeed");
             let id = *next_id;
             *next_id += 1;
             id
@@ -635,13 +635,16 @@ impl SharedSubtreeManager {
 
         // Store the shared node
         {
-            let mut nodes = self.shared_nodes.write().unwrap();
+            let mut nodes = self.shared_nodes.write().expect("operation should succeed");
             nodes.insert(shared_id, shared_node);
         }
 
         // Cache the pattern
         {
-            let mut cache = self.pattern_cache.write().unwrap();
+            let mut cache = self
+                .pattern_cache
+                .write()
+                .expect("operation should succeed");
             cache.insert(pattern.clone(), shared_id);
         }
 
@@ -715,8 +718,8 @@ impl SharedSubtreeManager {
 
     /// Calculate memory savings from subtree sharing
     pub fn calculate_memory_savings(&self) -> Result<SubtreeSharingStats> {
-        let shared_nodes = self.shared_nodes.read().unwrap();
-        let pattern_cache = self.pattern_cache.read().unwrap();
+        let shared_nodes = self.shared_nodes.read().expect("operation should succeed");
+        let pattern_cache = self.pattern_cache.read().expect("operation should succeed");
 
         let total_shared_nodes = shared_nodes.len();
         let total_patterns = pattern_cache.len();

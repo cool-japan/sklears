@@ -182,10 +182,10 @@ impl ResourceMonitor {
         let thread_count = self.thread_count.clone();
         let active = self.monitoring_active.clone();
 
-        *active.lock().unwrap() = true;
+        *active.lock().unwrap_or_else(|e| e.into_inner()) = true;
 
         thread::spawn(move || {
-            while *active.lock().unwrap() {
+            while *active.lock().unwrap_or_else(|e| e.into_inner()) {
                 let now = Utc::now();
 
                 // Mock resource monitoring (in real implementation, use system APIs)
@@ -193,9 +193,18 @@ impl ResourceMonitor {
                 let cpu_percent = Self::get_current_cpu_usage();
                 let threads = Self::get_current_thread_count();
 
-                memory_usage.lock().unwrap().push((now, memory_mb));
-                cpu_usage.lock().unwrap().push((now, cpu_percent));
-                thread_count.lock().unwrap().push((now, threads));
+                memory_usage
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push((now, memory_mb));
+                cpu_usage
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push((now, cpu_percent));
+                thread_count
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push((now, threads));
 
                 thread::sleep(interval);
             }
@@ -204,7 +213,10 @@ impl ResourceMonitor {
 
     /// Stop resource monitoring
     pub fn stop_monitoring(&self) {
-        *self.monitoring_active.lock().unwrap() = false;
+        *self
+            .monitoring_active
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = false;
     }
 
     /// Get current memory usage (mock implementation)
@@ -228,7 +240,7 @@ impl ResourceMonitor {
     /// Get memory usage statistics
     #[must_use]
     pub fn get_memory_stats(&self) -> ResourceStats {
-        let usage = self.memory_usage.lock().unwrap();
+        let usage = self.memory_usage.lock().unwrap_or_else(|e| e.into_inner());
         if usage.is_empty() {
             return ResourceStats::default();
         }
@@ -240,7 +252,7 @@ impl ResourceMonitor {
     /// Get CPU usage statistics
     #[must_use]
     pub fn get_cpu_stats(&self) -> ResourceStats {
-        let usage = self.cpu_usage.lock().unwrap();
+        let usage = self.cpu_usage.lock().unwrap_or_else(|e| e.into_inner());
         if usage.is_empty() {
             return ResourceStats::default();
         }
@@ -274,7 +286,7 @@ impl ResourceStats {
         }
 
         let mut sorted = values.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let min = sorted[0];
         let max = sorted[sorted.len() - 1];
@@ -523,7 +535,7 @@ impl StressTester {
             .collect::<Vec<_>>();
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().unwrap_or_else(|_| Default::default());
         }
 
         Ok(StressTestResult {
@@ -958,7 +970,9 @@ mod tests {
         let tester = StressTester::new(config);
         let estimator = MockEstimator;
 
-        let result = tester.test_high_volume_data(&estimator, 5.0, 1000).unwrap();
+        let result = tester
+            .test_high_volume_data(&estimator, 5.0, 1000)
+            .expect("operation should succeed");
         assert!(result.success);
         assert_eq!(result.performance_degradation, 5.0);
     }
@@ -987,7 +1001,9 @@ mod tests {
             EdgeCase::NumericalEdges,
         ];
 
-        let result = tester.test_edge_cases(&estimator, &edge_cases).unwrap();
+        let result = tester
+            .test_edge_cases(&estimator, &edge_cases)
+            .expect("operation should succeed");
         assert!(result.success);
         assert_eq!(result.error_count, 0);
     }

@@ -28,7 +28,7 @@ use sklears_core::{
 /// let x = array![[1.0, 2.0], [3.0, 1.0], [5.0, 4.0]];
 ///
 /// let estimator = EmpiricalCovariance::new();
-/// let fitted = estimator.fit(&x.view(), &()).unwrap();
+/// let fitted = estimator.fit(&x.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// ```
 #[derive(Debug, Clone)]
@@ -105,7 +105,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for EmpiricalCovariance<Untrained> {
         let mean = if self.assume_centered {
             Array1::zeros(n_features)
         } else {
-            x.mean_axis(Axis(0)).unwrap()
+            x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?
         };
 
         // Center the data
@@ -190,8 +194,8 @@ impl EmpiricalCovariance<EmpiricalCovarianceTrained> {
     ///
     /// let x = array![[1.0, 2.0], [3.0, 1.0], [5.0, 4.0]];
     /// let estimator = EmpiricalCovariance::new();
-    /// let fitted = estimator.fit(&x.view(), &()).unwrap();
-    /// let properties = fitted.covariance_properties().unwrap();
+    /// let fitted = estimator.fit(&x.view(), &())?;
+    /// let properties = fitted.covariance_properties()?;
     ///
     /// println!("Is symmetric: {}", properties.is_symmetric);
     /// println!("Condition number: {}", properties.condition_number);
@@ -229,104 +233,5 @@ impl EmpiricalCovariance<EmpiricalCovarianceTrained> {
         let threshold = threshold.unwrap_or(1e12);
         let cond_num = self.condition_number()?;
         Ok(cond_num < threshold)
-    }
-}
-
-// DataFrame integration implementation
-use crate::polars_integration::{
-    CovarianceDataFrame, CovarianceResult, DataFrameEstimator, EstimatorInfo, PerformanceMetrics,
-};
-use std::collections::HashMap;
-use std::time::Instant;
-
-impl DataFrameEstimator<f64> for EmpiricalCovariance<Untrained> {
-    fn fit_dataframe(&self, df: &CovarianceDataFrame) -> SklResult<CovarianceResult<f64>> {
-        let start_time = Instant::now();
-
-        // Validate DataFrame
-        df.validate()?;
-
-        // Fit using standard method
-        let fitted = self.clone().fit(&df.as_array_view(), &())?;
-
-        let computation_time = start_time.elapsed().as_millis() as f64;
-
-        // Create performance metrics
-        let performance_metrics = Some(PerformanceMetrics {
-            computation_time_ms: computation_time,
-            memory_usage_mb: None, // Could be implemented with memory profiling
-            condition_number: fitted.condition_number().ok(),
-            log_likelihood: None, // Not applicable for empirical covariance
-        });
-
-        // Create estimator info
-        let estimator_info = EstimatorInfo {
-            name: "EmpiricalCovariance".to_string(),
-            parameters: self.parameters(),
-            convergence: None, // Empirical covariance doesn't require iteration
-            metrics: performance_metrics,
-        };
-
-        Ok(CovarianceResult::new(
-            fitted.get_covariance().clone(),
-            fitted.get_precision().cloned(),
-            df.column_names().to_vec(),
-            df.metadata.clone(),
-            estimator_info,
-        ))
-    }
-
-    fn name(&self) -> &str {
-        "EmpiricalCovariance"
-    }
-
-    fn parameters(&self) -> HashMap<String, String> {
-        let mut params = HashMap::new();
-        params.insert(
-            "store_precision".to_string(),
-            self.store_precision.to_string(),
-        );
-        params.insert(
-            "assume_centered".to_string(),
-            self.assume_centered.to_string(),
-        );
-        params
-    }
-}
-
-impl DataFrameEstimator<f64> for EmpiricalCovariance<EmpiricalCovarianceTrained> {
-    fn fit_dataframe(&self, df: &CovarianceDataFrame) -> SklResult<CovarianceResult<f64>> {
-        // For already trained estimators, just return the current state with DataFrame context
-        let estimator_info = EstimatorInfo {
-            name: "EmpiricalCovariance".to_string(),
-            parameters: self.parameters(),
-            convergence: None,
-            metrics: None,
-        };
-
-        Ok(CovarianceResult::new(
-            self.get_covariance().clone(),
-            self.get_precision().cloned(),
-            df.column_names().to_vec(),
-            df.metadata.clone(),
-            estimator_info,
-        ))
-    }
-
-    fn name(&self) -> &str {
-        "EmpiricalCovariance"
-    }
-
-    fn parameters(&self) -> HashMap<String, String> {
-        let mut params = HashMap::new();
-        params.insert(
-            "store_precision".to_string(),
-            self.store_precision.to_string(),
-        );
-        params.insert(
-            "assume_centered".to_string(),
-            self.assume_centered.to_string(),
-        );
-        params
     }
 }

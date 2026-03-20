@@ -461,9 +461,14 @@ impl VariationalGPCalibrator {
         let inducing_labels = y_true
             .slice(s![..self.n_inducing.min(y_true.len())])
             .to_owned();
-        self.base_gp = self
-            .base_gp
-            .fit(self.inducing_points.as_ref().unwrap(), &inducing_labels)?;
+        self.base_gp = self.base_gp.fit(
+            self.inducing_points
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?,
+            &inducing_labels,
+        )?;
 
         Ok(self)
     }
@@ -519,10 +524,12 @@ mod tests {
         let calibrator = GaussianProcessCalibrator::new()
             .optimize_hyperparams(false)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_probabilities = array![0.25, 0.75];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -538,12 +545,12 @@ mod tests {
         let calibrator = GaussianProcessCalibrator::new()
             .optimize_hyperparams(false)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_probabilities = array![0.4, 0.6];
         let (means, stds) = calibrator
             .predict_proba_with_uncertainty(&test_probabilities)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(means.len(), 2);
         assert_eq!(stds.len(), 2);
@@ -570,10 +577,12 @@ mod tests {
                 .kernel(kernel)
                 .optimize_hyperparams(false)
                 .fit(&probabilities, &y_true)
-                .unwrap();
+                .expect("operation should succeed");
 
             let test_probabilities = array![0.3, 0.7];
-            let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+            let calibrated = calibrator
+                .predict_proba(&test_probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(calibrated.len(), 2);
             for &prob in calibrated.iter() {
@@ -589,10 +598,12 @@ mod tests {
 
         let calibrator = VariationalGPCalibrator::new(5)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_probabilities = array![0.25, 0.75];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -607,10 +618,12 @@ mod tests {
 
         let calibrator = GaussianProcessCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_probabilities = array![0.2, 0.8];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -640,10 +653,12 @@ mod tests {
         let calibrator = GaussianProcessCalibrator::new()
             .optimize_hyperparams(true)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_probabilities = array![0.25, 0.75];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {

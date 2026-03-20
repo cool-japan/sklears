@@ -8,7 +8,7 @@ use crate::kernels::Kernel;
 // SciRS2 Policy - Use scirs2-autograd for ndarray types and operations
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 // SciRS2 Policy - Use scirs2-core for random number generation
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use sklears_core::error::{Result as SklResult, SklearsError};
 use sklears_core::prelude::{Estimator, Fit, Predict};
 
@@ -305,7 +305,8 @@ impl SparseSpectrumGaussianProcessRegressor {
             .collect();
 
         // Sort by spectral density (descending)
-        indices_with_densities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indices_with_densities
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_indices: Vec<usize> = indices_with_densities
             .into_iter()
@@ -337,7 +338,7 @@ impl SparseSpectrumGaussianProcessRegressor {
 
         for _ in 0..self.num_spectral_points.min(frequencies.nrows()) {
             let mut cumulative = 0.0;
-            let random_value: f64 = rng.gen();
+            let random_value: f64 = rng.random();
 
             for (i, &prob) in probabilities.iter().enumerate() {
                 cumulative += prob;
@@ -737,13 +738,15 @@ mod tests {
         let kernel = Box::new(RBF::new(1.0));
         let gpr = SparseSpectrumGaussianProcessRegressor::new(kernel);
 
-        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let spectral_points = Array2::from_shape_vec((2, 2), vec![0.1, 0.2, 0.3, 0.4]).unwrap();
+        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let spectral_points = Array2::from_shape_vec((2, 2), vec![0.1, 0.2, 0.3, 0.4])
+            .expect("shape and data length should match");
         let spectral_weights = Array1::from_vec(vec![1.0, 0.5]);
 
         let features = gpr
             .compute_spectral_features(&X.view(), &spectral_points, &spectral_weights)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert_eq!(features.ncols(), 4); // 2 spectral points * 2 (cos + sin)
@@ -757,11 +760,16 @@ mod tests {
             .num_spectral_points(10)
             .optimize_spectral_points(false); // Disable for faster testing
 
-        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
+        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 4.0, 9.0, 16.0, 25.0]);
 
-        let trained = gpr.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = gpr
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert!(trained.log_marginal_likelihood().is_finite());
@@ -775,11 +783,16 @@ mod tests {
             .num_spectral_points(5)
             .optimize_spectral_points(false);
 
-        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let trained = gpr.fit(&X.view(), &y.view()).unwrap();
-        let (predictions, variances) = trained.predict_with_uncertainty(&X.view()).unwrap();
+        let trained = gpr
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let (predictions, variances) = trained
+            .predict_with_uncertainty(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(variances.len(), 3);
@@ -805,7 +818,8 @@ mod tests {
                 .selection_method(method)
                 .optimize_spectral_points(false);
 
-            let X = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+            let X = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0])
+                .expect("shape and data length should match");
             let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
             let result = gpr.fit(&X.view(), &y.view());
@@ -821,11 +835,16 @@ mod tests {
             .num_spectral_points(5)
             .optimize_spectral_points(false);
 
-        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let trained = gpr.fit(&X.view(), &y.view()).unwrap();
-        let info = trained.approximation_info().unwrap();
+        let trained = gpr
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let info = trained
+            .approximation_info()
+            .expect("operation should succeed");
 
         assert!(info.effective_rank > 0.0);
         assert!(info.spectral_coverage >= 0.0 && info.spectral_coverage <= 1.0);

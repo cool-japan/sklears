@@ -533,8 +533,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![1, 0, 1, 0];
 
-        let trained = fixed.fit(&x.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&x.view()).unwrap();
+        let trained = fixed
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = trained
+            .predict(&x.view())
+            .expect("operation should succeed");
 
         // With threshold 0.5:
         // Row 0: [0.2, 0.8] -> 0.8 >= 0.5 -> 1
@@ -555,8 +559,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![1, 0, 1, 0];
 
-        let trained = fixed.fit(&x.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&x.view()).unwrap();
+        let trained = fixed
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = trained
+            .predict(&x.view())
+            .expect("operation should succeed");
 
         // With threshold 0.7:
         // Row 0: [0.2, 0.8] -> 0.8 >= 0.7 -> 1
@@ -659,7 +667,8 @@ mod tests {
         ];
         let y_true = vec![1, 0, 1, 0, 1, 0];
 
-        let result = optimize_threshold(&y_true, &y_proba, OptimizationMetric::F1, 20, 1).unwrap();
+        let result = optimize_threshold(&y_true, &y_proba, OptimizationMetric::F1, 20, 1)
+            .expect("operation should succeed");
 
         assert!(result.best_threshold >= 0.0 && result.best_threshold <= 1.0);
         assert!(result.best_score >= 0.0 && result.best_score <= 1.0);
@@ -682,8 +691,8 @@ mod tests {
         ];
         let y_true = vec![1, 0, 1, 0, 1, 0];
 
-        let result =
-            optimize_threshold(&y_true, &y_proba, OptimizationMetric::Precision, 50, 1).unwrap();
+        let result = optimize_threshold(&y_true, &y_proba, OptimizationMetric::Precision, 50, 1)
+            .expect("operation should succeed");
 
         // Threshold >= 0.6 gives precision=1.0 (no FP)
         // Threshold < 0.6 includes sample 1 as FP, reducing precision
@@ -700,8 +709,8 @@ mod tests {
         let y_proba = array![[0.3, 0.7], [0.8, 0.2], [0.4, 0.6], [0.1, 0.9],];
         let y_true = vec![1, 0, 1, 1];
 
-        let result =
-            optimize_threshold(&y_true, &y_proba, OptimizationMetric::Recall, 50, 1).unwrap();
+        let result = optimize_threshold(&y_true, &y_proba, OptimizationMetric::Recall, 50, 1)
+            .expect("operation should succeed");
 
         // Low threshold should favor recall
         assert!(result.best_threshold <= 0.5);
@@ -713,8 +722,8 @@ mod tests {
         let y_true = vec![1, 0, 1, 1];
 
         // F2 score (beta=2, favors recall)
-        let result =
-            optimize_threshold(&y_true, &y_proba, OptimizationMetric::FBeta(2.0), 50, 1).unwrap();
+        let result = optimize_threshold(&y_true, &y_proba, OptimizationMetric::FBeta(2.0), 50, 1)
+            .expect("operation should succeed");
 
         assert!(result.best_score >= 0.0);
         assert!(result.best_score <= 1.0);
@@ -745,7 +754,7 @@ mod tests {
             50,
             1,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Threshold < 0.6: includes sample 1 as FP → cost = 10
         // Threshold >= 0.6 and < 0.7: no FP, no FN → cost = 0

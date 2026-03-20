@@ -1,3 +1,23 @@
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let config = EnsembleConfig::random_forest()
+///     .with_n_estimators(50)
+///     .with_parallel_config(
+///         ParallelConfig::new().with_num_threads(4)
+///     );
+///
+/// let ensemble = ParallelEnsemble::new(config);
+///
+/// let features = Array2::zeros((100, 10));
+/// let targets = Array1::zeros(100);
+///
+/// let trained = ensemble.parallel_fit(&features.view(), &targets.view())?;
+/// let predictions = trained.parallel_predict(&features.view())?;
+/// println!("Predictions: {:?}", predictions);
+/// # Ok(())
+/// # }
+/// ```
+use crate::error::{Result, SklearsError};
 /// Advanced ensemble method improvements with parallel and distributed training
 ///
 /// This module provides state-of-the-art improvements to ensemble methods,
@@ -55,26 +75,6 @@
 ///     ParallelEnsemble, EnsembleConfig, ParallelConfig,
 /// };
 /// use scirs2_core::ndarray::{Array1, Array2};
-///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let config = EnsembleConfig::random_forest()
-///     .with_n_estimators(50)
-///     .with_parallel_config(
-///         ParallelConfig::new().with_num_threads(4)
-///     );
-///
-/// let ensemble = ParallelEnsemble::new(config);
-///
-/// let features = Array2::zeros((100, 10));
-/// let targets = Array1::zeros(100);
-///
-/// let trained = ensemble.parallel_fit(&features.view(), &targets.view())?;
-/// let predictions = trained.parallel_predict(&features.view())?;
-/// println!("Predictions: {:?}", predictions);
-/// # Ok(())
-/// # }
-/// ```
-use crate::error::{Result, SklearsError};
 // SciRS2 Policy: Using scirs2_core::ndarray and scirs2_core::random (COMPLIANT)
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};

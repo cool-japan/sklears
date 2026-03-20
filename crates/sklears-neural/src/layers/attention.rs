@@ -265,7 +265,8 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> MultiHeadAttention<T>
         let mut weights = Array2::zeros((input_size, output_size));
         for elem in weights.iter_mut() {
             // Simple initialization - in practice would use proper random number generation
-            *elem = bound * T::from(0.1).unwrap_or(T::one() / T::from(10).unwrap());
+            *elem =
+                bound * T::from(0.1).unwrap_or(T::one() / T::from(10).unwrap_or_else(|| T::zero()));
         }
 
         Ok(weights)
@@ -373,9 +374,14 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Layer<T> for MultiHea
         Ok(output)
     }
 
+    /// Compute gradients through the attention mechanism.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// Full implementation requires gradient computation through all projection
+    /// matrices (Q, K, V), the softmax attention weights, and the output projection.
     fn backward(&mut self, _grad_output: &Array2<T>) -> NeuralResult<Array2<T>> {
-        // Simplified backward pass - in practice would compute full gradients
-        // through all projection matrices and attention mechanisms
         Err(SklearsError::NotImplemented(
             "Full backward pass for MultiHeadAttention not yet implemented".to_string(),
         ))
@@ -418,7 +424,7 @@ mod tests {
 
         let output = attention
             .apply_attention(&query, &key, &value, None, false)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(output.dim(), (batch_size, seq_len, d_v));
 
@@ -429,7 +435,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_multi_head_attention_creation() {
-        let attention = MultiHeadAttention::<f64>::new(8, 512, None).unwrap();
+        let attention =
+            MultiHeadAttention::<f64>::new(8, 512, None).expect("construction should succeed");
 
         assert_eq!(attention.num_heads, 8);
         assert_eq!(attention.d_model, 512);
@@ -452,7 +459,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_multi_head_attention_forward() {
-        let mut attention = MultiHeadAttention::<f64>::new(4, 8, None).unwrap();
+        let mut attention =
+            MultiHeadAttention::<f64>::new(4, 8, None).expect("construction should succeed");
 
         let batch_size = 2;
         let seq_len = 3;
@@ -462,7 +470,9 @@ mod tests {
         let key = Array3::ones((batch_size, seq_len, d_model));
         let value = Array3::ones((batch_size, seq_len, d_model));
 
-        let output = attention.apply(&query, &key, &value, None, false).unwrap();
+        let output = attention
+            .apply(&query, &key, &value, None, false)
+            .expect("apply should succeed");
 
         assert_eq!(output.dim(), (batch_size, seq_len, d_model));
     }
@@ -490,12 +500,14 @@ mod tests {
 
         let output = attention
             .apply_attention(&query, &key, &value, Some(&mask), false)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(output.dim(), (batch_size, seq_len, d_k));
 
         // Verify attention weights respect the mask
-        let attention_weights = attention.get_attention_weights().unwrap();
+        let attention_weights = attention
+            .get_attention_weights()
+            .expect("operation should succeed");
 
         // Upper triangular part should have very small weights due to masking
         for i in 0..seq_len {

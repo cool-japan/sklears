@@ -559,7 +559,7 @@ mod tests {
         let model = LassoCV::new()
             .alphas(vec![0.001, 0.01, 0.1, 1.0])
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // First coefficient should be close to 2, second should be 0
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 0.1);
@@ -567,7 +567,7 @@ mod tests {
 
         // Test prediction
         let x_test = array![[9.0, 0.0], [10.0, 0.0]];
-        let y_pred = model.predict(&x_test).unwrap();
+        let y_pred = model.predict(&x_test).expect("prediction should succeed");
         assert_abs_diff_eq!(y_pred[0], 18.0, epsilon = 0.5);
         assert_abs_diff_eq!(y_pred[1], 20.0, epsilon = 0.5);
     }
@@ -592,7 +592,10 @@ mod tests {
             y[i] = 2.0 * x[[i, 0]] - 1.0 * x[[i, 1]] + 3.0 * x[[i, 2]];
         }
 
-        let model = LassoCV::new().cv(5).fit(&x, &y).unwrap();
+        let model = LassoCV::new()
+            .cv(5)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Check that we have a sparse solution
         let n_nonzero = model.n_nonzero();
@@ -612,7 +615,10 @@ mod tests {
         ];
         let y = array![5.0, 8.0, 11.0, 14.0, 17.0, 20.0];
 
-        let model = LassoCV::new().cv(3).fit(&x, &y).unwrap();
+        let model = LassoCV::new()
+            .cv(3)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Check that alphas were generated
         assert_eq!(model.alphas().len(), 100);

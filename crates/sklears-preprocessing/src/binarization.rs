@@ -201,12 +201,15 @@ impl KBinsDiscretizer<Untrained> {
     }
 
     /// Set the number of bins
-    pub fn n_bins(mut self, n_bins: usize) -> Self {
+    pub fn n_bins(mut self, n_bins: usize) -> Result<Self> {
         if n_bins < 2 {
-            panic!("n_bins must be at least 2");
+            return Err(SklearsError::InvalidParameter {
+                name: "n_bins".to_string(),
+                reason: "must be at least 2".to_string(),
+            });
         }
         self.config.n_bins = n_bins;
-        self
+        Ok(self)
     }
 
     /// Set the encoding method
@@ -274,7 +277,7 @@ fn compute_uniform_bins(data: &Array1<Float>, n_bins: usize) -> Array1<Float> {
 /// Compute quantile bin edges
 fn compute_quantile_bins(data: &Array1<Float>, n_bins: usize) -> Array1<Float> {
     let mut sorted_data = data.to_vec();
-    sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n_samples = sorted_data.len();
     let mut edges = Vec::with_capacity(n_bins + 1);
@@ -288,7 +291,7 @@ fn compute_quantile_bins(data: &Array1<Float>, n_bins: usize) -> Array1<Float> {
         let value = sorted_data[idx.min(n_samples - 1)];
 
         // Avoid duplicate edges
-        if value > edges.last().unwrap() + Float::EPSILON {
+        if value > edges.last().expect("collection should not be empty") + Float::EPSILON {
             edges.push(value);
         }
     }
@@ -375,8 +378,8 @@ impl Transform<Array2<Float>, Array2<Float>> for KBinsDiscretizer<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
-        let bin_edges = self.bin_edges_.as_ref().unwrap();
-        let n_bins = self.n_bins_.as_ref().unwrap();
+        let bin_edges = self.bin_edges_.as_ref().expect("operation should succeed");
+        let n_bins = self.n_bins_.as_ref().expect("operation should succeed");
 
         match self.config.encode {
             DiscretizerEncoding::Ordinal => {
@@ -414,17 +417,17 @@ impl Transform<Array2<Float>, Array2<Float>> for KBinsDiscretizer<Trained> {
 impl KBinsDiscretizer<Trained> {
     /// Get the bin edges for each feature
     pub fn bin_edges(&self) -> &Vec<Array1<Float>> {
-        self.bin_edges_.as_ref().unwrap()
+        self.bin_edges_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of bins for each feature
     pub fn n_bins(&self) -> &Vec<usize> {
-        self.n_bins_.as_ref().unwrap()
+        self.n_bins_.as_ref().expect("operation should succeed")
     }
 
     /// Transform back from bin indices to representative values (inverse transform)
     pub fn inverse_transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let bin_edges = self.bin_edges_.as_ref().unwrap();
+        let bin_edges = self.bin_edges_.as_ref().expect("operation should succeed");
         let n_features = bin_edges.len();
 
         match self.config.encode {
@@ -472,9 +475,13 @@ mod tests {
     fn test_binarizer() {
         let x = array![[1.0, -1.0, 2.0], [2.0, 0.0, 0.0], [0.0, 1.0, -1.0],];
 
-        let binarizer = Binarizer::with_threshold(0.0).fit(&x, &()).unwrap();
+        let binarizer = Binarizer::with_threshold(0.0)
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
-        let x_bin = binarizer.transform(&x).unwrap();
+        let x_bin = binarizer
+            .transform(&x)
+            .expect("transformation should succeed");
 
         let expected = array![[1.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0],];
 
@@ -485,9 +492,14 @@ mod tests {
     fn test_binarizer_custom_threshold() {
         let x = array![[1.0, 2.0, 3.0, 4.0]];
 
-        let binarizer = Binarizer::new().threshold(2.5).fit(&x, &()).unwrap();
+        let binarizer = Binarizer::new()
+            .threshold(2.5)
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
-        let x_bin = binarizer.transform(&x).unwrap();
+        let x_bin = binarizer
+            .transform(&x)
+            .expect("transformation should succeed");
         let expected = array![[0.0, 0.0, 1.0, 1.0]];
 
         assert_eq!(x_bin, expected);
@@ -497,9 +509,13 @@ mod tests {
     fn test_binarizer_1d() {
         let x = array![1.0, -1.0, 2.0, 0.0];
 
-        let binarizer = Binarizer::new().fit(&array![[0.0]], &()).unwrap();
+        let binarizer = Binarizer::new()
+            .fit(&array![[0.0]], &())
+            .expect("model fitting should succeed");
 
-        let x_bin = binarizer.transform(&x).unwrap();
+        let x_bin = binarizer
+            .transform(&x)
+            .expect("transformation should succeed");
         let expected = array![1.0, 0.0, 1.0, 0.0];
 
         assert_eq!(x_bin, expected);
@@ -511,12 +527,15 @@ mod tests {
 
         let discretizer = KBinsDiscretizer::new()
             .n_bins(3)
+            .expect("valid parameter")
             .strategy(DiscretizationStrategy::Uniform)
             .encode(DiscretizerEncoding::Ordinal)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_disc = discretizer.transform(&x).unwrap();
+        let x_disc = discretizer
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // With 3 bins and uniform strategy: [0, 2), [2, 4), [4, 5+ε]
         // Values should be binned as: 0, 0, 1, 1, 2, 2
@@ -532,12 +551,15 @@ mod tests {
 
         let discretizer = KBinsDiscretizer::new()
             .n_bins(3)
+            .expect("valid parameter")
             .strategy(DiscretizationStrategy::Quantile)
             .encode(DiscretizerEncoding::Ordinal)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_disc = discretizer.transform(&x).unwrap();
+        let x_disc = discretizer
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Check that each bin has approximately the same number of samples
         let bin_counts = vec![
@@ -558,11 +580,14 @@ mod tests {
 
         let discretizer = KBinsDiscretizer::new()
             .n_bins(2)
+            .expect("valid parameter")
             .encode(DiscretizerEncoding::OneHot)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_disc = discretizer.transform(&x).unwrap();
+        let x_disc = discretizer
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // With 2 bins per feature and 2 features, we should get 4 columns
         assert_eq!(x_disc.ncols(), 4);
@@ -580,13 +605,18 @@ mod tests {
 
         let discretizer = KBinsDiscretizer::new()
             .n_bins(3)
+            .expect("valid parameter")
             .strategy(DiscretizationStrategy::Uniform)
             .encode(DiscretizerEncoding::Ordinal)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_disc = discretizer.transform(&x).unwrap();
-        let x_inv = discretizer.inverse_transform(&x_disc).unwrap();
+        let x_disc = discretizer
+            .transform(&x)
+            .expect("transformation should succeed");
+        let x_inv = discretizer
+            .inverse_transform(&x_disc)
+            .expect("operation should succeed");
 
         // The inverse transform should produce values close to the bin centers
         // Bins: [0, 2), [2, 4), [4, 5+ε] with centers at 1, 3, ~4.5

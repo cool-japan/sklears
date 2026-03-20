@@ -235,7 +235,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for GaussianMixture<Untrained> {
             }
         }
 
-        let (weights, means, covariances) = best_params.unwrap();
+        let (weights, means, covariances) = best_params.expect("operation should succeed");
 
         // Calculate model selection criteria
         let n_params =

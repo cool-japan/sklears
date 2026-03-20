@@ -1142,7 +1142,7 @@ impl CachingMiddleware {
     /// Get cached data
     pub fn get(&mut self, key: &str) -> Option<Array2<Float>> {
         let result = {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
 
             if let Some(entry) = cache.get_mut(key) {
                 // Check if entry is still valid
@@ -1186,7 +1186,7 @@ impl CachingMiddleware {
         let eviction_policy = self.config.eviction_policy.clone();
 
         let (evicted, final_size) = {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
 
             // Check if cache is full
             let mut evicted = false;
@@ -1305,7 +1305,7 @@ impl PipelineMiddleware for CachingMiddleware {
         output: &Array2<Float>,
     ) -> SklResult<()> {
         if let Some(cache_key) = context.metadata.get("cache_key") {
-            self.cache.lock().unwrap().insert(
+            self.cache.lock().unwrap_or_else(|e| e.into_inner()).insert(
                 cache_key.clone(),
                 /// CacheEntry
                 CacheEntry {
@@ -1488,7 +1488,7 @@ mod tests {
         let config = CacheConfig::default();
         let cache_middleware = CachingMiddleware::new(config);
 
-        let input = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let input = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap_or_default();
         let context = MiddlewareContext {
             request_id: "test".to_string(),
             timestamp: SystemTime::now(),

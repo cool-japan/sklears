@@ -587,7 +587,7 @@ where
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = self.base_classifier.classes[max_idx];
@@ -850,7 +850,7 @@ mod tests {
     #[test]
     fn test_stratified_kfold_split() {
         let y = array![0, 0, 1, 1, 2, 2];
-        let splits = stratified_kfold_split(&y, 3, Some(42)).unwrap();
+        let splits = stratified_kfold_split(&y, 3, Some(42)).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -868,7 +868,7 @@ mod tests {
         let result = stratified_kfold_split(&y, 5, Some(42));
         // Should now succeed with adjusted number of splits
         assert!(result.is_ok());
-        let splits = result.unwrap();
+        let splits = result.expect("operation should succeed");
         // Should have at most 2 splits (same as number of samples)
         assert!(splits.len() <= 2);
 
@@ -974,11 +974,11 @@ mod tests {
             .method(CalibrationMethod::PlattScaling)
             .cv_folds(3);
 
-        let trained_platt = platt_calibrator.fit(&X, &y).unwrap();
-        let predictions = trained_platt.predict(&X).unwrap();
+        let trained_platt = platt_calibrator.fit(&X, &y).expect("operation should succeed");
+        let predictions = trained_platt.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = trained_platt.predict_proba(&X).unwrap();
+        let probabilities = trained_platt.predict_proba(&X).expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 3));
 
         // Check probability constraints
@@ -992,8 +992,8 @@ mod tests {
             .method(CalibrationMethod::IsotonicRegression)
             .cv_folds(3);
 
-        let trained_isotonic = isotonic_calibrator.fit(&X, &y).unwrap();
-        let iso_predictions = trained_isotonic.predict(&X).unwrap();
+        let trained_isotonic = isotonic_calibrator.fit(&X, &y).expect("operation should succeed");
+        let iso_predictions = trained_isotonic.predict(&X).expect("operation should succeed");
         assert_eq!(iso_predictions.len(), 6);
 
         // Test with temperature scaling
@@ -1003,8 +1003,8 @@ mod tests {
             })
             .cv_folds(3);
 
-        let trained_temp = temp_calibrator.fit(&X, &y).unwrap();
-        let temp_predictions = trained_temp.predict(&X).unwrap();
+        let trained_temp = temp_calibrator.fit(&X, &y).expect("operation should succeed");
+        let temp_predictions = trained_temp.predict(&X).expect("operation should succeed");
         assert_eq!(temp_predictions.len(), 6);
 
         // Test with Dirichlet calibration
@@ -1012,8 +1012,8 @@ mod tests {
             .method(CalibrationMethod::DirichletCalibration { l2_reg: 0.01 })
             .cv_folds(3);
 
-        let trained_dirichlet = dirichlet_calibrator.fit(&X, &y).unwrap();
-        let dirichlet_predictions = trained_dirichlet.predict(&X).unwrap();
+        let trained_dirichlet = dirichlet_calibrator.fit(&X, &y).expect("operation should succeed");
+        let dirichlet_predictions = trained_dirichlet.predict(&X).expect("operation should succeed");
         assert_eq!(dirichlet_predictions.len(), 6);
     }
 

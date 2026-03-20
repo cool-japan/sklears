@@ -66,7 +66,7 @@ use super::*;
 use approx::assert_abs_diff_eq;
 use proptest::prelude::*;
 use scirs2_core::ndarray::{Array2, Axis};
-use scirs2_core::random::Random;
+use scirs2_core::random::{Random, RngExt};
 use sklears_core::traits::Transform;
 
 /// Property-based tests for imputation algorithms
@@ -89,7 +89,10 @@ mod property_tests {
                 prop_oneof![Just(f64::NAN), -100.0_f64..100.0_f64,],
                 n_rows * n_cols,
             )
-            .prop_map(move |values| Array2::from_shape_vec((n_rows, n_cols), values).unwrap())
+            .prop_map(move |values| {
+                Array2::from_shape_vec((n_rows, n_cols), values)
+                    .expect("shape and data length should match")
+            })
         })
     }
 
@@ -99,8 +102,10 @@ mod property_tests {
     /// These matrices are used to test idempotency properties.
     fn complete_data_matrix() -> impl Strategy<Value = Array2<f64>> {
         (3..=8_usize, 3..=8_usize).prop_flat_map(|(n_rows, n_cols)| {
-            prop::collection::vec(-100.0_f64..100.0_f64, n_rows * n_cols)
-                .prop_map(move |values| Array2::from_shape_vec((n_rows, n_cols), values).unwrap())
+            prop::collection::vec(-100.0_f64..100.0_f64, n_rows * n_cols).prop_map(move |values| {
+                Array2::from_shape_vec((n_rows, n_cols), values)
+                    .expect("shape and data length should match")
+            })
         })
     }
 
@@ -445,12 +450,16 @@ mod property_tests {
         /// and replaces missing values appropriately.
         #[test]
         fn test_simple_imputer_mean_strategy() {
-            let data =
-                Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 7.0, 6.0]).unwrap();
+            let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 7.0, 6.0])
+                .expect("shape and data length should match");
 
             let imputer = SimpleImputer::new().strategy("mean".to_string());
-            let fitted = imputer.fit(&data.view(), &()).unwrap();
-            let result = fitted.transform(&data.view()).unwrap();
+            let fitted = imputer
+                .fit(&data.view(), &())
+                .expect("model fitting should succeed");
+            let result = fitted
+                .transform(&data.view())
+                .expect("transformation should succeed");
 
             // Column 0: (1.0 + 7.0) / 2 = 4.0
             // Column 1: (2.0 + 4.0 + 6.0) / 3 = 4.0
@@ -470,11 +479,15 @@ mod property_tests {
         fn test_knn_imputer_basic_functionality() {
             let data =
                 Array2::from_shape_vec((4, 2), vec![1.0, 2.0, f64::NAN, 4.0, 3.0, 6.0, 5.0, 8.0])
-                    .unwrap();
+                    .expect("operation should succeed");
 
             let imputer = KNNImputer::new().n_neighbors(2);
-            let fitted = imputer.fit(&data.view(), &()).unwrap();
-            let result = fitted.transform(&data.view()).unwrap();
+            let fitted = imputer
+                .fit(&data.view(), &())
+                .expect("model fitting should succeed");
+            let result = fitted
+                .transform(&data.view())
+                .expect("transformation should succeed");
 
             // Should have no missing values
             assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -497,13 +510,17 @@ mod property_tests {
         fn test_gaussian_process_imputer_basic_functionality() {
             let data =
                 Array2::from_shape_vec((4, 2), vec![1.0, 2.0, f64::NAN, 4.0, 3.0, 6.0, 5.0, 8.0])
-                    .unwrap();
+                    .expect("operation should succeed");
 
             let imputer = GaussianProcessImputer::new()
                 .kernel("rbf".to_string())
                 .alpha(1e-6);
-            let fitted = imputer.fit(&data.view(), &()).unwrap();
-            let result = fitted.transform(&data.view()).unwrap();
+            let fitted = imputer
+                .fit(&data.view(), &())
+                .expect("model fitting should succeed");
+            let result = fitted
+                .transform(&data.view())
+                .expect("transformation should succeed");
 
             // Should have no missing values
             assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -554,7 +571,7 @@ mod property_tests {
             let mut data_with_missing = true_data.clone();
             for i in 0..n_samples {
                 for j in 0..n_features {
-                    if rng.gen::<f64>() < 0.15 {
+                    if rng.random::<f64>() < 0.15 {
                         data_with_missing[[i, j]] = f64::NAN;
                     }
                 }
@@ -624,7 +641,7 @@ mod property_tests {
             // Introduce missing values
             let mut data_with_missing = true_data.clone();
             for i in 0..n_samples {
-                if rng.gen::<f64>() < 0.2 {
+                if rng.random::<f64>() < 0.2 {
                     data_with_missing[[i, rng.gen_range(0..n_features)]] = f64::NAN;
                 }
             }
@@ -774,7 +791,7 @@ mod property_tests {
             // Introduce missing values
             let mut data_with_missing = true_data.clone();
             for i in 0..n_samples {
-                if rng.gen::<f64>() < 0.12 {
+                if rng.random::<f64>() < 0.12 {
                     data_with_missing[[i, rng.gen_range(0..n_features)]] = f64::NAN;
                 }
             }
@@ -928,7 +945,9 @@ mod property_tests {
             let n_features = data.ncols();
 
             // Calculate sample mean
-            let mean = data.mean_axis(Axis(0)).unwrap();
+            let mean = data
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
 
             // Calculate sample covariance
             let mut cov = Array2::zeros((n_features, n_features));
@@ -1128,7 +1147,7 @@ mod property_tests {
                         missing_rate * 0.5
                     };
 
-                    if rng.gen::<f64>() < prob_missing {
+                    if rng.random::<f64>() < prob_missing {
                         data_with_missing[[i, j]] = f64::NAN;
                         missing_mask[[i, j]] = true;
                     }
@@ -1148,8 +1167,12 @@ mod property_tests {
             let (data_with_missing, missing_mask) = introduce_mcar_pattern(&true_data, 0.2, 123);
 
             let imputer = SimpleImputer::new().strategy("mean".to_string());
-            let fitted = imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let imputed_data = fitted.transform(&data_with_missing.view()).unwrap();
+            let fitted = imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let imputed_data = fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
             let rmse_value = rmse(&true_data, &imputed_data.mapv(|x| x), &missing_mask);
             let mae_value = mae(&true_data, &imputed_data.mapv(|x| x), &missing_mask);
@@ -1173,8 +1196,12 @@ mod property_tests {
             let (data_with_missing, missing_mask) = introduce_mcar_pattern(&true_data, 0.15, 123);
 
             let imputer = KNNImputer::new().n_neighbors(3);
-            let fitted = imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let imputed_data = fitted.transform(&data_with_missing.view()).unwrap();
+            let fitted = imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let imputed_data = fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
             let rmse_value = rmse(&true_data, &imputed_data.mapv(|x| x), &missing_mask);
             let mae_value = mae(&true_data, &imputed_data.mapv(|x| x), &missing_mask);
@@ -1199,8 +1226,12 @@ mod property_tests {
             let imputer = GaussianProcessImputer::new()
                 .kernel("rbf".to_string())
                 .alpha(1e-6);
-            let fitted = imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let imputed_data = fitted.transform(&data_with_missing.view()).unwrap();
+            let fitted = imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let imputed_data = fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
             let rmse_value = rmse(&true_data, &imputed_data.mapv(|x| x), &missing_mask);
             let mae_value = mae(&true_data, &imputed_data.mapv(|x| x), &missing_mask);
@@ -1231,14 +1262,26 @@ mod property_tests {
                 .alpha(1e-6);
 
             // Fit and transform with each imputer
-            let simple_fitted = simple_imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let simple_result = simple_fitted.transform(&data_with_missing.view()).unwrap();
+            let simple_fitted = simple_imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let simple_result = simple_fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
-            let knn_fitted = knn_imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let knn_result = knn_fitted.transform(&data_with_missing.view()).unwrap();
+            let knn_fitted = knn_imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let knn_result = knn_fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
-            let gp_fitted = gp_imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let gp_result = gp_fitted.transform(&data_with_missing.view()).unwrap();
+            let gp_fitted = gp_imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let gp_result = gp_fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
             // Calculate errors for each method
             let simple_rmse = rmse(&true_data, &simple_result.mapv(|x| x), &missing_mask);
@@ -1273,8 +1316,12 @@ mod property_tests {
 
             // KNN should handle MAR better than simple mean due to relationships
             let knn_imputer = KNNImputer::new().n_neighbors(5);
-            let knn_fitted = knn_imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let knn_result = knn_fitted.transform(&data_with_missing.view()).unwrap();
+            let knn_fitted = knn_imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let knn_result = knn_fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
             let knn_rmse = rmse(&true_data, &knn_result.mapv(|x| x), &missing_mask);
             let knn_mae = mae(&true_data, &knn_result.mapv(|x| x), &missing_mask);
@@ -1304,7 +1351,9 @@ mod property_tests {
             let gp_imputer = GaussianProcessImputer::new()
                 .kernel("rbf".to_string())
                 .alpha(1e-3); // Increase alpha for better uncertainty estimates
-            let gp_fitted = gp_imputer.fit(&data_with_missing.view(), &()).unwrap();
+            let gp_fitted = gp_imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
 
             if let Ok(predictions) = gp_fitted.predict_with_uncertainty(&data_with_missing.view()) {
                 let mut uncertainty_coverage = 0;
@@ -1387,11 +1436,19 @@ mod property_tests {
             let simple_imputer = SimpleImputer::new().strategy("mean".to_string());
             let knn_imputer = KNNImputer::new().n_neighbors(3);
 
-            let simple_fitted = simple_imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let simple_result = simple_fitted.transform(&data_with_missing.view()).unwrap();
+            let simple_fitted = simple_imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let simple_result = simple_fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
-            let knn_fitted = knn_imputer.fit(&data_with_missing.view(), &()).unwrap();
-            let knn_result = knn_fitted.transform(&data_with_missing.view()).unwrap();
+            let knn_fitted = knn_imputer
+                .fit(&data_with_missing.view(), &())
+                .expect("model fitting should succeed");
+            let knn_result = knn_fitted
+                .transform(&data_with_missing.view())
+                .expect("transformation should succeed");
 
             // Both should still produce reasonable results despite outliers
             let simple_rmse = rmse(&true_data, &simple_result.mapv(|x| x), &missing_mask);

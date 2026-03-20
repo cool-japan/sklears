@@ -413,7 +413,7 @@ impl DynamicEnsembleSelector<DynamicEnsembleSelectorTrained> {
             })
             .collect();
 
-        estimator_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        estimator_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let selected_k = k.min(estimator_scores.len());
         Ok(estimator_scores
@@ -466,7 +466,7 @@ impl DynamicEnsembleSelector<DynamicEnsembleSelectorTrained> {
             .collect();
 
         let mut sorted_scores = scores.clone();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median = sorted_scores[sorted_scores.len() / 2];
 
         let selected: Vec<usize> = scores
@@ -501,7 +501,7 @@ impl DynamicEnsembleSelector<DynamicEnsembleSelectorTrained> {
             })
             .collect();
 
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         let neighbor_indices: Vec<usize> = distances
             .into_iter()
             .take(k_neighbors.min(self.state.validation_data.nrows()))
@@ -539,7 +539,7 @@ impl DynamicEnsembleSelector<DynamicEnsembleSelectorTrained> {
             let best_idx = local_competences
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map_or(0, |(idx, _)| idx);
             Ok(vec![best_idx])
         } else {

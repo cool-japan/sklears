@@ -570,7 +570,8 @@ mod tests {
 
     #[test]
     fn test_check_x_y() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let y_good = array![0, 1, 0];
         let y_bad = array![0, 1];
 
@@ -597,7 +598,7 @@ mod tests {
         let y_good = array![0, 1, 2, 1, 0];
         let y_bad = array![0, 1, -1, 1, 0];
 
-        let classes = validate_class_labels(&y_good).unwrap();
+        let classes = validate_class_labels(&y_good).expect("operation should succeed");
         assert_eq!(classes, vec![0, 1, 2]);
 
         assert!(validate_class_labels(&y_bad).is_err());
@@ -605,8 +606,10 @@ mod tests {
 
     #[test]
     fn test_check_finite() {
-        let good = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let bad = Array2::from_shape_vec((2, 2), vec![1.0, Float::NAN, 3.0, 4.0]).unwrap();
+        let good = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let bad = Array2::from_shape_vec((2, 2), vec![1.0, Float::NAN, 3.0, 4.0])
+            .expect("operation should succeed");
 
         assert!(check_finite(&good).is_ok());
         assert!(check_finite(&bad).is_err());
@@ -680,7 +683,8 @@ mod tests {
 
     #[test]
     fn test_validate_time_series() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let good_timestamps = array![1.0, 2.0, 3.0];
         let bad_timestamps = array![1.0, 1.5, 1.2]; // not increasing
 

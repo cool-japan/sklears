@@ -4,7 +4,7 @@
 //! All implementations follow the SciRS2 policy using scirs2-core for numerical computations.
 
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, Rng, RngExt};
 
 use super::automl_core::{AutoMLMethod, DataCharacteristics};
 use super::hyperparameter_optimizer::{MethodConfig, OptimizedMethod};
@@ -217,7 +217,7 @@ impl AdvancedHyperparameterOptimizer {
                 let mut child =
                     self.crossover(&population[parent1_idx], &population[parent2_idx], &mut rng)?;
 
-                if rng.gen::<f64>() < MUTATION_RATE {
+                if rng.random::<f64>() < MUTATION_RATE {
                     child = self.mutate(&child, method, characteristics, &mut rng)?;
                 }
                 new_population.push(child);
@@ -373,23 +373,23 @@ impl AdvancedHyperparameterOptimizer {
     ) -> Result<MethodConfig> {
         match method {
             AutoMLMethod::UnivariateFiltering => {
-                let k = rng.gen_range(1..characteristics.n_features.min(101));
+                let k = rng.random_range(1..characteristics.n_features.min(101));
                 Ok(MethodConfig::Univariate { k })
             }
             AutoMLMethod::CorrelationBased => {
-                let threshold = rng.gen_range(0.1..1.9);
+                let threshold = rng.random_range(0.1..1.9);
                 Ok(MethodConfig::Correlation { threshold })
             }
             AutoMLMethod::TreeBased => {
-                let n_estimators = rng.gen_range(10..201);
-                let max_depth = rng.gen_range(3..16);
+                let n_estimators = rng.random_range(10..201);
+                let max_depth = rng.random_range(3..16);
                 Ok(MethodConfig::Tree {
                     n_estimators,
                     max_depth,
                 })
             }
             AutoMLMethod::LassoBased => {
-                let alpha = rng.gen_range(0.001..2.0);
+                let alpha = rng.random_range(0.001..2.0);
                 Ok(MethodConfig::Lasso { alpha })
             }
             _ => Ok(MethodConfig::Univariate {
@@ -435,13 +435,13 @@ impl AdvancedHyperparameterOptimizer {
     ) -> Result<f64> {
         // Simplified evaluation - return random score for demo
         let mut rng = thread_rng();
-        Ok(rng.gen_range(0.0..2.0))
+        Ok(rng.random_range(0.0..2.0))
     }
 
     fn select_parent<R: Rng>(&self, scores: &[f64], rng: &mut R) -> usize {
         // Tournament selection
-        let idx1 = rng.gen_range(0..scores.len());
-        let idx2 = rng.gen_range(0..scores.len());
+        let idx1 = rng.random_range(0..scores.len());
+        let idx2 = rng.random_range(0..scores.len());
         if scores[idx1] > scores[idx2] {
             idx1
         } else {
@@ -456,7 +456,7 @@ impl AdvancedHyperparameterOptimizer {
         rng: &mut R,
     ) -> Result<MethodConfig> {
         // Simple crossover - randomly choose from parents
-        if rng.gen::<bool>() {
+        if rng.random::<bool>() {
             Ok(parent1.clone())
         } else {
             Ok(parent2.clone())

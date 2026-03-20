@@ -482,7 +482,7 @@ impl WasmProfiler {
             module_id,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_millis()
         );
         let session = ProfilingSession {
@@ -985,7 +985,7 @@ impl WasmCompiler {
                 "module_{}",
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             bytecode,
@@ -1171,7 +1171,7 @@ impl WorkerThreadManager {
                 "task_{}",
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ))
         } else {
@@ -1366,17 +1366,23 @@ impl WasmIntegrationManager {
         pipeline_spec: &str,
         target: &CompilationTarget,
     ) -> Result<CompiledWasmModule> {
-        let mut compiler = self.compiler.write().unwrap();
+        let mut compiler = self.compiler.write().unwrap_or_else(|e| e.into_inner());
         compiler.compile_pipeline(pipeline_spec, target)
     }
     /// Load and instantiate a WASM module
     pub fn load_module(&self, module_source: &ModuleSource) -> Result<String> {
-        let mut module_manager = self.module_manager.write().unwrap();
+        let mut module_manager = self
+            .module_manager
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         module_manager.load_module(module_source)
     }
     /// Execute inference on a loaded module
     pub fn execute_inference(&self, module_id: &str, input_data: &[f32]) -> Result<Vec<f32>> {
-        let module_manager = self.module_manager.read().unwrap();
+        let module_manager = self
+            .module_manager
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(module) = module_manager.get_module(module_id) {
             self.call_module_function(module, "inference", input_data)
         } else {
@@ -1387,37 +1393,58 @@ impl WasmIntegrationManager {
     }
     /// Generate JavaScript bindings for a module
     pub fn generate_js_bindings(&self, module_id: &str) -> Result<GeneratedBinding> {
-        let browser_integration = self.browser_integration.read().unwrap();
+        let browser_integration = self
+            .browser_integration
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         browser_integration.generate_bindings(module_id)
     }
     /// Optimize a compiled module
     pub fn optimize_module(&self, module: &mut CompiledWasmModule) -> Result<OptimizationResult> {
-        let optimizer = self.performance_optimizer.read().unwrap();
+        let optimizer = self
+            .performance_optimizer
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         optimizer.optimize_module(module)
     }
     /// Start performance profiling
     pub fn start_profiling(&self, module_id: &str) -> Result<String> {
-        let mut optimizer = self.performance_optimizer.write().unwrap();
+        let mut optimizer = self
+            .performance_optimizer
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         optimizer.start_profiling(module_id)
     }
     /// Get performance metrics
     pub fn get_performance_metrics(&self, module_id: &str) -> Result<PerformanceMetrics> {
-        let optimizer = self.performance_optimizer.read().unwrap();
+        let optimizer = self
+            .performance_optimizer
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         optimizer.get_metrics(module_id)
     }
     /// Detect browser capabilities
     pub fn detect_browser_capabilities(&self) -> Result<Vec<BrowserFeature>> {
-        let browser_integration = self.browser_integration.read().unwrap();
+        let browser_integration = self
+            .browser_integration
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         browser_integration.detect_capabilities()
     }
     /// Create worker thread for parallel processing
     pub fn create_worker(&self, module_id: &str) -> Result<String> {
-        let mut browser_integration = self.browser_integration.write().unwrap();
+        let mut browser_integration = self
+            .browser_integration
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         browser_integration.create_worker(module_id)
     }
     /// Submit task to worker thread
     pub fn submit_task(&self, worker_id: &str, task: WorkerTask) -> Result<String> {
-        let mut browser_integration = self.browser_integration.write().unwrap();
+        let mut browser_integration = self
+            .browser_integration
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         browser_integration.submit_task(worker_id, task)
     }
     fn call_module_function(
@@ -1637,7 +1664,7 @@ impl WasmModuleManager {
             "module_{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_millis()
         );
         let loaded_module = LoadedWasmModule {

@@ -980,13 +980,13 @@ mod tests {
         // Test unit vectors
         let i = vec![1.0, 0.0, 0.0];
         let j = vec![0.0, 1.0, 0.0];
-        let result = cross_product(&i, &j).unwrap();
+        let result = cross_product(&i, &j).expect("operation should succeed");
         assert_eq!(result, vec![0.0, 0.0, 1.0]); // i × j = k
 
         // Test with general vectors
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
-        let cross = cross_product(&a, &b).unwrap();
+        let cross = cross_product(&a, &b).expect("operation should succeed");
         // Expected: (2*6 - 3*5, 3*4 - 1*6, 1*5 - 2*4) = (-3, 6, -3)
         assert_eq!(cross, vec![-3.0, 6.0, -3.0]);
 

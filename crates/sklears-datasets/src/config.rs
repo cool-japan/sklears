@@ -417,12 +417,12 @@ mod implementation {
             let config = generate_example_config();
 
             // Test YAML serialization
-            let yaml_str = ConfigLoader::to_yaml(&config).unwrap();
+            let yaml_str = ConfigLoader::to_yaml(&config).expect("operation should succeed");
             assert!(!yaml_str.is_empty());
             assert!(yaml_str.contains("iris_like"));
 
             // Test JSON serialization
-            let json_str = ConfigLoader::to_json(&config).unwrap();
+            let json_str = ConfigLoader::to_json(&config).expect("operation should succeed");
             assert!(!json_str.is_empty());
             assert!(json_str.contains("iris_like"));
         }
@@ -432,31 +432,31 @@ mod implementation {
             let config = generate_example_config();
 
             // Test YAML round-trip
-            let yaml_str = ConfigLoader::to_yaml(&config).unwrap();
-            let config_from_yaml = ConfigLoader::load_from_yaml(&yaml_str).unwrap();
+            let yaml_str = ConfigLoader::to_yaml(&config).expect("operation should succeed");
+            let config_from_yaml = ConfigLoader::load_from_yaml(&yaml_str).expect("operation should succeed");
             assert_eq!(config.datasets.len(), config_from_yaml.datasets.len());
 
             // Test JSON round-trip
-            let json_str = ConfigLoader::to_json(&config).unwrap();
-            let config_from_json = ConfigLoader::load_from_json(&json_str).unwrap();
+            let json_str = ConfigLoader::to_json(&config).expect("operation should succeed");
+            let config_from_json = ConfigLoader::load_from_json(&json_str).expect("operation should succeed");
             assert_eq!(config.datasets.len(), config_from_json.datasets.len());
         }
 
         #[test]
         fn test_file_operations() {
             let config = generate_example_config();
-            let dir = tempdir().unwrap();
+            let dir = tempdir().expect("operation should succeed");
 
             // Test YAML file operations
             let yaml_path = dir.path().join("config.yaml");
-            ConfigLoader::save_to_file(&config, &yaml_path).unwrap();
-            let loaded_config = ConfigLoader::load_from_file(&yaml_path).unwrap();
+            ConfigLoader::save_to_file(&config, &yaml_path).expect("operation should succeed");
+            let loaded_config = ConfigLoader::load_from_file(&yaml_path).expect("operation should succeed");
             assert_eq!(config.datasets.len(), loaded_config.datasets.len());
 
             // Test JSON file operations
             let json_path = dir.path().join("config.json");
-            ConfigLoader::save_to_file(&config, &json_path).unwrap();
-            let loaded_config = ConfigLoader::load_from_file(&json_path).unwrap();
+            ConfigLoader::save_to_file(&config, &json_path).expect("operation should succeed");
+            let loaded_config = ConfigLoader::load_from_file(&json_path).expect("operation should succeed");
             assert_eq!(config.datasets.len(), loaded_config.datasets.len());
         }
     }

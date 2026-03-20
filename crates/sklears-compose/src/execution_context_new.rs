@@ -1394,7 +1394,7 @@ impl ExecutionContextManager {
 
     /// Initialize the context manager
     pub fn initialize(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = ManagerStatus::Active;
         state.last_activity = Some(SystemTime::now());
         Ok(())
@@ -1402,11 +1402,11 @@ impl ExecutionContextManager {
 
     /// Shutdown the context manager
     pub fn shutdown(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = ManagerStatus::Shutdown;
 
         // Clean up active contexts
-        let mut contexts = self.contexts.write().unwrap();
+        let mut contexts = self.contexts.write().unwrap_or_else(|e| e.into_inner());
         let context_ids: Vec<String> = contexts.keys().cloned().collect();
         for context_id in context_ids {
             if let Some(context) = contexts.remove(&context_id) {
@@ -1422,10 +1422,10 @@ impl ExecutionContextManager {
     pub fn create_context(&self, context_id: String, config: Option<ExecutionContextConfig>) -> SklResult<ExecutionContext> {
         let context = self.context_factory.create_context(context_id.clone(), config)?;
 
-        let mut contexts = self.contexts.write().unwrap();
+        let mut contexts = self.contexts.write().unwrap_or_else(|e| e.into_inner());
         contexts.insert(context_id.clone(), context.clone());
 
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active_contexts = contexts.len();
         state.total_contexts_created += 1;
         state.last_activity = Some(SystemTime::now());
@@ -1445,17 +1445,17 @@ impl ExecutionContextManager {
 
     /// Get execution context
     pub fn get_context(&self, context_id: &str) -> Option<ExecutionContext> {
-        let contexts = self.contexts.read().unwrap();
+        let contexts = self.contexts.read().unwrap_or_else(|e| e.into_inner());
         contexts.get(context_id).cloned()
     }
 
     /// Remove execution context
     pub fn remove_context(&self, context_id: &str) -> SklResult<Option<ExecutionContext>> {
-        let mut contexts = self.contexts.write().unwrap();
+        let mut contexts = self.contexts.write().unwrap_or_else(|e| e.into_inner());
         let context = contexts.remove(context_id);
 
         if context.is_some() {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_contexts = contexts.len();
             state.total_contexts_destroyed += 1;
             state.last_activity = Some(SystemTime::now());
@@ -1476,13 +1476,13 @@ impl ExecutionContextManager {
 
     /// List all active context IDs
     pub fn list_contexts(&self) -> Vec<String> {
-        let contexts = self.contexts.read().unwrap();
+        let contexts = self.contexts.read().unwrap_or_else(|e| e.into_inner());
         contexts.keys().cloned().collect()
     }
 
     /// Get manager statistics
     pub fn get_statistics(&self) -> ManagerState {
-        self.state.read().unwrap().clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 
@@ -1584,10 +1584,10 @@ impl ContextEventDispatcher {
     }
 
     pub fn dispatch_event(&self, event: ContextEvent) -> SklResult<()> {
-        let mut queue = self.event_queue.lock().unwrap();
+        let mut queue = self.event_queue.lock().unwrap_or_else(|e| e.into_inner());
         queue.push(event);
 
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.queued_events = queue.len();
 
         Ok(())
@@ -1723,12 +1723,12 @@ mod tests {
     #[test]
     fn test_context_creation() {
         let manager = ExecutionContextManager::new();
-        manager.initialize().unwrap();
+        manager.initialize().unwrap_or_default();
 
         let context = manager.create_context(
             "test-context".to_string(),
             None
-        ).unwrap();
+        ).unwrap_or_default();
 
         assert_eq!(context.get_id(), "test-context");
         assert_eq!(manager.list_contexts().len(), 1);

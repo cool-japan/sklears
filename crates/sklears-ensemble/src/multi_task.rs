@@ -646,7 +646,7 @@ impl MultiTaskEnsembleRegressor {
 
             self.task_models
                 .as_mut()
-                .unwrap()
+                .expect("operation should succeed")
                 .insert(task.task_id.clone(), models);
         }
 
@@ -692,7 +692,10 @@ impl MultiTaskEnsembleRegressor {
                 .build()
                 .fit(&combined_data.features, &y_array)?;
 
-            self.shared_models.as_mut().unwrap().push(shared_model);
+            self.shared_models
+                .as_mut()
+                .expect("operation should succeed")
+                .push(shared_model);
         }
 
         // Then train task-specific models
@@ -735,7 +738,10 @@ impl MultiTaskEnsembleRegressor {
 
             // Calculate metrics for tasks in this group and create separate model sets
             for task_id in &group {
-                let task = tasks.iter().find(|t| &t.task_id == task_id).unwrap();
+                let task = tasks
+                    .iter()
+                    .find(|t| &t.task_id == task_id)
+                    .expect("operation should succeed");
 
                 // Calculate metrics for this task
                 let predictions = self.predict_task_ensemble(&group_models, &task.features)?;
@@ -767,7 +773,7 @@ impl MultiTaskEnsembleRegressor {
 
                 self.task_models
                     .as_mut()
-                    .unwrap()
+                    .expect("operation should succeed")
                     .insert(task_id.clone(), task_models);
             }
         }
@@ -869,7 +875,7 @@ impl MultiTaskEnsembleRegressor {
 
             self.task_models
                 .as_mut()
-                .unwrap()
+                .expect("operation should succeed")
                 .insert(task.task_id.clone(), models);
         }
 
@@ -1195,7 +1201,8 @@ mod tests {
 
     #[test]
     fn test_task_data_creation() {
-        let features = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let features = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let labels = vec![1.0, 2.0, 3.0];
 
         let task = TaskData {
@@ -1237,7 +1244,8 @@ mod tests {
 
         let task1 = TaskData {
             task_id: "task1".to_string(),
-            features: Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap(),
+            features: Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+                .expect("shape and data length should match"),
             labels: vec![1.0, 2.0],
             sample_weights: None,
             metadata: HashMap::new(),
@@ -1245,13 +1253,16 @@ mod tests {
 
         let task2 = TaskData {
             task_id: "task2".to_string(),
-            features: Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap(),
+            features: Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+                .expect("shape and data length should match"),
             labels: vec![1.0, 2.0], // Same labels as task1
             sample_weights: None,
             metadata: HashMap::new(),
         };
 
-        let similarity = ensemble.correlation_similarity(&task1, &task2).unwrap();
+        let similarity = ensemble
+            .correlation_similarity(&task1, &task2)
+            .expect("operation should succeed");
         assert!((similarity - 1.0).abs() < 1e-10); // Should be perfectly correlated
     }
 }

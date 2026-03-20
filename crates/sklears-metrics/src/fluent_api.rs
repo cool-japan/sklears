@@ -715,7 +715,7 @@ mod tests {
             .recall()
             .f1_score()
             .compute(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(results.contains("accuracy"));
         assert!(results.contains("precision"));
@@ -731,7 +731,7 @@ mod tests {
 
         let results = MetricsBuilder::from_preset(MetricPreset::ClassificationBasic)
             .compute(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(results.contains("accuracy"));
         assert!(results.contains("precision"));
@@ -749,7 +749,7 @@ mod tests {
             .mean_squared_error()
             .r2_score()
             .compute_regression(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(results.contains("mean_absolute_error"));
         assert!(results.contains("mean_squared_error"));
@@ -765,7 +765,7 @@ mod tests {
             .accuracy()
             .with_confidence_intervals(true, 0.95, 1000)
             .compute(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(results.metadata.has_confidence_intervals);
         assert!(results.get_confidence_interval("accuracy").is_some());
@@ -783,7 +783,8 @@ mod tests {
         let y_true = Array1::from_vec(vec![0, 1, 1, 0]);
         let y_pred = Array1::from_vec(vec![0, 1, 0, 0]);
 
-        let results = quick_classification_metrics(&y_true, &y_pred).unwrap();
+        let results =
+            quick_classification_metrics(&y_true, &y_pred).expect("operation should succeed");
 
         assert!(results.contains("accuracy"));
         assert!(results.contains("precision"));
@@ -796,7 +797,7 @@ mod tests {
         let y_true = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
         let y_pred = Array1::from_vec(vec![1.1, 2.1, 2.9, 3.8]);
 
-        let results = quick_regression_metrics(&y_true, &y_pred).unwrap();
+        let results = quick_regression_metrics(&y_true, &y_pred).expect("operation should succeed");
 
         assert!(results.contains("mean_absolute_error"));
         assert!(results.contains("mean_squared_error"));
@@ -812,10 +813,10 @@ mod tests {
         let results = MetricsBuilder::new()
             .accuracy()
             .compute(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let json = results.to_json().unwrap();
-        let deserialized = MetricResults::from_json(&json).unwrap();
+        let json = results.to_json().expect("operation should succeed");
+        let deserialized = MetricResults::from_json(&json).expect("operation should succeed");
 
         assert_eq!(results.get("accuracy"), deserialized.get("accuracy"));
     }

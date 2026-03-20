@@ -8,7 +8,7 @@ pub fn mean_axis<'a, D>(array: &'a Array2<D>, axis: Axis) -> Array1<D>
 where
     D: NdFloat + FromPrimitive + 'a,
 {
-    array.mean_axis(axis).unwrap()
+    array.mean_axis(axis).expect("operation should succeed")
 }
 
 /// Compute variance along an axis
@@ -16,7 +16,7 @@ pub fn var_axis<'a, D>(array: &'a Array2<D>, axis: Axis, ddof: usize) -> Array1<
 where
     D: NdFloat + FromPrimitive + 'a,
 {
-    let mean = array.mean_axis(axis).unwrap();
+    let mean = array.mean_axis(axis).expect("operation should succeed");
     let n = array.len_of(axis);
 
     if axis == Axis(0) {
@@ -26,7 +26,7 @@ where
             let col = array.column(j);
             let m = mean[j];
             let sum_sq: D = col.mapv(|x| (x - m).powi(2)).sum();
-            var[j] = sum_sq / D::from(n - ddof).unwrap();
+            var[j] = sum_sq / D::from(n - ddof).expect("operation should succeed");
         }
         var
     } else {
@@ -36,7 +36,7 @@ where
             let row = array.row(i);
             let m = mean[i];
             let sum_sq: D = row.mapv(|x| (x - m).powi(2)).sum();
-            var[i] = sum_sq / D::from(n - ddof).unwrap();
+            var[i] = sum_sq / D::from(n - ddof).expect("operation should succeed");
         }
         var
     }
@@ -58,11 +58,12 @@ where
     let n_samples = x.nrows();
 
     // Center the data
-    let mean = x.mean_axis(Axis(0)).unwrap();
+    let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
     let centered = x - &mean;
 
     // Compute covariance
-    let cov = centered.t().dot(&centered) / D::from(n_samples - ddof).unwrap();
+    let cov =
+        centered.t().dot(&centered) / D::from(n_samples - ddof).expect("operation should succeed");
     cov
 }
 

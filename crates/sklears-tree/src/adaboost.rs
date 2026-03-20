@@ -1499,8 +1499,8 @@ mod tests {
             .n_estimators(3)
             .algorithm(BoostingAlgorithm::SAMME);
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert!(trained.n_estimators() <= 3);
@@ -1516,9 +1516,9 @@ mod tests {
             .n_estimators(3)
             .algorithm(BoostingAlgorithm::SAMMER);
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
-        let probabilities = trained.predict_proba(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
+        let probabilities = trained.predict_proba(&X).expect("operation should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert_eq!(probabilities.shape(), &[4, 2]);
@@ -1547,8 +1547,8 @@ mod tests {
             .n_estimators(5)
             .algorithm(BoostingAlgorithm::SAMME);
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert_eq!(trained.classes(), &array![0, 1, 2]);
@@ -1607,9 +1607,9 @@ mod tests {
             .n_estimators(5)
             .algorithm(BoostingAlgorithm::LogitBoost);
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
-        let probabilities = trained.predict_proba(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
+        let probabilities = trained.predict_proba(&X).expect("operation should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert_eq!(probabilities.shape(), &[4, 2]);
@@ -1634,8 +1634,8 @@ mod tests {
             .brown_c(0.1)
             .brown_time_limit(1.0);
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert!(trained.n_estimators() <= 5);
@@ -1651,8 +1651,8 @@ mod tests {
             .n_estimators(5)
             .algorithm(BoostingAlgorithm::TotalBoost);
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert!(trained.n_estimators() <= 5);
@@ -1669,8 +1669,8 @@ mod tests {
             .algorithm(BoostingAlgorithm::LPBoost)
             .lp_nu(0.1);
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert!(trained.n_estimators() <= 5);

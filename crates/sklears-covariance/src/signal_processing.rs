@@ -776,7 +776,8 @@ impl SpatialCovarianceEstimator {
         // Simplified eigendecomposition
         let n = covariance.nrows();
         let mut local_rng = thread_rng();
-        let uniform_dist = Uniform::new(0.1, 2.0).unwrap();
+        let uniform_dist =
+            Uniform::new(0.1, 2.0).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let eigenvalues = Array1::from_shape_fn(n, |_| uniform_dist.sample(&mut local_rng));
         let normal_dist = Normal::new(0.0, 1.0).map_err(|_| {
             SklearsError::InvalidInput("Failed to create normal distribution".to_string())
@@ -1007,7 +1008,8 @@ impl Fit<Array2<f64>, ()> for BeamformingCovariance {
 
         // Simulate convergence history
         let mut local_rng = thread_rng();
-        let uniform_dist = Uniform::new(0.0, 1.0).unwrap();
+        let uniform_dist =
+            Uniform::new(0.0, 1.0).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let convergence_history =
             Array1::from_shape_fn(self.convergence_params.max_iterations, |_| {
                 uniform_dist.sample(&mut local_rng)
@@ -1111,7 +1113,8 @@ impl BeamformingCovariance {
         // Simplified beam pattern computation
         let n_angles = 180;
         let mut local_rng = thread_rng();
-        let uniform_dist = Uniform::new(0.0, 1.0).unwrap();
+        let uniform_dist =
+            Uniform::new(0.0, 1.0).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let beam_pattern = Array1::from_shape_fn(n_angles, |_| uniform_dist.sample(&mut local_rng));
         Ok(beam_pattern)
     }

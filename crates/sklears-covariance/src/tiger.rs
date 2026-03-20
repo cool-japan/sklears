@@ -64,8 +64,8 @@ pub struct TIGERConfig {
 /// let X = array![[1.0, 0.0], [0.0, 1.0], [2.0, 1.0], [1.0, 2.0], [3.0, 1.0], [1.0, 3.0]];
 ///
 /// let tiger = TIGER::new().stability_threshold(0.6);
-/// let fitted = tiger.fit(&X.view(), &()).unwrap();
-/// let precision = fitted.get_precision().unwrap();
+/// let fitted = tiger.fit(&X.view(), &()).expect("model fitting should succeed");
+/// let precision = fitted.get_precision().expect("operation should succeed");
 /// let stability_matrix = fitted.get_stability_matrix();
 /// ```
 #[derive(Debug, Clone)]

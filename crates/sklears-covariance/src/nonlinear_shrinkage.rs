@@ -88,7 +88,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for NonlinearShrinkage<Untrained> {
         let x_centered = if self.assume_centered {
             x.to_owned()
         } else {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             x.to_owned() - &mean.insert_axis(Axis(0))
         };
 
@@ -263,7 +267,7 @@ fn compute_eigenvalues(matrix: &Array2<f64>) -> Result<Array1<f64>, SklearsError
 
     // Sort eigenvalues in descending order
     let mut eigenvalue_vec: Vec<f64> = eigenvalues.to_vec();
-    eigenvalue_vec.sort_by(|a, b| b.partial_cmp(a).unwrap());
+    eigenvalue_vec.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
     let sorted_eigenvalues = Array1::from(eigenvalue_vec);
 
     Ok(sorted_eigenvalues)
@@ -280,7 +284,11 @@ fn compute_eigenvectors(matrix: &Array2<f64>) -> Result<Array2<f64>, SklearsErro
 
     // Sort eigenvectors by descending eigenvalues
     let mut sorted_indices: Vec<usize> = (0..eigenvalues.len()).collect();
-    sorted_indices.sort_by(|&a, &b| eigenvalues[b].partial_cmp(&eigenvalues[a]).unwrap());
+    sorted_indices.sort_by(|&a, &b| {
+        eigenvalues[b]
+            .partial_cmp(&eigenvalues[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let mut sorted_eigenvectors = Array2::zeros(eigenvectors.dim());
     for (i, &idx) in sorted_indices.iter().enumerate() {
@@ -362,7 +370,9 @@ mod tests {
         ];
 
         let estimator = NonlinearShrinkage::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -380,7 +390,9 @@ mod tests {
         ];
 
         let estimator = NonlinearShrinkage::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (4, 4));
         assert!(fitted.get_precision().is_some());
@@ -398,7 +410,9 @@ mod tests {
         let x = array![[0.0, -0.5], [1.0, 0.5], [2.0, 1.8], [3.0, 2.9], [4.0, 4.1]];
 
         let estimator = NonlinearShrinkage::new().assume_centered(true);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.is_assume_centered());
@@ -416,7 +430,9 @@ mod tests {
         ];
 
         let estimator = NonlinearShrinkage::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let shrinkage_factors = fitted.get_shrinkage_factors();
 

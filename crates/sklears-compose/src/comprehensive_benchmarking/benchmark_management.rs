@@ -396,7 +396,7 @@ impl BenchmarkManager {
     }
 
     fn generate_execution_id(&self, benchmark_id: &str) -> String {
-        format!("exec_{}_{}", benchmark_id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis())
+        format!("exec_{}_{}", benchmark_id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn get_git_commit(&self) -> Option<String> {
@@ -1344,7 +1344,7 @@ mod tests {
 
         let retrieved_result = store.retrieve_result("result1");
         assert!(retrieved_result.is_ok());
-        assert_eq!(retrieved_result.unwrap().result_id, "result1");
+        assert_eq!(retrieved_result.unwrap_or_default().result_id, "result1");
     }
 
     #[test]

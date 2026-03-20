@@ -495,7 +495,9 @@ mod tests {
             .random_state(42);
 
         let mut rng = StdRng::seed_from_u64(42);
-        let candidates = search.generate_candidates(&mut rng).unwrap();
+        let candidates = search
+            .generate_candidates(&mut rng)
+            .expect("operation should succeed");
 
         assert_eq!(candidates.len(), 6);
 

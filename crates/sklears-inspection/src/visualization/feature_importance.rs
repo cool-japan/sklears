@@ -111,7 +111,7 @@ mod tests {
             &config,
             FeatureImportanceType::Bar,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.feature_names.len(), 3);
         assert_eq!(plot.importance_values.len(), 3);
@@ -132,11 +132,17 @@ mod tests {
             &config,
             FeatureImportanceType::Horizontal,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.feature_names.len(), 3);
         assert!(plot.std_values.is_some());
-        assert_eq!(plot.std_values.as_ref().unwrap().len(), 3);
+        assert_eq!(
+            plot.std_values
+                .as_ref()
+                .expect("operation should succeed")
+                .len(),
+            3
+        );
     }
 
     #[test]

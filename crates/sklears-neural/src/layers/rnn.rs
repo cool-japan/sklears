@@ -187,7 +187,10 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> LSTMCell<T> {
             self.init_state(batch_size);
         }
 
-        let state = self.state.as_ref().unwrap();
+        let state = self
+            .state
+            .as_ref()
+            .expect("state not available - model not fitted");
 
         // Cache previous states for backward pass
         self.cached_hidden_prev = Some(state.hidden.clone());
@@ -234,8 +237,8 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> LSTMCell<T> {
         self.cached_cell_tanh = Some(cell_tanh);
 
         // Update state
-        self.state.as_mut().unwrap().cell = new_cell;
-        self.state.as_mut().unwrap().hidden = new_hidden.clone();
+        self.state.as_mut().expect("state not available").cell = new_cell;
+        self.state.as_mut().expect("state not available").hidden = new_hidden.clone();
 
         Ok(new_hidden)
     }
@@ -397,7 +400,10 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> GRUCell<T> {
             self.init_state(batch_size);
         }
 
-        let hidden_prev = self.hidden_state.as_ref().unwrap();
+        let hidden_prev = self
+            .hidden_state
+            .as_ref()
+            .expect("hidden_state not available - model not fitted");
 
         // Cache previous state and input for backward pass
         self.cached_hidden_prev = Some(hidden_prev.clone());
@@ -499,11 +505,17 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Layer<T> for LSTMCell
         self.forward_step(input)
     }
 
+    /// Compute gradients via Backpropagation Through Time (BPTT).
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// Full BPTT requires unrolling the recurrence and computing gradients through
+    /// all gate computations (input, forget, output, cell) at each timestep.
     fn backward(&mut self, _grad_output: &Array2<T>) -> NeuralResult<Array2<T>> {
-        // For now, return zeros - full BPTT implementation would be complex
-        // This is sufficient for the compilation fix
-        let batch_size = _grad_output.nrows();
-        Ok(Array2::zeros((batch_size, self.input_size)))
+        Err(SklearsError::NotImplemented(
+            "LSTM backward pass (BPTT) not yet implemented".to_string(),
+        ))
     }
 
     fn num_parameters(&self) -> usize {
@@ -521,11 +533,17 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Layer<T> for GRUCell<
         self.forward_step(input)
     }
 
+    /// Compute gradients via Backpropagation Through Time (BPTT).
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// Full BPTT requires unrolling the recurrence and computing gradients through
+    /// the reset and update gates at each timestep.
     fn backward(&mut self, _grad_output: &Array2<T>) -> NeuralResult<Array2<T>> {
-        // For now, return zeros - full BPTT implementation would be complex
-        // This is sufficient for the compilation fix
-        let batch_size = _grad_output.nrows();
-        Ok(Array2::zeros((batch_size, self.input_size)))
+        Err(SklearsError::NotImplemented(
+            "GRU backward pass (BPTT) not yet implemented".to_string(),
+        ))
     }
 
     fn num_parameters(&self) -> usize {
@@ -679,7 +697,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_lstm_cell_creation() {
-        let lstm = LSTMCell::<f64>::new(10, 20).unwrap();
+        let lstm = LSTMCell::<f64>::new(10, 20).expect("construction should succeed");
         assert_eq!(lstm.input_size, 10);
         assert_eq!(lstm.hidden_size, 20);
         assert_eq!(lstm.num_parameters(), 4 * (20 * 30 + 20)); // 4 gates * (weights + biases)
@@ -688,15 +706,15 @@ mod tests {
     #[test]
     #[ignore]
     fn test_lstm_forward_step() {
-        let mut lstm = LSTMCell::<f64>::new(3, 2).unwrap();
+        let mut lstm = LSTMCell::<f64>::new(3, 2).expect("construction should succeed");
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]; // batch_size=2, input_size=3
 
-        let output = lstm.forward_step(&input).unwrap();
+        let output = lstm.forward_step(&input).expect("operation should succeed");
         assert_eq!(output.dim(), (2, 2)); // batch_size=2, hidden_size=2
 
         // Check that state was initialized
         assert!(lstm.state.is_some());
-        let state = lstm.state.as_ref().unwrap();
+        let state = lstm.state.as_ref().expect("operation should succeed");
         assert_eq!(state.hidden.dim(), (2, 2));
         assert_eq!(state.cell.dim(), (2, 2));
     }
@@ -704,27 +722,32 @@ mod tests {
     #[test]
     #[ignore]
     fn test_lstm_sequence_processing() {
-        let mut lstm = LSTMCell::<f64>::new(3, 2).unwrap();
+        let mut lstm = LSTMCell::<f64>::new(3, 2).expect("construction should succeed");
         // batch_size=2, seq_len=4, input_size=3
         let inputs = Array3::zeros((2, 4, 3));
 
-        let outputs = lstm.forward_sequence(&inputs).unwrap();
+        let outputs = lstm
+            .forward_sequence(&inputs)
+            .expect("operation should succeed");
         assert_eq!(outputs.dim(), (2, 4, 2)); // batch_size=2, seq_len=4, hidden_size=2
     }
 
     #[test]
     #[ignore]
     fn test_lstm_reset_state() {
-        let mut lstm = LSTMCell::<f64>::new(3, 2).unwrap();
+        let mut lstm = LSTMCell::<f64>::new(3, 2).expect("construction should succeed");
         lstm.init_state(2);
 
         // Set some non-zero values
-        lstm.state.as_mut().unwrap().hidden[[0, 0]] = 1.0;
-        lstm.state.as_mut().unwrap().cell[[0, 0]] = 2.0;
+        lstm.state
+            .as_mut()
+            .expect("operation should succeed")
+            .hidden[[0, 0]] = 1.0;
+        lstm.state.as_mut().expect("operation should succeed").cell[[0, 0]] = 2.0;
 
         lstm.reset_state();
 
-        let state = lstm.state.as_ref().unwrap();
+        let state = lstm.state.as_ref().expect("operation should succeed");
         assert_eq!(state.hidden[[0, 0]], 0.0);
         assert_eq!(state.cell[[0, 0]], 0.0);
     }
@@ -732,7 +755,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_gru_cell_creation() {
-        let gru = GRUCell::<f64>::new(10, 20).unwrap();
+        let gru = GRUCell::<f64>::new(10, 20).expect("construction should succeed");
         assert_eq!(gru.input_size, 10);
         assert_eq!(gru.hidden_size, 20);
         assert_eq!(gru.num_parameters(), 3 * (20 * 30 + 20)); // 3 gates * (weights + biases)
@@ -741,41 +764,43 @@ mod tests {
     #[test]
     #[ignore]
     fn test_gru_forward_step() {
-        let mut gru = GRUCell::<f64>::new(3, 2).unwrap();
+        let mut gru = GRUCell::<f64>::new(3, 2).expect("construction should succeed");
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]; // batch_size=2, input_size=3
 
-        let output = gru.forward_step(&input).unwrap();
+        let output = gru.forward_step(&input).expect("operation should succeed");
         assert_eq!(output.dim(), (2, 2)); // batch_size=2, hidden_size=2
 
         // Check that state was initialized
         assert!(gru.hidden_state.is_some());
-        let state = gru.hidden_state.as_ref().unwrap();
+        let state = gru.hidden_state.as_ref().expect("operation should succeed");
         assert_eq!(state.dim(), (2, 2));
     }
 
     #[test]
     #[ignore]
     fn test_gru_sequence_processing() {
-        let mut gru = GRUCell::<f64>::new(3, 2).unwrap();
+        let mut gru = GRUCell::<f64>::new(3, 2).expect("construction should succeed");
         // batch_size=2, seq_len=4, input_size=3
         let inputs = Array3::zeros((2, 4, 3));
 
-        let outputs = gru.forward_sequence(&inputs).unwrap();
+        let outputs = gru
+            .forward_sequence(&inputs)
+            .expect("operation should succeed");
         assert_eq!(outputs.dim(), (2, 4, 2)); // batch_size=2, seq_len=4, hidden_size=2
     }
 
     #[test]
     #[ignore]
     fn test_gru_reset_state() {
-        let mut gru = GRUCell::<f64>::new(3, 2).unwrap();
+        let mut gru = GRUCell::<f64>::new(3, 2).expect("construction should succeed");
         gru.init_state(2);
 
         // Set some non-zero values
-        gru.hidden_state.as_mut().unwrap()[[0, 0]] = 1.0;
+        gru.hidden_state.as_mut().expect("operation should succeed")[[0, 0]] = 1.0;
 
         gru.reset_state();
 
-        let state = gru.hidden_state.as_ref().unwrap();
+        let state = gru.hidden_state.as_ref().expect("operation should succeed");
         assert_eq!(state[[0, 0]], 0.0);
     }
 
@@ -783,10 +808,12 @@ mod tests {
     #[ignore]
     fn test_bidirectional_lstm() {
         let mut bi_lstm: BidirectionalRNN<f64, LSTMCell<f64>> =
-            BidirectionalRNN::new_lstm(3, 2, true).unwrap();
+            BidirectionalRNN::new_lstm(3, 2, true).expect("operation should succeed");
         let inputs = Array3::zeros((2, 4, 3)); // batch_size=2, seq_len=4, input_size=3
 
-        let outputs = bi_lstm.forward_sequence(&inputs).unwrap();
+        let outputs = bi_lstm
+            .forward_sequence(&inputs)
+            .expect("operation should succeed");
         assert_eq!(outputs.dim(), (2, 4, 4)); // batch_size=2, seq_len=4, hidden_size*2=4
     }
 
@@ -794,17 +821,19 @@ mod tests {
     #[ignore]
     fn test_bidirectional_gru() {
         let mut bi_gru: BidirectionalRNN<f64, GRUCell<f64>> =
-            BidirectionalRNN::new_gru(3, 2, true).unwrap();
+            BidirectionalRNN::new_gru(3, 2, true).expect("operation should succeed");
         let inputs = Array3::zeros((2, 4, 3)); // batch_size=2, seq_len=4, input_size=3
 
-        let outputs = bi_gru.forward_sequence(&inputs).unwrap();
+        let outputs = bi_gru
+            .forward_sequence(&inputs)
+            .expect("operation should succeed");
         assert_eq!(outputs.dim(), (2, 4, 4)); // batch_size=2, seq_len=4, hidden_size*2=4
     }
 
     #[test]
     #[ignore]
     fn test_lstm_state_management() {
-        let mut lstm = LSTMCell::<f64>::new(2, 3).unwrap();
+        let mut lstm = LSTMCell::<f64>::new(2, 3).expect("construction should succeed");
 
         // Test initial state
         assert!(lstm.get_state().is_none());
@@ -813,7 +842,7 @@ mod tests {
         lstm.init_state(1);
         assert!(lstm.get_state().is_some());
 
-        let state = lstm.get_state().unwrap();
+        let state = lstm.get_state().expect("operation should succeed");
         assert_eq!(state.hidden.dim(), (1, 3));
         assert_eq!(state.cell.dim(), (1, 3));
 
@@ -824,7 +853,7 @@ mod tests {
         };
         lstm.set_state(custom_state);
 
-        let new_state = lstm.get_state().unwrap();
+        let new_state = lstm.get_state().expect("operation should succeed");
         assert_abs_diff_eq!(new_state.hidden[[0, 0]], 1.0, epsilon = 1e-10);
         assert_abs_diff_eq!(new_state.cell[[0, 0]], 4.0, epsilon = 1e-10);
     }
@@ -832,7 +861,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_input_size_validation() {
-        let mut lstm = LSTMCell::<f64>::new(3, 2).unwrap();
+        let mut lstm = LSTMCell::<f64>::new(3, 2).expect("construction should succeed");
         let wrong_input = array![[1.0, 2.0]]; // input_size=2, but expected 3
 
         let result = lstm.forward_step(&wrong_input);

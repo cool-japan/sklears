@@ -374,7 +374,7 @@ mod tests {
                 *s *= 0.9;
                 Ok(*s)
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.converged);
         assert!(result.final_error < 1e-5);
@@ -402,7 +402,7 @@ mod tests {
                 }
                 Ok((*s as f64).abs())
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.converged);
         // The test may or may not be monotonic depending on the specific convergence path
@@ -424,7 +424,7 @@ mod tests {
                 *s *= 1.01; // Diverging
                 Ok(*s)
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!result.converged);
         assert_eq!(result.iterations_to_convergence, 0);
@@ -446,7 +446,7 @@ mod tests {
                 *s *= 0.8; // 80% convergence rate
                 Ok(*s)
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.converged);
         assert!(result.convergence_rate > 0.0);
@@ -476,11 +476,13 @@ mod tests {
                 },
                 5,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 5);
 
-        let analysis = tester.analyze_multiple_runs(&results).unwrap();
+        let analysis = tester
+            .analyze_multiple_runs(&results)
+            .expect("operation should succeed");
 
         assert!(analysis.contains_key("convergence_rate"));
         assert!(analysis["convergence_rate"] >= 0.0);
@@ -506,7 +508,7 @@ mod tests {
                 *s *= 0.9;
                 Ok(*s)
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.statistics.contains_key("initial_error"));
         assert!(result.statistics.contains_key("average_error"));
@@ -584,7 +586,7 @@ mod tests {
                 let labels = prop::collection::vec(-1..=1i32, n);
 
                 (features, labels).prop_map(move |(feat, lab)| {
-                    let X = Array2::from_shape_vec((n, f), feat).unwrap();
+                    let X = Array2::from_shape_vec((n, f), feat).expect("operation should succeed");
                     let y = Array1::from_vec(lab);
                     (X, y)
                 })

@@ -168,7 +168,7 @@ impl PerturbationPipeline {
 
             while i < remaining_stages.len() {
                 let stage = &remaining_stages[i];
-                let results_guard = results.lock().unwrap();
+                let results_guard = results.lock().expect("operation should succeed");
 
                 // Check if dependencies are satisfied
                 let dependencies_satisfied = stage
@@ -204,7 +204,7 @@ impl PerturbationPipeline {
 
                     // Update execution graph
                     {
-                        let mut graph_guard = graph.lock().unwrap();
+                        let mut graph_guard = graph.lock().expect("operation should succeed");
                         graph_guard.nodes.push(ExecutionNode {
                             stage_id: stage.id.clone(),
                             status: ExecutionStatus::Running,
@@ -213,7 +213,7 @@ impl PerturbationPipeline {
                         });
                     }
 
-                    let results_guard = results.lock().unwrap();
+                    let results_guard = results.lock().expect("operation should succeed");
                     let result = self.execute_stage(stage, X, &results_guard);
                     drop(results_guard);
 
@@ -225,12 +225,12 @@ impl PerturbationPipeline {
             for (stage_id, result, stage_start) in parallel_results {
                 match result {
                     Ok(stage_result) => {
-                        let mut results_guard = results.lock().unwrap();
+                        let mut results_guard = results.lock().expect("operation should succeed");
                         results_guard.insert(stage_id.clone(), stage_result);
                         drop(results_guard);
 
                         // Update execution graph
-                        let mut graph_guard = graph.lock().unwrap();
+                        let mut graph_guard = graph.lock().expect("operation should succeed");
                         if let Some(node) = graph_guard
                             .nodes
                             .iter_mut()
@@ -241,7 +241,7 @@ impl PerturbationPipeline {
                         }
                     }
                     Err(_) => {
-                        let mut graph_guard = graph.lock().unwrap();
+                        let mut graph_guard = graph.lock().expect("operation should succeed");
                         if let Some(node) = graph_guard
                             .nodes
                             .iter_mut()
@@ -255,9 +255,15 @@ impl PerturbationPipeline {
             }
         }
 
-        let final_results = Arc::try_unwrap(results).unwrap().into_inner().unwrap();
+        let final_results = Arc::try_unwrap(results)
+            .expect("operation should succeed")
+            .into_inner()
+            .expect("operation should succeed");
         *stage_results = final_results;
-        *execution_graph = Arc::try_unwrap(graph).unwrap().into_inner().unwrap();
+        *execution_graph = Arc::try_unwrap(graph)
+            .expect("operation should succeed")
+            .into_inner()
+            .expect("operation should succeed");
 
         Ok(())
     }
@@ -342,7 +348,11 @@ impl PerturbationPipeline {
         let execution_order = self.topological_sort(&dependency_graph)?;
 
         for stage_id in execution_order {
-            let stage = self.stages.iter().find(|s| s.id == stage_id).unwrap();
+            let stage = self
+                .stages
+                .iter()
+                .find(|s| s.id == stage_id)
+                .expect("operation should succeed");
 
             if !stage.enabled {
                 continue;
@@ -541,8 +551,13 @@ impl PerturbationPipeline {
         // Build adjacency list and calculate in-degrees
         for (stage_id, dependencies) in graph {
             for dep in dependencies {
-                adj_list.get_mut(dep).unwrap().push(stage_id.clone());
-                *in_degree.get_mut(stage_id).unwrap() += 1;
+                adj_list
+                    .get_mut(dep)
+                    .expect("operation should succeed")
+                    .push(stage_id.clone());
+                *in_degree
+                    .get_mut(stage_id)
+                    .expect("operation should succeed") += 1;
             }
         }
 
@@ -561,7 +576,9 @@ impl PerturbationPipeline {
             result.push(current.clone());
 
             for neighbor in &adj_list[&current] {
-                *in_degree.get_mut(neighbor).unwrap() -= 1;
+                *in_degree
+                    .get_mut(neighbor)
+                    .expect("operation should succeed") -= 1;
                 if in_degree[neighbor] == 0 {
                     queue.push_back(neighbor.clone());
                 }

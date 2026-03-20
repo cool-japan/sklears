@@ -629,7 +629,7 @@ impl ClusteringValidator {
             bootstrap_means.push(mean);
         }
 
-        bootstrap_means.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        bootstrap_means.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let alpha = 1.0 - self.config.confidence_level;
         let lower_idx = ((alpha / 2.0) * n_bootstrap as f64) as usize;
@@ -742,7 +742,7 @@ mod tests {
             5.0, 5.0, 5.1, 5.2, 5.2, 5.1, // Cluster 2
             9.0, 9.0, 9.1, 9.2, 9.2, 9.1,
         ];
-        let data = Array2::from_shape_vec((9, 2), data_vec).unwrap();
+        let data = Array2::from_shape_vec((9, 2), data_vec).expect("operation should succeed");
         let labels = vec![0, 0, 0, 1, 1, 1, 2, 2, 2];
 
         (data, labels)
@@ -768,7 +768,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let validator = ClusteringValidator::euclidean();
 
-        let result = validator.silhouette_analysis(&data, &labels).unwrap();
+        let result = validator
+            .silhouette_analysis(&data, &labels)
+            .expect("operation should succeed");
 
         assert_eq!(result.sample_silhouettes.len(), 9);
         assert!(result.mean_silhouette >= 0.0);
@@ -787,7 +789,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let validator = ClusteringValidator::euclidean();
 
-        let ch_index = validator.calinski_harabasz_index(&data, &labels).unwrap();
+        let ch_index = validator
+            .calinski_harabasz_index(&data, &labels)
+            .expect("operation should succeed");
         assert!(ch_index > 0.0);
         assert!(ch_index.is_finite());
     }
@@ -797,7 +801,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let validator = ClusteringValidator::euclidean();
 
-        let db_index = validator.davies_bouldin_index(&data, &labels).unwrap();
+        let db_index = validator
+            .davies_bouldin_index(&data, &labels)
+            .expect("operation should succeed");
         assert!(db_index >= 0.0);
         assert!(db_index.is_finite());
     }
@@ -807,7 +813,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let validator = ClusteringValidator::euclidean();
 
-        let inertia = validator.compute_inertia(&data, &labels).unwrap();
+        let inertia = validator
+            .compute_inertia(&data, &labels)
+            .expect("operation should succeed");
         assert!(inertia >= 0.0);
         assert!(inertia.is_finite());
     }
@@ -817,7 +825,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let validator = ClusteringValidator::euclidean();
 
-        let dunn = validator.dunn_index(&data, &labels).unwrap();
+        let dunn = validator
+            .dunn_index(&data, &labels)
+            .expect("operation should succeed");
         assert!(dunn > 0.0);
         assert!(dunn.is_finite());
     }
@@ -827,7 +837,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let validator = ClusteringValidator::euclidean();
 
-        let metrics = validator.validate(&data, &labels).unwrap();
+        let metrics = validator
+            .validate(&data, &labels)
+            .expect("operation should succeed");
 
         assert_eq!(metrics.n_clusters, 3);
         assert_eq!(metrics.n_samples, 9);
@@ -877,8 +889,12 @@ mod tests {
         // Add noise points
         labels.push(-1);
         labels.push(-1);
-        data = data.into_shape((9, 2)).unwrap().into_owned();
-        let noise_data = Array2::from_shape_vec((2, 2), vec![10.0, 10.0, 15.0, 15.0]).unwrap();
+        data = data
+            .into_shape((9, 2))
+            .expect("operation should succeed")
+            .into_owned();
+        let noise_data = Array2::from_shape_vec((2, 2), vec![10.0, 10.0, 15.0, 15.0])
+            .expect("operation should succeed");
         data = scirs2_core::ndarray::concatenate![
             scirs2_core::ndarray::Axis(0),
             data.view(),
@@ -886,7 +902,9 @@ mod tests {
         ];
 
         let validator = ClusteringValidator::euclidean();
-        let result = validator.silhouette_analysis(&data, &labels).unwrap();
+        let result = validator
+            .silhouette_analysis(&data, &labels)
+            .expect("operation should succeed");
 
         // Noise points should have silhouette score of 0
         assert_eq!(result.sample_silhouettes[9], 0.0);
@@ -906,13 +924,13 @@ mod tests {
 
         let euc_result = euclidean_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let man_result = manhattan_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let cos_result = cosine_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // All should produce valid results
         assert!(euc_result.mean_silhouette.is_finite());
@@ -930,7 +948,7 @@ mod tests {
 
         let distances = validator
             .compute_inter_cluster_distances(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should have distances between all cluster pairs
         assert!(distances.contains_key(&(0, 1)));
@@ -959,7 +977,7 @@ mod tests {
 
         let distances = validator
             .compute_intra_cluster_distances(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should have distances for each cluster
         assert_eq!(distances.len(), 3);

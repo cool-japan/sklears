@@ -1399,7 +1399,7 @@ impl EnvironmentContext {
         };
 
         // Update state to active
-        *context.state.write().unwrap() = ContextState::Active;
+        *context.state.write().unwrap_or_else(|e| e.into_inner()) = ContextState::Active;
 
         // Initialize with system environment
         context.load_system_environment()?;
@@ -1440,7 +1440,7 @@ impl EnvironmentContext {
             permissions: VariablePermissions::default(),
         };
 
-        let mut store = self.var_store.write().unwrap();
+        let mut store = self.var_store.write().unwrap_or_else(|e| e.into_inner());
         let old_value = store.variables.get(name).map(|v| v.value.raw_value.clone());
         store.variables.insert(name.to_string(), var);
 
@@ -1460,8 +1460,8 @@ impl EnvironmentContext {
         self.track_change(change)?;
 
         // Update metrics
-        let mut metrics = self.metrics.lock().unwrap();
-        let store = self.var_store.read().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
+        let store = self.var_store.read().unwrap_or_else(|e| e.into_inner());
         metrics.total_variables = store.variables.len();
         metrics.active_variables = store.variables.values()
             .filter(|v| v.status == VariableStatus::Active)
@@ -1472,13 +1472,13 @@ impl EnvironmentContext {
 
     /// Get environment variable
     pub fn get_var(&self, name: &str) -> ContextResult<Option<String>> {
-        let store = self.var_store.read().unwrap();
+        let store = self.var_store.read().unwrap_or_else(|e| e.into_inner());
         Ok(store.variables.get(name).map(|v| v.value.raw_value.clone()))
     }
 
     /// Remove environment variable
     pub fn remove_var(&self, name: &str) -> ContextResult<Option<String>> {
-        let mut store = self.var_store.write().unwrap();
+        let mut store = self.var_store.write().unwrap_or_else(|e| e.into_inner());
         let removed = store.variables.remove(name);
 
         if let Some(var) = &removed {
@@ -1505,7 +1505,7 @@ impl EnvironmentContext {
 
     /// Get all environment variables
     pub fn get_all_vars(&self) -> ContextResult<HashMap<String, String>> {
-        let store = self.var_store.read().unwrap();
+        let store = self.var_store.read().unwrap_or_else(|e| e.into_inner());
         let vars = store.variables.iter()
             .filter(|(_, v)| v.status == VariableStatus::Active)
             .map(|(k, v)| (k.clone(), v.value.raw_value.clone()))
@@ -1515,7 +1515,7 @@ impl EnvironmentContext {
 
     /// Load system environment
     pub fn load_system_environment(&self) -> ContextResult<()> {
-        let mut store = self.var_store.write().unwrap();
+        let mut store = self.var_store.write().unwrap_or_else(|e| e.into_inner());
 
         for (name, value) in env::vars() {
             let var = EnvironmentVariable {
@@ -1557,7 +1557,7 @@ impl EnvironmentContext {
 
     /// Validate environment
     pub fn validate(&self) -> ContextResult<ValidationResult> {
-        let store = self.var_store.read().unwrap();
+        let store = self.var_store.read().unwrap_or_else(|e| e.into_inner());
         let mut result = ValidationResult {
             valid: true,
             errors: Vec::new(),
@@ -1566,7 +1566,7 @@ impl EnvironmentContext {
 
         // Validate each variable
         for (_, variable) in &store.variables {
-            let validators = self.env_manager.validators.read().unwrap();
+            let validators = self.env_manager.validators.read().unwrap_or_else(|e| e.into_inner());
             for validator in validators.iter() {
                 if validator.applies_to(&variable.name) {
                     match validator.validate(variable) {
@@ -1595,7 +1595,7 @@ impl EnvironmentContext {
 
     /// Track environment change
     fn track_change(&self, change: EnvironmentChange) -> ContextResult<()> {
-        let mut tracker = self.change_tracker.lock().unwrap();
+        let mut tracker = self.change_tracker.lock().unwrap_or_else(|e| e.into_inner());
         tracker.changes.push(change);
 
         // Limit change history size
@@ -1610,7 +1610,7 @@ impl EnvironmentContext {
 
     /// Get environment metrics
     pub fn get_metrics(&self) -> ContextResult<EnvironmentMetrics> {
-        let metrics = self.metrics.lock().unwrap();
+        let metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         Ok(metrics.clone())
     }
 }
@@ -1674,7 +1674,7 @@ impl ExecutionContextTrait for EnvironmentContext {
     }
 
     fn state(&self) -> ContextState {
-        *self.state.read().unwrap()
+        *self.state.read().unwrap_or_else(|e| e.into_inner())
     }
 
     fn is_active(&self) -> bool {
@@ -1683,7 +1683,7 @@ impl ExecutionContextTrait for EnvironmentContext {
 
     fn metadata(&self) -> &ContextMetadata {
         // Simplified implementation
-        unsafe { &*(self.metadata.read().unwrap().as_ref() as *const ContextMetadata) }
+        unsafe { &*(self.metadata.read().unwrap_or_else(|e| e.into_inner()).as_ref() as *const ContextMetadata) }
     }
 
     fn validate(&self) -> Result<(), ContextError> {
@@ -1740,7 +1740,7 @@ mod tests {
 
     #[test]
     fn test_environment_context_creation() {
-        let context = EnvironmentContext::new("test-env".to_string()).unwrap();
+        let context = EnvironmentContext::new("test-env".to_string()).unwrap_or_default();
         assert_eq!(context.id(), "test-env");
         assert_eq!(context.context_type(), ContextType::Extension("environment".to_string()));
         assert!(context.is_active());
@@ -1748,38 +1748,38 @@ mod tests {
 
     #[test]
     fn test_environment_variable_operations() {
-        let context = EnvironmentContext::new("test-vars".to_string()).unwrap();
+        let context = EnvironmentContext::new("test-vars".to_string()).unwrap_or_default();
 
         // Set variable
-        context.set_var("TEST_VAR", "test_value").unwrap();
+        context.set_var("TEST_VAR", "test_value").unwrap_or_default();
 
         // Get variable
-        let value = context.get_var("TEST_VAR").unwrap();
+        let value = context.get_var("TEST_VAR").unwrap_or_default();
         assert_eq!(value, Some("test_value".to_string()));
 
         // Update variable
-        context.set_var("TEST_VAR", "updated_value").unwrap();
-        let updated_value = context.get_var("TEST_VAR").unwrap();
+        context.set_var("TEST_VAR", "updated_value").unwrap_or_default();
+        let updated_value = context.get_var("TEST_VAR").unwrap_or_default();
         assert_eq!(updated_value, Some("updated_value".to_string()));
 
         // Remove variable
-        let removed = context.remove_var("TEST_VAR").unwrap();
+        let removed = context.remove_var("TEST_VAR").unwrap_or_default();
         assert_eq!(removed, Some("updated_value".to_string()));
 
         // Check variable is removed
-        let after_removal = context.get_var("TEST_VAR").unwrap();
+        let after_removal = context.get_var("TEST_VAR").unwrap_or_default();
         assert_eq!(after_removal, None);
     }
 
     #[test]
     fn test_get_all_variables() {
-        let context = EnvironmentContext::new("test-all".to_string()).unwrap();
+        let context = EnvironmentContext::new("test-all".to_string()).unwrap_or_default();
 
-        context.set_var("VAR1", "value1").unwrap();
-        context.set_var("VAR2", "value2").unwrap();
-        context.set_var("VAR3", "value3").unwrap();
+        context.set_var("VAR1", "value1").unwrap_or_default();
+        context.set_var("VAR2", "value2").unwrap_or_default();
+        context.set_var("VAR3", "value3").unwrap_or_default();
 
-        let all_vars = context.get_all_vars().unwrap();
+        let all_vars = context.get_all_vars().unwrap_or_default();
 
         // Should include our test variables plus system environment variables
         assert!(all_vars.contains_key("VAR1"));

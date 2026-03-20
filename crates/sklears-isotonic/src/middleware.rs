@@ -230,14 +230,14 @@ impl ConstraintMiddleware for OutlierRemovalMiddleware {
     fn pre_process(&self, y: &Array1<Float>) -> Result<Array1<Float>> {
         let median = {
             let mut sorted = y.to_vec();
-            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             sorted[sorted.len() / 2]
         };
 
         let mad = {
             let deviations: Vec<Float> = y.iter().map(|&val| (val - median).abs()).collect();
             let mut sorted_deviations = deviations.clone();
-            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             sorted_deviations[sorted_deviations.len() / 2]
         };
 
@@ -638,7 +638,9 @@ mod tests {
         let y = array![1.0, 2.0, 100.0, 3.0, 4.0];
         let middleware = OutlierRemovalMiddleware::new(3.0);
 
-        let result = middleware.pre_process(&y).unwrap();
+        let result = middleware
+            .pre_process(&y)
+            .expect("operation should succeed");
 
         // The outlier (100.0) should be replaced with median
         assert!(result[2] < 50.0);
@@ -649,7 +651,9 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let middleware = NormalizationMiddleware::new(NormalizationMethod::ZScore);
 
-        let result = middleware.pre_process(&y).unwrap();
+        let result = middleware
+            .pre_process(&y)
+            .expect("operation should succeed");
 
         // Check that result is normalized (mean ≈ 0, std ≈ 1)
         let mean = result.iter().sum::<Float>() / result.len() as Float;
@@ -661,7 +665,9 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let middleware = NormalizationMiddleware::new(NormalizationMethod::MinMax);
 
-        let result = middleware.pre_process(&y).unwrap();
+        let result = middleware
+            .pre_process(&y)
+            .expect("operation should succeed");
 
         // Check that result is in [0, 1]
         assert!((result[0] - 0.0).abs() < 1e-6);
@@ -673,7 +679,9 @@ mod tests {
         let y = array![1.0, 10.0, 2.0, 3.0, 4.0];
         let middleware = SmoothingMiddleware::new(3);
 
-        let result = middleware.post_process(&y).unwrap();
+        let result = middleware
+            .post_process(&y)
+            .expect("operation should succeed");
 
         // Middle values should be smoothed
         assert!(result[1] < y[1]);
@@ -693,7 +701,7 @@ mod tests {
             .build();
 
         let y = array![1.0, 2.0, 100.0, 3.0, 4.0];
-        let result = pipeline.process(&y).unwrap();
+        let result = pipeline.process(&y).expect("operation should succeed");
 
         assert_eq!(result.len(), y.len());
     }
@@ -707,7 +715,7 @@ mod tests {
         pipeline.set_constraints(ConstraintSet::new().with_bounds(0.0, 1.0));
 
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let result = pipeline.process(&y).unwrap();
+        let result = pipeline.process(&y).expect("operation should succeed");
 
         // All values should be in [0, 1]
         for &val in result.iter() {
@@ -743,10 +751,14 @@ mod tests {
         let y = array![1.0, 2.0, 3.0];
 
         // Should not panic
-        let result = middleware.pre_process(&y).unwrap();
+        let result = middleware
+            .pre_process(&y)
+            .expect("operation should succeed");
         assert_eq!(result.len(), y.len());
 
-        let result = middleware.post_process(&y).unwrap();
+        let result = middleware
+            .post_process(&y)
+            .expect("operation should succeed");
         assert_eq!(result.len(), y.len());
     }
 
@@ -755,7 +767,7 @@ mod tests {
         let pipeline = ConstraintPipeline::new();
         let y = array![1.0, 2.0, 3.0];
 
-        let result = pipeline.process(&y).unwrap();
+        let result = pipeline.process(&y).expect("operation should succeed");
         assert_eq!(result.len(), y.len());
     }
 
@@ -768,7 +780,7 @@ mod tests {
             .build();
 
         let y = array![1.0, 2.0, 100.0, 3.0, 4.0, 5.0];
-        let result = pipeline.process(&y).unwrap();
+        let result = pipeline.process(&y).expect("operation should succeed");
 
         assert_eq!(result.len(), y.len());
     }

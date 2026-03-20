@@ -83,7 +83,7 @@ impl HealthMonitor {
 
     /// Register a new health check
     pub async fn register_health_check(&self, health_check: HealthCheck) -> SklResult<()> {
-        let mut checks = self.health_checks.write().unwrap();
+        let mut checks = self.health_checks.write().unwrap_or_else(|e| e.into_inner());
         checks.insert(health_check.name.clone(), health_check.clone());
 
         // Schedule the health check
@@ -94,7 +94,7 @@ impl HealthMonitor {
 
     /// Unregister a health check
     pub async fn unregister_health_check(&self, name: &str) -> SklResult<()> {
-        let mut checks = self.health_checks.write().unwrap();
+        let mut checks = self.health_checks.write().unwrap_or_else(|e| e.into_inner());
         checks.remove(name);
 
         // Unschedule the health check
@@ -105,7 +105,7 @@ impl HealthMonitor {
 
     /// Perform immediate health check
     pub async fn perform_health_check(&self, name: &str) -> SklResult<HealthCheckResult> {
-        let checks = self.health_checks.read().unwrap();
+        let checks = self.health_checks.read().unwrap_or_else(|e| e.into_inner());
         let health_check = checks.get(name)
             .ok_or_else(|| CoreError::InvalidOperation(format!("Health check '{}' not found", name)))?;
 
@@ -410,7 +410,7 @@ impl HealthCheckScheduler {
             while is_running.load(Ordering::SeqCst) {
                 interval.tick().await;
 
-                let checks = scheduled_checks.read().unwrap();
+                let checks = scheduled_checks.read().unwrap_or_else(|e| e.into_inner());
                 let current_time = Instant::now();
 
                 for (name, scheduled_check) in checks.iter() {
@@ -426,7 +426,7 @@ impl HealthCheckScheduler {
             }
         });
 
-        *self.scheduler_handle.lock().unwrap() = Some(handle);
+        *self.scheduler_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
         Ok(())
     }
@@ -434,7 +434,7 @@ impl HealthCheckScheduler {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.scheduler_handle.lock().unwrap().take() {
+        if let Some(handle) = self.scheduler_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -443,13 +443,13 @@ impl HealthCheckScheduler {
 
     pub async fn schedule_check(&self, health_check: HealthCheck) -> SklResult<()> {
         let scheduled_check = ScheduledCheck::new(health_check);
-        let mut checks = self.scheduled_checks.write().unwrap();
+        let mut checks = self.scheduled_checks.write().unwrap_or_else(|e| e.into_inner());
         checks.insert(scheduled_check.health_check.name.clone(), scheduled_check);
         Ok(())
     }
 
     pub async fn unschedule_check(&self, name: &str) -> SklResult<()> {
-        let mut checks = self.scheduled_checks.write().unwrap();
+        let mut checks = self.scheduled_checks.write().unwrap_or_else(|e| e.into_inner());
         checks.remove(name);
         Ok(())
     }
@@ -509,7 +509,7 @@ impl HealthCheckAggregator {
     }
 
     pub async fn record_result(&self, result: HealthCheckResult) -> SklResult<()> {
-        let mut results = self.results.write().unwrap();
+        let mut results = self.results.write().unwrap_or_else(|e| e.into_inner());
         let check_results = results.entry(result.check_name.clone()).or_insert_with(VecDeque::new);
 
         check_results.push_back(result);
@@ -522,7 +522,7 @@ impl HealthCheckAggregator {
     }
 
     pub async fn get_summary(&self) -> SklResult<HealthSummary> {
-        let results = self.results.read().unwrap();
+        let results = self.results.read().unwrap_or_else(|e| e.into_inner());
         let mut total_checks = 0;
         let mut healthy_checks = 0;
         let mut check_statuses = HashMap::new();
@@ -568,7 +568,7 @@ impl HealthCheckAggregator {
     }
 
     pub async fn get_check_history(&self, check_name: &str, limit: usize) -> SklResult<Vec<HealthCheckResult>> {
-        let results = self.results.read().unwrap();
+        let results = self.results.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(check_results) = results.get(check_name) {
             let history: Vec<HealthCheckResult> = check_results
@@ -620,12 +620,12 @@ impl HealthDependencyTracker {
     }
 
     pub fn add_dependency(&self, check_name: String, dependencies: Vec<String>) {
-        let mut deps = self.dependencies.write().unwrap();
+        let mut deps = self.dependencies.write().unwrap_or_else(|e| e.into_inner());
         deps.insert(check_name, dependencies);
     }
 
     pub fn get_dependencies(&self, check_name: &str) -> Vec<String> {
-        let deps = self.dependencies.read().unwrap();
+        let deps = self.dependencies.read().unwrap_or_else(|e| e.into_inner());
         deps.get(check_name).cloned().unwrap_or_default()
     }
 
@@ -655,12 +655,12 @@ impl HealthAlertIntegration {
     }
 
     pub fn add_alert_channel(&self, channel: AlertChannel) {
-        let mut channels = self.alert_channels.write().unwrap();
+        let mut channels = self.alert_channels.write().unwrap_or_else(|e| e.into_inner());
         channels.push(channel);
     }
 
     pub async fn send_alert(&self, alert: HealthAlert) -> SklResult<()> {
-        let channels = self.alert_channels.read().unwrap();
+        let channels = self.alert_channels.read().unwrap_or_else(|e| e.into_inner());
 
         for channel in channels.iter() {
             channel.send_alert(&alert).await?;
@@ -731,7 +731,7 @@ impl HealthTrendAnalyzer {
                 interval.tick().await;
 
                 // Perform trend analysis
-                let mut data = trend_data.write().unwrap();
+                let mut data = trend_data.write().unwrap_or_else(|e| e.into_inner());
                 let current_time = Instant::now();
 
                 for trend in data.values_mut() {
@@ -740,7 +740,7 @@ impl HealthTrendAnalyzer {
             }
         });
 
-        *self.analyzer_handle.lock().unwrap() = Some(handle);
+        *self.analyzer_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
         Ok(())
     }
@@ -748,7 +748,7 @@ impl HealthTrendAnalyzer {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.analyzer_handle.lock().unwrap().take() {
+        if let Some(handle) = self.analyzer_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -756,13 +756,13 @@ impl HealthTrendAnalyzer {
     }
 
     pub fn record_data_point(&self, check_name: String, value: f64, timestamp: Instant) {
-        let mut data = self.trend_data.write().unwrap();
+        let mut data = self.trend_data.write().unwrap_or_else(|e| e.into_inner());
         let trend = data.entry(check_name).or_insert_with(TrendData::new);
         trend.add_data_point(value, timestamp);
     }
 
     pub async fn get_current_trends(&self) -> SklResult<HashMap<String, TrendInfo>> {
-        let data = self.trend_data.read().unwrap();
+        let data = self.trend_data.read().unwrap_or_else(|e| e.into_inner());
         let mut trends = HashMap::new();
 
         for (check_name, trend_data) in data.iter() {
@@ -917,7 +917,7 @@ impl HealthAnomalyDetector {
     }
 
     pub fn detect_anomaly(&self, check_name: &str, value: f64) -> Option<Anomaly> {
-        let mut baseline_data = self.baseline_data.write().unwrap();
+        let mut baseline_data = self.baseline_data.write().unwrap_or_else(|e| e.into_inner());
         let baseline = baseline_data.entry(check_name.to_string()).or_insert_with(BaselineData::new);
 
         baseline.add_value(value);
@@ -939,7 +939,7 @@ impl HealthAnomalyDetector {
                     },
                 };
 
-                let mut anomalies = self.anomalies.write().unwrap();
+                let mut anomalies = self.anomalies.write().unwrap_or_else(|e| e.into_inner());
                 anomalies.push_back(anomaly.clone());
 
                 if anomalies.len() > 1000 {
@@ -954,7 +954,7 @@ impl HealthAnomalyDetector {
     }
 
     pub async fn get_recent_anomalies(&self) -> SklResult<Vec<Anomaly>> {
-        let anomalies = self.anomalies.read().unwrap();
+        let anomalies = self.anomalies.read().unwrap_or_else(|e| e.into_inner());
         Ok(anomalies.iter().cloned().collect())
     }
 }
@@ -1081,12 +1081,12 @@ impl HealthAlertManager {
     }
 
     pub fn add_alert_rule(&self, rule: HealthAlertRule) {
-        let mut rules = self.alert_rules.write().unwrap();
+        let mut rules = self.alert_rules.write().unwrap_or_else(|e| e.into_inner());
         rules.push(rule);
     }
 
     pub async fn check_result(&self, result: &HealthCheckResult) -> SklResult<()> {
-        let rules = self.alert_rules.read().unwrap();
+        let rules = self.alert_rules.read().unwrap_or_else(|e| e.into_inner());
 
         for rule in rules.iter() {
             if rule.matches_result(result) {
@@ -1098,7 +1098,7 @@ impl HealthAlertManager {
     }
 
     pub async fn get_active_alerts(&self) -> SklResult<Vec<ActiveAlert>> {
-        let alerts = self.active_alerts.read().unwrap();
+        let alerts = self.active_alerts.read().unwrap_or_else(|e| e.into_inner());
         Ok(alerts.values().cloned().collect())
     }
 
@@ -1116,7 +1116,7 @@ impl HealthAlertManager {
         };
 
         // Add to active alerts
-        let mut active_alerts = self.active_alerts.write().unwrap();
+        let mut active_alerts = self.active_alerts.write().unwrap_or_else(|e| e.into_inner());
         active_alerts.insert(alert_id.clone(), ActiveAlert {
             alert: alert.clone(),
             rule_name: rule.name.clone(),
@@ -1124,7 +1124,7 @@ impl HealthAlertManager {
         });
 
         // Add to history
-        let mut history = self.alert_history.write().unwrap();
+        let mut history = self.alert_history.write().unwrap_or_else(|e| e.into_inner());
         history.push_back(alert);
         if history.len() > 1000 {
             history.pop_front();
@@ -1246,12 +1246,12 @@ impl AutoRecoveryManager {
     }
 
     pub fn add_recovery_strategy(&self, check_name: String, strategy: RecoveryStrategy) {
-        let mut strategies = self.recovery_strategies.write().unwrap();
+        let mut strategies = self.recovery_strategies.write().unwrap_or_else(|e| e.into_inner());
         strategies.insert(check_name, strategy);
     }
 
     pub async fn trigger_recovery(&self, check_name: &str) -> SklResult<()> {
-        let strategies = self.recovery_strategies.read().unwrap();
+        let strategies = self.recovery_strategies.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(strategy) = strategies.get(check_name) {
             let recovery_id = format!("{}_{}", check_name, Instant::now().elapsed().as_millis());
@@ -1267,7 +1267,7 @@ impl AutoRecoveryManager {
                 max_attempts: strategy.max_attempts,
             };
 
-            let mut active_recoveries = self.active_recoveries.write().unwrap();
+            let mut active_recoveries = self.active_recoveries.write().unwrap_or_else(|e| e.into_inner());
             active_recoveries.insert(recovery_id, active_recovery);
         }
 
@@ -1330,7 +1330,7 @@ impl HealthMetricsCollector {
     }
 
     pub fn record_check_execution(&self, duration: Duration, success: bool) {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.total_checks += 1;
         if success {
             metrics.successful_checks += 1;
@@ -1341,7 +1341,7 @@ impl HealthMetricsCollector {
     }
 
     pub fn get_metrics(&self) -> HealthMetrics {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 

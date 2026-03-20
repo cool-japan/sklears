@@ -208,7 +208,8 @@ fn create_mixed_density_clusters() -> Array2<f64> {
         }
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }
 
 /// Create data with obvious outliers
@@ -229,5 +230,6 @@ fn create_data_with_outliers() -> Array2<f64> {
     data.push([10.0, 10.0]);
     data.push([2.5, 7.5]);
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }

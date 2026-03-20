@@ -1,7 +1,17 @@
-//! Variational Autoencoder for Cross-Modal Learning
+//! Variational Autoencoder for Cross-Modal Learning (Forward-Pass Only)
 //!
 //! This module provides VAE-based cross-decomposition methods for learning
 //! shared representations between different data modalities.
+//!
+//! **Important**: This implementation supports forward-pass inference only.
+//! Backpropagation and gradient-based weight updates are **not** implemented.
+//! The [`CrossModalVAE::fit`] method will return
+//! [`SklearsError::NotImplemented`] because automatic differentiation is
+//! required for gradient descent but is not available in this crate.
+//!
+//! Encoding, decoding, and cross-modal generation work correctly with
+//! randomly-initialized (Xavier) weights, which can be useful for
+//! architecture validation, shape-checking, and integration testing.
 //!
 //! ## Applications
 //! - Cross-modal learning between text and images
@@ -9,8 +19,8 @@
 //! - Shared latent space discovery
 //! - Cross-modal retrieval and generation
 
-use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Distribution, Random, Rng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::random::{thread_rng, Distribution, Random, Rng, RngExt};
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -147,7 +157,7 @@ impl Layer {
         let scale = (2.0 / input_dim as Float).sqrt();
         let mut rng = thread_rng();
         let weights = Array2::<Float>::from_shape_fn((input_dim, output_dim), |_| {
-            (rng.gen::<Float>() - 0.5) * 2.0 * scale
+            (rng.random::<Float>() - 0.5) * 2.0 * scale
         });
         let bias = Array1::<Float>::zeros(output_dim);
 
@@ -189,7 +199,9 @@ impl Layer {
     /// Apply batch normalization
     fn batch_normalize(&self, input: &Array2<Float>) -> Array2<Float> {
         if let (Some(gamma), Some(beta)) = (&self.batch_norm_gamma, &self.batch_norm_beta) {
-            let mean = input.mean_axis(Axis(0)).unwrap();
+            let mean = input
+                .mean_axis(Axis(0))
+                .expect("mean_axis requires non-empty array");
             let var = input.var_axis(Axis(0), 0.0);
             let eps = 1e-8;
 
@@ -374,79 +386,39 @@ impl CrossModalVAE {
         }
     }
 
-    /// Train the VAE on cross-modal data
+    /// Train the VAE on cross-modal data.
+    ///
+    /// # Errors
+    ///
+    /// Always returns [`SklearsError::NotImplemented`] because this VAE
+    /// implementation is forward-pass only. Gradient-based weight updates
+    /// require automatic differentiation (backpropagation), which is not
+    /// available in this crate.
+    ///
+    /// Use [`Self::compute_forward_loss`] to evaluate the loss of the
+    /// current (randomly-initialized) network without pretending to train.
     pub fn fit(
         &mut self,
-        x_data: &Array2<Float>,
-        y_data: &Array2<Float>,
+        _x_data: &Array2<Float>,
+        _y_data: &Array2<Float>,
     ) -> Result<VAETrainingResults, SklearsError> {
-        if x_data.nrows() != y_data.nrows() {
-            return Err(SklearsError::InvalidInput(
-                "X and Y data must have same number of samples".to_string(),
-            ));
-        }
-
-        let n_samples = x_data.nrows();
-        let mut losses = Vec::new();
-        let mut kl_losses = Vec::new();
-        let mut recon_losses = Vec::new();
-
-        for epoch in 0..self.config.max_epochs {
-            let mut epoch_loss = 0.0;
-            let mut epoch_kl = 0.0;
-            let mut epoch_recon = 0.0;
-            let mut n_batches = 0;
-
-            // Mini-batch training
-            for i in (0..n_samples).step_by(self.config.batch_size) {
-                let end = (i + self.config.batch_size).min(n_samples);
-                let batch_x = x_data.slice(s![i..end, ..]);
-                let batch_y = y_data.slice(s![i..end, ..]);
-
-                let batch_loss = self.train_batch(&batch_x, &batch_y)?;
-                epoch_loss += batch_loss.total_loss;
-                epoch_kl += batch_loss.kl_loss;
-                epoch_recon += batch_loss.reconstruction_loss;
-                n_batches += 1;
-            }
-
-            epoch_loss /= n_batches as Float;
-            epoch_kl /= n_batches as Float;
-            epoch_recon /= n_batches as Float;
-
-            losses.push(epoch_loss);
-            kl_losses.push(epoch_kl);
-            recon_losses.push(epoch_recon);
-
-            // Early stopping check
-            if epoch > self.config.patience {
-                let recent_improvement = losses[epoch - self.config.patience] - epoch_loss;
-                if recent_improvement < self.config.tolerance {
-                    break;
-                }
-            }
-        }
-
-        self.training_history
-            .insert("total_loss".to_string(), losses.clone());
-        self.training_history
-            .insert("kl_loss".to_string(), kl_losses.clone());
-        self.training_history
-            .insert("reconstruction_loss".to_string(), recon_losses.clone());
-
-        Ok(VAETrainingResults {
-            final_loss: *losses.last().unwrap_or(&Float::INFINITY),
-            n_epochs: losses.len(),
-            training_losses: losses.clone(),
-            kl_losses,
-            reconstruction_losses: recon_losses,
-            converged: losses.len() < self.config.max_epochs,
-        })
+        Err(SklearsError::NotImplemented(
+            "CrossModalVAE::fit requires backpropagation (automatic differentiation) \
+             to compute gradients and update weights. This implementation only supports \
+             forward-pass inference. Use encode_x/encode_y/decode_to_x/decode_to_y for \
+             forward-pass operations, or compute_forward_loss to evaluate the current \
+             network loss without training."
+                .to_string(),
+        ))
     }
 
-    /// Train on a single batch
-    fn train_batch(
-        &mut self,
+    /// Compute the forward-pass loss for a batch without updating any weights.
+    ///
+    /// This performs one forward pass through both encoders and decoders,
+    /// computing reconstruction and KL-divergence losses. No gradients are
+    /// calculated and no weights are modified.
+    pub fn compute_forward_loss(
+        &self,
         batch_x: &ArrayView2<Float>,
         batch_y: &ArrayView2<Float>,
     ) -> Result<BatchLoss, SklearsError> {
@@ -478,9 +450,6 @@ impl CrossModalVAE {
         let kl_loss = kl_loss_x + kl_loss_y;
         let total_loss = reconstruction_loss + self.config.beta * kl_loss;
 
-        // TODO: Implement actual gradient descent updates
-        // This would require automatic differentiation
-
         Ok(BatchLoss {
             total_loss,
             reconstruction_loss,
@@ -493,8 +462,10 @@ impl CrossModalVAE {
         let std = logvar.mapv(|x| (0.5 * x).exp());
         let mut rng = thread_rng();
         let epsilon = Array2::<Float>::from_shape_fn(mean.dim(), |_| {
-            use scirs2_core::random::{Distribution, RandNormal as Normal, Rng};
-            Normal::new(0.0, 1.0).unwrap().sample(&mut rng)
+            use scirs2_core::random::{Distribution, RandNormal as Normal, RngExt};
+            Normal::new(0.0, 1.0)
+                .expect("Normal distribution params should be valid")
+                .sample(&mut rng)
         });
         mean + &std * &epsilon
     }
@@ -576,12 +547,18 @@ pub struct VAETrainingResults {
     pub converged: bool,
 }
 
-/// Batch training loss components
+/// Loss components from a single forward pass through the VAE.
+///
+/// Returned by [`CrossModalVAE::compute_forward_loss`].
+/// No gradients are computed and no weights are updated.
 #[derive(Debug, Clone)]
-struct BatchLoss {
-    total_loss: Float,
-    reconstruction_loss: Float,
-    kl_loss: Float,
+pub struct BatchLoss {
+    /// Combined loss: reconstruction + beta * KL divergence
+    pub total_loss: Float,
+    /// Sum of self-reconstruction and cross-modal reconstruction losses (MSE)
+    pub reconstruction_loss: Float,
+    /// KL divergence from the latent distributions to N(0, 1)
+    pub kl_loss: Float,
 }
 
 /// Cross-modal similarity metrics
@@ -673,8 +650,20 @@ impl CrossModalVAE {
         let n_samples = x.nrows() as Float;
 
         // Center the data
-        let x_centered = x - &x.mean_axis(Axis(0)).unwrap().view().insert_axis(Axis(0));
-        let y_centered = y - &y.mean_axis(Axis(0)).unwrap().view().insert_axis(Axis(0));
+        let x_centered = x - &x
+            .mean_axis(Axis(0))
+            .ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?
+            .view()
+            .insert_axis(Axis(0));
+        let y_centered = y - &y
+            .mean_axis(Axis(0))
+            .ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?
+            .view()
+            .insert_axis(Axis(0));
 
         // Compute covariance
         let cov = x_centered.t().dot(&y_centered) / (n_samples - 1.0);
@@ -701,16 +690,13 @@ impl CrossModalVAE {
     }
 }
 
-// Import slice macro
-use scirs2_core::ndarray::s;
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::thread_rng;
+    use scirs2_core::random::{thread_rng, RngExt};
 
     #[test]
     fn test_layer_creation() {
@@ -723,8 +709,8 @@ mod tests {
 
     #[test]
     fn test_activation_functions() {
-        let input =
-            Array2::<Float>::from_shape_vec((2, 3), vec![-1.0, 0.0, 1.0, 2.0, -2.0, 0.5]).unwrap();
+        let input = Array2::<Float>::from_shape_vec((2, 3), vec![-1.0, 0.0, 1.0, 2.0, -2.0, 0.5])
+            .expect("shape should match data length");
 
         let relu = ActivationFunction::ReLU;
         let relu_output = relu.apply(&input);
@@ -769,11 +755,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((4, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((4, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let z_x = vae.encode_x(&x);
@@ -800,11 +786,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((3, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((3, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let y_from_x = vae.cross_generate_x_to_y(&x);
@@ -825,11 +811,11 @@ mod tests {
 
         let x = Array2::from_shape_fn((5, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((5, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let shared_repr = vae.get_shared_representation(&x, &y);
@@ -876,17 +862,17 @@ mod tests {
 
         let x = Array2::from_shape_fn((10, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((10, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let similarity = vae.compute_cross_modal_similarity(&x, &y);
         assert!(similarity.is_ok());
 
-        let sim_metrics = similarity.unwrap();
+        let sim_metrics = similarity.expect("operation should succeed");
         assert!(sim_metrics.cosine_similarity >= -1.0 && sim_metrics.cosine_similarity <= 1.0);
     }
 
@@ -895,7 +881,7 @@ mod tests {
         let layer = Layer::new(5, 3, ActivationFunction::ReLU, true);
         let input = Array2::from_shape_fn((4, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let output = layer.forward(&input);

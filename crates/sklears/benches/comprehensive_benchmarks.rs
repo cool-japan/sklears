@@ -17,7 +17,8 @@ use sklears_utils::data_generation::{make_blobs, make_classification, make_regre
 use std::hint::black_box;
 
 fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<i32>) {
-    make_classification(n_samples, n_features, 3, None, None, 0.0, 1.0, Some(42)).unwrap()
+    make_classification(n_samples, n_features, 3, None, None, 0.0, 1.0, Some(42))
+        .expect("sampling should succeed")
 }
 
 fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
@@ -29,7 +30,7 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
         0.1,
         Some(42),
     )
-    .unwrap()
+    .expect("operation should succeed")
 }
 
 fn bench_knn_classification(c: &mut Criterion) {
@@ -46,19 +47,23 @@ fn bench_knn_classification(c: &mut Criterion) {
                 |b, (X, y)| {
                     b.iter(|| {
                         let classifier = KNeighborsClassifier::new(5);
-                        black_box(classifier.fit(X, y).unwrap())
+                        black_box(classifier.fit(X, y).expect("model fitting should succeed"))
                     })
                 },
             );
 
             // Benchmark prediction
             let classifier = KNeighborsClassifier::new(5);
-            let fitted_classifier = classifier.fit(&X, &y).unwrap();
+            let fitted_classifier = classifier
+                .fit(&X, &y)
+                .expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&X, &fitted_classifier),
-                |b, (X, classifier)| b.iter(|| black_box(classifier.predict(X).unwrap())),
+                |b, (X, classifier)| {
+                    b.iter(|| black_box(classifier.predict(X).expect("prediction should succeed")))
+                },
             );
         }
     }
@@ -79,18 +84,20 @@ fn bench_knn_regression(c: &mut Criterion) {
                 |b, (X, y)| {
                     b.iter(|| {
                         let regressor = KNeighborsRegressor::new(5);
-                        black_box(regressor.fit(X, y).unwrap())
+                        black_box(regressor.fit(X, y).expect("model fitting should succeed"))
                     })
                 },
             );
 
             let regressor = KNeighborsRegressor::new(5);
-            let fitted_regressor = regressor.fit(&X, &y).unwrap();
+            let fitted_regressor = regressor.fit(&X, &y).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&X, &fitted_regressor),
-                |b, (X, regressor)| b.iter(|| black_box(regressor.predict(X).unwrap())),
+                |b, (X, regressor)| {
+                    b.iter(|| black_box(regressor.predict(X).expect("prediction should succeed")))
+                },
             );
         }
     }
@@ -114,7 +121,7 @@ fn bench_decision_trees(c: &mut Criterion) {
                 |b, (X, y)| {
                     b.iter(|| {
                         let tree = DecisionTreeClassifier::new();
-                        black_box(tree.fit(*X, *y).unwrap())
+                        black_box(tree.fit(*X, *y).expect("model fitting should succeed"))
                     })
                 },
             );
@@ -126,7 +133,7 @@ fn bench_decision_trees(c: &mut Criterion) {
                 |b, (X, y)| {
                     b.iter(|| {
                         let forest = RandomForestClassifier::new();
-                        black_box(forest.fit(*X, *y).unwrap())
+                        black_box(forest.fit(*X, *y).expect("model fitting should succeed"))
                     })
                 },
             );
@@ -157,13 +164,13 @@ fn bench_preprocessing(c: &mut Criterion) {
                 |b, X| {
                     b.iter(|| {
                         let scaler = StandardScaler::new();
-                        black_box(scaler.fit(X, &()).unwrap())
+                        black_box(scaler.fit(X, &()).expect("model fitting should succeed"))
                     })
                 },
             );
 
             let scaler = StandardScaler::new();
-            let fitted_scaler = scaler.fit(&X, &()).unwrap();
+            let fitted_scaler = scaler.fit(&X, &()).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new(
@@ -171,7 +178,7 @@ fn bench_preprocessing(c: &mut Criterion) {
                     format!("{}x{}", n_samples, n_features),
                 ),
                 &(&X, &fitted_scaler),
-                |b, (X, scaler)| b.iter(|| black_box(scaler.transform(X).unwrap())),
+                |b, (X, scaler)| b.iter(|| black_box(scaler.transform(X).expect("transformation should succeed"))),
             );
 
             // MinMax Scaler
@@ -181,7 +188,7 @@ fn bench_preprocessing(c: &mut Criterion) {
                 |b, X| {
                     b.iter(|| {
                         let scaler = MinMaxScaler::new().feature_range(0.0, 1.0);
-                        black_box(scaler.fit(X, &()).unwrap())
+                        black_box(scaler.fit(X, &()).expect("model fitting should succeed"))
                     })
                 },
             );
@@ -193,7 +200,7 @@ fn bench_preprocessing(c: &mut Criterion) {
                 |b, X| {
                     b.iter(|| {
                         let scaler = RobustScaler::new();
-                        black_box(scaler.fit(X, &()).unwrap())
+                        black_box(scaler.fit(X, &()).expect("model fitting should succeed"))
                     })
                 },
             );
@@ -223,13 +230,13 @@ fn bench_feature_engineering(c: &mut Criterion) {
                     |b, (X, _degree)| {
                         b.iter(|| {
                             let poly = PolynomialFeatures::new();
-                            black_box(poly.fit(X, &()).unwrap())
+                            black_box(poly.fit(X, &()).expect("model fitting should succeed"))
                         })
                     },
                 );
 
                 let poly = PolynomialFeatures::new();
-                let fitted_poly = poly.fit(&X, &()).unwrap();
+                let fitted_poly = poly.fit(&X, &()).expect("model fitting should succeed");
 
                 group.bench_with_input(
                     BenchmarkId::new(
@@ -237,7 +244,11 @@ fn bench_feature_engineering(c: &mut Criterion) {
                         format!("{}x{}_deg{}", n_samples, n_features, degree),
                     ),
                     &(&X, &fitted_poly),
-                    |b, (X, poly)| b.iter(|| black_box(poly.transform(X).unwrap())),
+                    |b, (X, poly)| {
+                        b.iter(|| {
+                            black_box(poly.transform(X).expect("transformation should succeed"))
+                        })
+                    },
                 );
             }
         }
@@ -297,7 +308,11 @@ fn bench_metrics(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("accuracy_score", n_samples),
             &(&y_true, &y_pred),
-            |b, (y_true, y_pred)| b.iter(|| black_box(accuracy_score(y_true, y_pred).unwrap())),
+            |b, (y_true, y_pred)| {
+                b.iter(|| {
+                    black_box(accuracy_score(y_true, y_pred).expect("operation should succeed"))
+                })
+            },
         );
 
         // Generate regression predictions
@@ -307,7 +322,11 @@ fn bench_metrics(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("mean_squared_error", n_samples),
             &(&y_true_reg, &y_pred_reg),
-            |b, (y_true, y_pred)| b.iter(|| black_box(mean_squared_error(y_true, y_pred).unwrap())),
+            |b, (y_true, y_pred)| {
+                b.iter(|| {
+                    black_box(mean_squared_error(y_true, y_pred).expect("operation should succeed"))
+                })
+            },
         );
     }
     group.finish();
@@ -339,7 +358,7 @@ fn bench_data_generation(c: &mut Criterion) {
                                 1.0,
                                 Some(42),
                             )
-                            .unwrap(),
+                            .expect("operation should succeed"),
                         )
                     })
                 },
@@ -359,7 +378,7 @@ fn bench_data_generation(c: &mut Criterion) {
                                 0.0,
                                 Some(42),
                             )
-                            .unwrap(),
+                            .expect("operation should succeed"),
                         )
                     })
                 },
@@ -372,7 +391,7 @@ fn bench_data_generation(c: &mut Criterion) {
                     b.iter(|| {
                         black_box(
                             make_blobs(n_samples, n_features, Some(3), 1.0, (-5.0, 5.0), Some(42))
-                                .unwrap(),
+                                .expect("operation should succeed"),
                         )
                     })
                 },
@@ -399,8 +418,8 @@ fn bench_memory_efficiency(c: &mut Criterion) {
                 b.iter(|| {
                     for _ in 0..10 {
                         let classifier = KNeighborsClassifier::new(5);
-                        let fitted = classifier.fit(X, y).unwrap();
-                        black_box(fitted.predict(X).unwrap());
+                        let fitted = classifier.fit(X, y).expect("model fitting should succeed");
+                        black_box(fitted.predict(X).expect("prediction should succeed"));
                     }
                 })
             },
@@ -416,8 +435,8 @@ fn bench_memory_efficiency(c: &mut Criterion) {
                 b.iter(|| {
                     for _ in 0..10 {
                         let scaler = StandardScaler::new();
-                        let fitted = scaler.fit(X, &()).unwrap();
-                        black_box(fitted.transform(X).unwrap());
+                        let fitted = scaler.fit(X, &()).expect("model fitting should succeed");
+                        black_box(fitted.transform(X).expect("transformation should succeed"));
                     }
                 })
             },

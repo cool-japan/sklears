@@ -681,7 +681,7 @@ pub fn create_comparative_plot(
     }
 
     // Validate that all model data has compatible dimensions
-    let first_entry = model_data.iter().next().unwrap();
+    let first_entry = model_data.iter().next().expect("operation should succeed");
     let (first_name, first_data) = first_entry;
     let expected_shape = first_data.dim();
 
@@ -848,7 +848,7 @@ mod tests {
             &config,
             FeatureImportanceType::Bar,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.feature_names.len(), 3);
         assert_eq!(plot.importance_values.len(), 3);
@@ -870,11 +870,17 @@ mod tests {
             &config,
             FeatureImportanceType::Horizontal,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.feature_names.len(), 3);
         assert!(plot.std_values.is_some());
-        assert_eq!(plot.std_values.as_ref().unwrap().len(), 3);
+        assert_eq!(
+            plot.std_values
+                .as_ref()
+                .expect("operation should succeed")
+                .len(),
+            3
+        );
         assert_eq!(plot.plot_type, FeatureImportanceType::Horizontal);
     }
 
@@ -943,7 +949,7 @@ mod tests {
             Some(2),    // top 2 features
             Some(0.15), // minimum threshold
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Should have only top 2 features above threshold (0.5 and 0.3)
         assert_eq!(plot.feature_names.len(), 2);
@@ -967,7 +973,7 @@ mod tests {
             &config,
             ShapPlotType::Summary,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.shap_values.shape(), &[2, 3]);
         assert_eq!(plot.feature_names.len(), 3);
@@ -1022,7 +1028,7 @@ mod tests {
             &config,
             true, // show distribution
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.shap_values.shape(), &[3, 3]);
         assert_eq!(plot.plot_type, ShapPlotType::Beeswarm);
@@ -1043,7 +1049,7 @@ mod tests {
             &config,
             false,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.feature_name, "feature_1");
         assert_eq!(plot.feature_values.len(), 6);
@@ -1067,12 +1073,18 @@ mod tests {
             &config,
             true,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.feature_name, "feature_1");
         assert!(plot.show_ice);
         assert!(plot.ice_curves.is_some());
-        assert_eq!(plot.ice_curves.as_ref().unwrap().shape(), &[2, 3]);
+        assert_eq!(
+            plot.ice_curves
+                .as_ref()
+                .expect("operation should succeed")
+                .shape(),
+            &[2, 3]
+        );
     }
 
     #[test]
@@ -1124,7 +1136,7 @@ mod tests {
             "feature_2",
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.model_data.len(), 1);
         assert!(plot.model_data.contains_key("2D_PD_Surface"));
@@ -1143,7 +1155,7 @@ mod tests {
         let config = PlotConfig::default();
 
         let plot = create_comparative_plot(model_data, labels, &config, ComparisonType::SideBySide)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(plot.model_data.len(), 2);
         assert_eq!(plot.labels.len(), 2);
@@ -1195,7 +1207,7 @@ mod tests {
             &config,
             false,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.model_data.len(), 2);
         assert_eq!(plot.labels.len(), 3);
@@ -1217,7 +1229,7 @@ mod tests {
             &config,
             true, // show significance
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.comparison_type, ComparisonType::Statistical);
     }

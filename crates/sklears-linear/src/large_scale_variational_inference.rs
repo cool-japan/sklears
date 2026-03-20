@@ -166,7 +166,11 @@ impl VariationalPosterior {
         for i in 0..n_samples {
             // Sample from standard normal
             let z: Array1<Float> = (0..n_features)
-                .map(|_| Normal::new(0.0, 1.0).unwrap().sample(rng))
+                .map(|_| {
+                    Normal::new(0.0, 1.0)
+                        .expect("valid normal distribution parameters")
+                        .sample(rng)
+                })
                 .collect::<Vec<_>>()
                 .into();
 
@@ -279,12 +283,20 @@ impl LargeScaleVariationalRegression<Untrained> {
 impl LargeScaleVariationalRegression<Trained> {
     /// Get the posterior mean of coefficients
     pub fn coefficients(&self) -> &Array1<Float> {
-        &self.posterior.as_ref().unwrap().weight_mean
+        &self
+            .posterior
+            .as_ref()
+            .expect("value should be present")
+            .weight_mean
     }
 
     /// Get the posterior covariance of coefficients
     pub fn coefficient_covariance(&self) -> &Array2<Float> {
-        &self.posterior.as_ref().unwrap().weight_covariance
+        &self
+            .posterior
+            .as_ref()
+            .expect("value should be present")
+            .weight_covariance
     }
 
     /// Get feature relevance scores (for ARD)
@@ -304,7 +316,10 @@ impl LargeScaleVariationalRegression<Trained> {
         n_samples: usize,
         rng: &mut impl Rng,
     ) -> Result<Array2<Float>> {
-        let posterior = self.posterior.as_ref().unwrap();
+        let posterior = self
+            .posterior
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let weight_samples = posterior.sample_weights(n_samples, rng)?;
 
         let mut predictions = Array2::zeros((n_samples, x.nrows()));
@@ -330,7 +345,10 @@ impl LargeScaleVariationalRegression<Trained> {
         &self,
         x: &Array2<Float>,
     ) -> Result<(Array1<Float>, Array1<Float>)> {
-        let posterior = self.posterior.as_ref().unwrap();
+        let posterior = self
+            .posterior
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         // Predictive mean
         let pred_mean = x.dot(&posterior.weight_mean);
@@ -685,8 +703,8 @@ mod tests {
 
     #[test]
     fn test_batch_extraction() {
-        let X =
-            Array::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("valid array shape");
         let y = Array::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
         let model = LargeScaleVariationalRegression::new();

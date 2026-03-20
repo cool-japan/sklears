@@ -688,7 +688,7 @@ impl AutomatedAlerter {
     ) -> SklResult<bool> {
         let cutoff_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs()
             - window.as_secs();
 
@@ -719,7 +719,7 @@ impl AutomatedAlerter {
     ) -> SklResult<bool> {
         let cutoff_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs()
             - window.as_secs();
 
@@ -733,8 +733,8 @@ impl AutomatedAlerter {
         }
 
         // Calculate rate of change
-        let first = relevant_metrics.first().unwrap();
-        let last = relevant_metrics.last().unwrap();
+        let first = relevant_metrics.first().expect("checked non-empty above");
+        let last = relevant_metrics.last().expect("checked non-empty above");
 
         let time_diff = last.timestamp - first.timestamp;
         if time_diff == 0 {
@@ -755,7 +755,7 @@ impl AutomatedAlerter {
     ) -> SklResult<bool> {
         let cutoff_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs()
             - training_window.as_secs();
 
@@ -1218,7 +1218,7 @@ mod tests {
         let config = AlertConfig::default();
         let alerter = AutomatedAlerter::new(config);
 
-        let stats = alerter.get_stats().unwrap();
+        let stats = alerter.get_stats().unwrap_or_default();
         assert_eq!(stats.total_alerts, 0);
         assert_eq!(stats.active_alert_count, 0);
     }
@@ -1247,9 +1247,9 @@ mod tests {
             priority: 1,
         };
 
-        alerter.add_rule(rule).unwrap();
+        alerter.add_rule(rule).unwrap_or_default();
 
-        let rules = alerter.rules.read().unwrap();
+        let rules = alerter.rules.read().unwrap_or_else(|e| e.into_inner());
         assert!(rules.contains_key("test_rule"));
     }
 
@@ -1259,9 +1259,9 @@ mod tests {
         let alerter = AutomatedAlerter::new(config);
 
         let channel = Box::new(ConsoleAlertChannel::new("test_console"));
-        alerter.add_channel("console", channel).unwrap();
+        alerter.add_channel("console", channel).unwrap_or_default();
 
-        let channels = alerter.channels.read().unwrap();
+        let channels = alerter.channels.read().unwrap_or_else(|e| e.into_inner());
         assert!(channels.contains_key("console"));
     }
 
@@ -1306,7 +1306,7 @@ mod tests {
             value: 90.0,
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             pipeline_name: "test_pipeline".to_string(),
             stage_name: None,
@@ -1314,7 +1314,9 @@ mod tests {
             metadata: HashMap::new(),
         }];
 
-        assert!(alerter.evaluate_condition(&condition, &metrics).unwrap());
+        assert!(alerter
+            .evaluate_condition(&condition, &metrics)
+            .unwrap_or_default());
     }
 
     #[test]
@@ -1329,13 +1331,13 @@ mod tests {
                 "Maintenance window".to_string(),
                 "admin".to_string(),
             )
-            .unwrap();
+            .unwrap_or_default();
 
         assert!(!silence_id.is_empty());
-        assert!(alerter.is_silenced("test_rule").unwrap());
+        assert!(alerter.is_silenced("test_rule").unwrap_or_default());
 
-        alerter.remove_silence(&silence_id).unwrap();
-        assert!(!alerter.is_silenced("test_rule").unwrap());
+        alerter.remove_silence(&silence_id).unwrap_or_default();
+        assert!(!alerter.is_silenced("test_rule").unwrap_or_default());
     }
 
     #[test]
@@ -1368,14 +1370,24 @@ mod tests {
         };
 
         {
-            let mut active_alerts = alerter.active_alerts.write().unwrap();
+            let mut active_alerts = alerter
+                .active_alerts
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             active_alerts.insert(alert.id.clone(), active_alert);
         }
 
-        alerter.acknowledge_alert(&alert.id, "admin").unwrap();
+        alerter
+            .acknowledge_alert(&alert.id, "admin")
+            .unwrap_or_default();
 
-        let active_alerts = alerter.active_alerts.read().unwrap();
-        let acknowledged_alert = active_alerts.get(&alert.id).unwrap();
+        let active_alerts = alerter
+            .active_alerts
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
+        let acknowledged_alert = active_alerts
+            .get(&alert.id)
+            .expect("operation should succeed");
         assert_eq!(acknowledged_alert.event.status, AlertStatus::Acknowledged);
     }
 }

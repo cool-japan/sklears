@@ -291,7 +291,7 @@ impl FpgaRuntime {
         };
 
         self.contexts.push(context);
-        Ok(self.contexts.last_mut().unwrap())
+        Ok(self.contexts.last_mut().expect("operation should succeed"))
     }
 
     /// Check if FPGA is available
@@ -611,14 +611,14 @@ mod tests {
         let design = design::generate_design(FpgaFunction::MatrixMultiply, &config);
         assert!(design.is_ok());
 
-        let design_str = design.unwrap();
+        let design_str = design.expect("operation should succeed");
         assert!(design_str.contains("module matmul_f32"));
         assert!(design_str.contains("200"));
     }
 
     #[test]
     fn test_bitstream_library() {
-        let runtime = FpgaRuntime::new().unwrap();
+        let runtime = FpgaRuntime::new().expect("operation should succeed");
         let bitstreams = runtime.bitstreams();
         assert!(bitstreams.contains_key("matmul_f32"));
         assert!(bitstreams.contains_key("conv2d_f32"));
@@ -626,11 +626,11 @@ mod tests {
 
     #[test]
     fn test_optimal_bitstream_selection() {
-        let runtime = FpgaRuntime::new().unwrap();
+        let runtime = FpgaRuntime::new().expect("operation should succeed");
         let bitstream = runtime.get_optimal_bitstream(FpgaFunction::MatrixMultiply);
         assert!(bitstream.is_some());
 
-        let bs = bitstream.unwrap();
+        let bs = bitstream.expect("operation should succeed");
         assert!(bs.functionality.contains(&FpgaFunction::MatrixMultiply));
     }
 }

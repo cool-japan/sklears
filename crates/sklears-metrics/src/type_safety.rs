@@ -295,7 +295,7 @@ impl<T: MetricCategory> MetricSuite<T> {
         let std_dev = variance.sqrt();
 
         let mut sorted_values = values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let min = sorted_values[0];
         let max = sorted_values[sorted_values.len() - 1];
@@ -622,7 +622,9 @@ mod tests {
         let y_pred = Array1::from_vec(vec![0, 1, 0, 0, 1]);
 
         let accuracy_metric = AccuracyMetric;
-        let result = accuracy_metric.compute(&(y_true, y_pred)).unwrap();
+        let result = accuracy_metric
+            .compute(&(y_true, y_pred))
+            .expect("operation should succeed");
 
         assert_eq!(result.value(), 0.8);
         assert_eq!(result.category(), "Classification");
@@ -634,7 +636,9 @@ mod tests {
         let y_pred = Array1::from_vec(vec![1.1, 2.1, 2.9]);
 
         let mse_metric = MeanSquaredErrorMetric;
-        let result = mse_metric.compute(&(y_true, y_pred)).unwrap();
+        let result = mse_metric
+            .compute(&(y_true, y_pred))
+            .expect("operation should succeed");
 
         assert!((result.value() - 0.01).abs() < 1e-10);
         assert_eq!(result.category(), "Regression");
@@ -649,8 +653,17 @@ mod tests {
         suite.add_metric("recall".to_string(), TypedMetric::new(0.80));
 
         assert_eq!(suite.len(), 3);
-        assert_eq!(suite.get(0).unwrap().value(), 0.85);
-        assert_eq!(suite.get_by_name("precision").unwrap().value(), 0.90);
+        assert_eq!(
+            suite.get(0).expect("operation should succeed").value(),
+            0.85
+        );
+        assert_eq!(
+            suite
+                .get_by_name("precision")
+                .expect("operation should succeed")
+                .value(),
+            0.90
+        );
 
         let summary = suite.summary();
         assert_eq!(summary.count, 3);

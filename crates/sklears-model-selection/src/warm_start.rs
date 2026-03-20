@@ -430,7 +430,7 @@ impl WarmStartInitializer {
         let mut selected = Vec::new();
 
         for _ in 0..n {
-            let random_val: f64 = rng.gen();
+            let random_val: f64 = rng.random();
             for (i, &cum_weight) in cumulative_weights.iter().enumerate() {
                 if random_val <= cum_weight {
                     selected.push(weighted_data[i].0.clone());
@@ -766,12 +766,14 @@ mod tests {
 
         history.add_record(record);
 
-        let json = history.export_to_json().unwrap();
+        let json = history.export_to_json().expect("operation should succeed");
         assert!(json.contains("1.5"));
         assert!(json.contains("0.85"));
 
         let mut new_history = OptimizationHistory::new(config);
-        new_history.import_from_json(&json).unwrap();
+        new_history
+            .import_from_json(&json)
+            .expect("operation should succeed");
 
         assert_eq!(new_history.records.len(), 1);
         assert_eq!(new_history.records[0].score, 0.85);

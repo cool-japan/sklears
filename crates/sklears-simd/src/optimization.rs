@@ -133,7 +133,10 @@ impl CoordinateDescent {
         let mut xtx_diag = Array1::zeros(n_features);
         for j in 0..n_features {
             let col = x.column(j).to_owned();
-            xtx_diag[j] = dot_product(col.as_slice().unwrap(), col.as_slice().unwrap());
+            xtx_diag[j] = dot_product(
+                col.as_slice().expect("slice operation should succeed"),
+                col.as_slice().expect("slice operation should succeed"),
+            );
         }
 
         // Residuals: r = y - X * coeff
@@ -153,7 +156,14 @@ impl CoordinateDescent {
 
                 // Compute new coefficient
                 let col_slice = col.to_owned();
-                let rho = dot_product(col_slice.as_slice().unwrap(), residuals.as_slice().unwrap());
+                let rho = dot_product(
+                    col_slice
+                        .as_slice()
+                        .expect("slice operation should succeed"),
+                    residuals
+                        .as_slice()
+                        .expect("slice operation should succeed"),
+                );
                 let new_coeff = soft_threshold(rho / n_samples as f32, self.alpha)
                     / (xtx_diag[j] / n_samples as f32);
 
@@ -226,7 +236,7 @@ impl QuasiNewton {
         let h_inv = Array2::eye(n); // Initial Hessian inverse approximation
 
         for _ in 0..self.max_iterations {
-            let grad_norm = norm_l2(grad.as_slice().unwrap());
+            let grad_norm = norm_l2(grad.as_slice().expect("slice operation should succeed"));
             if grad_norm < self.tolerance {
                 return Ok(x);
             }
@@ -250,7 +260,10 @@ impl QuasiNewton {
             let s = &x_new - &x;
             let y = &grad_new - &grad;
 
-            let sy = dot_product(s.as_slice().unwrap(), y.as_slice().unwrap());
+            let sy = dot_product(
+                s.as_slice().expect("slice operation should succeed"),
+                y.as_slice().expect("slice operation should succeed"),
+            );
             if sy > 1e-10 {
                 // Update Hessian inverse approximation (simplified rank-1 update)
                 // This is a simplified version - full L-BFGS would maintain a history
@@ -279,7 +292,12 @@ impl QuasiNewton {
         let mut alpha = 1.0;
         let f_x = objective(x);
         let grad_x = gradient(x);
-        let grad_dot_dir = dot_product(grad_x.as_slice().unwrap(), direction.as_slice().unwrap());
+        let grad_dot_dir = dot_product(
+            grad_x.as_slice().expect("slice operation should succeed"),
+            direction
+                .as_slice()
+                .expect("slice operation should succeed"),
+        );
 
         for _ in 0..self.line_search_max_iter {
             let mut x_new = x.clone();
@@ -626,8 +644,8 @@ mod tests {
         let optimizer = CoordinateDescent::new(0.1);
 
         // Simple 2D problem
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
         let mut coeff = Array1::zeros(2);
 

@@ -491,23 +491,33 @@ impl DomainBenchmarkFramework {
             };
         }
 
-        let fastest = results.iter().min_by_key(|r| r.total_time).unwrap();
+        let fastest = results
+            .iter()
+            .min_by_key(|r| r.total_time)
+            .expect("operation should succeed");
 
-        let slowest = results.iter().max_by_key(|r| r.total_time).unwrap();
+        let slowest = results
+            .iter()
+            .max_by_key(|r| r.total_time)
+            .expect("operation should succeed");
 
         let most_memory_efficient = results
             .iter()
-            .min_by(|a, b| a.memory_usage_mb.partial_cmp(&b.memory_usage_mb).unwrap())
-            .unwrap();
+            .min_by(|a, b| {
+                a.memory_usage_mb
+                    .partial_cmp(&b.memory_usage_mb)
+                    .expect("operation should succeed")
+            })
+            .expect("operation should succeed");
 
         let highest_quality = results
             .iter()
             .max_by(|a, b| {
                 a.feature_quality_score
                     .partial_cmp(&b.feature_quality_score)
-                    .unwrap()
+                    .expect("operation should succeed")
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         let total_fit_time: Duration = results.iter().map(|r| r.fit_time).sum();
         let total_transform_time: Duration = results.iter().map(|r| r.transform_time).sum();

@@ -207,7 +207,7 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
         for (task_name, y_task) in y {
             let n_outputs = y_task.ncols();
             let mut coef = Array2::<Float>::zeros((n_features, n_outputs));
-            let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+            let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
             for i in 0..n_features {
                 for j in 0..n_outputs {
                     coef[[i, j]] = rng_gen.sample(normal_dist);

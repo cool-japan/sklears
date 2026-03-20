@@ -712,7 +712,7 @@ where
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = self.base_estimator.classes[max_idx];
@@ -965,9 +965,9 @@ mod tests {
             let max_prob_idx = prob_row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
-                .unwrap();
+                .expect("operation should succeed");
             // The prediction should correspond to the highest probability class
             let predicted_class = predictions[i];
             let expected_class = [0, 1, 2][max_prob_idx];
@@ -1561,7 +1561,7 @@ mod tests {
         let custom_importances = array![0.7, 0.3];
         trained_mut.set_feature_importances(custom_importances.clone());
 
-        let retrieved_importances = trained_mut.feature_importances().unwrap();
+        let retrieved_importances = trained_mut.feature_importances().expect("operation should succeed");
         assert_eq!(retrieved_importances[0], 0.7);
         assert_eq!(retrieved_importances[1], 0.3);
     }

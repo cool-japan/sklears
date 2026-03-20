@@ -63,7 +63,7 @@ impl RetryMetricsCollector {
 
         // Update individual metrics
         {
-            let mut metrics_map = self.metrics.write().unwrap();
+            let mut metrics_map = self.metrics.write().unwrap_or_else(|e| e.into_inner());
 
             metrics_map.insert("total_attempts".to_string(), MetricValue::Counter(metrics.total_attempts));
             metrics_map.insert("successful_attempts".to_string(), MetricValue::Counter(metrics.successful_attempts));
@@ -82,7 +82,7 @@ impl RetryMetricsCollector {
 
         // Add to history
         {
-            let mut history = self.history.lock().unwrap();
+            let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
             history.push_back(snapshot);
 
             // Limit history size
@@ -103,13 +103,13 @@ impl RetryMetricsCollector {
 
     /// Get current metrics
     pub fn get_metrics(&self) -> HashMap<String, MetricValue> {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get metrics history
     pub fn get_history(&self, duration: Duration) -> Vec<MetricSnapshot> {
         let cutoff_time = SystemTime::now() - duration;
-        let history = self.history.lock().unwrap();
+        let history = self.history.lock().unwrap_or_else(|e| e.into_inner());
 
         history.iter()
             .filter(|snapshot| snapshot.timestamp >= cutoff_time)
@@ -121,7 +121,7 @@ impl RetryMetricsCollector {
     fn calculate_aggregated_metrics(&self) -> HashMap<String, f64> {
         let mut aggregated = HashMap::new();
 
-        let history = self.history.lock().unwrap();
+        let history = self.history.lock().unwrap_or_else(|e| e.into_inner());
         let recent_snapshots: Vec<_> = history.iter().rev().take(10).collect();
 
         for (name, aggregator) in &self.aggregators {
@@ -135,7 +135,7 @@ impl RetryMetricsCollector {
 
     /// Get performance statistics
     pub fn get_performance_statistics(&self) -> PerformanceStatistics {
-        let history = self.history.lock().unwrap();
+        let history = self.history.lock().unwrap_or_else(|e| e.into_inner());
 
         if history.is_empty() {
             return PerformanceStatistics::default();
@@ -285,7 +285,7 @@ impl ConsolePublisher {
 
 impl MetricsPublisher for ConsolePublisher {
     fn publish(&self, metrics: &RetryMetrics) -> SklResult<()> {
-        let mut last_published = self.last_published.lock().unwrap();
+        let mut last_published = self.last_published.lock().unwrap_or_else(|e| e.into_inner());
         let now = SystemTime::now();
 
         // Check if enough time has passed
@@ -386,7 +386,7 @@ impl MetricsAggregator for SuccessRateAggregator {
             AggregationMethod::Average => success_rates.iter().sum::<f64>() / success_rates.len() as f64,
             AggregationMethod::Median => {
                 let mut sorted = success_rates.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 sorted[sorted.len() / 2]
             }
             AggregationMethod::Maximum => success_rates.iter().fold(0.0, |acc, &x| acc.max(x)),
@@ -427,7 +427,7 @@ impl MetricsAggregator for DurationAggregator {
             AggregationMethod::Average => durations.iter().sum::<f64>() / durations.len() as f64,
             AggregationMethod::Median => {
                 let mut sorted = durations.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 sorted[sorted.len() / 2]
             }
             AggregationMethod::Maximum => durations.iter().fold(0.0, |acc, &x| acc.max(x)),
@@ -561,7 +561,7 @@ impl AlertingSystem {
 
                 if should_alert {
                     let alert = Alert {
-                        id: format!("{}_{}", rule.name, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+                        id: format!("{}_{}", rule.name, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
                         timestamp: SystemTime::now(),
                         severity: rule.severity.clone(),
                         message: format!("{} alert: {} {} {}", rule.severity.to_string(), rule.metric, rule.operator.to_string(), rule.threshold),
@@ -583,7 +583,7 @@ impl AlertingSystem {
     fn trigger_alert(&self, alert: Alert) -> SklResult<()> {
         // Add to history
         {
-            let mut history = self.history.lock().unwrap();
+            let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
             history.push_back(alert.clone());
 
             // Limit history size
@@ -615,7 +615,7 @@ impl AlertingSystem {
     /// Get alert history
     pub fn get_alert_history(&self, duration: Duration) -> Vec<Alert> {
         let cutoff_time = SystemTime::now() - duration;
-        let history = self.history.lock().unwrap();
+        let history = self.history.lock().unwrap_or_else(|e| e.into_inner());
 
         history.iter()
             .filter(|alert| alert.timestamp >= cutoff_time)

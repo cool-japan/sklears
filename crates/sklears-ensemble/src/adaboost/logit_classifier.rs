@@ -303,7 +303,7 @@ impl Predict<Array2<Float>, Array1<Float>> for LogitBoostClassifier<Trained> {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = classes[max_idx];

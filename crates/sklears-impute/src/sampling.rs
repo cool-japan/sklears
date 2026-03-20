@@ -5,7 +5,7 @@
 
 // ✅ SciRS2 Policy compliant imports
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 // use scirs2_core::parallel::{ParallelExecutor, ChunkStrategy}; // Note: not available
 
 // use rayon::prelude::*; // Unused
@@ -525,7 +525,7 @@ impl SamplingSimpleImputer<Untrained> {
                 "mean" => bootstrap_sample.iter().sum::<f64>() / bootstrap_sample.len() as f64,
                 "median" => {
                     let mut sorted = bootstrap_sample.clone();
-                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let mid = sorted.len() / 2;
                     if sorted.len() % 2 == 0 {
                         (sorted[mid - 1] + sorted[mid]) / 2.0
@@ -567,7 +567,7 @@ impl SamplingSimpleImputer<Untrained> {
 
         // Sort values to create quantile-based sampling
         let mut sorted_values = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let mut lhs_values = Vec::new();
         let mut rng = Random::default();
@@ -576,7 +576,7 @@ impl SamplingSimpleImputer<Untrained> {
         for i in 0..n_samples {
             let lower_bound = i as f64 / n_samples as f64;
             let upper_bound = (i + 1) as f64 / n_samples as f64;
-            let uniform_sample: f64 = rng.gen();
+            let uniform_sample: f64 = rng.random();
             let stratified_sample = lower_bound + uniform_sample * (upper_bound - lower_bound);
 
             // Map to quantile
@@ -668,7 +668,7 @@ impl SamplingSimpleImputer<Untrained> {
 
         value_weights
             .into_iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
             .map(|(key, _)| key as f64 / 1e6)
             .unwrap_or(0.0)
     }
@@ -679,7 +679,7 @@ impl SamplingSimpleImputer<SamplingSimpleImputerTrained> {
     fn sample_imputed_value(&self, feature_idx: usize) -> Result<f64, SklearsError> {
         let distribution = &self.state.sample_distributions_[feature_idx];
         let mut rng = Random::default();
-        let random_value: f64 = rng.gen();
+        let random_value: f64 = rng.random();
 
         // Find the corresponding value using cumulative weights
         for (i, &cum_weight) in distribution.cumulative_weights.iter().enumerate() {
@@ -853,7 +853,7 @@ impl StratifiedSamplingImputer<Untrained> {
 
             // Create quantile-based strata boundaries
             let mut sorted_values = valid_values;
-            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let mut boundaries = Vec::new();
             for i in 0..=self.config.n_strata {
@@ -995,7 +995,7 @@ impl StratifiedSamplingImputer<StratifiedSamplingImputerTrained> {
         distribution: &SampleDistribution,
     ) -> Result<f64, SklearsError> {
         let mut rng = Random::default();
-        let random_value: f64 = rng.gen();
+        let random_value: f64 = rng.random();
 
         // Find the corresponding value using cumulative weights
         for (i, &cum_weight) in distribution.cumulative_weights.iter().enumerate() {
@@ -1039,8 +1039,12 @@ mod tests {
             .n_samples(100)
             .sampling_strategy(SamplingStrategy::Simple);
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Check that NaN was replaced
         assert!(!X_imputed[[1, 1]].is_nan());
@@ -1057,8 +1061,12 @@ mod tests {
             .strategy("mean".to_string())
             .sampling_strategy(SamplingStrategy::Bootstrap);
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         assert!(!X_imputed[[1, 1]].is_nan());
         assert_abs_diff_eq!(X_imputed[[0, 0]], 1.0, epsilon = 1e-10);
@@ -1078,8 +1086,12 @@ mod tests {
             .stratify_by(vec![2]) // Stratify by the third column
             .n_strata(2);
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         assert!(!X_imputed[[1, 1]].is_nan());
         assert_abs_diff_eq!(X_imputed[[0, 0]], 1.0, epsilon = 1e-10);
@@ -1100,8 +1112,12 @@ mod tests {
             .sampling_strategy(SamplingStrategy::LatinHypercube)
             .n_samples(3);
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         assert!(!X_imputed[[1, 1]].is_nan());
         assert_abs_diff_eq!(X_imputed[[0, 0]], 1.0, epsilon = 1e-10);
@@ -1123,7 +1139,15 @@ mod tests {
         assert_eq!(distribution.values.len(), 5);
         assert_eq!(distribution.weights.len(), 5);
         assert_eq!(distribution.cumulative_weights.len(), 5);
-        assert!((distribution.cumulative_weights.last().unwrap() - 1.0).abs() < 1e-10);
+        assert!(
+            (distribution
+                .cumulative_weights
+                .last()
+                .expect("collection should not be empty")
+                - 1.0)
+                .abs()
+                < 1e-10
+        );
     }
 
     #[test]

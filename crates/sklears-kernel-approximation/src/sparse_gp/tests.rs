@@ -23,8 +23,8 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]];
         let y = array![0.0, 1.0, 4.0, 9.0, 16.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
-        let pred = fitted.predict(&x).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
+        let pred = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred.len(), x.nrows());
         assert!(pred.iter().all(|&val| val.is_finite()));
@@ -53,8 +53,8 @@ mod tests {
                 .noise_variance(0.1)
                 .optimization_params(10, 1e-4); // Reduced iterations for testing
 
-            let fitted = gp.fit(&x, &y).unwrap();
-            let pred = fitted.predict(&x).unwrap();
+            let fitted = gp.fit(&x, &y).expect("operation should succeed");
+            let pred = fitted.predict(&x).expect("operation should succeed");
 
             assert_eq!(pred.len(), x.nrows());
             assert!(pred.iter().all(|&val| val.is_finite()));
@@ -89,8 +89,8 @@ mod tests {
                 .approximation(SparseApproximation::FullyIndependentConditional)
                 .noise_variance(0.1);
 
-            let fitted = gp.fit(&x, &y).unwrap();
-            let pred = fitted.predict(&x).unwrap();
+            let fitted = gp.fit(&x, &y).expect("operation should succeed");
+            let pred = fitted.predict(&x).expect("operation should succeed");
 
             assert_eq!(pred.len(), x.nrows());
             assert!(pred.iter().all(|&val| val.is_finite()));
@@ -111,7 +111,7 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]];
         let y = array![0.0, 1.0, 4.0, 9.0, 16.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
 
         // Check that custom inducing points are used
         for (i, row) in custom_inducing.outer_iter().enumerate() {
@@ -132,8 +132,8 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]];
         let y = array![0.0, 1.0, 4.0, 9.0, 16.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
-        let (mean, var) = fitted.predict_with_variance(&x).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
+        let (mean, var) = fitted.predict_with_variance(&x).expect("operation should succeed");
 
         assert_eq!(mean.len(), x.nrows());
         assert_eq!(var.len(), x.nrows());
@@ -152,7 +152,7 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]];
         let y = array![0.0, 1.0, 4.0, 9.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
 
         let methods = vec![
             ScalableInferenceMethod::Direct,
@@ -168,7 +168,7 @@ mod tests {
         ];
 
         for method in methods {
-            let pred = fitted.predict_scalable(&x, method).unwrap();
+            let pred = fitted.predict_scalable(&x, method).expect("operation should succeed");
             assert_eq!(pred.len(), x.nrows());
             assert!(pred.iter().all(|&val| val.is_finite()));
         }
@@ -185,7 +185,7 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]];
         let y = array![0.0, 1.0, 4.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
 
         let preconditioners = vec![
             PreconditionerType::None,
@@ -203,7 +203,7 @@ mod tests {
                         preconditioner: precond,
                     },
                 )
-                .unwrap();
+                .expect("operation should succeed");
 
             assert_eq!(pred.len(), x.nrows());
             assert!(pred.iter().all(|&val| val.is_finite()));
@@ -221,8 +221,8 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]];
         let y = array![0.0, 1.0, 4.0, 9.0, 16.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
-        let log_ml = fitted.log_marginal_likelihood().unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
+        let log_ml = fitted.log_marginal_likelihood().expect("operation should succeed");
 
         assert!(log_ml.is_finite());
     }
@@ -250,15 +250,15 @@ mod tests {
                 .noise_variance(0.1)
                 .optimization_params(10, 1e-4); // Reduced iterations for testing
 
-            let fitted = gp.fit(&x, &y).unwrap();
-            let pred = fitted.predict(&x).unwrap();
+            let fitted = gp.fit(&x, &y).expect("operation should succeed");
+            let pred = fitted.predict(&x).expect("operation should succeed");
 
             assert_eq!(pred.len(), x.nrows());
             assert!(pred.iter().all(|&val| val.is_finite()));
 
             // Check that variational parameters are stored
             assert!(fitted.variational_params.is_some());
-            let vfe_params = fitted.variational_params.as_ref().unwrap();
+            let vfe_params = fitted.variational_params.as_ref().expect("operation should succeed");
             assert!(vfe_params.elbo.is_finite());
             assert!(vfe_params.kl_divergence >= 0.0);
         }
@@ -273,8 +273,8 @@ mod tests {
         let x = array![[0.0, 0.0], [0.5, 0.5], [1.0, 1.0], [1.5, 1.5]];
         let y = array![0.0, 0.25, 1.0, 2.25];
 
-        let fitted = ski.fit(&x, &y).unwrap();
-        let pred = fitted.predict(&x).unwrap();
+        let fitted = ski.fit(&x, &y).expect("operation should succeed");
+        let pred = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred.len(), x.nrows());
         assert!(pred.iter().all(|&x| x.is_finite()));
@@ -291,8 +291,8 @@ mod tests {
         let x = array![[0.0, 0.0], [0.5, 0.5], [1.0, 1.0]];
         let y = array![0.0, 0.25, 1.0];
 
-        let fitted = ski.fit(&x, &y).unwrap();
-        let pred = fitted.predict(&x).unwrap();
+        let fitted = ski.fit(&x, &y).expect("operation should succeed");
+        let pred = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred.len(), x.nrows());
         assert!(pred.iter().all(|&x| x.is_finite()));
@@ -335,8 +335,8 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]];
         let y = array![0.0, 1.0, 4.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
-        let samples = fitted.sample_posterior(&x, 5).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
+        let samples = fitted.sample_posterior(&x, 5).expect("operation should succeed");
 
         assert_eq!(samples.shape(), &[5, 3]);
         assert!(samples.iter().all(|&val| val.is_finite()));
@@ -353,7 +353,7 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]];
         let y = array![0.0, 1.0, 4.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
 
         let acquisition_functions = vec![
             "variance",
@@ -362,7 +362,7 @@ mod tests {
         ];
 
         for acq_func in acquisition_functions {
-            let acq_values = fitted.acquisition_function(&x, acq_func).unwrap();
+            let acq_values = fitted.acquisition_function(&x, acq_func).expect("operation should succeed");
             assert_eq!(acq_values.len(), x.nrows());
             assert!(acq_values.iter().all(|&val| val.is_finite()));
         }
@@ -379,8 +379,8 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]];
         let y = array![0.0, 1.0, 4.0, 9.0, 16.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
-        let eff_dof = utils::effective_degrees_of_freedom(&fitted, &x).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
+        let eff_dof = utils::effective_degrees_of_freedom(&fitted, &x).expect("operation should succeed");
 
         assert!(eff_dof > 0.0 && eff_dof <= x.nrows() as f64);
         assert!(eff_dof.is_finite());
@@ -397,7 +397,7 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]];
         let y = array![0.0, 1.0, 4.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
         let penalty = utils::model_complexity_penalty(&fitted);
 
         assert!(penalty > 0.0);
@@ -421,7 +421,7 @@ mod tests {
             &y,
             5, // Reduced iterations for testing
             0.01,
-        ).unwrap();
+        ).expect("operation should succeed");
 
         assert!(best_likelihood.is_finite());
     }
@@ -476,8 +476,8 @@ mod tests {
         ];
         let y = array![0.0, 0.0, 0.0, 1.0, 4.0];
 
-        let fitted = gp.fit(&x, &y).unwrap();
-        let pred = fitted.predict(&x).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
+        let pred = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred.len(), x.nrows());
         assert!(pred.iter().all(|&val| val.is_finite()));
@@ -502,11 +502,11 @@ mod tests {
             y_data.push(x_val * x_val);
         }
 
-        let x = Array2::from_shape_vec((n_samples, 2), x_data.into_iter().flatten().collect()).unwrap();
+        let x = Array2::from_shape_vec((n_samples, 2), x_data.into_iter().flatten().collect()).expect("operation should succeed");
         let y = Array1::from_vec(y_data);
 
-        let fitted = gp.fit(&x, &y).unwrap();
-        let pred = fitted.predict(&x).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
+        let pred = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred.len(), x.nrows());
         assert!(pred.iter().all(|&val| val.is_finite()));
@@ -533,15 +533,15 @@ mod tests {
         let y = array![0.0, 0.3, 1.6, 3.9, 7.2, 11.5, 16.8, 23.1, 30.4, 38.7];
 
         // Fit the model
-        let fitted = gp.fit(&x, &y).unwrap();
+        let fitted = gp.fit(&x, &y).expect("operation should succeed");
 
         // Test basic prediction
-        let pred = fitted.predict(&x).unwrap();
+        let pred = fitted.predict(&x).expect("operation should succeed");
         assert_eq!(pred.len(), x.nrows());
         assert!(pred.iter().all(|&val| val.is_finite()));
 
         // Test prediction with variance
-        let (mean, var) = fitted.predict_with_variance(&x).unwrap();
+        let (mean, var) = fitted.predict_with_variance(&x).expect("operation should succeed");
         assert_eq!(mean.len(), x.nrows());
         assert_eq!(var.len(), x.nrows());
         assert!(var.iter().all(|&val| val >= 0.0));
@@ -554,21 +554,21 @@ mod tests {
                 tol: 1e-8,
                 preconditioner: PreconditionerType::Diagonal,
             },
-        ).unwrap();
+        ).expect("operation should succeed");
         assert_eq!(pred_scalable.len(), x.nrows());
 
         // Test log marginal likelihood
-        let log_ml = fitted.log_marginal_likelihood().unwrap();
+        let log_ml = fitted.log_marginal_likelihood().expect("operation should succeed");
         assert!(log_ml.is_finite());
 
         // Test acquisition function
-        let acq = fitted.acquisition_function(&x, "variance").unwrap();
+        let acq = fitted.acquisition_function(&x, "variance").expect("operation should succeed");
         assert_eq!(acq.len(), x.nrows());
         assert!(acq.iter().all(|&val| val >= 0.0));
 
         // Check that VFE parameters are present and valid
         assert!(fitted.variational_params.is_some());
-        let vfe_params = fitted.variational_params.as_ref().unwrap();
+        let vfe_params = fitted.variational_params.as_ref().expect("operation should succeed");
         assert!(vfe_params.elbo.is_finite());
         assert!(vfe_params.kl_divergence >= 0.0);
         assert!(vfe_params.log_likelihood.is_finite());

@@ -212,7 +212,7 @@ impl LaplacianEigenmaps<Untrained> {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for &(_, neighbor_idx) in distances.iter().take(self.n_neighbors.min(n_samples - 1)) {
                 // Use heat kernel weights: w_ij = exp(-||x_i - x_j||²/σ²)
@@ -268,7 +268,7 @@ impl LaplacianEigenmaps<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
-        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Take the eigenvectors corresponding to the smallest non-zero eigenvalues
         // Skip the first eigenvector (corresponding to eigenvalue 0)

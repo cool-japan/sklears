@@ -1258,7 +1258,7 @@ impl Default for CostConstraints {
 // Utility functions for pattern coordination
 pub fn create_execution_context() -> ExecutionContext {
     ExecutionContext {
-        execution_id: format!("exec_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+        execution_id: format!("exec_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
         timestamp: SystemTime::now(),
         system_state: SystemState::default(),
         business_context: BusinessContextData::default(),

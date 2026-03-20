@@ -194,7 +194,11 @@ impl FederatedClient {
             .map(|(i, &val)| (i, val))
             .collect();
 
-        indexed_grads.sort_by(|a, b| b.1.abs().partial_cmp(&a.1.abs()).unwrap());
+        indexed_grads.sort_by(|a, b| {
+            b.1.abs()
+                .partial_cmp(&a.1.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut compressed = Array1::zeros(gradients.len());
         for i in 0..n_keep {
@@ -381,7 +385,7 @@ impl FederatedServer {
                     .collect();
 
                 if !values.is_empty() {
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                     let median = if values.len() % 2 == 0 {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                     } else {
@@ -413,7 +417,7 @@ impl FederatedServer {
                 let client_lock = self
                     .clients
                     .iter()
-                    .find(|c| c.lock().unwrap().id == client_id);
+                    .find(|c| c.lock().expect("mutex should not be poisoned").id == client_id);
 
                 if let Some(client_arc) = client_lock {
                     if let Ok(client) = client_arc.lock() {
@@ -449,7 +453,7 @@ impl FederatedServer {
                     .collect();
 
                 if !values.is_empty() {
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                     let trim_count = ((values.len() as f64) * trim_ratio).floor() as usize;
                     let trimmed_values = &values[trim_count..values.len() - trim_count];
@@ -522,7 +526,7 @@ impl FederatedCCA {
                 .server
                 .clients
                 .iter()
-                .filter(|client_arc| client_arc.lock().unwrap().participates())
+                .filter(|client_arc| client_arc.lock().map_or(false, |c| c.participates()))
                 .collect();
 
             if participating_clients.is_empty() {
@@ -699,7 +703,7 @@ impl FederatedPCA {
                 .server
                 .clients
                 .iter()
-                .filter(|client_arc| client_arc.lock().unwrap().participates())
+                .filter(|client_arc| client_arc.lock().map_or(false, |c| c.participates()))
                 .collect();
 
             if participating_clients.is_empty() {
@@ -732,7 +736,7 @@ impl FederatedPCA {
                 .server
                 .global_parameters
                 .get("principal_components")
-                .unwrap()
+                .expect("operation should succeed")
                 .clone(),
             explained_variance: Array1::ones(self.n_components), // Placeholder
             n_components: self.n_components,
@@ -858,8 +862,10 @@ mod tests {
 
     #[test]
     fn test_federated_client_creation() {
-        let data_x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let data_y = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let data_x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
+        let data_y = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+            .expect("shape should match data length");
 
         let client = FederatedClient::new("client1".to_string(), data_x.clone(), Some(data_y));
 
@@ -870,7 +876,8 @@ mod tests {
 
     #[test]
     fn test_client_participation() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape should match data length");
         let mut client =
             FederatedClient::new("client1".to_string(), data, None).with_participation_rate(0.0); // Never participates
 
@@ -883,7 +890,8 @@ mod tests {
 
     #[test]
     fn test_gradient_compression() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape should match data length");
         let client = FederatedClient::new("client1".to_string(), data, None);
 
         let gradients = Array1::from_vec(vec![0.1, 0.5, 0.2, 0.8, 0.3]);
@@ -909,7 +917,8 @@ mod tests {
     #[test]
     fn test_server_add_client() {
         let mut server = FederatedServer::new();
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape should match data length");
         let client = FederatedClient::new("client1".to_string(), data, None);
 
         server.add_client(client);
@@ -973,8 +982,10 @@ mod tests {
     fn test_federated_cca_add_client() {
         let mut fed_cca = FederatedCCA::new(2);
 
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let y = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
+        let y = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+            .expect("shape should match data length");
 
         fed_cca.add_client("client1".to_string(), x, y);
         assert_eq!(fed_cca.server.clients.len(), 1);
@@ -997,7 +1008,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         fed_pca.add_client("client1".to_string(), data);
         assert_eq!(fed_pca.server.clients.len(), 1);
@@ -1025,7 +1036,8 @@ mod tests {
 
     #[test]
     fn test_noise_addition() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape should match data length");
         let client = FederatedClient::new("client1".to_string(), data, None);
         let privacy_budget = PrivacyBudget::strict();
 

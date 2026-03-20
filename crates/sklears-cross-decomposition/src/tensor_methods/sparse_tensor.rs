@@ -25,7 +25,7 @@ use std::marker::PhantomData;
 ///
 /// let tensor = Array3::zeros((20, 15, 10));
 /// let sparse_decomp = SparseTensorDecomposition::new(5).sparsity_penalty(0.1);
-/// let fitted = sparse_decomp.fit(&tensor, &()).unwrap();
+/// let fitted = sparse_decomp.fit(&tensor, &()).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SparseTensorDecomposition<State = Untrained> {
@@ -326,7 +326,12 @@ impl SparseTensorDecomposition<Untrained> {
 impl Transform<Array3<Float>, Array3<Float>> for SparseTensorDecomposition<Trained> {
     /// Reconstruct tensor using sparse factors
     fn transform(&self, tensor: &Array3<Float>) -> Result<Array3<Float>> {
-        let factors = self.factor_matrices_.as_ref().unwrap();
+        let factors = self
+            .factor_matrices_
+            .as_ref()
+            .ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
         let shape = tensor.shape();
         self.reconstruct_sparse_tensor(factors, shape)
     }
@@ -335,22 +340,27 @@ impl Transform<Array3<Float>, Array3<Float>> for SparseTensorDecomposition<Train
 impl SparseTensorDecomposition<Trained> {
     /// Get the factor matrices
     pub fn factor_matrices(&self) -> &Vec<Array2<Float>> {
-        self.factor_matrices_.as_ref().unwrap()
+        self.factor_matrices_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the sparsity levels for each mode
     pub fn sparsity_levels(&self) -> &Array1<Float> {
-        self.sparsity_levels_.as_ref().unwrap()
+        self.sparsity_levels_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the reconstruction error
     pub fn reconstruction_error(&self) -> Float {
-        self.reconstruction_error_.unwrap()
+        self.reconstruction_error_
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Helper method for sparse reconstruction
@@ -399,7 +409,7 @@ mod tests {
         let sparse_decomp = SparseTensorDecomposition::new(2)
             .sparsity_penalty(0.1)
             .max_iter(50);
-        let fitted = sparse_decomp.fit(&tensor, &()).unwrap();
+        let fitted = sparse_decomp.fit(&tensor, &()).expect("fit should succeed");
 
         assert_eq!(fitted.factor_matrices().len(), 3);
         assert_eq!(fitted.factor_matrices()[0].shape(), &[5, 2]);
@@ -433,11 +443,11 @@ mod tests {
             .sparsity_penalty(0.05)
             .regularization(0.01)
             .sparsity_threshold(1e-6);
-        let fitted = sparse_decomp.fit(&tensor, &()).unwrap();
+        let fitted = sparse_decomp.fit(&tensor, &()).expect("fit should succeed");
 
         // Should achieve some level of sparsity
         let sparsity = fitted.sparsity_levels();
-        let avg_sparsity = sparsity.mean().unwrap();
+        let avg_sparsity = sparsity.mean().expect("operation should succeed");
         assert!(
             avg_sparsity > 0.0,
             "Expected some sparsity but got {}",
@@ -450,9 +460,9 @@ mod tests {
         let tensor = Array3::from_shape_fn((4, 3, 2), |(i, j, k)| (i + j + k) as Float * 0.1);
 
         let sparse_decomp = SparseTensorDecomposition::new(2);
-        let fitted = sparse_decomp.fit(&tensor, &()).unwrap();
+        let fitted = sparse_decomp.fit(&tensor, &()).expect("fit should succeed");
 
-        let reconstructed = fitted.transform(&tensor).unwrap();
+        let reconstructed = fitted.transform(&tensor).expect("transform should succeed");
         assert_eq!(reconstructed.shape(), tensor.shape());
     }
 
@@ -467,7 +477,7 @@ mod tests {
             .max_iter(20)
             .tol(1e-4);
 
-        let fitted = sparse_decomp.fit(&tensor, &()).unwrap();
+        let fitted = sparse_decomp.fit(&tensor, &()).expect("fit should succeed");
         assert!(fitted.n_iter() <= 20);
     }
 }

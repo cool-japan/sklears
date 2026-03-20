@@ -852,8 +852,10 @@ pub fn apply_activation_1d(
 ) -> Array1<f32> {
     let mut output = Array1::zeros(input.len());
     apply_activation_slice(
-        input.as_slice().unwrap(),
-        output.as_slice_mut().unwrap(),
+        input.as_slice().expect("slice operation should succeed"),
+        output
+            .as_slice_mut()
+            .expect("slice operation should succeed"),
         activation,
         alpha,
     );
@@ -1120,11 +1122,22 @@ mod tests {
     fn test_ndarray_interface() {
         let input_1d = Array1::from_vec(vec![1.0, 2.0, 3.0]);
         let output_1d = apply_activation_1d(&input_1d, ActivationFunction::ReLU, None);
-        assert_eq!(output_1d.as_slice().unwrap(), &[1.0, 2.0, 3.0]);
+        assert_eq!(
+            output_1d
+                .as_slice()
+                .expect("slice operation should succeed"),
+            &[1.0, 2.0, 3.0]
+        );
 
-        let input_2d = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let input_2d = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
         let output_2d = apply_activation_2d(&input_2d, ActivationFunction::ReLU, None);
-        assert_eq!(output_2d.as_slice().unwrap(), &[1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(
+            output_2d
+                .as_slice()
+                .expect("slice operation should succeed"),
+            &[1.0, 2.0, 3.0, 4.0]
+        );
     }
 
     #[test]

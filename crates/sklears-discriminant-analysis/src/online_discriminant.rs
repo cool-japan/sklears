@@ -707,7 +707,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedOnlineDiscriminantAnalysis {
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -793,8 +793,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let oda = OnlineDiscriminantAnalysis::new();
-        let fitted = oda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -806,16 +806,20 @@ mod tests {
         let y_initial = array![0, 1];
 
         let oda = OnlineDiscriminantAnalysis::new();
-        let mut fitted = oda.fit(&x_initial, &y_initial).unwrap();
+        let mut fitted = oda
+            .fit(&x_initial, &y_initial)
+            .expect("model fitting should succeed");
 
         // Add more data
         let x_new = array![[1.5, 2.5], [2.5, 3.5]];
         let y_new = array![0, 1];
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("partial fit should succeed");
 
         assert_eq!(fitted.n_samples_seen(), 4);
 
-        let predictions = fitted.predict(&x_new).unwrap();
+        let predictions = fitted.predict(&x_new).expect("prediction should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -826,8 +830,8 @@ mod tests {
 
         let oda = OnlineDiscriminantAnalysis::new()
             .update_strategy(UpdateStrategy::ExponentialMovingAverage { decay_rate: 0.9 });
-        let fitted = oda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -840,8 +844,8 @@ mod tests {
 
         let oda = OnlineDiscriminantAnalysis::new()
             .update_strategy(UpdateStrategy::SlidingWindow { window_size: 10 });
-        let fitted = oda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -856,8 +860,8 @@ mod tests {
             OnlineDiscriminantAnalysis::new().update_strategy(UpdateStrategy::AdaptiveWindow {
                 drift_threshold: 0.1,
             });
-        let fitted = oda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -869,8 +873,10 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let oda = OnlineDiscriminantAnalysis::new();
-        let fitted = oda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -892,8 +898,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let oda = OnlineDiscriminantAnalysis::new().n_components(Some(1));
-        let fitted = oda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 1));
     }
@@ -906,12 +912,14 @@ mod tests {
         let oda = OnlineDiscriminantAnalysis::new()
             .drift_detection(true)
             .warm_up_samples(2);
-        let mut fitted = oda.fit(&x, &y).unwrap();
+        let mut fitted = oda.fit(&x, &y).expect("model fitting should succeed");
 
         // Add data that might cause drift
         let x_drift = array![[10.0, 20.0], [20.0, 30.0]];
         let y_drift = array![0, 1];
-        fitted.partial_fit(&x_drift, &y_drift).unwrap();
+        fitted
+            .partial_fit(&x_drift, &y_drift)
+            .expect("partial fit should succeed");
 
         assert!(fitted.drift_scores().len() > 0);
     }
@@ -922,16 +930,20 @@ mod tests {
         let y_initial = array![0, 1];
 
         let oda = OnlineDiscriminantAnalysis::new();
-        let mut fitted = oda.fit(&x_initial, &y_initial).unwrap();
+        let mut fitted = oda
+            .fit(&x_initial, &y_initial)
+            .expect("model fitting should succeed");
 
         // Add data with new class
         let x_new = array![[5.0, 6.0], [6.0, 7.0]];
         let y_new = array![2, 2]; // New class
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("partial fit should succeed");
 
         assert_eq!(fitted.classes().len(), 3);
 
-        let predictions = fitted.predict(&x_new).unwrap();
+        let predictions = fitted.predict(&x_new).expect("prediction should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -941,8 +953,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let oda = OnlineDiscriminantAnalysis::new().update_strategy(UpdateStrategy::Cumulative);
-        let fitted = oda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -954,7 +966,9 @@ mod tests {
         let y_initial = array![0, 1];
 
         let oda = OnlineDiscriminantAnalysis::new();
-        let mut fitted = oda.fit(&x_initial, &y_initial).unwrap();
+        let mut fitted = oda
+            .fit(&x_initial, &y_initial)
+            .expect("model fitting should succeed");
 
         // Check initial priors
         let initial_priors = fitted.class_priors();
@@ -964,7 +978,9 @@ mod tests {
         // Add more samples of class 0
         let x_new = array![[1.1, 2.1], [1.2, 2.2]];
         let y_new = array![0, 0];
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("partial fit should succeed");
 
         // Class 0 should now have higher prior
         let updated_priors = fitted.class_priors();

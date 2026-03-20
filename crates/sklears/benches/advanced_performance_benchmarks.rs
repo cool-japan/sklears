@@ -25,7 +25,7 @@ fn benchmark_scaling_analysis(c: &mut Criterion) {
     for &n_samples in &sample_sizes {
         let (X, _y) =
             make_classification(n_samples, base_features, 3, None, None, 0.0, 1.0, Some(42))
-                .unwrap();
+                .expect("operation should succeed");
 
         group.throughput(Throughput::Elements(n_samples as u64));
 
@@ -46,7 +46,7 @@ fn benchmark_scaling_analysis(c: &mut Criterion) {
                             1.0,
                             Some(42),
                         )
-                        .unwrap(),
+                        .expect("operation should succeed"),
                     )
                 })
             },
@@ -87,7 +87,7 @@ fn benchmark_feature_scaling(c: &mut Criterion) {
     for &n_features in &feature_sizes {
         let (X, _y) =
             make_classification(base_samples, n_features, 3, None, None, 0.0, 1.0, Some(42))
-                .unwrap();
+                .expect("operation should succeed");
 
         group.throughput(Throughput::Elements((base_samples * n_features) as u64));
 
@@ -108,7 +108,7 @@ fn benchmark_feature_scaling(c: &mut Criterion) {
                             1.0,
                             Some(42),
                         )
-                        .unwrap(),
+                        .expect("operation should succeed"),
                     )
                 })
             },
@@ -119,7 +119,10 @@ fn benchmark_feature_scaling(c: &mut Criterion) {
             b.iter(|| {
                 let mut means = Vec::with_capacity(X.shape()[1]);
                 for j in 0..X.shape()[1] {
-                    let col_mean = X.column(j).mean().unwrap();
+                    let col_mean = X
+                        .column(j)
+                        .mean()
+                        .expect("array should have elements for mean computation");
                     means.push(col_mean);
                 }
                 black_box(means)
@@ -132,7 +135,9 @@ fn benchmark_feature_scaling(c: &mut Criterion) {
                 let mut stds = Vec::with_capacity(X.shape()[1]);
                 for j in 0..X.shape()[1] {
                     let col = X.column(j);
-                    let mean = col.mean().unwrap();
+                    let mean = col
+                        .mean()
+                        .expect("array should have elements for mean computation");
                     let variance =
                         col.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / col.len() as f64;
                     stds.push(variance.sqrt());
@@ -151,7 +156,8 @@ fn benchmark_memory_patterns(c: &mut Criterion) {
     let sizes = vec![1000, 5000, 10000];
 
     for &n_samples in &sizes {
-        let (X, y) = make_classification(n_samples, 10, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
+        let (X, y) = make_classification(n_samples, 10, 3, None, None, 0.0, 1.0, Some(42))
+            .expect("sampling should succeed");
 
         group.throughput(Throughput::Elements(n_samples as u64));
 
@@ -250,7 +256,7 @@ fn benchmark_algorithmic_complexity(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("sorting", n), &data, |b, data| {
             b.iter(|| {
                 let mut sorted_data = data.to_vec();
-                sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 black_box(sorted_data)
             })
         });

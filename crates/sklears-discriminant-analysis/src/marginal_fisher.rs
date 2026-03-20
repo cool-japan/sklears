@@ -600,7 +600,7 @@ impl Predict<Array2<Float>, Array1<i32>> for MarginalFisherAnalysis<Trained> {
                     .iter()
                     .enumerate()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
+                    .expect("value should be present")
                     .0;
                 classes[max_idx]
             })

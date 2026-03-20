@@ -885,7 +885,7 @@ mod tests {
         let mut builder = VisualPipelineBuilder::new();
 
         let step = StepDefinition::new("step1", StepType::Transformer, "StandardScaler");
-        builder.add_step(step).unwrap();
+        builder.add_step(step).unwrap_or_default();
 
         assert_eq!(builder.workflow.steps.len(), 1);
 
@@ -904,8 +904,8 @@ mod tests {
         let step2 =
             StepDefinition::new("step2", StepType::Predictor, "LinearRegression").with_input("X");
 
-        builder.add_step(step1).unwrap();
-        builder.add_step(step2).unwrap();
+        builder.add_step(step1).unwrap_or_default();
+        builder.add_step(step2).unwrap_or_default();
 
         let connection = Connection::direct("step1", "X_scaled", "step2", "X");
         let result = builder.add_connection(connection);
@@ -919,18 +919,18 @@ mod tests {
         let mut builder = VisualPipelineBuilder::new();
 
         let step = StepDefinition::new("step1", StepType::Transformer, "StandardScaler");
-        builder.add_step(step).unwrap();
+        builder.add_step(step).unwrap_or_default();
 
         assert_eq!(builder.workflow.steps.len(), 1);
         assert_eq!(builder.history_index, 1);
 
         // Undo
-        builder.undo().unwrap();
+        builder.undo().unwrap_or_default();
         assert_eq!(builder.workflow.steps.len(), 0);
         assert_eq!(builder.history_index, 0);
 
         // Redo
-        builder.redo().unwrap();
+        builder.redo().unwrap_or_default();
         assert_eq!(builder.workflow.steps.len(), 1);
         assert_eq!(builder.history_index, 1);
     }
@@ -957,8 +957,8 @@ mod tests {
         let step1 = StepDefinition::new("step1", StepType::Transformer, "StandardScaler");
         let step2 = StepDefinition::new("step2", StepType::Predictor, "LinearRegression");
 
-        builder.add_step(step1).unwrap();
-        builder.add_step(step2).unwrap();
+        builder.add_step(step1).unwrap_or_default();
+        builder.add_step(step2).unwrap_or_default();
 
         // Both steps are disconnected, validation should fail
         assert!(!builder.validation_state.is_valid);

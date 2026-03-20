@@ -160,7 +160,8 @@ mod tests {
         let y_true = array![7.0, 8.0];
         let y_pred = array![6.9, 8.1];
 
-        let mase = mean_absolute_scaled_error(&y_true, &y_pred, &y_train, 1).unwrap();
+        let mase = mean_absolute_scaled_error(&y_true, &y_pred, &y_train, 1)
+            .expect("operation should succeed");
 
         assert!(mase > 0.0);
     }
@@ -170,7 +171,7 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 2.0]; // Up, up, down
         let y_pred = array![1.0, 2.1, 2.9, 2.1]; // Up, down, up
 
-        let mda = mean_directional_accuracy(&y_true, &y_pred).unwrap();
+        let mda = mean_directional_accuracy(&y_true, &y_pred).expect("operation should succeed");
         assert!((0.0..=1.0).contains(&mda));
     }
 
@@ -179,7 +180,8 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9];
 
-        let smape = symmetric_mean_absolute_percentage_error(&y_true, &y_pred).unwrap();
+        let smape = symmetric_mean_absolute_percentage_error(&y_true, &y_pred)
+            .expect("operation should succeed");
         assert!((0.0..=200.0).contains(&smape));
     }
 
@@ -188,7 +190,8 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9];
 
-        let wape = weighted_absolute_percentage_error(&y_true, &y_pred).unwrap();
+        let wape =
+            weighted_absolute_percentage_error(&y_true, &y_pred).expect("operation should succeed");
         assert!(wape >= 0.0);
     }
 }

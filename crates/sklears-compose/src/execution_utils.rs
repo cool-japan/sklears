@@ -580,7 +580,7 @@ pub mod metrics {
             return 0.0;
         }
 
-        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let len = values.len();
 
         if len % 2 == 0 {
@@ -596,7 +596,7 @@ pub mod metrics {
             return 0.0;
         }
 
-        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let index = ((values.len() - 1) as f64 * 0.95) as usize;
         values[index]
     }

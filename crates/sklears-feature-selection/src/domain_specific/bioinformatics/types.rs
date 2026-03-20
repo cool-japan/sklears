@@ -673,14 +673,21 @@ impl BioinformaticsFeatureSelector<Untrained> {
                 + (1.0 - self.network_centrality_weight) * de_scores[i];
         }
         let mut network_metrics = HashMap::new();
-        network_metrics.insert("avg_degree".to_string(), degree_centrality.mean().unwrap());
+        network_metrics.insert(
+            "avg_degree".to_string(),
+            degree_centrality.mean().expect("operation should succeed"),
+        );
         network_metrics.insert(
             "avg_betweenness".to_string(),
-            betweenness_centrality.mean().unwrap(),
+            betweenness_centrality
+                .mean()
+                .expect("operation should succeed"),
         );
         network_metrics.insert(
             "avg_closeness".to_string(),
-            closeness_centrality.mean().unwrap(),
+            closeness_centrality
+                .mean()
+                .expect("operation should succeed"),
         );
         Ok((
             integrated_scores,

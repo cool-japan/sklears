@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::error::Result;
 
@@ -222,12 +222,12 @@ impl DTWKernelApproximation {
         let mut rng = if let Some(seed) = self.config.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         let n_references = std::cmp::min(self.config.n_components, n_series);
         let mut indices: Vec<usize> = (0..n_series).collect();
-        indices.sort_by_key(|_| rng.gen::<u32>());
+        indices.sort_by_key(|_| rng.random::<u32>());
         indices.truncate(n_references);
         self.random_indices = Some(indices.clone());
 
@@ -235,7 +235,9 @@ impl DTWKernelApproximation {
         let mut reference_series = Array2::zeros((n_references, n_timepoints * n_features));
         for (i, &idx) in indices.iter().enumerate() {
             let series = time_series.slice(s![idx, .., ..]);
-            let flattened = series.into_shape((n_timepoints * n_features,)).unwrap();
+            let flattened = series
+                .into_shape((n_timepoints * n_features,))
+                .expect("operation should succeed");
             reference_series.row_mut(i).assign(&flattened);
         }
         self.reference_series = Some(reference_series);
@@ -254,7 +256,9 @@ impl DTWKernelApproximation {
         // Compute DTW distances to reference series
         for i in 0..n_series {
             let series = time_series.slice(s![i, .., ..]);
-            let series_flat = series.into_shape((n_timepoints * n_features,)).unwrap();
+            let series_flat = series
+                .into_shape((n_timepoints * n_features,))
+                .expect("operation should succeed");
 
             for j in 0..n_references {
                 let reference = reference_series.row(j);
@@ -298,8 +302,8 @@ impl DTWKernelApproximation {
 
                     dtw_matrix[[i, j]] = candidates
                         .into_iter()
-                        .min_by(|a, b| a.partial_cmp(b).unwrap())
-                        .unwrap();
+                        .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                        .expect("operation should succeed");
                 }
             }
         }
@@ -525,16 +529,19 @@ impl AutoregressiveKernelApproximation {
     /// Generate random features for AR kernel approximation
     fn generate_random_features(&mut self) -> Result<()> {
         if let TimeSeriesKernelType::Autoregressive { .. } = &self.config.kernel_type {
-            let ar_coefficients = self.ar_coefficients.as_ref().unwrap();
+            let ar_coefficients = self
+                .ar_coefficients
+                .as_ref()
+                .expect("operation should succeed");
             let (_, n_ar_features) = ar_coefficients.dim();
 
             let mut rng = if let Some(seed) = self.config.random_state {
                 RealStdRng::seed_from_u64(seed)
             } else {
-                RealStdRng::from_seed(thread_rng().gen())
+                RealStdRng::from_seed(thread_rng().random())
             };
 
-            let normal = RandNormal::new(0.0, 1.0).unwrap();
+            let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
             let random_features =
                 Array2::from_shape_fn((self.config.n_components, n_ar_features), |_| {
                     rng.sample(normal)
@@ -684,10 +691,10 @@ impl SpectralKernelApproximation {
         let mut rng = if let Some(seed) = self.config.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let frequency_features =
             Array2::from_shape_fn((self.config.n_components, n_spectrum_features), |_| {
                 rng.sample(normal)
@@ -730,18 +737,20 @@ impl GlobalAlignmentKernelApproximation {
         let mut rng = if let Some(seed) = self.config.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         let n_references = std::cmp::min(self.config.n_components, n_series);
         let mut indices: Vec<usize> = (0..n_series).collect();
-        indices.sort_by_key(|_| rng.gen::<u32>());
+        indices.sort_by_key(|_| rng.random::<u32>());
         indices.truncate(n_references);
 
         let mut reference_series = Array2::zeros((n_references, n_timepoints * n_features));
         for (i, &idx) in indices.iter().enumerate() {
             let series = time_series.slice(s![idx, .., ..]);
-            let flattened = series.into_shape((n_timepoints * n_features,)).unwrap();
+            let flattened = series
+                .into_shape((n_timepoints * n_features,))
+                .expect("operation should succeed");
             reference_series.row_mut(i).assign(&flattened);
         }
 
@@ -760,7 +769,9 @@ impl GlobalAlignmentKernelApproximation {
 
         for i in 0..n_series {
             let series = time_series.slice(s![i, .., ..]);
-            let series_flat = series.into_shape((n_timepoints * n_features,)).unwrap();
+            let series_flat = series
+                .into_shape((n_timepoints * n_features,))
+                .expect("operation should succeed");
 
             for j in 0..n_references {
                 let reference = reference_series.row(j);
@@ -792,7 +803,7 @@ impl GlobalAlignmentKernelApproximation {
                     gak_matrix[[i - 1, j - 1]] * kernel_val,
                 ]
                 .into_iter()
-                .max_by(|a: &f64, b: &f64| a.partial_cmp(b).unwrap())
+                .max_by(|a: &f64, b: &f64| a.partial_cmp(b).expect("operation should succeed"))
                 .unwrap_or(0.0);
 
                 gak_matrix[[i, j]] = max_alignment;
@@ -831,8 +842,12 @@ mod tests {
             .bandwidth(1.0)
             .window_size(Some(2));
 
-        dtw_kernel.fit(&time_series).unwrap();
-        let features = dtw_kernel.transform(&time_series).unwrap();
+        dtw_kernel
+            .fit(&time_series)
+            .expect("operation should succeed");
+        let features = dtw_kernel
+            .transform(&time_series)
+            .expect("operation should succeed");
 
         assert_eq!(features.shape(), &[5, 3]);
 
@@ -846,8 +861,12 @@ mod tests {
 
         let mut ar_kernel = AutoregressiveKernelApproximation::new(4, 2).lambda(0.1);
 
-        ar_kernel.fit(&time_series).unwrap();
-        let features = ar_kernel.transform(&time_series).unwrap();
+        ar_kernel
+            .fit(&time_series)
+            .expect("operation should succeed");
+        let features = ar_kernel
+            .transform(&time_series)
+            .expect("operation should succeed");
 
         assert_eq!(features.shape(), &[5, 4]);
     }
@@ -858,8 +877,12 @@ mod tests {
 
         let mut spectral_kernel = SpectralKernelApproximation::new(6, 5).magnitude_only(true);
 
-        spectral_kernel.fit(&time_series).unwrap();
-        let features = spectral_kernel.transform(&time_series).unwrap();
+        spectral_kernel
+            .fit(&time_series)
+            .expect("operation should succeed");
+        let features = spectral_kernel
+            .transform(&time_series)
+            .expect("operation should succeed");
 
         assert_eq!(features.shape(), &[5, 6]);
     }
@@ -870,8 +893,10 @@ mod tests {
 
         let mut gak = GlobalAlignmentKernelApproximation::new(3, 1.0);
 
-        gak.fit(&time_series).unwrap();
-        let features = gak.transform(&time_series).unwrap();
+        gak.fit(&time_series).expect("operation should succeed");
+        let features = gak
+            .transform(&time_series)
+            .expect("operation should succeed");
 
         assert_eq!(features.shape(), &[5, 3]);
         assert!(features.iter().all(|&x| x >= 0.0));
@@ -885,7 +910,7 @@ mod tests {
         let dtw_kernel = DTWKernelApproximation::new(1);
         let distance = dtw_kernel
             .compute_dtw_distance(&series1.view(), &series2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(distance >= 0.0);
         assert!(distance.is_finite());
@@ -897,7 +922,9 @@ mod tests {
         let series = time_series.slice(s![0, .., ..]);
 
         let ar_kernel = AutoregressiveKernelApproximation::new(10, 2);
-        let coeffs = ar_kernel.fit_ar_model(&series, 2, 0.1).unwrap();
+        let coeffs = ar_kernel
+            .fit_ar_model(&series, 2, 0.1)
+            .expect("operation should succeed");
 
         assert_eq!(coeffs.len(), 4); // 2 lags * 2 features
     }
@@ -910,7 +937,7 @@ mod tests {
         let spectral_kernel = SpectralKernelApproximation::new(10, 5);
         let features = spectral_kernel
             .compute_frequency_features(&series, 5, true)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(features.len(), 10); // 5 frequencies * 2 features
         assert!(features.iter().all(|&x| x >= 0.0)); // Magnitudes are non-negative
@@ -957,16 +984,23 @@ mod tests {
         let mut dtw1 = DTWKernelApproximation::new(3).with_config(config1);
         let mut dtw2 = DTWKernelApproximation::new(3).with_config(config2);
 
-        dtw1.fit(&time_series).unwrap();
-        dtw2.fit(&time_series).unwrap();
+        dtw1.fit(&time_series).expect("operation should succeed");
+        dtw2.fit(&time_series).expect("operation should succeed");
 
-        let features1 = dtw1.transform(&time_series).unwrap();
-        let features2 = dtw2.transform(&time_series).unwrap();
+        let features1 = dtw1
+            .transform(&time_series)
+            .expect("operation should succeed");
+        let features2 = dtw2
+            .transform(&time_series)
+            .expect("operation should succeed");
 
         // Should be approximately equal due to same random state
         for i in 0..features1.len() {
             assert!(
-                (features1.as_slice().unwrap()[i] - features2.as_slice().unwrap()[i]).abs() < 1e-10
+                (features1.as_slice().expect("operation should succeed")[i]
+                    - features2.as_slice().expect("operation should succeed")[i])
+                    .abs()
+                    < 1e-10
             );
         }
     }

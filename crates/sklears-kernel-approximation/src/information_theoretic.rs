@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::error::Result;
 
@@ -71,7 +71,7 @@ impl sklears_core::traits::Fit<Array2<f64>, Array1<f64>> for MutualInformationKe
     fn fit(self, x: &Array2<f64>, y: &Array1<f64>) -> Result<Self::Fitted> {
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let (_n_samples, n_features) = x.dim();
@@ -92,7 +92,7 @@ impl sklears_core::traits::Fit<Array2<f64>, Array1<f64>> for MutualInformationKe
         };
 
         // Generate random features weighted by MI scores
-        let normal = RandNormal::new(0.0, 1.0 / self.sigma).unwrap();
+        let normal = RandNormal::new(0.0, 1.0 / self.sigma).expect("operation should succeed");
         let mut random_features = Array2::zeros((self.n_components, n_features));
 
         for i in 0..self.n_components {
@@ -224,7 +224,7 @@ impl sklears_core::traits::Fit<Array2<f64>, Array1<f64>> for EntropyFeatureSelec
             .enumerate()
             .map(|(i, &score)| (i, score))
             .collect();
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_features: Vec<usize> = indexed_scores
             .iter()
@@ -325,13 +325,13 @@ impl sklears_core::traits::Fit<Array2<f64>, ()> for KLDivergenceKernel {
     fn fit(self, x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let (_, n_features) = x.dim();
 
         // Generate random projections
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let mut random_projections = Array2::zeros((self.n_components, n_features));
         for i in 0..self.n_components {
             for j in 0..n_features {
@@ -470,14 +470,14 @@ impl sklears_core::traits::Fit<Array2<f64>, Array1<f64>> for InformationBottlene
     fn fit(self, x: &Array2<f64>, y: &Array1<f64>) -> Result<Self::Fitted> {
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let (n_samples, n_features) = x.dim();
 
         // Initialize cluster centers randomly
         let mut cluster_centers = Array2::zeros((self.n_components, n_features));
-        let uniform = RandUniform::new(0, n_samples).unwrap();
+        let uniform = RandUniform::new(0, n_samples).expect("operation should succeed");
         for i in 0..self.n_components {
             let sample_idx = rng.sample(uniform);
             cluster_centers.row_mut(i).assign(&x.row(sample_idx));
@@ -753,7 +753,7 @@ fn compute_kl_divergence(p: &Array1<f64>, q: &Array1<f64>) -> Result<f64> {
 fn compute_gaussian_reference_histogram(bins: &Array1<f64>, mean: f64, std: f64) -> Array1<f64> {
     let n_bins = bins.len() - 1;
     let mut hist = Array1::zeros(n_bins);
-    let _normal = RandNormal::new(mean, std).unwrap();
+    let _normal = RandNormal::new(mean, std).expect("operation should succeed");
 
     for i in 0..n_bins {
         let bin_center = (bins[i] + bins[i + 1]) / 2.0;
@@ -820,8 +820,8 @@ mod tests {
             .sigma(1.0)
             .random_state(42);
 
-        let fitted = mi_kernel.fit(&x, &y).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = mi_kernel.fit(&x, &y).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[4, 20]); // 10 components * 2 (cos, sin)
         assert!(fitted.mi_scores.iter().all(|&x| x >= 0.0));
@@ -841,8 +841,8 @@ mod tests {
             .selection_method(EntropySelectionMethod::MaxMutualInformation)
             .n_bins(3);
 
-        let fitted = selector.fit(&x, &y).unwrap();
-        let selected_features = fitted.transform(&x).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
+        let selected_features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(selected_features.shape(), &[4, 2]);
         assert_eq!(fitted.selected_features.len(), 2);
@@ -860,8 +860,8 @@ mod tests {
             .n_bins(10)
             .random_state(42);
 
-        let fitted = kl_kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kl_kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[4, 5]);
         assert!(fitted.kl_weights.iter().all(|&x| x >= 0.0));
@@ -883,8 +883,8 @@ mod tests {
             .max_iterations(10)
             .random_state(42);
 
-        let fitted = ib_extractor.fit(&x, &y).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = ib_extractor.fit(&x, &y).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[4, 2]);
         assert!(fitted.information_values.iter().all(|&x| x >= 0.0));
@@ -893,7 +893,7 @@ mod tests {
     #[test]
     fn test_entropy_computation() {
         let data = array![1.0, 1.0, 2.0, 2.0, 3.0, 3.0];
-        let entropy = compute_entropy(&data.to_owned(), 3).unwrap();
+        let entropy = compute_entropy(&data.to_owned(), 3).expect("operation should succeed");
 
         // For uniform distribution over 3 bins: H = log2(3) ≈ 1.585
         assert!((entropy - 1.585).abs() < 0.1);
@@ -904,7 +904,8 @@ mod tests {
         let x = array![1.0, 1.0, 2.0, 2.0];
         let y = array![1.0, 1.0, 2.0, 2.0]; // Perfect correlation
 
-        let mi = compute_mutual_information(&x.view(), &y.view(), 2).unwrap();
+        let mi =
+            compute_mutual_information(&x.view(), &y.view(), 2).expect("operation should succeed");
 
         // Perfect correlation should give high MI
         assert!(mi > 0.5);

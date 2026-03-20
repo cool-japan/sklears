@@ -8,7 +8,6 @@ use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -170,7 +169,7 @@ impl CVSplitter for KFoldSplitter {
             let mut rng = if let Some(seed) = self.random_seed {
                 StdRng::seed_from_u64(seed)
             } else {
-                StdRng::from_seed(thread_rng().gen())
+                StdRng::from_seed(thread_rng().random())
             };
 
             indices.shuffle(&mut rng);
@@ -271,7 +270,7 @@ impl CVSplitter for MonteCarloCVSplitter {
         let mut rng = if let Some(seed) = self.random_seed {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::from_seed(thread_rng().gen())
+            StdRng::from_seed(thread_rng().random())
         };
 
         let mut splits = Vec::new();
@@ -542,7 +541,7 @@ impl CrossValidator {
                                 degree: None,
                                 coef0: None
                             })
-                            .unwrap()
+                            .expect("operation should succeed")
                             .std_test_score
                     );
                 }
@@ -773,7 +772,8 @@ mod tests {
 
     #[test]
     fn test_kfold_splitter() {
-        let x = Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let splitter = KFoldSplitter::new(4, false, Some(42));
         let splits = splitter.split(&x, None);
@@ -799,7 +799,8 @@ mod tests {
 
     #[test]
     fn test_time_series_splitter() {
-        let x = Array2::from_shape_vec((30, 2), (0..60).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((30, 2), (0..60).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let splitter = TimeSeriesSplitter::new(3, Some(15));
         let splits = splitter.split(&x, None);
@@ -809,8 +810,11 @@ mod tests {
         // Check that training sets are chronologically before test sets
         for (train_indices, test_indices) in &splits {
             if !train_indices.is_empty() && !test_indices.is_empty() {
-                let max_train = train_indices.iter().max().unwrap();
-                let min_test = test_indices.iter().min().unwrap();
+                let max_train = train_indices
+                    .iter()
+                    .max()
+                    .expect("operation should succeed");
+                let min_test = test_indices.iter().min().expect("operation should succeed");
                 assert!(max_train < min_test);
             }
         }
@@ -818,7 +822,8 @@ mod tests {
 
     #[test]
     fn test_monte_carlo_splitter() {
-        let x = Array2::from_shape_vec((50, 4), (0..200).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 4), (0..200).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let splitter = MonteCarloCVSplitter::new(5, 0.3, Some(123));
         let splits = splitter.split(&x, None);
@@ -836,8 +841,8 @@ mod tests {
 
     #[test]
     fn test_cross_validator_rbf() {
-        let x =
-            Array2::from_shape_vec((40, 5), (0..200).map(|i| i as f64 * 0.01).collect()).unwrap();
+        let x = Array2::from_shape_vec((40, 5), (0..200).map(|i| i as f64 * 0.01).collect())
+            .expect("operation should succeed");
 
         let config = CrossValidationConfig {
             cv_strategy: CVStrategy::KFold {
@@ -858,11 +863,20 @@ mod tests {
             coef0: None,
         };
 
-        let result = cv.cross_validate_rbf(&x, None, &params).unwrap();
+        let result = cv
+            .cross_validate_rbf(&x, None, &params)
+            .expect("operation should succeed");
 
         assert_eq!(result.test_scores.len(), 3);
         assert!(result.train_scores.is_some());
-        assert_eq!(result.train_scores.as_ref().unwrap().len(), 3);
+        assert_eq!(
+            result
+                .train_scores
+                .as_ref()
+                .expect("operation should succeed")
+                .len(),
+            3
+        );
         assert!(result.mean_test_score > 0.0);
         assert!(result.std_test_score >= 0.0);
         assert!(result.mean_train_score.is_some());
@@ -873,8 +887,8 @@ mod tests {
 
     #[test]
     fn test_cross_validator_nystroem() {
-        let x =
-            Array2::from_shape_vec((30, 4), (0..120).map(|i| i as f64 * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((30, 4), (0..120).map(|i| i as f64 * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = CrossValidationConfig {
             cv_strategy: CVStrategy::KFold {
@@ -893,7 +907,9 @@ mod tests {
             coef0: None,
         };
 
-        let result = cv.cross_validate_nystroem(&x, None, &params).unwrap();
+        let result = cv
+            .cross_validate_nystroem(&x, None, &params)
+            .expect("operation should succeed");
 
         assert_eq!(result.test_scores.len(), 4);
         assert!(result.mean_test_score > 0.0);
@@ -902,8 +918,8 @@ mod tests {
 
     #[test]
     fn test_grid_search_cv() {
-        let x =
-            Array2::from_shape_vec((25, 3), (0..75).map(|i| i as f64 * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((25, 3), (0..75).map(|i| i as f64 * 0.05).collect())
+            .expect("operation should succeed");
 
         let config = CrossValidationConfig {
             cv_strategy: CVStrategy::KFold {
@@ -921,8 +937,9 @@ mod tests {
         param_grid.insert("gamma".to_string(), vec![0.1, 1.0]);
         param_grid.insert("n_components".to_string(), vec![10.0, 20.0]);
 
-        let (best_params, best_score, all_results) =
-            cv.grid_search_cv(&x, None, &param_grid).unwrap();
+        let (best_params, best_score, all_results) = cv
+            .grid_search_cv(&x, None, &param_grid)
+            .expect("operation should succeed");
 
         assert!(best_score > 0.0);
         assert!(best_params.gamma == 0.1 || best_params.gamma == 1.0);
@@ -939,7 +956,8 @@ mod tests {
 
     #[test]
     fn test_cross_validation_with_targets() {
-        let x = Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
         let y = Array1::from_shape_fn(20, |i| (i as f64 * 0.1).sin());
 
         let config = CrossValidationConfig {
@@ -960,7 +978,9 @@ mod tests {
             coef0: None,
         };
 
-        let result = cv.cross_validate_rbf(&x, Some(&y), &params).unwrap();
+        let result = cv
+            .cross_validate_rbf(&x, Some(&y), &params)
+            .expect("operation should succeed");
 
         assert_eq!(result.test_scores.len(), 4);
         // MSE scores are negative (we negate them to convert to maximization)
@@ -969,7 +989,8 @@ mod tests {
 
     #[test]
     fn test_cv_splitter_consistency() {
-        let x = Array2::from_shape_vec((15, 2), (0..30).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((15, 2), (0..30).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         // Test that the same splitter with same seed produces same results
         let splitter1 = KFoldSplitter::new(3, true, Some(42));
@@ -997,13 +1018,15 @@ mod tests {
             (0.82, Some(0.88), 0.11, 0.06),
         ];
 
-        let result = cv.aggregate_results(fold_results).unwrap();
+        let result = cv
+            .aggregate_results(fold_results)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(result.mean_test_score, 0.79, epsilon = 1e-10);
         assert!(result.std_test_score > 0.0);
         assert!(result.mean_train_score.is_some());
         assert_abs_diff_eq!(
-            result.mean_train_score.unwrap(),
+            result.mean_train_score.expect("operation should succeed"),
             0.8433333333333334,
             epsilon = 1e-10
         );

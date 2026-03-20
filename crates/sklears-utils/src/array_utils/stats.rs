@@ -38,7 +38,7 @@ where
     }
 
     let sum = array.iter().fold(T::zero(), |acc, &x| acc + x);
-    let count = T::from(array.len()).unwrap();
+    let count = T::from(array.len()).expect("operation should succeed");
     Ok(sum / count)
 }
 
@@ -83,7 +83,7 @@ where
         })
         .fold(T::zero(), |acc, x| acc + x);
 
-    let n_minus_1 = T::from(array.len() - 1).unwrap();
+    let n_minus_1 = T::from(array.len() - 1).expect("operation should succeed");
     Ok(variance / n_minus_1)
 }
 
@@ -193,7 +193,7 @@ where
     }
 
     let mut sorted: Vec<T> = array.iter().cloned().collect();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let len = sorted.len();
     if len % 2 == 1 {
@@ -201,7 +201,7 @@ where
     } else {
         let mid = len / 2;
         let sum = sorted[mid - 1] + sorted[mid];
-        Ok(sum / T::from(2.0).unwrap())
+        Ok(sum / T::from(2.0).expect("operation should succeed"))
     }
 }
 
@@ -221,7 +221,7 @@ where
     }
 
     let mut sorted: Vec<T> = array.iter().cloned().collect();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let len = sorted.len() as f64;
     let index = (percentile / 100.0) * (len - 1.0);
@@ -231,7 +231,7 @@ where
     if lower_index == upper_index {
         Ok(sorted[lower_index])
     } else {
-        let weight = T::from(index - lower_index as f64).unwrap();
+        let weight = T::from(index - lower_index as f64).expect("operation should succeed");
         let lower_val = sorted[lower_index];
         let upper_val = sorted[upper_index];
         Ok(lower_val + weight * (upper_val - lower_val))
@@ -248,7 +248,7 @@ where
     }
 
     let mut sorted: Vec<T> = array.iter().cloned().collect();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let mut results = Vec::with_capacity(quantiles.len());
     let len = sorted.len() as f64;
@@ -267,7 +267,7 @@ where
         let result = if lower_index == upper_index {
             sorted[lower_index]
         } else {
-            let weight = T::from(index - lower_index as f64).unwrap();
+            let weight = T::from(index - lower_index as f64).expect("operation should succeed");
             let lower_val = sorted[lower_index];
             let upper_val = sorted[upper_index];
             lower_val + weight * (upper_val - lower_val)
@@ -314,7 +314,7 @@ where
     let mean = array_mean(array)?;
     let std = array_std(array)?;
 
-    if std.abs() < T::from(1e-10).unwrap() {
+    if std.abs() < T::from(1e-10).expect("operation should succeed") {
         return Err(UtilsError::InvalidParameter(
             "Standard deviation too small for standardization".to_string(),
         ));
@@ -336,7 +336,7 @@ where
     let (min_val, max_val) = array_min_max(array)?;
     let range = max_val - min_val;
 
-    if range.abs() < T::from(1e-10).unwrap() {
+    if range.abs() < T::from(1e-10).expect("operation should succeed") {
         // All values are the same, return zeros
         return Ok(Array1::zeros(array.len()));
     }

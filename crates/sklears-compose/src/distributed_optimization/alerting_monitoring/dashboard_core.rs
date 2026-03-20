@@ -530,7 +530,7 @@ impl DashboardManager {
 
     /// Add a new dashboard
     pub fn add_dashboard(&self, dashboard: Dashboard) -> Result<(), DashboardError> {
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(max_dashboards) = self.config.max_dashboards {
             if dashboards.len() >= max_dashboards as usize {
@@ -544,25 +544,25 @@ impl DashboardManager {
 
     /// Remove a dashboard
     pub fn remove_dashboard(&self, dashboard_id: &str) -> Option<Dashboard> {
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
         dashboards.remove(dashboard_id)
     }
 
     /// Get a dashboard
     pub fn get_dashboard(&self, dashboard_id: &str) -> Option<Dashboard> {
-        let dashboards = self.dashboards.read().unwrap();
+        let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
         dashboards.get(dashboard_id).cloned()
     }
 
     /// List all dashboards
     pub fn list_dashboards(&self) -> Vec<Dashboard> {
-        let dashboards = self.dashboards.read().unwrap();
+        let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
         dashboards.values().cloned().collect()
     }
 
     /// Update dashboard
     pub fn update_dashboard(&self, dashboard: Dashboard) -> Result<(), DashboardError> {
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
 
         if !dashboards.contains_key(&dashboard.dashboard_id) {
             return Err(DashboardError::DashboardNotFound(dashboard.dashboard_id));

@@ -257,7 +257,7 @@ impl DensityPeaks<Untrained> {
             ));
         }
 
-        all_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        all_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let percentile_idx =
             ((self.config.cutoff_percentile / 100.0) * all_distances.len() as Float) as usize;
         let cutoff_idx = percentile_idx.min(all_distances.len() - 1);
@@ -355,7 +355,8 @@ impl DensityPeaks<Untrained> {
             Some(threshold) => threshold,
             None => {
                 let mut sorted_densities = densities.to_vec();
-                sorted_densities.sort_by(|a, b| b.partial_cmp(a).unwrap());
+                sorted_densities
+                    .sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
                 // Use 80th percentile as default
                 let idx = (0.2 * sorted_densities.len() as Float) as usize;
                 sorted_densities[idx.min(sorted_densities.len() - 1)]
@@ -366,7 +367,7 @@ impl DensityPeaks<Untrained> {
             Some(threshold) => threshold,
             None => {
                 let mut sorted_deltas = deltas.to_vec();
-                sorted_deltas.sort_by(|a, b| b.partial_cmp(a).unwrap());
+                sorted_deltas.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
                 // Use 80th percentile as default
                 let idx = (0.2 * sorted_deltas.len() as Float) as usize;
                 sorted_deltas[idx.min(sorted_deltas.len() - 1)]
@@ -415,7 +416,11 @@ impl DensityPeaks<Untrained> {
 
         // Create sorted indices by density (descending)
         let mut density_order: Vec<usize> = (0..n_samples).collect();
-        density_order.sort_by(|&a, &b| densities[b].partial_cmp(&densities[a]).unwrap());
+        density_order.sort_by(|&a, &b| {
+            densities[b]
+                .partial_cmp(&densities[a])
+                .expect("operation should succeed")
+        });
 
         // Assign points in order of decreasing density
         for &i in &density_order {
@@ -593,7 +598,7 @@ mod tests {
         let model = DensityPeaks::new()
             .cutoff_percentile(20.0) // Use larger percentile for small dataset
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         let n_clusters = model.n_clusters();
@@ -614,14 +619,14 @@ mod tests {
         let model = DensityPeaks::new()
             .cutoff_percentile(20.0)
             .fit(&train_data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![
             [0.05, 0.05], // Close to first cluster
             [5.05, 5.05], // Close to second cluster
         ];
 
-        let predictions = model.predict(&test_data).unwrap();
+        let predictions = model.predict(&test_data).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -633,7 +638,7 @@ mod tests {
             .use_gaussian_kernel(true)
             .cutoff_percentile(20.0)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let densities = model.densities();
         assert!(densities.iter().all(|&d| d >= 0.0));
@@ -652,7 +657,7 @@ mod tests {
                 .metric(metric)
                 .cutoff_percentile(30.0)
                 .fit(&data, &())
-                .unwrap();
+                .expect("operation should succeed");
 
             assert!(model.n_clusters() >= 1);
         }

@@ -1060,7 +1060,7 @@ mod tests {
             }),
         };
         
-        let args = runtime.build_docker_run_args(&config).await.unwrap();
+        let args = runtime.build_docker_run_args(&config).await.unwrap_or_default();
         
         assert!(args.contains(&"-e".to_string()));
         assert!(args.contains(&"KEY=value".to_string()));

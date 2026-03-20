@@ -208,7 +208,8 @@ impl StructuredKernelInterpolationGPR {
                 GridBoundsMethod::Fixed { min, max } => (min, max),
                 GridBoundsMethod::Quantile { lower, upper } => {
                     let mut sorted_values: Vec<f64> = column.to_vec();
-                    sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted_values
+                        .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let n = sorted_values.len();
                     let lower_idx = ((n as f64 * lower) as usize).min(n - 1);
                     let upper_idx = ((n as f64 * upper) as usize).min(n - 1);
@@ -217,7 +218,8 @@ impl StructuredKernelInterpolationGPR {
                 GridBoundsMethod::Adaptive => {
                     // Use IQR-based robust bounds
                     let mut sorted_values: Vec<f64> = column.to_vec();
-                    sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted_values
+                        .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let n = sorted_values.len();
                     let q1_idx = (n / 4).min(n - 1);
                     let q3_idx = (3 * n / 4).min(n - 1);
@@ -699,8 +701,11 @@ mod tests {
             .grid_bounds_method(GridBoundsMethod::DataRange)
             .boundary_extension(0.1);
 
-        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let bounds = gpr.determine_grid_bounds(&X.view()).unwrap();
+        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let bounds = gpr
+            .determine_grid_bounds(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(bounds.len(), 2);
         assert!(bounds[0].0 < 1.0); // Should be extended below minimum
@@ -713,7 +718,9 @@ mod tests {
         let gpr = StructuredKernelInterpolationGPR::new(kernel).grid_size(5);
 
         let bounds = vec![(0.0, 10.0), (-5.0, 5.0)];
-        let grid_points = gpr.create_grid_points(&bounds).unwrap();
+        let grid_points = gpr
+            .create_grid_points(&bounds)
+            .expect("operation should succeed");
 
         assert_eq!(grid_points.len(), 2);
         assert_eq!(grid_points[0].len(), 5);
@@ -730,13 +737,14 @@ mod tests {
             .grid_size(4)
             .interpolation_method(InterpolationMethod::Linear);
 
-        let X = Array2::from_shape_vec((2, 1), vec![2.5, 7.5]).unwrap();
+        let X = Array2::from_shape_vec((2, 1), vec![2.5, 7.5])
+            .expect("shape and data length should match");
         let grid_points = vec![Array1::linspace(0.0, 10.0, 4)];
         let bounds = vec![(0.0, 10.0)];
 
         let weights = gpr
             .compute_interpolation_weights(&X.view(), &grid_points, &bounds)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(weights.nrows(), 2);
         assert_eq!(weights.ncols(), 4);
@@ -757,11 +765,16 @@ mod tests {
             .interpolation_method(InterpolationMethod::Linear)
             .use_toeplitz(false); // Disable for multi-dimensional case
 
-        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
+        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 4.0, 9.0, 16.0, 25.0]);
 
-        let trained = gpr.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = gpr
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert!(trained.log_marginal_likelihood().is_finite());
@@ -775,11 +788,16 @@ mod tests {
             .grid_size(6)
             .use_toeplitz(false);
 
-        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let trained = gpr.fit(&X.view(), &y.view()).unwrap();
-        let (predictions, variances) = trained.predict_with_uncertainty(&X.view()).unwrap();
+        let trained = gpr
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let (predictions, variances) = trained
+            .predict_with_uncertainty(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(variances.len(), 3);
@@ -804,7 +822,8 @@ mod tests {
                 .interpolation_method(method)
                 .use_toeplitz(false);
 
-            let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+            let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+                .expect("shape and data length should match");
             let y = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
             let result = gpr.fit(&X.view(), &y.view());
@@ -820,11 +839,16 @@ mod tests {
             .grid_size(8)
             .use_toeplitz(false);
 
-        let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = Array1::from_vec((0..10).map(|x| x as f64).collect());
 
-        let trained = gpr.fit(&X.view(), &y.view()).unwrap();
-        let info = trained.approximation_info().unwrap();
+        let trained = gpr
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let info = trained
+            .approximation_info()
+            .expect("operation should succeed");
 
         assert!(info.effective_dof > 0.0);
         assert!(info.memory_reduction_factor > 0.0);

@@ -288,7 +288,7 @@ impl Fit for LinearRegression {
 
         // Calculate intercept
         let predictions: Array1<Float> = x.dot(&coefficients);
-        let intercept = y.mean().unwrap() - predictions.mean().unwrap();
+        let intercept = y.mean().unwrap_or_default() - predictions.mean().unwrap_or_default();
 
         self.coefficients = Some(coefficients);
         self.intercept = Some(intercept);
@@ -367,7 +367,7 @@ fn demo_basic_pipeline(X: &Array2<Float>, y: &Array1<Float>) -> SklResult<()> {
         / y.len() as Float;
 
     let r2 = {
-        let y_mean = y.mean().unwrap();
+        let y_mean = y.mean().unwrap_or_default();
         let ss_tot: Float = y.iter().map(|&val| (val - y_mean).powi(2)).sum();
         let ss_res: Float = y
             .iter()

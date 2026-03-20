@@ -488,7 +488,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let y = array![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
 
-        let result = simd_kernels.linear_kernel(&x.view(), &y.view()).unwrap();
+        let result = simd_kernels
+            .linear_kernel(&x.view(), &y.view())
+            .expect("operation should succeed");
         let expected: Float = x.iter().zip(y.iter()).map(|(&a, &b)| a * b).sum();
 
         assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
@@ -505,7 +507,7 @@ mod tests {
 
         let result = simd_kernels
             .rbf_kernel(&x.view(), &y.view(), gamma)
-            .unwrap();
+            .expect("operation should succeed");
 
         let squared_distance: Float = x.iter().zip(y.iter()).map(|(&a, &b)| (a - b).powi(2)).sum();
         let expected = (-gamma * squared_distance).exp();
@@ -523,7 +525,7 @@ mod tests {
 
         let kernel_matrix = simd_kernels
             .compute_kernel_matrix(&x, &y, |x_i, y_j| simd_kernels.linear_kernel(x_i, y_j))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(kernel_matrix.shape(), &[3, 2]);
 
@@ -544,7 +546,7 @@ mod tests {
 
         let kernel_matrix = simd_kernels
             .compute_symmetric_kernel_matrix(&x, |x_i, x_j| simd_kernels.linear_kernel(x_i, x_j))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(kernel_matrix.shape(), &[3, 3]);
 
@@ -570,7 +572,7 @@ mod tests {
 
         let diagonal = simd_kernels
             .compute_kernel_diagonal(&x, |x_i, x_j| simd_kernels.rbf_kernel(x_i, x_j, gamma))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(diagonal.len(), 3);
 
@@ -596,11 +598,15 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0];
         let y = array![2.0, 3.0, 4.0, 5.0];
 
-        let linear_result = kernel_funcs.linear(&x.view(), &y.view()).unwrap();
-        let rbf_result = kernel_funcs.rbf(&x.view(), &y.view(), 0.5).unwrap();
+        let linear_result = kernel_funcs
+            .linear(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let rbf_result = kernel_funcs
+            .rbf(&x.view(), &y.view(), 0.5)
+            .expect("operation should succeed");
         let poly_result = kernel_funcs
             .polynomial(&x.view(), &y.view(), 2, 1.0, 1.0)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(linear_result > 0.0);
         assert!(rbf_result > 0.0 && rbf_result <= 1.0);

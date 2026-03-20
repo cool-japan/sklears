@@ -136,9 +136,11 @@ impl SimdOps {
         unsafe {
             let len = a.len();
             let mut result = Array1::zeros(len);
-            let a_slice = a.as_slice().unwrap();
-            let b_slice = b.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let a_slice = a.as_slice().expect("slice operation should succeed");
+            let b_slice = b.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let simd_len = len & !7; // Process 8 elements at a time
 
@@ -163,8 +165,10 @@ impl SimdOps {
         unsafe {
             let len = array.len();
             let mut result = Array1::zeros(len);
-            let array_slice = array.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let array_slice = array.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let scalar_vec = _mm256_set1_pd(scalar);
             let simd_len = len & !7; // Process 8 elements at a time
@@ -189,9 +193,11 @@ impl SimdOps {
         unsafe {
             let len = a.len();
             let mut result = Array1::zeros(len);
-            let a_slice = a.as_slice().unwrap();
-            let b_slice = b.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let a_slice = a.as_slice().expect("slice operation should succeed");
+            let b_slice = b.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let simd_len = len & !3; // Process 4 elements at a time
 
@@ -216,8 +222,10 @@ impl SimdOps {
         unsafe {
             let len = array.len();
             let mut result = Array1::zeros(len);
-            let array_slice = array.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let array_slice = array.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let scalar_vec = _mm256_set1_pd(scalar);
             let simd_len = len & !3; // Process 4 elements at a time
@@ -242,9 +250,11 @@ impl SimdOps {
         unsafe {
             let len = a.len();
             let mut result = Array1::zeros(len);
-            let a_slice = a.as_slice().unwrap();
-            let b_slice = b.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let a_slice = a.as_slice().expect("slice operation should succeed");
+            let b_slice = b.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let simd_len = len & !1; // Process 2 elements at a time
 
@@ -269,8 +279,10 @@ impl SimdOps {
         unsafe {
             let len = array.len();
             let mut result = Array1::zeros(len);
-            let array_slice = array.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let array_slice = array.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let scalar_vec = _mm_set1_pd(scalar);
             let simd_len = len & !1; // Process 2 elements at a time
@@ -295,9 +307,11 @@ impl SimdOps {
         unsafe {
             let len = a.len();
             let mut result = Array1::zeros(len);
-            let a_slice = a.as_slice().unwrap();
-            let b_slice = b.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let a_slice = a.as_slice().expect("slice operation should succeed");
+            let b_slice = b.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let simd_len = len & !1; // Process 2 elements at a time
 
@@ -322,8 +336,10 @@ impl SimdOps {
         unsafe {
             let len = array.len();
             let mut result = Array1::zeros(len);
-            let array_slice = array.as_slice().unwrap();
-            let result_slice = result.as_slice_mut().unwrap();
+            let array_slice = array.as_slice().expect("slice operation should succeed");
+            let result_slice = result
+                .as_slice_mut()
+                .expect("slice operation should succeed");
 
             let scalar_vec = vdupq_n_f64(scalar);
             let simd_len = len & !1; // Process 2 elements at a time

@@ -6,7 +6,7 @@
 use crate::{Float, SklResult};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -264,8 +264,6 @@ impl TestingSuite {
         M: Fn(&ArrayView2<Float>) -> SklResult<Array1<Float>>,
         F: Fn(&ArrayView2<Float>) -> SklResult<Array1<Float>>,
     {
-        use scirs2_core::random::Rng;
-
         let mut rng = if let Some(seed) = self.fidelity_config.seed {
             scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         } else {
@@ -290,9 +288,9 @@ impl TestingSuite {
 
                 // Perturb features based on explanation importance
                 for j in 0..n_features {
-                    if rng.gen::<Float>() < self.fidelity_config.perturbation_magnitude {
+                    if rng.random::<Float>() < self.fidelity_config.perturbation_magnitude {
                         let importance = explanation[j].abs();
-                        let perturbation = rng.gen_range(-importance..importance);
+                        let perturbation = rng.random_range(-importance..importance);
                         perturbed_instance[j] += perturbation;
                     }
                 }
@@ -372,8 +370,6 @@ impl TestingSuite {
     where
         F: Fn(&ArrayView2<Float>) -> SklResult<Array1<Float>>,
     {
-        use scirs2_core::random::Rng;
-
         let mut rng = if let Some(seed) = self.robustness_config.seed {
             scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         } else {
@@ -397,7 +393,7 @@ impl TestingSuite {
                     // Add noise to the instance
                     let mut noisy_instance = original_instance.to_owned();
                     for j in 0..noisy_instance.len() {
-                        let noise = rng.gen_range(-noise_level..noise_level);
+                        let noise = rng.random_range(-noise_level..noise_level);
                         noisy_instance[j] += noise;
                     }
 
@@ -477,20 +473,18 @@ impl TestingSuite {
     }
 
     // Helper methods
-    fn generate_test_data<R: scirs2_core::random::Rng>(
+    fn generate_test_data<R: scirs2_core::random::RngExt>(
         &self,
         rng: &mut R,
     ) -> SklResult<Array2<Float>> {
-        use scirs2_core::random::Rng;
-
-        let n_samples = rng.gen_range(10..self.property_config.max_samples.min(100 + 1));
-        let n_features = rng.gen_range(5..self.property_config.max_features.min(20 + 1));
+        let n_samples = rng.random_range(10..self.property_config.max_samples.min(100 + 1));
+        let n_features = rng.random_range(5..self.property_config.max_features.min(20 + 1));
 
         let mut data = Array2::zeros((n_samples, n_features));
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                data[[i, j]] = rng.gen_range(-2.0..2.0);
+                data[[i, j]] = rng.random_range(-2.0..2.0);
             }
         }
 
@@ -755,7 +749,8 @@ mod tests {
         let explanation = array![0.3, 0.5, -0.2, 0.1];
         let properties = ExplanationProperties::default();
 
-        let result = validate_explanation_output(&explanation.view(), &properties).unwrap();
+        let result = validate_explanation_output(&explanation.view(), &properties)
+            .expect("operation should succeed");
         assert!(result.passed);
         assert!(result.score > 0.8);
     }
@@ -765,7 +760,8 @@ mod tests {
         let explanation = array![0.3, Float::NAN, -0.2, 0.1];
         let properties = ExplanationProperties::default();
 
-        let result = validate_explanation_output(&explanation.view(), &properties).unwrap();
+        let result = validate_explanation_output(&explanation.view(), &properties)
+            .expect("operation should succeed");
         assert!(!result.passed);
         assert!(!result.violations.is_empty());
     }
@@ -778,7 +774,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = validate_explanation_output(&explanation.view(), &properties).unwrap();
+        let result = validate_explanation_output(&explanation.view(), &properties)
+            .expect("operation should succeed");
         assert!(!result.passed);
         assert!(result
             .violations
@@ -795,7 +792,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = validate_explanation_output(&explanation.view(), &properties).unwrap();
+        let result = validate_explanation_output(&explanation.view(), &properties)
+            .expect("operation should succeed");
         assert!(result.passed);
     }
 
@@ -804,7 +802,8 @@ mod tests {
         let explanation = array![0.3, 15.0, 0.2, 0.1]; // 15.0 exceeds default max_magnitude of 10.0
         let properties = ExplanationProperties::default();
 
-        let result = validate_explanation_output(&explanation.view(), &properties).unwrap();
+        let result = validate_explanation_output(&explanation.view(), &properties)
+            .expect("operation should succeed");
         assert!(!result.passed);
         assert!(result
             .violations
@@ -821,7 +820,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = validate_explanation_output(&explanation.view(), &properties).unwrap();
+        let result = validate_explanation_output(&explanation.view(), &properties)
+            .expect("operation should succeed");
         assert!(!result.passed);
         assert!(result
             .violations
@@ -863,7 +863,9 @@ mod tests {
         };
 
         let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
-        let data = suite.generate_test_data(&mut rng).unwrap();
+        let data = suite
+            .generate_test_data(&mut rng)
+            .expect("operation should succeed");
 
         assert!(data.nrows() >= 10 && data.nrows() <= 50);
         assert!(data.ncols() >= 5 && data.ncols() <= 10);

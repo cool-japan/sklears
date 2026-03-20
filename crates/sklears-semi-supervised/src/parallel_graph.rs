@@ -549,7 +549,8 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_parallel_knn_graph_small() {
         let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
-        let graph = parallel_knn_graph(&X.view(), 2, ParallelStrategy::Auto).unwrap();
+        let graph = parallel_knn_graph(&X.view(), 2, ParallelStrategy::Auto)
+            .expect("operation should succeed");
 
         assert_eq!(graph.dim(), (4, 4));
 
@@ -574,7 +575,7 @@ mod tests {
             2,
             ParallelStrategy::Parallel { min_chunk_size: 1 },
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(graph.dim(), (5, 5));
 
@@ -588,8 +589,8 @@ mod tests {
     fn test_parallel_graph_laplacian() {
         let adj = array![[0.0, 1.0, 0.5], [1.0, 0.0, 0.8], [0.5, 0.8, 0.0]];
 
-        let laplacian =
-            parallel_graph_laplacian(&adj.view(), true, ParallelStrategy::Auto).unwrap();
+        let laplacian = parallel_graph_laplacian(&adj.view(), true, ParallelStrategy::Auto)
+            .expect("operation should succeed");
 
         assert_eq!(laplacian.dim(), (3, 3));
 
@@ -603,8 +604,8 @@ mod tests {
     fn test_parallel_graph_laplacian_unnormalized() {
         let adj = array![[0.0, 1.0, 0.5], [1.0, 0.0, 0.8], [0.5, 0.8, 0.0]];
 
-        let laplacian =
-            parallel_graph_laplacian(&adj.view(), false, ParallelStrategy::Auto).unwrap();
+        let laplacian = parallel_graph_laplacian(&adj.view(), false, ParallelStrategy::Auto)
+            .expect("operation should succeed");
 
         assert_eq!(laplacian.dim(), (3, 3));
 
@@ -630,7 +631,7 @@ mod tests {
             0.5,
             ParallelStrategy::Auto,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(labels_new.dim(), (3, 2));
 
@@ -651,7 +652,8 @@ mod tests {
     fn test_parallel_pairwise_distances() {
         let X = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
-        let distances = parallel_pairwise_distances(&X.view(), ParallelStrategy::Auto).unwrap();
+        let distances = parallel_pairwise_distances(&X.view(), ParallelStrategy::Auto)
+            .expect("operation should succeed");
 
         assert_eq!(distances.dim(), (4, 4));
 

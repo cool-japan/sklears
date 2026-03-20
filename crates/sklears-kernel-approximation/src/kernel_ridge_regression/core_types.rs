@@ -394,7 +394,9 @@ pub mod utils {
 
     /// Center data (subtract mean)
     pub fn center_data(data: &mut Array2<Float>) -> Array1<Float> {
-        let means = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let means = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("operation should succeed");
         for mut row in data.axis_iter_mut(scirs2_core::ndarray::Axis(0)) {
             row -= &means;
         }
@@ -414,7 +416,7 @@ pub mod utils {
             use std::time::{SystemTime, UNIX_EPOCH};
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_nanos() as u64
         })
     }

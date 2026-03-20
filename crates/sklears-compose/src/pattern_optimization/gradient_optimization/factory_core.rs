@@ -921,7 +921,7 @@ impl GradientOptimizationFactory {
 
     /// Creates a component from a template.
     pub fn create_from_template(&self, template_name: &str) -> SklResult<Arc<dyn std::any::Any + Send + Sync>> {
-        let template_registry = self.template_registry.read().unwrap();
+        let template_registry = self.template_registry.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(optimizer_template) = template_registry.optimizer_templates.get(template_name) {
             let optimizer = self.create_core_optimizer_with_config(optimizer_template.config.clone())?;
@@ -933,15 +933,15 @@ impl GradientOptimizationFactory {
 
     /// Registers a custom template.
     pub fn register_template(&self, name: &str, template: CustomTemplate) -> SklResult<()> {
-        let mut template_registry = self.template_registry.write().unwrap();
+        let mut template_registry = self.template_registry.write().unwrap_or_else(|e| e.into_inner());
         template_registry.custom_templates.insert(name.to_string(), template);
         Ok(())
     }
 
     /// Gets factory statistics.
     pub fn get_statistics(&self) -> SklResult<FactoryStatistics> {
-        let creation_stats = self.creation_stats.lock().unwrap();
-        let registry = self.component_registry.read().unwrap();
+        let creation_stats = self.creation_stats.lock().unwrap_or_else(|e| e.into_inner());
+        let registry = self.component_registry.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(FactoryStatistics {
             total_components_created: creation_stats.total_created,
@@ -967,7 +967,7 @@ impl GradientOptimizationFactory {
     }
 
     fn get_cached_optimizer(&self, cache_key: &str) -> Option<Arc<GradientBasedOptimizer>> {
-        let registry = self.component_registry.read().unwrap();
+        let registry = self.component_registry.read().unwrap_or_else(|e| e.into_inner());
         registry.core_optimizers.get(cache_key).map(|cached| {
             // Update access statistics
             cached.component.clone()
@@ -975,7 +975,7 @@ impl GradientOptimizationFactory {
     }
 
     fn cache_optimizer(&self, cache_key: String, optimizer: Arc<GradientBasedOptimizer>) -> SklResult<()> {
-        let mut registry = self.component_registry.write().unwrap();
+        let mut registry = self.component_registry.write().unwrap_or_else(|e| e.into_inner());
 
         // Check cache size limit
         if registry.core_optimizers.len() >= self.config.max_cached_components {
@@ -997,12 +997,12 @@ impl GradientOptimizationFactory {
     }
 
     fn get_cached_gradient_estimator(&self, cache_key: &str) -> Option<Arc<GradientEstimator>> {
-        let registry = self.component_registry.read().unwrap();
+        let registry = self.component_registry.read().unwrap_or_else(|e| e.into_inner());
         registry.gradient_estimators.get(cache_key).map(|cached| cached.component.clone())
     }
 
     fn cache_gradient_estimator(&self, cache_key: String, estimator: Arc<GradientEstimator>) -> SklResult<()> {
-        let mut registry = self.component_registry.write().unwrap();
+        let mut registry = self.component_registry.write().unwrap_or_else(|e| e.into_inner());
 
         let cached_component = CachedComponent {
             component: estimator,
@@ -1019,12 +1019,12 @@ impl GradientOptimizationFactory {
     }
 
     fn get_cached_algorithm_selector(&self, cache_key: &str) -> Option<Arc<AlgorithmSelector>> {
-        let registry = self.component_registry.read().unwrap();
+        let registry = self.component_registry.read().unwrap_or_else(|e| e.into_inner());
         registry.algorithm_selectors.get(cache_key).map(|cached| cached.component.clone())
     }
 
     fn cache_algorithm_selector(&self, cache_key: String, selector: Arc<AlgorithmSelector>) -> SklResult<()> {
-        let mut registry = self.component_registry.write().unwrap();
+        let mut registry = self.component_registry.write().unwrap_or_else(|e| e.into_inner());
 
         let cached_component = CachedComponent {
             component: selector,
@@ -1069,7 +1069,7 @@ impl GradientOptimizationFactory {
     }
 
     fn count_active_components(&self) -> SklResult<usize> {
-        let registry = self.component_registry.read().unwrap();
+        let registry = self.component_registry.read().unwrap_or_else(|e| e.into_inner());
         Ok(registry.core_optimizers.len() +
            registry.gradient_estimators.len() +
            registry.algorithm_selectors.len() +

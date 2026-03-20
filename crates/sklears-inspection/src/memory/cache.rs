@@ -99,10 +99,13 @@ impl ExplanationCache {
     {
         // Check cache first
         {
-            let cache = self.feature_importance_cache.lock().unwrap();
+            let cache = self
+                .feature_importance_cache
+                .lock()
+                .expect("operation should succeed");
             if let Some(result) = cache.get(key) {
                 // Cache hit
-                let mut stats = self.cache_hits.lock().unwrap();
+                let mut stats = self.cache_hits.lock().expect("operation should succeed");
                 stats.hits += 1;
                 return Ok(result.clone());
             }
@@ -112,11 +115,14 @@ impl ExplanationCache {
         let result = compute_fn()?;
 
         {
-            let mut cache = self.feature_importance_cache.lock().unwrap();
+            let mut cache = self
+                .feature_importance_cache
+                .lock()
+                .expect("operation should succeed");
             cache.insert(key.clone(), result.clone());
 
             // Update statistics
-            let mut stats = self.cache_hits.lock().unwrap();
+            let mut stats = self.cache_hits.lock().expect("operation should succeed");
             stats.misses += 1;
             stats.total_size += result.len() * std::mem::size_of::<Float>();
         }
@@ -131,10 +137,10 @@ impl ExplanationCache {
     {
         // Check cache first
         {
-            let cache = self.shap_cache.lock().unwrap();
+            let cache = self.shap_cache.lock().expect("operation should succeed");
             if let Some(result) = cache.get(key) {
                 // Cache hit
-                let mut stats = self.cache_hits.lock().unwrap();
+                let mut stats = self.cache_hits.lock().expect("operation should succeed");
                 stats.hits += 1;
                 return Ok(result.clone());
             }
@@ -144,11 +150,11 @@ impl ExplanationCache {
         let result = compute_fn()?;
 
         {
-            let mut cache = self.shap_cache.lock().unwrap();
+            let mut cache = self.shap_cache.lock().expect("operation should succeed");
             cache.insert(key.clone(), result.clone());
 
             // Update statistics
-            let mut stats = self.cache_hits.lock().unwrap();
+            let mut stats = self.cache_hits.lock().expect("operation should succeed");
             stats.misses += 1;
             stats.total_size += result.len() * std::mem::size_of::<Float>();
         }
@@ -158,17 +164,32 @@ impl ExplanationCache {
 
     /// Get cache statistics
     pub fn get_statistics(&self) -> CacheStatistics {
-        self.cache_hits.lock().unwrap().clone()
+        self.cache_hits
+            .lock()
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Clear all caches
     pub fn clear_all(&self) {
-        self.feature_importance_cache.lock().unwrap().clear();
-        self.partial_dependence_cache.lock().unwrap().clear();
-        self.shap_cache.lock().unwrap().clear();
-        self.prediction_cache.lock().unwrap().clear();
+        self.feature_importance_cache
+            .lock()
+            .expect("operation should succeed")
+            .clear();
+        self.partial_dependence_cache
+            .lock()
+            .expect("operation should succeed")
+            .clear();
+        self.shap_cache
+            .lock()
+            .expect("operation should succeed")
+            .clear();
+        self.prediction_cache
+            .lock()
+            .expect("operation should succeed")
+            .clear();
 
-        let mut stats = self.cache_hits.lock().unwrap();
+        let mut stats = self.cache_hits.lock().expect("operation should succeed");
         *stats = CacheStatistics::default();
     }
 
@@ -176,13 +197,23 @@ impl ExplanationCache {
     pub fn evict_lru(&self) {
         // Simple size-based eviction for now
         // In a production system, you would implement proper LRU tracking
-        let total_size = self.cache_hits.lock().unwrap().total_size;
+        let total_size = self
+            .cache_hits
+            .lock()
+            .expect("operation should succeed")
+            .total_size;
         if total_size > self.max_cache_size {
             // Clear half the cache
-            self.feature_importance_cache.lock().unwrap().clear();
-            self.partial_dependence_cache.lock().unwrap().clear();
+            self.feature_importance_cache
+                .lock()
+                .expect("operation should succeed")
+                .clear();
+            self.partial_dependence_cache
+                .lock()
+                .expect("operation should succeed")
+                .clear();
 
-            let mut stats = self.cache_hits.lock().unwrap();
+            let mut stats = self.cache_hits.lock().expect("operation should succeed");
             stats.total_size /= 2;
         }
     }
@@ -260,7 +291,7 @@ mod tests {
         // First access should be a miss
         let result1 = cache
             .get_or_compute_feature_importance(&key, || Ok(array![0.5, 0.3]))
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats = cache.get_statistics();
         assert_eq!(stats.misses, 1);
@@ -271,7 +302,7 @@ mod tests {
             .get_or_compute_feature_importance(&key, || {
                 Ok(array![0.1, 0.9]) // Different values - should not be computed
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats = cache.get_statistics();
         assert_eq!(stats.misses, 1);
@@ -292,10 +323,10 @@ mod tests {
         // Perform some operations
         cache
             .get_or_compute_feature_importance(&key, || Ok(array![0.5, 0.3]))
-            .unwrap();
+            .expect("operation should succeed");
         cache
             .get_or_compute_feature_importance(&key, || Ok(array![0.1, 0.9]))
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats = cache.get_statistics();
         assert_eq!(stats.hits, 1);
@@ -314,7 +345,7 @@ mod tests {
         // Add something to cache
         cache
             .get_or_compute_feature_importance(&key, || Ok(array![0.5, 0.3]))
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats_before = cache.get_statistics();
         assert_eq!(stats_before.misses, 1);

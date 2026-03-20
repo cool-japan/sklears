@@ -568,7 +568,7 @@ impl SparseTreeUtils {
         }
 
         // Sort by feature value
-        value_target_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        value_target_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Calculate statistics for zero values
         let mut zero_target_sum = 0.0;
@@ -727,7 +727,7 @@ mod tests {
         assert_eq!(sparse.get(0, 1), 0.0);
         assert_eq!(sparse.get(1, 1), 2.0);
 
-        sparse.set(0, 1, 7.0).unwrap();
+        sparse.set(0, 1, 7.0).expect("parsing should succeed");
         assert_eq!(sparse.get(0, 1), 7.0);
     }
 
@@ -754,7 +754,7 @@ mod tests {
         let sparse_matrix = CSRMatrix::from_dense(&dense);
         let vector = Array1::from(vec![1.0, 2.0, 3.0]);
 
-        let result_sparse = sparse_matrix.matvec_dense(&vector).unwrap();
+        let result_sparse = sparse_matrix.matvec_dense(&vector).expect("parsing should succeed");
         let result_dense = dense.dot(&vector);
 
         for (a, b) in result_sparse.iter().zip(result_dense.iter()) {

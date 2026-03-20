@@ -172,14 +172,36 @@ impl BreakdownPointAnalysis {
         for i in 0..k_outliers.min(n_samples) {
             if increasing {
                 // Add decreasing outliers to break monotonicity
-                x[i] = x.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() + 1.0;
-                y[i] =
-                    y.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() - outlier_magnitude;
+                x[i] = x
+                    .iter()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("operation should succeed".into())
+                    })?
+                    + 1.0;
+                y[i] = y
+                    .iter()
+                    .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("operation should succeed".into())
+                    })?
+                    - outlier_magnitude;
             } else {
                 // Add increasing outliers to break monotonicity
-                x[i] = x.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() + 1.0;
-                y[i] =
-                    y.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap() + outlier_magnitude;
+                x[i] = x
+                    .iter()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("operation should succeed".into())
+                    })?
+                    + 1.0;
+                y[i] = y
+                    .iter()
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("operation should succeed".into())
+                    })?
+                    + outlier_magnitude;
             }
         }
 
@@ -580,7 +602,8 @@ mod tests {
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 
-        let analysis = BreakdownPointAnalysis::analyze_isotonic_regression(&x, &y, true).unwrap();
+        let analysis = BreakdownPointAnalysis::analyze_isotonic_regression(&x, &y, true)
+            .expect("operation should succeed");
 
         assert_eq!(analysis.n_samples, 5);
         assert!(analysis.breakdown_point > 0.0);
@@ -611,7 +634,8 @@ mod tests {
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 10.0]); // Last point should be influential
 
-        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true).unwrap();
+        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true)
+            .expect("operation should succeed");
 
         assert_eq!(diagnostics.influences.len(), 5);
         assert!(diagnostics.influence_threshold >= 0.0);
@@ -625,7 +649,8 @@ mod tests {
         let x = Array1::from_vec(vec![1.0]);
         let y = Array1::from_vec(vec![1.0]);
 
-        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true).unwrap();
+        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true)
+            .expect("operation should succeed");
 
         assert_eq!(diagnostics.influences.len(), 1);
         assert_eq!(diagnostics.influences[0], 1.0);
@@ -636,8 +661,11 @@ mod tests {
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 10.0]);
 
-        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true).unwrap();
-        let most_influential = diagnostics.most_influential_observation().unwrap();
+        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true)
+            .expect("operation should succeed");
+        let most_influential = diagnostics
+            .most_influential_observation()
+            .expect("operation should succeed");
 
         // The last point (index 4) should be most influential
         assert_eq!(most_influential, 4);
@@ -648,7 +676,8 @@ mod tests {
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 
-        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true).unwrap();
+        let diagnostics = InfluenceDiagnostics::analyze_isotonic_regression(&x, &y, true)
+            .expect("operation should succeed");
         let (mean, std, min, max, median) = diagnostics.influence_summary();
 
         assert!(mean >= 0.0);
@@ -665,7 +694,7 @@ mod tests {
         let result = breakdown_point_analysis(&x, &y, true);
         assert!(result.is_ok());
 
-        let analysis = result.unwrap();
+        let analysis = result.expect("operation should succeed");
         assert_eq!(analysis.n_samples, 5);
     }
 
@@ -677,7 +706,7 @@ mod tests {
         let result = influence_diagnostics(&x, &y, true);
         assert!(result.is_ok());
 
-        let diagnostics = result.unwrap();
+        let diagnostics = result.expect("operation should succeed");
         assert_eq!(diagnostics.influences.len(), 5);
     }
 }

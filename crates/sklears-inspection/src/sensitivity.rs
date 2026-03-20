@@ -7,7 +7,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{seq::SliceRandom, Rng, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -189,7 +189,7 @@ where
             // Perturb the feature for all samples
             for sample_idx in 0..n_samples {
                 let (min_val, max_val) = feature_bounds[feature_idx];
-                let perturbed_value = rng.gen_range(min_val..max_val);
+                let perturbed_value = rng.random_range(min_val..max_val);
                 X_perturbed[[sample_idx, feature_idx]] = perturbed_value;
             }
 
@@ -342,7 +342,9 @@ where
     }
 
     // Calculate Morris statistics
-    let mu = all_effects.mean_axis(Axis(0)).unwrap();
+    let mu = all_effects
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
     let mu_star = all_effects.map_axis(Axis(0), |col| {
         col.iter().map(|&x| x.abs()).sum::<Float>() / col.len() as Float
     });
@@ -449,7 +451,7 @@ fn calculate_prediction_difference(pred1: &[Float], pred2: &[Float]) -> Float {
 fn generate_morris_trajectory(
     feature_bounds: &[(Float, Float)],
     levels: usize,
-    rng: &mut impl Rng,
+    rng: &mut impl RngExt,
 ) -> Array2<Float> {
     let n_features = feature_bounds.len();
     let n_points = n_features + 1;
@@ -458,7 +460,7 @@ fn generate_morris_trajectory(
     // Start with random base point
     for j in 0..n_features {
         let (min_val, max_val) = feature_bounds[j];
-        let level = rng.gen_range(0..levels);
+        let level = rng.random_range(0..levels);
         trajectory[[0, j]] = min_val + (max_val - min_val) * level as Float / (levels - 1) as Float;
     }
 
@@ -474,7 +476,7 @@ fn generate_morris_trajectory(
         // Change the selected feature
         let (min_val, max_val) = feature_bounds[feature_idx];
         let delta = (max_val - min_val) / (levels - 1) as Float;
-        trajectory[[step + 1, feature_idx]] += if rng.gen_bool(0.5) { delta } else { -delta };
+        trajectory[[step + 1, feature_idx]] += if rng.random_bool(0.5) { delta } else { -delta };
 
         // Ensure bounds
         trajectory[[step + 1, feature_idx]] = trajectory[[step + 1, feature_idx]]
@@ -518,7 +520,7 @@ where
 fn generate_sobol_matrix(
     n_samples: usize,
     feature_bounds: &[(Float, Float)],
-    rng: &mut impl Rng,
+    rng: &mut impl RngExt,
 ) -> Array2<Float> {
     let n_features = feature_bounds.len();
     let mut matrix = Array2::zeros((n_samples, n_features));
@@ -526,7 +528,7 @@ fn generate_sobol_matrix(
     for i in 0..n_samples {
         for j in 0..n_features {
             let (min_val, max_val) = feature_bounds[j];
-            matrix[[i, j]] = rng.gen_range(min_val..max_val);
+            matrix[[i, j]] = rng.random_range(min_val..max_val);
         }
     }
 
@@ -576,7 +578,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_sensitivity(&simple_model, &X_base.view(), &bounds, &config).unwrap();
+        let result = analyze_sensitivity(&simple_model, &X_base.view(), &bounds, &config)
+            .expect("operation should succeed");
         assert_eq!(result.first_order.len(), 3);
 
         // First feature should have highest sensitivity (coefficient 2.0)
@@ -595,7 +598,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_sensitivity(&simple_model, &X_base.view(), &bounds, &config).unwrap();
+        let result = analyze_sensitivity(&simple_model, &X_base.view(), &bounds, &config)
+            .expect("operation should succeed");
         assert_eq!(result.first_order.len(), 3);
 
         // Should reflect the linear coefficients: 2.0, 0.5, 0.1
@@ -620,11 +624,11 @@ mod tests {
             &bounds,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
         assert_eq!(result.first_order.len(), 3);
         assert!(result.morris_effects.is_some());
 
-        let morris = result.morris_effects.unwrap();
+        let morris = result.morris_effects.expect("operation should succeed");
         assert_eq!(morris.mu.len(), 3);
         assert_eq!(morris.mu_star.len(), 3);
         assert_eq!(morris.sigma.len(), 3);
@@ -642,12 +646,12 @@ mod tests {
 
         let result =
             analyze_sensitivity(&simple_model, &array![[0.0, 0.0]].view(), &bounds, &config)
-                .unwrap();
+                .expect("operation should succeed");
         assert_eq!(result.first_order.len(), 2);
         assert!(result.total_order.is_some());
         assert!(result.sobol_indices.is_some());
 
-        let sobol = result.sobol_indices.unwrap();
+        let sobol = result.sobol_indices.expect("operation should succeed");
         assert_eq!(sobol.s1.len(), 2);
         assert_eq!(sobol.st.len(), 2);
     }
@@ -663,7 +667,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_sensitivity(&simple_model, &X_base.view(), &bounds, &config).unwrap();
+        let result = analyze_sensitivity(&simple_model, &X_base.view(), &bounds, &config)
+            .expect("operation should succeed");
         assert_eq!(result.first_order.len(), 2);
 
         // Should approximate gradients: 2.0 and 0.5

@@ -182,7 +182,7 @@ impl MemoryMappedStorage {
         };
 
         {
-            let mut mapped_files = self.mapped_files.lock().unwrap();
+            let mut mapped_files = self.mapped_files.lock().expect("operation should succeed");
             mapped_files.insert(storage_id.to_string(), mapped_file);
         }
 
@@ -196,7 +196,7 @@ impl MemoryMappedStorage {
             n_samples: shap_values.map(|s| s.nrows()).unwrap_or(0),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs(),
         })
     }
@@ -206,7 +206,7 @@ impl MemoryMappedStorage {
         &self,
         result: &MappedExplanationResult,
     ) -> SklResult<Array1<Float>> {
-        let mapped_files = self.mapped_files.lock().unwrap();
+        let mapped_files = self.mapped_files.lock().expect("operation should succeed");
         let mapped_file = mapped_files
             .get(&result.storage_id)
             .ok_or_else(|| SklearsError::Other("Storage file not found".to_string()))?;
@@ -231,7 +231,7 @@ impl MemoryMappedStorage {
             return Err(SklearsError::Other("No SHAP values stored".to_string()));
         }
 
-        let mapped_files = self.mapped_files.lock().unwrap();
+        let mapped_files = self.mapped_files.lock().expect("operation should succeed");
         let mapped_file = mapped_files
             .get(&result.storage_id)
             .ok_or_else(|| SklearsError::Other("Storage file not found".to_string()))?;
@@ -307,7 +307,7 @@ impl MemoryMappedStorage {
         }
 
         // Read dimensions
-        let len = usize::from_le_bytes(data[0..8].try_into().unwrap());
+        let len = usize::from_le_bytes(data[0..8].try_into().expect("operation should succeed"));
         if len != expected_len {
             return Err(SklearsError::Other("Dimension mismatch".to_string()));
         }
@@ -325,9 +325,17 @@ impl MemoryMappedStorage {
             }
 
             let value = if float_size == 8 {
-                f64::from_le_bytes(data[start..end].try_into().unwrap()) as Float
+                f64::from_le_bytes(
+                    data[start..end]
+                        .try_into()
+                        .expect("operation should succeed"),
+                ) as Float
             } else {
-                f32::from_le_bytes(data[start..end].try_into().unwrap()) as Float
+                f32::from_le_bytes(
+                    data[start..end]
+                        .try_into()
+                        .expect("operation should succeed"),
+                ) as Float
             };
             array_data.push(value);
         }
@@ -355,8 +363,8 @@ impl MemoryMappedStorage {
         }
 
         // Read dimensions
-        let nrows = usize::from_le_bytes(data[0..8].try_into().unwrap());
-        let ncols = usize::from_le_bytes(data[8..16].try_into().unwrap());
+        let nrows = usize::from_le_bytes(data[0..8].try_into().expect("operation should succeed"));
+        let ncols = usize::from_le_bytes(data[8..16].try_into().expect("operation should succeed"));
 
         if nrows != expected_rows || ncols != expected_cols {
             return Err(SklearsError::Other("Dimension mismatch".to_string()));
@@ -375,9 +383,17 @@ impl MemoryMappedStorage {
             }
 
             let value = if float_size == 8 {
-                f64::from_le_bytes(data[start..end].try_into().unwrap()) as Float
+                f64::from_le_bytes(
+                    data[start..end]
+                        .try_into()
+                        .expect("operation should succeed"),
+                ) as Float
             } else {
-                f32::from_le_bytes(data[start..end].try_into().unwrap()) as Float
+                f32::from_le_bytes(
+                    data[start..end]
+                        .try_into()
+                        .expect("operation should succeed"),
+                ) as Float
             };
             array_data.push(value);
         }
@@ -443,7 +459,7 @@ impl MemoryMappedStorage {
     pub fn remove_storage(&self, storage_id: &str) -> SklResult<()> {
         // Remove from mapped files
         {
-            let mut mapped_files = self.mapped_files.lock().unwrap();
+            let mut mapped_files = self.mapped_files.lock().expect("operation should succeed");
             mapped_files.remove(storage_id);
         }
 
@@ -460,7 +476,7 @@ impl MemoryMappedStorage {
 
     /// Get storage statistics
     pub fn get_storage_stats(&self) -> StorageStats {
-        let mapped_files = self.mapped_files.lock().unwrap();
+        let mapped_files = self.mapped_files.lock().expect("operation should succeed");
         let total_files = mapped_files.len();
         let total_size: usize = mapped_files.values().map(|f| f.size).sum();
 
@@ -490,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_memory_mapped_storage_creation() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let config = MemoryMapConfig::default();
 
         let storage = MemoryMappedStorage::new(temp_dir.path(), config);
@@ -499,9 +515,10 @@ mod tests {
 
     #[test]
     fn test_memory_mapped_storage_store_and_load() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let config = MemoryMapConfig::default();
-        let storage = MemoryMappedStorage::new(temp_dir.path(), config).unwrap();
+        let storage =
+            MemoryMappedStorage::new(temp_dir.path(), config).expect("operation should succeed");
 
         // Create test data
         let feature_importance = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -514,12 +531,12 @@ mod tests {
             Some(&shap_values),
         );
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
 
         // Load feature importance
         let loaded_importance = storage.load_feature_importance(&result);
         assert!(loaded_importance.is_ok());
-        let loaded_importance = loaded_importance.unwrap();
+        let loaded_importance = loaded_importance.expect("operation should succeed");
 
         assert_eq!(loaded_importance.len(), feature_importance.len());
         for (a, b) in loaded_importance.iter().zip(feature_importance.iter()) {
@@ -529,7 +546,7 @@ mod tests {
         // Load SHAP values
         let loaded_shap = storage.load_shap_values(&result);
         assert!(loaded_shap.is_ok());
-        let loaded_shap = loaded_shap.unwrap();
+        let loaded_shap = loaded_shap.expect("operation should succeed");
 
         assert_eq!(loaded_shap.shape(), shap_values.shape());
         for (a, b) in loaded_shap.iter().zip(shap_values.iter()) {
@@ -539,9 +556,10 @@ mod tests {
 
     #[test]
     fn test_memory_mapped_storage_stats() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let config = MemoryMapConfig::default();
-        let storage = MemoryMappedStorage::new(temp_dir.path(), config).unwrap();
+        let storage =
+            MemoryMappedStorage::new(temp_dir.path(), config).expect("operation should succeed");
 
         // Initially no files
         let stats = storage.get_storage_stats();
@@ -552,7 +570,7 @@ mod tests {
         let feature_importance = array![1.0, 2.0, 3.0];
         let _result = storage
             .store_explanation_results("test_stats", &feature_importance, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check stats
         let stats = storage.get_storage_stats();
@@ -562,15 +580,16 @@ mod tests {
 
     #[test]
     fn test_memory_mapped_storage_remove() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let config = MemoryMapConfig::default();
-        let storage = MemoryMappedStorage::new(temp_dir.path(), config).unwrap();
+        let storage =
+            MemoryMappedStorage::new(temp_dir.path(), config).expect("operation should succeed");
 
         // Store data
         let feature_importance = array![1.0, 2.0, 3.0];
         let _result = storage
             .store_explanation_results("test_remove", &feature_importance, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check it exists
         let stats = storage.get_storage_stats();
@@ -587,14 +606,19 @@ mod tests {
 
     #[test]
     fn test_serialization_roundtrip() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let config = MemoryMapConfig::default();
-        let storage = MemoryMappedStorage::new(temp_dir.path(), config).unwrap();
+        let storage =
+            MemoryMappedStorage::new(temp_dir.path(), config).expect("operation should succeed");
 
         // Test Array1 serialization
         let arr1 = array![1.5, 2.5, 3.5];
-        let bytes1 = storage.serialize_array1(&arr1).unwrap();
-        let recovered1 = storage.deserialize_array1(&bytes1, arr1.len()).unwrap();
+        let bytes1 = storage
+            .serialize_array1(&arr1)
+            .expect("operation should succeed");
+        let recovered1 = storage
+            .deserialize_array1(&bytes1, arr1.len())
+            .expect("operation should succeed");
 
         for (a, b) in arr1.iter().zip(recovered1.iter()) {
             assert_abs_diff_eq!(*a, *b, epsilon = 1e-10);
@@ -602,10 +626,12 @@ mod tests {
 
         // Test Array2 serialization
         let arr2 = array![[1.0, 2.0], [3.0, 4.0]];
-        let bytes2 = storage.serialize_array2(&arr2).unwrap();
+        let bytes2 = storage
+            .serialize_array2(&arr2)
+            .expect("operation should succeed");
         let recovered2 = storage
             .deserialize_array2(&bytes2, arr2.nrows(), arr2.ncols())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(arr2.shape(), recovered2.shape());
         for (a, b) in arr2.iter().zip(recovered2.iter()) {

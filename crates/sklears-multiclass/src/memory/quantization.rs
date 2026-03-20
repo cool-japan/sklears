@@ -54,7 +54,8 @@ impl QuantizedWeights {
 
 /// Quantize a 1D array
 pub fn quantize_array1(array: &Array1<f64>, bits: QuantizationBits) -> SklResult<QuantizedWeights> {
-    let (scale, zero_point, quantized) = quantize_values(array.as_slice().unwrap(), bits)?;
+    let (scale, zero_point, quantized) =
+        quantize_values(array.as_slice().expect("operation should succeed"), bits)?;
 
     Ok(QuantizedWeights {
         values: quantized,
@@ -170,8 +171,9 @@ mod tests {
     #[test]
     fn test_quantize_dequantize_8bit() {
         let arr = array![0.0, 1.0, 2.0, 3.0, 4.0];
-        let quantized = quantize_array1(&arr, QuantizationBits::Bits8).unwrap();
-        let dequantized = dequantize_array1(&quantized).unwrap();
+        let quantized =
+            quantize_array1(&arr, QuantizationBits::Bits8).expect("operation should succeed");
+        let dequantized = dequantize_array1(&quantized).expect("operation should succeed");
 
         // Check approximate equality (quantization introduces error)
         for (orig, deq) in arr.iter().zip(dequantized.iter()) {
@@ -184,7 +186,8 @@ mod tests {
         let arr = array![
             0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0
         ];
-        let quantized = quantize_array1(&arr, QuantizationBits::Bits8).unwrap();
+        let quantized =
+            quantize_array1(&arr, QuantizationBits::Bits8).expect("operation should succeed");
 
         // 8-bit should give approximately 8x compression for larger arrays
         // 16 values * 8 bytes = 128 bytes original
@@ -196,8 +199,9 @@ mod tests {
     #[test]
     fn test_quantize_array2() {
         let arr = array![[1.0, 2.0], [3.0, 4.0]];
-        let quantized = quantize_array2(&arr, QuantizationBits::Bits8).unwrap();
-        let dequantized = dequantize_array2(&quantized).unwrap();
+        let quantized =
+            quantize_array2(&arr, QuantizationBits::Bits8).expect("operation should succeed");
+        let dequantized = dequantize_array2(&quantized).expect("operation should succeed");
 
         assert_eq!(dequantized.dim(), arr.dim());
     }
@@ -206,7 +210,8 @@ mod tests {
     fn test_quantization_bits_4() {
         let arr: Vec<f64> = (0..32).map(|i| i as f64).collect();
         let arr = Array1::from_vec(arr);
-        let quantized = quantize_array1(&arr, QuantizationBits::Bits4).unwrap();
+        let quantized =
+            quantize_array1(&arr, QuantizationBits::Bits4).expect("operation should succeed");
 
         // 4-bit should give better compression with more values
         // 32 values * 8 bytes = 256 bytes original
@@ -218,8 +223,9 @@ mod tests {
     #[test]
     fn test_quantization_uniform_values() {
         let arr = array![5.0, 5.0, 5.0, 5.0];
-        let quantized = quantize_array1(&arr, QuantizationBits::Bits8).unwrap();
-        let dequantized = dequantize_array1(&quantized).unwrap();
+        let quantized =
+            quantize_array1(&arr, QuantizationBits::Bits8).expect("operation should succeed");
+        let dequantized = dequantize_array1(&quantized).expect("operation should succeed");
 
         // For uniform values, quantization should preserve them reasonably well
         // Since all values are the same and our quantization maps them to the same bin,

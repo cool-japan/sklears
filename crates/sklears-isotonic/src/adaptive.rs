@@ -78,7 +78,7 @@ impl LatticeStructure {
                     i, j, n_elements
                 )));
             }
-            ordering_graph.get_mut(&i).unwrap().push(j);
+            ordering_graph.get_mut(&i)?.push(j);
         }
 
         // Compute transitive closure
@@ -118,7 +118,7 @@ impl LatticeStructure {
             for i in 0..n {
                 let k_reachable: HashSet<usize> = closure[&k].clone();
                 if closure[&i].contains(&k) {
-                    closure.get_mut(&i).unwrap().extend(k_reachable);
+                    closure.get_mut(&i)?.extend(k_reachable);
                 }
             }
         }
@@ -162,7 +162,7 @@ impl LatticeStructure {
             let level_size = queue.len();
 
             for _ in 0..level_size {
-                let node = queue.pop_front().unwrap();
+                let node = queue.pop_front()?;
                 current_level.push(node);
 
                 if let Some(neighbors) = graph.get(&node) {
@@ -541,12 +541,12 @@ impl LatticeOrderIsotonicRegression<Untrained> {
 impl LatticeOrderIsotonicRegression<Trained> {
     /// Get fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 
     /// Get lattice structure
     pub fn lattice_structure(&self) -> &LatticeStructure {
-        self.lattice_structure_.as_ref().unwrap()
+        self.lattice_structure_.as_ref().expect("value should be present")
     }
 
     /// Validate that fitted values satisfy lattice constraints
@@ -799,7 +799,7 @@ impl Fit<Array1<Float>, Array1<Float>> for AdaptiveWeightingIsotonicRegression<U
 
         // Sort by x values
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut x_sorted = Array1::zeros(x.len());
         let mut y_sorted = Array1::zeros(y.len());
@@ -985,7 +985,7 @@ impl AdaptiveWeightingIsotonicRegression<Untrained> {
             AdaptiveWeightingScheme::Huber { threshold } => {
                 // Compute MAD (Median Absolute Deviation) for scale
                 let mut abs_residuals: Vec<Float> = residuals.iter().map(|&r| r.abs()).collect();
-                abs_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                abs_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let mad = abs_residuals[n / 2] * 1.4826; // Scale factor for normal distribution
 
                 for i in 0..n {
@@ -1002,7 +1002,7 @@ impl AdaptiveWeightingIsotonicRegression<Untrained> {
             AdaptiveWeightingScheme::Bisquare { threshold } => {
                 // Compute scale (MAD)
                 let mut abs_residuals: Vec<Float> = residuals.iter().map(|&r| r.abs()).collect();
-                abs_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                abs_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let mad = abs_residuals[n / 2] * 1.4826;
 
                 for i in 0..n {
@@ -1129,22 +1129,22 @@ impl Predict<Array1<Float>, Array1<Float>> for AdaptiveWeightingIsotonicRegressi
 impl AdaptiveWeightingIsotonicRegression<Trained> {
     /// Get the final weights used
     pub fn weights(&self) -> &Array1<Float> {
-        self.weights_.as_ref().unwrap()
+        self.weights_.as_ref().expect("value should be present")
     }
 
     /// Get weights from all iterations
     pub fn iteration_weights(&self) -> &[Array1<Float>] {
-        self.iteration_weights_.as_ref().unwrap()
+        self.iteration_weights_.as_ref().expect("value should be present")
     }
 
     /// Get the fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.y_.as_ref().unwrap()
+        self.y_.as_ref().expect("value should be present")
     }
 
     /// Get the training x values
     pub fn x_values(&self) -> &Array1<Float> {
-        self.x_.as_ref().unwrap()
+        self.x_.as_ref().expect("value should be present")
     }
 
     /// Compute influence of each sample on the final fit

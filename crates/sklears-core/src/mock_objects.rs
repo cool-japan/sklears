@@ -48,7 +48,7 @@ use crate::traits::{Estimator, Fit, Predict, PredictProba, Score, Transform};
 // SciRS2 Policy: Using scirs2_core::ndarray and scirs2_core::random (COMPLIANT)
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::Random;
-use scirs2_core::Rng;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -328,7 +328,7 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for MockEstimator {
         // Simulate fit failure probability
         if self.config.fit_failure_probability > 0.0 {
             let mut rng = Random::seed(self.config.random_seed + state.fit_count as u64);
-            if rng.gen::<f64>() < self.config.fit_failure_probability {
+            if rng.gen_range(0.0..1.0) < self.config.fit_failure_probability {
                 return Err(SklearsError::FitError(
                     "Simulated random fit failure".to_string(),
                 ));
@@ -383,7 +383,7 @@ impl<'a> Predict<ArrayView2<'a, f64>, Array1<f64>> for TrainedMockEstimator {
         if self.estimator.config.predict_failure_probability > 0.0 {
             let mut rng =
                 Random::seed(self.estimator.config.random_seed + state.predict_count as u64);
-            if rng.gen::<f64>() < self.estimator.config.predict_failure_probability {
+            if rng.gen_range(0.0..1.0) < self.estimator.config.predict_failure_probability {
                 return Err(SklearsError::PredictError(
                     "Simulated random predict failure".to_string(),
                 ));
@@ -459,7 +459,7 @@ impl<'a> Predict<ArrayView2<'a, f64>, Array1<f64>> for TrainedMockEstimator {
                 // Simulate poor generalization
                 let mut rng = Random::seed(self.estimator.config.random_seed);
                 Array1::from_iter((0..x.nrows()).map(|_| {
-                    if rng.gen::<f64>() < *test_accuracy {
+                    if rng.gen_range(0.0..1.0) < *test_accuracy {
                         1.0 // Correct prediction
                     } else {
                         0.0 // Incorrect prediction

@@ -687,7 +687,7 @@ mod tests {
             .reservoir_size(10)
             .random_state(42);
 
-        let indices = sampler.sample_indices(20).unwrap();
+        let indices = sampler.sample_indices(20).expect("operation should succeed");
         assert_eq!(indices.len(), 10);
         assert_eq!(sampler.get_seen_count(), 20);
 
@@ -704,7 +704,7 @@ mod tests {
             .sample_size(3)
             .random_state(42);
 
-        let indices = sampler.sample_indices(&weights.view()).unwrap();
+        let indices = sampler.sample_indices(&weights.view()).expect("operation should succeed");
         assert_eq!(indices.len(), 3);
 
         // All indices should be valid
@@ -720,7 +720,7 @@ mod tests {
             .sample_size(4)
             .random_state(42);
 
-        let indices = sampler.sample_indices(&strata.view()).unwrap();
+        let indices = sampler.sample_indices(&strata.view()).expect("operation should succeed");
         assert_eq!(indices.len(), 4);
 
         // All indices should be valid
@@ -731,12 +731,12 @@ mod tests {
 
     #[test]
     fn test_bootstrap_sampler_basic() {
-        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect()).expect("operation should succeed");
         let sampler = BootstrapSampler::new()
             .n_bootstrap_samples(5)
             .random_state(42);
 
-        let samples = sampler.sample_multiple(&data.view()).unwrap();
+        let samples = sampler.sample_multiple(&data.view()).expect("operation should succeed");
         assert_eq!(samples.len(), 5);
 
         for sample in &samples {
@@ -747,12 +747,12 @@ mod tests {
 
     #[test]
     fn test_systematic_sampler_basic() {
-        let data = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).expect("operation should succeed");
         let sampler = SystematicSampler::new()
             .sample_size(10)
             .random_state(42);
 
-        let sampled_data = sampler.sample_data(&data.view()).unwrap();
+        let sampled_data = sampler.sample_data(&data.view()).expect("operation should succeed");
         assert_eq!(sampled_data.nrows(), 10);
         assert_eq!(sampled_data.ncols(), 2);
     }
@@ -764,17 +764,17 @@ mod tests {
         let mut reservoir_sampler = ReservoirSampler::new().reservoir_size(5);
         let result = reservoir_sampler.sample_data(&empty_data.view());
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().nrows(), 0);
+        assert_eq!(result.expect("operation should succeed").nrows(), 0);
 
         let systematic_sampler = SystematicSampler::new().sample_size(5);
         let result = systematic_sampler.sample_data(&empty_data.view());
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().nrows(), 0);
+        assert_eq!(result.expect("operation should succeed").nrows(), 0);
     }
 
     #[test]
     fn test_sampling_consistency_with_seed() {
-        let data = Array2::from_shape_vec((50, 2), (0..100).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((50, 2), (0..100).map(|x| x as f64).collect()).expect("operation should succeed");
 
         let mut sampler1 = ReservoirSampler::new()
             .reservoir_size(10)
@@ -783,8 +783,8 @@ mod tests {
             .reservoir_size(10)
             .random_state(42);
 
-        let sample1 = sampler1.sample_data(&data.view()).unwrap();
-        let sample2 = sampler2.sample_data(&data.view()).unwrap();
+        let sample1 = sampler1.sample_data(&data.view()).expect("operation should succeed");
+        let sample2 = sampler2.sample_data(&data.view()).expect("operation should succeed");
 
         // Results should be identical with same seed
         assert_eq!(sample1.shape(), sample2.shape());

@@ -646,20 +646,20 @@ mod tests {
         // Compressor should reduce dynamic range
         let input_range = audio
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap()
+            .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+            .expect("operation should succeed")
             - audio
                 .iter()
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed");
         let output_range = compressed
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap()
+            .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+            .expect("operation should succeed")
             - compressed
                 .iter()
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed");
 
         // Output range should generally be smaller (though this is a simple test)
         assert!(output_range <= input_range * 1.1); // Allow some tolerance

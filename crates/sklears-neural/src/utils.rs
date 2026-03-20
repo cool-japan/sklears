@@ -5,6 +5,7 @@
 //! and accuracy metrics.
 
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::RngExt;
 use std::collections::HashMap;
 
 /// Type alias for neural network weights and biases
@@ -106,7 +107,7 @@ pub fn one_hot_decode(encoded: &Array2<f64>) -> Vec<usize> {
         .map(|row| {
             row.iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0)
         })
@@ -141,6 +142,7 @@ pub fn create_batches<R: scirs2_core::random::Rng>(
 
     if shuffle {
         use scirs2_core::random::seq::SliceRandom;
+        use scirs2_core::random::RngExt;
         indices.shuffle(rng);
     }
 
@@ -150,7 +152,7 @@ pub fn create_batches<R: scirs2_core::random::Rng>(
             (chunk.len(), x.ncols()),
             chunk.iter().flat_map(|&i| x.row(i).to_vec()).collect(),
         )
-        .unwrap();
+        .expect("value should be present");
 
         let batch_y: Vec<usize> = chunk.iter().map(|&i| y[i]).collect();
         batches.push((batch_x, batch_y));
@@ -181,13 +183,13 @@ pub fn create_batches_regression<R: scirs2_core::random::Rng>(
             (chunk.len(), x.ncols()),
             chunk.iter().flat_map(|&i| x.row(i).to_vec()).collect(),
         )
-        .unwrap();
+        .expect("value should be present");
 
         let batch_y = Array2::from_shape_vec(
             (chunk.len(), y.ncols()),
             chunk.iter().flat_map(|&i| y.row(i).to_vec()).collect(),
         )
-        .unwrap();
+        .expect("value should be present");
         batches.push((batch_x, batch_y));
     }
 
@@ -206,26 +208,26 @@ pub fn initialize_weights<R: scirs2_core::random::Rng>(
     match init {
         WeightInit::Zero => Array2::zeros((rows, cols)),
         WeightInit::Random => {
-            let dist = Uniform::new(-1.0, 1.0).unwrap();
+            let dist = Uniform::new(-1.0, 1.0).expect("valid distribution params");
             Array2::from_shape_simple_fn((rows, cols), || rng.sample(dist))
         }
         WeightInit::Xavier => {
             let fan_avg = (rows + cols) as f64 / 2.0;
             let bound = (6.0 / fan_avg).sqrt();
-            let dist = Uniform::new(-bound, bound).unwrap();
+            let dist = Uniform::new(-bound, bound).expect("valid distribution params");
             Array2::from_shape_simple_fn((rows, cols), || rng.sample(dist))
         }
         WeightInit::He => {
             let std = (2.0 / rows as f64).sqrt();
-            let dist = Normal::new(0.0, std).unwrap();
+            let dist = Normal::new(0.0, std).expect("valid distribution params");
             Array2::from_shape_simple_fn((rows, cols), || rng.sample(dist))
         }
         WeightInit::Uniform { low, high } => {
-            let dist = Uniform::new(*low, *high).unwrap();
+            let dist = Uniform::new(*low, *high).expect("valid distribution params");
             Array2::from_shape_simple_fn((rows, cols), || rng.sample(dist))
         }
         WeightInit::Normal { mean, std } => {
-            let dist = Normal::new(*mean, *std).unwrap();
+            let dist = Normal::new(*mean, *std).expect("valid distribution params");
             Array2::from_shape_simple_fn((rows, cols), || rng.sample(dist))
         }
     }
@@ -242,25 +244,25 @@ pub fn initialize_biases<R: scirs2_core::random::Rng>(
     match init {
         WeightInit::Zero => Array1::zeros(size),
         WeightInit::Random => {
-            let dist = Uniform::new(-1.0, 1.0).unwrap();
+            let dist = Uniform::new(-1.0, 1.0).expect("valid distribution params");
             Array1::from_shape_simple_fn(size, || rng.sample(dist))
         }
         WeightInit::Xavier => {
             let bound = (6.0 / size as f64).sqrt();
-            let dist = Uniform::new(-bound, bound).unwrap();
+            let dist = Uniform::new(-bound, bound).expect("valid distribution params");
             Array1::from_shape_simple_fn(size, || rng.sample(dist))
         }
         WeightInit::He => {
             let std = (2.0 / size as f64).sqrt();
-            let dist = Normal::new(0.0, std).unwrap();
+            let dist = Normal::new(0.0, std).expect("valid distribution params");
             Array1::from_shape_simple_fn(size, || rng.sample(dist))
         }
         WeightInit::Uniform { low, high } => {
-            let dist = Uniform::new(*low, *high).unwrap();
+            let dist = Uniform::new(*low, *high).expect("valid distribution params");
             Array1::from_shape_simple_fn(size, || rng.sample(dist))
         }
         WeightInit::Normal { mean, std } => {
-            let dist = Normal::new(*mean, *std).unwrap();
+            let dist = Normal::new(*mean, *std).expect("valid distribution params");
             Array1::from_shape_simple_fn(size, || rng.sample(dist))
         }
     }

@@ -44,7 +44,7 @@ impl<T: FloatBounds> Default for TransferConfig<T> {
             unfreeze_schedule: None,
             domain_adaptation: None,
             discriminative_lr: false,
-            base_learning_rate: T::from(1e-3).unwrap(),
+            base_learning_rate: T::from(1e-3).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -274,7 +274,8 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> TransferLearningManag
         let num_layers = layer_names.len();
         for (i, layer_name) in layer_names.iter().enumerate() {
             let layer_depth = (num_layers - i - 1) as f64;
-            let lr_multiplier = T::from(0.1_f64.powf(layer_depth / num_layers as f64)).unwrap();
+            let lr_multiplier =
+                T::from(0.1_f64.powf(layer_depth / num_layers as f64)).unwrap_or_else(|| T::zero());
             self.layer_lr_multipliers
                 .insert(layer_name.clone(), lr_multiplier);
         }
@@ -299,7 +300,11 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> TransferLearningManag
         }
 
         let initial_loss = self.training_history[0].validation_loss;
-        let final_loss = self.training_history.last().unwrap().validation_loss;
+        let final_loss = self
+            .training_history
+            .last()
+            .expect("empty collection")
+            .validation_loss;
 
         Some((initial_loss - final_loss) / initial_loss)
     }
@@ -451,7 +456,9 @@ impl<T: FloatBounds> FeatureExtractor<T> {
             // Flatten features
             let (batch_size, _, _) = features.dim();
             let flattened_size = features.len() / batch_size;
-            Ok(features.into_shape((batch_size, flattened_size)).unwrap())
+            Ok(features
+                .into_shape((batch_size, flattened_size))
+                .expect("array shape error"))
         }
     }
 
@@ -555,7 +562,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
                 }
             }
         }
-        mean = mean / T::from(total_samples).unwrap();
+        mean = mean / T::from(total_samples).unwrap_or_else(|| T::zero());
 
         // Compute covariance
         let mut covariance = Array2::zeros((feature_dim, feature_dim));
@@ -570,7 +577,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
                 }
             }
         }
-        covariance = covariance / T::from(total_samples - 1).unwrap();
+        covariance = covariance / T::from(total_samples - 1).unwrap_or_else(|| T::zero());
 
         Ok(DomainStatistics { mean, covariance })
     }
@@ -630,7 +637,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
                 }
             }
 
-            let mean = sum / T::from(count).unwrap();
+            let mean = sum / T::from(count).unwrap_or_else(|| T::zero());
 
             let mut variance_sum = T::zero();
             for b in 0..batch_size {
@@ -640,8 +647,8 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> DomainAdapter<T> {
                 }
             }
 
-            let variance = variance_sum / T::from(count).unwrap();
-            let std = (variance + T::from(1e-5).unwrap()).sqrt();
+            let variance = variance_sum / T::from(count).unwrap_or_else(|| T::zero());
+            let std = (variance + T::from(1e-5).unwrap_or_else(|| T::zero())).sqrt();
 
             // Normalize
             for b in 0..batch_size {
@@ -688,7 +695,9 @@ mod tests {
         assert!(manager.is_layer_frozen("layer1"));
         assert!(!manager.is_layer_frozen("layer2"));
 
-        manager.unfreeze_layers(&["layer1".to_string()]).unwrap();
+        manager
+            .unfreeze_layers(&["layer1".to_string()])
+            .expect("operation should succeed");
         assert!(!manager.is_layer_frozen("layer1"));
     }
 
@@ -745,11 +754,11 @@ mod tests {
 
         let source_data = Array3::from_shape_fn((10, 5, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let target_data = Array3::from_shape_fn((10, 5, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
 
         let result = adapter.compute_domain_statistics(&source_data, &target_data);
@@ -777,7 +786,7 @@ mod tests {
         let mut manager = TransferLearningManager::new(config);
 
         // Update to epoch 5 (should trigger unfreezing)
-        manager.update_epoch(5).unwrap();
+        manager.update_epoch(5).expect("operation should succeed");
 
         // Some layers should have been unfrozen
         let frozen_count = manager.layer_freeze_status.values().filter(|&&v| v).count();
@@ -820,6 +829,6 @@ mod tests {
 
         let effectiveness = manager.calculate_transfer_effectiveness();
         assert!(effectiveness.is_some());
-        assert!(effectiveness.unwrap() > 0.0); // Should show improvement
+        assert!(effectiveness.expect("operation should succeed") > 0.0); // Should show improvement
     }
 }

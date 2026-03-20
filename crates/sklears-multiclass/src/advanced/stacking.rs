@@ -622,7 +622,7 @@ where
             // Generate predictions for validation fold
             for val_idx in val_indices {
                 let sample_idx = *val_idx;
-                let row_idx = val_indices.iter().position(|&x| x == sample_idx).unwrap();
+                let row_idx = val_indices.iter().position(|&x| x == sample_idx).expect("operation should succeed");
                 let x_sample = x_val.slice(s![row_idx..row_idx + 1, ..]).to_owned();
 
                 let mut feature_offset = 0;

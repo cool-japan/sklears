@@ -183,14 +183,20 @@ mod integration_tests {
 
         // Test SimpleStackingClassifier
         let simple_stacking = SimpleStackingClassifier::new(3).random_state(42);
-        let fitted_simple = simple_stacking.fit(&x, &y).unwrap();
-        let predictions_simple = fitted_simple.predict(&x).unwrap();
+        let fitted_simple = simple_stacking
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions_simple = fitted_simple
+            .predict(&x)
+            .expect("prediction should succeed");
         assert_eq!(predictions_simple.len(), 24);
 
         // Test BlendingClassifier
         let blending = BlendingClassifier::new(3).random_state(42);
-        let fitted_blending = blending.fit(&x, &y).unwrap();
-        let predictions_blending = fitted_blending.predict(&x).unwrap();
+        let fitted_blending = blending.fit(&x, &y).expect("model fitting should succeed");
+        let predictions_blending = fitted_blending
+            .predict(&x)
+            .expect("prediction should succeed");
         assert_eq!(predictions_blending.len(), 24);
 
         // TODO: Fix MultiLayerStackingClassifier matrix dimension issue
@@ -200,8 +206,8 @@ mod integration_tests {
         /*
         println!("Testing MultiLayerStackingClassifier...");
         let multi_layer = MultiLayerStackingClassifier::two_layer(3, 3);
-        let fitted_multi = multi_layer.fit(&x, &y).unwrap();
-        let predictions_multi = fitted_multi.predict(&x).unwrap();
+        let fitted_multi = multi_layer.fit(&x, &y).expect("model fitting should succeed");
+        let predictions_multi = fitted_multi.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions_multi.len(), 24);
         println!("MultiLayerStackingClassifier passed!");
         */
@@ -268,8 +274,12 @@ mod integration_tests {
 
         for strategy in strategies {
             let mut meta_learner = MetaLearner::new(strategy);
-            meta_learner.fit(&meta_features, &targets).unwrap();
-            let predictions = meta_learner.predict(&meta_features).unwrap();
+            meta_learner
+                .fit(&meta_features, &targets)
+                .expect("model fitting should succeed");
+            let predictions = meta_learner
+                .predict(&meta_features)
+                .expect("prediction should succeed");
             assert_eq!(predictions.len(), 10);
         }
     }
@@ -286,7 +296,7 @@ mod integration_tests {
 
         // Test correlation
         let y = array![2.0, 4.0, 6.0];
-        let correlation = simd_correlation(&x.view(), &y.view()).unwrap();
+        let correlation = simd_correlation(&x.view(), &y.view()).expect("operation should succeed");
         assert!((correlation - 1.0).abs() < 1e-10);
 
         // Test variance
@@ -304,7 +314,7 @@ mod integration_tests {
             [4.0, 5.0, 4.1]
         ];
 
-        let diversity = calculate_diversity(&predictions).unwrap();
+        let diversity = calculate_diversity(&predictions).expect("operation should succeed");
         assert!(diversity >= 0.0 && diversity <= 1.0);
     }
 
@@ -372,7 +382,9 @@ mod integration_tests {
         let x_test_wrong = array![[1.0, 2.0, 3.0]]; // Wrong features
 
         let stacking = SimpleStackingClassifier::new(1);
-        let fitted = stacking.fit(&x_train, &y_train).unwrap();
+        let fitted = stacking
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         let result = fitted.predict(&x_test_wrong);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Feature"));

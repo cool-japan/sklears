@@ -4,7 +4,7 @@
 //! and comparing the performance of different composition strategies.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
-use scirs2_core::random::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
 use sklears_core::{
     error::Result as SklResult,
@@ -577,7 +577,7 @@ impl BenchmarkSuite {
         use scirs2_core::random::SeedableRng;
 
         let mut rng = StdRng::seed_from_u64(42);
-        Array2::from_shape_fn((n_samples, n_features), |_| rng.gen_range(-1.0..1.0))
+        Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-1.0..1.0))
     }
 
     /// Estimate memory usage (simplified)
@@ -670,7 +670,7 @@ impl BenchmarkReport {
             rankings.push((strategy.clone(), avg_score));
         }
 
-        rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         rankings
     }
 
@@ -792,7 +792,8 @@ impl BenchmarkReport {
                     })
                     .collect::<Vec<_>>();
 
-                throughput_rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                throughput_rankings
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
                 for (strategy, throughput) in throughput_rankings.iter().take(3) {
                     recommendations.push(format!(
@@ -815,7 +816,8 @@ impl BenchmarkReport {
                     })
                     .collect::<Vec<_>>();
 
-                latency_rankings.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                latency_rankings
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
                 for (strategy, latency) in latency_rankings.iter().take(3) {
                     recommendations.push(format!(
@@ -841,7 +843,8 @@ impl BenchmarkReport {
                     })
                     .collect::<Vec<_>>();
 
-                memory_rankings.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                memory_rankings
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
                 for (strategy, memory) in memory_rankings.iter().take(3) {
                     recommendations.push(format!("{strategy} (memory: {memory:.2} MB)"));
@@ -1374,7 +1377,9 @@ mod tests {
         let mut suite = BenchmarkSuite::new(config);
         let transformer = MockTransformer::new();
 
-        suite.benchmark_transformer("mock", &transformer).unwrap();
+        suite
+            .benchmark_transformer("mock", &transformer)
+            .unwrap_or_default();
         assert!(suite.results().contains_key("mock"));
     }
 

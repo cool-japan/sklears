@@ -386,7 +386,7 @@ impl MultiLabelFeatureSelector<Untrained> {
             indices.sort_by(|&a, &b| {
                 relevance_scores[b]
                     .partial_cmp(&relevance_scores[a])
-                    .unwrap()
+                    .expect("operation should succeed")
             });
             indices.truncate(k);
             Ok(indices)
@@ -465,9 +465,12 @@ impl Fit<Array2<Float>, MultiLabelTarget> for MultiLabelFeatureSelector<Untraine
 
 impl Transform<Array2<Float>> for MultiLabelFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -482,8 +485,11 @@ impl Transform<Array2<Float>> for MultiLabelFeatureSelector<Trained> {
 
 impl SelectorMixin for MultiLabelFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -494,7 +500,10 @@ impl SelectorMixin for MultiLabelFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -504,39 +513,48 @@ impl SelectorMixin for MultiLabelFeatureSelector<Trained> {
 
 impl FeatureSelector for MultiLabelFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl MultiLabelFeatureSelector<Trained> {
     /// Get feature relevance scores
     pub fn scores(&self) -> &Array1<Float> {
-        self.scores_.as_ref().unwrap()
+        self.scores_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 
     /// Get the number of labels
     pub fn n_labels(&self) -> usize {
-        self.n_labels_.unwrap()
+        self.n_labels_.expect("operation should succeed")
     }
 
     /// Check if a feature was selected
     pub fn is_feature_selected(&self, feature_idx: usize) -> bool {
         self.selected_features_
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .contains(&feature_idx)
     }
 
     /// Get feature ranking (0-indexed, lower is better)
     pub fn feature_ranking(&self) -> Vec<usize> {
-        let scores = self.scores_.as_ref().unwrap();
+        let scores = self.scores_.as_ref().expect("operation should succeed");
         let mut indices: Vec<usize> = (0..scores.len()).collect();
-        indices.sort_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap());
+        indices.sort_by(|&a, &b| {
+            scores[b]
+                .partial_cmp(&scores[a])
+                .expect("operation should succeed")
+        });
 
         let mut ranking = vec![0; scores.len()];
         for (rank, &feature_idx) in indices.iter().enumerate() {
@@ -610,7 +628,11 @@ impl LabelSpecificSelector<Untrained> {
 
         if let Some(k) = self.n_features_per_label {
             let mut indices: Vec<usize> = (0..n_features).collect();
-            indices.sort_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap());
+            indices.sort_by(|&a, &b| {
+                scores[b]
+                    .partial_cmp(&scores[a])
+                    .expect("operation should succeed")
+            });
             indices.truncate(k);
             Ok(indices)
         } else {
@@ -750,9 +772,12 @@ impl Fit<Array2<Float>, MultiLabelTarget> for LabelSpecificSelector<Untrained> {
 
 impl Transform<Array2<Float>> for LabelSpecificSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
 
@@ -774,8 +799,11 @@ impl Transform<Array2<Float>> for LabelSpecificSelector<Trained> {
 
 impl SelectorMixin for LabelSpecificSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -786,7 +814,10 @@ impl SelectorMixin for LabelSpecificSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -796,7 +827,9 @@ impl SelectorMixin for LabelSpecificSelector<Trained> {
 
 impl FeatureSelector for LabelSpecificSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -809,11 +842,14 @@ impl LabelSpecificSelector<Trained> {
     }
 
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 
     pub fn n_labels(&self) -> usize {
-        self.n_labels_.unwrap()
+        self.n_labels_.expect("operation should succeed")
     }
 }
 
@@ -827,14 +863,14 @@ mod tests {
     fn create_test_data() -> (Array2<Float>, MultiLabelTarget) {
         let features =
             Array2::from_shape_vec((100, 10), (0..1000).map(|i| (i as Float) * 0.01).collect())
-                .unwrap();
+                .expect("operation should succeed");
         let labels = Array2::from_shape_vec(
             (100, 3),
             (0..300)
                 .map(|i| if i % 3 == 0 { 1.0 } else { 0.0 })
                 .collect(),
         )
-        .unwrap();
+        .expect("operation should succeed");
         (features, labels)
     }
 
@@ -846,7 +882,9 @@ mod tests {
             .strategy(MultiLabelStrategy::GlobalRelevance)
             .n_features(5);
 
-        let trained = selector.fit(&features, &labels).unwrap();
+        let trained = selector
+            .fit(&features, &labels)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 5);
         assert_eq!(trained.selected_features().len(), 5);
     }
@@ -859,7 +897,9 @@ mod tests {
             .strategy(MultiLabelStrategy::LabelSpecific)
             .n_features(3); // Use fixed number instead of threshold for random data
 
-        let trained = selector.fit(&features, &labels).unwrap();
+        let trained = selector
+            .fit(&features, &labels)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 3);
     }
 
@@ -869,8 +909,12 @@ mod tests {
 
         let selector = MultiLabelFeatureSelector::new().n_features(3);
 
-        let trained = selector.fit(&features, &labels).unwrap();
-        let transformed = trained.transform(&features).unwrap();
+        let trained = selector
+            .fit(&features, &labels)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 3);
         assert_eq!(transformed.nrows(), features.nrows());
@@ -884,7 +928,9 @@ mod tests {
             .n_features_per_label(2)
             .aggregate_method(AggregateMethod::Union);
 
-        let trained = selector.fit(&features, &labels).unwrap();
+        let trained = selector
+            .fit(&features, &labels)
+            .expect("operation should succeed");
         assert!(trained.n_features_out() > 0);
         assert!(trained.n_features_out() <= 6); // Max 2 per label * 3 labels
     }
@@ -897,7 +943,9 @@ mod tests {
             .strategy(MultiLabelStrategy::Ensemble)
             .n_features(4);
 
-        let trained = selector.fit(&features, &labels).unwrap();
+        let trained = selector
+            .fit(&features, &labels)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 4);
     }
 
@@ -907,7 +955,9 @@ mod tests {
 
         let selector = MultiLabelFeatureSelector::new().n_features(5);
 
-        let trained = selector.fit(&features, &labels).unwrap();
+        let trained = selector
+            .fit(&features, &labels)
+            .expect("operation should succeed");
         let ranking = trained.feature_ranking();
 
         assert_eq!(ranking.len(), features.ncols());
@@ -923,8 +973,10 @@ mod tests {
 
         let selector = MultiLabelFeatureSelector::new().n_features(3);
 
-        let trained = selector.fit(&features, &labels).unwrap();
-        let support = trained.get_support().unwrap();
+        let trained = selector
+            .fit(&features, &labels)
+            .expect("operation should succeed");
+        let support = trained.get_support().expect("operation should succeed");
 
         assert_eq!(support.len(), features.ncols());
         assert_eq!(support.iter().filter(|&&x| x).count(), 3);
@@ -937,7 +989,8 @@ mod tests {
         fn valid_array_2d() -> impl Strategy<Value = Array2<Float>> {
             (5usize..20, 10usize..50).prop_flat_map(|(n_cols, n_rows)| {
                 prop::collection::vec(-10.0..10.0f64, n_rows * n_cols).prop_map(move |values| {
-                    Array2::from_shape_vec((n_rows, n_cols), values).unwrap()
+                    Array2::from_shape_vec((n_rows, n_cols), values)
+                        .expect("operation should succeed")
                 })
             })
         }
@@ -947,7 +1000,8 @@ mod tests {
             n_labels: usize,
         ) -> impl Strategy<Value = MultiLabelTarget> {
             prop::collection::vec(0.0..1.0f64, n_samples * n_labels).prop_map(move |values| {
-                Array2::from_shape_vec((n_samples, n_labels), values).unwrap()
+                Array2::from_shape_vec((n_samples, n_labels), values)
+                    .expect("operation should succeed")
             })
         }
 

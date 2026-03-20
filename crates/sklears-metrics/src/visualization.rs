@@ -719,7 +719,8 @@ impl FeatureImportanceViz {
             .enumerate()
             .map(|(i, &imp)| (i, imp))
             .collect();
-        indexed_importances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_importances
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let top_k = self.top_k.min(indexed_importances.len());
         let top_indices: Vec<usize> = indexed_importances
@@ -1005,7 +1006,7 @@ pub fn create_roc_curve_data(
         .zip(y_true.iter())
         .map(|(&score, &label)| (score, label))
         .collect();
-    scored_labels.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+    scored_labels.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
     let n_pos = y_true.iter().filter(|&&label| label == 1).count();
     let n_neg = y_true.len() - n_pos;
@@ -1087,7 +1088,7 @@ pub fn create_precision_recall_data(
         .zip(y_true.iter())
         .map(|(&score, &label)| (score, label))
         .collect();
-    scored_labels.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+    scored_labels.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
     let n_pos = y_true.iter().filter(|&&label| label == 1).count();
 
@@ -1139,7 +1140,7 @@ pub fn create_precision_recall_data(
     let optimal_f1_index = f1_vec
         .iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
         .map(|(index, _)| index)
         .unwrap_or(0);
 
@@ -1262,7 +1263,7 @@ mod tests {
         let y_true = Array1::from_vec(vec![0, 0, 1, 1, 1]);
         let y_scores = Array1::from_vec(vec![0.1, 0.4, 0.35, 0.8, 0.65]);
 
-        let roc_data = create_roc_curve_data(&y_true, &y_scores).unwrap();
+        let roc_data = create_roc_curve_data(&y_true, &y_scores).expect("operation should succeed");
 
         assert!(roc_data.auc >= 0.0 && roc_data.auc <= 1.0);
         assert_eq!(roc_data.fpr.len(), roc_data.tpr.len());
@@ -1276,7 +1277,8 @@ mod tests {
         let y_true = Array1::from_vec(vec![0, 0, 1, 1, 1]);
         let y_scores = Array1::from_vec(vec![0.1, 0.4, 0.35, 0.8, 0.65]);
 
-        let pr_data = create_precision_recall_data(&y_true, &y_scores).unwrap();
+        let pr_data =
+            create_precision_recall_data(&y_true, &y_scores).expect("operation should succeed");
 
         assert!(pr_data.average_precision >= 0.0 && pr_data.average_precision <= 1.0);
         assert_eq!(pr_data.precision.len(), pr_data.recall.len());
@@ -1286,16 +1288,21 @@ mod tests {
 
     #[test]
     fn test_confusion_matrix_viz() {
-        let matrix = Array2::from_shape_vec((2, 2), vec![50, 10, 5, 35]).unwrap();
+        let matrix =
+            Array2::from_shape_vec((2, 2), vec![50, 10, 5, 35]).expect("operation should succeed");
         let labels = vec!["Class 0".to_string(), "Class 1".to_string()];
 
-        let cm_viz = ConfusionMatrixVisualization::new(&matrix, labels).unwrap();
+        let cm_viz =
+            ConfusionMatrixVisualization::new(&matrix, labels).expect("operation should succeed");
 
         assert_eq!(cm_viz.matrix.shape(), &[2, 2]);
         assert_eq!(cm_viz.labels.len(), 2);
         assert!(cm_viz.normalized_matrix.is_some());
 
-        let normalized = cm_viz.normalized_matrix.as_ref().unwrap();
+        let normalized = cm_viz
+            .normalized_matrix
+            .as_ref()
+            .expect("operation should succeed");
         // First row should sum to 1 (50+10 = 60, so 50/60, 10/60)
         assert_abs_diff_eq!(
             normalized[[0, 0]] + normalized[[0, 1]],
@@ -1309,7 +1316,8 @@ mod tests {
         let y_true = Array1::from_vec(vec![0, 0, 1, 1, 1, 0, 1, 0, 1, 1]);
         let y_prob = Array1::from_vec(vec![0.1, 0.2, 0.3, 0.7, 0.8, 0.15, 0.9, 0.25, 0.85, 0.95]);
 
-        let cal_plot = create_calibration_plot_data(&y_true, &y_prob, 5).unwrap();
+        let cal_plot =
+            create_calibration_plot_data(&y_true, &y_prob, 5).expect("operation should succeed");
 
         assert_eq!(cal_plot.mean_predicted_probs.len(), 5);
         assert_eq!(cal_plot.fraction_positives.len(), 5);
@@ -1327,7 +1335,8 @@ mod tests {
         ];
         let importances = Array1::from_vec(vec![0.5, 0.3, 0.2]);
 
-        let feat_viz = FeatureImportanceViz::new(feature_names, importances, None, 3).unwrap();
+        let feat_viz = FeatureImportanceViz::new(feature_names, importances, None, 3)
+            .expect("operation should succeed");
 
         assert_eq!(feat_viz.feature_names.len(), 3);
         assert_eq!(feat_viz.importances.len(), 3);
@@ -1338,10 +1347,11 @@ mod tests {
     fn test_metric_dashboard() {
         let model_names = vec!["Model A".to_string(), "Model B".to_string()];
         let metric_names = vec!["Accuracy".to_string(), "F1".to_string()];
-        let metric_values = Array2::from_shape_vec((2, 2), vec![0.85, 0.82, 0.90, 0.88]).unwrap();
+        let metric_values = Array2::from_shape_vec((2, 2), vec![0.85, 0.82, 0.90, 0.88])
+            .expect("operation should succeed");
 
-        let dashboard =
-            MetricDashboard::new(model_names, metric_names, metric_values, None).unwrap();
+        let dashboard = MetricDashboard::new(model_names, metric_names, metric_values, None)
+            .expect("operation should succeed");
 
         assert_eq!(dashboard.model_names.len(), 2);
         assert_eq!(dashboard.metric_names.len(), 2);
@@ -1376,7 +1386,8 @@ mod tests {
 
     #[test]
     fn test_matrix_to_js() {
-        let matrix = Array2::from_shape_vec((2, 2), vec![1, 2, 3, 4]).unwrap();
+        let matrix =
+            Array2::from_shape_vec((2, 2), vec![1, 2, 3, 4]).expect("operation should succeed");
         let js = matrix_to_js(&matrix);
         assert_eq!(js, "[[1,2],[3,4]]");
     }

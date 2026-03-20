@@ -444,17 +444,20 @@ mod tests {
     fn test_jaccard_similarity() {
         let set1 = vec![0, 1, 2];
         let set2 = vec![1, 2, 3];
-        let similarity = JaccardSimilarity::compute(&set1, &set2).unwrap();
+        let similarity =
+            JaccardSimilarity::compute(&set1, &set2).expect("operation should succeed");
         assert!((similarity - 0.5).abs() < 1e-10);
 
         // Test identical sets
-        let similarity = JaccardSimilarity::compute(&set1, &set1).unwrap();
+        let similarity =
+            JaccardSimilarity::compute(&set1, &set1).expect("operation should succeed");
         assert!((similarity - 1.0).abs() < 1e-10);
 
         // Test empty sets
         let empty1: Vec<usize> = vec![];
         let empty2: Vec<usize> = vec![];
-        let similarity = JaccardSimilarity::compute(&empty1, &empty2).unwrap();
+        let similarity =
+            JaccardSimilarity::compute(&empty1, &empty2).expect("operation should succeed");
         assert!((similarity - 1.0).abs() < 1e-10);
     }
 
@@ -462,7 +465,7 @@ mod tests {
     fn test_dice_similarity() {
         let set1 = vec![0, 1, 2];
         let set2 = vec![1, 2, 3];
-        let similarity = DiceSimilarity::compute(&set1, &set2).unwrap();
+        let similarity = DiceSimilarity::compute(&set1, &set2).expect("operation should succeed");
         assert!((similarity - 2.0 / 3.0).abs() < 1e-10);
     }
 
@@ -470,7 +473,8 @@ mod tests {
     fn test_overlap_coefficient() {
         let set1 = vec![0, 1, 2];
         let set2 = vec![1, 2, 3, 4];
-        let coefficient = OverlapCoefficient::compute(&set1, &set2).unwrap();
+        let coefficient =
+            OverlapCoefficient::compute(&set1, &set2).expect("operation should succeed");
         assert!((coefficient - 2.0 / 3.0).abs() < 1e-10);
     }
 
@@ -479,7 +483,8 @@ mod tests {
         let set1 = vec![0, 1, 2];
         let set2 = vec![1, 2, 3];
         let total_features = 10;
-        let consistency = ConsistencyIndex::compute(&set1, &set2, total_features).unwrap();
+        let consistency = ConsistencyIndex::compute(&set1, &set2, total_features)
+            .expect("operation should succeed");
         assert!(consistency > -1.0 && consistency <= 1.0);
     }
 
@@ -488,7 +493,8 @@ mod tests {
         let feature_sets = vec![vec![0, 1, 2], vec![1, 2, 3], vec![0, 2, 4]];
         let total_features = 10;
 
-        let measures = StabilityMeasures::compute(&feature_sets, total_features).unwrap();
+        let measures = StabilityMeasures::compute(&feature_sets, total_features)
+            .expect("operation should succeed");
 
         assert!(measures.jaccard_similarity >= 0.0 && measures.jaccard_similarity <= 1.0);
         assert!(measures.dice_similarity >= 0.0 && measures.dice_similarity <= 1.0);
@@ -504,9 +510,12 @@ mod tests {
     fn test_average_similarities() {
         let feature_sets = vec![vec![0, 1, 2], vec![1, 2, 3], vec![2, 3, 4]];
 
-        let jaccard = JaccardSimilarity::average_similarity(&feature_sets).unwrap();
-        let dice = DiceSimilarity::average_similarity(&feature_sets).unwrap();
-        let overlap = OverlapCoefficient::average_coefficient(&feature_sets).unwrap();
+        let jaccard =
+            JaccardSimilarity::average_similarity(&feature_sets).expect("operation should succeed");
+        let dice =
+            DiceSimilarity::average_similarity(&feature_sets).expect("operation should succeed");
+        let overlap = OverlapCoefficient::average_coefficient(&feature_sets)
+            .expect("operation should succeed");
 
         assert!(jaccard >= 0.0 && jaccard <= 1.0);
         assert!(dice >= 0.0 && dice <= 1.0);

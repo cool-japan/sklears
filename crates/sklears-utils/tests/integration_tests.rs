@@ -21,18 +21,20 @@ fn test_end_to_end_classification_workflow() {
     set_random_state(42);
 
     // Generate classification dataset
-    let (X, _y) = make_classification(1000, 20, 5, None, None, 0.1, 1.0, Some(42)).unwrap();
+    let (X, _y) = make_classification(1000, 20, 5, None, None, 0.1, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Validate the generated data
     assert!(check_array_2d(&X).is_ok());
 
     // Split into train/test
     let (train_indices, _test_indices) =
-        train_test_split_indices(X.nrows(), 0.2, true, Some(42)).unwrap();
-    let X_train = safe_indexing_2d(&X, &train_indices).unwrap();
+        train_test_split_indices(X.nrows(), 0.2, true, Some(42)).expect("operation should succeed");
+    let X_train = safe_indexing_2d(&X, &train_indices).expect("operation should succeed");
 
     // Preprocess the training data
-    let (X_train_scaled, _means, _stds) = FeatureScaler::standard_scale(&X_train).unwrap();
+    let (X_train_scaled, _means, _stds) =
+        FeatureScaler::standard_scale(&X_train).expect("operation should succeed");
 
     // Test distance calculations between samples
     for i in 0..std::cmp::min(10, X_train_scaled.nrows()) {
@@ -58,19 +60,21 @@ fn test_end_to_end_regression_workflow() {
     set_random_state(123);
 
     // Generate regression dataset
-    let (X, y) = make_regression(500, 15, None, 0.1, 1.0, Some(42)).unwrap();
+    let (X, y) =
+        make_regression(500, 15, None, 0.1, 1.0, Some(42)).expect("operation should succeed");
 
     // Validate the generated data
     assert!(check_array_2d(&X).is_ok());
 
     // Split into train/test
-    let (train_indices, _test_indices) =
-        train_test_split_indices(X.nrows(), 0.3, true, Some(123)).unwrap();
-    let X_train = safe_indexing_2d(&X, &train_indices).unwrap();
+    let (train_indices, _test_indices) = train_test_split_indices(X.nrows(), 0.3, true, Some(123))
+        .expect("operation should succeed");
+    let X_train = safe_indexing_2d(&X, &train_indices).expect("operation should succeed");
     let y_train = Array1::from_vec(train_indices.iter().map(|&i| y[i]).collect::<Vec<_>>());
 
     // Feature scaling
-    let (X_train_scaled, means, stds) = FeatureScaler::standard_scale(&X_train).unwrap();
+    let (X_train_scaled, means, stds) =
+        FeatureScaler::standard_scale(&X_train).expect("operation should succeed");
     assert_eq!(means.len(), X_train.ncols());
     assert_eq!(stds.len(), X_train.ncols());
 
@@ -103,7 +107,8 @@ fn test_parallel_processing_integration() {
     set_random_state(456);
 
     // Generate a larger dataset for parallel processing
-    let (X, _y) = make_classification(2000, 50, 10, None, None, 0.05, 1.0, Some(456)).unwrap();
+    let (X, _y) = make_classification(2000, 50, 10, None, None, 0.05, 1.0, Some(456))
+        .expect("operation should succeed");
 
     // Use parallel iterator for distance calculations
     let sample_indices: Vec<usize> = (0..std::cmp::min(100, X.nrows())).collect();
@@ -115,7 +120,7 @@ fn test_parallel_processing_integration() {
             let first_row = X.row(0).to_owned();
             euclidean_distance(&row, &first_row)
         })
-        .unwrap();
+        .expect("operation should succeed");
 
     assert_eq!(distances.len(), sample_indices.len());
     assert_eq!(distances[0], 0.0); // Distance from first row to itself should be 0
@@ -134,7 +139,8 @@ fn test_data_validation_pipeline() {
     set_random_state(789);
 
     // Generate test data
-    let (X, _y) = make_classification(300, 10, 3, None, None, 0.0, 1.0, Some(789)).unwrap();
+    let (X, _y) = make_classification(300, 10, 3, None, None, 0.0, 1.0, Some(789))
+        .expect("operation should succeed");
 
     // Test array validation functions
     assert!(check_array_2d(&X).is_ok());
@@ -148,10 +154,12 @@ fn test_cross_module_data_flow() {
     set_random_state(999);
 
     // Test data flowing through multiple modules
-    let (X, _y) = make_regression(400, 8, None, 0.1, 1.0, Some(999)).unwrap();
+    let (X, _y) =
+        make_regression(400, 8, None, 0.1, 1.0, Some(999)).expect("operation should succeed");
 
     // 1. Data generation -> Array utilities
-    let original_stats = array_standardize(&X.column(0).to_owned()).unwrap();
+    let original_stats =
+        array_standardize(&X.column(0).to_owned()).expect("operation should succeed");
     // Check that the standardized data has reasonable properties
     let mean = original_stats.sum() / original_stats.len() as f64;
     assert!(
@@ -160,7 +168,8 @@ fn test_cross_module_data_flow() {
     );
 
     // 2. Array utilities -> Preprocessing
-    let (X_scaled, _means, _stds) = FeatureScaler::standard_scale(&X).unwrap();
+    let (X_scaled, _means, _stds) =
+        FeatureScaler::standard_scale(&X).expect("operation should succeed");
 
     // 3. Preprocessing -> Metrics
     let sample1 = X_scaled.row(0).to_owned();
@@ -169,8 +178,8 @@ fn test_cross_module_data_flow() {
     assert!(distance >= 0.0);
 
     // 4. Validation -> Random sampling
-    let (train_indices, test_indices) =
-        train_test_split_indices(X.nrows(), 0.2, true, Some(999)).unwrap();
+    let (train_indices, test_indices) = train_test_split_indices(X.nrows(), 0.2, true, Some(999))
+        .expect("operation should succeed");
     assert!(!train_indices.is_empty());
     assert!(!test_indices.is_empty());
 
@@ -186,11 +195,13 @@ fn test_performance_integration() {
 
     // Test performance of large-scale operations
     let start = Instant::now();
-    let (X, _y) = make_classification(10000, 100, 10, None, None, 0.0, 1.0, Some(2024)).unwrap();
+    let (X, _y) = make_classification(10000, 100, 10, None, None, 0.0, 1.0, Some(2024))
+        .expect("operation should succeed");
     let data_generation_time = start.elapsed();
 
     let start = Instant::now();
-    let (X_scaled, _means, _stds) = FeatureScaler::standard_scale(&X).unwrap();
+    let (X_scaled, _means, _stds) =
+        FeatureScaler::standard_scale(&X).expect("operation should succeed");
     let scaling_time = start.elapsed();
 
     let start = Instant::now();

@@ -341,7 +341,7 @@ mod tests {
 
         // Check that blocks cover the entire range
         assert_eq!(blocks[0].0, 0);
-        assert_eq!(blocks.last().unwrap().1, 24);
+        assert_eq!(blocks.last().expect("operation should succeed").1, 24);
 
         // Check overlap structure
         if blocks.len() > 1 {
@@ -356,7 +356,7 @@ mod tests {
             .increasing(true)
             .decomposition_parameters(0.1, 10, 2); // Block size larger than problem
 
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check monotonicity
         for i in 1..result.len() {
@@ -378,7 +378,7 @@ mod tests {
             .decomposition_parameters(0.1, 10, 2)
             .convergence(1e-6, 100);
 
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check monotonicity
         for i in 1..result.len() {
@@ -392,7 +392,7 @@ mod tests {
         let result = isotonic_regression_dual_decomposition(&y, None, true);
 
         assert!(result.is_ok());
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..solution.len() {
@@ -407,7 +407,7 @@ mod tests {
             .increasing(false)
             .decomposition_parameters(0.1, 3, 1);
 
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check decreasing monotonicity
         for i in 1..result.len() {
@@ -423,7 +423,9 @@ mod tests {
             .increasing(true)
             .decomposition_parameters(0.1, 3, 1);
 
-        let result = regressor.solve(&y, Some(&weights)).unwrap();
+        let result = regressor
+            .solve(&y, Some(&weights))
+            .expect("solve should succeed");
 
         // Result should be influenced by the high-weight point
         assert!(result.len() == 5);
@@ -456,7 +458,7 @@ mod tests {
         let result = parallel_dual_decomposition(&y, None, true, 4);
         assert!(result.is_ok());
 
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..solution.len() {

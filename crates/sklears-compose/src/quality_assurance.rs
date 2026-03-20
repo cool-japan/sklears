@@ -1340,17 +1340,20 @@ mod tests {
     #[test]
     fn test_qa_system_creation() {
         let config = QAConfig::default();
-        let qa_system = AutomatedQualityAssurance::new(config).unwrap();
+        let qa_system = AutomatedQualityAssurance::new(config).expect("operation should succeed");
         assert!(qa_system.assessment_history.is_empty());
     }
 
     #[test]
     fn test_quality_assessment() {
         let config = QAConfig::default();
-        let mut qa_system = AutomatedQualityAssurance::new(config).unwrap();
+        let mut qa_system =
+            AutomatedQualityAssurance::new(config).expect("operation should succeed");
         let estimator = MockEstimator;
 
-        let assessment = qa_system.assess_quality(&estimator, None).unwrap();
+        let assessment = qa_system
+            .assess_quality(&estimator, None)
+            .expect("operation should succeed");
         assert!(assessment.overall_score >= 0.0 && assessment.overall_score <= 1.0);
         assert_eq!(qa_system.assessment_history.len(), 1);
     }
@@ -1360,10 +1363,13 @@ mod tests {
         let mut config = QAConfig::default();
         config.quality_gates.min_quality_score = 1.1; // Impossible threshold
 
-        let mut qa_system = AutomatedQualityAssurance::new(config).unwrap();
+        let mut qa_system =
+            AutomatedQualityAssurance::new(config).expect("operation should succeed");
         let estimator = MockEstimator;
 
-        let assessment = qa_system.assess_quality(&estimator, None).unwrap();
+        let assessment = qa_system
+            .assess_quality(&estimator, None)
+            .expect("operation should succeed");
         // Should fail quality gates due to high threshold
         assert!(!assessment.quality_gates_passed);
     }
@@ -1371,12 +1377,15 @@ mod tests {
     #[test]
     fn test_quality_report_generation() {
         let config = QAConfig::default();
-        let mut qa_system = AutomatedQualityAssurance::new(config).unwrap();
+        let mut qa_system =
+            AutomatedQualityAssurance::new(config).expect("operation should succeed");
         let estimator = MockEstimator;
 
         // Generate a few assessments
         for _ in 0..3 {
-            qa_system.assess_quality(&estimator, None).unwrap();
+            qa_system
+                .assess_quality(&estimator, None)
+                .expect("operation should succeed");
         }
 
         let report = qa_system.generate_quality_report();

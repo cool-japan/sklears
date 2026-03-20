@@ -79,7 +79,7 @@ impl ThreadPool {
         drop(self.sender.take());
         for worker in &mut self.workers {
             if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
+                thread.join().expect("operation should succeed");
             }
         }
     }
@@ -90,7 +90,7 @@ impl Drop for ThreadPool {
         drop(self.sender.take());
         for worker in &mut self.workers {
             if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
+                thread.join().expect("operation should succeed");
             }
         }
     }
@@ -106,7 +106,7 @@ struct Worker {
 impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<std::sync::mpsc::Receiver<Job>>>) -> UtilsResult<Self> {
         let thread = thread::spawn(move || loop {
-            let job = receiver.lock().unwrap().recv();
+            let job = receiver.lock().expect("operation should succeed").recv();
             match job {
                 Ok(job) => {
                     job();
@@ -274,7 +274,7 @@ where
                     chunk_results.push(f_clone(item));
                 }
 
-                let mut results_lock = results_clone.lock().unwrap();
+                let mut results_lock = results_clone.lock().expect("operation should succeed");
                 // Ensure we have enough space
                 if results_lock.len() <= chunk_idx {
                     results_lock.resize_with(chunk_idx + 1, || Vec::new());
@@ -295,7 +295,7 @@ where
         }
 
         // Collect results in order
-        let results_lock = results.lock().unwrap();
+        let results_lock = results.lock().expect("operation should succeed");
         let mut final_results = Vec::new();
         for chunk_results in results_lock.iter() {
             final_results.extend_from_slice(chunk_results);
@@ -335,7 +335,7 @@ where
                     .filter(|item| predicate_clone(item))
                     .collect();
 
-                let mut results_lock = results_clone.lock().unwrap();
+                let mut results_lock = results_clone.lock().expect("operation should succeed");
                 // Ensure we have enough space
                 if results_lock.len() <= chunk_idx {
                     results_lock.resize_with(chunk_idx + 1, || Vec::new());
@@ -356,7 +356,7 @@ where
         }
 
         // Collect results in order
-        let results_lock = results.lock().unwrap();
+        let results_lock = results.lock().expect("operation should succeed");
         let mut final_results = Vec::new();
         for chunk_results in results_lock.iter() {
             final_results.extend_from_slice(chunk_results);
@@ -466,13 +466,13 @@ mod tests {
 
     #[test]
     fn test_thread_pool_creation() {
-        let pool = ThreadPool::new(4).unwrap();
+        let pool = ThreadPool::new(4).expect("operation should succeed");
         assert_eq!(pool.thread_count(), 4);
     }
 
     #[test]
     fn test_thread_pool_execution() {
-        let pool = ThreadPool::new(2).unwrap();
+        let pool = ThreadPool::new(2).expect("operation should succeed");
         let counter = Arc::new(AtomicUsize::new(0));
 
         for _ in 0..10 {
@@ -480,7 +480,7 @@ mod tests {
             pool.execute(move || {
                 counter_clone.fetch_add(1, Ordering::SeqCst);
             })
-            .unwrap();
+            .expect("operation should succeed");
         }
 
         // Give threads time to complete
@@ -493,12 +493,18 @@ mod tests {
     fn test_work_stealing_queue() {
         let queue = WorkStealingQueue::new(4);
 
-        queue.push_local(42).unwrap();
-        queue.push_global(24).unwrap();
+        queue.push_local(42).expect("operation should succeed");
+        queue.push_global(24).expect("operation should succeed");
 
-        assert_eq!(queue.get_task().unwrap(), Some(42));
-        assert_eq!(queue.get_task().unwrap(), Some(24));
-        assert_eq!(queue.get_task().unwrap(), None);
+        assert_eq!(
+            queue.get_task().expect("operation should succeed"),
+            Some(42)
+        );
+        assert_eq!(
+            queue.get_task().expect("operation should succeed"),
+            Some(24)
+        );
+        assert_eq!(queue.get_task().expect("operation should succeed"), None);
     }
 
     #[test]
@@ -506,7 +512,7 @@ mod tests {
         let items = vec![1, 2, 3, 4, 5];
         let iter = ParallelIterator::new(items);
 
-        let results = iter.map(|x| x * 2).unwrap();
+        let results = iter.map(|x| x * 2).expect("operation should succeed");
         assert_eq!(results, vec![2, 4, 6, 8, 10]);
     }
 
@@ -515,14 +521,16 @@ mod tests {
         let items = vec![1, 2, 3, 4, 5, 6];
         let iter = ParallelIterator::new(items);
 
-        let results = iter.filter(|&x| x % 2 == 0).unwrap();
+        let results = iter
+            .filter(|&x| x % 2 == 0)
+            .expect("operation should succeed");
         assert_eq!(results, vec![2, 4, 6]);
     }
 
     #[test]
     fn test_parallel_reducer_sum() {
         let items = vec![1, 2, 3, 4, 5];
-        let result = ParallelReducer::sum(items).unwrap();
+        let result = ParallelReducer::sum(items).expect("operation should succeed");
         assert_eq!(result, 15);
     }
 
@@ -530,10 +538,10 @@ mod tests {
     fn test_parallel_reducer_min_max() {
         let items = vec![5, 2, 8, 1, 9, 3];
 
-        let min_result = ParallelReducer::min(items.clone()).unwrap();
+        let min_result = ParallelReducer::min(items.clone()).expect("operation should succeed");
         assert_eq!(min_result, Some(1));
 
-        let max_result = ParallelReducer::max(items).unwrap();
+        let max_result = ParallelReducer::max(items).expect("operation should succeed");
         assert_eq!(max_result, Some(9));
     }
 
@@ -541,16 +549,16 @@ mod tests {
     fn test_parallel_reducer_empty() {
         let items: Vec<i32> = vec![];
 
-        let min_result = ParallelReducer::min(items.clone()).unwrap();
+        let min_result = ParallelReducer::min(items.clone()).expect("operation should succeed");
         assert_eq!(min_result, None);
 
-        let max_result = ParallelReducer::max(items).unwrap();
+        let max_result = ParallelReducer::max(items).expect("operation should succeed");
         assert_eq!(max_result, None);
     }
 
     #[test]
     fn test_thread_pool_with_cpu_cores() {
-        let pool = ThreadPool::with_cpu_cores().unwrap();
+        let pool = ThreadPool::with_cpu_cores().expect("operation should succeed");
         assert!(pool.thread_count() > 0);
         assert!(pool.thread_count() <= num_cpus::get());
     }

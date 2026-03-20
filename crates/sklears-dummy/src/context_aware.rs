@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::{
-    essentials::Normal, prelude::*, rngs::StdRng, Distribution, Rng, SeedableRng,
+    essentials::Normal, prelude::*, rngs::StdRng, Distribution, RngExt, SeedableRng,
 };
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict};
@@ -403,7 +403,7 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
         // Initialize cluster centers randomly
         let mut centers = Array2::zeros((n_clusters, n_features));
         for i in 0..n_clusters {
-            let sample_idx = rng.gen_range(0..n_samples);
+            let sample_idx = rng.random_range(0..n_samples);
             for j in 0..n_features {
                 centers[[i, j]] = x[[sample_idx, j]];
             }
@@ -522,7 +522,7 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
 
         // Select representative centers
         for i in 0..n_centers {
-            let sample_idx = rng.gen_range(0..n_samples);
+            let sample_idx = rng.random_range(0..n_samples);
             for j in 0..n_features {
                 centers[[i, j]] = x[[sample_idx, j]];
             }
@@ -623,8 +623,14 @@ impl Predict<Features, Array1<Float>>
 impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
     /// Predict using conditional strategy
     fn predict_conditional(&self, x: &Features, predictions: &mut Array1<Float>) -> Result<()> {
-        let feature_bins = self.feature_bins_.as_ref().unwrap();
-        let bin_predictions = self.bin_predictions_.as_ref().unwrap();
+        let feature_bins = self
+            .feature_bins_
+            .as_ref()
+            .expect("operation should succeed");
+        let bin_predictions = self
+            .bin_predictions_
+            .as_ref()
+            .expect("operation should succeed");
         let global_mean = bin_predictions.values().sum::<Float>() / bin_predictions.len() as Float;
 
         for i in 0..x.nrows() {
@@ -652,9 +658,15 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
         x: &Features,
         predictions: &mut Array1<Float>,
     ) -> Result<()> {
-        let weights = self.feature_weights_.as_ref().unwrap();
-        let intercept = self.weighted_intercept_.unwrap();
-        let coefficients = self.weighted_coefficients_.as_ref().unwrap();
+        let weights = self
+            .feature_weights_
+            .as_ref()
+            .expect("operation should succeed");
+        let intercept = self.weighted_intercept_.expect("operation should succeed");
+        let coefficients = self
+            .weighted_coefficients_
+            .as_ref()
+            .expect("operation should succeed");
 
         for i in 0..x.nrows() {
             let mut weighted_sum = intercept;
@@ -669,8 +681,14 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
 
     /// Predict using cluster-based strategy
     fn predict_cluster_based(&self, x: &Features, predictions: &mut Array1<Float>) -> Result<()> {
-        let centers = self.cluster_centers_.as_ref().unwrap();
-        let cluster_predictions = self.cluster_predictions_.as_ref().unwrap();
+        let centers = self
+            .cluster_centers_
+            .as_ref()
+            .expect("operation should succeed");
+        let cluster_predictions = self
+            .cluster_predictions_
+            .as_ref()
+            .expect("operation should succeed");
 
         for i in 0..x.nrows() {
             let mut min_distance = Float::INFINITY;
@@ -703,8 +721,14 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
         n_neighbors: usize,
         distance_power: Float,
     ) -> Result<()> {
-        let training_features = self.training_features_.as_ref().unwrap();
-        let training_targets = self.training_targets_.as_ref().unwrap();
+        let training_features = self
+            .training_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let training_targets = self
+            .training_targets_
+            .as_ref()
+            .expect("operation should succeed");
 
         for i in 0..x.nrows() {
             let mut distances = Vec::new();
@@ -721,7 +745,7 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let k_nearest = distances.into_iter().take(n_neighbors).collect::<Vec<_>>();
 
             // Weighted average based on inverse distance
@@ -756,9 +780,15 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
         predictions: &mut Array1<Float>,
         radius: Float,
     ) -> Result<()> {
-        let centers = self.local_centers_.as_ref().unwrap();
-        let local_means = self.local_means_.as_ref().unwrap();
-        let local_stds = self.local_stds_.as_ref().unwrap();
+        let centers = self
+            .local_centers_
+            .as_ref()
+            .expect("operation should succeed");
+        let local_means = self
+            .local_means_
+            .as_ref()
+            .expect("operation should succeed");
+        let local_stds = self.local_stds_.as_ref().expect("operation should succeed");
 
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
@@ -791,7 +821,7 @@ impl ContextAwareDummyRegressor<sklears_core::traits::Trained> {
                 let std = local_stds[best_center];
 
                 if std > 0.0 {
-                    let normal = Normal::new(mean, std).unwrap();
+                    let normal = Normal::new(mean, std).expect("operation should succeed");
                     predictions[i] = normal.sample(&mut rng);
                 } else {
                     predictions[i] = mean;
@@ -999,7 +1029,7 @@ impl Predict<Features, Array1<i32>> for ContextAwareDummyClassifier<sklears_core
 
         let n_samples = x.nrows();
         let mut predictions = Array1::zeros(n_samples);
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
@@ -1009,8 +1039,14 @@ impl Predict<Features, Array1<i32>> for ContextAwareDummyClassifier<sklears_core
 
         match &self.strategy {
             ContextAwareStrategy::Conditional { .. } => {
-                let feature_bins = self.feature_bins_.as_ref().unwrap();
-                let bin_class_probs = self.bin_class_probs_.as_ref().unwrap();
+                let feature_bins = self
+                    .feature_bins_
+                    .as_ref()
+                    .expect("operation should succeed");
+                let bin_class_probs = self
+                    .bin_class_probs_
+                    .as_ref()
+                    .expect("operation should succeed");
 
                 // Global class distribution as fallback
                 let global_class = classes[0]; // Simplified fallback
@@ -1030,7 +1066,7 @@ impl Predict<Features, Array1<i32>> for ContextAwareDummyClassifier<sklears_core
 
                     if let Some(class_probs) = bin_class_probs.get(&bin_indices) {
                         // Sample from class distribution
-                        let rand_val: Float = rng.gen();
+                        let rand_val: Float = rng.random();
                         let mut cumulative_prob = 0.0;
                         let mut selected_class = global_class;
 
@@ -1071,7 +1107,7 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
         let regressor = ContextAwareDummyRegressor::new(ContextAwareStrategy::Conditional {
@@ -1079,8 +1115,8 @@ mod tests {
             min_samples_per_bin: 1,
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert!(predictions.iter().all(|&p| p >= 1.0 && p <= 6.0));
@@ -1088,16 +1124,16 @@ mod tests {
 
     #[test]
     fn test_feature_weighted_regressor() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let regressor = ContextAwareDummyRegressor::new(ContextAwareStrategy::FeatureWeighted {
             weighting: FeatureWeighting::Uniform,
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -1108,7 +1144,7 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1, 9.0, 9.0, 9.1, 9.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 1.0, 5.0, 5.0, 9.0, 9.0];
 
         let regressor = ContextAwareDummyRegressor::new(ContextAwareStrategy::ClusterBased {
@@ -1117,16 +1153,16 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
     }
 
     #[test]
     fn test_locality_sensitive_regressor() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let regressor = ContextAwareDummyRegressor::new(ContextAwareStrategy::LocalitySensitive {
@@ -1134,8 +1170,8 @@ mod tests {
             distance_power: 2.0,
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -1146,7 +1182,7 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
         let regressor = ContextAwareDummyRegressor::new(ContextAwareStrategy::AdaptiveLocal {
@@ -1155,8 +1191,8 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
     }
@@ -1167,7 +1203,7 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 0, 1];
 
         let classifier = ContextAwareDummyClassifier::new(ContextAwareStrategy::Conditional {
@@ -1176,8 +1212,10 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert!(predictions.iter().all(|&p| p == 0 || p == 1));

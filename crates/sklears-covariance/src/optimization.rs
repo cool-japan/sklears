@@ -984,7 +984,11 @@ impl OptimizationAlgorithm for NelderMeadOptimizer {
 
             // Sort simplex by function values
             let mut indices: Vec<usize> = (0..simplex.len()).collect();
-            indices.sort_by(|&i, &j| values[i].partial_cmp(&values[j]).unwrap());
+            indices.sort_by(|&i, &j| {
+                values[i]
+                    .partial_cmp(&values[j])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             let best_idx = indices[0];
             let worst_idx = indices[n];
@@ -1066,9 +1070,9 @@ impl OptimizationAlgorithm for NelderMeadOptimizer {
         let best_idx = values
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(idx, _)| idx)
-            .unwrap();
+            .ok_or_else(|| SklearsError::NumericalError("collection should not be empty".into()))?;
 
         Ok(OptimizationResult {
             parameters: simplex[best_idx].clone(),
@@ -1230,7 +1234,9 @@ mod tests {
         let optimizer = SGDOptimizer::default();
         let initial_params = array![0.0, 0.0];
 
-        let result = optimizer.minimize(&objective, initial_params).unwrap();
+        let result = optimizer
+            .minimize(&objective, initial_params)
+            .expect("operation should succeed");
 
         assert!(result.converged);
         assert!(result.objective_value < 1e-6);
@@ -1250,7 +1256,9 @@ mod tests {
         let optimizer = AdamOptimizer::default();
         let initial_params = array![0.0, 0.0];
 
-        let result = optimizer.minimize(&objective, initial_params).unwrap();
+        let result = optimizer
+            .minimize(&objective, initial_params)
+            .expect("operation should succeed");
 
         assert!(result.objective_value < 1e-3);
         assert!(!result.history.objective_values.is_empty());
@@ -1266,7 +1274,9 @@ mod tests {
         let optimizer = CoordinateDescentOptimizer::default();
         let initial_params = array![0.0, 0.0];
 
-        let result = optimizer.minimize(&objective, initial_params).unwrap();
+        let result = optimizer
+            .minimize(&objective, initial_params)
+            .expect("operation should succeed");
 
         assert!(result.objective_value < 1e-3);
         assert_eq!(result.gradient_evaluations, 0); // Coordinate descent doesn't use gradients
@@ -1282,7 +1292,9 @@ mod tests {
         let optimizer = NelderMeadOptimizer::default();
         let initial_params = array![0.0, 0.0];
 
-        let result = optimizer.minimize(&objective, initial_params).unwrap();
+        let result = optimizer
+            .minimize(&objective, initial_params)
+            .expect("operation should succeed");
 
         assert!(result.objective_value < 1e-2);
         assert_eq!(result.gradient_evaluations, 0); // Nelder-Mead is derivative-free
@@ -1299,7 +1311,7 @@ mod tests {
 
         let sgd = registry.get(&OptimizerType::SGD);
         assert!(sgd.is_some());
-        assert_eq!(sgd.unwrap().name(), "SGD");
+        assert_eq!(sgd.expect("operation should succeed").name(), "SGD");
     }
 
     #[test]
@@ -1336,7 +1348,9 @@ mod tests {
         let optimizer = ProximalGradientOptimizer::new(config);
         let initial_params = array![0.0, 0.0];
 
-        let result = optimizer.minimize(&objective, initial_params).unwrap();
+        let result = optimizer
+            .minimize(&objective, initial_params)
+            .expect("operation should succeed");
 
         // With L1 regularization, some parameters might be exactly zero
         assert!(result.objective_value.is_finite()); // Objective value should be finite

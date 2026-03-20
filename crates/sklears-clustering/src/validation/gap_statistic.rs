@@ -371,7 +371,8 @@ impl ClusteringValidator {
         }
 
         // Generate reference data
-        let normal = scirs2_core::random::RandNormal::new(0.0, 1.0).unwrap();
+        let normal =
+            scirs2_core::random::RandNormal::new(0.0, 1.0).expect("operation should succeed");
         for i in 0..n_samples {
             for j in 0..n_features {
                 let normal_sample: f64 = normal.sample(&mut rng);
@@ -688,7 +689,7 @@ mod tests {
             5.0, 5.0, 5.1, 5.2, 5.2, 5.1, // Cluster 3
             9.0, 9.0, 9.1, 9.2, 9.2, 9.1,
         ];
-        Array2::from_shape_vec((9, 2), data_vec).unwrap()
+        Array2::from_shape_vec((9, 2), data_vec).expect("operation should succeed")
     }
 
     // Simple clustering function for testing
@@ -711,7 +712,7 @@ mod tests {
 
         let result = validator
             .gap_statistic(&data, 1..6, Some(5), simple_clustering_fn)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.k_values.len(), 5);
         assert_eq!(result.gap_values.len(), 5);
@@ -744,7 +745,7 @@ mod tests {
 
         let wcss = validator
             .compute_within_cluster_sum_of_squares(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(wcss >= 0.0);
         assert!(wcss.is_finite());
@@ -797,7 +798,9 @@ mod tests {
         let validator = ClusteringValidator::euclidean();
         let data = create_test_data();
 
-        let ref_data = validator.generate_pca_reference_data(&data).unwrap();
+        let ref_data = validator
+            .generate_pca_reference_data(&data)
+            .expect("operation should succeed");
 
         assert_eq!(ref_data.nrows(), data.nrows());
         assert_eq!(ref_data.ncols(), data.ncols());
@@ -834,12 +837,12 @@ mod tests {
         // Test with uniform reference
         let result_uniform = validator
             .gap_statistic_advanced(&data, 1..4, Some(3), simple_clustering_fn, false)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test with PCA reference
         let result_pca = validator
             .gap_statistic_advanced(&data, 1..4, Some(3), simple_clustering_fn, true)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Both should produce valid results
         assert_eq!(result_uniform.k_values.len(), 3);
@@ -856,7 +859,7 @@ mod tests {
 
         let result = validator
             .gap_statistic(&data, 1..6, Some(10), simple_clustering_fn)
-            .unwrap();
+            .expect("operation should succeed");
 
         let validation = validator.validate_gap_statistic(&result);
 
@@ -879,7 +882,8 @@ mod tests {
         assert!(result.is_err());
 
         // k larger than sample size
-        let small_data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let small_data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let result = validator.gap_statistic(&small_data, 1..6, Some(3), simple_clustering_fn);
         assert!(result.is_err());
 
@@ -898,7 +902,7 @@ mod tests {
 
         let wcss = validator
             .compute_within_cluster_sum_of_squares(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should ignore noise points and compute WCSS for valid clusters only
         assert!(wcss >= 0.0);

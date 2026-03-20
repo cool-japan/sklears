@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::{
-    essentials::Normal, prelude::*, rngs::StdRng, Distribution, Rng, SeedableRng,
+    essentials::Normal, prelude::*, rngs::StdRng, Distribution, RngExt, SeedableRng,
 };
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict};
@@ -238,7 +238,9 @@ impl Fit<Features, Array2<Float>> for MultiOutputDummyRegressor {
                         SingleOutputStrategy::Mean => (output_means[i], output_stds[i]),
                         SingleOutputStrategy::Median => {
                             let mut sorted: Vec<Float> = column.iter().copied().collect();
-                            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                            sorted.sort_by(|a, b| {
+                                a.partial_cmp(b).expect("operation should succeed")
+                            });
                             let median = if sorted.len() % 2 == 0 {
                                 (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                             } else {
@@ -306,11 +308,17 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
         }
 
         let n_samples = x.nrows();
-        let n_outputs = self.n_outputs_.unwrap();
+        let n_outputs = self.n_outputs_.expect("operation should succeed");
         let mut predictions = Array2::zeros((n_samples, n_outputs));
 
-        let output_means = self.output_means_.as_ref().unwrap();
-        let output_stds = self.output_stds_.as_ref().unwrap();
+        let output_means = self
+            .output_means_
+            .as_ref()
+            .expect("operation should succeed");
+        let output_stds = self
+            .output_stds_
+            .as_ref()
+            .expect("operation should succeed");
 
         match &self.strategy {
             MultiOutputStrategy::Independent => {
@@ -323,7 +331,7 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
             }
             MultiOutputStrategy::Correlated => {
                 // Sample from multivariate normal distribution
-                let cholesky = self.cholesky_.as_ref().unwrap();
+                let cholesky = self.cholesky_.as_ref().expect("operation should succeed");
                 let means = output_means;
 
                 let mut rng = if let Some(seed) = self.random_state {
@@ -356,7 +364,10 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
                 }
             }
             MultiOutputStrategy::MultiTask(strategies) => {
-                let stats = self.individual_stats_.as_ref().unwrap();
+                let stats = self
+                    .individual_stats_
+                    .as_ref()
+                    .expect("operation should succeed");
                 let mut rng = if let Some(seed) = self.random_state {
                     StdRng::seed_from_u64(seed)
                 } else {
@@ -399,7 +410,7 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
                 }
             }
             MultiOutputStrategy::Hierarchical(parents) => {
-                let hierarchy = self.hierarchy_.as_ref().unwrap();
+                let hierarchy = self.hierarchy_.as_ref().expect("operation should succeed");
 
                 // Predict outputs in order, using parent outputs for dependent variables
                 for output_idx in 0..n_outputs {
@@ -439,7 +450,10 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
             }
             MultiOutputStrategy::Structured => {
                 // Use empirical copula approach - sample from training data
-                let training_targets = self.training_targets_.as_ref().unwrap();
+                let training_targets = self
+                    .training_targets_
+                    .as_ref()
+                    .expect("operation should succeed");
                 let mut rng = if let Some(seed) = self.random_state {
                     StdRng::seed_from_u64(seed)
                 } else {
@@ -448,7 +462,7 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
 
                 for i in 0..n_samples {
                     // Randomly sample a row from training data
-                    let rand_idx = rng.gen_range(0..training_targets.nrows());
+                    let rand_idx = rng.random_range(0..training_targets.nrows());
                     for j in 0..n_outputs {
                         predictions[[i, j]] = training_targets[[rand_idx, j]];
                     }
@@ -463,17 +477,21 @@ impl Predict<Features, Array2<Float>> for MultiOutputDummyRegressor<sklears_core
 impl MultiOutputDummyRegressor<sklears_core::traits::Trained> {
     /// Get the number of outputs
     pub fn n_outputs(&self) -> usize {
-        self.n_outputs_.unwrap()
+        self.n_outputs_.expect("operation should succeed")
     }
 
     /// Get the output means
     pub fn output_means(&self) -> &Array1<Float> {
-        self.output_means_.as_ref().unwrap()
+        self.output_means_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the output standard deviations
     pub fn output_stds(&self) -> &Array1<Float> {
-        self.output_stds_.as_ref().unwrap()
+        self.output_stds_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the correlation matrix (if available)
@@ -541,13 +559,13 @@ mod tests {
 
     #[test]
     fn test_multioutput_independent() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
-        let y =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
+        let y = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
 
         let regressor = MultiOutputDummyRegressor::new(MultiOutputStrategy::Independent);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_outputs(), 2);
 
@@ -555,7 +573,7 @@ mod tests {
         assert_abs_diff_eq!(output_means[0], 4.0, epsilon = 1e-10); // Mean of [1,3,5,7]
         assert_abs_diff_eq!(output_means[1], 5.0, epsilon = 1e-10); // Mean of [2,4,6,8]
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[4, 2]);
 
         // All predictions should be the means
@@ -567,26 +585,29 @@ mod tests {
 
     #[test]
     fn test_multioutput_correlated() {
-        let x = Array2::from_shape_vec((6, 2), (0..12).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((6, 2), (0..12).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = Array2::from_shape_vec(
             (6, 2),
             vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0, 5.0, 10.0, 6.0, 12.0],
         )
-        .unwrap(); // Perfectly correlated outputs
+        .expect("operation should succeed"); // Perfectly correlated outputs
 
         let regressor =
             MultiOutputDummyRegressor::new(MultiOutputStrategy::Correlated).with_random_state(42);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_outputs(), 2);
         assert!(fitted.correlation_matrix().is_some());
         assert!(fitted.covariance_matrix().is_some());
 
-        let corr_matrix = fitted.correlation_matrix().unwrap();
+        let corr_matrix = fitted
+            .correlation_matrix()
+            .expect("operation should succeed");
         // Should detect strong correlation
         assert!((corr_matrix[[0, 1]] - 1.0).abs() < 0.1);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[6, 2]);
 
         // All predictions should be finite
@@ -599,10 +620,10 @@ mod tests {
 
     #[test]
     fn test_multioutput_multitask() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = Array2::from_shape_vec((4, 2), vec![1.0, 10.0, 3.0, 20.0, 5.0, 30.0, 7.0, 40.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let strategies = vec![
             SingleOutputStrategy::Mean,
@@ -610,9 +631,9 @@ mod tests {
         ];
 
         let regressor = MultiOutputDummyRegressor::new(MultiOutputStrategy::MultiTask(strategies));
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[4, 2]);
 
         // First output should use mean strategy
@@ -624,13 +645,13 @@ mod tests {
 
     #[test]
     fn test_multioutput_hierarchical() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = Array2::from_shape_vec(
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // For hierarchical: Output 0 has no real parent, Output 1 depends on 0, Output 2 depends on 1
         // Since validation requires parent < output_index, we need to handle output 0 specially
@@ -640,12 +661,12 @@ mod tests {
         let regressor =
             MultiOutputDummyRegressor::new(MultiOutputStrategy::Hierarchical(hierarchy))
                 .with_random_state(42);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_outputs(), 3);
         assert!(fitted.hierarchy().is_some());
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[4, 3]);
 
         // All predictions should be finite
@@ -658,18 +679,19 @@ mod tests {
 
     #[test]
     fn test_multioutput_structured() {
-        let x = Array2::from_shape_vec((5, 2), (0..10).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((5, 2), (0..10).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = Array2::from_shape_vec(
             (5, 2),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let regressor =
             MultiOutputDummyRegressor::new(MultiOutputStrategy::Structured).with_random_state(42);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[5, 2]);
 
         // All predictions should be from the training data
@@ -691,8 +713,10 @@ mod tests {
 
     #[test]
     fn test_multioutput_error_cases() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let y = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let y = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
 
         // Test mismatched strategy count
         let wrong_strategies = vec![SingleOutputStrategy::Mean]; // Only 1 strategy for 2 outputs
@@ -712,18 +736,20 @@ mod tests {
     #[test]
     fn test_cholesky_decomposition() {
         // Test with a simple 2x2 positive definite matrix
-        let matrix = Array2::from_shape_vec((2, 2), vec![4.0, 2.0, 2.0, 2.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 2), vec![4.0, 2.0, 2.0, 2.0])
+            .expect("shape and data length should match");
         let result = cholesky_decomposition(&matrix);
         assert!(result.is_ok());
 
-        let l = result.unwrap();
+        let l = result.expect("operation should succeed");
         assert_abs_diff_eq!(l[[0, 0]], 2.0, epsilon = 1e-10);
         assert_abs_diff_eq!(l[[1, 0]], 1.0, epsilon = 1e-10);
         assert_abs_diff_eq!(l[[0, 1]], 0.0, epsilon = 1e-10);
         assert_abs_diff_eq!(l[[1, 1]], 1.0, epsilon = 1e-10);
 
         // Test with non-positive definite matrix
-        let bad_matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 2.0, 1.0]).unwrap();
+        let bad_matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 2.0, 1.0])
+            .expect("shape and data length should match");
         let result = cholesky_decomposition(&bad_matrix);
         assert!(result.is_err());
     }

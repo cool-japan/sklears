@@ -765,7 +765,8 @@ mod tests {
 
     #[test]
     fn test_extract_features_small_image() {
-        let image = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0]).unwrap();
+        let image = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0])
+            .expect("operation should succeed");
         let extractor = ShapeDescriptorExtractor::new();
         let result = extractor.extract_features(&image.view());
 
@@ -774,10 +775,12 @@ mod tests {
 
     #[test]
     fn test_extract_features_valid_image() {
-        let image =
-            Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64 / 100.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64 / 100.0).collect())
+            .expect("operation should succeed");
         let extractor = ShapeDescriptorExtractor::new();
-        let features = extractor.extract_features(&image.view()).unwrap();
+        let features = extractor
+            .extract_features(&image.view())
+            .expect("operation should succeed");
 
         assert!(features.len() > 0);
         // Should extract multiple shape features
@@ -788,7 +791,7 @@ mod tests {
         let extractor = ShapeDescriptorExtractor::new().binary_threshold(0.5);
         let image =
             Array2::from_shape_vec((3, 3), vec![0.0, 0.3, 0.7, 0.2, 0.6, 0.9, 0.1, 0.4, 0.8])
-                .unwrap();
+                .expect("operation should succeed");
 
         let binary = extractor.to_binary(&image.view());
 
@@ -805,7 +808,7 @@ mod tests {
             (3, 3),
             vec![true, false, true, false, true, false, true, false, true],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let area = extractor.compute_area(&binary);
         assert_eq!(area, 5.0); // Five true pixels
@@ -818,7 +821,7 @@ mod tests {
             (3, 3),
             vec![true, false, false, false, true, false, false, false, true],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let area = 3.0;
         let centroid = extractor.compute_centroid(&binary, area);
@@ -839,7 +842,7 @@ mod tests {
                 false,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let perimeter = extractor.compute_perimeter(&binary);
         assert!(perimeter > 0.0); // Should have some perimeter
@@ -856,7 +859,7 @@ mod tests {
                 false,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let (min_x, max_x, min_y, max_y) = extractor.find_bounding_box(&binary);
         assert_eq!(min_x, 1); // First true at x=1
@@ -875,7 +878,7 @@ mod tests {
                 false, false, false, false, false, false, false, false, false, false, false,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let aspect_ratio = extractor.compute_aspect_ratio(&binary);
         assert!(aspect_ratio > 1.0); // Width > height, so ratio > 1
@@ -888,7 +891,7 @@ mod tests {
             (3, 3),
             vec![true, false, false, false, true, false, false, false, true],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let centroid = (1.0, 1.0);
         let mu_20 = extractor.compute_central_moment(&binary, centroid, 2, 0);
@@ -899,7 +902,8 @@ mod tests {
     #[test]
     fn test_empty_image() {
         let extractor = ShapeDescriptorExtractor::new();
-        let binary = Array2::from_shape_vec((5, 5), vec![false; 25]).unwrap();
+        let binary =
+            Array2::from_shape_vec((5, 5), vec![false; 25]).expect("operation should succeed");
 
         let area = extractor.compute_area(&binary);
         assert_eq!(area, 0.0);
@@ -918,11 +922,13 @@ mod tests {
                 true, true, false, true, true, true, false, false, false, true, false, false,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let area = extractor.compute_area(&binary);
         let centroid = extractor.compute_centroid(&binary, area);
-        let hu_moments = extractor.compute_hu_moments(&binary, centroid).unwrap();
+        let hu_moments = extractor
+            .compute_hu_moments(&binary, centroid)
+            .expect("operation should succeed");
 
         assert_eq!(hu_moments.len(), 7);
         assert!(hu_moments.iter().all(|x| x.is_finite()));

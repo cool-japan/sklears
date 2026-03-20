@@ -651,7 +651,7 @@ mod tests {
 
         let results = processor
             .process_matrix(&matrix, |chunk| Ok(chunk.sum()))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!results.is_empty());
         assert_eq!(results.len(), 5); // (100 + 20 - 1) / 20 = 5 chunks
@@ -663,12 +663,12 @@ mod tests {
         let s = Array2::eye(5);
         let vt = Array2::from_shape_fn((5, 8), |(i, j)| (i * j) as f64);
 
-        let compressed =
-            CompressedDecomposition::compress(&u, &s, &vt, CompressionMethod::TopK(3)).unwrap();
+        let compressed = CompressedDecomposition::compress(&u, &s, &vt, CompressionMethod::TopK(3))
+            .expect("operation should succeed");
 
         assert!(compressed.compression_ratio() > 1.0);
 
-        let (u_dec, _s_dec, vt_dec) = compressed.decompress().unwrap();
+        let (u_dec, _s_dec, vt_dec) = compressed.decompress().expect("operation should succeed");
         assert_eq!(u_dec.ncols(), 3);
         assert_eq!(vt_dec.nrows(), 3);
     }
@@ -680,11 +680,11 @@ mod tests {
             .add_operation(|x: &f64| Ok(x + 1.0))
             .add_operation(|x: &f64| Ok(x * x));
 
-        let result = lazy.evaluate(&3.0).unwrap();
+        let result = lazy.evaluate(&3.0).expect("operation should succeed");
         assert_eq!(result, 49.0); // ((3 * 2) + 1)^2 = 7^2 = 49
 
         // Test caching
-        let result2 = lazy.evaluate(&3.0).unwrap();
+        let result2 = lazy.evaluate(&3.0).expect("operation should succeed");
         assert_eq!(result2, 49.0);
     }
 
@@ -693,7 +693,7 @@ mod tests {
         let data = vec![(0, 0, 1.0), (1, 1, 2.0), (2, 2, 3.0)];
         let compressed = CompressedMatrix::sparse(data, (3, 3));
 
-        let decompressed = compressed.decompress().unwrap();
+        let decompressed = compressed.decompress().expect("operation should succeed");
         assert_eq!(decompressed[(0, 0)], 1.0);
         assert_eq!(decompressed[(1, 1)], 2.0);
         assert_eq!(decompressed[(2, 2)], 3.0);

@@ -100,7 +100,12 @@ impl<T: FloatBounds> PageHinkleyDetector<T> {
 impl<T: FloatBounds> DriftDetection<T> for PageHinkleyDetector<T> {
     fn update(&mut self, prediction: T, actual: usize) -> SklResult<DriftStatus> {
         // Simple error calculation (1 if incorrect, 0 if correct)
-        let error = if prediction.to_f64().unwrap().round() as usize == actual {
+        let error = if prediction
+            .to_f64()
+            .expect("operation should succeed")
+            .round() as usize
+            == actual
+        {
             0.0
         } else {
             1.0
@@ -214,7 +219,12 @@ impl<T: FloatBounds> AdwinDetector<T> {
 impl<T: FloatBounds> DriftDetection<T> for AdwinDetector<T> {
     fn update(&mut self, prediction: T, actual: usize) -> SklResult<DriftStatus> {
         // Simple error calculation
-        let error = if prediction.to_f64().unwrap().round() as usize == actual {
+        let error = if prediction
+            .to_f64()
+            .expect("operation should succeed")
+            .round() as usize
+            == actual
+        {
             0.0
         } else {
             1.0
@@ -343,7 +353,7 @@ mod tests {
 
         // No drift with correct predictions
         for _i in 0..50 {
-            let status = detector.update(1.0, 1).unwrap();
+            let status = detector.update(1.0, 1).expect("operation should succeed");
             assert_ne!(status, DriftStatus::Drift);
         }
     }
@@ -354,7 +364,7 @@ mod tests {
 
         // No drift with correct predictions
         for _i in 0..50 {
-            let status = detector.update(0.0, 0).unwrap();
+            let status = detector.update(0.0, 0).expect("operation should succeed");
             assert_ne!(status, DriftStatus::Drift);
         }
     }

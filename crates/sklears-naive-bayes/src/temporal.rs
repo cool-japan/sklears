@@ -172,11 +172,20 @@ impl TemporalFeatureExtractor {
                 .into_shape((n_series * n_windows, n_features))
                 .map_err(|e| SklearsError::InvalidInput(format!("Shape error: {}", e)))?;
 
-            self.feature_means = Some(reshaped.mean_axis(Axis(0)).unwrap());
+            self.feature_means = Some(
+                reshaped
+                    .mean_axis(Axis(0))
+                    .expect("operation should succeed"),
+            );
             self.feature_stds = Some({
-                let means = self.feature_means.as_ref().unwrap();
+                let means = self
+                    .feature_means
+                    .as_ref()
+                    .expect("operation should succeed");
                 let centered = &reshaped - means;
-                let variance = (&centered * &centered).mean_axis(Axis(0)).unwrap();
+                let variance = (&centered * &centered)
+                    .mean_axis(Axis(0))
+                    .expect("operation should succeed");
                 variance.mapv(|v| (v + 1e-8).sqrt()) // Add small epsilon for numerical stability
             });
         }
@@ -406,7 +415,7 @@ impl TemporalNaiveBayes {
                 let avg_prob: f64 = window_probabilities
                     .slice(s![start_idx..end_idx, class_idx])
                     .mean()
-                    .unwrap();
+                    .expect("operation should succeed");
                 series_probabilities[[series_idx, class_idx]] = avg_prob;
             }
         }
@@ -490,7 +499,7 @@ impl StreamingTemporalNB {
         }
 
         let feature_vector = features.row(0);
-        let current_label = *self.label_buffer.back().unwrap();
+        let current_label = *self.label_buffer.back().expect("operation should succeed");
 
         // Initialize if first update
         if self.feature_sum.is_none() {
@@ -649,7 +658,7 @@ mod tests {
                 4.0, 3.0, 2.0, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = TemporalConfig {
             window_size: 3,
@@ -662,7 +671,9 @@ mod tests {
         };
 
         let mut extractor = TemporalFeatureExtractor::new(config);
-        let features = extractor.fit_transform(&series).unwrap();
+        let features = extractor
+            .fit_transform(&series)
+            .expect("operation should succeed");
 
         // Should have 16 windows total (8 from each series)
         assert_eq!(features.nrows(), 16);
@@ -681,7 +692,7 @@ mod tests {
                 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 8.1, 7.1, 6.1, 5.1, 4.1, 3.1, 2.1, 1.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let config = TemporalConfig {
@@ -695,7 +706,9 @@ mod tests {
         };
 
         let mut model = TemporalNaiveBayes::new(config);
-        model.fit(&series, &labels).unwrap();
+        model
+            .fit(&series, &labels)
+            .expect("operation should succeed");
 
         let test_series = Array2::from_shape_vec(
             (1, 8),
@@ -703,12 +716,16 @@ mod tests {
                 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, // Similar to class 0
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = model.predict(&test_series).unwrap();
+        let predictions = model
+            .predict(&test_series)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 1);
 
-        let probabilities = model.predict_proba(&test_series).unwrap();
+        let probabilities = model
+            .predict_proba(&test_series)
+            .expect("operation should succeed");
         assert_eq!(probabilities.nrows(), 1);
         assert_eq!(probabilities.ncols(), 2);
 
@@ -740,12 +757,16 @@ mod tests {
         let labels = vec![0, 0, 0, 1, 1];
 
         for (data_point, label) in data_points.iter().zip(labels.iter()) {
-            model.partial_fit(data_point, *label).unwrap();
+            model
+                .partial_fit(data_point, *label)
+                .expect("operation should succeed");
         }
 
         // Test prediction
         let test_point = Array1::from_vec(vec![6.0]);
-        let prediction = model.predict(&test_point).unwrap();
+        let prediction = model
+            .predict(&test_point)
+            .expect("operation should succeed");
 
         // Should predict class 1 (increasing trend continues)
         assert!(prediction == 0 || prediction == 1);
@@ -850,7 +871,7 @@ impl HMMNaiveBayes<Untrained> {
         for i in 0..self.config.n_states {
             let mut row_sum = 0.0;
             for j in 0..self.config.n_states {
-                let val: f64 = scirs2_core::random::Rng::gen_range(&mut rng, 0.1..1.0);
+                let val: f64 = rng.gen_range(0.1..1.0);
                 transition_probs[[i, j]] = val;
                 row_sum += val;
             }
@@ -864,7 +885,7 @@ impl HMMNaiveBayes<Untrained> {
         let mut initial_probs = Array1::zeros(self.config.n_states);
         let mut sum = 0.0;
         for i in 0..self.config.n_states {
-            let val: f64 = scirs2_core::random::Rng::gen_range(&mut rng, 0.1..1.0);
+            let val: f64 = rng.gen_range(0.1..1.0);
             initial_probs[i] = val;
             sum += val;
         }
@@ -1161,7 +1182,7 @@ impl HMMNaiveBayes<Trained> {
     /// Predict class labels for time series sequences
     pub fn predict(&self, X: &Array3<f64>) -> Result<Array1<i32>> {
         let probabilities = self.predict_proba(X)?;
-        let classes = self.classes.as_ref().unwrap();
+        let classes = self.classes.as_ref().expect("operation should succeed");
 
         let predictions = probabilities
             .outer_iter()
@@ -1169,8 +1190,8 @@ impl HMMNaiveBayes<Trained> {
                 let max_idx = probs
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .unwrap()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed")
                     .0;
                 classes[max_idx]
             })
@@ -1182,12 +1203,21 @@ impl HMMNaiveBayes<Trained> {
     /// Predict class probabilities for time series sequences
     pub fn predict_proba(&self, X: &Array3<f64>) -> Result<Array2<f64>> {
         let (n_sequences, sequence_length, _) = X.dim();
-        let classes = self.classes.as_ref().unwrap();
+        let classes = self.classes.as_ref().expect("operation should succeed");
         let n_classes = classes.len();
 
-        let transition_probs = self.transition_probs.as_ref().unwrap();
-        let initial_probs = self.initial_probs.as_ref().unwrap();
-        let emission_models = self.emission_models.as_ref().unwrap();
+        let transition_probs = self
+            .transition_probs
+            .as_ref()
+            .expect("operation should succeed");
+        let initial_probs = self
+            .initial_probs
+            .as_ref()
+            .expect("operation should succeed");
+        let emission_models = self
+            .emission_models
+            .as_ref()
+            .expect("operation should succeed");
 
         let mut predictions = Array2::zeros((n_sequences, n_classes));
 
@@ -1300,7 +1330,7 @@ mod hmm_tests {
                     })
                     .collect(),
             )
-            .unwrap();
+            .expect("operation should succeed");
             sequences.push(seq);
             labels.push(0);
         }
@@ -1319,7 +1349,7 @@ mod hmm_tests {
                     })
                     .collect(),
             )
-            .unwrap();
+            .expect("operation should succeed");
             sequences.push(seq);
             labels.push(1);
         }
@@ -1345,16 +1375,18 @@ mod hmm_tests {
         };
 
         let model = HMMNaiveBayes::new(config);
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("operation should succeed");
 
         // Test prediction
-        let predictions = trained_model.predict(&X).unwrap();
+        let predictions = trained_model.predict(&X).expect("operation should succeed");
 
         // Should have correct number of predictions
         assert_eq!(predictions.len(), n_sequences);
 
         // Test probability prediction
-        let probabilities = trained_model.predict_proba(&X).unwrap();
+        let probabilities = trained_model
+            .predict_proba(&X)
+            .expect("operation should succeed");
         assert_eq!(probabilities.shape(), &[n_sequences, 2]); // 2 classes
 
         // Probabilities should sum to 1

@@ -22,7 +22,9 @@ fn test_emotion_detector_feature_extractor() {
     ];
 
     // Test extract_features through trait
-    let features = detector.extract_features(&documents).unwrap();
+    let features = detector
+        .extract_features(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features.nrows(), 2);
     assert_eq!(features.ncols(), 14);
@@ -32,7 +34,7 @@ fn test_emotion_detector_feature_extractor() {
 fn test_emotion_detector_feature_names() {
     let detector = EmotionDetector::new();
 
-    let names = detector.feature_names().unwrap();
+    let names = detector.feature_names().expect("operation should succeed");
 
     assert_eq!(names.len(), 14);
     assert_eq!(names[0], "joy_score");
@@ -65,13 +67,15 @@ fn test_emotion_detector_text_feature_extractor() {
     let detector = EmotionDetector::new();
 
     // Test vocabulary
-    let vocab = detector.vocabulary().unwrap();
+    let vocab = detector.vocabulary().expect("operation should succeed");
     assert!(!vocab.is_empty());
     assert!(vocab.contains(&"happy".to_string()));
     assert!(vocab.contains(&"sad".to_string()));
 
     // Test vocabulary size
-    let vocab_size = detector.vocabulary_size().unwrap();
+    let vocab_size = detector
+        .vocabulary_size()
+        .expect("operation should succeed");
     assert_eq!(vocab_size, vocab.len());
 }
 
@@ -103,13 +107,15 @@ fn test_emotion_detector_metadata() {
     let detector = EmotionDetector::new();
 
     // Test feature types
-    let types = detector.feature_types().unwrap();
+    let types = detector.feature_types().expect("operation should succeed");
     assert_eq!(types.len(), 14);
     assert_eq!(types[0], "continuous"); // joy_score
     assert_eq!(types[6], "binary"); // joy_onehot
 
     // Test feature descriptions
-    let descriptions = detector.feature_descriptions().unwrap();
+    let descriptions = detector
+        .feature_descriptions()
+        .expect("operation should succeed");
     assert_eq!(descriptions.len(), 14);
     assert!(descriptions[0].contains("Joy"));
 }
@@ -129,7 +135,9 @@ fn test_aspect_sentiment_feature_extractor() {
     ];
 
     // Test extract_features through trait
-    let features = analyzer.extract_features(&documents).unwrap();
+    let features = analyzer
+        .extract_features(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features.nrows(), 2);
     assert_eq!(features.ncols(), 6);
@@ -139,7 +147,7 @@ fn test_aspect_sentiment_feature_extractor() {
 fn test_aspect_sentiment_feature_names() {
     let analyzer = AspectBasedSentimentAnalyzer::new();
 
-    let names = analyzer.feature_names().unwrap();
+    let names = analyzer.feature_names().expect("operation should succeed");
 
     assert_eq!(names.len(), 6);
     assert_eq!(names[0], "avg_aspect_score");
@@ -159,13 +167,15 @@ fn test_aspect_sentiment_text_feature_extractor() {
         .add_aspects(vec!["food".to_string(), "service".to_string()]);
 
     // Test vocabulary
-    let vocab = analyzer.vocabulary().unwrap();
+    let vocab = analyzer.vocabulary().expect("operation should succeed");
     assert_eq!(vocab.len(), 2);
     assert!(vocab.contains(&"food".to_string()));
     assert!(vocab.contains(&"service".to_string()));
 
     // Test vocabulary size
-    let vocab_size = analyzer.vocabulary_size().unwrap();
+    let vocab_size = analyzer
+        .vocabulary_size()
+        .expect("operation should succeed");
     assert_eq!(vocab_size, 2);
 }
 
@@ -197,13 +207,15 @@ fn test_aspect_sentiment_metadata() {
     let analyzer = AspectBasedSentimentAnalyzer::new();
 
     // Test feature types
-    let types = analyzer.feature_types().unwrap();
+    let types = analyzer.feature_types().expect("operation should succeed");
     assert_eq!(types.len(), 6);
     assert_eq!(types[0], "continuous"); // avg_aspect_score
     assert_eq!(types[1], "count"); // positive_aspects
 
     // Test feature descriptions
-    let descriptions = analyzer.feature_descriptions().unwrap();
+    let descriptions = analyzer
+        .feature_descriptions()
+        .expect("operation should succeed");
     assert_eq!(descriptions.len(), 6);
     assert!(descriptions[0].contains("sentiment score"));
 }
@@ -222,7 +234,9 @@ fn test_sentiment_analyzer_feature_extractor() {
     ];
 
     // Test extract_features through trait
-    let features = analyzer.extract_features(&documents).unwrap();
+    let features = analyzer
+        .extract_features(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features.nrows(), 2);
     assert_eq!(features.ncols(), 5);
@@ -232,7 +246,7 @@ fn test_sentiment_analyzer_feature_extractor() {
 fn test_sentiment_analyzer_feature_names() {
     let analyzer = SentimentAnalyzer::new();
 
-    let names = analyzer.feature_names().unwrap();
+    let names = analyzer.feature_names().expect("operation should succeed");
 
     assert_eq!(names.len(), 5);
     assert_eq!(names[0], "sentiment_score");
@@ -251,13 +265,15 @@ fn test_sentiment_analyzer_text_feature_extractor() {
     let analyzer = SentimentAnalyzer::new();
 
     // Test vocabulary
-    let vocab = analyzer.vocabulary().unwrap();
+    let vocab = analyzer.vocabulary().expect("operation should succeed");
     assert!(!vocab.is_empty());
     assert!(vocab.contains(&"good".to_string()));
     assert!(vocab.contains(&"bad".to_string()));
 
     // Test vocabulary size
-    let vocab_size = analyzer.vocabulary_size().unwrap();
+    let vocab_size = analyzer
+        .vocabulary_size()
+        .expect("operation should succeed");
     assert_eq!(vocab_size, vocab.len());
 }
 
@@ -290,13 +306,15 @@ fn test_sentiment_analyzer_metadata() {
     let analyzer = SentimentAnalyzer::new();
 
     // Test feature types
-    let types = analyzer.feature_types().unwrap();
+    let types = analyzer.feature_types().expect("operation should succeed");
     assert_eq!(types.len(), 5);
     assert_eq!(types[0], "continuous"); // sentiment_score
     assert_eq!(types[4], "categorical"); // polarity_encoded
 
     // Test feature descriptions
-    let descriptions = analyzer.feature_descriptions().unwrap();
+    let descriptions = analyzer
+        .feature_descriptions()
+        .expect("operation should succeed");
     assert_eq!(descriptions.len(), 5);
     assert!(descriptions[0].contains("sentiment score"));
 }
@@ -314,8 +332,12 @@ fn test_trait_polymorphism() {
     let documents = vec!["I am happy!".to_string()];
 
     // Both should work through FeatureExtractor trait
-    let emotion_features = detector.extract_features(&documents).unwrap();
-    let sentiment_features = analyzer.extract_features(&documents).unwrap();
+    let emotion_features = detector
+        .extract_features(&documents)
+        .expect("operation should succeed");
+    let sentiment_features = analyzer
+        .extract_features(&documents)
+        .expect("operation should succeed");
 
     assert!(emotion_features.nrows() > 0);
     assert!(sentiment_features.nrows() > 0);
@@ -325,8 +347,8 @@ fn test_trait_polymorphism() {
 fn test_feature_names_consistency() {
     let detector = EmotionDetector::new();
 
-    let names = detector.feature_names().unwrap();
-    let n_features = detector.n_features().unwrap();
+    let names = detector.feature_names().expect("operation should succeed");
+    let n_features = detector.n_features().expect("operation should succeed");
 
     // Feature names count should match n_features
     assert_eq!(names.len(), n_features);

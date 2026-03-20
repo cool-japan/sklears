@@ -1418,7 +1418,7 @@ impl Transform<Array2<f64>, Array2<f64>> for SpatialAutocorrelationFitted {
                 })
                 .collect();
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Calculate local spatial statistics
             if self.config.include_lisa {
@@ -1553,7 +1553,7 @@ mod tests {
 
     #[test]
     fn test_coordinate_creation() {
-        let coord = Coordinate::new(40.7128, -74.0060).unwrap();
+        let coord = Coordinate::new(40.7128, -74.0060).expect("operation should succeed");
         assert_eq!(coord.lat, 40.7128);
         assert_eq!(coord.lon, -74.0060);
 
@@ -1565,8 +1565,8 @@ mod tests {
     #[test]
     fn test_haversine_distance() {
         // New York to London
-        let nyc = Coordinate::new(40.7128, -74.0060).unwrap();
-        let london = Coordinate::new(51.5074, -0.1278).unwrap();
+        let nyc = Coordinate::new(40.7128, -74.0060).expect("operation should succeed");
+        let london = Coordinate::new(51.5074, -0.1278).expect("operation should succeed");
 
         let distance = haversine_distance(&nyc, &london);
         // Expected distance is approximately 5570 km
@@ -1575,21 +1575,21 @@ mod tests {
 
     #[test]
     fn test_vincenty_distance() {
-        let nyc = Coordinate::new(40.7128, -74.0060).unwrap();
-        let london = Coordinate::new(51.5074, -0.1278).unwrap();
+        let nyc = Coordinate::new(40.7128, -74.0060).expect("operation should succeed");
+        let london = Coordinate::new(51.5074, -0.1278).expect("operation should succeed");
 
-        let distance = vincenty_distance(&nyc, &london).unwrap();
+        let distance = vincenty_distance(&nyc, &london).expect("operation should succeed");
         // Vincenty should give similar but slightly more accurate result
         assert!((distance - 5570.0).abs() < 50.0);
     }
 
     #[test]
     fn test_geohash_encode_decode() {
-        let coord = Coordinate::new(40.7128, -74.0060).unwrap();
-        let geohash = Geohash::encode(&coord, 7).unwrap();
+        let coord = Coordinate::new(40.7128, -74.0060).expect("operation should succeed");
+        let geohash = Geohash::encode(&coord, 7).expect("serialization should succeed");
         assert_eq!(geohash.len(), 7);
 
-        let decoded = Geohash::decode(&geohash).unwrap();
+        let decoded = Geohash::decode(&geohash).expect("deserialization should succeed");
         assert!((decoded.lat - coord.lat).abs() < 0.01);
         assert!((decoded.lon - coord.lon).abs() < 0.01);
     }
@@ -1597,7 +1597,8 @@ mod tests {
     #[test]
     fn test_geohash_bounds() {
         let geohash = "dr5ru7";
-        let (lat_min, lon_min, lat_max, lon_max) = Geohash::bounds(geohash).unwrap();
+        let (lat_min, lon_min, lat_max, lon_max) =
+            Geohash::bounds(geohash).expect("operation should succeed");
 
         assert!(lat_min < lat_max);
         assert!(lon_min < lon_max);
@@ -1608,7 +1609,7 @@ mod tests {
     #[test]
     fn test_geohash_neighbors() {
         let geohash = "dr5ru7";
-        let neighbors = Geohash::neighbors(geohash).unwrap();
+        let neighbors = Geohash::neighbors(geohash).expect("operation should succeed");
 
         // Should have up to 8 neighbors
         assert!(neighbors.len() <= 8);
@@ -1622,14 +1623,14 @@ mod tests {
 
     #[test]
     fn test_wgs84_to_web_mercator() {
-        let (x, y) = wgs84_to_web_mercator(40.7128, -74.0060).unwrap();
+        let (x, y) = wgs84_to_web_mercator(40.7128, -74.0060).expect("operation should succeed");
 
         // Verify conversion is reasonable
         assert!(x.abs() < 20037508.34); // Web Mercator max
         assert!(y.abs() < 20037508.34);
 
         // Round trip
-        let (lat, lon) = web_mercator_to_wgs84(x, y).unwrap();
+        let (lat, lon) = web_mercator_to_wgs84(x, y).expect("operation should succeed");
         assert_relative_eq!(lat, 40.7128, epsilon = 0.0001);
         assert_relative_eq!(lon, -74.0060, epsilon = 0.0001);
     }
@@ -1642,8 +1643,10 @@ mod tests {
 
         let transformer =
             CoordinateTransformer::new(CoordinateSystem::WGS84, CoordinateSystem::WebMercator);
-        let fitted = transformer.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = transformer
+            .fit(&X, &())
+            .expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 2);
         assert_eq!(result.ncols(), 2);
@@ -1665,8 +1668,8 @@ mod tests {
         };
 
         let encoder = GeohashEncoder::new(config);
-        let fitted = encoder.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = encoder.fit(&X, &()).expect("serialization should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 3);
         // Should have as many columns as unique geohashes
@@ -1680,8 +1683,8 @@ mod tests {
         let X = array![[40.7128, -74.0060], [40.7589, -73.9851]];
 
         let reference_points = vec![
-            Coordinate::new(40.7128, -74.0060).unwrap(), // NYC
-            Coordinate::new(51.5074, -0.1278).unwrap(),  // London
+            Coordinate::new(40.7128, -74.0060).expect("operation should succeed"), // NYC
+            Coordinate::new(51.5074, -0.1278).expect("operation should succeed"),  // London
         ];
 
         let config = SpatialDistanceFeaturesConfig {
@@ -1692,8 +1695,10 @@ mod tests {
         };
 
         let transformer = SpatialDistanceFeatures::new(config);
-        let fitted = transformer.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = transformer
+            .fit(&X, &())
+            .expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 2);
         assert_eq!(result.ncols(), 2); // 2 reference points
@@ -1717,8 +1722,8 @@ mod tests {
         };
 
         let binning = SpatialBinning::new(config);
-        let fitted = binning.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = binning.fit(&X, &()).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert_eq!(result.ncols(), 2);
@@ -1745,8 +1750,8 @@ mod tests {
         };
 
         let binning = SpatialBinning::new(config);
-        let fitted = binning.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = binning.fit(&X, &()).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 2);
         assert_eq!(result.ncols(), 4); // 2x2 bins
@@ -1773,8 +1778,10 @@ mod tests {
         };
 
         let clustering = SpatialClustering::new(config);
-        let fitted = clustering.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = clustering
+            .fit(&X, &())
+            .expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert_eq!(result.ncols(), 2); // Cluster assignment + distance
@@ -1801,8 +1808,10 @@ mod tests {
         };
 
         let clustering = SpatialClustering::new(config);
-        let fitted = clustering.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = clustering
+            .fit(&X, &())
+            .expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert_eq!(result.ncols(), 2);
@@ -1831,8 +1840,10 @@ mod tests {
         };
 
         let clustering = SpatialClustering::new(config);
-        let fitted = clustering.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = clustering
+            .fit(&X, &())
+            .expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 3);
         assert_eq!(result.ncols(), 1); // Just density
@@ -1851,11 +1862,11 @@ mod tests {
         let pois = vec![
             (
                 "NYC".to_string(),
-                Coordinate::new(40.7128, -74.0060).unwrap(),
+                Coordinate::new(40.7128, -74.0060).expect("operation should succeed"),
             ),
             (
                 "London".to_string(),
-                Coordinate::new(51.5074, -0.1278).unwrap(),
+                Coordinate::new(51.5074, -0.1278).expect("operation should succeed"),
             ),
         ];
 
@@ -1867,8 +1878,10 @@ mod tests {
         };
 
         let proximity = ProximityFeatures::new(config);
-        let fitted = proximity.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = proximity
+            .fit(&X, &())
+            .expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 2);
         assert_eq!(result.ncols(), 4); // 2 POIs * 2 (distance + indicator)
@@ -1897,8 +1910,8 @@ mod tests {
 
         let autocorr = SpatialAutocorrelation::new(config);
         let y = array![1.0, 2.0, 3.0, 4.0]; // Dummy y for testing
-        let fitted = autocorr.fit(&X, &y).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = autocorr.fit(&X, &y).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert!(result.ncols() >= 1);
@@ -1914,14 +1927,16 @@ mod tests {
 
     #[test]
     fn test_utm_transformation() {
-        let (easting, northing) = wgs84_to_utm(40.7128, -74.0060, 18, true).unwrap();
+        let (easting, northing) =
+            wgs84_to_utm(40.7128, -74.0060, 18, true).expect("operation should succeed");
 
         // Verify transformation produces reasonable UTM coordinates
         assert!(easting > 0.0);
         assert!(northing > 0.0);
 
         // Round trip
-        let (lat, lon) = utm_to_wgs84(easting, northing, 18, true).unwrap();
+        let (lat, lon) =
+            utm_to_wgs84(easting, northing, 18, true).expect("operation should succeed");
         assert_relative_eq!(lat, 40.7128, epsilon = 0.01);
         assert_relative_eq!(lon, -74.0060, epsilon = 0.01);
     }
@@ -1950,13 +1965,13 @@ mod tests {
 
     #[test]
     fn test_distance_metrics() {
-        let coord1 = Coordinate::new(40.7128, -74.0060).unwrap();
-        let coord2 = Coordinate::new(40.7589, -73.9851).unwrap();
+        let coord1 = Coordinate::new(40.7128, -74.0060).expect("operation should succeed");
+        let coord2 = Coordinate::new(40.7589, -73.9851).expect("operation should succeed");
 
-        let haversine =
-            calculate_distance(&coord1, &coord2, SpatialDistanceMetric::Haversine).unwrap();
-        let vincenty =
-            calculate_distance(&coord1, &coord2, SpatialDistanceMetric::Vincenty).unwrap();
+        let haversine = calculate_distance(&coord1, &coord2, SpatialDistanceMetric::Haversine)
+            .expect("operation should succeed");
+        let vincenty = calculate_distance(&coord1, &coord2, SpatialDistanceMetric::Vincenty)
+            .expect("operation should succeed");
 
         // Both should give similar results
         assert!((haversine - vincenty).abs() < 0.1);

@@ -471,7 +471,7 @@ mod tests {
 
         assert!(model.fit(&x, &y).is_ok());
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -491,7 +491,7 @@ mod tests {
 
         assert!(model.fit(&x, &y).is_ok());
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are decreasing
         for i in 0..predictions.len() - 1 {
@@ -511,7 +511,7 @@ mod tests {
 
         assert!(model.fit(&x, &y).is_ok());
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are decreasing
         for i in 0..predictions.len() - 1 {
@@ -531,7 +531,7 @@ mod tests {
 
         assert!(model.fit(&x, &y).is_ok());
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -554,7 +554,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 4);
 
         // Check monotonicity

@@ -319,7 +319,7 @@ impl GNNExplainer {
         }
 
         // Sort by importance (descending)
-        node_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        node_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         Ok(node_scores)
     }
@@ -345,7 +345,7 @@ impl GNNExplainer {
         }
 
         // Sort by importance (descending)
-        edge_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        edge_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         Ok(edge_scores)
     }
@@ -361,7 +361,7 @@ impl GNNExplainer {
         }
 
         // Sort by importance (descending)
-        node_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        node_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         Ok(node_scores)
     }
@@ -383,7 +383,7 @@ impl GNNExplainer {
         }
 
         // Sort by importance (descending)
-        edge_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        edge_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         Ok(edge_scores)
     }
@@ -481,7 +481,7 @@ mod tests {
         let graph = Graph::new(5, vec![(0, 1), (1, 2), (2, 3), (3, 4)], None, None);
         assert!(graph.is_ok());
 
-        let g = graph.unwrap();
+        let g = graph.expect("operation should succeed");
         assert_eq!(g.num_nodes, 5);
         assert_eq!(g.edges.len(), 4);
     }
@@ -495,7 +495,8 @@ mod tests {
 
     #[test]
     fn test_graph_neighbors() {
-        let graph = Graph::new(4, vec![(0, 1), (0, 2), (1, 3)], None, None).unwrap();
+        let graph = Graph::new(4, vec![(0, 1), (0, 2), (1, 3)], None, None)
+            .expect("operation should succeed");
 
         let neighbors_0 = graph.neighbors(0);
         assert_eq!(neighbors_0.len(), 2);
@@ -505,7 +506,8 @@ mod tests {
 
     #[test]
     fn test_k_hop_neighborhood() {
-        let graph = Graph::new(5, vec![(0, 1), (1, 2), (2, 3), (3, 4)], None, None).unwrap();
+        let graph = Graph::new(5, vec![(0, 1), (1, 2), (2, 3), (3, 4)], None, None)
+            .expect("operation should succeed");
 
         let neighborhood_1hop = graph.k_hop_neighborhood(0, 1);
         assert!(neighborhood_1hop.contains(&0));
@@ -519,7 +521,8 @@ mod tests {
 
     #[test]
     fn test_extract_subgraph() {
-        let graph = Graph::new(5, vec![(0, 1), (1, 2), (2, 3), (3, 4)], None, None).unwrap();
+        let graph = Graph::new(5, vec![(0, 1), (1, 2), (2, 3), (3, 4)], None, None)
+            .expect("operation should succeed");
 
         let mut nodes = HashSet::new();
         nodes.insert(0);
@@ -529,7 +532,7 @@ mod tests {
         let subgraph = graph.extract_subgraph(&nodes);
         assert!(subgraph.is_ok());
 
-        let sg = subgraph.unwrap();
+        let sg = subgraph.expect("operation should succeed");
         assert_eq!(sg.num_nodes, 3);
     }
 
@@ -547,13 +550,14 @@ mod tests {
             Some(Array2::zeros((5, 10))),
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let explainer = GNNExplainer::new(GNNTask::NodeClassification).unwrap();
+        let explainer =
+            GNNExplainer::new(GNNTask::NodeClassification).expect("operation should succeed");
         let explanation = explainer.explain_node(&graph, 2);
         assert!(explanation.is_ok());
 
-        let exp = explanation.unwrap();
+        let exp = explanation.expect("operation should succeed");
         assert_eq!(exp.target_id, 2);
         assert!(!exp.important_nodes.is_empty());
         assert!(!exp.important_edges.is_empty());
@@ -561,13 +565,15 @@ mod tests {
 
     #[test]
     fn test_explain_graph() {
-        let graph = Graph::new(4, vec![(0, 1), (1, 2), (2, 3), (3, 0)], None, None).unwrap();
+        let graph = Graph::new(4, vec![(0, 1), (1, 2), (2, 3), (3, 0)], None, None)
+            .expect("operation should succeed");
 
-        let explainer = GNNExplainer::new(GNNTask::GraphClassification).unwrap();
+        let explainer =
+            GNNExplainer::new(GNNTask::GraphClassification).expect("operation should succeed");
         let explanation = explainer.explain_graph(&graph);
         assert!(explanation.is_ok());
 
-        let exp = explanation.unwrap();
+        let exp = explanation.expect("operation should succeed");
         assert!(!exp.important_nodes.is_empty());
         assert!(!exp.important_edges.is_empty());
     }
@@ -584,9 +590,11 @@ mod tests {
 
     #[test]
     fn test_invalid_node_id() {
-        let graph = Graph::new(3, vec![(0, 1), (1, 2)], None, None).unwrap();
+        let graph =
+            Graph::new(3, vec![(0, 1), (1, 2)], None, None).expect("operation should succeed");
 
-        let explainer = GNNExplainer::new(GNNTask::NodeClassification).unwrap();
+        let explainer =
+            GNNExplainer::new(GNNTask::NodeClassification).expect("operation should succeed");
         let result = explainer.explain_node(&graph, 10);
         assert!(result.is_err());
     }

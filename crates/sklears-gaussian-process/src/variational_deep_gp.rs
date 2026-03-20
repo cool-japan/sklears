@@ -59,7 +59,7 @@
 use crate::kernels::{Kernel, RBF};
 use crate::regression::VariationalOptimizer;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3};
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, RngExt, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use std::f64::consts::PI;
 
@@ -241,7 +241,10 @@ impl VariationalDeepGaussianProcess {
             // Check convergence
             if epoch > 10 {
                 let recent_elbos = &state.elbo_history[epoch.saturating_sub(10)..];
-                let elbo_improvement = recent_elbos.last().unwrap() - recent_elbos.first().unwrap();
+                let elbo_improvement = recent_elbos.last().expect("collection should not be empty")
+                    - recent_elbos
+                        .first()
+                        .expect("collection should not be empty");
 
                 if elbo_improvement.abs() < self.config.convergence_tolerance {
                     state.converged = true;
@@ -394,7 +397,7 @@ impl VariationalDeepGaussianProcess {
         // Random subset selection
         let mut indices: Vec<usize> = (0..n_samples).collect();
         for i in 0..n_inducing {
-            let j = rng.gen_range(i..n_samples);
+            let j = rng.random_range(i..n_samples);
             indices.swap(i, j);
         }
 
@@ -417,7 +420,7 @@ impl VariationalDeepGaussianProcess {
         // Initialize with uniform distribution in [-1, 1]
         for i in 0..layer_config.n_inducing {
             for j in 0..layer_config.input_dim {
-                inducing_points[[i, j]] = rng.gen_range(-1.0..1.0);
+                inducing_points[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -468,7 +471,7 @@ impl VariationalDeepGaussianProcess {
             // Update means with small random perturbations
             for i in 0..layer_params.mean.nrows() {
                 for j in 0..layer_params.mean.ncols() {
-                    let perturbation = rng.gen_range(-0.5..0.5) * lr * 0.1;
+                    let perturbation = rng.random_range(-0.5..0.5) * lr * 0.1;
                     layer_params.mean[[i, j]] += perturbation;
                 }
             }

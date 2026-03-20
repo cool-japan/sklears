@@ -586,10 +586,10 @@ mod tests {
                 0.6, 0.9, // Model 3: low acc, very high speed - Pareto optimal
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let maximize = vec![true, true]; // Maximize both accuracy and speed
-        let pareto = pareto_frontier(&metrics, &maximize).unwrap();
+        let pareto = pareto_frontier(&metrics, &maximize).expect("operation should succeed");
 
         // Models 0 and 3 should be Pareto optimal
         assert_eq!(pareto, vec![0, 3]);
@@ -605,12 +605,13 @@ mod tests {
                 0.2, 0.3, // Model 2: low accuracy, low speed - clearly worst
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let weights = Array1::from_vec(vec![0.7, 0.3]);
         let maximize = vec![true, true];
 
-        let scores = topsis_ranking(&metrics, &weights, &maximize).unwrap();
+        let scores =
+            topsis_ranking(&metrics, &weights, &maximize).expect("operation should succeed");
 
         // Model 0 should have highest score, Model 2 should have lowest
         assert!(scores[0] > scores[1]);
@@ -627,12 +628,13 @@ mod tests {
                 0.7, 0.3, // Model 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let weights = Array1::from_vec(vec![0.7, 0.3]);
         let maximize = vec![true, true];
 
-        let scores = weighted_sum_ranking(&metrics, &weights, &maximize).unwrap();
+        let scores =
+            weighted_sum_ranking(&metrics, &weights, &maximize).expect("operation should succeed");
 
         // Model 0 should have highest score
         assert!(scores[0] > scores[1]);
@@ -649,11 +651,12 @@ mod tests {
                 0.7, 0.3, // Low accuracy, high speed
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let metric_names = vec!["accuracy".to_string(), "speed".to_string()];
 
-        let trade_offs = trade_off_analysis(&metrics, &metric_names).unwrap();
+        let trade_offs =
+            trade_off_analysis(&metrics, &metric_names).expect("operation should succeed");
 
         // Should have one trade-off entry
         assert_eq!(trade_offs.len(), 1);
@@ -666,16 +669,18 @@ mod tests {
 
     #[test]
     fn test_normalization_methods() {
-        let metrics =
-            Array2::from_shape_vec((3, 2), vec![10.0, 1.0, 20.0, 2.0, 30.0, 3.0]).unwrap();
+        let metrics = Array2::from_shape_vec((3, 2), vec![10.0, 1.0, 20.0, 2.0, 30.0, 3.0])
+            .expect("operation should succeed");
 
         // Test MinMax normalization
-        let normalized = normalize_matrix(&metrics, &NormalizationMethod::MinMax).unwrap();
+        let normalized = normalize_matrix(&metrics, &NormalizationMethod::MinMax)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(normalized[[0, 0]], 0.0, epsilon = 1e-10);
         assert_abs_diff_eq!(normalized[[2, 0]], 1.0, epsilon = 1e-10);
 
         // Test Vector normalization
-        let normalized = normalize_matrix(&metrics, &NormalizationMethod::Vector).unwrap();
+        let normalized = normalize_matrix(&metrics, &NormalizationMethod::Vector)
+            .expect("operation should succeed");
         let col0_norm = normalized
             .column(0)
             .iter()
@@ -687,7 +692,8 @@ mod tests {
 
     #[test]
     fn test_utility_optimization() {
-        let metrics = Array2::from_shape_vec((3, 2), vec![0.9, 0.1, 0.8, 0.2, 0.7, 0.3]).unwrap();
+        let metrics = Array2::from_shape_vec((3, 2), vec![0.9, 0.1, 0.8, 0.2, 0.7, 0.3])
+            .expect("operation should succeed");
 
         let maximize = vec![true, true];
 
@@ -695,7 +701,8 @@ mod tests {
         let utility_func =
             |metrics: &scirs2_core::ndarray::ArrayView1<f64>| 0.7 * metrics[0] + 0.3 * metrics[1];
 
-        let scores = utility_optimization(&metrics, utility_func, &maximize).unwrap();
+        let scores = utility_optimization(&metrics, utility_func, &maximize)
+            .expect("operation should succeed");
 
         // First model should have highest utility
         assert!(scores[0] > scores[1]);
@@ -704,7 +711,8 @@ mod tests {
 
     #[test]
     fn test_multi_objective_evaluation() {
-        let metrics = Array2::from_shape_vec((3, 2), vec![0.9, 0.1, 0.8, 0.2, 0.7, 0.3]).unwrap();
+        let metrics = Array2::from_shape_vec((3, 2), vec![0.9, 0.1, 0.8, 0.2, 0.7, 0.3])
+            .expect("operation should succeed");
 
         let model_names = vec![
             "Model1".to_string(),
@@ -720,8 +728,8 @@ mod tests {
             distance_metric: DistanceMetric::Euclidean,
         };
 
-        let result =
-            multi_objective_evaluation(&metrics, &model_names, &metric_names, &config).unwrap();
+        let result = multi_objective_evaluation(&metrics, &model_names, &metric_names, &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.model_names.len(), 3);
         assert_eq!(result.metric_names.len(), 2);

@@ -789,11 +789,13 @@ mod tests {
         let model = LinearRegression::new()
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 1e-10);
 
-        let predictions = model.predict(&array![[5.0]]).unwrap();
+        let predictions = model
+            .predict(&array![[5.0]])
+            .expect("prediction should succeed");
         assert_abs_diff_eq!(predictions[0], 10.0, epsilon = 1e-10);
     }
 
@@ -805,10 +807,14 @@ mod tests {
         let model = LinearRegression::new()
             .fit_intercept(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(model.intercept().unwrap(), 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            model.intercept().expect("intercept should be available"),
+            1.0,
+            epsilon = 1e-10
+        );
     }
 
     #[test]
@@ -820,7 +826,7 @@ mod tests {
             .fit_intercept(false)
             .regularization(0.1)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // With regularization, coefficient should be slightly less than 2.0
         assert!(model.coef()[0] < 2.0);
@@ -836,7 +842,7 @@ mod tests {
         let model = LinearRegression::lasso(0.01)
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should be close to OLS solution (coef = 2.0)
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 0.1);
@@ -845,7 +851,7 @@ mod tests {
         let model = LinearRegression::lasso(0.5)
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Coefficient should be shrunk
         assert!(model.coef()[0] < 2.0);
@@ -860,7 +866,7 @@ mod tests {
         let model = LinearRegression::elastic_net(0.1, 0.5)
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Both coefficients should be shrunk but non-zero
         println!(
@@ -895,7 +901,7 @@ mod tests {
         let model = LinearRegression::lasso(1.0)
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         let coef = model.coef();
 
@@ -942,7 +948,7 @@ mod tests {
         let result = model.fit_with_early_stopping(&x, &y, early_stopping_config);
 
         assert!(result.is_ok());
-        let (fitted_model, validation_info) = result.unwrap();
+        let (fitted_model, validation_info) = result.expect("operation should succeed");
 
         // Check model properties
         assert_eq!(fitted_model.coef().len(), n_features);
@@ -956,7 +962,10 @@ mod tests {
         // Predictions should work
         let predictions = fitted_model.predict(&x);
         assert!(predictions.is_ok());
-        assert_eq!(predictions.unwrap().len(), n_samples);
+        assert_eq!(
+            predictions.expect("operation should succeed").len(),
+            n_samples
+        );
     }
 
     #[test]
@@ -993,7 +1002,7 @@ mod tests {
         let result = model.fit_with_early_stopping(&x, &y, early_stopping_config);
 
         assert!(result.is_ok());
-        let (fitted_model, validation_info) = result.unwrap();
+        let (fitted_model, validation_info) = result.expect("operation should succeed");
 
         assert_eq!(fitted_model.coef().len(), 3);
         assert!(fitted_model.intercept().is_some());
@@ -1034,7 +1043,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let (fitted_model, validation_info) = result.unwrap();
+        let (fitted_model, validation_info) = result.expect("operation should succeed");
 
         assert_eq!(fitted_model.coef().len(), 2);
         assert!(fitted_model.intercept().is_some());
@@ -1069,7 +1078,7 @@ mod tests {
         let result = model.fit_with_early_stopping(&x, &y, early_stopping_config);
 
         assert!(result.is_ok());
-        let (fitted_model, validation_info) = result.unwrap();
+        let (fitted_model, validation_info) = result.expect("operation should succeed");
 
         assert_eq!(fitted_model.coef().len(), 1);
         assert!(fitted_model.intercept().is_some());
@@ -1081,7 +1090,13 @@ mod tests {
 
         // Model should still work correctly
         assert_abs_diff_eq!(fitted_model.coef()[0], 2.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(fitted_model.intercept().unwrap(), 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            fitted_model
+                .intercept()
+                .expect("intercept should be available"),
+            1.0,
+            epsilon = 1e-10
+        );
     }
 
     #[test]
@@ -1116,7 +1131,7 @@ mod tests {
         let result = model.fit_with_early_stopping(&x, &y, early_stopping_config);
 
         assert!(result.is_ok());
-        let (fitted_model, validation_info) = result.unwrap();
+        let (fitted_model, validation_info) = result.expect("operation should succeed");
 
         assert_eq!(fitted_model.coef().len(), 2);
         assert!(fitted_model.intercept().is_some());

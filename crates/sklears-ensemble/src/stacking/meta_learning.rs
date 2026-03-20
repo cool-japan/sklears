@@ -103,9 +103,9 @@ impl MetaLearner {
             operation: "predict".to_string(),
         })?;
 
-        if meta_features.ncols() != self.n_features.unwrap() {
+        if meta_features.ncols() != self.n_features.expect("operation should succeed") {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features.unwrap(),
+                expected: self.n_features.expect("operation should succeed"),
                 actual: meta_features.ncols(),
             });
         }
@@ -487,12 +487,16 @@ mod tests {
         ];
         let targets = array![1.2, 2.1, 1.8, 1.6, 1.1, 1.9];
 
-        meta_learner.fit(&meta_features, &targets).unwrap();
+        meta_learner
+            .fit(&meta_features, &targets)
+            .expect("model fitting should succeed");
 
         assert!(meta_learner.weights.is_some());
         assert!(meta_learner.intercept.is_some());
 
-        let predictions = meta_learner.predict(&meta_features).unwrap();
+        let predictions = meta_learner
+            .predict(&meta_features)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
     }
 
@@ -503,8 +507,12 @@ mod tests {
         let meta_features = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
         let targets = array![3.0, 5.0, 7.0, 9.0];
 
-        meta_learner.fit(&meta_features, &targets).unwrap();
-        let predictions = meta_learner.predict(&meta_features).unwrap();
+        meta_learner
+            .fit(&meta_features, &targets)
+            .expect("model fitting should succeed");
+        let predictions = meta_learner
+            .predict(&meta_features)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -515,9 +523,14 @@ mod tests {
         let meta_features = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
         let targets = array![6.0, 15.0];
 
-        meta_learner.fit(&meta_features, &targets).unwrap();
+        meta_learner
+            .fit(&meta_features, &targets)
+            .expect("model fitting should succeed");
 
-        let weights = meta_learner.weights.as_ref().unwrap();
+        let weights = meta_learner
+            .weights
+            .as_ref()
+            .expect("operation should succeed");
         assert_eq!(weights.len(), 3);
         assert!((weights.sum() - 1.0).abs() < 1e-10);
     }
@@ -531,7 +544,7 @@ mod tests {
             [4.0, 5.0, 4.1]
         ];
 
-        let diversity = calculate_diversity(&predictions).unwrap();
+        let diversity = calculate_diversity(&predictions).expect("operation should succeed");
         assert!(diversity >= 0.0 && diversity <= 1.0);
     }
 
@@ -540,7 +553,8 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0];
         let y = array![2.0, 4.0, 6.0, 8.0]; // Perfect positive correlation
 
-        let correlation = calculate_correlation(&x.view(), &y.view()).unwrap();
+        let correlation =
+            calculate_correlation(&x.view(), &y.view()).expect("operation should succeed");
         assert!((correlation - 1.0).abs() < 1e-10);
     }
 

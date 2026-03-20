@@ -385,7 +385,9 @@ mod tests {
         let config = DualCoordinateAscentConfig::default();
         let mut solver = DualCoordinateAscent::new(config);
 
-        let result = solver.solve(&kernel, &x, &y).unwrap();
+        let result = solver
+            .solve(&kernel, &x, &y)
+            .expect("solver should succeed");
 
         assert!(result.converged);
         assert!(result.n_support_vectors > 0);
@@ -402,12 +404,14 @@ mod tests {
         let mut solver = DualCoordinateAscent::new(config);
 
         // First solve
-        let result1 = solver.solve(&kernel, &x, &y).unwrap();
+        let result1 = solver
+            .solve(&kernel, &x, &y)
+            .expect("solver should succeed");
 
         // Warm start with previous solution
         let result2 = solver
             .solve_with_warm_start(&kernel, &x, &y, &result1.alpha)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result2.n_iterations <= result1.n_iterations);
     }
@@ -447,7 +451,9 @@ mod tests {
         };
         let mut solver = DualCoordinateAscent::new(config);
 
-        let result = solver.solve(&kernel, &x, &y).unwrap();
+        let result = solver
+            .solve(&kernel, &x, &y)
+            .expect("solver should succeed");
         assert!(result.converged);
     }
 }

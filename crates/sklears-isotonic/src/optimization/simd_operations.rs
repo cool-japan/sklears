@@ -332,7 +332,7 @@ mod tests {
     fn test_newton_step() {
         let gradient = array![2.0, 4.0];
         let hessian = array![[2.0, 0.0], [0.0, 2.0]];
-        let step = simd_newton_step(&gradient, &hessian, 0.0).unwrap();
+        let step = simd_newton_step(&gradient, &hessian, 0.0).expect("operation should succeed");
 
         // Should be approximately -gradient / diagonal(hessian)
         assert!((step[0] - (-1.0)).abs() < 1e-6);

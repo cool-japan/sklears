@@ -642,7 +642,7 @@ impl Predict<Array2<f64>, AdversarialPredictionResults> for AdversarialEnsembleC
             // Find prediction with highest weighted vote
             let final_pred = vote_counts
                 .iter()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
                 .map(|(&pred, _)| pred)
                 .unwrap_or(0);
 

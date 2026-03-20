@@ -323,7 +323,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<f64>> for ColumnTransformer<ColumnT
 
         // Concatenate all transformed results
         if transformed_results.len() == 1 {
-            Ok(transformed_results.into_iter().next().unwrap())
+            Ok(transformed_results.into_iter().next().unwrap_or_default())
         } else {
             self.concatenate_results(transformed_results)
         }

@@ -3,19 +3,17 @@
 //! This module provides stub implementations for benchmarking feature selection algorithms.
 //! Full implementations are planned for future releases.
 
-use scirs2_core::error::CoreError;
-type Result<T> = std::result::Result<T, CoreError>;
+use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Feature selection benchmark framework (stub implementation)
 #[derive(Debug, Clone)]
 pub struct FeatureSelectionBenchmark;
 
 impl FeatureSelectionBenchmark {
-    pub fn run_benchmark(_methods: &[String]) -> Result<BenchmarkResults> {
-        Ok(BenchmarkResults {
-            method_scores: vec![0.8, 0.7, 0.9],
-            execution_times: vec![1.0, 2.0, 0.5],
-        })
+    pub fn run_benchmark(_methods: &[String]) -> SklResult<BenchmarkResults> {
+        Err(SklearsError::NotImplemented(
+            "FeatureSelectionBenchmark::run_benchmark is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -24,8 +22,10 @@ impl FeatureSelectionBenchmark {
 pub struct MethodComparison;
 
 impl MethodComparison {
-    pub fn compare_methods(_method1: &str, _method2: &str) -> Result<f64> {
-        Ok(0.1) // difference score
+    pub fn compare_methods(_method1: &str, _method2: &str) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "MethodComparison::compare_methods is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -34,8 +34,10 @@ impl MethodComparison {
 pub struct PerformanceRanking;
 
 impl PerformanceRanking {
-    pub fn rank_methods(_methods: &[String], _scores: &[f64]) -> Result<Vec<usize>> {
-        Ok((0.._methods.len()).collect())
+    pub fn rank_methods(_methods: &[String], _scores: &[f64]) -> SklResult<Vec<usize>> {
+        Err(SklearsError::NotImplemented(
+            "PerformanceRanking::rank_methods is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -44,11 +46,10 @@ impl PerformanceRanking {
 pub struct BenchmarkSuite;
 
 impl BenchmarkSuite {
-    pub fn run_suite(_suite_name: &str) -> Result<SuiteResults> {
-        Ok(SuiteResults {
-            suite_name: _suite_name.to_string(),
-            overall_score: 0.8,
-        })
+    pub fn run_suite(_suite_name: &str) -> SklResult<SuiteResults> {
+        Err(SklearsError::NotImplemented(
+            "BenchmarkSuite::run_suite is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -57,8 +58,10 @@ impl BenchmarkSuite {
 pub struct ComparativeAnalysis;
 
 impl ComparativeAnalysis {
-    pub fn statistical_comparison(_results1: &[f64], _results2: &[f64]) -> Result<f64> {
-        Ok(0.05) // p-value
+    pub fn statistical_comparison(_results1: &[f64], _results2: &[f64]) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "ComparativeAnalysis::statistical_comparison is not yet implemented".to_string(),
+        ))
     }
 }
 

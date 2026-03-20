@@ -351,7 +351,7 @@ impl FaultDetectionSystem {
 
         // Add to sample history
         {
-            let mut history = self.sample_history.write().unwrap();
+            let mut history = self.sample_history.write().unwrap_or_else(|e| e.into_inner());
             let metric_history = history.entry(metric_name.clone()).or_insert_with(VecDeque::new);
 
             metric_history.push_back(sample.clone());
@@ -364,7 +364,7 @@ impl FaultDetectionSystem {
 
         // Update metrics
         {
-            let mut metrics = self.metrics.write().unwrap();
+            let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
             metrics.total_samples += 1;
         }
 
@@ -378,7 +378,7 @@ impl FaultDetectionSystem {
 
         // Get historical samples for this metric
         let samples = {
-            let history = self.sample_history.read().unwrap();
+            let history = self.sample_history.read().unwrap_or_else(|e| e.into_inner());
             history.get(&sample.metric_name)
                 .map(|samples| samples.iter().cloned().collect::<Vec<_>>())
                 .unwrap_or_else(Vec::new)
@@ -579,7 +579,7 @@ impl FaultDetectionSystem {
             });
         }
 
-        let oldest_sample = recent_samples.iter().min_by_key(|s| s.timestamp).unwrap();
+        let oldest_sample = recent_samples.iter().min_by_key(|s| s.timestamp).unwrap_or_default();
         let time_diff = sample.timestamp.duration_since(oldest_sample.timestamp);
 
         if time_diff.as_secs_f64() > 0.0 {
@@ -819,7 +819,7 @@ impl FaultDetectionSystem {
         if let Some(fault) = result.fault_details {
             // Add to fault history
             {
-                let mut history = self.fault_history.write().unwrap();
+                let mut history = self.fault_history.write().unwrap_or_else(|e| e.into_inner());
                 history.push_back(fault.clone());
                 if history.len() > 100 { // Keep last 100 faults
                     history.pop_front();
@@ -828,7 +828,7 @@ impl FaultDetectionSystem {
 
             // Update metrics
             {
-                let mut metrics = self.metrics.write().unwrap();
+                let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
                 metrics.total_faults_detected += 1;
                 *metrics.faults_by_severity.entry(fault.severity).or_insert(0) += 1;
                 *metrics.faults_by_category.entry(fault.category.clone()).or_insert(0) += 1;
@@ -957,10 +957,10 @@ impl FaultDetectionSystem {
                 interval.tick().await;
 
                 // Perform periodic health checks and analysis
-                let history = sample_history.read().unwrap();
+                let history = sample_history.read().unwrap_or_else(|e| e.into_inner());
                 let sample_count = history.values().map(|samples| samples.len()).sum::<usize>();
 
-                let mut metrics_guard = metrics.write().unwrap();
+                let mut metrics_guard = metrics.write().unwrap_or_else(|e| e.into_inner());
                 metrics_guard.total_samples = sample_count as u64;
 
                 drop(metrics_guard);
@@ -968,13 +968,13 @@ impl FaultDetectionSystem {
             }
         });
 
-        let mut tasks = self.detection_tasks.write().unwrap();
+        let mut tasks = self.detection_tasks.write().unwrap_or_else(|e| e.into_inner());
         tasks.insert("main_detection".to_string(), detection_task);
     }
 
     /// Stop fault detection
     pub async fn stop_detection(&self) {
-        let mut tasks = self.detection_tasks.write().unwrap();
+        let mut tasks = self.detection_tasks.write().unwrap_or_else(|e| e.into_inner());
         for (_, handle) in tasks.drain() {
             handle.abort();
         }
@@ -982,12 +982,12 @@ impl FaultDetectionSystem {
 
     /// Get current metrics
     pub async fn get_metrics(&self) -> FaultDetectionMetrics {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get recent faults
     pub async fn get_recent_faults(&self, limit: usize) -> Vec<DetectedFault> {
-        let history = self.fault_history.read().unwrap();
+        let history = self.fault_history.read().unwrap_or_else(|e| e.into_inner());
         history.iter()
             .rev()
             .take(limit)
@@ -1130,11 +1130,11 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        system.fault_history.write().unwrap().push_back(fault);
+        system.fault_history.write().unwrap_or_else(|e| e.into_inner()).push_back(fault);
 
         // Update metrics to reflect the new fault
         {
-            let mut metrics = system.metrics.write().unwrap();
+            let mut metrics = system.metrics.write().unwrap_or_else(|e| e.into_inner());
             metrics.total_faults_detected = 1;
             metrics.faults_by_severity.insert(FaultSeverity::High, 1);
             metrics.health_score = system.calculate_health_score(&metrics).await;

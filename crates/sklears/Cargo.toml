@@ -17,7 +17,6 @@ categories = ["science", "mathematics", "algorithms", "data-structures"]
 # SciRS2 Policy Compliant Dependencies
 sklears-core = { workspace = true }
 scirs2-core = { workspace = true }  # Unified access to ndarray and scientific computing
-polars = { workspace = true }
 
 # ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
 # ❌ ndarray - use scirs2_core::ndarray instead (SciRS2 Policy)
@@ -87,7 +86,7 @@ default = ["std", "linear", "clustering", "metrics", "model-selection", "neighbo
 # Core features
 std = ["sklears-core/std"]
 parallel = ["rayon"]
-serde = ["sklears-core/serde", "polars/serde"]
+serde = ["sklears-core/serde"]
 
 # Algorithm categories
 linear = ["sklears-linear"]

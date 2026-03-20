@@ -678,7 +678,7 @@ impl LinearSVC {
         }
 
         // Sort by violation score (descending)
-        scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Return top violators
         Ok(scores.into_iter().take(set_size).map(|(_, i)| i).collect())
@@ -876,9 +876,9 @@ impl Predict<Array2<f64>, Array1<i32>> for TrainedLinearSVC {
                 let best_class_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("value should be present");
                 predictions[i] = self.classes_[best_class_idx];
             }
             Ok(predictions)
@@ -962,13 +962,17 @@ mod tests {
         let y = array![0, 1, 1, 0];
 
         let model = LinearSVC::new().with_c(1.0).with_max_iter(1000);
-        let trained_model = model.fit(&X_var, &y).unwrap();
+        let trained_model = model.fit(&X_var, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X_var).unwrap();
+        let predictions = trained_model
+            .predict(&X_var)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test decision function
-        let scores = trained_model.decision_function(&X_var).unwrap();
+        let scores = trained_model
+            .decision_function(&X_var)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (4, 1));
     }
 
@@ -985,13 +989,17 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let model = LinearSVC::new().with_c(1.0).with_max_iter(1000);
-        let trained_model = model.fit(&X_var, &y).unwrap();
+        let trained_model = model.fit(&X_var, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X_var).unwrap();
+        let predictions = trained_model
+            .predict(&X_var)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test decision function for multiclass
-        let scores = trained_model.decision_function(&X_var).unwrap();
+        let scores = trained_model
+            .decision_function(&X_var)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (6, 3)); // 6 samples, 3 classes
     }
 
@@ -1049,8 +1057,8 @@ mod tests {
             .with_max_iter(1000)
             .with_tol(1e-6);
 
-        let trained = model.fit(&X_var, &y).unwrap();
-        let predictions = trained.predict(&X_var).unwrap();
+        let trained = model.fit(&X_var, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X_var).expect("prediction should succeed");
 
         // Check that we have reasonable accuracy
         let accuracy = predictions
@@ -1073,8 +1081,8 @@ mod tests {
             .with_max_iter(1000)
             .with_tol(1e-6);
 
-        let trained = model.fit(&X_var, &y).unwrap();
-        let predictions = trained.predict(&X_var).unwrap();
+        let trained = model.fit(&X_var, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X_var).expect("prediction should succeed");
 
         // Check that we have reasonable accuracy
         let accuracy = predictions
@@ -1138,8 +1146,8 @@ mod tests {
                 .with_max_iter(1000)
                 .with_tol(1e-6);
 
-            let trained = model.fit(&X_var, &y).unwrap();
-            let predictions = trained.predict(&X_var).unwrap();
+            let trained = model.fit(&X_var, &y).expect("model fitting should succeed");
+            let predictions = trained.predict(&X_var).expect("prediction should succeed");
 
             let accuracy = predictions
                 .iter()

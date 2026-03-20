@@ -12,7 +12,7 @@ use crate::{CrossValidator, KFold, Scoring};
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Dim, OwnedRepr};
 use scirs2_core::numeric::ToPrimitive;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -92,16 +92,16 @@ impl PBTParameterSpace {
     }
 
     /// Sample a random parameter configuration
-    pub fn sample<R: Rng>(&self, rng: &mut R) -> PBTParameters {
+    pub fn sample<R: RngExt>(&self, rng: &mut R) -> PBTParameters {
         let mut params = PBTParameters::new();
 
         for (name, (low, high)) in &self.continuous {
-            let value = rng.gen_range(*low..*high + 1.0);
+            let value = rng.random_range(*low..*high + 1.0);
             params.set(name.clone(), value);
         }
 
         for (name, values) in &self.discrete {
-            let idx = rng.gen_range(0..values.len());
+            let idx = rng.random_range(0..values.len());
             params.set(name.clone(), values[idx]);
         }
 
@@ -109,7 +109,7 @@ impl PBTParameterSpace {
     }
 
     /// Perturb parameters with exploration
-    pub fn perturb<R: Rng>(
+    pub fn perturb<R: RngExt>(
         &self,
         params: &PBTParameters,
         factor: f64,
@@ -120,16 +120,16 @@ impl PBTParameterSpace {
         for (name, (low, high)) in &self.continuous {
             if let Some(&current_value) = params.get(name) {
                 let range = high - low;
-                let perturbation = rng.gen_range(-factor..factor + 1.0) * range;
+                let perturbation = rng.random_range(-factor..factor + 1.0) * range;
                 let new_value = (current_value + perturbation).clamp(*low, *high);
                 new_params.set(name.clone(), new_value);
             }
         }
 
         for (name, values) in &self.discrete {
-            if rng.gen_bool(factor.min(1.0)) {
+            if rng.random_bool(factor.min(1.0)) {
                 // Probability of changing discrete parameter
-                let idx = rng.gen_range(0..values.len());
+                let idx = rng.random_range(0..values.len());
                 new_params.set(name.clone(), values[idx]);
             }
         }
@@ -207,7 +207,7 @@ impl<E> PBTWorker<E> {
         }
 
         let mut sorted_scores = all_scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let threshold_idx = (threshold_percentile * sorted_scores.len() as f64) as usize;
         let threshold = sorted_scores
@@ -265,9 +265,11 @@ where
 
     /// Get the best worker in the current population
     pub fn best_worker(&self) -> Option<&PBTWorker<E>> {
-        self.population
-            .iter()
-            .max_by(|a, b| a.current_score.partial_cmp(&b.current_score).unwrap())
+        self.population.iter().max_by(|a, b| {
+            a.current_score
+                .partial_cmp(&b.current_score)
+                .expect("operation should succeed")
+        })
     }
 
     /// Update worker performance
@@ -300,7 +302,7 @@ where
         let num_to_replace = (self.config.replacement_fraction * population_size as f64) as usize;
         let mut worker_scores: Vec<(usize, f64)> =
             scores.iter().enumerate().map(|(i, &s)| (i, s)).collect();
-        worker_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        worker_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Get indices of worst and best performers
         let worst_indices: Vec<usize> = worker_scores
@@ -624,8 +626,12 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
         let perturbed = space.perturb(&params, 0.1, &mut rng);
 
-        let original = params.get("learning_rate").unwrap();
-        let new_val = perturbed.get("learning_rate").unwrap();
+        let original = params
+            .get("learning_rate")
+            .expect("operation should succeed");
+        let new_val = perturbed
+            .get("learning_rate")
+            .expect("operation should succeed");
 
         // Should be different but within bounds
         assert_ne!(original, new_val);

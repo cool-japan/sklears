@@ -72,7 +72,8 @@ mod tests {
         let signal1 = Array1::from_vec(vec![1.0, 2.0, 3.0]);
         let signal2 = Array1::from_vec(vec![1.0, 1.0]);
 
-        let result = SimdSignalOps::simd_correlate(&signal1, &signal2).unwrap();
+        let result =
+            SimdSignalOps::simd_correlate(&signal1, &signal2).expect("operation should succeed");
         assert_eq!(result.len(), 4);
     }
 
@@ -81,7 +82,8 @@ mod tests {
         let a = Array1::from_vec(vec![1.0, 2.0, 3.0]);
         let b = Array1::from_vec(vec![2.0, 3.0, 4.0]);
 
-        let result = SimdSignalOps::simd_elementwise_multiply(&a, &b).unwrap();
+        let result =
+            SimdSignalOps::simd_elementwise_multiply(&a, &b).expect("operation should succeed");
         assert_eq!(result.len(), 3);
         assert_eq!(result[0], 2.0);
         assert_eq!(result[1], 6.0);

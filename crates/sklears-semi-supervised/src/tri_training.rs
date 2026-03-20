@@ -114,7 +114,7 @@ impl TriTraining<Untrained> {
                 distances.push((dist, y_train[j]));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Use k=5 nearest neighbors with majority vote
             let k = distances.len().clamp(1, 5);
@@ -428,7 +428,7 @@ impl TriTraining<TriTrainingTrained> {
                 distances.push((dist, y_train[j]));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Use k=5 nearest neighbors with majority vote
             let k = distances.len().clamp(1, 5);

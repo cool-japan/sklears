@@ -10,7 +10,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, RngExt};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -199,7 +199,7 @@ impl CrossValidationSelector {
     fn k_fold_split(
         &self,
         n_samples: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
         let mut indices: Vec<usize> = (0..n_samples).collect();
         indices.shuffle(rng);
@@ -281,7 +281,9 @@ impl CrossValidationSelector {
         }
 
         // Center the data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let centered_data = data - &mean.clone().insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -491,7 +493,7 @@ impl BootstrapSelector {
     fn create_bootstrap_sample(
         &self,
         data: &Array2<Float>,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<Array2<Float>> {
         let (n_samples, n_features) = data.dim();
         let mut bootstrap_data = Array2::zeros((n_samples, n_features));
@@ -499,7 +501,7 @@ impl BootstrapSelector {
         match self.method {
             BootstrapMethod::Standard => {
                 for i in 0..n_samples {
-                    let sample_idx = rng.gen_range(0..n_samples);
+                    let sample_idx = rng.random_range(0..n_samples);
                     for j in 0..n_features {
                         bootstrap_data[[i, j]] = data[[sample_idx, j]];
                     }
@@ -514,7 +516,7 @@ impl BootstrapSelector {
                     let sample_idx = if i < indices.len() {
                         indices[i]
                     } else {
-                        rng.gen_range(0..n_samples)
+                        rng.random_range(0..n_samples)
                     };
 
                     for j in 0..n_features {
@@ -528,7 +530,7 @@ impl BootstrapSelector {
                 let n_blocks = n_samples / block_size;
 
                 for block in 0..n_blocks {
-                    let start_idx = rng.gen_range(0..n_samples - block_size + 1);
+                    let start_idx = rng.random_range(0..n_samples - block_size + 1);
 
                     for i in 0..block_size {
                         let src_idx = start_idx + i;
@@ -548,10 +550,13 @@ impl BootstrapSelector {
                 for j in 0..n_features {
                     let column = data.column(j);
                     let mean = column.mean().unwrap_or(0.0);
-                    let std = self.compute_std(column.as_slice().unwrap(), mean);
+                    let std = self.compute_std(
+                        column.as_slice().expect("matrix indexing should be valid"),
+                        mean,
+                    );
 
                     for i in 0..n_samples {
-                        bootstrap_data[[i, j]] = rng.gen::<Float>() * std + mean;
+                        bootstrap_data[[i, j]] = rng.random::<Float>() * std + mean;
                     }
                 }
             }
@@ -571,7 +576,9 @@ impl BootstrapSelector {
         }
 
         // Center the data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let centered_data = data - &mean.clone().insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -780,7 +787,9 @@ impl InformationCriteriaSelector {
         let (n_samples, _n_features) = data.dim();
 
         // Center the data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let centered_data = data - &mean.clone().insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -1043,7 +1052,9 @@ impl ParallelAnalysis {
         let (n_samples, _) = data.dim();
 
         // Center the data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let centered_data = data - &mean.clone().insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -1060,13 +1071,13 @@ impl ParallelAnalysis {
         &self,
         n_samples: usize,
         n_features: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Array2<Float> {
         let mut random_data = Array2::zeros((n_samples, n_features));
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                random_data[[i, j]] = rng.gen::<Float>() - 0.5; // Centered random values
+                random_data[[i, j]] = rng.random::<Float>() - 0.5; // Centered random values
             }
         }
 
@@ -1135,7 +1146,9 @@ mod tests {
             .n_folds(3)
             .random_state(42);
 
-        let result = selector.select_pca_components(&data).unwrap();
+        let result = selector
+            .select_pca_components(&data)
+            .expect("operation should succeed");
 
         assert!(result.optimal_components >= 1);
         assert!(result.optimal_components <= 2);
@@ -1148,7 +1161,9 @@ mod tests {
 
         let selector = BootstrapSelector::new(BootstrapMethod::Standard).n_bootstrap(10);
 
-        let result = selector.assess_stability(&data, 1).unwrap();
+        let result = selector
+            .assess_stability(&data, 1)
+            .expect("operation should succeed");
 
         assert!(result.mean_component_similarity >= 0.0);
         assert!(result.mean_component_similarity <= 1.0);
@@ -1165,7 +1180,9 @@ mod tests {
         ];
 
         let selector = InformationCriteriaSelector::new(InformationCriterion::AIC);
-        let result = selector.select_components(&data).unwrap();
+        let result = selector
+            .select_components(&data)
+            .expect("operation should succeed");
 
         assert!(result.optimal_components >= 1);
         assert!(result.cv_scores.len() > 0);
@@ -1183,7 +1200,7 @@ mod tests {
 
         let pa = ParallelAnalysis::new().n_simulations(10).random_state(42);
 
-        let result = pa.analyze(&data).unwrap();
+        let result = pa.analyze(&data).expect("operation should succeed");
 
         // optimal_components is always >= 0 by type (usize)
         assert!(result.optimal_components <= 3); // Can't exceed number of features
@@ -1196,7 +1213,7 @@ mod tests {
             .n_folds(3)
             .random_state(42);
 
-        let folds = selector.create_folds(10).unwrap();
+        let folds = selector.create_folds(10).expect("operation should succeed");
 
         assert_eq!(folds.len(), 3);
 
@@ -1214,7 +1231,7 @@ mod tests {
     #[test]
     fn test_leave_one_out_split() {
         let selector = CrossValidationSelector::new(CrossValidationMethod::LeaveOneOut);
-        let folds = selector.create_folds(5).unwrap();
+        let folds = selector.create_folds(5).expect("operation should succeed");
 
         assert_eq!(folds.len(), 5);
 

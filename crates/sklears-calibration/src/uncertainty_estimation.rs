@@ -171,7 +171,12 @@ impl UncertaintyEstimator {
         }
 
         // Compute variance across ensemble members
-        let mean_predictions = all_predictions.mean_axis(Axis(1)).unwrap();
+        let mean_predictions =
+            all_predictions
+                .mean_axis(Axis(1))
+                .ok_or(SklearsError::InvalidInput(
+                    "empty array for mean computation".to_string(),
+                ))?;
         let mut variances = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
@@ -562,9 +567,13 @@ mod tests {
         };
 
         let mut estimator = UncertaintyEstimator::new(config);
-        estimator.fit(&probabilities, &targets).unwrap();
+        estimator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let result = estimator.predict_uncertainty(&probabilities).unwrap();
+        let result = estimator
+            .predict_uncertainty(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(result.total_uncertainty.len(), 5);
         assert_eq!(result.epistemic_uncertainty.len(), 5);
@@ -595,9 +604,13 @@ mod tests {
         };
 
         let mut estimator = BayesianUncertaintyEstimator::new(config);
-        estimator.fit(&probabilities, &targets).unwrap();
+        estimator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let result = estimator.predict_uncertainty(&probabilities).unwrap();
+        let result = estimator
+            .predict_uncertainty(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(result.method, "Bayesian Linear Regression");
         assert!(result.epistemic_uncertainty.iter().all(|&x| x >= 0.0));
@@ -614,7 +627,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = decompose_uncertainty(&probabilities, &targets, &config).unwrap();
+        let result = decompose_uncertainty(&probabilities, &targets, &config)
+            .expect("operation should succeed");
 
         // Total uncertainty should be approximately the sum of components
         for i in 0..probabilities.len() {
@@ -637,8 +651,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = decompose_uncertainty(&probabilities, &targets, &config).unwrap();
-        let metrics = uncertainty_based_calibration(&result, &targets).unwrap();
+        let result = decompose_uncertainty(&probabilities, &targets, &config)
+            .expect("operation should succeed");
+        let metrics =
+            uncertainty_based_calibration(&result, &targets).expect("operation should succeed");
 
         assert!(metrics.contains_key("confidence_coverage"));
         assert!(metrics.contains_key("average_interval_width"));
@@ -659,7 +675,8 @@ mod tests {
         let probabilities = array![0.1, 0.3, 0.7, 0.9];
         let targets = array![0, 0, 1, 1];
 
-        let results = compare_uncertainty_methods(&probabilities, &targets).unwrap();
+        let results = compare_uncertainty_methods(&probabilities, &targets)
+            .expect("operation should succeed");
 
         assert!(!results.is_empty());
 

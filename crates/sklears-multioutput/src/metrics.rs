@@ -1160,7 +1160,7 @@ pub fn wilcoxon_signed_rank_test(
     }
 
     // Sort by absolute difference to assign ranks
-    differences_with_abs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    differences_with_abs.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
     // Assign ranks (handling ties by averaging)
     let mut ranks = vec![0.0; n_nonzero];
@@ -1450,7 +1450,8 @@ mod tests {
         let y_true_view = y_true.view();
         let y_pred_view = y_pred.view();
 
-        let metrics = per_label_metrics(&y_true_view, &y_pred_view).unwrap();
+        let metrics =
+            per_label_metrics(&y_true_view, &y_pred_view).expect("operation should succeed");
 
         assert_eq!(metrics.n_labels, 3);
         assert_eq!(metrics.precision.len(), 3);
@@ -1479,7 +1480,8 @@ mod tests {
         let y_true_view = y_perfect.view();
         let y_pred_view = y_perfect.view(); // Same as true
 
-        let metrics = per_label_metrics(&y_true_view, &y_pred_view).unwrap();
+        let metrics =
+            per_label_metrics(&y_true_view, &y_pred_view).expect("operation should succeed");
 
         // All metrics should be 1.0 for perfect prediction
         for i in 0..3 {
@@ -1497,7 +1499,8 @@ mod tests {
         let y_true_view = y_true.view();
         let y_pred_view = y_pred.view();
 
-        let metrics = per_label_metrics(&y_true_view, &y_pred_view).unwrap();
+        let metrics =
+            per_label_metrics(&y_true_view, &y_pred_view).expect("operation should succeed");
 
         // All support should be 0
         for i in 0..3 {
@@ -1514,12 +1517,21 @@ mod tests {
         let y_true_view = y_true.view();
         let y_pred_view = y_pred.view();
 
-        let metrics = per_label_metrics(&y_true_view, &y_pred_view).unwrap();
+        let metrics =
+            per_label_metrics(&y_true_view, &y_pred_view).expect("operation should succeed");
 
-        let macro_precision = metrics.macro_average("precision").unwrap();
-        let macro_recall = metrics.macro_average("recall").unwrap();
-        let macro_f1 = metrics.macro_average("f1_score").unwrap();
-        let macro_accuracy = metrics.macro_average("accuracy").unwrap();
+        let macro_precision = metrics
+            .macro_average("precision")
+            .expect("operation should succeed");
+        let macro_recall = metrics
+            .macro_average("recall")
+            .expect("operation should succeed");
+        let macro_f1 = metrics
+            .macro_average("f1_score")
+            .expect("operation should succeed");
+        let macro_accuracy = metrics
+            .macro_average("accuracy")
+            .expect("operation should succeed");
 
         // Verify macro averages are calculated correctly
         let expected_precision = metrics.precision.iter().sum::<f64>() / 3.0;
@@ -1539,12 +1551,21 @@ mod tests {
         let y_true_view = y_true.view();
         let y_pred_view = y_pred.view();
 
-        let metrics = per_label_metrics(&y_true_view, &y_pred_view).unwrap();
+        let metrics =
+            per_label_metrics(&y_true_view, &y_pred_view).expect("operation should succeed");
 
-        let weighted_precision = metrics.weighted_average("precision").unwrap();
-        let weighted_recall = metrics.weighted_average("recall").unwrap();
-        let weighted_f1 = metrics.weighted_average("f1_score").unwrap();
-        let weighted_accuracy = metrics.weighted_average("accuracy").unwrap();
+        let weighted_precision = metrics
+            .weighted_average("precision")
+            .expect("operation should succeed");
+        let weighted_recall = metrics
+            .weighted_average("recall")
+            .expect("operation should succeed");
+        let weighted_f1 = metrics
+            .weighted_average("f1_score")
+            .expect("operation should succeed");
+        let weighted_accuracy = metrics
+            .weighted_average("accuracy")
+            .expect("operation should succeed");
 
         // All should be valid values
         assert!(weighted_precision >= 0.0 && weighted_precision <= 1.0);
@@ -1578,7 +1599,8 @@ mod tests {
         let y_pred = array![[1, 0, 0], [0, 1, 1], [1, 0, 1]];
 
         // Test identical classifiers (should have p-value = 1.0)
-        let result = mcnemar_test(&y_true.view(), &y_pred.view(), &y_pred.view()).unwrap();
+        let result = mcnemar_test(&y_true.view(), &y_pred.view(), &y_pred.view())
+            .expect("operation should succeed");
         assert_eq!(result.test_name, "McNemar");
         assert!((result.p_value - 1.0).abs() < 1e-10);
         assert!(!result.is_significant);
@@ -1591,7 +1613,8 @@ mod tests {
         let y_pred1 = array![[1, 0, 0], [0, 1, 1], [1, 0, 1], [1, 0, 0], [1, 1, 1]];
         let y_pred2 = array![[0, 1, 1], [1, 0, 0], [0, 1, 0], [0, 1, 1], [0, 0, 0]];
 
-        let result = mcnemar_test(&y_true.view(), &y_pred1.view(), &y_pred2.view()).unwrap();
+        let result = mcnemar_test(&y_true.view(), &y_pred1.view(), &y_pred2.view())
+            .expect("operation should succeed");
         assert_eq!(result.test_name, "McNemar");
         assert!(result.statistic >= 0.0);
         assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
@@ -1617,7 +1640,8 @@ mod tests {
         let metric_values1 = vec![0.8, 0.7, 0.9, 0.6, 0.75];
         let metric_values2 = vec![0.7, 0.65, 0.85, 0.55, 0.7];
 
-        let result = paired_t_test(&metric_values1, &metric_values2).unwrap();
+        let result =
+            paired_t_test(&metric_values1, &metric_values2).expect("operation should succeed");
         assert_eq!(result.test_name, "Paired t-test");
         assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
 
@@ -1628,7 +1652,10 @@ mod tests {
         assert!(result.additional_info.contains_key("n_observations"));
 
         // Mean difference should be positive (values1 > values2)
-        let mean_diff = result.additional_info.get("mean_difference").unwrap();
+        let mean_diff = result
+            .additional_info
+            .get("mean_difference")
+            .expect("index should be valid");
         assert!(*mean_diff > 0.0);
     }
 
@@ -1636,10 +1663,14 @@ mod tests {
     fn test_paired_t_test_identical_values() {
         let metric_values = vec![0.8, 0.7, 0.9, 0.6, 0.75];
 
-        let result = paired_t_test(&metric_values, &metric_values).unwrap();
+        let result =
+            paired_t_test(&metric_values, &metric_values).expect("operation should succeed");
 
         // With identical values, mean difference should be 0 and p-value should be 1.0
-        let mean_diff = result.additional_info.get("mean_difference").unwrap();
+        let mean_diff = result
+            .additional_info
+            .get("mean_difference")
+            .expect("index should be valid");
         assert!(mean_diff.abs() < 1e-10);
         assert!(!result.is_significant);
     }
@@ -1663,7 +1694,8 @@ mod tests {
         let metric_values1 = vec![0.8, 0.7, 0.9, 0.6, 0.75, 0.85, 0.65];
         let metric_values2 = vec![0.7, 0.65, 0.85, 0.55, 0.7, 0.8, 0.6];
 
-        let result = wilcoxon_signed_rank_test(&metric_values1, &metric_values2).unwrap();
+        let result = wilcoxon_signed_rank_test(&metric_values1, &metric_values2)
+            .expect("operation should succeed");
         assert_eq!(result.test_name, "Wilcoxon signed-rank");
         assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
 
@@ -1701,7 +1733,7 @@ mod tests {
     fn test_confidence_interval() {
         let metric_values = vec![0.8, 0.75, 0.85, 0.7, 0.9, 0.65, 0.8, 0.82, 0.78, 0.88];
 
-        let ci = confidence_interval(&metric_values, 0.95).unwrap();
+        let ci = confidence_interval(&metric_values, 0.95).expect("operation should succeed");
 
         assert_eq!(ci.confidence_level, 0.95);
         assert!(ci.lower <= ci.point_estimate); // Allow equal in edge cases
@@ -1717,7 +1749,7 @@ mod tests {
         }
 
         // Test different confidence levels
-        let ci_99 = confidence_interval(&metric_values, 0.99).unwrap();
+        let ci_99 = confidence_interval(&metric_values, 0.99).expect("operation should succeed");
         assert!(ci_99.upper - ci_99.lower >= ci.upper - ci.lower); // Should be wider or equal
     }
 
@@ -1725,7 +1757,7 @@ mod tests {
     fn test_confidence_interval_single_value() {
         let single_value = vec![0.8];
 
-        let ci = confidence_interval(&single_value, 0.95).unwrap();
+        let ci = confidence_interval(&single_value, 0.95).expect("operation should succeed");
 
         // With single value, lower and upper should equal the point estimate
         assert_eq!(ci.lower, ci.point_estimate);
@@ -1807,22 +1839,26 @@ mod tests {
         let y_pred_view = y_pred.view();
 
         // Test that existing metrics still work
-        let hamming = hamming_loss(&y_true_view, &y_pred_view).unwrap();
+        let hamming = hamming_loss(&y_true_view, &y_pred_view).expect("operation should succeed");
         assert!(hamming >= 0.0 && hamming <= 1.0);
 
-        let subset_acc = subset_accuracy(&y_true_view, &y_pred_view).unwrap();
+        let subset_acc =
+            subset_accuracy(&y_true_view, &y_pred_view).expect("operation should succeed");
         assert!(subset_acc >= 0.0 && subset_acc <= 1.0);
 
-        let jaccard = jaccard_score(&y_true_view, &y_pred_view).unwrap();
+        let jaccard = jaccard_score(&y_true_view, &y_pred_view).expect("operation should succeed");
         assert!(jaccard >= 0.0 && jaccard <= 1.0);
 
-        let f1_micro = f1_score(&y_true_view, &y_pred_view, "micro").unwrap();
+        let f1_micro =
+            f1_score(&y_true_view, &y_pred_view, "micro").expect("operation should succeed");
         assert!(f1_micro >= 0.0 && f1_micro <= 1.0);
 
-        let f1_macro = f1_score(&y_true_view, &y_pred_view, "macro").unwrap();
+        let f1_macro =
+            f1_score(&y_true_view, &y_pred_view, "macro").expect("operation should succeed");
         assert!(f1_macro >= 0.0 && f1_macro <= 1.0);
 
-        let f1_samples = f1_score(&y_true_view, &y_pred_view, "samples").unwrap();
+        let f1_samples =
+            f1_score(&y_true_view, &y_pred_view, "samples").expect("sampling should succeed");
         assert!(f1_samples >= 0.0 && f1_samples <= 1.0);
     }
 
@@ -1832,9 +1868,13 @@ mod tests {
         let y_true_view = y_true.view();
         let y_pred_view = y_pred.view();
 
-        let per_label = per_label_metrics(&y_true_view, &y_pred_view).unwrap();
-        let global_f1_macro = f1_score(&y_true_view, &y_pred_view, "macro").unwrap();
-        let per_label_f1_macro = per_label.macro_average("f1_score").unwrap();
+        let per_label =
+            per_label_metrics(&y_true_view, &y_pred_view).expect("operation should succeed");
+        let global_f1_macro =
+            f1_score(&y_true_view, &y_pred_view, "macro").expect("operation should succeed");
+        let per_label_f1_macro = per_label
+            .macro_average("f1_score")
+            .expect("operation should succeed");
 
         // The macro F1 from per-label metrics should match global macro F1
         assert!((global_f1_macro - per_label_f1_macro).abs() < 1e-10);
@@ -1869,22 +1909,26 @@ mod tests {
         ];
 
         // Get per-label metrics for both classifiers
-        let metrics1 = per_label_metrics(&y_true.view(), &y_pred1.view()).unwrap();
-        let metrics2 = per_label_metrics(&y_true.view(), &y_pred2.view()).unwrap();
+        let metrics1 =
+            per_label_metrics(&y_true.view(), &y_pred1.view()).expect("operation should succeed");
+        let metrics2 =
+            per_label_metrics(&y_true.view(), &y_pred2.view()).expect("operation should succeed");
 
         // Compare using McNemar's test
-        let mcnemar_result =
-            mcnemar_test(&y_true.view(), &y_pred1.view(), &y_pred2.view()).unwrap();
+        let mcnemar_result = mcnemar_test(&y_true.view(), &y_pred1.view(), &y_pred2.view())
+            .expect("operation should succeed");
 
         // Compare F1 scores using t-test
-        let t_test_result = paired_t_test(&metrics1.f1_score, &metrics2.f1_score).unwrap();
+        let t_test_result = paired_t_test(&metrics1.f1_score, &metrics2.f1_score)
+            .expect("operation should succeed");
 
         // Compare F1 scores using Wilcoxon test
-        let wilcoxon_result =
-            wilcoxon_signed_rank_test(&metrics1.f1_score, &metrics2.f1_score).unwrap();
+        let wilcoxon_result = wilcoxon_signed_rank_test(&metrics1.f1_score, &metrics2.f1_score)
+            .expect("operation should succeed");
 
         // Get confidence interval for first classifier's F1 scores
-        let ci_result = confidence_interval(&metrics1.f1_score, 0.95).unwrap();
+        let ci_result =
+            confidence_interval(&metrics1.f1_score, 0.95).expect("operation should succeed");
 
         // All results should be valid
         assert!(mcnemar_result.p_value >= 0.0 && mcnemar_result.p_value <= 1.0);

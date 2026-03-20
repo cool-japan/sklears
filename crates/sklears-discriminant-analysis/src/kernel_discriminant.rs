@@ -299,7 +299,7 @@ impl KernelParameterOptimizer {
             .iter()
             .find(|(k, _, _)| *k == best_kernel)
             .map(|(_, _, scores)| scores.clone())
-            .unwrap_or_default();
+            .expect("value should be present");
 
         Ok(KernelOptimizationResults {
             best_kernel,
@@ -348,7 +348,7 @@ impl KernelParameterOptimizer {
             .iter()
             .find(|(k, _, _)| *k == best_kernel)
             .map(|(_, _, scores)| scores.clone())
-            .unwrap_or_default();
+            .expect("value should be present");
 
         Ok(KernelOptimizationResults {
             best_kernel,
@@ -782,9 +782,15 @@ impl TrainedKernelDiscriminantAnalysis {
         let m = kernel_matrix.ncols();
 
         // Compute row means, column means, and overall mean
-        let row_means = kernel_matrix.mean_axis(Axis(1)).unwrap();
-        let col_means = kernel_matrix.mean_axis(Axis(0)).unwrap();
-        let overall_mean = kernel_matrix.mean().unwrap();
+        let row_means = kernel_matrix
+            .mean_axis(Axis(1))
+            .expect("mean should not fail on non-empty array");
+        let col_means = kernel_matrix
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
+        let overall_mean = kernel_matrix
+            .mean()
+            .expect("mean should not fail on non-empty array");
 
         let mut centered = kernel_matrix.clone();
 
@@ -903,7 +909,9 @@ impl KernelDiscriminantAnalysis {
         let mut s_b = Array2::zeros((n_samples, n_samples));
 
         // Overall mean in kernel space
-        let overall_mean = kernel_matrix.mean_axis(Axis(0)).unwrap();
+        let overall_mean = kernel_matrix
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
 
         // Compute class statistics
         for &class in classes {
@@ -1161,7 +1169,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedKernelDiscriminantAnalysis {
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -1237,13 +1245,19 @@ impl TrainedKernelDiscriminantAnalysis {
         // Compute training kernel means (should be precomputed in practice)
         let train_kernel =
             self.compute_kernel_matrix(&self.train_data.view(), &self.train_data.view());
-        let train_row_means = train_kernel.mean_axis(Axis(1)).unwrap();
-        let train_overall_mean = train_kernel.mean().unwrap();
+        let train_row_means = train_kernel
+            .mean_axis(Axis(1))
+            .expect("mean should not fail on non-empty array");
+        let train_overall_mean = train_kernel
+            .mean()
+            .expect("mean should not fail on non-empty array");
 
         let mut centered = kernel_test_train.clone();
 
         // Center using training statistics
-        let test_row_means = kernel_test_train.mean_axis(Axis(1)).unwrap();
+        let test_row_means = kernel_test_train
+            .mean_axis(Axis(1))
+            .expect("mean should not fail on non-empty array");
 
         for i in 0..n_test {
             for j in 0..n_train {
@@ -1289,8 +1303,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::RBF { gamma: 1.0 });
-        let fitted = kda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -1306,8 +1320,8 @@ mod tests {
             coef0: 1.0,
             degree: 2,
         });
-        let fitted = kda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -1319,8 +1333,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::Linear);
-        let fitted = kda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -1335,8 +1349,8 @@ mod tests {
             gamma: 0.1,
             coef0: 1.0,
         });
-        let fitted = kda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -1348,8 +1362,10 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::RBF { gamma: 1.0 });
-        let fitted = kda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -1368,8 +1384,8 @@ mod tests {
         let kda = KernelDiscriminantAnalysis::new()
             .kernel(KernelType::RBF { gamma: 1.0 })
             .n_components(Some(1));
-        let fitted = kda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 1));
     }
@@ -1382,8 +1398,8 @@ mod tests {
         let kda = KernelDiscriminantAnalysis::new()
             .kernel(KernelType::RBF { gamma: 1.0 })
             .reg_param(0.1);
-        let fitted = kda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -1403,8 +1419,8 @@ mod tests {
         });
 
         let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::Custom(custom_kernel));
-        let fitted = kda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -1423,8 +1439,8 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::RBF { gamma: 1.0 });
-        let fitted = kda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = kda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 3);
@@ -1476,7 +1492,7 @@ mod tests {
         let results = optimizer.optimize(&x, &y);
         assert!(results.is_ok());
 
-        let results = results.unwrap();
+        let results = results.expect("operation should succeed");
         assert!(results.best_score >= 0.0);
         assert!(results.best_score <= 1.0);
         assert!(!results.cv_scores.is_empty());
@@ -1504,7 +1520,7 @@ mod tests {
         match fitted {
             Ok(fitted) => {
                 assert_eq!(fitted.classes().len(), 2);
-                let predictions = fitted.predict(&x).unwrap();
+                let predictions = fitted.predict(&x).expect("prediction should succeed");
                 assert_eq!(predictions.len(), 8);
             }
             Err(_) => {
@@ -1541,7 +1557,7 @@ mod tests {
         match fitted {
             Ok(fitted) => {
                 assert_eq!(fitted.classes().len(), 2);
-                let predictions = fitted.predict(&x).unwrap();
+                let predictions = fitted.predict(&x).expect("prediction should succeed");
                 assert_eq!(predictions.len(), 4);
             }
             Err(_) => {

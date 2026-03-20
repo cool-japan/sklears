@@ -19,7 +19,7 @@ use sklears_covariance::{
 /// Generate sparse covariance data
 fn generate_sparse_data(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {
     let mut rng = scirs2_core::random::StdRng::seed_from_u64(seed);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     // Generate data with block structure (sparse precision matrix)
     let mut data = Array2::zeros((n_samples, n_features));

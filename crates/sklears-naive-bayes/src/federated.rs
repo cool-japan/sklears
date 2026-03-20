@@ -13,7 +13,7 @@ type DMatrix<T> = Array2<T>;
 type DVector<T> = Array1<T>;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::{ChaCha20Rng, Rng, SeedableRng};
+use scirs2_core::random::{ChaCha20Rng, RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::traits::Fit;
 use std::collections::HashMap;
@@ -663,7 +663,7 @@ impl<
                 .federation_params
                 .client_selection_fraction
                 .to_f64()
-                .unwrap()) as usize;
+                .expect("operation should succeed")) as usize;
         let num_selected = target_clients.max(self.federation_params.min_clients_per_round);
 
         if num_selected > total_clients {
@@ -678,7 +678,7 @@ impl<
 
         // Shuffle and select
         for i in 0..num_selected {
-            let j = rng.gen_range(i..client_ids.len());
+            let j = rng.random_range(i..client_ids.len());
             client_ids.swap(i, j);
         }
 
@@ -750,10 +750,13 @@ impl<
         let mut noisy_priors = HashMap::new();
         for (&class_id, &prior) in local_update.prior_updates.iter() {
             let noise: f64 = rng.sample(
-                scirs2_core::random::essentials::Normal::new(0.0, noise_scale.to_f64().unwrap())
-                    .unwrap(),
+                scirs2_core::random::essentials::Normal::new(
+                    0.0,
+                    noise_scale.to_f64().expect("operation should succeed"),
+                )
+                .expect("operation should succeed"),
             );
-            let noisy_prior = prior + T::from(noise).unwrap();
+            let noisy_prior = prior + T::from(noise).expect("operation should succeed");
             noisy_priors.insert(class_id, noisy_prior.max(T::zero())); // Ensure non-negative
         }
 
@@ -765,21 +768,23 @@ impl<
                 let mean_noise: f64 = rng.sample(
                     scirs2_core::random::essentials::Normal::new(
                         0.0,
-                        noise_scale.to_f64().unwrap(),
+                        noise_scale.to_f64().expect("operation should succeed"),
                     )
-                    .unwrap(),
+                    .expect("operation should succeed"),
                 );
                 let var_noise: f64 = rng.sample(
                     scirs2_core::random::essentials::Normal::new(
                         0.0,
-                        noise_scale.to_f64().unwrap(),
+                        noise_scale.to_f64().expect("operation should succeed"),
                     )
-                    .unwrap(),
+                    .expect("operation should succeed"),
                 );
 
-                let noisy_mean = stats.mean + T::from(mean_noise).unwrap();
-                let noisy_variance =
-                    (stats.variance + T::from(var_noise).unwrap()).max(T::from(0.001).unwrap()); // Ensure positive variance
+                let noisy_mean =
+                    stats.mean + T::from(mean_noise).expect("operation should succeed");
+                let noisy_variance = (stats.variance
+                    + T::from(var_noise).expect("operation should succeed"))
+                .max(T::from(0.001).expect("operation should succeed")); // Ensure positive variance
 
                 noisy_stats.insert(
                     feature_id,
@@ -905,8 +910,10 @@ impl<
 
         // For robust aggregation, we'll use trimmed mean
         let trimming_fraction = self.aggregation_strategy.robust_params.trimming_fraction;
-        let num_to_trim =
-            (private_updates.len() as f64 * trimming_fraction.to_f64().unwrap()) as usize;
+        let num_to_trim = (private_updates.len() as f64
+            * trimming_fraction
+                .to_f64()
+                .expect("operation should succeed")) as usize;
 
         let mut aggregated_priors = HashMap::new();
         let mut aggregated_feature_stats: HashMap<usize, HashMap<usize, FeatureStatistics<T>>> =
@@ -927,7 +934,7 @@ impl<
                 .collect();
 
             if !class_priors.is_empty() {
-                class_priors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                class_priors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                 // Trim extremes
                 let start_idx = num_to_trim / 2;
@@ -936,7 +943,7 @@ impl<
                 if start_idx < end_idx {
                     let trimmed_priors = &class_priors[start_idx..end_idx];
                     let trimmed_mean = trimmed_priors.iter().cloned().sum::<T>()
-                        / T::from(trimmed_priors.len()).unwrap();
+                        / T::from(trimmed_priors.len()).expect("operation should succeed");
                     aggregated_priors.insert(class_id, trimmed_mean);
                 }
             }
@@ -969,20 +976,22 @@ impl<
 
                 if !feature_means.is_empty() && !feature_variances.is_empty() {
                     // Robust mean
-                    feature_means.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    feature_means
+                        .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let start_idx = num_to_trim / 2;
                     let end_idx = feature_means.len() - num_to_trim / 2;
 
                     if start_idx < end_idx {
                         let trimmed_means = &feature_means[start_idx..end_idx];
                         let robust_mean = trimmed_means.iter().cloned().sum::<T>()
-                            / T::from(trimmed_means.len()).unwrap();
+                            / T::from(trimmed_means.len()).expect("operation should succeed");
 
                         // Robust variance
-                        feature_variances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        feature_variances
+                            .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let trimmed_variances = &feature_variances[start_idx..end_idx];
                         let robust_variance = trimmed_variances.iter().cloned().sum::<T>()
-                            / T::from(trimmed_variances.len()).unwrap();
+                            / T::from(trimmed_variances.len()).expect("operation should succeed");
 
                         class_feature_stats.insert(
                             feature_id,
@@ -1002,7 +1011,7 @@ impl<
             }
         }
 
-        let total_weight = T::from(private_updates.len()).unwrap();
+        let total_weight = T::from(private_updates.len()).expect("operation should succeed");
 
         Ok(AggregatedUpdate {
             aggregated_priors,
@@ -1104,9 +1113,10 @@ impl<
 
     /// Gaussian probability density function
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
-        let two_pi = T::from(2.0 * std::f64::consts::PI).unwrap();
+        let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).unwrap() * variance);
+        let exponent =
+            -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 
@@ -1206,9 +1216,9 @@ impl<T: Float + Default + Display + Debug + std::iter::Sum> ClientModel<T> {
             *class_counts.entry(label).or_insert(0) += 1;
         }
 
-        let total_samples = T::from(labels.len()).unwrap();
+        let total_samples = T::from(labels.len()).expect("operation should succeed");
         for (&class_id, &count) in class_counts.iter() {
-            let prior = T::from(count).unwrap() / total_samples;
+            let prior = T::from(count).expect("operation should succeed") / total_samples;
             self.local_priors.insert(class_id, prior);
         }
 
@@ -1260,7 +1270,8 @@ impl<T: Float + Default + Display + Debug + std::iter::Sum> ClientModel<T> {
         _labels: &DVector<usize>,
     ) -> Result<(), FederatedError> {
         let data_size = features.nrows();
-        self.client_weights.data_size_weight = T::from(data_size).unwrap();
+        self.client_weights.data_size_weight =
+            T::from(data_size).expect("operation should succeed");
         self.client_weights.quality_weight = T::one(); // Placeholder
         self.client_weights.contribution_weight = T::one(); // Placeholder
         self.client_weights.trust_score = T::one(); // Placeholder
@@ -1290,7 +1301,8 @@ impl<T: Float + Default + Display + Debug + std::iter::Sum> ClientModel<T> {
         for (&class_id, &global_prior) in global_model.global_priors.iter() {
             if let Some(local_prior) = self.local_priors.get_mut(&class_id) {
                 // Simple averaging for demonstration
-                *local_prior = (*local_prior + global_prior) / T::from(2.0).unwrap();
+                *local_prior =
+                    (*local_prior + global_prior) / T::from(2.0).expect("operation should succeed");
             }
         }
 
@@ -1355,17 +1367,17 @@ impl<T: Float + Default + Display + Debug + std::iter::Sum> ClientModel<T> {
             return T::zero();
         }
         let sum: T = values.iter().cloned().sum();
-        sum / T::from(values.len()).unwrap()
+        sum / T::from(values.len()).expect("operation should succeed")
     }
 
     /// Calculate variance
     fn calculate_variance(&self, values: &[T]) -> T {
         if values.len() < 2 {
-            return T::from(0.01).unwrap();
+            return T::from(0.01).expect("operation should succeed");
         }
         let mean = self.calculate_mean(values);
         let sum_squared_diff: T = values.iter().map(|&x| (x - mean).powi(2)).sum();
-        sum_squared_diff / T::from(values.len() - 1).unwrap()
+        sum_squared_diff / T::from(values.len() - 1).expect("operation should succeed")
     }
 
     /// Calculate sufficient statistics
@@ -1405,10 +1417,10 @@ impl<T: Float> Default for FederationParams<T> {
     fn default() -> Self {
         Self {
             num_rounds: 100,
-            client_selection_fraction: T::from(0.3).unwrap(),
+            client_selection_fraction: T::from(0.3).expect("operation should succeed"),
             min_clients_per_round: 2,
-            convergence_tolerance: T::from(1e-6).unwrap(),
-            max_divergence_threshold: T::from(10.0).unwrap(),
+            convergence_tolerance: T::from(1e-6).expect("operation should succeed"),
+            max_divergence_threshold: T::from(10.0).expect("operation should succeed"),
         }
     }
 }
@@ -1483,7 +1495,7 @@ impl<T: Float> Default for PrivacyBudget<T> {
     fn default() -> Self {
         Self {
             epsilon: T::one(),
-            delta: T::from(1e-5).unwrap(),
+            delta: T::from(1e-5).expect("operation should succeed"),
             remaining_budget: T::one(),
             allocation_strategy: BudgetAllocationStrategy::Uniform,
         }
@@ -1505,7 +1517,7 @@ impl<T: Float> Default for DifferentialPrivacyParams<T> {
     fn default() -> Self {
         Self {
             global_epsilon: T::one(),
-            global_delta: T::from(1e-5).unwrap(),
+            global_delta: T::from(1e-5).expect("operation should succeed"),
             noise_mechanism: NoiseMechanism::Gaussian,
             sensitivity_analysis: SensitivityAnalysis::default(),
         }
@@ -1581,8 +1593,8 @@ impl<T: Float> Default for WeightedAggregationParams<T> {
 impl<T: Float> Default for RobustAggregationParams<T> {
     fn default() -> Self {
         Self {
-            outlier_threshold: T::from(2.0).unwrap(),
-            trimming_fraction: T::from(0.1).unwrap(),
+            outlier_threshold: T::from(2.0).expect("operation should succeed"),
+            trimming_fraction: T::from(0.1).expect("operation should succeed"),
             robust_estimator: RobustEstimator::TrimmedMean,
         }
     }
@@ -1612,7 +1624,7 @@ impl<T: Float> Default for SensitivityAnalysis<T> {
 impl<T: Float> Default for PerturbationStrategy<T> {
     fn default() -> Self {
         Self {
-            perturbation_magnitude: T::from(0.1).unwrap(),
+            perturbation_magnitude: T::from(0.1).expect("operation should succeed"),
             perturbation_distribution: PerturbationDistribution::Gaussian,
             adaptive_perturbation: false,
         }
@@ -1653,8 +1665,8 @@ mod tests {
     fn test_add_client() {
         let mut classifier = FederatedNaiveBayes::<f64>::new();
 
-        let features =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let features = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let result = classifier.add_client("client1".to_string(), &features, &labels);
@@ -1666,8 +1678,8 @@ mod tests {
     fn test_client_model_training() {
         let mut client_model = ClientModel::<f64>::new("test_client".to_string());
 
-        let features =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let features = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let result = client_model.train_local_model(&features, &labels);
@@ -1691,7 +1703,7 @@ mod tests {
         let private_update = classifier.apply_differential_privacy(local_update);
         assert!(private_update.is_ok());
 
-        let private = private_update.unwrap();
+        let private = private_update.expect("operation should succeed");
         assert_eq!(private.client_id, "test_client");
         assert!(private.privacy_cost > 0.0);
     }
@@ -1722,7 +1734,7 @@ mod tests {
         let aggregated = classifier.federated_averaging(private_updates);
         assert!(aggregated.is_ok());
 
-        let result = aggregated.unwrap();
+        let result = aggregated.expect("operation should succeed");
         assert_eq!(result.num_clients, 2);
         assert!(result.aggregated_priors.contains_key(&0));
         assert!(result.aggregated_priors.contains_key(&1));
@@ -1762,7 +1774,7 @@ mod tests {
         let aggregated = classifier.robust_averaging(private_updates);
         assert!(aggregated.is_ok());
 
-        let result = aggregated.unwrap();
+        let result = aggregated.expect("operation should succeed");
         assert_eq!(result.num_clients, 3);
     }
 
@@ -1772,7 +1784,8 @@ mod tests {
 
         // Add multiple clients
         for i in 0..5 {
-            let features = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+            let features = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+                .expect("operation should succeed");
             let labels = Array1::from_vec(vec![0, 1]);
             let _ = classifier.add_client(format!("client{}", i), &features, &labels);
         }
@@ -1780,7 +1793,7 @@ mod tests {
         let selected = classifier.select_clients();
         assert!(selected.is_ok());
 
-        let clients = selected.unwrap();
+        let clients = selected.expect("operation should succeed");
         assert!(clients.len() >= classifier.federation_params.min_clients_per_round);
         assert!(clients.len() <= classifier.client_models.len());
     }
@@ -1846,7 +1859,7 @@ mod tests {
         let prediction = classifier.predict(&test_features);
         assert!(prediction.is_ok());
 
-        let probabilities = prediction.unwrap();
+        let probabilities = prediction.expect("operation should succeed");
         assert!(probabilities.contains_key(&0));
         assert!(probabilities.contains_key(&1));
 
@@ -1860,7 +1873,8 @@ mod tests {
         let mut classifier = FederatedNaiveBayes::<f64>::new();
 
         // Add some clients
-        let features = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let features = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 1]);
         let _ = classifier.add_client("client1".to_string(), &features, &labels);
         let _ = classifier.add_client("client2".to_string(), &features, &labels);

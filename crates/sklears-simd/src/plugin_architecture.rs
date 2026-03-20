@@ -208,7 +208,7 @@ impl PluginRegistry {
     /// Helper function to handle RwLock read locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn read_plugins(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, Arc<Plugin>>> {
-        self.plugins.read().unwrap()
+        self.plugins.read().expect("operation should succeed")
     }
 
     #[cfg(feature = "no-std")]
@@ -219,7 +219,7 @@ impl PluginRegistry {
     /// Helper function to handle RwLock write locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn write_plugins(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Arc<Plugin>>> {
-        self.plugins.write().unwrap()
+        self.plugins.write().expect("operation should succeed")
     }
 
     #[cfg(feature = "no-std")]
@@ -230,7 +230,9 @@ impl PluginRegistry {
     /// Helper function to handle Mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn lock_stats(&self) -> std::sync::MutexGuard<'_, HashMap<String, ExecutionStats>> {
-        self.execution_stats.lock().unwrap()
+        self.execution_stats
+            .lock()
+            .expect("lock should not be poisoned")
     }
 
     #[cfg(feature = "no-std")]
@@ -588,12 +590,14 @@ mod tests {
         let operation = Arc::new(SquareOperation);
         let plugin = Plugin::new(operation);
 
-        registry.register(plugin).unwrap();
+        registry.register(plugin).expect("operation should succeed");
 
         let input = vec![1.0, 2.0, 3.0, 4.0];
         let mut output = vec![0.0; 4];
 
-        registry.execute_f32("square", &input, &mut output).unwrap();
+        registry
+            .execute_f32("square", &input, &mut output)
+            .expect("operation should succeed");
         assert_eq!(output, vec![1.0, 4.0, 9.0, 16.0]);
     }
 
@@ -603,14 +607,14 @@ mod tests {
         let operation = Arc::new(MovingAverageOperation::new(3));
         let plugin = Plugin::new(operation);
 
-        registry.register(plugin).unwrap();
+        registry.register(plugin).expect("operation should succeed");
 
         let input = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let mut output = vec![0.0; 3]; // 5 - 3 + 1 = 3
 
         registry
             .execute_f32("moving_average", &input, &mut output)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Expected: [(1+2+3)/3, (2+3+4)/3, (3+4+5)/3] = [2.0, 3.0, 4.0]
         assert_eq!(output, vec![2.0, 3.0, 4.0]);
@@ -622,14 +626,18 @@ mod tests {
         let operation = Arc::new(SquareOperation);
         let plugin = Plugin::new(operation);
 
-        registry.register(plugin).unwrap();
+        registry.register(plugin).expect("operation should succeed");
 
         let input = vec![1.0, 2.0];
         let mut output = vec![0.0; 2];
 
-        registry.execute_f32("square", &input, &mut output).unwrap();
+        registry
+            .execute_f32("square", &input, &mut output)
+            .expect("operation should succeed");
 
-        let stats = registry.get_stats("square").unwrap();
+        let stats = registry
+            .get_stats("square")
+            .expect("operation should succeed");
         assert_eq!(stats.total_calls, 1);
         assert_eq!(stats.total_elements_processed, 2);
     }
@@ -639,12 +647,12 @@ mod tests {
         let operation = Arc::new(SquareOperation);
         let plugin = Plugin::new(operation);
 
-        global::register(plugin).unwrap();
+        global::register(plugin).expect("operation should succeed");
 
         let input = vec![2.0, 3.0];
         let mut output = vec![0.0; 2];
 
-        global::execute_f32("square", &input, &mut output).unwrap();
+        global::execute_f32("square", &input, &mut output).expect("operation should succeed");
         assert_eq!(output, vec![4.0, 9.0]);
 
         let plugins = global::list();
@@ -664,7 +672,7 @@ mod tests {
         // Test incompatible sizes
         let operation = Arc::new(SquareOperation);
         let plugin = Plugin::new(operation);
-        registry.register(plugin).unwrap();
+        registry.register(plugin).expect("operation should succeed");
 
         let input = vec![1.0, 2.0];
         let mut output = vec![0.0]; // Wrong size

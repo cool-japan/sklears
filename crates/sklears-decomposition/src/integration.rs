@@ -317,13 +317,15 @@ pub struct DataConverter;
 impl DataConverter {
     /// Normalize array to zero mean and unit variance
     pub fn standardize(data: &Array2<Float>) -> (Array2<Float>, Array1<Float>, Array1<Float>) {
-        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("array should have elements for mean computation");
         let centered = data - &mean;
 
         let variance = centered
             .mapv(|x| x.powi(2))
             .mean_axis(scirs2_core::ndarray::Axis(0))
-            .unwrap();
+            .expect("operation should succeed");
 
         let std = variance.mapv(|v| v.sqrt().max(1e-8));
         let standardized = &centered / &std;
@@ -359,7 +361,7 @@ impl DataConverter {
 
         for (i, col) in data.axis_iter(scirs2_core::ndarray::Axis(1)).enumerate() {
             let mut sorted: Vec<Float> = col.to_vec();
-            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let n = sorted.len();
             let median = sorted[n / 2];
@@ -422,10 +424,11 @@ mod tests {
 
     #[test]
     fn test_simple_dataframe() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let columns = vec!["A".to_string(), "B".to_string()];
 
-        let df = SimpleDataFrame::new(data, columns).unwrap();
+        let df = SimpleDataFrame::new(data, columns).expect("matrix indexing should be valid");
 
         assert_eq!(df.nrows(), 3);
         assert_eq!(df.ncols(), 2);
@@ -434,7 +437,8 @@ mod tests {
 
     #[test]
     fn test_dataframe_from_array() {
-        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let df = SimpleDataFrame::from_array(data);
 
         assert_eq!(df.nrows(), 2);
@@ -443,11 +447,12 @@ mod tests {
 
     #[test]
     fn test_dataframe_column() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let columns = vec!["A".to_string(), "B".to_string()];
-        let df = SimpleDataFrame::new(data, columns).unwrap();
+        let df = SimpleDataFrame::new(data, columns).expect("matrix indexing should be valid");
 
-        let col_a = df.column("A").unwrap();
+        let col_a = df.column("A").expect("matrix indexing should be valid");
         assert_eq!(col_a.len(), 3);
         assert_eq!(col_a[0], 1.0);
     }
@@ -459,7 +464,8 @@ mod tests {
         let values = vec![1.0, 2.0, 3.0];
         let shape = (3, 3);
 
-        let sparse = SparseMatrix::new(row_indices, col_indices, values, shape).unwrap();
+        let sparse = SparseMatrix::new(row_indices, col_indices, values, shape)
+            .expect("parsing should succeed");
 
         assert_eq!(sparse.nnz, 3);
         assert_eq!(sparse.shape, (3, 3));
@@ -472,7 +478,8 @@ mod tests {
         let values = vec![1.0, 2.0, 3.0];
         let shape = (2, 2);
 
-        let sparse = SparseMatrix::new(row_indices, col_indices, values, shape).unwrap();
+        let sparse = SparseMatrix::new(row_indices, col_indices, values, shape)
+            .expect("parsing should succeed");
         let dense = sparse.to_dense();
 
         assert_eq!(dense[[0, 0]], 1.0);
@@ -483,7 +490,8 @@ mod tests {
 
     #[test]
     fn test_sparse_from_dense() {
-        let dense = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 2.0]).unwrap();
+        let dense = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 2.0])
+            .expect("shape and data length should match");
         let sparse = SparseMatrix::from_dense(&dense, 0.5);
 
         assert_eq!(sparse.nnz, 2);
@@ -492,7 +500,8 @@ mod tests {
 
     #[test]
     fn test_batch_processor() {
-        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect())
+            .expect("shape and data length should match");
 
         let processor = BatchProcessor::new(4, 1);
         let batches = processor.split(&data);
@@ -515,7 +524,7 @@ mod tests {
         // Check that standardized data has approximately zero mean
         let new_mean = standardized
             .mean_axis(scirs2_core::ndarray::Axis(0))
-            .unwrap();
+            .expect("operation should succeed");
         for &m in new_mean.iter() {
             assert!(m.abs() < 0.1); // Should be close to zero
         }
@@ -523,7 +532,8 @@ mod tests {
 
     #[test]
     fn test_data_converter_min_max() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
 
         let (scaled, _min_vals, _max_vals) = DataConverter::min_max_scale(&data);
 
@@ -550,7 +560,8 @@ mod tests {
 
     #[test]
     fn test_data_converter_to_nonnegative() {
-        let data = Array2::from_shape_vec((2, 2), vec![-1.0, 2.0, -3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![-1.0, 2.0, -3.0, 4.0])
+            .expect("shape and data length should match");
         let nonneg = DataConverter::to_nonnegative(&data);
 
         for &val in nonneg.iter() {

@@ -1330,7 +1330,8 @@ mod tests {
         // This gives a concave up parabola that naturally increases
         let source = |_x: f64| 1.0;
 
-        let solution = isotonic_differential_equation(&grid, 0.0, 1.0, source, true).unwrap();
+        let solution = isotonic_differential_equation(&grid, 0.0, 1.0, source, true)
+            .expect("operation should succeed");
 
         assert_eq!(solution.len(), n);
         assert_abs_diff_eq!(solution[0], 0.0, epsilon = 1e-3);
@@ -1352,7 +1353,8 @@ mod tests {
         let x = Array1::from_vec(vec![0.0, 0.25, 0.5, 0.75, 1.0]);
         let y = Array1::from_vec(vec![0.0, 0.3, 0.6, 0.8, 1.0]);
 
-        let (x_out, y_out) = variational_isotonic_regression(&x, &y, true).unwrap();
+        let (x_out, y_out) =
+            variational_isotonic_regression(&x, &y, true).expect("operation should succeed");
 
         assert_eq!(x_out.len(), x.len());
         assert_eq!(y_out.len(), y.len());
@@ -1372,7 +1374,8 @@ mod tests {
         let x = Array1::from_vec(vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0]);
         let y = Array1::from_vec(vec![0.0, 0.2, 0.5, 0.7, 0.9, 1.0]);
 
-        let solution = finite_element_isotonic_regression(&x, &y, true).unwrap();
+        let solution =
+            finite_element_isotonic_regression(&x, &y, true).expect("operation should succeed");
 
         assert_eq!(solution.len(), x.len());
 
@@ -1391,8 +1394,8 @@ mod tests {
         let x = Array1::from_vec((0..10).map(|i| i as f64 / 9.0).collect::<Vec<_>>());
         let y = Array1::from_vec((0..10).map(|i| (i as f64 / 9.0).sqrt()).collect::<Vec<_>>());
 
-        let solution =
-            spectral_isotonic_regression(&x, &y, SpectralBasisType::Chebyshev, true).unwrap();
+        let solution = spectral_isotonic_regression(&x, &y, SpectralBasisType::Chebyshev, true)
+            .expect("operation should succeed");
 
         assert_eq!(solution.len(), x.len());
 
@@ -1411,8 +1414,8 @@ mod tests {
         let x = Array1::from_vec(vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0]);
         let y = Array1::from_vec(vec![0.0, 0.1, 0.3, 0.5, 0.7, 1.0]);
 
-        let solution =
-            spectral_isotonic_regression(&x, &y, SpectralBasisType::Fourier, true).unwrap();
+        let solution = spectral_isotonic_regression(&x, &y, SpectralBasisType::Fourier, true)
+            .expect("operation should succeed");
 
         assert_eq!(solution.len(), x.len());
 
@@ -1434,7 +1437,7 @@ mod tests {
         let result = monotonic_boundary_value_problem(0.0, 1.0, (0.0, 1.0), ode_rhs, true);
 
         assert!(result.is_ok());
-        let (_x_grid, y_solution) = result.unwrap();
+        let (_x_grid, y_solution) = result.expect("operation should succeed");
 
         assert_abs_diff_eq!(y_solution[0], 0.0, epsilon = 1e-3);
         assert_abs_diff_eq!(y_solution[y_solution.len() - 1], 1.0, epsilon = 1e-3);
@@ -1454,7 +1457,8 @@ mod tests {
         let x = Array1::from_vec(vec![0.0, 0.2, 0.4, 0.6, 0.8, 1.0]);
         let y = Array1::from_vec(vec![1.0, 0.9, 0.7, 0.5, 0.3, 0.0]);
 
-        let solution = finite_element_isotonic_regression(&x, &y, false).unwrap();
+        let solution =
+            finite_element_isotonic_regression(&x, &y, false).expect("operation should succeed");
 
         // Check decreasing monotonicity
         for i in 1..solution.len() {

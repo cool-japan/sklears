@@ -1,6 +1,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::RngExt;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::StandardNormal;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::VecDeque;
@@ -233,7 +234,7 @@ impl FeatureStatistics {
 impl StreamingRBFSampler {
     /// Create a new streaming RBF sampler
     pub fn new(n_components: usize, gamma: f64) -> Self {
-        let rng = StdRng::from_seed(thread_rng().gen());
+        let rng = StdRng::from_seed(thread_rng().random());
         Self {
             n_components,
             gamma,
@@ -398,7 +399,7 @@ impl StreamingRBFSampler {
                 if self.buffer.len() < *capacity {
                     self.buffer.push_back(sample);
                 } else {
-                    let replace_idx = self.rng.gen_range(0..self.sample_count + 1);
+                    let replace_idx = self.rng.random_range(0..self.sample_count + 1);
                     if replace_idx < *capacity {
                         self.buffer[replace_idx] = sample;
                     }
@@ -425,7 +426,9 @@ impl StreamingRBFSampler {
                     // Find sample with lowest importance
                     if let Some((min_idx, _)) =
                         self.buffer.iter().enumerate().min_by(|(_, a), (_, b)| {
-                            a.importance.partial_cmp(&b.importance).unwrap()
+                            a.importance
+                                .partial_cmp(&b.importance)
+                                .expect("operation should succeed")
                         })
                     {
                         if sample.importance > self.buffer[min_idx].importance + threshold {
@@ -475,8 +478,8 @@ impl StreamingRBFSampler {
         }
 
         // Compute features and update statistics
-        let weights = self.weights.as_ref().unwrap();
-        let bias = self.bias.as_ref().unwrap();
+        let weights = self.weights.as_ref().expect("operation should succeed");
+        let bias = self.bias.as_ref().expect("operation should succeed");
         let features = self.compute_features(&data_matrix, weights, bias)?;
 
         self.feature_statistics.update(&features);
@@ -545,7 +548,7 @@ impl StreamingRBFSampler {
         let mut bias = Array1::zeros(self.n_components);
 
         for i in 0..self.n_components {
-            bias[i] = self.rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+            bias[i] = self.rng.random_range(0.0..2.0 * std::f64::consts::PI);
         }
 
         Ok(bias)
@@ -599,7 +602,7 @@ pub struct StreamingNystroem {
 impl StreamingNystroem {
     /// Create a new streaming Nyström approximation
     pub fn new(n_components: usize, gamma: f64) -> Self {
-        let rng = StdRng::from_seed(thread_rng().gen());
+        let rng = StdRng::from_seed(thread_rng().random());
         Self {
             n_components,
             gamma,
@@ -762,7 +765,7 @@ impl StreamingNystroem {
 
         let mut indices = Vec::new();
         for _ in 0..n_inducing {
-            indices.push(self.rng.gen_range(0..n_samples));
+            indices.push(self.rng.random_range(0..n_samples));
         }
 
         Ok(indices)
@@ -828,8 +831,8 @@ mod tests {
 
         let mut sampler = StreamingRBFSampler::new(50, 0.1).with_random_state(42);
 
-        sampler.fit(&x).unwrap();
-        let features = sampler.transform(&x).unwrap();
+        sampler.fit(&x).expect("operation should succeed");
+        let features = sampler.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert_eq!(features.ncols(), 50);
@@ -861,7 +864,9 @@ mod tests {
         for i in 0..5 {
             let data = array![i as f64, (i + 1) as f64];
             let sample = StreamingSample::new(data, i as f64);
-            sampler.add_sample(sample).unwrap();
+            sampler
+                .add_sample(sample)
+                .expect("operation should succeed");
         }
 
         let (size, _, _) = sampler.buffer_stats();
@@ -874,8 +879,8 @@ mod tests {
 
         let mut nystroem = StreamingNystroem::new(3, 0.1).with_random_state(42);
 
-        nystroem.fit(&x).unwrap();
-        let features = nystroem.transform(&x).unwrap();
+        nystroem.fit(&x).expect("operation should succeed");
+        let features = nystroem.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert_eq!(features.ncols(), 3);
@@ -899,10 +904,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
         let mut sampler = StreamingRBFSampler::new(10, 0.1).with_random_state(42);
 
-        sampler.fit(&x).unwrap();
+        sampler.fit(&x).expect("operation should succeed");
 
         let sample = array![5.0, 6.0];
-        let features = sampler.transform_sample(&sample).unwrap();
+        let features = sampler
+            .transform_sample(&sample)
+            .expect("operation should succeed");
 
         assert_eq!(features.len(), 10);
     }
@@ -942,13 +949,15 @@ mod tests {
 
         // Initialize with small batch
         let x_init = array![[1.0, 2.0], [3.0, 4.0]];
-        sampler.fit(&x_init).unwrap();
+        sampler.fit(&x_init).expect("operation should succeed");
 
         // Add samples one by one
         for i in 5..10 {
             let data = array![i as f64, (i + 1) as f64];
             let sample = StreamingSample::new(data, i as f64);
-            sampler.add_sample(sample).unwrap();
+            sampler
+                .add_sample(sample)
+                .expect("operation should succeed");
         }
 
         let (buffer_size, _, _) = sampler.buffer_stats();
@@ -967,8 +976,8 @@ mod tests {
             })
             .with_random_state(42);
 
-        sampler.fit(&x1).unwrap();
-        let _drift_detected = sampler.detect_drift(&x2).unwrap();
+        sampler.fit(&x1).expect("operation should succeed");
+        let _drift_detected = sampler.detect_drift(&x2).expect("operation should succeed");
 
         // Should detect some drift in feature statistics
         assert!(sampler.feature_stats().drift_score >= 0.0);

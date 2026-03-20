@@ -292,7 +292,7 @@ mod tests {
         // Test cross product (3D)
         let a = vec![1.0, 0.0, 0.0];
         let b = vec![0.0, 1.0, 0.0];
-        let cross = cross_product(&a, &b).unwrap();
+        let cross = cross_product(&a, &b).expect("operation should succeed");
         assert_eq!(cross, vec![0.0, 0.0, 1.0]);
 
         // Test outer product

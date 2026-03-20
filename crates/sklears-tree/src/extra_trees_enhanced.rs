@@ -156,7 +156,7 @@ fn sample_features(n_features: usize, n_to_sample: usize, rng: &mut CoreRandom) 
 
     // Fisher-Yates shuffle for first n_to_sample elements
     for i in 0..n_to_sample.min(n_features) {
-        let uniform = Uniform::new(i, n_features).unwrap();
+        let uniform = Uniform::new(i, n_features).expect("operation should succeed");
         let j = rng.sample(uniform);
         indices.swap(i, j);
     }
@@ -348,7 +348,7 @@ fn compute_bin_edges(
         }
 
         BinningStrategy::Quantile => {
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let mut edges = Vec::with_capacity(n_bins + 1);
             for i in 0..=n_bins {
@@ -363,7 +363,7 @@ fn compute_bin_edges(
 
         BinningStrategy::KMeans => {
             // Simplified K-means: use quantiles as initial centers
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let mut centers = Vec::with_capacity(n_bins);
             for i in 0..n_bins {
@@ -400,7 +400,7 @@ fn compute_bin_edges(
                 }
             }
 
-            centers.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            centers.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             // Create edges from centers
             let mut edges = vec![Float::NEG_INFINITY];
@@ -525,7 +525,7 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
         let mut rng = thread_rng();
-        let result = apply_rotation_forest(&x, 2, 0.6, &mut rng).unwrap();
+        let result = apply_rotation_forest(&x, 2, 0.6, &mut rng).expect("operation should succeed");
 
         assert_eq!(result.shape(), x.shape());
     }
@@ -535,7 +535,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let mut rng = thread_rng();
-        let (normal, threshold) = generate_oblique_split(&x, 2, &mut rng).unwrap();
+        let (normal, threshold) =
+            generate_oblique_split(&x, 2, &mut rng).expect("operation should succeed");
 
         assert_eq!(normal.len(), 2);
         assert!(threshold.is_finite());
@@ -551,7 +552,7 @@ mod tests {
             features_to_bin: Some(vec![0]),
         };
 
-        let result = apply_feature_binning(&x, &binning).unwrap();
+        let result = apply_feature_binning(&x, &binning).expect("operation should succeed");
         assert_eq!(result.shape(), x.shape());
 
         // Values should be binned
@@ -569,7 +570,7 @@ mod tests {
 
         // Each feature should be 2/3 sparse
         for feat_idx in 0..3 {
-            let sparsity = sparsity_map.get(&feat_idx).unwrap();
+            let sparsity = sparsity_map.get(&feat_idx).expect("index should be valid");
             assert!((*sparsity - 2.0 / 3.0).abs() < 0.01);
         }
     }
@@ -599,7 +600,7 @@ mod tests {
             compression: SparseCompression::CSR,
         };
 
-        let sparse_features = to_sparse_if_beneficial(&x, &config).unwrap();
+        let sparse_features = to_sparse_if_beneficial(&x, &config).expect("parsing should succeed");
         assert_eq!(sparse_features.len(), 3);
 
         // All features should be sparse

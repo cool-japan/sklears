@@ -1072,7 +1072,7 @@ mod tests {
         type JobCount = ValidatedParameter<1, 8>;
 
         // Valid parameter
-        let valid_param = JobCount::new_runtime(4).unwrap();
+        let valid_param = JobCount::new_runtime(4).expect("operation should succeed");
         assert_eq!(valid_param.value(), 4);
 
         // Invalid parameter

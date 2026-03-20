@@ -343,9 +343,9 @@ impl KernelPCA<Untrained> {
         }
 
         // Compute row means
-        let row_means = k.mean_axis(Axis(1)).unwrap();
+        let row_means = k.mean_axis(Axis(1)).expect("array should have elements for mean computation");
         // Compute overall mean
-        let overall_mean = k.mean().unwrap();
+        let overall_mean = k.mean().expect("array should have elements for mean computation");
 
         // Center the kernel matrix: K_centered = K - K_row_means - K_col_means + K_overall_mean
         for i in 0..n {
@@ -587,9 +587,9 @@ impl Transform<Array2<Float>, Array2<Float>> for KernelPCA<Trained> {
             });
         }
 
-        let x_fit = self.x_fit_.as_ref().unwrap();
-        let alphas = self.alphas_.as_ref().unwrap();
-        let lambdas = self.lambdas_.as_ref().unwrap();
+        let x_fit = self.x_fit_.as_ref().expect("operation should succeed");
+        let alphas = self.alphas_.as_ref().expect("operation should succeed");
+        let lambdas = self.lambdas_.as_ref().expect("operation should succeed");
         let n_components = self.n_components();
 
         // Compute kernel matrix between x and training data
@@ -636,32 +636,32 @@ impl Transform<Array2<Float>, Array2<Float>> for KernelPCA<Trained> {
 impl KernelPCA<Trained> {
     /// Get the eigenvalues
     pub fn eigenvalues(&self) -> &Array1<Float> {
-        self.lambdas_.as_ref().unwrap()
+        self.lambdas_.as_ref().expect("operation should succeed")
     }
 
     /// Get the eigenvectors (alphas)
     pub fn eigenvectors(&self) -> &Array2<Float> {
-        self.alphas_.as_ref().unwrap()
+        self.alphas_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of components
     pub fn n_components(&self) -> usize {
-        self.n_components_.unwrap()
+        self.n_components_.expect("operation should succeed")
     }
 
     /// Get the number of features in the input
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_.expect("operation should succeed")
     }
 
     /// Get the number of samples in the training data
     pub fn n_samples(&self) -> usize {
-        self.n_samples_.unwrap()
+        self.n_samples_.expect("sampling should succeed")
     }
 
     /// Get the training data
     pub fn x_fit(&self) -> &Array2<Float> {
-        self.x_fit_.as_ref().unwrap()
+        self.x_fit_.as_ref().expect("operation should succeed")
     }
 
     /// Pre-image reconstruction using fixed-point iteration
@@ -764,7 +764,7 @@ impl KernelPCA<Trained> {
 
         for i in 0..n_samples {
             // Initialize with mean of training data
-            let mut x_current = x_fit.mean_axis(Axis(0)).unwrap();
+            let mut x_current = x_fit.mean_axis(Axis(0)).expect("array should have elements for mean computation");
             let target_transformed = x_transformed.slice(scirs2_core::ndarray::s![i, ..]);
 
             for _iter in 0..max_iter {
@@ -936,7 +936,7 @@ impl KernelPCA<Trained> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Weighted average of k nearest neighbors
             let mut weight_sum = 0.0;
@@ -978,7 +978,7 @@ impl KernelPCA<Trained> {
         // Center the kernel values if the model was trained with centering
         if self.config.center {
             // This is approximate centering for a single sample
-            let mean_k = k_test.mean().unwrap();
+            let mean_k = k_test.mean().expect("array should have elements for mean computation");
             for val in k_test.iter_mut() {
                 *val -= mean_k;
             }
@@ -1388,13 +1388,13 @@ mod tests {
             .n_components(2)
             .kernel(KernelFunction::Linear)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(kpca.n_components(), 2);
         assert_eq!(kpca.n_features_in(), 2);
         assert_eq!(kpca.n_samples(), 4);
 
-        let x_transformed = kpca.transform(&x).unwrap();
+        let x_transformed = kpca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (4, 2));
 
         // Transformed data should be finite
@@ -1411,9 +1411,9 @@ mod tests {
             .n_components(2)
             .kernel(KernelFunction::Rbf { gamma: 0.5 })
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = kpca.transform(&x).unwrap();
+        let x_transformed = kpca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (4, 2));
 
         // Check that eigenvalues are non-negative
@@ -1435,9 +1435,9 @@ mod tests {
                 coef0: 1.0,
             })
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = kpca.transform(&x).unwrap();
+        let x_transformed = kpca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (4, 3));
 
         // Transformed data should be finite
@@ -1469,7 +1469,7 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
-        let kpca = KernelPCA::new().fit(&x_train, &()).unwrap();
+        let kpca = KernelPCA::new().fit(&x_train, &()).expect("model fitting should succeed");
         let result = kpca.transform(&x_test);
 
         assert!(result.is_err());
@@ -1480,7 +1480,7 @@ mod tests {
     fn test_kernel_pca_default() {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let kpca = KernelPCA::default().fit(&x, &()).unwrap();
+        let kpca = KernelPCA::default().fit(&x, &()).expect("model fitting should succeed");
 
         // Should use default parameters
         assert_eq!(kpca.n_components(), 2); // min(n_samples, n_features)
@@ -1521,9 +1521,9 @@ mod tests {
             .approximation(KernelApproximation::Nystrom { n_components: 4 })
             .random_state(42)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = kpca.transform(&x).unwrap();
+        let x_transformed = kpca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (6, 2));
 
         // Check that eigenvalues are non-negative
@@ -1543,9 +1543,9 @@ mod tests {
             .approximation(KernelApproximation::RandomSampling { n_samples: 3 })
             .random_state(123)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = kpca.transform(&x).unwrap();
+        let x_transformed = kpca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (5, 2));
 
         // Transformed data should be finite
@@ -1562,9 +1562,9 @@ mod tests {
             .n_components(2)
             .kernel(KernelFunction::Laplacian { gamma: 0.1 })
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = kpca.transform(&x).unwrap();
+        let x_transformed = kpca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (4, 2));
 
         // Check that all values are finite
@@ -1582,9 +1582,9 @@ mod tests {
             .n_components(2)
             .kernel(KernelFunction::ChiSquared { gamma: 0.5 })
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = kpca.transform(&x).unwrap();
+        let x_transformed = kpca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (4, 2));
 
         // Check that all values are finite

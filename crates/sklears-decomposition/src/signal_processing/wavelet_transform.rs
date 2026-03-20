@@ -835,13 +835,13 @@ mod tests {
             .wavelet_type(WaveletType::Haar)
             .levels(2);
 
-        let result = wavelet.dwt(&signal).unwrap();
+        let result = wavelet.dwt(&signal).expect("operation should succeed");
         assert_eq!(result.levels_computed(), 2);
         assert!(!result.approximation().is_empty());
         assert_eq!(result.details().len(), 2);
 
         // Test reconstruction
-        let reconstructed = wavelet.idwt(&result).unwrap();
+        let reconstructed = wavelet.idwt(&result).expect("operation should succeed");
 
         // Check that reconstruction is close to original (allowing for boundary effects)
         // TODO: Improve reconstruction accuracy - current implementation has precision limitations
@@ -872,7 +872,7 @@ mod tests {
                 .wavelet_type(wavelet_type.clone())
                 .levels(3);
 
-            let result = wavelet.dwt(&signal).unwrap();
+            let result = wavelet.dwt(&signal).expect("operation should succeed");
             assert!(result.levels_computed() > 0);
 
             // Test energy conservation (approximately)
@@ -910,10 +910,10 @@ mod tests {
                 .boundary(boundary)
                 .levels(3);
 
-            let result = wavelet.dwt(&signal).unwrap();
+            let result = wavelet.dwt(&signal).expect("operation should succeed");
             assert!(result.levels_computed() > 0);
 
-            let reconstructed = wavelet.idwt(&result).unwrap();
+            let reconstructed = wavelet.idwt(&result).expect("operation should succeed");
             assert!(!reconstructed.is_empty());
         }
     }
@@ -927,8 +927,10 @@ mod tests {
             .boundary(WaveletBoundary::Periodic)
             .levels(3);
 
-        let decomposition = wavelet.dwt(&signal).unwrap();
-        let reconstructed = wavelet.idwt(&decomposition).unwrap();
+        let decomposition = wavelet.dwt(&signal).expect("operation should succeed");
+        let reconstructed = wavelet
+            .idwt(&decomposition)
+            .expect("operation should succeed");
 
         // Should have reasonable reconstruction for orthogonal wavelets
         // TODO: Improve reconstruction accuracy for true perfect reconstruction
@@ -953,7 +955,9 @@ mod tests {
             .wavelet_type(WaveletType::Daubechies4)
             .levels(4);
 
-        let features = wavelet.extract_energy_features(&signal).unwrap();
+        let features = wavelet
+            .extract_energy_features(&signal)
+            .expect("operation should succeed");
 
         assert!(features.len() > 4); // At least detail energies + approx energy + total
 
@@ -980,7 +984,7 @@ mod tests {
             .wavelet_type(WaveletType::Daubechies4)
             .levels(3);
 
-        let mut decomposition = wavelet.dwt(&signal).unwrap();
+        let mut decomposition = wavelet.dwt(&signal).expect("operation should succeed");
 
         // Test energy distribution
         let energy_dist = decomposition.energy_distribution();
@@ -1035,7 +1039,7 @@ mod tests {
             .wavelet_type(WaveletType::Coiflets2)
             .levels(2);
 
-        let result = wavelet.dwt(&signal).unwrap();
+        let result = wavelet.dwt(&signal).expect("operation should succeed");
         assert!(result.levels_computed() > 0);
 
         // Test that coiflets have good localization properties
@@ -1063,7 +1067,7 @@ mod tests {
             let result = wavelet.dwt(&signal);
             assert!(result.is_ok(), "Wavelet {:?} should work", wavelet_type);
 
-            let decomposition = result.unwrap();
+            let decomposition = result.expect("operation should succeed");
             assert_eq!(decomposition.wavelet_type(), wavelet_type);
 
             // Test reconstruction
@@ -1085,7 +1089,7 @@ mod tests {
                 .wavelet_type(WaveletType::Daubechies4)
                 .levels(levels);
 
-            let result = wavelet.dwt(&signal).unwrap();
+            let result = wavelet.dwt(&signal).expect("operation should succeed");
 
             // Number of levels should be limited by signal length
             assert!(result.levels_computed() <= levels);
@@ -1117,8 +1121,12 @@ mod tests {
             .normalize(false)
             .levels(2);
 
-        let result_norm = wavelet_normalized.dwt(&signal).unwrap();
-        let result_unnorm = wavelet_unnormalized.dwt(&signal).unwrap();
+        let result_norm = wavelet_normalized
+            .dwt(&signal)
+            .expect("operation should succeed");
+        let result_unnorm = wavelet_unnormalized
+            .dwt(&signal)
+            .expect("operation should succeed");
 
         // Both should produce valid decompositions
         assert_eq!(

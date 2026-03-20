@@ -658,26 +658,6 @@ impl DependencyAudit {
         });
 
         self.add_dependency(DependencyInfo {
-            name: "polars".to_string(),
-            version: "0.42".to_string(),
-            category: DependencyCategory::Heavy,
-            optional: true,
-            features: vec!["lazy".to_string()],
-            compile_time_impact: CompileTimeImpact::VeryHigh,
-            binary_size_impact: BinarySizeImpact::VeryHigh,
-            use_case: "DataFrame operations".to_string(),
-            alternatives: vec!["custom impl".to_string(), "arrow".to_string()],
-            transitive_deps: 50,
-            security_notes: vec!["Large dependency tree".to_string()],
-            license: LicenseInfo {
-                spdx_id: "MIT".to_string(),
-                name: "MIT License".to_string(),
-                compatibility: license_checker.check_compatibility("MIT"),
-                notes: vec!["Large transitive dependency tree".to_string()],
-            },
-        });
-
-        self.add_dependency(DependencyInfo {
             name: "arrow".to_string(),
             version: "53".to_string(),
             category: DependencyCategory::Heavy,
@@ -1065,7 +1045,6 @@ impl DependencyReport {
 
         optimizations.push_str("# Feature-gate heavy dependencies:\n");
         optimizations.push_str("[dependencies]\n");
-        optimizations.push_str("polars = { version = \"0.42\", optional = true, default-features = false, features = [\"lazy\"] }\n");
         optimizations
             .push_str("arrow = { version = \"53\", optional = true, default-features = false }\n");
         optimizations.push_str("arrow-ipc = { version = \"53\", optional = true }\n");
@@ -1073,7 +1052,6 @@ impl DependencyReport {
 
         optimizations.push_str("# Minimize features for heavy dependencies:\n");
         optimizations.push_str("[features]\n");
-        optimizations.push_str("dataframes = [\"polars\"]\n");
         optimizations.push_str("arrow = [\"dep:arrow\", \"dep:arrow-ipc\", \"dep:arrow-csv\"]\n");
         optimizations.push_str("full = [\"dataframes\", \"arrow\", \"serde\"]\n\n");
 

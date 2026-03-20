@@ -487,7 +487,7 @@ impl StateSpaceModel {
         transition_matrix[[1, 0]] = -lambda.powi(2) * dt * phi1;
         transition_matrix[[1, 1]] = phi1 - phi2;
 
-        let observation_matrix = Array2::from_shape_vec((1, 2), vec![1.0, 0.0]).unwrap();
+        let observation_matrix = Array2::from_shape_vec((1, 2), vec![1.0, 0.0]).expect("shape and data length should match");
 
         // Process noise for Matérn 3/2
         let q11 = variance * (1.0 - phi1.powi(2) - 2.0 * phi1 * phi2 - phi2.powi(2));
@@ -1007,7 +1007,7 @@ mod tests {
         let times = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let values = array![1.0, 2.0, 1.5, 2.5, 1.2, 2.2, 1.8, 2.8]; // Seasonal pattern
 
-        let decomp = SeasonalDecomposition::decompose_additive(&times, &values, 4.0).unwrap();
+        let decomp = SeasonalDecomposition::decompose_additive(&times, &values, 4.0).expect("operation should succeed");
 
         assert_eq!(decomp.trend.len(), values.len());
         assert_eq!(decomp.seasonal.len(), values.len());
@@ -1025,10 +1025,10 @@ mod tests {
         let mut ssm = StateSpaceModel::from_exponential_kernel(1.0, 2.0, 0.1);
 
         // Test prediction step
-        ssm.predict(0.1).unwrap();
+        ssm.predict(0.1).expect("prediction should succeed");
 
         // Test update step
-        ssm.update(1.5).unwrap();
+        ssm.update(1.5).expect("operation should succeed");
 
         let (state, covariance) = ssm.get_state();
         assert_eq!(state.len(), 1);
@@ -1044,8 +1044,8 @@ mod tests {
             .temporal_kernel(TemporalKernel::exponential(1.0, 2.0))
             .build();
 
-        let trained = temporal_gp.fit(&times, &values).unwrap();
-        let predictions = trained.predict(&times).unwrap();
+        let trained = temporal_gp.fit(&times, &values).expect("model fitting should succeed");
+        let predictions = trained.predict(&times).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), times.nrows());
     }
@@ -1061,10 +1061,10 @@ mod tests {
             .seasonal_period(3.0)
             .build();
 
-        let trained = temporal_gp.fit(&times, &values).unwrap();
+        let trained = temporal_gp.fit(&times, &values).expect("model fitting should succeed");
         assert!(trained.seasonal_components().is_some());
 
-        let predictions = trained.predict(&times).unwrap();
+        let predictions = trained.predict(&times).expect("prediction should succeed");
         assert_eq!(predictions.len(), times.nrows());
     }
 
@@ -1077,14 +1077,14 @@ mod tests {
             .temporal_kernel(TemporalKernel::exponential(1.0, 2.0))
             .build();
 
-        let trained = temporal_gp.fit(&times, &values).unwrap();
+        let trained = temporal_gp.fit(&times, &values).expect("model fitting should succeed");
 
         let future_times = array![[5.0], [6.0]];
-        let (forecast, uncertainties) = trained.forecast(&future_times, true).unwrap();
+        let (forecast, uncertainties) = trained.forecast(&future_times, true).expect("operation should succeed");
 
         assert_eq!(forecast.len(), 2);
         assert!(uncertainties.is_some());
-        assert_eq!(uncertainties.unwrap().len(), 2);
+        assert_eq!(uncertainties.expect("operation should succeed").len(), 2);
     }
 
     #[test]
@@ -1097,7 +1097,7 @@ mod tests {
             .enable_state_space(true)
             .build();
 
-        let mut trained = temporal_gp.fit(&times, &values).unwrap();
+        let mut trained = temporal_gp.fit(&times, &values).expect("model fitting should succeed");
 
         // Test online update
         let result = trained.update(4.0, 4.0);
@@ -1131,7 +1131,7 @@ mod tests {
             .seasonal_period(2.0)
             .build();
 
-        let trained = temporal_gp.fit(&times, &values).unwrap();
+        let trained = temporal_gp.fit(&times, &values).expect("model fitting should succeed");
         let changepoints = trained.detect_changepoints(2.0);
 
         // Should detect a changepoint (implementation is simplified)

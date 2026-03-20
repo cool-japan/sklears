@@ -3,7 +3,7 @@
 use crate::{UtilsError, UtilsResult};
 use lazy_static::lazy_static;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -13,7 +13,7 @@ lazy_static! {
 
 /// Set the global random seed for reproducible results
 pub fn set_random_state(seed: u64) {
-    let mut rng = GLOBAL_RNG.lock().unwrap();
+    let mut rng = GLOBAL_RNG.lock().expect("operation should succeed");
     *rng = StdRng::seed_from_u64(seed);
 }
 
@@ -22,8 +22,8 @@ pub fn get_rng(seed: Option<u64>) -> StdRng {
     match seed {
         Some(s) => StdRng::seed_from_u64(s),
         None => {
-            let mut rng = GLOBAL_RNG.lock().unwrap();
-            StdRng::seed_from_u64(rng.gen::<u64>())
+            let mut rng = GLOBAL_RNG.lock().expect("operation should succeed");
+            StdRng::seed_from_u64(rng.random::<u64>())
         }
     }
 }
@@ -47,13 +47,13 @@ pub fn random_indices(
     if replace {
         // Sampling with replacement
         for _ in 0..size {
-            indices.push(rng.gen_range(0..n_samples));
+            indices.push(rng.random_range(0..n_samples));
         }
     } else {
         // Sampling without replacement
         let mut available: Vec<usize> = (0..n_samples).collect();
         for _ in 0..size {
-            let idx = rng.gen_range(0..available.len());
+            let idx = rng.random_range(0..available.len());
             indices.push(available.swap_remove(idx));
         }
     }
@@ -65,7 +65,7 @@ pub fn random_indices(
 pub fn shuffle_indices(indices: &mut [usize], seed: Option<u64>) {
     let mut rng = get_rng(seed);
     for i in (1..indices.len()).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.random_range(0..=i);
         indices.swap(i, j);
     }
 }
@@ -108,7 +108,7 @@ pub fn train_test_split_indices(
 /// Generate random weights that sum to 1
 pub fn random_weights(n: usize, seed: Option<u64>) -> Vec<f64> {
     let mut rng = get_rng(seed);
-    let mut weights: Vec<f64> = (0..n).map(|_| rng.gen::<f64>()).collect();
+    let mut weights: Vec<f64> = (0..n).map(|_| rng.random::<f64>()).collect();
     let sum: f64 = weights.iter().sum();
 
     if sum > 0.0 {
@@ -126,7 +126,7 @@ pub fn random_weights(n: usize, seed: Option<u64>) -> Vec<f64> {
 
 /// Bootstrap sampling: sample n_samples with replacement
 pub fn bootstrap_indices(n_samples: usize, seed: Option<u64>) -> Vec<usize> {
-    random_indices(n_samples, n_samples, true, seed).unwrap()
+    random_indices(n_samples, n_samples, true, seed).expect("operation should succeed")
 }
 
 /// Generate k-fold cross-validation indices
@@ -230,7 +230,7 @@ pub fn reservoir_sampling<T: Clone>(
             reservoir.push(item);
         } else {
             // Randomly replace items in the reservoir
-            let j = rng.gen_range(0..=i);
+            let j = rng.random_range(0..=i);
             if j < k {
                 reservoir[j] = item;
             }
@@ -279,9 +279,9 @@ pub fn weighted_sampling_without_replacement(
 
     for _ in 0..k {
         loop {
-            let r: f64 = rng.gen::<f64>();
+            let r: f64 = rng.random::<f64>();
             let idx = cumsum
-                .binary_search_by(|&x| x.partial_cmp(&r).unwrap())
+                .binary_search_by(|&x| x.partial_cmp(&r).expect("operation should succeed"))
                 .unwrap_or_else(|i| i);
 
             if idx < weights.len() && !used[idx] {
@@ -324,9 +324,9 @@ pub fn importance_sampling(
     let mut samples = Vec::with_capacity(n_samples);
 
     for _ in 0..n_samples {
-        let r: f64 = rng.gen::<f64>();
+        let r: f64 = rng.random::<f64>();
         let idx = cumsum
-            .binary_search_by(|&x| x.partial_cmp(&r).unwrap())
+            .binary_search_by(|&x| x.partial_cmp(&r).expect("operation should succeed"))
             .unwrap_or_else(|i| i);
         samples.push(idx.min(weights.len() - 1));
     }
@@ -356,8 +356,8 @@ impl DistributionSampler {
         let mut samples = Vec::with_capacity(n);
         for _ in 0..n {
             // Box-Muller transform
-            let u1 = self.rng.gen::<f64>();
-            let u2 = self.rng.gen::<f64>();
+            let u1 = self.rng.random::<f64>();
+            let u2 = self.rng.random::<f64>();
             let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             samples.push(mean + std * z);
         }
@@ -374,7 +374,7 @@ impl DistributionSampler {
 
         let samples = (0..n)
             .map(|_| {
-                let u = self.rng.gen::<f64>();
+                let u = self.rng.random::<f64>();
                 low + (high - low) * u
             })
             .collect();
@@ -403,7 +403,7 @@ impl DistributionSampler {
     fn gamma_sample(&mut self, shape: f64) -> f64 {
         // Simple approximation for gamma sampling
         if shape < 1.0 {
-            let u = self.rng.gen::<f64>();
+            let u = self.rng.random::<f64>();
             u.powf(1.0 / shape)
         } else {
             // Marsaglia and Tsang's method (simplified)
@@ -413,7 +413,7 @@ impl DistributionSampler {
                 let x = self.normal_sample();
                 let v = (1.0 + c * x).powi(3);
                 if v > 0.0 {
-                    let u = self.rng.gen::<f64>();
+                    let u = self.rng.random::<f64>();
                     if u < 1.0 - 0.0331 * x.powi(4)
                         || u.ln() < 0.5 * x.powi(2) + d * (1.0 - v + v.ln())
                     {
@@ -426,8 +426,8 @@ impl DistributionSampler {
 
     /// Helper function to sample from standard normal
     fn normal_sample(&mut self) -> f64 {
-        let u1 = self.rng.gen::<f64>();
-        let u2 = self.rng.gen::<f64>();
+        let u1 = self.rng.random::<f64>();
+        let u2 = self.rng.random::<f64>();
         (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
     }
 
@@ -552,9 +552,9 @@ impl DistributionSampler {
 
         for _ in 0..n {
             // Choose component
-            let r: f64 = self.rng.gen::<f64>();
+            let r: f64 = self.rng.random::<f64>();
             let component_idx = cumulative_weights
-                .binary_search_by(|&x| x.partial_cmp(&r).unwrap())
+                .binary_search_by(|&x| x.partial_cmp(&r).expect("operation should succeed"))
                 .unwrap_or_else(|i| i);
 
             let (_, mean, std) = components[component_idx];
@@ -580,14 +580,14 @@ impl ThreadSafeRng {
 
     /// Generate a random number in range [0, 1)
     pub fn gen(&self) -> f64 {
-        let mut rng = self.rng.lock().unwrap();
-        rng.gen::<f64>()
+        let mut rng = self.rng.lock().expect("operation should succeed");
+        rng.random::<f64>()
     }
 
     /// Generate a random integer in range [0, n)
     pub fn random_range(&self, n: usize) -> usize {
-        let mut rng = self.rng.lock().unwrap();
-        rng.gen_range(0..n)
+        let mut rng = self.rng.lock().expect("operation should succeed");
+        rng.random_range(0..n)
     }
 
     /// Generate random indices for sampling
@@ -602,7 +602,7 @@ impl ThreadSafeRng {
 
     /// Serialize the current random state
     pub fn get_state(&self) -> [u8; 32] {
-        let _rng = self.rng.lock().unwrap();
+        let _rng = self.rng.lock().expect("operation should succeed");
         // This is a simplified version - in practice you'd want to properly serialize the RNG state
         [0u8; 32] // Placeholder
     }
@@ -621,17 +621,17 @@ mod tests {
     #[test]
     fn test_set_random_state() {
         set_random_state(42);
-        let indices1 = random_indices(100, 10, false, None).unwrap();
+        let indices1 = random_indices(100, 10, false, None).expect("operation should succeed");
 
         set_random_state(42);
-        let indices2 = random_indices(100, 10, false, None).unwrap();
+        let indices2 = random_indices(100, 10, false, None).expect("operation should succeed");
 
         assert_eq!(indices1, indices2);
     }
 
     #[test]
     fn test_random_indices_without_replacement() {
-        let indices = random_indices(10, 5, false, Some(42)).unwrap();
+        let indices = random_indices(10, 5, false, Some(42)).expect("operation should succeed");
         assert_eq!(indices.len(), 5);
 
         // Check uniqueness
@@ -648,7 +648,7 @@ mod tests {
 
     #[test]
     fn test_random_indices_with_replacement() {
-        let indices = random_indices(5, 10, true, Some(42)).unwrap();
+        let indices = random_indices(5, 10, true, Some(42)).expect("operation should succeed");
         assert_eq!(indices.len(), 10);
 
         // Check bounds
@@ -659,7 +659,8 @@ mod tests {
 
     #[test]
     fn test_train_test_split_indices() {
-        let (train, test) = train_test_split_indices(100, 0.2, true, Some(42)).unwrap();
+        let (train, test) =
+            train_test_split_indices(100, 0.2, true, Some(42)).expect("operation should succeed");
 
         assert_eq!(train.len() + test.len(), 100);
         assert!((test.len() as f64 / 100.0 - 0.2).abs() < 0.1);
@@ -698,7 +699,8 @@ mod tests {
     #[test]
     fn test_stratified_split() {
         let labels = vec![0, 0, 0, 0, 1, 1, 1, 1, 2, 2];
-        let (train, test) = stratified_split_indices(&labels, 0.3, Some(42)).unwrap();
+        let (train, test) =
+            stratified_split_indices(&labels, 0.3, Some(42)).expect("operation should succeed");
 
         assert_eq!(train.len() + test.len(), 10);
 
@@ -728,7 +730,8 @@ mod tests {
     #[test]
     fn test_importance_sampling() {
         let weights = vec![0.1, 0.3, 0.6]; // Biased towards last item
-        let samples = importance_sampling(&weights, 1000, Some(42)).unwrap();
+        let samples =
+            importance_sampling(&weights, 1000, Some(42)).expect("operation should succeed");
 
         assert_eq!(samples.len(), 1000);
 
@@ -746,7 +749,8 @@ mod tests {
     #[test]
     fn test_weighted_sampling_without_replacement() {
         let weights = vec![1.0, 2.0, 3.0, 4.0];
-        let sample = weighted_sampling_without_replacement(&weights, 3, Some(42)).unwrap();
+        let sample = weighted_sampling_without_replacement(&weights, 3, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(sample.len(), 3);
 
@@ -762,25 +766,33 @@ mod tests {
         let mut sampler = DistributionSampler::new(Some(42));
 
         // Test normal distribution
-        let normal_samples = sampler.normal(0.0, 1.0, 100).unwrap();
+        let normal_samples = sampler
+            .normal(0.0, 1.0, 100)
+            .expect("operation should succeed");
         assert_eq!(normal_samples.len(), 100);
 
         // Test uniform distribution
-        let uniform_samples = sampler.uniform(0.0, 1.0, 100).unwrap();
+        let uniform_samples = sampler
+            .uniform(0.0, 1.0, 100)
+            .expect("operation should succeed");
         assert_eq!(uniform_samples.len(), 100);
         for &sample in &uniform_samples {
             assert!((0.0..1.0).contains(&sample));
         }
 
         // Test beta distribution
-        let beta_samples = sampler.beta(2.0, 3.0, 100).unwrap();
+        let beta_samples = sampler
+            .beta(2.0, 3.0, 100)
+            .expect("operation should succeed");
         assert_eq!(beta_samples.len(), 100);
         for &sample in &beta_samples {
             assert!((0.0..=1.0).contains(&sample));
         }
 
         // Test gamma distribution
-        let gamma_samples = sampler.gamma(2.0, 1.0, 100).unwrap();
+        let gamma_samples = sampler
+            .gamma(2.0, 1.0, 100)
+            .expect("operation should succeed");
         assert_eq!(gamma_samples.len(), 100);
         for &sample in &gamma_samples {
             assert!(sample >= 0.0);
@@ -791,14 +803,16 @@ mod tests {
         let variances = vec![1.0, 2.0];
         let mv_samples = sampler
             .multivariate_normal_diag(&mean, &variances, 50)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(mv_samples.len(), 50);
         for sample in &mv_samples {
             assert_eq!(sample.len(), 2);
         }
 
         // Test truncated normal
-        let truncated_samples = sampler.truncated_normal(0.0, 1.0, -1.0, 1.0, 50).unwrap();
+        let truncated_samples = sampler
+            .truncated_normal(0.0, 1.0, -1.0, 1.0, 50)
+            .expect("operation should succeed");
         assert_eq!(truncated_samples.len(), 50);
         for &sample in &truncated_samples {
             assert!((-1.0..=1.0).contains(&sample));
@@ -806,7 +820,9 @@ mod tests {
 
         // Test mixture normal
         let components = vec![(0.3, -1.0, 0.5), (0.7, 1.0, 0.5)];
-        let mixture_samples = sampler.mixture_normal(&components, 100).unwrap();
+        let mixture_samples = sampler
+            .mixture_normal(&components, 100)
+            .expect("operation should succeed");
         assert_eq!(mixture_samples.len(), 100);
     }
 

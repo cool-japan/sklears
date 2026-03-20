@@ -7,7 +7,7 @@
 
 State-of-the-art multiclass classification strategies for Rust, providing 5-15x performance improvements over scikit-learn while maintaining API familiarity.
 
-> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
 
 ## Overview
 

@@ -39,8 +39,8 @@ use sklears_core::{
 /// let estimator = AdaptiveLassoCovariance::new()
 ///     .alpha(0.1)
 ///     .gamma(1.0);
-/// let fitted = estimator.fit(&x.view(), &()).unwrap();
-/// let precision = fitted.get_precision().unwrap();
+/// let fitted = estimator.fit(&x.view(), &()).expect("model fitting should succeed");
+/// let precision = fitted.get_precision().expect("operation should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct AdaptiveLassoCovariance<S = Untrained> {
@@ -385,7 +385,9 @@ mod tests {
             .gamma(1.0)
             .max_iter(50);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_precision().is_some());

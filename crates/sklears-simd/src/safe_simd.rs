@@ -598,7 +598,7 @@ mod tests {
         assert!(result.is_some());
 
         let expected: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-        assert_eq!(result.unwrap(), expected);
+        assert_eq!(result.expect("operation should succeed"), expected);
     }
 
     #[test]
@@ -648,7 +648,10 @@ mod tests {
         let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0];
         let vec = SimdF32x4::from_slice(&data);
         assert!(vec.is_some());
-        assert_eq!(vec.unwrap().as_slice(), &[1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(
+            vec.expect("slice operation should succeed").as_slice(),
+            &[1.0, 2.0, 3.0, 4.0]
+        );
     }
 
     #[test]

@@ -44,7 +44,7 @@ use scirs2_core::ndarray::Array1;
 use scirs2_core::random::Distribution;
 // Beta and Normal distributions available via SciRS2 random module
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use scirs2_core::Beta;
 use std::collections::HashMap;
 
@@ -160,7 +160,7 @@ where
 
     for _ in 0..n_bootstrap {
         let indices: Vec<usize> = (0..n_samples)
-            .map(|_| rng.gen_range(0..n_samples))
+            .map(|_| rng.random_range(0..n_samples))
             .collect();
 
         let y_true_boot = indices.iter().map(|&i| y_true[i]).collect::<Array1<f64>>();
@@ -171,7 +171,7 @@ where
     }
 
     // Sort bootstrap estimates
-    bootstrap_estimates.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    bootstrap_estimates.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     // Calculate confidence interval using percentile method
     let alpha = 1.0 - confidence_level;
@@ -250,7 +250,7 @@ where
 
     for _ in 0..n_bootstrap {
         let indices: Vec<usize> = (0..n_samples)
-            .map(|_| rng.gen_range(0..n_samples))
+            .map(|_| rng.random_range(0..n_samples))
             .collect();
 
         let y_true_boot = indices.iter().map(|&i| y_true[i]).collect::<Array1<f64>>();
@@ -317,7 +317,7 @@ where
     let alpha_1 = normal_cdf(z0 + (z0 + z_alpha_2) / (1.0 - acceleration * (z0 + z_alpha_2)));
     let alpha_2 = normal_cdf(z0 + (z0 + z_1_alpha_2) / (1.0 - acceleration * (z0 + z_1_alpha_2)));
 
-    bootstrap_estimates.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    bootstrap_estimates.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let lower_idx = (alpha_1 * n_bootstrap as f64).floor() as usize;
     let upper_idx = (alpha_2 * n_bootstrap as f64).ceil() as usize - 1;
@@ -390,7 +390,7 @@ pub fn bayesian_accuracy_credible_interval(
     let point_estimate = alpha_post / (alpha_post + beta_post);
 
     // Credible interval using Beta quantiles
-    let _beta_dist = Beta::new(alpha_post, beta_post).unwrap();
+    let _beta_dist = Beta::new(alpha_post, beta_post).expect("operation should succeed");
     let alpha = 1.0 - confidence_level;
 
     let lower_bound = beta_quantile(alpha / 2.0, alpha_post, beta_post);
@@ -583,8 +583,8 @@ where
         let mut perturbed_metrics = metrics.clone();
 
         for i in 0..metrics.len() {
-            let normal =
-                scirs2_core::random::RandNormal::new(metrics[i], uncertainties[i]).unwrap();
+            let normal = scirs2_core::random::RandNormal::new(metrics[i], uncertainties[i])
+                .expect("operation should succeed");
             perturbed_metrics[i] = normal.sample(&mut rng);
         }
 
@@ -640,7 +640,7 @@ where
     for _ in 0..n_bootstrap {
         // Bootstrap first model
         let indices1: Vec<usize> = (0..y_true1.len())
-            .map(|_| rng.gen_range(0..y_true1.len()))
+            .map(|_| rng.random_range(0..y_true1.len()))
             .collect();
         let y_true1_boot = indices1
             .iter()
@@ -653,7 +653,7 @@ where
 
         // Bootstrap second model
         let indices2: Vec<usize> = (0..y_true2.len())
-            .map(|_| rng.gen_range(0..y_true2.len()))
+            .map(|_| rng.random_range(0..y_true2.len()))
             .collect();
         let y_true2_boot = indices2
             .iter()
@@ -970,7 +970,7 @@ mod tests {
             100,
             42,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.confidence_level == 0.95);
         assert!(result.lower_bound <= result.point_estimate);
@@ -980,7 +980,8 @@ mod tests {
 
     #[test]
     fn test_bayesian_accuracy_credible_interval() {
-        let result = bayesian_accuracy_credible_interval(75, 100, 1.0, 1.0, 0.95).unwrap();
+        let result = bayesian_accuracy_credible_interval(75, 100, 1.0, 1.0, 0.95)
+            .expect("operation should succeed");
 
         assert!(result.confidence_level == 0.95);
         assert!(result.lower_bound <= result.point_estimate);
@@ -991,7 +992,8 @@ mod tests {
 
     #[test]
     fn test_correlation_confidence_interval() {
-        let result = correlation_confidence_interval(0.5, 100, 0.95).unwrap();
+        let result =
+            correlation_confidence_interval(0.5, 100, 0.95).expect("operation should succeed");
 
         assert!(result.confidence_level == 0.95);
         assert!(result.lower_bound <= result.point_estimate);
@@ -1001,7 +1003,7 @@ mod tests {
 
     #[test]
     fn test_mse_confidence_interval() {
-        let result = mse_confidence_interval(0.25, 50, 0.95).unwrap();
+        let result = mse_confidence_interval(0.25, 50, 0.95).expect("operation should succeed");
 
         assert!(result.confidence_level == 0.95);
         assert!(result.lower_bound <= result.point_estimate);
@@ -1014,8 +1016,10 @@ mod tests {
         let metrics = Array1::from_vec(vec![0.8, 0.9, 0.7]);
         let uncertainties = Array1::from_vec(vec![0.05, 0.03, 0.08]);
 
-        let combined_uncertainty =
-            uncertainty_propagation(&metrics, &uncertainties, |m| m.mean().unwrap()).unwrap();
+        let combined_uncertainty = uncertainty_propagation(&metrics, &uncertainties, |m| {
+            m.mean().expect("operation should succeed")
+        })
+        .expect("operation should succeed");
 
         assert!(combined_uncertainty > 0.0);
         assert!(combined_uncertainty < 0.1);
@@ -1037,7 +1041,7 @@ mod tests {
             100,
             42,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(p_value >= 0.0);
         assert!(p_value <= 1.0);

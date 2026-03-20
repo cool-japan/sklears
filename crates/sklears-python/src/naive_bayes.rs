@@ -3,8 +3,9 @@
 //! This module provides PyO3-based Python bindings for sklears Naive Bayes algorithms,
 //! including Gaussian, Multinomial, Bernoulli, Complement, and Categorical Naive Bayes.
 
+use crate::linear::common::core_array2_to_py;
 use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
-use numpy::{IntoPyArray, PyArray1, PyArray2};
+use numpy::{PyArray1, PyArray2};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use scirs2_core::Array1;
@@ -95,7 +96,7 @@ impl PyGaussianNB {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
+            Ok(probabilities) => Ok(core_array2_to_py(py, &probabilities)?),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e
@@ -196,7 +197,7 @@ impl PyMultinomialNB {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
+            Ok(probabilities) => Ok(core_array2_to_py(py, &probabilities)?),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e
@@ -305,7 +306,7 @@ impl PyBernoulliNB {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
+            Ok(probabilities) => Ok(core_array2_to_py(py, &probabilities)?),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e

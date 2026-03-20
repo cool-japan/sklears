@@ -40,7 +40,6 @@ oxicode = { workspace = true, optional = true }
 rmp-serde = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 zstd = { workspace = true, optional = true }
-polars = { workspace = true, optional = true }
 arrow = { workspace = true, optional = true }
 arrow-ipc = { workspace = true, optional = true }
 arrow-csv = { workspace = true, optional = true }
@@ -83,7 +82,6 @@ compression = ["dep:flate2", "dep:zstd"]
 binary_full = ["binary", "messagepack", "compression"]
 
 # Data format support
-polars = ["dep:polars"]
 arrow = ["dep:arrow", "dep:arrow-ipc", "dep:arrow-csv"]
 # Performance features
 simd = []
@@ -132,7 +130,7 @@ all_algorithms = [
     "dimensionality_reduction",
     "ensemble_methods"
 ]
-all_formats = ["polars", "arrow", "binary_full"]
+all_formats = ["arrow", "binary_full"]
 full = [
     "all_algorithms",
     "all_formats", 

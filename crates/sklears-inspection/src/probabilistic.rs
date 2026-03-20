@@ -9,7 +9,7 @@ use crate::SklResult;
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::ChaCha8Rng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::{error::SklearsError, types::Float};
 
@@ -157,7 +157,9 @@ where
     }
 
     // Compute posterior statistics
-    let posterior_means = posterior_samples.mean_axis(Axis(0)).unwrap();
+    let posterior_means = posterior_samples
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
     let posterior_stds = compute_std_axis(&posterior_samples, Axis(0));
 
     // Compute credible intervals
@@ -226,8 +228,8 @@ where
     let best_idx = probabilities
         .iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-        .unwrap()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+        .expect("operation should succeed")
         .0;
     let most_likely_counterfactual = counterfactuals.row(best_idx).to_owned();
 
@@ -270,7 +272,7 @@ where
     for i in 0..config.n_samples {
         // Bootstrap sampling
         let indices: Vec<usize> = (0..n_samples)
-            .map(|_| rng.gen_range(0..n_samples))
+            .map(|_| rng.random_range(0..n_samples))
             .collect();
 
         let X_bootstrap = stack_rows(X, &indices)?;
@@ -282,7 +284,9 @@ where
     }
 
     // Compute mean importance and epistemic uncertainty
-    let importance_estimates = epistemic_samples.mean_axis(Axis(0)).unwrap();
+    let importance_estimates = epistemic_samples
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
     let epistemic_uncertainty = compute_std_axis(&epistemic_samples, Axis(0));
 
     // Estimate aleatoric uncertainty using data perturbation
@@ -460,7 +464,7 @@ where
         let alpha = log_alpha.exp().min(1.0);
 
         // Accept or reject
-        if rng.gen::<Float>() < alpha {
+        if rng.random::<Float>() < alpha {
             current_state = proposal;
             current_log_likelihood = proposal_log_likelihood;
             accepted += 1;
@@ -490,7 +494,7 @@ fn compute_credible_intervals(
 
     for feature_idx in 0..n_features {
         let mut feature_samples: Vec<Float> = samples.column(feature_idx).to_vec();
-        feature_samples.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        feature_samples.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n_samples = feature_samples.len();
         let lower_idx = (lower_percentile * n_samples as Float).floor() as usize;
@@ -506,7 +510,7 @@ fn compute_credible_intervals(
 }
 
 fn compute_std_axis(arr: &Array2<Float>, axis: Axis) -> Array1<Float> {
-    let means = arr.mean_axis(axis).unwrap();
+    let means = arr.mean_axis(axis).expect("operation should succeed");
     let n = arr.len_of(axis) as Float;
 
     let variances = if axis == Axis(0) {
@@ -661,7 +665,7 @@ fn generate_gaussian_noise(
     mean: Float,
     std: Float,
 ) -> Array1<Float> {
-    let normal = Normal::new(mean, std).unwrap();
+    let normal = Normal::new(mean, std).expect("operation should succeed");
     Array1::from_vec((0..size).map(|_| rng.sample(normal)).collect())
 }
 
@@ -674,7 +678,7 @@ fn sample_gaussian(
     let mut sample = Array1::zeros(n);
 
     for i in 0..n {
-        let normal = Normal::new(mu[i], sigma[i]).unwrap();
+        let normal = Normal::new(mu[i], sigma[i]).expect("operation should succeed");
         sample[i] = rng.sample(normal);
     }
 
@@ -702,7 +706,7 @@ fn add_gaussian_noise(
     rng: &mut ChaCha8Rng,
 ) -> Array2<Float> {
     let mut X_noisy = X.to_owned();
-    let normal = Normal::new(0.0, noise_scale).unwrap();
+    let normal = Normal::new(0.0, noise_scale).expect("operation should succeed");
 
     for mut row in X_noisy.axis_iter_mut(Axis(0)) {
         for val in row.iter_mut() {
@@ -904,7 +908,7 @@ mod tests {
         let result = generate_bayesian_explanation(explain_fn, &X.view(), &y.view(), &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.posterior_means.len(), 2);
         assert_eq!(result.credible_intervals.len(), 2);
     }
@@ -934,7 +938,7 @@ mod tests {
             generate_probabilistic_counterfactuals(model, &instance.view(), target_class, &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.most_likely_counterfactual.len(), 2);
         assert_eq!(result.counterfactual_distribution.nrows(), 5);
     }
@@ -957,7 +961,7 @@ mod tests {
         let result = quantify_explanation_uncertainty(explain_fn, &X.view(), &y.view(), &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.importance_estimates.len(), 2);
         assert_eq!(result.epistemic_uncertainty.len(), 2);
         assert_eq!(result.aleatoric_uncertainty.len(), 2);
@@ -978,7 +982,7 @@ mod tests {
         let result = bayesian_model_averaging(models, &X.view(), &y.view(), &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.averaged_importance.len(), 2);
         assert_eq!(result.model_weights.len(), 2);
         assert_eq!(result.individual_importances.nrows(), 2);

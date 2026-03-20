@@ -93,8 +93,12 @@ fn bench_select_k_best(c: &mut Criterion) {
                     let selector = SelectKBest::new(*k, "f_classif");
                     let trained = selector
                         .fit(&(*features).view(), &(*target).view())
-                        .unwrap();
-                    black_box(trained.transform(&(*features).view()).unwrap())
+                        .expect("operation should succeed");
+                    black_box(
+                        trained
+                            .transform(&(*features).view())
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );
@@ -125,8 +129,14 @@ fn bench_variance_threshold(c: &mut Criterion) {
                 b.iter(|| {
                     let selector = VarianceThreshold::new(0.01);
                     let dummy_y = Array1::<f64>::zeros(features.nrows());
-                    let trained = selector.fit(&features.view(), &dummy_y.view()).unwrap();
-                    black_box(trained.transform(&features.view()).unwrap())
+                    let trained = selector
+                        .fit(&features.view(), &dummy_y.view())
+                        .expect("operation should succeed");
+                    black_box(
+                        trained
+                            .transform(&features.view())
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );
@@ -150,9 +160,18 @@ fn bench_regularized_selectors(c: &mut Criterion) {
             &(&features, &target),
             |b, (features, target)| {
                 b.iter(|| {
-                    let selector = LassoSelector::new().alpha(0.1).max_iter(100);
-                    let trained = selector.fit(features, target).unwrap();
-                    black_box(trained.transform(features).unwrap())
+                    let selector = LassoSelector::new()
+                        .alpha(0.1)
+                        .expect("valid alpha")
+                        .max_iter(100);
+                    let trained = selector
+                        .fit(features, target)
+                        .expect("operation should succeed");
+                    black_box(
+                        trained
+                            .transform(features)
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );
@@ -163,9 +182,15 @@ fn bench_regularized_selectors(c: &mut Criterion) {
             &(&features, &target),
             |b, (features, target)| {
                 b.iter(|| {
-                    let selector = RidgeSelector::new().alpha(0.1);
-                    let trained = selector.fit(features, target).unwrap();
-                    black_box(trained.transform(features).unwrap())
+                    let selector = RidgeSelector::new().alpha(0.1).expect("valid alpha");
+                    let trained = selector
+                        .fit(features, target)
+                        .expect("operation should succeed");
+                    black_box(
+                        trained
+                            .transform(features)
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );
@@ -180,8 +205,14 @@ fn bench_regularized_selectors(c: &mut Criterion) {
                         .k(n_features / 4)
                         .regularization(0.1)
                         .max_iter(50);
-                    let trained = selector.fit(features, target).unwrap();
-                    black_box(trained.transform(features).unwrap())
+                    let trained = selector
+                        .fit(features, target)
+                        .expect("operation should succeed");
+                    black_box(
+                        trained
+                            .transform(features)
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );
@@ -218,7 +249,7 @@ fn bench_parallel_utilities(c: &mut Criterion) {
                         ParallelCorrelationComputer::compute_feature_target_correlation_parallel(
                             features, target,
                         )
-                        .unwrap(),
+                        .expect("operation should succeed"),
                     )
                 })
             },
@@ -272,8 +303,12 @@ fn bench_memory_scalability(c: &mut Criterion) {
                     let selector = SelectKBest::new(n_features / 10, "f_classif");
                     let trained = selector
                         .fit(&(*features).view(), &(*target).view())
-                        .unwrap();
-                    black_box(trained.transform(&(*features).view()).unwrap())
+                        .expect("operation should succeed");
+                    black_box(
+                        trained
+                            .transform(&(*features).view())
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );
@@ -289,8 +324,14 @@ fn bench_memory_scalability(c: &mut Criterion) {
                 b.iter(|| {
                     let selector = VarianceThreshold::new(0.01);
                     let dummy_y = Array1::<f64>::zeros(features.nrows());
-                    let trained = selector.fit(&features.view(), &dummy_y.view()).unwrap();
-                    black_box(trained.transform(&features.view()).unwrap())
+                    let trained = selector
+                        .fit(&features.view(), &dummy_y.view())
+                        .expect("operation should succeed");
+                    black_box(
+                        trained
+                            .transform(&features.view())
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );

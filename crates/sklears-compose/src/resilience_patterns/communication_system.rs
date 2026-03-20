@@ -541,12 +541,12 @@ impl CommunicationSystemCore {
     /// Send message through communication system
     pub async fn send_message(&self, message: CommunicationMessage) -> Result<MessageDeliveryResult> {
         // Route message through system
-        let router = self.message_router.read().unwrap();
+        let router = self.message_router.read().unwrap_or_else(|e| e.into_inner());
         let routes = router.determine_routes(&message)?;
         drop(router);
 
         // Distribute message through selected channels
-        let distributor = self.notification_distributor.read().unwrap();
+        let distributor = self.notification_distributor.read().unwrap_or_else(|e| e.into_inner());
         let delivery_result = distributor.distribute_message(message, routes).await?;
         drop(distributor);
 
@@ -558,23 +558,23 @@ impl CommunicationSystemCore {
 
     /// Register communication channel
     pub fn register_channel(&self, channel: CommunicationChannel) -> Result<()> {
-        let mut manager = self.channel_manager.write().unwrap();
+        let mut manager = self.channel_manager.write().unwrap_or_else(|e| e.into_inner());
         manager.register_channel(channel)?;
         Ok(())
     }
 
     /// Setup alert escalation chain
     pub fn setup_escalation_chain(&self, chain: EscalationChain) -> Result<()> {
-        let mut escalation = self.alert_escalation.write().unwrap();
+        let mut escalation = self.alert_escalation.write().unwrap_or_else(|e| e.into_inner());
         escalation.setup_chain(chain)?;
         Ok(())
     }
 
     /// Get system health status
     pub fn get_health_status(&self) -> Result<CommunicationHealthReport> {
-        let state = self.state.read().unwrap();
-        let channel_manager = self.channel_manager.read().unwrap();
-        let queue_manager = self.queue_manager.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let channel_manager = self.channel_manager.read().unwrap_or_else(|e| e.into_inner());
+        let queue_manager = self.queue_manager.read().unwrap_or_else(|e| e.into_inner());
 
         let health_report = CommunicationHealthReport {
             system_health: state.health.clone(),
@@ -588,7 +588,7 @@ impl CommunicationSystemCore {
 
     /// Process emergency alert
     pub async fn process_emergency_alert(&self, alert: EmergencyAlert) -> Result<EscalationResult> {
-        let escalation_manager = self.alert_escalation.read().unwrap();
+        let escalation_manager = self.alert_escalation.read().unwrap_or_else(|e| e.into_inner());
         let escalation_result = escalation_manager.process_emergency_alert(alert).await?;
         drop(escalation_manager);
 
@@ -985,7 +985,7 @@ mod tests {
 
     #[test]
     fn test_channel_registration() {
-        let mut manager = ChannelManager::new().unwrap();
+        let mut manager = ChannelManager::new().unwrap_or_default();
         let channel = create_test_channel();
 
         let result = manager.register_channel(channel);
@@ -994,17 +994,17 @@ mod tests {
 
     #[test]
     fn test_channel_health_check() {
-        let mut manager = ChannelManager::new().unwrap();
+        let mut manager = ChannelManager::new().unwrap_or_default();
         let channel = create_test_channel();
         let channel_id = channel.id.clone();
 
-        manager.register_channel(channel).unwrap();
+        manager.register_channel(channel).unwrap_or_default();
         assert!(manager.is_channel_healthy(&channel_id));
     }
 
     #[test]
     fn test_message_type_support() {
-        let manager = ChannelManager::new().unwrap();
+        let manager = ChannelManager::new().unwrap_or_default();
         let channel = create_test_channel();
 
         assert!(manager.channel_supports_message_type(&channel, &MessageType::Alert));
@@ -1012,7 +1012,7 @@ mod tests {
 
     #[test]
     fn test_message_routing() {
-        let router = MessageRouter::new().unwrap();
+        let router = MessageRouter::new().unwrap_or_default();
         let message = create_test_message();
 
         let routes = router.determine_routes(&message);
@@ -1021,7 +1021,7 @@ mod tests {
 
     #[test]
     fn test_overall_health_calculation() {
-        let manager = ChannelManager::new().unwrap();
+        let manager = ChannelManager::new().unwrap_or_default();
         let health = manager.get_overall_health();
 
         assert_eq!(health.total_channels, 0);

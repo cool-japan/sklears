@@ -132,20 +132,23 @@ impl GpuUtils {
             name: name.to_string(),
         };
 
-        self.allocations.write().unwrap().insert(ptr, allocation);
+        self.allocations
+            .write()
+            .expect("operation should succeed")
+            .insert(ptr, allocation);
         Ok(ptr)
     }
 
     /// Free GPU memory
     pub fn free_memory(&self, ptr: u64) -> Result<(), GpuError> {
-        let mut allocations = self.allocations.write().unwrap();
+        let mut allocations = self.allocations.write().expect("operation should succeed");
         allocations.remove(&ptr).ok_or(GpuError::InvalidPointer)?;
         Ok(())
     }
 
     /// Get memory usage statistics
     pub fn get_memory_stats(&self) -> HashMap<u32, MemoryStats> {
-        let allocations = self.allocations.read().unwrap();
+        let allocations = self.allocations.read().expect("operation should succeed");
         let mut stats = HashMap::new();
 
         for device in &self.devices {
@@ -207,26 +210,32 @@ impl GpuUtils {
 
         self.kernel_executions
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .push(execution.clone());
         Ok(execution)
     }
 
     /// Get kernel execution history
     pub fn get_kernel_history(&self) -> Vec<GpuKernelExecution> {
-        self.kernel_executions.read().unwrap().clone()
+        self.kernel_executions
+            .read()
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Get performance counters
     pub fn get_performance_counters(&self) -> HashMap<String, f64> {
-        self.performance_counters.read().unwrap().clone()
+        self.performance_counters
+            .read()
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Update performance counter
     pub fn update_counter(&self, name: &str, value: f64) {
         self.performance_counters
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(name.to_string(), value);
     }
 
@@ -274,7 +283,7 @@ impl GpuUtils {
             let recent_executions = self
                 .kernel_executions
                 .read()
-                .unwrap()
+                .expect("operation should succeed")
                 .iter()
                 .filter(|e| e.device_id == device.id)
                 .filter(|e| e.execution_time > 0.0)
@@ -289,14 +298,20 @@ impl GpuUtils {
 
     /// Cleanup all resources
     pub fn cleanup(&self) -> Result<(), GpuError> {
-        let allocations = self.allocations.read().unwrap();
+        let allocations = self.allocations.read().expect("operation should succeed");
         if !allocations.is_empty() {
             return Err(GpuError::ResourcesNotFreed);
         }
 
         // Clear history
-        self.kernel_executions.write().unwrap().clear();
-        self.performance_counters.write().unwrap().clear();
+        self.kernel_executions
+            .write()
+            .expect("operation should succeed")
+            .clear();
+        self.performance_counters
+            .write()
+            .expect("operation should succeed")
+            .clear();
 
         Ok(())
     }
@@ -1308,7 +1323,11 @@ mod tests {
     fn test_gpu_utils_creation() {
         let utils = GpuUtils::new();
         assert!(utils.devices.is_empty());
-        assert!(utils.allocations.read().unwrap().is_empty());
+        assert!(utils
+            .allocations
+            .read()
+            .expect("operation should succeed")
+            .is_empty());
     }
 
     #[test]
@@ -1321,19 +1340,21 @@ mod tests {
     #[test]
     fn test_device_selection() {
         let mut utils = GpuUtils::new();
-        utils.init_devices().unwrap();
+        utils.init_devices().expect("operation should succeed");
 
         let best_device = utils.get_best_device();
         assert!(best_device.is_some());
-        assert!(!best_device.unwrap().is_integrated);
+        assert!(!best_device.expect("operation should succeed").is_integrated);
     }
 
     #[test]
     fn test_memory_allocation() {
         let mut utils = GpuUtils::new();
-        utils.init_devices().unwrap();
+        utils.init_devices().expect("operation should succeed");
 
-        let ptr = utils.allocate_memory(1024, 0, "test").unwrap();
+        let ptr = utils
+            .allocate_memory(1024, 0, "test")
+            .expect("operation should succeed");
         assert!(ptr > 0);
 
         assert!(utils.free_memory(ptr).is_ok());
@@ -1342,7 +1363,7 @@ mod tests {
     #[test]
     fn test_kernel_execution() {
         let mut utils = GpuUtils::new();
-        utils.init_devices().unwrap();
+        utils.init_devices().expect("operation should succeed");
 
         let kernel_info = GpuKernelInfo {
             name: "test_kernel".to_string(),
@@ -1353,7 +1374,9 @@ mod tests {
             parameters: HashMap::new(),
         };
 
-        let execution = utils.execute_kernel(&kernel_info).unwrap();
+        let execution = utils
+            .execute_kernel(&kernel_info)
+            .expect("operation should succeed");
         assert_eq!(execution.kernel_name, "test_kernel");
         assert!(execution.execution_time > 0.0);
     }
@@ -1363,10 +1386,10 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0, 4.0];
         let b = vec![5.0, 6.0, 7.0, 8.0];
 
-        let result = GpuArrayOps::add_arrays(&a, &b, 0).unwrap();
+        let result = GpuArrayOps::add_arrays(&a, &b, 0).expect("operation should succeed");
         assert_eq!(result, vec![6.0, 8.0, 10.0, 12.0]);
 
-        let result = GpuArrayOps::multiply_arrays(&a, &b, 0).unwrap();
+        let result = GpuArrayOps::multiply_arrays(&a, &b, 0).expect("operation should succeed");
         assert_eq!(result, vec![5.0, 12.0, 21.0, 32.0]);
     }
 
@@ -1375,7 +1398,8 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0, 4.0]; // 2x2
         let b = vec![5.0, 6.0, 7.0, 8.0]; // 2x2
 
-        let result = GpuArrayOps::matrix_multiply(&a, &b, 2, 2, 2, 0).unwrap();
+        let result =
+            GpuArrayOps::matrix_multiply(&a, &b, 2, 2, 2, 0).expect("operation should succeed");
         assert_eq!(result, vec![19.0, 22.0, 43.0, 50.0]);
     }
 
@@ -1383,10 +1407,12 @@ mod tests {
     fn test_activation_functions() {
         let input = vec![-1.0, 0.0, 1.0, 2.0];
 
-        let result = GpuArrayOps::apply_activation(&input, ActivationFunction::ReLU, 0).unwrap();
+        let result = GpuArrayOps::apply_activation(&input, ActivationFunction::ReLU, 0)
+            .expect("operation should succeed");
         assert_eq!(result, vec![0.0, 0.0, 1.0, 2.0]);
 
-        let result = GpuArrayOps::apply_activation(&input, ActivationFunction::Sigmoid, 0).unwrap();
+        let result = GpuArrayOps::apply_activation(&input, ActivationFunction::Sigmoid, 0)
+            .expect("operation should succeed");
         assert!(result.iter().all(|&x| (0.0..=1.0).contains(&x)));
     }
 
@@ -1394,10 +1420,10 @@ mod tests {
     fn test_reduction_operations() {
         let input = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let sum = GpuArrayOps::reduce_sum(&input, 0).unwrap();
+        let sum = GpuArrayOps::reduce_sum(&input, 0).expect("operation should succeed");
         assert_eq!(sum, 15.0);
 
-        let max = GpuArrayOps::reduce_max(&input, 0).unwrap();
+        let max = GpuArrayOps::reduce_max(&input, 0).expect("operation should succeed");
         assert_eq!(max, 5.0);
     }
 
@@ -1422,7 +1448,7 @@ mod tests {
     #[test]
     fn test_throughput_estimation() {
         let mut utils = GpuUtils::new();
-        utils.init_devices().unwrap();
+        utils.init_devices().expect("operation should succeed");
 
         let throughput = utils.estimate_throughput(0, 1000, "add");
         assert!(throughput > 0.0);
@@ -1437,9 +1463,11 @@ mod tests {
     #[test]
     fn test_memory_stats() {
         let mut utils = GpuUtils::new();
-        utils.init_devices().unwrap();
+        utils.init_devices().expect("operation should succeed");
 
-        let _ptr = utils.allocate_memory(1024, 0, "test").unwrap();
+        let _ptr = utils
+            .allocate_memory(1024, 0, "test")
+            .expect("operation should succeed");
         let stats = utils.get_memory_stats();
 
         assert!(stats.contains_key(&0));
@@ -1545,14 +1573,14 @@ mod tests {
         assert!(ptr2.is_ok());
 
         // Test freeing
-        let free_result = pool.free(ptr1.unwrap(), 0);
+        let free_result = pool.free(ptr1.expect("operation should succeed"), 0);
         assert!(free_result.is_ok());
 
         // Test defragmentation
         let defrag_result = pool.defragment(0);
         assert!(defrag_result.is_ok());
 
-        let defrag = defrag_result.unwrap();
+        let defrag = defrag_result.expect("operation should succeed");
         assert!(defrag.fragmentation_after <= defrag.fragmentation_before);
     }
 
@@ -1590,10 +1618,11 @@ mod tests {
             parameters: HashMap::new(),
         };
 
-        let handle = async_ops.launch_kernel_async(&kernel_info, stream_id.unwrap());
+        let handle = async_ops
+            .launch_kernel_async(&kernel_info, stream_id.expect("operation should succeed"));
         assert!(handle.is_ok());
 
-        let operation_handle = handle.unwrap();
+        let operation_handle = handle.expect("operation should succeed");
 
         // Test completion checking
         let _is_complete_before = async_ops.is_complete(&operation_handle);
@@ -1666,10 +1695,12 @@ mod tests {
     #[test]
     fn test_stream_priorities() {
         let mut async_ops = AsyncGpuOps::new();
-        let _stream_id = async_ops.create_stream(0).unwrap();
+        let _stream_id = async_ops
+            .create_stream(0)
+            .expect("operation should succeed");
 
         // Verify stream was created with default priority
-        let streams = async_ops.streams.get(&0).unwrap();
+        let streams = async_ops.streams.get(&0).expect("operation should succeed");
         assert_eq!(streams.len(), 1);
         assert!(matches!(streams[0].priority, StreamPriority::Normal));
     }

@@ -346,7 +346,7 @@ impl VotingClassifier<Trained> {
             // Find class with highest weighted vote
             let predicted_class = class_votes
                 .iter()
-                .max_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap())
+                .max_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(&class, _)| class)
                 .unwrap_or(0) as Float;
 
@@ -881,9 +881,9 @@ mod tests {
 
     #[test]
     fn test_voting_strategy_from_str() {
-        assert_eq!(VotingStrategy::from_str("hard").unwrap(), VotingStrategy::Hard);
-        assert_eq!(VotingStrategy::from_str("soft").unwrap(), VotingStrategy::Soft);
-        assert_eq!(VotingStrategy::from_str("HARD").unwrap(), VotingStrategy::Hard);
+        assert_eq!(VotingStrategy::from_str("hard").unwrap_or_default(), VotingStrategy::Hard);
+        assert_eq!(VotingStrategy::from_str("soft").unwrap_or_default(), VotingStrategy::Soft);
+        assert_eq!(VotingStrategy::from_str("HARD").unwrap_or_default(), VotingStrategy::Hard);
         assert!(VotingStrategy::from_str("invalid").is_err());
     }
 

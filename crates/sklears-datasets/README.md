@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -38,6 +38,6 @@ let blobs = make_blobs(1000)
 
 ## Status
 
-- All loaders/generators validated through the 11,292 passing workspace tests for `0.1.0-beta.1`.
+- All loaders/generators validated through the 11,292 passing workspace tests for `0.1.0`.
 - Supports lazy loading and streaming for large-scale workflows.
 - Future work (federated dataset shards, synthetic time series) tracked in this crate’s `TODO.md`.

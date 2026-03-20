@@ -871,7 +871,7 @@ impl FaultToleranceFramework {
 
         // Update framework status
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.status = FrameworkStatus::Active;
         }
 
@@ -890,12 +890,12 @@ impl FaultToleranceFramework {
 
     /// Get framework metrics
     pub fn get_metrics(&self) -> FrameworkMetrics {
-        self.metrics.lock().unwrap().clone()
+        self.metrics.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get framework state
     pub fn get_state(&self) -> FrameworkState {
-        self.state.read().unwrap().clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Shutdown the framework
@@ -911,7 +911,7 @@ impl FaultToleranceFramework {
 
         // Update framework status
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.status = FrameworkStatus::Shutdown;
         }
 
@@ -946,7 +946,7 @@ impl FaultToleranceManager for DefaultFaultToleranceManager {
             metadata: FaultToleranceMetadata::default(),
         };
 
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = self.sessions.write().unwrap_or_else(|e| e.into_inner());
         sessions.insert(session_id, session.clone());
 
         Ok(session)
@@ -972,14 +972,14 @@ impl FaultToleranceManager for DefaultFaultToleranceManager {
     }
 
     fn get_session_status(&self, session_id: String) -> SklResult<FaultToleranceSessionStatus> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         sessions.get(&session_id)
             .map(|session| session.status.clone())
             .ok_or_else(|| SklearsError::Other("Session not found".to_string()))
     }
 
     fn shutdown_fault_tolerance(&mut self, session_id: String) -> SklResult<FaultToleranceReport> {
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = self.sessions.write().unwrap_or_else(|e| e.into_inner());
         sessions.remove(&session_id)
             .map(|_| FaultToleranceReport::default())
             .ok_or_else(|| SklearsError::Other("Session not found".to_string()))

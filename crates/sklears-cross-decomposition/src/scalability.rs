@@ -39,7 +39,7 @@ use std::thread;
 /// // Process data in chunks
 /// let x_batch = array![[1.0, 2.0], [2.0, 3.0]];
 /// let y_batch = array![[1.5, 2.5], [2.5, 3.5]];
-/// cca.partial_fit(&x_batch, &y_batch).unwrap();
+/// cca.partial_fit(&x_batch, &y_batch).expect("operation should succeed");
 ///
 /// let correlations = cca.canonical_correlations();
 /// ```
@@ -191,7 +191,8 @@ impl MemoryEfficientCCA {
 
         use scirs2_core::random::{Distribution, RandNormal as Normal, Rng, SeedableRng};
 
-        let normal = Normal::new(0.0, 0.1).unwrap();
+        let normal = Normal::new(0.0, 0.1)
+            .map_err(|e| SklearsError::InvalidInput(format!("invalid Normal params: {}", e)))?;
 
         let mut wx = Array2::zeros((p_x, self.n_components));
         let mut wy = Array2::zeros((p_y, self.n_components));
@@ -223,8 +224,12 @@ impl MemoryEfficientCCA {
     fn update_running_statistics(&mut self, x: &Array2<f64>, y: &Array2<f64>) {
         let alpha = if self.n_samples_seen == 0 { 1.0 } else { 0.01 };
 
-        let batch_mean_x = x.mean_axis(Axis(0)).unwrap();
-        let batch_mean_y = y.mean_axis(Axis(0)).unwrap();
+        let batch_mean_x = x
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
+        let batch_mean_y = y
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
         let batch_var_x = x.var_axis(Axis(0), 1.0);
         let batch_var_y = y.var_axis(Axis(0), 1.0);
 
@@ -600,8 +605,12 @@ impl DistributedCCA {
         let n = x.nrows() as f64;
 
         // Center the data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = x
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
+        let y_mean = y
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
         let x_centered = x - &x_mean.insert_axis(Axis(0));
         let y_centered = y - &y_mean.insert_axis(Axis(0));
 
@@ -810,18 +819,18 @@ mod tests {
 
         let y = array![[1.5, 2.5], [2.5, 3.5], [3.5, 4.5], [4.5, 5.5]];
 
-        cca.partial_fit(&x, &y).unwrap();
+        cca.partial_fit(&x, &y).expect("operation should succeed");
 
         assert_eq!(cca.n_samples_seen(), 4);
         assert!(cca.iteration() > 0);
 
         let correlations = cca.canonical_correlations();
         assert!(correlations.is_some());
-        assert_eq!(correlations.unwrap().len(), 1);
+        assert_eq!(correlations.expect("operation should succeed").len(), 1);
 
         let weights = cca.canonical_weights();
         assert!(weights.is_some());
-        let (wx, wy) = weights.unwrap();
+        let (wx, wy) = weights.expect("operation should succeed");
         assert_eq!(wx.shape(), &[2, 1]);
         assert_eq!(wy.shape(), &[2, 1]);
     }
@@ -836,16 +845,16 @@ mod tests {
         // First batch
         let x1 = array![[1.0, 2.0], [2.0, 3.0]];
         let y1 = array![[1.5, 2.5], [2.5, 3.5]];
-        cca.partial_fit(&x1, &y1).unwrap();
+        cca.partial_fit(&x1, &y1).expect("operation should succeed");
 
         // Second batch
         let x2 = array![[3.0, 4.0], [4.0, 5.0]];
         let y2 = array![[3.5, 4.5], [4.5, 5.5]];
-        cca.partial_fit(&x2, &y2).unwrap();
+        cca.partial_fit(&x2, &y2).expect("operation should succeed");
 
         assert_eq!(cca.n_samples_seen(), 4);
 
-        let (u, v) = cca.transform(&x1, &y1).unwrap();
+        let (u, v) = cca.transform(&x1, &y1).expect("transform should succeed");
         assert_eq!(u.shape(), &[2, 1]);
         assert_eq!(v.shape(), &[2, 1]);
     }
@@ -856,7 +865,7 @@ mod tests {
 
         let x = array![[1.0, 2.0], [2.0, 3.0]];
         let y = array![[1.5, 2.5], [2.5, 3.5]];
-        cca.partial_fit(&x, &y).unwrap();
+        cca.partial_fit(&x, &y).expect("operation should succeed");
 
         assert_eq!(cca.n_samples_seen(), 2);
 
@@ -890,7 +899,7 @@ mod tests {
             .n_workers(2)
             .aggregation_strategy(AggregationStrategy::Average);
 
-        let result = dcca.fit(&x, &y).unwrap();
+        let result = dcca.fit(&x, &y).expect("fit should succeed");
 
         assert_eq!(result.n_workers(), 2);
 
@@ -934,7 +943,7 @@ mod tests {
                 .n_workers(2)
                 .aggregation_strategy(strategy);
 
-            let result = dcca.fit(&x, &y).unwrap();
+            let result = dcca.fit(&x, &y).expect("fit should succeed");
 
             let correlations = result.canonical_correlations();
             assert_eq!(correlations.len(), 1);
@@ -949,9 +958,9 @@ mod tests {
         let y = array![[1.2, 1.8], [2.2, 2.8], [3.2, 3.8], [4.2, 4.8]];
 
         let dcca = DistributedCCA::new(1).n_workers(2);
-        let result = dcca.fit(&x, &y).unwrap();
+        let result = dcca.fit(&x, &y).expect("fit should succeed");
 
-        let (u, v) = result.transform(&x, &y).unwrap();
+        let (u, v) = result.transform(&x, &y).expect("transform should succeed");
         assert_eq!(u.shape(), &[4, 1]);
         assert_eq!(v.shape(), &[4, 1]);
     }
@@ -963,7 +972,7 @@ mod tests {
         let y = array![[1.2, 1.8], [2.2, 2.8], [3.2, 3.8], [4.2, 4.8]];
 
         let dcca = DistributedCCA::new(1).n_workers(2);
-        let result = dcca.fit(&x, &y).unwrap();
+        let result = dcca.fit(&x, &y).expect("fit should succeed");
 
         let (wx_var, wy_var, corr_var) = result.worker_variance();
         assert_eq!(wx_var.shape(), &[2, 1]);

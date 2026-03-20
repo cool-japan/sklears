@@ -92,7 +92,7 @@ impl SimdIsotonicRegression {
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Vec<Float> = indices.iter().map(|&i| x[i]).collect();
         let sorted_y: Vec<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -456,7 +456,7 @@ fn simd_weighted_median(values: &[Float], weights: &[Float]) -> Float {
         .collect();
 
     // Use unstable sort for better performance
-    pairs.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    pairs.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     let total_weight: Float = weights.iter().sum();
     let half_weight = total_weight / 2.0;
@@ -483,7 +483,7 @@ fn weighted_median(values: &[Float], weights: &[Float]) -> Float {
         .zip(weights.iter())
         .map(|(&v, &w)| (v, w))
         .collect();
-    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     let total_weight: Float = weights.iter().sum();
     let half_weight = total_weight / 2.0;
@@ -623,7 +623,7 @@ mod tests {
         let simd_model = SimdIsotonicRegression::new()
             .increasing(true)
             .loss(LossFunction::SquaredLoss);
-        let (simd_fitted_x, simd_fitted_y) = simd_model.fit(&x, &y, None).unwrap();
+        let (simd_fitted_x, simd_fitted_y) = simd_model.fit(&x, &y, None).expect("model fitting should succeed");
 
         // Check monotonicity of SIMD fitted values
         for i in 0..simd_fitted_y.len() - 1 {
@@ -637,8 +637,8 @@ mod tests {
 
         // Compare with standard implementation
         let standard_model = crate::core::IsotonicRegression::new().increasing(true);
-        let standard_fitted = standard_model.fit(&x, &y).unwrap();
-        let standard_predictions = standard_fitted.predict(&x).unwrap();
+        let standard_fitted = standard_model.fit(&x, &y).expect("model fitting should succeed");
+        let standard_predictions = standard_fitted.predict(&x).expect("prediction should succeed");
 
         // Check monotonicity of standard predictions
         for i in 0..standard_predictions.len() - 1 {
@@ -709,7 +709,7 @@ mod tests {
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0, 4.5, 6.0, 7.0]);
 
         let (fitted_x, fitted_y) =
-            simd_isotonic_regression(&x, &y, None, true, LossFunction::AbsoluteLoss).unwrap();
+            simd_isotonic_regression(&x, &y, None, true, LossFunction::AbsoluteLoss).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -724,7 +724,7 @@ mod tests {
 
         let (fitted_x, fitted_y) =
             simd_isotonic_regression(&x, &y, None, true, LossFunction::HuberLoss { delta: 1.0 })
-                .unwrap();
+                .expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -740,7 +740,7 @@ mod tests {
 
         let (fitted_x, fitted_y) =
             simd_isotonic_regression(&x, &y, Some(&weights), true, LossFunction::SquaredLoss)
-                .unwrap();
+                .expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -754,7 +754,7 @@ mod tests {
         let y = Array1::from(vec![8.0, 6.0, 7.0, 5.0, 4.0, 3.0, 2.0, 1.0]);
 
         let (fitted_x, fitted_y) =
-            simd_isotonic_regression(&x, &y, None, false, LossFunction::SquaredLoss).unwrap();
+            simd_isotonic_regression(&x, &y, None, false, LossFunction::SquaredLoss).expect("operation should succeed");
 
         // Check decreasing monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -776,11 +776,11 @@ mod tests {
         let y: Array1<Float> = x.mapv(|xi| xi + (xi * 0.1).sin()); // Add some non-monotonic noise
 
         let (_, fitted_y_simd) =
-            simd_isotonic_regression(&x, &y, None, true, LossFunction::SquaredLoss).unwrap();
+            simd_isotonic_regression(&x, &y, None, true, LossFunction::SquaredLoss).expect("operation should succeed");
 
         let standard_model = crate::core::IsotonicRegression::new().increasing(true);
-        let standard_fitted = standard_model.fit(&x, &y).unwrap();
-        let fitted_y_standard = standard_fitted.predict(&x).unwrap();
+        let standard_fitted = standard_model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y_standard = standard_fitted.predict(&x).expect("prediction should succeed");
 
         // Results should be very close
         for (i, (&simd_val, &standard_val)) in fitted_y_simd
@@ -813,7 +813,7 @@ mod tests {
                 .simd_chunk_size(chunk_size)
                 .increasing(true);
 
-            let (_, fitted_y) = simd_iso.fit(&x, &y, None).unwrap();
+            let (_, fitted_y) = simd_iso.fit(&x, &y, None).expect("model fitting should succeed");
 
             // Check monotonicity
             for i in 0..fitted_y.len() - 1 {

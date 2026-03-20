@@ -71,7 +71,7 @@ impl SupportSet {
     #[must_use]
     pub fn get_classes(&self) -> Vec<f64> {
         let mut classes: Vec<f64> = self.labels.iter().copied().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
         classes
     }
@@ -193,7 +193,7 @@ impl PrototypicalNetwork<Untrained> {
 
             if class_features.nrows() > 0 {
                 // Compute mean as prototype
-                let prototype = class_features.mean_axis(Axis(0)).unwrap();
+                let prototype = class_features.mean_axis(Axis(0)).unwrap_or_default();
                 prototypes.insert(class_label.to_string(), prototype);
             }
         }
@@ -227,7 +227,7 @@ impl Fit<ArrayView2<'_, Float>, Option<&ArrayView1<'_, Float>>> for Prototypical
             // Determine n_way and n_shot from data
             let unique_labels: Vec<f64> = {
                 let mut labels: Vec<f64> = y_f64.iter().copied().collect();
-                labels.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                labels.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 labels.dedup_by(|a, b| (*a - *b).abs() < 1e-6);
                 labels
             };
@@ -619,9 +619,11 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0];
 
         let learner = PrototypicalNetwork::new();
-        let fitted = learner.fit(&x.view(), &Some(&y.view())).unwrap();
+        let fitted = learner
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x.view()).unwrap();
+        let predictions = fitted.predict(&x.view()).unwrap_or_default();
         assert_eq!(predictions.len(), x.nrows());
     }
 
@@ -631,9 +633,11 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0];
 
         let pipeline = FewShotPipeline::prototypical(DistanceMetric::Euclidean);
-        let fitted = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
+        let fitted = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x.view()).unwrap();
+        let predictions = fitted.predict(&x.view()).unwrap_or_default();
         assert_eq!(predictions.len(), x.nrows());
     }
 }

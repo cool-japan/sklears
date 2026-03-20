@@ -265,7 +265,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for FrankWolfeCovariance<Untrained> {
         let (n_samples, n_features) = x.dim();
 
         // Compute empirical covariance as starting point
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean;
         let empirical_cov = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
@@ -511,8 +515,14 @@ impl FrankWolfeCovariance<Untrained> {
                 // Minimize trace(G^T X) subject to trace(X) = trace_bound
                 let n = gradient.nrows();
                 let min_diag_idx = (0..n)
-                    .min_by(|&i, &j| gradient[[i, i]].partial_cmp(&gradient[[j, j]]).unwrap())
-                    .unwrap();
+                    .min_by(|&i, &j| {
+                        gradient[[i, i]]
+                            .partial_cmp(&gradient[[j, j]])
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("collection should not be empty".into())
+                    })?;
 
                 let mut solution = Array2::zeros(gradient.dim());
                 solution[[min_diag_idx, min_diag_idx]] = *trace_bound;

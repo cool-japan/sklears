@@ -1266,7 +1266,7 @@ impl ConfigManager {
     pub fn set_config(&mut self, config: PipelineConfig) -> SklResult<()> {
         self.validate_config(&config)?;
 
-        let mut current_config = self.config.write().unwrap();
+        let mut current_config = self.config.write().unwrap_or_else(|e| e.into_inner());
         *current_config = config;
         Ok(())
     }
@@ -1274,20 +1274,20 @@ impl ConfigManager {
     /// Get the current configuration
     #[must_use]
     pub fn get_config(&self) -> PipelineConfig {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
         config.clone()
     }
 
     /// Get configuration value by path
     #[must_use]
     pub fn get_value(&self, path: &str) -> Option<ConfigValue> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
         self.get_value_from_path(&config, path)
     }
 
     /// Set configuration value by path
     pub fn set_value(&mut self, path: &str, value: ConfigValue) -> SklResult<()> {
-        let mut config = self.config.write().unwrap();
+        let mut config = self.config.write().unwrap_or_else(|e| e.into_inner());
         self.set_value_at_path(&mut config, path, value)?;
         Ok(())
     }
@@ -1392,7 +1392,7 @@ impl ConfigManager {
             }
         });
 
-        let mut watchers = self.file_watchers.lock().unwrap();
+        let mut watchers = self.file_watchers.lock().unwrap_or_else(|e| e.into_inner());
         watchers.insert(path, handle);
         Ok(())
     }
@@ -1407,7 +1407,7 @@ impl ConfigManager {
         self.hot_reload_enabled = false;
 
         // Stop all file watchers
-        let mut watchers = self.file_watchers.lock().unwrap();
+        let mut watchers = self.file_watchers.lock().unwrap_or_else(|e| e.into_inner());
         watchers.clear();
     }
 
@@ -1424,7 +1424,7 @@ impl ConfigManager {
 
     /// Apply environment-specific overrides
     pub fn apply_environment_overrides(&mut self) -> SklResult<()> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(env_config) = config.environments.get(&self.current_environment) {
             // Apply overrides (simplified)
@@ -1439,7 +1439,7 @@ impl ConfigManager {
 
     /// Export configuration to YAML
     pub fn export_to_yaml(&self, path: &Path) -> SklResult<()> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
         let yaml_content = self.serialize_to_yaml(&config)?;
 
         let mut file = File::create(path)?;
@@ -1449,7 +1449,7 @@ impl ConfigManager {
 
     /// Export configuration to JSON
     pub fn export_to_json(&self, path: &Path) -> SklResult<()> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
         let json_content = self.serialize_to_json(&config)?;
 
         let mut file = File::create(path)?;
@@ -1816,14 +1816,20 @@ mod tests {
     fn test_template_creation() {
         let manager = ConfigManager::new();
 
-        let basic_template = manager.create_template("basic").unwrap();
+        let basic_template = manager
+            .create_template("basic")
+            .expect("operation should succeed");
         assert_eq!(basic_template.metadata.name, "basic_pipeline");
 
-        let advanced_template = manager.create_template("advanced").unwrap();
+        let advanced_template = manager
+            .create_template("advanced")
+            .expect("operation should succeed");
         assert_eq!(advanced_template.metadata.name, "advanced_pipeline");
         assert!(advanced_template.execution.monitoring.enabled);
 
-        let distributed_template = manager.create_template("distributed").unwrap();
+        let distributed_template = manager
+            .create_template("distributed")
+            .expect("operation should succeed");
         assert_eq!(distributed_template.execution.mode, "distributed");
     }
 

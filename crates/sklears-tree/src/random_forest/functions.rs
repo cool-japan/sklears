@@ -32,10 +32,10 @@ mod tests {
             .criterion(SplitCriterion::Gini)
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(model.n_features(), 2);
         assert_eq!(model.n_classes(), 2);
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
     }
     #[test]
@@ -48,12 +48,12 @@ mod tests {
             .criterion(SplitCriterion::MSE)
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(model.n_features(), 1);
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
         let test_x = array![[2.5]];
-        let test_pred = model.predict(&test_x).unwrap();
+        let test_pred = model.predict(&test_x).expect("prediction should succeed");
         assert!(test_pred.len() == 1);
         assert!(test_pred[0] > 3.0 && test_pred[0] < 10.0);
     }
@@ -69,8 +69,10 @@ mod tests {
         let model = RandomForestClassifier::new()
             .n_estimators(5)
             .fit(&x, &y)
-            .unwrap();
-        let importances = model.feature_importances().unwrap();
+            .expect("operation should succeed");
+        let importances = model
+            .feature_importances()
+            .expect("operation should succeed");
         assert_eq!(importances.len(), 3);
         let sum: f64 = importances.sum();
         assert!((sum - 1.0).abs() < f64::EPSILON);
@@ -87,8 +89,10 @@ mod tests {
             .n_estimators(3)
             .criterion(SplitCriterion::MSE)
             .fit(&x, &y)
-            .unwrap();
-        let importances = model.feature_importances().unwrap();
+            .expect("operation should succeed");
+        let importances = model
+            .feature_importances()
+            .expect("operation should succeed");
         assert_eq!(importances.len(), 2);
         let sum: f64 = importances.sum();
         assert!((sum - 1.0).abs() < f64::EPSILON);
@@ -112,9 +116,11 @@ mod tests {
             .criterion(SplitCriterion::MSE)
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(model.proximity_matrix().is_none());
-        let proximity = model.compute_proximity_matrix(&x).unwrap();
+        let proximity = model
+            .compute_proximity_matrix(&x)
+            .expect("operation should succeed");
         assert_eq!(proximity.shape(), &[4, 4]);
         for i in 0..4 {
             assert!((proximity[(i, i)] - 1.0).abs() < f64::EPSILON);
@@ -148,9 +154,11 @@ mod tests {
             .random_state(42)
             .n_jobs(2)
             .fit(&x, &y)
-            .unwrap();
-        let parallel_predictions = model.predict_parallel(&x).unwrap();
-        let serial_predictions = model.predict(&x).unwrap();
+            .expect("operation should succeed");
+        let parallel_predictions = model
+            .predict_parallel(&x)
+            .expect("operation should succeed");
+        let serial_predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(parallel_predictions.len(), serial_predictions.len());
         assert_eq!(parallel_predictions.len(), 6);
         for (parallel, serial) in parallel_predictions.iter().zip(serial_predictions.iter()) {
@@ -175,8 +183,10 @@ mod tests {
             .random_state(42)
             .n_jobs(2)
             .fit(&x, &y)
-            .unwrap();
-        let probabilities = model.predict_proba_parallel(&x).unwrap();
+            .expect("operation should succeed");
+        let probabilities = model
+            .predict_proba_parallel(&x)
+            .expect("operation should succeed");
         assert_eq!(probabilities.shape(), &[6, 2]);
         for i in 0..6 {
             let row_sum: f64 = probabilities.row(i).sum();
@@ -206,17 +216,21 @@ mod tests {
             .random_state(42)
             .n_jobs(2)
             .fit(&x, &y)
-            .unwrap();
-        let parallel_predictions = model.predict_parallel(&x).unwrap();
-        let serial_predictions = model.predict(&x).unwrap();
+            .expect("operation should succeed");
+        let parallel_predictions = model
+            .predict_parallel(&x)
+            .expect("operation should succeed");
+        let serial_predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(parallel_predictions.len(), serial_predictions.len());
         assert_eq!(parallel_predictions.len(), 6);
         for (parallel, serial) in parallel_predictions.iter().zip(serial_predictions.iter()) {
             assert_eq!(parallel, serial);
         }
         let test_x = array![[2.5]];
-        let test_parallel_pred = model.predict_parallel(&test_x).unwrap();
-        let test_serial_pred = model.predict(&test_x).unwrap();
+        let test_parallel_pred = model
+            .predict_parallel(&test_x)
+            .expect("operation should succeed");
+        let test_serial_pred = model.predict(&test_x).expect("prediction should succeed");
         assert_eq!(test_parallel_pred.len(), 1);
         assert_eq!(test_serial_pred.len(), 1);
         assert_eq!(test_parallel_pred[0], test_serial_pred[0]);

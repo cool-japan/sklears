@@ -189,9 +189,11 @@ mod tests {
 
         let calibrator = TemperatureScalingCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 4);
         assert!(calibrator.temperature() > 0.0);
@@ -214,9 +216,11 @@ mod tests {
 
         let calibrator = TemperatureScalingCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 4);
 
@@ -237,9 +241,11 @@ mod tests {
 
         let calibrator = TemperatureScalingCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 4);
 
@@ -256,9 +262,11 @@ mod tests {
 
         let calibrator = TemperatureScalingCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&array![0.5]).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&array![0.5])
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 1);
         assert!(calibrated[0] >= 0.0 && calibrated[0] <= 1.0);
 
@@ -268,9 +276,11 @@ mod tests {
 
         let calibrator = TemperatureScalingCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 3);
     }
 
@@ -282,9 +292,11 @@ mod tests {
 
         let calibrator = TemperatureScalingCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         // Temperature should be close to 1.0 for well-calibrated data
         assert!((calibrator.temperature() - 1.0).abs() < 2.0);

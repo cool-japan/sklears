@@ -471,7 +471,7 @@ impl SklearnComparisonFramework {
 
     fn compute_median(&self, y: &Array1<Float>) -> Float {
         let mut sorted_y: Vec<Float> = y.to_vec();
-        sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_y.len();
         if n % 2 == 0 {
@@ -483,7 +483,7 @@ impl SklearnComparisonFramework {
 
     fn compute_quantile(&self, y: &Array1<Float>, quantile: Float) -> Float {
         let mut sorted_y: Vec<Float> = y.to_vec();
-        sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let index = (quantile * (sorted_y.len() - 1) as Float) as usize;
         sorted_y[index.min(sorted_y.len() - 1)]
@@ -576,13 +576,13 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 0, 1, 1]; // Class 0 is more frequent
 
         let framework = SklearnComparisonFramework::new().with_tolerance(1e-10);
         let results = framework
             .compare_dummy_classifier_strategies(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!results.is_empty());
 
@@ -590,31 +590,37 @@ mod tests {
         let most_frequent_result = results
             .iter()
             .find(|r| r.strategy == "MostFrequent")
-            .unwrap();
+            .expect("operation should succeed");
         assert!(most_frequent_result.is_equivalent);
         assert_abs_diff_eq!(most_frequent_result.prediction_mae, 0.0, epsilon = 1e-10);
     }
 
     #[test]
     fn test_comparison_framework_regressor() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0]; // Simple values
 
         let framework = SklearnComparisonFramework::new().with_tolerance(1e-10);
         let results = framework
             .compare_dummy_regressor_strategies(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!results.is_empty());
 
         // Mean strategy should be exact
-        let mean_result = results.iter().find(|r| r.strategy == "Mean").unwrap();
+        let mean_result = results
+            .iter()
+            .find(|r| r.strategy == "Mean")
+            .expect("operation should succeed");
         assert!(mean_result.is_equivalent);
         assert_abs_diff_eq!(mean_result.prediction_mae, 0.0, epsilon = 1e-10);
 
         // Median strategy should be exact
-        let median_result = results.iter().find(|r| r.strategy == "Median").unwrap();
+        let median_result = results
+            .iter()
+            .find(|r| r.strategy == "Median")
+            .expect("operation should succeed");
         assert!(median_result.is_equivalent);
         assert_abs_diff_eq!(median_result.prediction_mae, 0.0, epsilon = 1e-10);
     }

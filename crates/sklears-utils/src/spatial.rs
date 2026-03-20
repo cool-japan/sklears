@@ -147,7 +147,7 @@ impl KdTree {
         points.sort_by(|a, b| {
             a.0.coordinates[split_dim]
                 .partial_cmp(&b.0.coordinates[split_dim])
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         let median = points.len() / 2;
@@ -587,7 +587,7 @@ impl QuadNode {
                 }
             }
 
-            if best.is_none() || dist_sq < best.as_ref().unwrap().2 {
+            if best.is_none() || dist_sq < best.as_ref().expect("operation should succeed").2 {
                 best = Some((point.clone(), *data, dist_sq));
             }
         }
@@ -596,7 +596,10 @@ impl QuadNode {
         if let Some(children) = &self.children {
             for child in children.iter() {
                 if let Some(child_best) = child.nearest_neighbor(query, max_distance) {
-                    if best.is_none() || child_best.2 * child_best.2 < best.as_ref().unwrap().2 {
+                    if best.is_none()
+                        || child_best.2 * child_best.2
+                            < best.as_ref().expect("operation should succeed").2
+                    {
                         best = Some((child_best.0, child_best.1, child_best.2 * child_best.2));
                     }
                 }
@@ -730,7 +733,7 @@ impl OctNode {
             }
         }
 
-        self.children = Some(children.try_into().unwrap());
+        self.children = Some(children.try_into().expect("operation should succeed"));
     }
 
     fn insert_into_children(
@@ -1290,7 +1293,7 @@ pub mod geographic {
                 GeoPoint::new(1.0, 1.0),
             ];
 
-            let centroid = GeoUtils::centroid(&points).unwrap();
+            let centroid = GeoUtils::centroid(&points).expect("operation should succeed");
             assert!((centroid.latitude - 0.5).abs() < 0.1);
             assert!((centroid.longitude - 0.5).abs() < 0.1);
         }
@@ -1380,7 +1383,7 @@ mod tests {
         let result = kd_tree.nearest_neighbor(&query);
 
         assert!(result.is_some());
-        let (_, data, _) = result.unwrap();
+        let (_, data, _) = result.expect("operation should succeed");
         // Should find one of the nearby points
         assert!(data <= 5);
 

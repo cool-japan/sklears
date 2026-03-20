@@ -778,21 +778,21 @@ mod tests {
 
     #[test]
     fn test_efficient_file_reader_writer() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let path = temp_file.path();
 
         // Write test data
-        let mut writer = EfficientFileWriter::new(path, None).unwrap();
+        let mut writer = EfficientFileWriter::new(path, None).expect("operation should succeed");
         writer
             .write_lines(vec!["line1".to_string(), "line2".to_string()])
-            .unwrap();
-        writer.flush().unwrap();
+            .expect("operation should succeed");
+        writer.flush().expect("operation should succeed");
         drop(writer);
 
         // Read test data
-        let mut reader = EfficientFileReader::new(path, None).unwrap();
+        let mut reader = EfficientFileReader::new(path, None).expect("operation should succeed");
         let lines: Result<Vec<_>, _> = reader.read_lines().collect();
-        let lines = lines.unwrap();
+        let lines = lines.expect("operation should succeed");
 
         assert_eq!(lines.len(), 2);
         assert_eq!(lines[0], "line1");
@@ -801,17 +801,20 @@ mod tests {
 
     #[test]
     fn test_array_io() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let path = temp_file.path();
 
         // Create test array
-        let original = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let original = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
         // Write as CSV
-        FormatConverter::arrays_to_csv(path, &original, None, ',').unwrap();
+        FormatConverter::arrays_to_csv(path, &original, None, ',')
+            .expect("operation should succeed");
 
         // Read back as CSV
-        let (header, loaded) = FormatConverter::csv_to_arrays(path, ',', false).unwrap();
+        let (header, loaded) =
+            FormatConverter::csv_to_arrays(path, ',', false).expect("operation should succeed");
         assert!(header.is_none());
         assert_eq!(original.shape(), loaded.shape());
         assert!((original - loaded).mapv(f64::abs).sum() < 1e-10);
@@ -819,11 +822,14 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let original = Array2::from_shape_vec((2, 3), vec![1.1, 2.2, 3.3, 4.4, 5.5, 6.6]).unwrap();
+        let original = Array2::from_shape_vec((2, 3), vec![1.1, 2.2, 3.3, 4.4, 5.5, 6.6])
+            .expect("operation should succeed");
 
         // Serialize and deserialize
-        let serialized = SerializationUtils::serialize_array2(&original).unwrap();
-        let deserialized = SerializationUtils::deserialize_array2(&serialized).unwrap();
+        let serialized =
+            SerializationUtils::serialize_array2(&original).expect("operation should succeed");
+        let deserialized =
+            SerializationUtils::deserialize_array2(&serialized).expect("operation should succeed");
 
         assert_eq!(original.shape(), deserialized.shape());
         assert!((original - deserialized).mapv(f64::abs).sum() < 1e-10);
@@ -851,7 +857,7 @@ mod tests {
                 chunks.push(chunk.to_vec());
                 Ok(())
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(chunks.len(), 3);
         assert_eq!(&chunks[0], b"chunk1");
@@ -861,16 +867,17 @@ mod tests {
 
     #[test]
     fn test_format_conversion() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let path = temp_file.path();
 
         // Create CSV content with only numeric data
-        std::fs::write(path, "age,score\n25,95.5\n30,87.2").unwrap();
+        std::fs::write(path, "age,score\n25,95.5\n30,87.2").expect("operation should succeed");
 
-        let (header, data) = FormatConverter::csv_to_arrays(path, ',', true).unwrap();
+        let (header, data) =
+            FormatConverter::csv_to_arrays(path, ',', true).expect("operation should succeed");
 
         assert!(header.is_some());
-        let header = header.unwrap();
+        let header = header.expect("operation should succeed");
         assert_eq!(header, vec!["age", "score"]);
 
         assert_eq!(data.shape(), &[2, 2]);
@@ -889,7 +896,7 @@ mod tests {
             "targets": [[5.0], [6.0]]
         }"#;
 
-        let arrays = FormatConverter::json_to_arrays(json_data).unwrap();
+        let arrays = FormatConverter::json_to_arrays(json_data).expect("operation should succeed");
 
         assert_eq!(arrays.len(), 2);
         assert!(arrays.contains_key("features"));
@@ -904,7 +911,8 @@ mod tests {
         let mut array_refs = HashMap::new();
         array_refs.insert("features".to_string(), features);
 
-        let json_result = FormatConverter::arrays_to_json(&array_refs).unwrap();
+        let json_result =
+            FormatConverter::arrays_to_json(&array_refs).expect("operation should succeed");
         assert!(json_result.contains("features"));
         assert!(json_result.contains("1.0"));
     }
@@ -919,11 +927,11 @@ mod tests {
           key: "hello"
         "#;
 
-        let map = FormatConverter::yaml_to_map(yaml_data).unwrap();
+        let map = FormatConverter::yaml_to_map(yaml_data).expect("operation should succeed");
         assert!(map.contains_key("name"));
         assert!(map.contains_key("value"));
 
-        let yaml_result = FormatConverter::map_to_yaml(&map).unwrap();
+        let yaml_result = FormatConverter::map_to_yaml(&map).expect("operation should succeed");
         assert!(yaml_result.contains("name"));
         assert!(yaml_result.contains("42"));
     }
@@ -939,11 +947,11 @@ mod tests {
         key = "hello"
         "#;
 
-        let map = FormatConverter::toml_to_map(toml_data).unwrap();
+        let map = FormatConverter::toml_to_map(toml_data).expect("operation should succeed");
         assert!(map.contains_key("name"));
         assert!(map.contains_key("value"));
 
-        let toml_result = FormatConverter::map_to_toml(&map).unwrap();
+        let toml_result = FormatConverter::map_to_toml(&map).expect("operation should succeed");
         assert!(toml_result.contains("name"));
         assert!(toml_result.contains("42"));
     }
@@ -957,13 +965,14 @@ mod tests {
             <value>42</value>
         </root>"#;
 
-        let map = FormatConverter::xml_to_simple_map(xml_data).unwrap();
+        let map = FormatConverter::xml_to_simple_map(xml_data).expect("operation should succeed");
         assert!(map.contains_key("name"));
         assert!(map.contains_key("value"));
         assert_eq!(map["name"], "test");
         assert_eq!(map["value"], "42");
 
-        let xml_result = FormatConverter::simple_map_to_xml(&map, "root").unwrap();
+        let xml_result =
+            FormatConverter::simple_map_to_xml(&map, "root").expect("operation should succeed");
         assert!(xml_result.contains("<name>test</name>"));
         assert!(xml_result.contains("<value>42</value>"));
     }

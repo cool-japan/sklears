@@ -6,7 +6,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -203,7 +203,7 @@ where
         // Add Gaussian perturbations
         for j in 0..n_features {
             let std_dev = X_train.column(j).std(0.0) * 0.1; // 10% of feature std
-            let noise: Float = rng.gen_range(-std_dev..std_dev + 1.0);
+            let noise: Float = rng.random_range(-std_dev..std_dev + 1.0);
             perturbed[j] += noise;
             distance += noise * noise;
         }
@@ -461,7 +461,7 @@ where
     }
 
     // Sort by distance
-    distances_with_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    distances_with_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
     // Select exemplars (closest and furthest)
     let n_exemplars = config.n_neighbors.min(X_train.nrows());
@@ -594,7 +594,7 @@ fn find_neighborhood(
     }
 
     // Sort by distance and take top k
-    distances_with_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    distances_with_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
     distances_with_indices.truncate(n_neighbors);
 
     let indices: Vec<usize> = distances_with_indices.iter().map(|(i, _)| *i).collect();
@@ -663,7 +663,7 @@ fn fit_weighted_linear_model(
 
     // Calculate intercept
     let y_mean = y.iter().sum::<Float>() / y.len() as Float;
-    let x_means = X.mean_axis(Axis(0)).unwrap();
+    let x_means = X.mean_axis(Axis(0)).expect("operation should succeed");
     let intercept = y_mean - coefficients.dot(&x_means);
 
     // Calculate R² as fidelity measure
@@ -742,8 +742,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result =
-            explain_locally(&simple_model, &X_train.view(), &instance.view(), &config).unwrap();
+        let result = explain_locally(&simple_model, &X_train.view(), &instance.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.feature_importance.len(), 2);
         assert!(result.linear_coefficients.is_some());
@@ -765,14 +765,16 @@ mod tests {
             ..Default::default()
         };
 
-        let result =
-            explain_locally(&simple_model, &X_train.view(), &instance.view(), &config).unwrap();
+        let result = explain_locally(&simple_model, &X_train.view(), &instance.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.feature_importance.len(), 2);
         assert!(result.linear_coefficients.is_some());
 
         // Should approximate gradients [2.0, 0.5]
-        let coeffs = result.linear_coefficients.unwrap();
+        let coeffs = result
+            .linear_coefficients
+            .expect("operation should succeed");
         assert!((coeffs[0] - 2.0).abs() < 0.2);
         assert!((coeffs[1] - 0.5).abs() < 0.2);
     }
@@ -788,8 +790,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result =
-            explain_locally(&simple_model, &X_train.view(), &instance.view(), &config).unwrap();
+        let result = explain_locally(&simple_model, &X_train.view(), &instance.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.feature_importance.len(), 2);
         assert!(result.prototypes.is_some());
@@ -807,8 +809,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result =
-            explain_locally(&simple_model, &X_train.view(), &instance.view(), &config).unwrap();
+        let result = explain_locally(&simple_model, &X_train.view(), &instance.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.feature_importance.len(), 2);
         assert!(result.prototypes.is_some());
@@ -826,8 +828,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result =
-            explain_locally(&simple_model, &X_train.view(), &instance.view(), &config).unwrap();
+        let result = explain_locally(&simple_model, &X_train.view(), &instance.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.feature_importance.len(), 2);
         assert!(result.prototypes.is_some());

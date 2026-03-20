@@ -504,7 +504,7 @@ fn ks_test_uniform(data: &[Float]) -> Float {
     }
 
     let mut sorted_data = data.to_vec();
-    sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let n = sorted_data.len() as Float;
     let mut max_diff: Float = 0.0;
@@ -684,7 +684,7 @@ pub fn bootstrap_calibration_confidence_intervals(
     }
 
     // Sort bootstrap ECEs
-    bootstrap_eces.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    bootstrap_eces.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     // Calculate percentiles for confidence interval
     let alpha = 1.0 - confidence_level;
@@ -724,7 +724,11 @@ pub fn advanced_adaptive_calibration_error(
 
     // Create sorted indices by probability
     let mut indices: Vec<usize> = (0..n_samples).collect();
-    indices.sort_by(|&a, &b| y_prob[a].partial_cmp(&y_prob[b]).unwrap());
+    indices.sort_by(|&a, &b| {
+        y_prob[a]
+            .partial_cmp(&y_prob[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let mut total_error = 0.0;
     let mut processed_samples = 0;
@@ -779,7 +783,7 @@ fn create_uniform_bins(n_bins: usize) -> Array1<Float> {
 
 fn create_quantile_bins(probabilities: &Array1<Float>, n_bins: usize) -> Array1<Float> {
     let mut sorted_probs: Vec<Float> = probabilities.to_vec();
-    sorted_probs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_probs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let mut boundaries = Array1::zeros(n_bins + 1);
     boundaries[0] = 0.0;
@@ -822,7 +826,8 @@ mod tests {
         let y_prob = array![0.1, 0.3, 0.7, 0.9];
         let config = CalibrationMetricsConfig::default();
 
-        let ece = expected_calibration_error(&y_true, &y_prob, &config).unwrap();
+        let ece = expected_calibration_error(&y_true, &y_prob, &config)
+            .expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&ece));
     }
@@ -833,7 +838,8 @@ mod tests {
         let y_prob = array![0.1, 0.3, 0.7, 0.9];
         let config = CalibrationMetricsConfig::default();
 
-        let mce = maximum_calibration_error(&y_true, &y_prob, &config).unwrap();
+        let mce =
+            maximum_calibration_error(&y_true, &y_prob, &config).expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&mce));
     }
@@ -847,7 +853,8 @@ mod tests {
             bin_strategy: BinStrategy::Uniform,
         };
 
-        let diagram = reliability_diagram(&y_true, &y_prob, &config).unwrap();
+        let diagram =
+            reliability_diagram(&y_true, &y_prob, &config).expect("operation should succeed");
 
         assert_eq!(diagram.bin_boundaries.len(), 5);
         assert_eq!(diagram.bin_mean_pred.len(), 4);
@@ -861,7 +868,8 @@ mod tests {
         let y_prob = array![0.1, 0.3, 0.7, 0.9];
         let config = CalibrationMetricsConfig::default();
 
-        let decomp = brier_score_decomposition(&y_true, &y_prob, &config).unwrap();
+        let decomp =
+            brier_score_decomposition(&y_true, &y_prob, &config).expect("operation should succeed");
 
         assert!(decomp.brier_score >= 0.0);
         assert!(decomp.reliability >= 0.0);
@@ -880,8 +888,10 @@ mod tests {
         let y_prob = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
         let config = CalibrationMetricsConfig::default();
 
-        let ece = expected_calibration_error(&y_true, &y_prob, &config).unwrap();
-        let mce = maximum_calibration_error(&y_true, &y_prob, &config).unwrap();
+        let ece = expected_calibration_error(&y_true, &y_prob, &config)
+            .expect("operation should succeed");
+        let mce =
+            maximum_calibration_error(&y_true, &y_prob, &config).expect("operation should succeed");
 
         // Should be very small for perfect calibration
         assert!(ece < 1e-10);
@@ -893,7 +903,8 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 0, 1];
         let y_prob = array![0.1, 0.3, 0.7, 0.9, 0.2, 0.8];
 
-        let chi_square = hosmer_lemeshow_test(&y_true, &y_prob, 3).unwrap();
+        let chi_square =
+            hosmer_lemeshow_test(&y_true, &y_prob, 3).expect("operation should succeed");
 
         assert!(chi_square >= 0.0);
     }
@@ -903,7 +914,8 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 0, 1, 1, 0];
         let y_prob = array![0.1, 0.2, 0.8, 0.9, 0.3, 0.7, 0.6, 0.4];
 
-        let (chi_square, p_value) = chi_squared_calibration_test(&y_true, &y_prob, 4).unwrap();
+        let (chi_square, p_value) =
+            chi_squared_calibration_test(&y_true, &y_prob, 4).expect("operation should succeed");
 
         assert!(chi_square >= 0.0);
         assert!((0.0..=1.0).contains(&p_value));
@@ -914,7 +926,8 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 0, 1, 1, 0];
         let y_prob = array![0.1, 0.2, 0.8, 0.9, 0.3, 0.7, 0.6, 0.4];
 
-        let (ks_stat, p_value) = kolmogorov_smirnov_calibration_test(&y_true, &y_prob).unwrap();
+        let (ks_stat, p_value) = kolmogorov_smirnov_calibration_test(&y_true, &y_prob)
+            .expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&ks_stat));
         assert!((0.0..=1.0).contains(&p_value));
@@ -926,8 +939,10 @@ mod tests {
         let y_true = array![0, 0, 0, 0, 1, 1, 1, 1];
         let y_prob = array![0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9];
 
-        let (chi_square, chi_p) = chi_squared_calibration_test(&y_true, &y_prob, 4).unwrap();
-        let (ks_stat, ks_p) = kolmogorov_smirnov_calibration_test(&y_true, &y_prob).unwrap();
+        let (chi_square, chi_p) =
+            chi_squared_calibration_test(&y_true, &y_prob, 4).expect("operation should succeed");
+        let (ks_stat, ks_p) = kolmogorov_smirnov_calibration_test(&y_true, &y_prob)
+            .expect("operation should succeed");
 
         // For well-calibrated data, we expect higher p-values (less significant)
         assert!(chi_square >= 0.0);
@@ -942,8 +957,10 @@ mod tests {
         let y_true = array![0, 0, 1, 1];
         let y_prob = array![0.01, 0.05, 0.95, 0.99];
 
-        let (chi_square, chi_p) = chi_squared_calibration_test(&y_true, &y_prob, 2).unwrap();
-        let (ks_stat, ks_p) = kolmogorov_smirnov_calibration_test(&y_true, &y_prob).unwrap();
+        let (chi_square, chi_p) =
+            chi_squared_calibration_test(&y_true, &y_prob, 2).expect("operation should succeed");
+        let (ks_stat, ks_p) = kolmogorov_smirnov_calibration_test(&y_true, &y_prob)
+            .expect("operation should succeed");
 
         // For poorly calibrated data, we expect higher test statistics
         assert!(chi_square >= 0.0);
@@ -961,7 +978,8 @@ mod tests {
             bin_strategy: BinStrategy::Uniform,
         };
 
-        let (test_stats, p_values) = binomial_calibration_test(&y_true, &y_prob, &config).unwrap();
+        let (test_stats, p_values) =
+            binomial_calibration_test(&y_true, &y_prob, &config).expect("operation should succeed");
 
         assert_eq!(test_stats.len(), 3);
         assert_eq!(p_values.len(), 3);
@@ -980,7 +998,7 @@ mod tests {
 
         let (lower, upper) =
             bootstrap_calibration_confidence_intervals(&y_true, &y_prob, &config, 0.95, 100)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(lower >= 0.0);
         assert!(upper <= 1.0);
@@ -992,7 +1010,8 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 0, 1, 1, 0, 1, 0];
         let y_prob = array![0.1, 0.2, 0.8, 0.9, 0.3, 0.7, 0.6, 0.4, 0.85, 0.15];
 
-        let ace = advanced_adaptive_calibration_error(&y_true, &y_prob, 3).unwrap();
+        let ace = advanced_adaptive_calibration_error(&y_true, &y_prob, 3)
+            .expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&ace));
     }

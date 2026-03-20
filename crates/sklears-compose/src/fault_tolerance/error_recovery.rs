@@ -369,13 +369,13 @@ impl ErrorRecoverySystem {
 
     /// Register component for recovery management
     pub async fn register_component(&self, component: ComponentState) {
-        let mut components = self.components.write().unwrap();
+        let mut components = self.components.write().unwrap_or_else(|e| e.into_inner());
         components.insert(component.component_id.clone(), component);
     }
 
     /// Unregister component from recovery management
     pub async fn unregister_component(&self, component_id: &str) {
-        let mut components = self.components.write().unwrap();
+        let mut components = self.components.write().unwrap_or_else(|e| e.into_inner());
         components.remove(component_id);
     }
 
@@ -383,7 +383,7 @@ impl ErrorRecoverySystem {
     pub async fn attempt_recovery(&self, error_context: ErrorContext) -> Result<RecoveryResult, RecoveryError> {
         // Check concurrent recovery limit
         {
-            let active = self.active_recoveries.read().unwrap();
+            let active = self.active_recoveries.read().unwrap_or_else(|e| e.into_inner());
             if active.len() >= self.config.max_concurrent_recoveries as usize {
                 return Err(RecoveryError::TooManyConcurrentRecoveries);
             }
@@ -408,7 +408,7 @@ impl ErrorRecoverySystem {
 
         // Register active recovery
         {
-            let mut active = self.active_recoveries.write().unwrap();
+            let mut active = self.active_recoveries.write().unwrap_or_else(|e| e.into_inner());
             active.insert(recovery_id.clone(), attempt.clone());
         }
 
@@ -431,13 +431,13 @@ impl ErrorRecoverySystem {
 
         // Remove from active recoveries
         {
-            let mut active = self.active_recoveries.write().unwrap();
+            let mut active = self.active_recoveries.write().unwrap_or_else(|e| e.into_inner());
             active.remove(&recovery_id);
         }
 
         // Record in history
         {
-            let mut history = self.recovery_history.write().unwrap();
+            let mut history = self.recovery_history.write().unwrap_or_else(|e| e.into_inner());
             history.push_back(attempt.clone());
             if history.len() > 100 { // Keep last 100 attempts
                 history.pop_front();
@@ -628,7 +628,7 @@ impl ErrorRecoverySystem {
             self.create_state_snapshot().await;
         }
 
-        let snapshots = self.state_snapshots.read().unwrap();
+        let snapshots = self.state_snapshots.read().unwrap_or_else(|e| e.into_inner());
         if snapshots.len() >= rollback_depth as usize {
             let rollback_index = snapshots.len() - rollback_depth as usize;
             if let Some(rollback_state) = snapshots.get(rollback_index) {
@@ -746,7 +746,7 @@ impl ErrorRecoverySystem {
 
     /// Component lifecycle operations (simplified for demo)
     async fn restart_component(&self, component_id: &str, _preserve_state: bool) -> bool {
-        let mut components = self.components.write().unwrap();
+        let mut components = self.components.write().unwrap_or_else(|e| e.into_inner());
         if let Some(component) = components.get_mut(component_id) {
             component.status = ComponentStatus::Healthy;
             component.last_update = Instant::now();
@@ -756,7 +756,7 @@ impl ErrorRecoverySystem {
     }
 
     async fn reset_component(&self, component_id: &str) -> bool {
-        let mut components = self.components.write().unwrap();
+        let mut components = self.components.write().unwrap_or_else(|e| e.into_inner());
         if let Some(component) = components.get_mut(component_id) {
             component.status = ComponentStatus::Healthy;
             component.configuration.clear();
@@ -768,7 +768,7 @@ impl ErrorRecoverySystem {
     }
 
     async fn system_health_check(&self) -> bool {
-        let components = self.components.read().unwrap();
+        let components = self.components.read().unwrap_or_else(|e| e.into_inner());
         let healthy_count = components.values()
             .filter(|c| c.status == ComponentStatus::Healthy)
             .count();
@@ -786,7 +786,7 @@ impl ErrorRecoverySystem {
     async fn create_state_snapshot(&self) {
         let system_state = self.get_current_system_state().await;
 
-        let mut snapshots = self.state_snapshots.write().unwrap();
+        let mut snapshots = self.state_snapshots.write().unwrap_or_else(|e| e.into_inner());
         snapshots.push_back(system_state);
 
         // Keep only the configured number of snapshots
@@ -796,7 +796,7 @@ impl ErrorRecoverySystem {
     }
 
     async fn get_current_system_state(&self) -> SystemState {
-        let components = self.components.read().unwrap();
+        let components = self.components.read().unwrap_or_else(|e| e.into_inner());
         SystemState {
             state_id: Uuid::new_v4().to_string(),
             timestamp: Instant::now(),
@@ -821,7 +821,7 @@ impl ErrorRecoverySystem {
 
     /// Update recovery metrics
     async fn update_metrics(&self, attempt: &RecoveryAttempt, strategy: &RecoveryStrategy, error_context: &ErrorContext) {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
 
         metrics.total_recoveries += 1;
 
@@ -859,7 +859,7 @@ impl ErrorRecoverySystem {
 
     /// Get current metrics
     pub async fn get_metrics(&self) -> RecoveryMetrics {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get system health status
@@ -867,7 +867,7 @@ impl ErrorRecoverySystem {
         let mut status = HashMap::new();
         status.insert("system_id".to_string(), self.system_id.clone());
 
-        let components = self.components.read().unwrap();
+        let components = self.components.read().unwrap_or_else(|e| e.into_inner());
         let healthy_components = components.values()
             .filter(|c| c.status == ComponentStatus::Healthy)
             .count();
@@ -880,10 +880,10 @@ impl ErrorRecoverySystem {
             status.insert("health_percentage".to_string(), format!("{:.1}", health_percentage));
         }
 
-        let active = self.active_recoveries.read().unwrap();
+        let active = self.active_recoveries.read().unwrap_or_else(|e| e.into_inner());
         status.insert("active_recoveries".to_string(), active.len().to_string());
 
-        let snapshots = self.state_snapshots.read().unwrap();
+        let snapshots = self.state_snapshots.read().unwrap_or_else(|e| e.into_inner());
         status.insert("available_snapshots".to_string(), snapshots.len().to_string());
 
         status
@@ -947,7 +947,7 @@ mod tests {
             details: Vec::new(),
         };
 
-        let result = system.attempt_recovery(error_context).await.unwrap();
+        let result = system.attempt_recovery(error_context).await.unwrap_or_default();
         assert!(result.success);
         assert!(!result.actions_executed.is_empty());
     }
@@ -1006,7 +1006,7 @@ mod tests {
         // Create initial snapshot
         system.create_state_snapshot().await;
 
-        let snapshots = system.state_snapshots.read().unwrap();
+        let snapshots = system.state_snapshots.read().unwrap_or_else(|e| e.into_inner());
         assert_eq!(snapshots.len(), 1);
 
         drop(snapshots);
@@ -1016,7 +1016,7 @@ mod tests {
             system.create_state_snapshot().await;
         }
 
-        let snapshots = system.state_snapshots.read().unwrap();
+        let snapshots = system.state_snapshots.read().unwrap_or_else(|e| e.into_inner());
         assert!(snapshots.len() <= system.config.max_snapshots as usize);
     }
 
@@ -1034,15 +1034,15 @@ mod tests {
 
         system.register_component(component).await;
 
-        let components = system.components.read().unwrap();
+        let components = system.components.read().unwrap_or_else(|e| e.into_inner());
         assert!(components.contains_key("test_component"));
-        assert_eq!(components.get("test_component").unwrap().status, ComponentStatus::Healthy);
+        assert_eq!(components.get("test_component").unwrap_or_default().status, ComponentStatus::Healthy);
 
         drop(components);
 
         system.unregister_component("test_component").await;
 
-        let components = system.components.read().unwrap();
+        let components = system.components.read().unwrap_or_else(|e| e.into_inner());
         assert!(!components.contains_key("test_component"));
     }
 
@@ -1107,8 +1107,8 @@ mod tests {
         system.register_component(failed_component).await;
 
         let health = system.get_health_status().await;
-        assert_eq!(health.get("total_components").unwrap(), "2");
-        assert_eq!(health.get("healthy_components").unwrap(), "1");
-        assert_eq!(health.get("health_percentage").unwrap(), "50.0");
+        assert_eq!(health.get("total_components").unwrap_or_default(), "2");
+        assert_eq!(health.get("healthy_components").unwrap_or_default(), "1");
+        assert_eq!(health.get("health_percentage").unwrap_or_default(), "50.0");
     }
 }

@@ -1010,7 +1010,7 @@ mod tests {
     fn test_degree_centrality() {
         let adjacency =
             Array2::from_shape_vec((3, 3), vec![0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let centrality = compute_degree_centrality(&adjacency.view());
 
@@ -1029,13 +1029,13 @@ mod tests {
                 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let features = Array2::from_shape_vec(
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 3.0, 1.0, 3.0, 1.0, 4.0, 1.0, 4.0, 2.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let target = Array1::from_vec(vec![0.0, 1.0, 1.0, 0.0]);
 
@@ -1044,8 +1044,12 @@ mod tests {
             .with_adjacency(adjacency)
             .build();
 
-        let trained = selector.fit(&features, &target).unwrap();
-        let transformed = trained.transform(&features).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 2);
         assert_eq!(transformed.nrows(), 4);
@@ -1055,13 +1059,13 @@ mod tests {
     fn test_get_support() {
         let adjacency =
             Array2::from_shape_vec((3, 3), vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let features = Array2::from_shape_vec(
             (3, 4),
             vec![1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 1.0, 5.0, 3.0, 1.0, 4.0, 2.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let target = Array1::from_vec(vec![0.0, 1.0, 1.0]);
 
@@ -1070,8 +1074,10 @@ mod tests {
             .with_adjacency(adjacency)
             .build();
 
-        let trained = selector.fit(&features, &target).unwrap();
-        let support = trained.get_support().unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
+        let support = trained.get_support().expect("operation should succeed");
 
         assert_eq!(support.len(), 4);
         assert_eq!(support.iter().filter(|&&x| x).count(), 2);
@@ -1085,7 +1091,7 @@ mod tests {
                 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let clustering = compute_clustering_coefficients(&adjacency.view());
 
@@ -1099,7 +1105,7 @@ mod tests {
     fn test_pagerank_centrality() {
         let adjacency =
             Array2::from_shape_vec((3, 3), vec![0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let pagerank = compute_pagerank_centrality(&adjacency.view(), 0.85, 100, 1e-6);
 

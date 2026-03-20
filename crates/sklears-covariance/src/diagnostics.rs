@@ -100,7 +100,11 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
         // Compute norms and other metrics
         let frobenius_norm = frobenius_norm(covariance);
         let spectral_radius = spectral_radius_estimate(covariance, 100)?;
-        let rank = rank_estimate(covariance, F::from(1e-6).unwrap());
+        let rank = rank_estimate(
+            covariance,
+            F::from(1e-6)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?,
+        );
         let is_diagonally_dominant = is_diagonally_dominant(covariance);
 
         // Analyze diagonal elements
@@ -133,25 +137,26 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
         let n = covariance.nrows();
         let mut diag_elements: Vec<F> = (0..n).map(|i| covariance[[i, i]]).collect();
 
-        diag_elements.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        diag_elements.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let sum: F = diag_elements
             .iter()
             .copied()
             .fold(F::zero(), |acc, x| acc + x);
-        let mean = sum / F::from(n).unwrap();
+        let mean = sum / F::from(n).expect("operation should succeed");
 
         let variance = diag_elements
             .iter()
             .map(|&x| (x - mean) * (x - mean))
             .fold(F::zero(), |acc, x| acc + x)
-            / F::from(n).unwrap();
+            / F::from(n).expect("operation should succeed");
         let std_dev = variance.sqrt();
 
         let min = diag_elements[0];
         let max = diag_elements[n - 1];
         let median = if n % 2 == 0 {
-            (diag_elements[n / 2 - 1] + diag_elements[n / 2]) / F::from(2.0).unwrap()
+            (diag_elements[n / 2 - 1] + diag_elements[n / 2])
+                / F::from(2.0).expect("operation should succeed")
         } else {
             diag_elements[n / 2]
         };
@@ -179,27 +184,27 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
             }
         }
 
-        off_diag_elements.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        off_diag_elements.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n_elements = off_diag_elements.len();
         let sum: F = off_diag_elements
             .iter()
             .copied()
             .fold(F::zero(), |acc, x| acc + x);
-        let mean = sum / F::from(n_elements).unwrap();
+        let mean = sum / F::from(n_elements).expect("operation should succeed");
 
         let variance = off_diag_elements
             .iter()
             .map(|&x| (x - mean) * (x - mean))
             .fold(F::zero(), |acc, x| acc + x)
-            / F::from(n_elements).unwrap();
+            / F::from(n_elements).expect("operation should succeed");
         let std_dev = variance.sqrt();
 
         let min = off_diag_elements[0];
         let max = off_diag_elements[n_elements - 1];
         let median = if n_elements % 2 == 0 {
             (off_diag_elements[n_elements / 2 - 1] + off_diag_elements[n_elements / 2])
-                / F::from(2.0).unwrap()
+                / F::from(2.0).expect("operation should succeed")
         } else {
             off_diag_elements[n_elements / 2]
         };
@@ -208,7 +213,7 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
             .iter()
             .map(|x| x.abs())
             .fold(F::zero(), |acc, x| acc + x)
-            / F::from(n_elements).unwrap();
+            / F::from(n_elements).expect("operation should succeed");
 
         OffDiagonalStats {
             mean,
@@ -235,7 +240,7 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
                     let corr = cov_ij / (var_i * var_j).sqrt();
                     correlations.push(corr);
 
-                    if corr.abs() > F::from(0.8).unwrap() {
+                    if corr.abs() > F::from(0.8).expect("operation should succeed") {
                         n_high += 1;
                     }
                 }
@@ -251,7 +256,7 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
             };
         }
 
-        correlations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        correlations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let max_correlation = correlations[correlations.len() - 1];
         let min_correlation = correlations[0];
@@ -260,7 +265,7 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
             .iter()
             .map(|x| x.abs())
             .fold(F::zero(), |acc, x| acc + x)
-            / F::from(correlations.len()).unwrap();
+            / F::from(correlations.len()).expect("operation should succeed");
 
         CorrelationDiagnostics {
             max_correlation,
@@ -291,9 +296,9 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
         }
 
         // Check condition number
-        if properties.condition_number > F::from(1e10).unwrap() {
+        if properties.condition_number > F::from(1e10).expect("operation should succeed") {
             warnings += 1;
-        } else if properties.condition_number > F::from(1e15).unwrap() {
+        } else if properties.condition_number > F::from(1e15).expect("operation should succeed") {
             issues += 1;
         }
 
@@ -402,7 +407,7 @@ impl<F: NdFloat + std::fmt::Display> CovarianceDiagnostics<F> {
     }
 
     fn print_quality_indicators(&self) {
-        let condition_threshold = F::from(1e10).unwrap();
+        let condition_threshold = F::from(1e10).expect("operation should succeed");
         if self.properties.condition_number > condition_threshold {
             println!("  ⚠️  High condition number - matrix may be ill-conditioned");
         } else {
@@ -467,7 +472,9 @@ pub fn compare_covariance_matrices<F: NdFloat + std::fmt::Display>(
     println!("  Frobenius Norm of Difference: {}", diff_norm);
     println!(
         "  Relative Difference: {:.2}%",
-        (diff_norm / cov1_norm) * F::from(100.0).unwrap()
+        (diff_norm / cov1_norm)
+            * F::from(100.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
     );
 
     // Element-wise statistics
@@ -482,7 +489,11 @@ pub fn compare_covariance_matrices<F: NdFloat + std::fmt::Display>(
                 max_abs_diff = abs_diff;
             }
 
-            if cov1[[i, j]].abs() > F::from(1e-10).unwrap() {
+            if cov1[[i, j]].abs()
+                > F::from(1e-10).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?
+            {
                 let rel_diff = abs_diff / cov1[[i, j]].abs();
                 if rel_diff > max_rel_diff {
                     max_rel_diff = rel_diff;
@@ -494,7 +505,9 @@ pub fn compare_covariance_matrices<F: NdFloat + std::fmt::Display>(
     println!("  Max Absolute Difference: {}", max_abs_diff);
     println!(
         "  Max Relative Difference: {:.2}%",
-        max_rel_diff * F::from(100.0).unwrap()
+        max_rel_diff
+            * F::from(100.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
     );
 
     println!();
@@ -509,7 +522,7 @@ mod tests {
     #[test]
     fn test_diagnostics_valid_matrix() {
         let cov = array![[2.0, 0.5], [0.5, 3.0]];
-        let diagnostics = CovarianceDiagnostics::analyze(&cov).unwrap();
+        let diagnostics = CovarianceDiagnostics::analyze(&cov).expect("operation should succeed");
 
         assert!(diagnostics.properties.is_symmetric);
         assert!(diagnostics.properties.is_positive_semi_definite);
@@ -519,7 +532,7 @@ mod tests {
     #[test]
     fn test_diagnostics_identity_matrix() {
         let cov = Array2::<f64>::eye(5);
-        let diagnostics = CovarianceDiagnostics::analyze(&cov).unwrap();
+        let diagnostics = CovarianceDiagnostics::analyze(&cov).expect("operation should succeed");
 
         assert_eq!(diagnostics.rank, 5);
         assert!(diagnostics.is_diagonally_dominant);
@@ -532,6 +545,7 @@ mod tests {
         let cov2 = array![[1.1, 0.25], [0.25, 1.6]];
 
         // Should not panic
-        compare_covariance_matrices(&cov1, &cov2, "Matrix1", "Matrix2").unwrap();
+        compare_covariance_matrices(&cov1, &cov2, "Matrix1", "Matrix2")
+            .expect("operation should succeed");
     }
 }

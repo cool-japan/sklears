@@ -352,7 +352,7 @@ impl NonparametricNB<Untrained> {
     /// Compute interquartile range
     fn compute_iqr(&self, data: &Array1<f64>) -> f64 {
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_data.len();
         if n == 0 {
@@ -587,9 +587,16 @@ impl Fit<Array2<Float>, Array1<i32>> for NonparametricNB<Untrained> {
 impl NonparametricNB<Trained> {
     /// Compute the unnormalized posterior log probability of X
     fn joint_log_likelihood(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
-        let kdes = self.kdes_.as_ref().unwrap();
-        let class_prior = self.class_prior_.as_ref().unwrap();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let kdes = self.kdes_.as_ref().expect("operation should succeed");
+        let class_prior = self
+            .class_prior_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let n_samples = x.nrows();
         let n_features = x.ncols();
 
@@ -616,13 +623,13 @@ impl NonparametricNB<Trained> {
 impl Predict<Array2<Float>, Array1<i32>> for NonparametricNB<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
         let log_prob = self.joint_log_likelihood(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         Ok(log_prob.map_axis(Axis(1), |row| {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             classes[max_idx]
@@ -634,7 +641,11 @@ impl PredictProba<Array2<Float>, Array2<f64>> for NonparametricNB<Trained> {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
         let log_prob = self.joint_log_likelihood(x)?;
         let n_samples = x.nrows();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut proba = Array2::zeros((n_samples, n_classes));
 
         // Normalize to get probabilities
@@ -675,7 +686,9 @@ impl Score<Array2<Float>, Array1<i32>> for NonparametricNB<Trained> {
 
 impl NaiveBayesMixin for NonparametricNB<Trained> {
     fn class_log_prior(&self) -> &Array1<f64> {
-        self.class_prior_.as_ref().unwrap()
+        self.class_prior_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     fn feature_log_prob(&self) -> &Array2<f64> {
@@ -686,14 +699,14 @@ impl NaiveBayesMixin for NonparametricNB<Trained> {
     }
 
     fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 }
 
 impl NonparametricNB<Trained> {
     /// Get the kernel density estimators for each class and feature
     pub fn kdes(&self) -> &Vec<Vec<KernelDensityEstimator>> {
-        self.kdes_.as_ref().unwrap()
+        self.kdes_.as_ref().expect("operation should succeed")
     }
 
     /// Evaluate feature density for a given class and feature
@@ -732,13 +745,13 @@ mod tests {
         let model = NonparametricNB::new()
             .kernel(KernelType::Gaussian)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         // Non-parametric methods might not achieve perfect accuracy on training data
         assert_eq!(predictions.len(), y.len());
 
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("operation should succeed");
         assert!(score >= 0.5); // Should perform better than random
     }
 
@@ -751,9 +764,9 @@ mod tests {
             .kernel(KernelType::Gaussian)
             .bandwidth_method(BandwidthMethod::Manual { bandwidth: 0.5 })
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let proba = model.predict_proba(&x).unwrap();
+        let proba = model.predict_proba(&x).expect("operation should succeed");
 
         // Check that probabilities sum to 1
         for i in 0..x.nrows() {
@@ -779,9 +792,9 @@ mod tests {
                 .kernel(kernel)
                 .bandwidth_method(BandwidthMethod::Manual { bandwidth: 0.5 })
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
-            let predictions = model.predict(&x).unwrap();
+            let predictions = model.predict(&x).expect("operation should succeed");
             assert_eq!(predictions.len(), y.len());
         }
     }
@@ -810,9 +823,9 @@ mod tests {
             let model = NonparametricNB::new()
                 .bandwidth_method(method)
                 .fit(&x, &y)
-                .unwrap();
+                .expect("operation should succeed");
 
-            let predictions = model.predict(&x).unwrap();
+            let predictions = model.predict(&x).expect("operation should succeed");
             assert_eq!(predictions.len(), y.len());
         }
     }
@@ -837,9 +850,9 @@ mod tests {
                 pilot_bandwidth: 0.5,
             })
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
     }
 }

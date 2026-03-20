@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::StandardNormal;
 use sklears_core::error::{Result, SklearsError};
@@ -181,7 +181,7 @@ impl DistributedRBFSampler {
             .map(|worker_id| {
                 let mut rng = match self.random_state {
                     Some(seed) => StdRng::seed_from_u64(seed + worker_id as u64),
-                    None => StdRng::from_seed(thread_rng().gen()),
+                    None => StdRng::from_seed(thread_rng().random()),
                 };
 
                 let worker_components = if worker_id == self.config.n_workers - 1 {
@@ -203,7 +203,7 @@ impl DistributedRBFSampler {
                 // Generate random bias
                 let mut worker_bias = Array1::zeros(worker_components);
                 for i in 0..worker_components {
-                    worker_bias[i] = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+                    worker_bias[i] = rng.random_range(0.0..2.0 * std::f64::consts::PI);
                 }
 
                 (worker_weights, worker_bias)
@@ -358,14 +358,14 @@ impl DistributedRBFSampler {
     fn create_random_partitions(&self, n_samples: usize) -> Vec<Vec<usize>> {
         let mut rng = match self.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_seed(thread_rng().gen()),
+            None => StdRng::from_seed(thread_rng().random()),
         };
 
         let mut indices: Vec<usize> = (0..n_samples).collect();
 
         // Shuffle indices
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..i + 1);
+            let j = rng.random_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -510,13 +510,13 @@ impl DistributedNystroem {
         let n_samples = x.nrows();
         let mut rng = match self.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_seed(thread_rng().gen()),
+            None => StdRng::from_seed(thread_rng().random()),
         };
 
         // Simple random sampling for now
         let mut indices = Vec::new();
         for _ in 0..self.n_components {
-            indices.push(rng.gen_range(0..n_samples));
+            indices.push(rng.random_range(0..n_samples));
         }
 
         Ok(indices)
@@ -584,8 +584,8 @@ mod tests {
 
         let mut sampler = DistributedRBFSampler::new(100, 0.1).with_random_state(42);
 
-        sampler.fit(&x).unwrap();
-        let features = sampler.transform(&x).unwrap();
+        sampler.fit(&x).expect("operation should succeed");
+        let features = sampler.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert_eq!(features.ncols(), 100);
@@ -622,8 +622,8 @@ mod tests {
 
         let mut nystroem = DistributedNystroem::new(3, 0.1).with_random_state(42);
 
-        nystroem.fit(&x).unwrap();
-        let features = nystroem.transform(&x).unwrap();
+        nystroem.fit(&x).expect("operation should succeed");
+        let features = nystroem.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert_eq!(features.ncols(), 3);
@@ -636,7 +636,9 @@ mod tests {
 
         // Test block partitioning
         sampler.config.partition_strategy = PartitionStrategy::Block;
-        sampler.initialize_workers(10).unwrap();
+        sampler
+            .initialize_workers(10)
+            .expect("operation should succeed");
         assert_eq!(sampler.workers.len(), 2);
         assert_eq!(sampler.workers[0].data_indices.len(), 5);
         assert_eq!(sampler.workers[1].data_indices.len(), 5);
@@ -644,7 +646,9 @@ mod tests {
         // Test random partitioning
         sampler.config.partition_strategy = PartitionStrategy::Random;
         sampler.random_state = Some(42);
-        sampler.initialize_workers(10).unwrap();
+        sampler
+            .initialize_workers(10)
+            .expect("operation should succeed");
         assert_eq!(sampler.workers.len(), 2);
     }
 
@@ -652,7 +656,9 @@ mod tests {
     fn test_worker_stats() {
         let mut sampler = DistributedRBFSampler::new(50, 0.1);
         sampler.config.n_workers = 3;
-        sampler.initialize_workers(12).unwrap();
+        sampler
+            .initialize_workers(12)
+            .expect("operation should succeed");
 
         let stats = sampler.worker_stats();
         assert_eq!(stats.len(), 3);
@@ -666,12 +672,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let mut sampler1 = DistributedRBFSampler::new(50, 0.1).with_random_state(42);
-        sampler1.fit(&x).unwrap();
-        let features1 = sampler1.transform(&x).unwrap();
+        sampler1.fit(&x).expect("operation should succeed");
+        let features1 = sampler1.transform(&x).expect("operation should succeed");
 
         let mut sampler2 = DistributedRBFSampler::new(50, 0.1).with_random_state(42);
-        sampler2.fit(&x).unwrap();
-        let features2 = sampler2.transform(&x).unwrap();
+        sampler2.fit(&x).expect("operation should succeed");
+        let features2 = sampler2.transform(&x).expect("operation should succeed");
 
         // Features should be identical with same random state
         assert!((features1 - features2).mapv(f64::abs).sum() < 1e-10);
@@ -698,8 +704,8 @@ mod tests {
                 .with_config(config)
                 .with_random_state(42);
 
-            sampler.fit(&x).unwrap();
-            let features = sampler.transform(&x).unwrap();
+            sampler.fit(&x).expect("operation should succeed");
+            let features = sampler.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 6);
             assert_eq!(features.ncols(), 50);

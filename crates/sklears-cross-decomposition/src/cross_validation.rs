@@ -65,29 +65,29 @@ impl ScoringFunction {
         match self {
             ScoringFunction::MeanSquaredError => {
                 let diff = y_true - y_pred;
-                diff.mapv(|x| x * x).mean().unwrap()
+                diff.mapv(|x| x * x).mean().expect("operation should succeed")
             }
             ScoringFunction::RootMeanSquaredError => {
                 let diff = y_true - y_pred;
-                diff.mapv(|x| x * x).mean().unwrap().sqrt()
+                diff.mapv(|x| x * x).mean().expect("operation should succeed").sqrt()
             }
             ScoringFunction::MeanAbsoluteError => {
                 let diff = y_true - y_pred;
-                diff.mapv(|x| x.abs()).mean().unwrap()
+                diff.mapv(|x| x.abs()).mean().expect("operation should succeed")
             }
             ScoringFunction::R2Score => {
-                let y_mean = y_true.mean().unwrap();
+                let y_mean = y_true.mean().expect("operation should succeed");
                 let ss_res = (y_true - y_pred).mapv(|x| x * x).sum();
                 let ss_tot = (y_true - y_mean).mapv(|x| x * x).sum();
                 1.0 - (ss_res / ss_tot)
             }
             ScoringFunction::ExplainedVariance => {
-                let y_true_mean = y_true.mean().unwrap();
-                let y_pred_mean = y_pred.mean().unwrap();
+                let y_true_mean = y_true.mean().expect("operation should succeed");
+                let y_pred_mean = y_pred.mean().expect("operation should succeed");
                 let numerator = ((y_true - y_true_mean) * (y_pred - y_pred_mean))
                     .mean()
-                    .unwrap();
-                let denominator = (y_true - y_true_mean).mapv(|x| x * x).mean().unwrap();
+                    .expect("operation should succeed");
+                let denominator = (y_true - y_true_mean).mapv(|x| x * x).mean().expect("operation should succeed");
                 if denominator > 0.0 {
                     numerator / denominator
                 } else {
@@ -488,7 +488,7 @@ impl CrossValidator {
 
         // Calculate confidence interval
         let mut sorted_scores = valid_scores.clone();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let alpha = 1.0 - confidence_level;
         let n_valid = valid_scores.len();
@@ -584,7 +584,7 @@ impl NestedCrossValidator {
                 component_range.clone(),
             )?;
 
-            let best_n_components = inner_result.best_n_components.unwrap();
+            let best_n_components = inner_result.best_n_components.expect("operation should succeed");
             selected_components.push(best_n_components);
 
             // Train final model with selected components on full training set
@@ -656,7 +656,7 @@ mod tests {
         );
 
         let pls = PLSRegression::new(1);
-        let result = cv.cross_validate(pls, &x, &y).unwrap();
+        let result = cv.cross_validate(pls, &x, &y).expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 3);
         assert!(result.mean_score >= 0.0);
@@ -685,11 +685,11 @@ mod tests {
 
         let result = cv
             .select_components(|n_comp| PLSRegression::new(n_comp), &x, &y, 1..2)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.best_n_components.is_some());
         assert!(result.component_scores.is_some());
-        let component_scores = result.component_scores.unwrap();
+        let component_scores = result.component_scores.expect("operation should succeed");
         assert!(component_scores.len() >= 1);
     }
 
@@ -701,7 +701,7 @@ mod tests {
         let cv = CrossValidator::new(CVStrategy::LeaveOneOut, ScoringFunction::R2Score);
 
         let pls = PLSRegression::new(1);
-        let result = cv.cross_validate(pls, &x, &y).unwrap();
+        let result = cv.cross_validate(pls, &x, &y).expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 4); // One for each sample
     }
@@ -751,7 +751,7 @@ mod tests {
 
         let result = nested_cv
             .nested_cross_validate(|n_comp| PLSRegression::new(n_comp), &x, &y, 1..2)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 4); // Outer folds
         assert!(result.best_n_components.is_some());
@@ -780,13 +780,13 @@ mod tests {
 
         let result = cv
             .bootstrap_confidence_interval(PLSRegression::new(1), &x, &y, 50, 0.95)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that bootstrap results are reasonable
-        assert_eq!(result.bootstrap_scores.as_ref().unwrap().len(), 50);
+        assert_eq!(result.bootstrap_scores.as_ref().expect("value should be set after fitting").len(), 50);
         assert!(result.confidence_interval.is_some());
 
-        let (lower, upper) = result.confidence_interval.unwrap();
+        let (lower, upper) = result.confidence_interval.expect("operation should succeed");
         assert!(lower <= upper); // Confidence interval should be valid
         assert!(lower.is_finite() && upper.is_finite()); // Should not be NaN or infinite
 

@@ -95,8 +95,9 @@ impl OutOfCoreLoader {
 
         // Create dummy data for now - in practice this would load from file
         let mut rng = thread_rng();
-        let chunk =
-            Array2::from_shape_fn((chunk_size, self.n_features), |_| rng.gen_range(-1.0..1.0));
+        let chunk = Array2::from_shape_fn((chunk_size, self.n_features), |_| {
+            rng.random_range(-1.0..1.0)
+        });
 
         self.current_chunk += 1;
         Ok(Some(chunk))
@@ -162,7 +163,8 @@ impl OutOfCoreRBFSampler {
         // Initialize random weights if not already done
         if self.random_weights.is_none() {
             let n_features = loader.n_features;
-            let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+            let normal =
+                RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
             let mut rng = thread_rng();
 
             self.random_weights = Some(Array2::from_shape_fn(
@@ -171,7 +173,7 @@ impl OutOfCoreRBFSampler {
             ));
 
             self.random_offset = Some(Array1::from_shape_fn(self.n_components, |_| {
-                rng.gen_range(0.0..2.0 * std::f64::consts::PI)
+                rng.random_range(0.0..2.0 * std::f64::consts::PI)
             }));
         }
 
@@ -206,8 +208,14 @@ impl OutOfCoreRBFSampler {
 
     /// Transform a single chunk
     fn transform_chunk(&self, chunk: &Array2<f64>) -> Result<Array2<f64>> {
-        let weights = self.random_weights.as_ref().unwrap();
-        let offset = self.random_offset.as_ref().unwrap();
+        let weights = self
+            .random_weights
+            .as_ref()
+            .expect("operation should succeed");
+        let offset = self
+            .random_offset
+            .as_ref()
+            .expect("operation should succeed");
 
         // Compute projection: X * W + b
         let projection = chunk.dot(weights) + offset;
@@ -256,7 +264,7 @@ impl OutOfCoreRBFSampler {
     fn adaptive_transform(&self, loader: &mut OutOfCoreLoader) -> Result<Vec<Array2<f64>>> {
         // Analyze first chunk to determine optimal strategy
         loader.reset();
-        let first_chunk = loader.load_chunk()?.unwrap();
+        let first_chunk = loader.load_chunk()?.expect("operation should succeed");
 
         let data_density = self.estimate_data_density(&first_chunk);
         let memory_requirement =
@@ -302,8 +310,14 @@ impl OutOfCoreRBFSampler {
     /// Transform chunk with sparse optimization
     fn transform_chunk_sparse(&self, chunk: &Array2<f64>) -> Result<Array2<f64>> {
         // For sparse data, we can skip zero entries
-        let weights = self.random_weights.as_ref().unwrap();
-        let offset = self.random_offset.as_ref().unwrap();
+        let weights = self
+            .random_weights
+            .as_ref()
+            .expect("operation should succeed");
+        let offset = self
+            .random_offset
+            .as_ref()
+            .expect("operation should succeed");
 
         let mut result = Array2::zeros((chunk.nrows(), self.n_components));
 
@@ -423,7 +437,7 @@ impl OutOfCoreNystroem {
                     selected_count += 1;
                 } else {
                     // Randomly replace with probability k/n
-                    let replace_idx = rng.gen_range(0..global_index + 1);
+                    let replace_idx = rng.random_range(0..global_index + 1);
                     if replace_idx < self.n_components {
                         basis_points[replace_idx] = row.to_owned();
                         point_indices[replace_idx] = global_index;
@@ -515,7 +529,10 @@ impl OutOfCoreNystroem {
 
     /// Transform a single chunk
     fn transform_chunk(&self, chunk: &Array2<f64>) -> Result<Array2<f64>> {
-        let normalization = self.normalization.as_ref().unwrap();
+        let normalization = self
+            .normalization
+            .as_ref()
+            .expect("operation should succeed");
 
         // Compute kernel values between chunk and basis points
         let mut kernel_values = Array2::zeros((chunk.nrows(), self.n_components));
@@ -582,8 +599,8 @@ impl OutOfCoreKernelPipeline {
             let parts: Vec<&str> = method.split('_').collect();
             match parts[0] {
                 "rbf" => {
-                    let n_components: usize = parts[1].parse().unwrap();
-                    let gamma: f64 = parts[2].parse().unwrap();
+                    let n_components: usize = parts[1].parse().expect("operation should succeed");
+                    let gamma: f64 = parts[2].parse().expect("operation should succeed");
 
                     let mut rbf = OutOfCoreRBFSampler::new(n_components)
                         .gamma(gamma)
@@ -593,8 +610,8 @@ impl OutOfCoreKernelPipeline {
                     self.results.insert(method.clone(), result);
                 }
                 "nystroem" => {
-                    let n_components: usize = parts[1].parse().unwrap();
-                    let gamma: f64 = parts[2].parse().unwrap();
+                    let n_components: usize = parts[1].parse().expect("operation should succeed");
+                    let gamma: f64 = parts[2].parse().expect("operation should succeed");
 
                     let mut nystroem = OutOfCoreNystroem::new(n_components)
                         .gamma(gamma)
@@ -641,10 +658,10 @@ mod tests {
         let mut loader = OutOfCoreLoader::new("test_data.csv", 1000, 5);
         assert_eq!(loader.n_chunks(), 1);
 
-        let chunk = loader.load_chunk().unwrap();
+        let chunk = loader.load_chunk().expect("operation should succeed");
         assert!(chunk.is_some());
 
-        let chunk = chunk.unwrap();
+        let chunk = chunk.expect("operation should succeed");
         assert_eq!(chunk.nrows(), 1000);
         assert_eq!(chunk.ncols(), 5);
     }
@@ -656,7 +673,9 @@ mod tests {
             .with_strategy(OutOfCoreStrategy::Sequential);
 
         let mut loader = OutOfCoreLoader::new("test_data.csv", 500, 3);
-        let results = rbf.fit_transform_out_of_core(&mut loader).unwrap();
+        let results = rbf
+            .fit_transform_out_of_core(&mut loader)
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].ncols(), 100);
@@ -669,9 +688,13 @@ mod tests {
             .with_strategy(OutOfCoreStrategy::Sequential);
 
         let mut loader = OutOfCoreLoader::new("test_data.csv", 300, 4);
-        nystroem.fit_out_of_core(&mut loader).unwrap();
+        nystroem
+            .fit_out_of_core(&mut loader)
+            .expect("operation should succeed");
 
-        let results = nystroem.transform_out_of_core(&mut loader).unwrap();
+        let results = nystroem
+            .transform_out_of_core(&mut loader)
+            .expect("operation should succeed");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].ncols(), 50);
     }
@@ -683,7 +706,9 @@ mod tests {
             .add_nystroem(50, 0.5);
 
         let mut loader = OutOfCoreLoader::new("test_data.csv", 1000, 5);
-        pipeline.process(&mut loader).unwrap();
+        pipeline
+            .process(&mut loader)
+            .expect("operation should succeed");
 
         assert_eq!(pipeline.get_all_results().len(), 2);
     }
@@ -695,7 +720,9 @@ mod tests {
             .with_strategy(OutOfCoreStrategy::Parallel);
 
         let mut loader = OutOfCoreLoader::new("test_data.csv", 500, 3);
-        let results = rbf.fit_transform_out_of_core(&mut loader).unwrap();
+        let results = rbf
+            .fit_transform_out_of_core(&mut loader)
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].ncols(), 100);
@@ -714,7 +741,9 @@ mod tests {
             .with_strategy(OutOfCoreStrategy::Streaming);
 
         let mut loader = OutOfCoreLoader::new("test_data.csv", 500, 3);
-        let results = rbf.fit_transform_out_of_core(&mut loader).unwrap();
+        let results = rbf
+            .fit_transform_out_of_core(&mut loader)
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].ncols(), 100);
@@ -727,7 +756,9 @@ mod tests {
             .with_strategy(OutOfCoreStrategy::Adaptive);
 
         let mut loader = OutOfCoreLoader::new("test_data.csv", 500, 3);
-        let results = rbf.fit_transform_out_of_core(&mut loader).unwrap();
+        let results = rbf
+            .fit_transform_out_of_core(&mut loader)
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].ncols(), 100);

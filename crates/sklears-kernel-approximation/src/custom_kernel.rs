@@ -3,7 +3,7 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -81,7 +81,8 @@ impl KernelFunction for CustomRBFKernel {
         n_components: usize,
         rng: &mut RealStdRng,
     ) -> Array2<Float> {
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
         let mut weights = Array2::zeros((n_features, n_components));
         for mut col in weights.columns_mut() {
             for val in col.iter_mut() {
@@ -138,7 +139,7 @@ impl KernelFunction for CustomPolynomialKernel {
         rng: &mut RealStdRng,
     ) -> Array2<Float> {
         // For polynomial kernels, we sample from a scaled normal distribution
-        let normal = RandNormal::new(0.0, self.gamma.sqrt()).unwrap();
+        let normal = RandNormal::new(0.0, self.gamma.sqrt()).expect("operation should succeed");
         let mut weights = Array2::zeros((n_features, n_components));
         for mut col in weights.columns_mut() {
             for val in col.iter_mut() {
@@ -188,7 +189,7 @@ impl KernelFunction for CustomLaplacianKernel {
         rng: &mut RealStdRng,
     ) -> Array2<Float> {
         use scirs2_core::random::Cauchy;
-        let cauchy = Cauchy::new(0.0, self.gamma).unwrap();
+        let cauchy = Cauchy::new(0.0, self.gamma).expect("operation should succeed");
         let mut weights = Array2::zeros((n_features, n_components));
         for mut col in weights.columns_mut() {
             for val in col.iter_mut() {
@@ -235,7 +236,7 @@ impl KernelFunction for CustomExponentialKernel {
         rng: &mut RealStdRng,
     ) -> Array2<Float> {
         use scirs2_core::random::Cauchy;
-        let cauchy = Cauchy::new(0.0, 1.0 / self.length_scale).unwrap();
+        let cauchy = Cauchy::new(0.0, 1.0 / self.length_scale).expect("operation should succeed");
         let mut weights = Array2::zeros((n_features, n_components));
         for mut col in weights.columns_mut() {
             for val in col.iter_mut() {
@@ -354,7 +355,7 @@ where
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Sample random frequencies using the kernel's sampling method
@@ -363,7 +364,8 @@ where
                 .sample_frequencies(n_features, self.n_components, &mut rng);
 
         // Sample random offsets from Uniform(0, 2π)
-        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 2.0 * std::f64::consts::PI).expect("operation should succeed");
         let mut random_offset = Array1::zeros(self.n_components);
         for val in random_offset.iter_mut() {
             *val = rng.sample(uniform);
@@ -386,8 +388,14 @@ where
 {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
-        let weights = self.random_weights_.as_ref().unwrap();
-        let offset = self.random_offset_.as_ref().unwrap();
+        let weights = self
+            .random_weights_
+            .as_ref()
+            .expect("operation should succeed");
+        let offset = self
+            .random_offset_
+            .as_ref()
+            .expect("operation should succeed");
 
         if n_features != weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -414,12 +422,16 @@ where
 {
     /// Get the random weights
     pub fn random_weights(&self) -> &Array2<Float> {
-        self.random_weights_.as_ref().unwrap()
+        self.random_weights_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the random offset
     pub fn random_offset(&self) -> &Array1<Float> {
-        self.random_offset_.as_ref().unwrap()
+        self.random_offset_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the kernel description
@@ -496,8 +508,8 @@ mod tests {
         let kernel = CustomRBFKernel::new(0.1);
 
         let sampler = CustomKernelSampler::new(kernel, 50);
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[3, 50]);
 
@@ -514,12 +526,12 @@ mod tests {
         let kernel2 = CustomRBFKernel::new(0.1);
 
         let sampler1 = CustomKernelSampler::new(kernel1, 10).random_state(42);
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let sampler2 = CustomKernelSampler::new(kernel2, 10).random_state(42);
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be identical with same random state
         for (a, b) in result1.iter().zip(result2.iter()) {
@@ -534,20 +546,20 @@ mod tests {
         // Test with different kernel types
         let rbf_kernel = CustomRBFKernel::new(0.1);
         let rbf_sampler = CustomKernelSampler::new(rbf_kernel, 10);
-        let fitted_rbf = rbf_sampler.fit(&x, &()).unwrap();
-        let result_rbf = fitted_rbf.transform(&x).unwrap();
+        let fitted_rbf = rbf_sampler.fit(&x, &()).expect("operation should succeed");
+        let result_rbf = fitted_rbf.transform(&x).expect("operation should succeed");
         assert_eq!(result_rbf.shape(), &[2, 10]);
 
         let poly_kernel = CustomPolynomialKernel::new(2, 1.0, 1.0);
         let poly_sampler = CustomKernelSampler::new(poly_kernel, 10);
-        let fitted_poly = poly_sampler.fit(&x, &()).unwrap();
-        let result_poly = fitted_poly.transform(&x).unwrap();
+        let fitted_poly = poly_sampler.fit(&x, &()).expect("operation should succeed");
+        let result_poly = fitted_poly.transform(&x).expect("operation should succeed");
         assert_eq!(result_poly.shape(), &[2, 10]);
 
         let lap_kernel = CustomLaplacianKernel::new(0.5);
         let lap_sampler = CustomKernelSampler::new(lap_kernel, 10);
-        let fitted_lap = lap_sampler.fit(&x, &()).unwrap();
-        let result_lap = fitted_lap.transform(&x).unwrap();
+        let fitted_lap = lap_sampler.fit(&x, &()).expect("operation should succeed");
+        let result_lap = fitted_lap.transform(&x).expect("operation should succeed");
         assert_eq!(result_lap.shape(), &[2, 10]);
     }
 
@@ -558,7 +570,7 @@ mod tests {
         let kernel = CustomRBFKernel::new(0.5);
 
         let sampler = CustomKernelSampler::new(kernel.clone(), 10);
-        let fitted = sampler.fit(&x, &()).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
         let kernel_matrix = fitted.exact_kernel_matrix(&x, &y);
 
         assert_eq!(kernel_matrix.shape(), &[2, 2]);
@@ -580,7 +592,9 @@ mod tests {
 
         let kernel = CustomRBFKernel::new(0.1);
         let sampler = CustomKernelSampler::new(kernel, 10);
-        let fitted = sampler.fit(&x_train, &()).unwrap();
+        let fitted = sampler
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
 
         assert!(result.is_err());

@@ -392,7 +392,7 @@ impl NodeRegistry {
 
         // Start heartbeat monitoring
         {
-            let mut monitor = self.heartbeat_monitor.lock().unwrap();
+            let mut monitor = self.heartbeat_monitor.lock().unwrap_or_else(|e| e.into_inner());
             monitor.start_monitoring(&node_id)?;
         }
 
@@ -420,7 +420,7 @@ impl NodeRegistry {
 
         // Record failure event
         let failure_event = FailureEvent {
-            event_id: format!("failure_{}_{}", node_id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()),
+            event_id: format!("failure_{}_{}", node_id, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()),
             node_id: node_id.to_string(),
             failure_type: FailureType::NodeFailure,
             timestamp: SystemTime::now(),
@@ -446,7 +446,7 @@ impl NodeRegistry {
 
     /// Get nodes by capacity requirements using SIMD optimization
     pub fn get_nodes_by_capacity(&self, requirements: &ResourceRequirements) -> Vec<String> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD acceleration for parallel capacity checking
         match simd_accelerator.parallel_capacity_check(&self.nodes, requirements) {
@@ -493,7 +493,7 @@ impl NodeRegistry {
 
     /// Analyze node health trends using SIMD acceleration
     pub fn analyze_node_health(&self, node_id: &str) -> SklResult<NodeHealthAnalysis> {
-        let health_analyzer = self.health_analyzer.lock().unwrap();
+        let health_analyzer = self.health_analyzer.lock().unwrap_or_else(|e| e.into_inner());
 
         if let Some(history) = self.performance_history.get(node_id) {
             health_analyzer.analyze_health_trends(node_id, history)
@@ -504,7 +504,7 @@ impl NodeRegistry {
 
     /// Get node statistics with SIMD optimization
     pub fn get_node_statistics(&self) -> NodeRegistryStatistics {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel statistics computation
         match simd_accelerator.compute_registry_statistics(&self.nodes) {
@@ -666,7 +666,7 @@ impl HeartbeatMonitor {
 
     /// Check for failed nodes using SIMD acceleration
     pub fn check_failed_nodes(&mut self) -> Vec<String> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel failure detection
         match simd_accelerator.parallel_failure_detection(&mut self.monitored_nodes, self.timeout_threshold) {
@@ -760,7 +760,7 @@ impl CapacityPlanner {
 
     /// Plan capacity for a distributed optimization task using SIMD acceleration
     pub fn plan_capacity(&self, requirements: &OptimizationResourceRequirements) -> SklResult<CapacityPlan> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel capacity planning
         match simd_accelerator.accelerated_capacity_planning(requirements, &self.historical_usage) {
@@ -940,7 +940,7 @@ impl NodeHealthAnalyzer {
 
     /// Analyze health trends using SIMD acceleration
     pub fn analyze_health_trends(&self, node_id: &str, history: &VecDeque<NodePerformanceSnapshot>) -> SklResult<NodeHealthAnalysis> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel trend analysis
         match simd_accelerator.accelerated_trend_analysis(node_id, history) {
@@ -966,8 +966,8 @@ impl NodeHealthAnalyzer {
             .sum::<f64>() / recent_snapshots.len() as f64;
 
         let performance_trend = if recent_snapshots.len() >= 2 {
-            let first_cpu = recent_snapshots.last().unwrap().metrics.cpu_utilization;
-            let last_cpu = recent_snapshots.first().unwrap().metrics.cpu_utilization;
+            let first_cpu = recent_snapshots.last().unwrap_or_default().metrics.cpu_utilization;
+            let last_cpu = recent_snapshots.first().unwrap_or_default().metrics.cpu_utilization;
 
             if last_cpu < first_cpu - 0.1 {
                 PerformanceTrend::Improving

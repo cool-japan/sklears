@@ -289,7 +289,7 @@ impl Fit<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Untrained> {
         }
 
         // Calculate overall mean
-        let xbar = X.mean_axis(ndarray::Axis(0)).unwrap();
+        let xbar = X.mean_axis(ndarray::Axis(0)).expect("value should be present");
 
         // Calculate within-class scatter matrix
         let mut sw = Array2::zeros((n_features, n_features));
@@ -349,7 +349,7 @@ impl Fit<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val.re, i))
             .collect();
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Select top n_components eigenvectors
         let mut scalings = Array2::zeros((n_features, n_components));
@@ -401,42 +401,42 @@ impl Fit<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Untrained> {
 impl LinearDiscriminantAnalysis<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("classes_ not available - model not fitted")
     }
 
     /// Get the coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_.as_ref().expect("coef_ not available - model not fitted")
     }
 
     /// Get the intercept
     pub fn intercept(&self) -> &Array1<Float> {
-        self.intercept_.as_ref().unwrap()
+        self.intercept_.as_ref().expect("intercept_ not available - model not fitted")
     }
 
     /// Get the explained variance ratio
     pub fn explained_variance_ratio(&self) -> &Array1<Float> {
-        self.explained_variance_ratio_.as_ref().unwrap()
+        self.explained_variance_ratio_.as_ref().expect("explained_variance_ratio_ not available - model not fitted")
     }
 
     /// Get the class means
     pub fn means(&self) -> &Array2<Float> {
-        self.means_.as_ref().unwrap()
+        self.means_.as_ref().expect("means_ not available - model not fitted")
     }
 
     /// Get the class priors
     pub fn priors(&self) -> &Array1<Float> {
-        self.priors_.as_ref().unwrap()
+        self.priors_.as_ref().expect("priors_ not available - model not fitted")
     }
 
     /// Get the scaling transformation
     pub fn scalings(&self) -> &Array2<Float> {
-        self.scalings_.as_ref().unwrap()
+        self.scalings_.as_ref().expect("scalings_ not available - model not fitted")
     }
 
     /// Get the overall mean
     pub fn xbar(&self) -> &Array1<Float> {
-        self.xbar_.as_ref().unwrap()
+        self.xbar_.as_ref().expect("xbar_ not available - model not fitted")
     }
 
     /// Get the covariance matrix (if stored)
@@ -451,7 +451,7 @@ impl Predict<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Trained>
         validate::check_array(X)?;
 
         let (n_samples, n_features) = X.dim();
-        let expected_features = self.coef_.as_ref().unwrap().ncols();
+        let expected_features = self.coef_.as_ref().expect("coef_ not available - model not fitted").ncols();
 
         if n_features != expected_features {
             return Err(sklears_core::error::SklearsError::InvalidInput(
@@ -459,17 +459,17 @@ impl Predict<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Trained>
             ));
         }
 
-        let decision_values = X.dot(self.coef_.as_ref().unwrap().t()) + self.intercept_.as_ref().unwrap();
+        let decision_values = X.dot(self.coef_.as_ref().expect("coef_ not available - model not fitted").t()) + self.intercept_.as_ref().expect("coef_ not available - model not fitted");
 
         let mut predictions = Array1::zeros(n_samples);
         for i in 0..n_samples {
             let max_idx = decision_values.row(i)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx)
-                .unwrap();
-            predictions[i] = self.classes_.as_ref().unwrap()[max_idx];
+                .expect("value should be present");
+            predictions[i] = self.classes_.as_ref().expect("classes_ not available - model not fitted")[max_idx];
         }
 
         Ok(predictions)
@@ -482,7 +482,7 @@ impl PredictProba<Array2<Float>, Array2<Float>> for LinearDiscriminantAnalysis<T
         validate::check_array(X)?;
 
         let (n_samples, n_features) = X.dim();
-        let expected_features = self.coef_.as_ref().unwrap().ncols();
+        let expected_features = self.coef_.as_ref().expect("coef_ not available - model not fitted").ncols();
 
         if n_features != expected_features {
             return Err(sklears_core::error::SklearsError::InvalidInput(
@@ -490,8 +490,8 @@ impl PredictProba<Array2<Float>, Array2<Float>> for LinearDiscriminantAnalysis<T
             ));
         }
 
-        let decision_values = X.dot(self.coef_.as_ref().unwrap().t()) + self.intercept_.as_ref().unwrap();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let decision_values = X.dot(self.coef_.as_ref().expect("coef_ not available - model not fitted").t()) + self.intercept_.as_ref().expect("coef_ not available - model not fitted");
+        let n_classes = self.classes_.as_ref().expect("classes_ not available - model not fitted").len();
 
         // Apply softmax to convert decision values to probabilities
         let mut probabilities = Array2::zeros((n_samples, n_classes));
@@ -515,7 +515,7 @@ impl Transform<Array2<Float>, Array2<Float>> for LinearDiscriminantAnalysis<Trai
         validate::check_array(X)?;
 
         let (n_samples, n_features) = X.dim();
-        let expected_features = self.scalings_.as_ref().unwrap().nrows();
+        let expected_features = self.scalings_.as_ref().expect("scalings_ not available - model not fitted").nrows();
 
         if n_features != expected_features {
             return Err(sklears_core::error::SklearsError::InvalidInput(
@@ -524,8 +524,8 @@ impl Transform<Array2<Float>, Array2<Float>> for LinearDiscriminantAnalysis<Trai
         }
 
         // Center the data and apply the transformation
-        let centered_X = X - &self.xbar_.as_ref().unwrap();
-        let transformed = centered_X.dot(self.scalings_.as_ref().unwrap());
+        let centered_X = X - &self.xbar_.as_ref().expect("xbar_ not available - model not fitted");
+        let transformed = centered_X.dot(self.scalings_.as_ref().expect("scalings_ not available - model not fitted"));
 
         Ok(transformed)
     }
@@ -550,16 +550,16 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let lda = LinearDiscriminantAnalysis::new();
-        let fitted = lda.fit(&X, &y).unwrap();
+        let fitted = lda.fit(&X, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
         assert_eq!(fitted.means().dim(), (2, 2));
         assert_eq!(fitted.priors().len(), 2);
 
-        let predictions = fitted.predict(&X).unwrap();
+        let predictions = fitted.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = fitted.predict_proba(&X).unwrap();
+        let probabilities = fitted.predict_proba(&X).expect("probability prediction should succeed");
         assert_eq!(probabilities.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -581,9 +581,9 @@ mod tests {
 
         let lda = LinearDiscriminantAnalysis::new()
             .n_components(Some(1));
-        let fitted = lda.fit(&X, &y).unwrap();
+        let fitted = lda.fit(&X, &y).expect("model fitting should succeed");
 
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("transform should succeed");
         assert_eq!(transformed.dim(), (4, 1));
     }
 

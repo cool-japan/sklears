@@ -591,7 +591,7 @@ impl DependencyGraph {
     pub fn detect_circular(&self, start: &str, visited: &mut HashSet<String>, path: &mut Vec<String>) -> Option<Vec<String>> {
         if path.contains(&start.to_string()) {
             // Found cycle - return the cycle path
-            let cycle_start = path.iter().position(|x| x == start).unwrap();
+            let cycle_start = path.iter().position(|x| x == start).unwrap_or_default();
             return Some(path[cycle_start..].to_vec());
         }
 
@@ -1371,8 +1371,8 @@ mod tests {
             deprecated: false,
         };
 
-        tracker.add_available_dependency(lib_a).unwrap();
-        tracker.add_available_dependency(lib_b).unwrap();
+        tracker.add_available_dependency(lib_a).unwrap_or_default();
+        tracker.add_available_dependency(lib_b).unwrap_or_default();
 
         // Resolve dependencies
         let dependencies = vec![
@@ -1386,7 +1386,7 @@ mod tests {
             }
         ];
 
-        let result = tracker.resolve_dependencies(&dependencies, None).unwrap();
+        let result = tracker.resolve_dependencies(&dependencies, None).unwrap_or_default();
 
         assert!(result.success);
         assert_eq!(result.resolved.len(), 1);

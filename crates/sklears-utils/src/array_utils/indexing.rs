@@ -257,7 +257,11 @@ where
     T: PartialOrd + Clone,
 {
     let mut indices: Vec<usize> = (0..array.len()).collect();
-    indices.sort_by(|&a, &b| array[a].partial_cmp(&array[b]).unwrap());
+    indices.sort_by(|&a, &b| {
+        array[a]
+            .partial_cmp(&array[b])
+            .expect("operation should succeed")
+    });
     indices
 }
 

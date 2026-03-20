@@ -188,10 +188,10 @@ pub mod creation {
         T: FloatBounds + FromPrimitive,
     {
         // SciRS2 Policy: Using scirs2_core::random (COMPLIANT)
-        use scirs2_core::random::{thread_rng, Rng};
+        use scirs2_core::random::thread_rng;
         let mut rng = thread_rng();
         Array2::from_shape_fn(shape, |_| {
-            let random_f64: f64 = rng.gen();
+            let random_f64: f64 = rng.gen_range(0.0..1.0);
             T::from_f64(random_f64).unwrap_or_else(|| T::zero())
         })
     }

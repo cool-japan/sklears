@@ -386,7 +386,8 @@ impl<X, Y> SpectralClustering<X, Y> {
                             distances.push((distance, j));
                         }
                     }
-                    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                    distances
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
                     // Set affinity to 1 for k nearest neighbors
                     for &(_, neighbor_idx) in distances.iter().take(self.config.n_neighbors) {
@@ -425,7 +426,7 @@ impl<X, Y> SpectralClustering<X, Y> {
             }
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         if distances.is_empty() {
             return Ok(vec![1.0]);
@@ -516,7 +517,11 @@ impl<X, Y> SpectralClustering<X, Y> {
 
         // Sort eigenvalues in descending order
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| eigenvalues[b].partial_cmp(&eigenvalues[a]).unwrap());
+        indices.sort_by(|&a, &b| {
+            eigenvalues[b]
+                .partial_cmp(&eigenvalues[a])
+                .expect("operation should succeed")
+        });
 
         let mut sorted_eigenvalues = Array1::zeros(n);
         let mut sorted_eigenvectors = Array2::zeros((n, n));
@@ -692,7 +697,7 @@ mod tests {
             .n_clusters(2)
             .affinity(Affinity::RBF)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
         assert_eq!(model.affinity_matrix().nrows(), x.nrows());
@@ -715,7 +720,7 @@ mod tests {
             .affinity(Affinity::NearestNeighbors)
             .n_neighbors(3)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
     }
@@ -736,7 +741,7 @@ mod tests {
             .affinity(Affinity::RBF)
             .normalization(NormalizationMethod::Symmetric)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
         // Verify that affinity matrix is computed properly
@@ -768,7 +773,7 @@ mod tests {
             .affinity(Affinity::RBF)
             .normalization(NormalizationMethod::RandomWalk)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
     }
@@ -789,7 +794,7 @@ mod tests {
             .affinity(Affinity::RBF)
             .normalization(NormalizationMethod::None)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
     }
@@ -803,7 +808,9 @@ mod tests {
             .affinity(Affinity::RBF)
             .gamma(1.0);
 
-        let affinity = model.compute_affinity_matrix(&x.view()).unwrap();
+        let affinity = model
+            .compute_affinity_matrix(&x.view())
+            .expect("operation should succeed");
 
         // Diagonal should be zero (no self-loops)
         for i in 0..affinity.nrows() {
@@ -857,7 +864,7 @@ mod tests {
             .n_scales(3)
             .scale_factor(2.0)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
 
@@ -890,7 +897,7 @@ mod tests {
             .gamma(0.1)
             .coef0(1.0)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
 
@@ -918,7 +925,7 @@ mod tests {
             .gamma(0.1)
             .coef0(0.5)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
 
@@ -951,7 +958,7 @@ mod tests {
             .n_clusters(2)
             .affinity(Affinity::Linear)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
 
@@ -986,7 +993,7 @@ mod tests {
             .eigenvalue_threshold(0.1)
             .max_eigenvectors(10)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
     }
@@ -1007,7 +1014,9 @@ mod tests {
             .n_scales(5)
             .scale_factor(2.0);
 
-        let scales = model.generate_scales(&x.view()).unwrap();
+        let scales = model
+            .generate_scales(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(scales.len(), 5);
 
@@ -1018,11 +1027,11 @@ mod tests {
 
         // Scales should be in ascending order when sorted
         let mut sorted_scales = scales.clone();
-        sorted_scales.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scales.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         // The scales might not be perfectly sorted due to the algorithm,
         // but they should span a reasonable range
         assert!(sorted_scales[0] > 0.0);
-        assert!(sorted_scales.last().unwrap() > &sorted_scales[0]);
+        assert!(sorted_scales.last().expect("operation should succeed") > &sorted_scales[0]);
     }
 
     #[test]
@@ -1053,7 +1062,7 @@ mod tests {
             .affinity(Affinity::MultiScaleRBF)
             .scales(custom_scales.clone())
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.labels().len(), x.nrows());
     }
@@ -1084,7 +1093,7 @@ mod tests {
     //     //     .affinity(Affinity::RBF)
     //     //     .gamma(1.0)
     //     //     .fit(&x.view(), &Array1::zeros(0).view())
-    //     //     .unwrap();
+    //     //     .expect("operation should succeed");
     //     //
     //     // let labels = model.labels();
     //     // assert_eq!(labels.len(), x.nrows());
@@ -1096,7 +1105,7 @@ mod tests {
     //     // assert_ne!(labels[0], labels[3]);
     //     //
     //     // // Check constraint satisfaction rate
-    //     // let satisfaction_rate = model.constraint_satisfaction_rate().unwrap();
+    //     // let satisfaction_rate = model.constraint_satisfaction_rate().expect("operation should succeed");
     //     // assert!(satisfaction_rate >= 0.0 && satisfaction_rate <= 1.0);
     // }
 
@@ -1124,7 +1133,7 @@ mod tests {
     //     //     .n_clusters(2)
     //     //     .affinity(Affinity::RBF)
     //     //     .fit(&x.view(), &Array1::zeros(0).view())
-    //     //     .unwrap();
+    //     //     .expect("operation should succeed");
     //     //
     //     // let labels = model.labels();
     //     //

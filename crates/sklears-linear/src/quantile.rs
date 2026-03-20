@@ -117,12 +117,15 @@ impl QuantileRegressor<Untrained> {
     }
 
     /// Set the quantile to predict
-    pub fn quantile(mut self, quantile: Float) -> Self {
+    pub fn quantile(mut self, quantile: Float) -> Result<Self> {
         if quantile <= 0.0 || quantile >= 1.0 {
-            panic!("Quantile must be in (0, 1)");
+            return Err(SklearsError::InvalidParameter {
+                name: "quantile".to_string(),
+                reason: "must be in (0, 1)".to_string(),
+            });
         }
         self.config.quantile = quantile;
-        self
+        Ok(self)
     }
 
     /// Set the regularization parameter
@@ -546,13 +549,13 @@ mod tests {
 
         // Median regression (quantile = 0.5)
         let model = QuantileRegressor::new()
-            .quantile(0.5)
+            .quantile(0.5).expect("valid parameter")
             .alpha(0.0)
             .solver(QuantileSolver::IRLS)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that we get reasonable predictions
         let residuals = &y - &predictions;
@@ -560,11 +563,11 @@ mod tests {
         // The model should produce a reasonable fit
         // Since we have a simple linear relationship, check R-squared-like metric
         let ss_res = residuals.mapv(|r| r * r).sum();
-        let y_mean = y.mean().unwrap();
+        let y_mean = y.mean().expect("mean computation should succeed for non-empty array");
         let ss_tot = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
         let r2 = 1.0 - ss_res / ss_tot;
 
-        assert!(r2 > 0.8, "R² = {}, coef = {}", r2, model.coef().unwrap()[0]);
+        assert!(r2 > 0.8, "R² = {}, coef = {}", r2, model.coef().expect("operation should succeed")[0]);
     }
 
     #[test]
@@ -574,13 +577,13 @@ mod tests {
 
         // 25th percentile regression
         let model = QuantileRegressor::new()
-            .quantile(0.25)
+            .quantile(0.25).expect("valid parameter")
             .alpha(0.0)
             .solver(QuantileSolver::CoordinateDescent)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // For 0.25 quantile, about 25% of residuals should be negative
         let residuals = &y - &predictions;
@@ -598,19 +601,19 @@ mod tests {
 
         // 75th percentile regression
         let model = QuantileRegressor::new()
-            .quantile(0.75)
+            .quantile(0.75).expect("valid parameter")
             .alpha(0.0)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // For upper quantile, predictions should generally be higher
         let residuals = &y - &predictions;
 
         // The predictions should be above most data points
         // Just check that the model runs and produces reasonable output
-        assert!(model.coef().unwrap()[0] > 1.5 && model.coef().unwrap()[0] < 2.5);
+        assert!(model.coef().expect("operation should succeed")[0] > 1.5 && model.coef().expect("operation should succeed")[0] < 2.5);
     }
 
     #[test]
@@ -619,13 +622,13 @@ mod tests {
         let y = array![2.0, 4.0, 6.0, 8.0];
 
         let model = QuantileRegressor::new()
-            .quantile(0.5)
+            .quantile(0.5).expect("valid parameter")
             .alpha(1.0)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // With L1 regularization, the second coefficient (always 0) should be 0
-        assert!(model.coef().unwrap()[1].abs() < 0.1);
+        assert!(model.coef().expect("operation should succeed")[1].abs() < 0.1);
     }
 
     #[test]
@@ -636,9 +639,9 @@ mod tests {
         let model = QuantileRegressor::new()
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.intercept().unwrap(), 0.0);
+        assert_eq!(model.intercept().expect("intercept should be available"), 0.0);
     }
 
     #[test]

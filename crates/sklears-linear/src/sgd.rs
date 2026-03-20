@@ -283,14 +283,14 @@ fn compute_classification_loss_gradient(
     y_true: Float,
     y_pred: Float,
     _epsilon: Float,
-) -> (Float, Float) {
+) -> Result<(Float, Float)> {
     match loss {
         SGDLoss::Hinge => {
             let margin = y_true * y_pred;
             if margin < 1.0 {
-                (1.0 - margin, -y_true)
+                Ok((1.0 - margin, -y_true))
             } else {
-                (0.0, 0.0)
+                Ok((0.0, 0.0))
             }
         }
         SGDLoss::Log => {
@@ -302,36 +302,39 @@ fn compute_classification_loss_gradient(
                 -z + (1.0 + z.exp()).ln()
             };
             let grad = -y_true / (1.0 + (y_true * y_pred).exp());
-            (loss, grad)
+            Ok((loss, grad))
         }
         SGDLoss::ModifiedHuber => {
             let margin = y_true * y_pred;
             if margin >= 1.0 {
-                (0.0, 0.0)
+                Ok((0.0, 0.0))
             } else if margin >= -1.0 {
                 let diff = 1.0 - margin;
-                (diff * diff, -2.0 * y_true * diff)
+                Ok((diff * diff, -2.0 * y_true * diff))
             } else {
-                (-4.0 * margin, -4.0 * y_true)
+                Ok((-4.0 * margin, -4.0 * y_true))
             }
         }
         SGDLoss::SquaredHinge => {
             let margin = y_true * y_pred;
             if margin < 1.0 {
                 let diff = 1.0 - margin;
-                (diff * diff, -2.0 * y_true * diff)
+                Ok((diff * diff, -2.0 * y_true * diff))
             } else {
-                (0.0, 0.0)
+                Ok((0.0, 0.0))
             }
         }
         SGDLoss::Perceptron => {
             if y_true * y_pred <= 0.0 {
-                (1.0, -y_true)
+                Ok((1.0, -y_true))
             } else {
-                (0.0, 0.0)
+                Ok((0.0, 0.0))
             }
         }
-        _ => panic!("Invalid loss function for classification"),
+        _ => Err(SklearsError::InvalidParameter {
+            name: "loss".to_string(),
+            reason: "invalid loss function for classification".to_string(),
+        }),
     }
 }
 
@@ -430,7 +433,7 @@ impl Fit<Array2<Float>, Array1<Int>> for SGDClassifier<Untrained> {
                         y_binary,
                         prediction,
                         self.config.epsilon,
-                    );
+                    )?;
 
                     epoch_loss += loss;
 
@@ -460,7 +463,7 @@ impl Fit<Array2<Float>, Array1<Int>> for SGDClassifier<Untrained> {
                             y_k,
                             prediction,
                             self.config.epsilon,
-                        );
+                        )?;
 
                         if k == class_idx {
                             epoch_loss += loss;
@@ -760,44 +763,47 @@ fn compute_regression_loss_gradient(
     y_true: Float,
     y_pred: Float,
     epsilon: Float,
-) -> (Float, Float) {
+) -> Result<(Float, Float)> {
     match loss {
         SGDLoss::SquaredError => {
             let error = y_pred - y_true;
-            (0.5 * error * error, error)
+            Ok((0.5 * error * error, error))
         }
         SGDLoss::Huber => {
             let error = y_pred - y_true;
             let abs_error = error.abs();
             if abs_error <= epsilon {
-                (0.5 * error * error, error)
+                Ok((0.5 * error * error, error))
             } else {
-                (
+                Ok((
                     epsilon * abs_error - 0.5 * epsilon * epsilon,
                     epsilon * error.signum(),
-                )
+                ))
             }
         }
         SGDLoss::EpsilonInsensitive => {
             let error = y_pred - y_true;
             let abs_error = error.abs();
             if abs_error <= epsilon {
-                (0.0, 0.0)
+                Ok((0.0, 0.0))
             } else {
-                (abs_error - epsilon, error.signum())
+                Ok((abs_error - epsilon, error.signum()))
             }
         }
         SGDLoss::SquaredEpsilonInsensitive => {
             let error = y_pred - y_true;
             let abs_error = error.abs();
             if abs_error <= epsilon {
-                (0.0, 0.0)
+                Ok((0.0, 0.0))
             } else {
                 let diff = abs_error - epsilon;
-                (diff * diff, 2.0 * diff * error.signum())
+                Ok((diff * diff, 2.0 * diff * error.signum()))
             }
         }
-        _ => panic!("Invalid loss function for regression"),
+        _ => Err(SklearsError::InvalidParameter {
+            name: "loss".to_string(),
+            reason: "invalid loss function for regression".to_string(),
+        }),
     }
 }
 
@@ -868,7 +874,7 @@ impl Fit<Array2<Float>, Array1<Float>> for SGDRegressor<Untrained> {
                     y_i,
                     y_pred,
                     self.config.epsilon,
-                );
+                )?;
 
                 epoch_loss += loss;
 
@@ -1008,10 +1014,10 @@ mod tests {
             .alpha(0.01)
             .max_iter(100)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let _predictions = model.predict(&x).unwrap();
-        let accuracy = model.score(&x, &y).unwrap();
+        let _predictions = model.predict(&x).expect("prediction should succeed");
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
 
         // Should achieve good classification on this simple data
         assert!(accuracy > 0.8);
@@ -1033,14 +1039,14 @@ mod tests {
             .loss(SGDLoss::Log)
             .max_iter(200)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let accuracy = model.score(&x, &y).unwrap();
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
         assert!(accuracy > 0.8);
 
         // Check that we have the right number of classes
-        assert_eq!(model.classes().unwrap().len(), 3);
-        assert_eq!(model.coef().unwrap().nrows(), 3);
+        assert_eq!(model.classes().expect("operation should succeed").len(), 3);
+        assert_eq!(model.coef().expect("operation should succeed").nrows(), 3);
     }
 
     #[test]
@@ -1054,15 +1060,15 @@ mod tests {
             .alpha(0.001)
             .max_iter(100)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let _predictions = model.predict(&x).unwrap();
-        let r2 = model.score(&x, &y).unwrap();
+        let _predictions = model.predict(&x).expect("prediction should succeed");
+        let r2 = model.score(&x, &y).expect("scoring should succeed");
 
         assert!(r2 > 0.95);
 
         // Check that coefficient is close to 2
-        assert!((model.coef().unwrap()[0] - 2.0).abs() < 0.1);
+        assert!((model.coef().expect("operation should succeed")[0] - 2.0).abs() < 0.1);
     }
 
     #[test]
@@ -1076,10 +1082,10 @@ mod tests {
             .epsilon(1.0)
             .max_iter(200)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should be robust to the outlier
-        let coef = model.coef().unwrap()[0];
+        let coef = model.coef().expect("operation should succeed")[0];
         assert!(coef > 1.5 && coef < 3.0);
     }
 
@@ -1098,10 +1104,10 @@ mod tests {
             .penalty(SGDPenalty::L1)
             .alpha(0.1)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // L1 penalty should drive the middle feature (always 0) coefficient to 0
-        assert!(model.coef().unwrap()[1].abs() < 0.1);
+        assert!(model.coef().expect("operation should succeed")[1].abs() < 0.1);
     }
 
     #[test]
@@ -1109,9 +1115,12 @@ mod tests {
         let x = array![[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0],];
         let y = array![0, 0, 1, 1];
 
-        let model = SGDClassifier::new().average(true).fit(&x, &y).unwrap();
+        let model = SGDClassifier::new()
+            .average(true)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let accuracy = model.score(&x, &y).unwrap();
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
         assert!(accuracy >= 0.5);
     }
 }

@@ -66,20 +66,21 @@ impl GpuKernelComputer {
                 force_fallback_adapter: false,
             })
             .await
-            .ok_or(GpuKernelError::DeviceNotAvailable)?;
+            .map_err(|_| GpuKernelError::DeviceNotAvailable)?;
 
         let (device, queue) = adapter
-            .request_device(
-                &DeviceDescriptor {
-                    label: None,
-                    required_features: Features::empty(),
-                    required_limits: Limits::default(),
-                    memory_hints: wgpu::MemoryHints::Performance,
-                },
-                None,
-            )
+            .request_device(&DeviceDescriptor {
+                label: None,
+                required_features: Features::empty(),
+                required_limits: Limits::default(),
+                memory_hints: wgpu::MemoryHints::Performance,
+                experimental_features: Default::default(),
+                trace: Default::default(),
+            })
             .await
-            .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
+            .map_err(|e: wgpu::RequestDeviceError| {
+                GpuKernelError::ComputationFailed(e.to_string())
+            })?;
 
         let mut computer = Self {
             device,
@@ -374,7 +375,7 @@ impl GpuKernelComputer {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("X Buffer"),
-                contents: bytemuck::cast_slice(X.as_slice().unwrap()),
+                contents: bytemuck::cast_slice(X.as_slice().expect("non-contiguous array")),
                 usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             });
 
@@ -382,7 +383,7 @@ impl GpuKernelComputer {
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Y Buffer"),
-                contents: bytemuck::cast_slice(Y.as_slice().unwrap()),
+                contents: bytemuck::cast_slice(Y.as_slice().expect("non-contiguous array")),
                 usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             });
 
@@ -470,13 +471,15 @@ impl GpuKernelComputer {
         let buffer_slice = staging_buffer.slice(..);
         let (tx, rx) = futures_intrusive::channel::shared::oneshot_channel();
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-            tx.send(result).unwrap();
+            tx.send(result).expect("value should be present");
         });
 
-        self.device.poll(wgpu::Maintain::Wait);
+        self.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| GpuKernelError::ComputationFailed(format!("Poll error: {e}")))?;
         rx.receive()
             .await
-            .unwrap()
+            .expect("value should be present")
             .map_err(|e| GpuKernelError::ComputationFailed(e.to_string()))?;
 
         let data = buffer_slice.get_mapped_range();
@@ -783,8 +786,10 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_benchmark_sync() {
-        let X_var = Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f32).collect()).unwrap();
-        let Y_var = Array2::from_shape_vec((8, 5), (0..40).map(|x| x as f32).collect()).unwrap();
+        let X_var = Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f32).collect())
+            .expect("array shape mismatch");
+        let Y_var = Array2::from_shape_vec((8, 5), (0..40).map(|x| x as f32).collect())
+            .expect("array shape mismatch");
 
         // Test that we can create the benchmark struct
         assert_eq!(X_var.dim(), (10, 5));

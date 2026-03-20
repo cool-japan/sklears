@@ -609,7 +609,10 @@ impl LazyLoadedModel {
             self.cached_model = Some(model);
         }
 
-        Ok(self.cached_model.as_ref().unwrap())
+        Ok(self
+            .cached_model
+            .as_ref()
+            .expect("operation should succeed"))
     }
 
     /// Predict using the lazy-loaded model
@@ -679,7 +682,8 @@ mod tests {
 
     #[test]
     fn test_sparse_matrix_creation() {
-        let dense = Array2::from_shape_vec((2, 3), vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0]).unwrap();
+        let dense = Array2::from_shape_vec((2, 3), vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0])
+            .expect("operation should succeed");
         let sparse = SparseMatrix::from_dense(&dense);
 
         assert_eq!(sparse.nnz(), 3);
@@ -691,7 +695,8 @@ mod tests {
 
     #[test]
     fn test_sparse_dot_dense() {
-        let dense = Array2::from_shape_vec((2, 3), vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0]).unwrap();
+        let dense = Array2::from_shape_vec((2, 3), vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0])
+            .expect("operation should succeed");
         let sparse = SparseMatrix::from_dense(&dense);
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
@@ -733,8 +738,8 @@ mod tests {
                 feature_data.push(-1.0 - (i as f64 * 0.1) - (j as f64 * 0.01));
             }
         }
-        let feature_log_prob =
-            Array2::from_shape_vec((n_classes, n_features), feature_data).unwrap();
+        let feature_log_prob = Array2::from_shape_vec((n_classes, n_features), feature_data)
+            .expect("operation should succeed");
         let class_log_prior = Array1::from_elem(n_classes, -1.609); // log(1/5)
 
         // Compress with 8-bit quantization
@@ -759,7 +764,8 @@ mod tests {
         // assert!(stats.memory_saved > 0);
 
         // Test prediction
-        let x = Array2::from_shape_vec((1, n_features), vec![1.0; n_features]).unwrap();
+        let x = Array2::from_shape_vec((1, n_features), vec![1.0; n_features])
+            .expect("operation should succeed");
         let predictions = compressed_model.predict_compressed(&x);
         assert_eq!(predictions.dim(), (1, n_classes));
 
@@ -803,7 +809,7 @@ mod tests {
                 -1.234, -2.567, -0.891, -3.456, -0.789, -1.234, -2.345, -0.567,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let class_log_prior = Array1::from_vec(vec![-0.693, -0.693]);
 
         // Test different quantization levels
@@ -838,7 +844,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1, 0, 1]);
 
         let (mean, var) = MemoryOptimizedOps::chunked_feature_stats(&x, &y, 2);

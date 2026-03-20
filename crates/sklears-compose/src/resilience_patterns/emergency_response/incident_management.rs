@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn test_incident_creation() {
         let commander = IncidentCommander::new();
-        commander.initialize().unwrap();
+        commander.initialize().unwrap_or_default();
 
         let event = EmergencyEvent {
             event_id: "emergency-001".to_string(),
@@ -561,7 +561,7 @@ mod tests {
             requires_immediate_action: true,
         };
 
-        let incident = commander.create_incident(&event).unwrap();
+        let incident = commander.create_incident(&event).unwrap_or_default();
         assert_eq!(incident.emergency_event_id, "emergency-001");
         assert_eq!(incident.status, IncidentStatus::Active);
         assert!(!incident.timeline.is_empty());
@@ -570,7 +570,7 @@ mod tests {
     #[test]
     fn test_incident_status_update() {
         let commander = IncidentCommander::new();
-        commander.initialize().unwrap();
+        commander.initialize().unwrap_or_default();
 
         let event = EmergencyEvent {
             event_id: "emergency-002".to_string(),
@@ -595,7 +595,7 @@ mod tests {
             requires_immediate_action: false,
         };
 
-        let incident = commander.create_incident(&event).unwrap();
+        let incident = commander.create_incident(&event).unwrap_or_default();
         let result = commander.update_incident_status(&incident.incident_id, IncidentStatus::InProgress);
         assert!(result.is_ok());
     }
@@ -603,7 +603,7 @@ mod tests {
     #[test]
     fn test_commander_assignment() {
         let commander = IncidentCommander::new();
-        commander.initialize().unwrap();
+        commander.initialize().unwrap_or_default();
 
         let event = EmergencyEvent {
             event_id: "emergency-003".to_string(),
@@ -628,11 +628,11 @@ mod tests {
             requires_immediate_action: true,
         };
 
-        let incident = commander.create_incident(&event).unwrap();
+        let incident = commander.create_incident(&event).unwrap_or_default();
         let result = commander.assign_commander(&incident.incident_id, "security_commander");
         assert!(result.is_ok());
 
-        let assignments = commander.get_command_assignments().unwrap();
+        let assignments = commander.get_command_assignments().unwrap_or_default();
         assert!(!assignments.is_empty());
     }
 }

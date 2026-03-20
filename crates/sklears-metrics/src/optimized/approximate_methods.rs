@@ -144,7 +144,7 @@ impl<F: FloatTrait + FromPrimitive + Clone> SamplingMetrics<F> {
             .map(|(t, p)| (*t - *p).abs())
             .fold(F::zero(), |acc, x| acc + x);
 
-        Ok(sum / F::from(true_samples.len()).unwrap())
+        Ok(sum / F::from(true_samples.len()).expect("operation should succeed"))
     }
 
     /// Approximate mean squared error based on samples
@@ -165,7 +165,7 @@ impl<F: FloatTrait + FromPrimitive + Clone> SamplingMetrics<F> {
             })
             .fold(F::zero(), |acc, x| acc + x);
 
-        Ok(sum / F::from(true_samples.len()).unwrap())
+        Ok(sum / F::from(true_samples.len()).expect("operation should succeed"))
     }
 
     /// Get confidence interval for the approximation
@@ -185,8 +185,8 @@ impl<F: FloatTrait + FromPrimitive + Clone> SamplingMetrics<F> {
             .map(|(t, p)| (*t - *p).abs())
             .collect();
 
-        let mean =
-            errors.iter().fold(F::zero(), |acc, &x| acc + x) / F::from(errors.len()).unwrap();
+        let mean = errors.iter().fold(F::zero(), |acc, &x| acc + x)
+            / F::from(errors.len()).expect("operation should succeed");
 
         // Calculate standard error
         let variance = errors
@@ -196,12 +196,13 @@ impl<F: FloatTrait + FromPrimitive + Clone> SamplingMetrics<F> {
                 diff * diff
             })
             .fold(F::zero(), |acc, x| acc + x)
-            / F::from(errors.len() - 1).unwrap();
+            / F::from(errors.len() - 1).expect("operation should succeed");
 
-        let std_error = (variance / F::from(errors.len()).unwrap()).sqrt();
+        let std_error =
+            (variance / F::from(errors.len()).expect("operation should succeed")).sqrt();
 
         // Use t-distribution approximation (assuming normal for large samples)
-        let t_value = F::from(1.96).unwrap(); // 95% confidence for large samples
+        let t_value = F::from(1.96).expect("operation should succeed"); // 95% confidence for large samples
         let margin = std_error * t_value;
 
         Ok((mean - margin, mean + margin))
@@ -300,10 +301,10 @@ impl<F: FloatTrait + FromPrimitive + ToPrimitive + Copy> ApproximateHistogram<F>
         sketch_width: usize,
         sketch_depth: usize,
     ) -> Self {
-        let bin_width = (max_val - min_val) / F::from(num_bins).unwrap();
+        let bin_width = (max_val - min_val) / F::from(num_bins).expect("operation should succeed");
         let mut bins = Vec::with_capacity(num_bins);
         for i in 0..num_bins {
-            bins.push(min_val + F::from(i).unwrap() * bin_width);
+            bins.push(min_val + F::from(i).expect("operation should succeed") * bin_width);
         }
 
         Self {
@@ -600,13 +601,19 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y_pred = array![1.1, 2.1, 2.9, 4.1, 4.9];
 
-        metrics.add_samples(&y_true, &y_pred).unwrap();
+        metrics
+            .add_samples(&y_true, &y_pred)
+            .expect("operation should succeed");
 
-        let mae = metrics.approximate_mean_absolute_error().unwrap();
+        let mae = metrics
+            .approximate_mean_absolute_error()
+            .expect("operation should succeed");
         assert!(mae > 0.0);
         assert!(mae < 1.0); // Should be reasonable approximation
 
-        let (lower, upper) = metrics.confidence_interval_mae().unwrap();
+        let (lower, upper) = metrics
+            .confidence_interval_mae()
+            .expect("operation should succeed");
         assert!(lower <= mae);
         assert!(mae <= upper);
     }
@@ -646,7 +653,9 @@ mod tests {
             sketch.add(i as f64);
         }
 
-        let median = sketch.approximate_median().unwrap();
+        let median = sketch
+            .approximate_median()
+            .expect("operation should succeed");
         assert!((8.0..=12.0).contains(&median)); // Should be around 9.5
     }
 
@@ -657,7 +666,9 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 1, 1, 0, 0, 1];
 
-        matrix.update(&y_true, &y_pred).unwrap();
+        matrix
+            .update(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_eq!(matrix.n_samples(), 6);
         assert_eq!(matrix.get(0, 0), 2); // Should be exact for small data

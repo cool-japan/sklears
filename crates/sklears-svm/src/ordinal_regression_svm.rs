@@ -644,18 +644,36 @@ impl OrdinalRegressionSVM<Untrained> {
 
 impl Predict<Array2<Float>, Array1<usize>> for OrdinalRegressionSVM<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<usize>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
             ));
         }
 
-        let support_vectors = self.support_vectors_.as_ref().unwrap();
-        let alpha = self.alpha_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
-        let thresholds = self.thresholds_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let support_vectors = self
+            .support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted");
+        let alpha = self
+            .alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ not available - model not fitted");
+        let thresholds = self
+            .thresholds_
+            .as_ref()
+            .expect("thresholds_ not available - model not fitted");
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
 
         let kernel = match &self.config.kernel {
             KernelType::Linear => Box::new(crate::kernels::LinearKernel) as Box<dyn Kernel>,
@@ -700,16 +718,28 @@ impl Predict<Array2<Float>, Array1<usize>> for OrdinalRegressionSVM<Trained> {
 impl OrdinalRegressionSVM<Trained> {
     /// Get the ranking scores for given data
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
             ));
         }
 
-        let support_vectors = self.support_vectors_.as_ref().unwrap();
-        let alpha = self.alpha_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let support_vectors = self
+            .support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted");
+        let alpha = self
+            .alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ not available - model not fitted");
 
         let kernel = match &self.config.kernel {
             KernelType::Linear => Box::new(crate::kernels::LinearKernel) as Box<dyn Kernel>,
@@ -741,42 +771,54 @@ impl OrdinalRegressionSVM<Trained> {
 
     /// Get the learned thresholds
     pub fn thresholds(&self) -> &Array1<Float> {
-        self.thresholds_.as_ref().unwrap()
+        self.thresholds_
+            .as_ref()
+            .expect("thresholds_ not available - model not fitted")
     }
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<usize> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the support vectors
     pub fn support_vectors(&self) -> &Array2<Float> {
-        self.support_vectors_.as_ref().unwrap()
+        self.support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted")
     }
 
     /// Get the support vector coefficients (alpha values)
     pub fn alpha(&self) -> &Array1<Float> {
-        self.alpha_.as_ref().unwrap()
+        self.alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted")
     }
 
     /// Get the intercept term
     pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+        self.intercept_
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 
     /// Get the number of classes
     pub fn n_classes(&self) -> usize {
-        self.n_classes_.unwrap()
+        self.n_classes_
+            .expect("n_classes_ not available - model not fitted")
     }
 
     /// Get the number of iterations performed during training
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_
+            .expect("n_iter_ not available - model not fitted")
     }
 
     /// Compute mean absolute error on ordinal scale
@@ -893,18 +935,20 @@ mod tests {
             .learning_rate(0.01)
             .random_state(42);
 
-        let fitted_model = orsvm.fit(&x, &y).unwrap();
+        let fitted_model = orsvm.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert_eq!(fitted_model.n_classes(), 3);
         assert!(fitted_model.n_iter() > 0);
 
         // Test predictions
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test decision function
-        let scores = fitted_model.decision_function(&x).unwrap();
+        let scores = fitted_model
+            .decision_function(&x)
+            .expect("decision function should succeed");
         assert_eq!(scores.len(), 6);
 
         // Test thresholds
@@ -919,7 +963,9 @@ mod tests {
         assert_eq!(classes[2], 2);
 
         // Test mean absolute error
-        let mae = fitted_model.mean_absolute_error(&x, &y).unwrap();
+        let mae = fitted_model
+            .mean_absolute_error(&x, &y)
+            .expect("operation should succeed");
         assert!(mae >= 0.0);
         assert!(mae.is_finite());
 
@@ -971,8 +1017,12 @@ mod tests {
             .max_iter(50)
             .learning_rate(0.01);
 
-        let fitted_all_pairs = all_pairs_svm.fit(&x, &y).unwrap();
-        let predictions = fitted_all_pairs.predict(&x).unwrap();
+        let fitted_all_pairs = all_pairs_svm
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted_all_pairs
+            .predict(&x)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test OneVsRest strategy
@@ -981,8 +1031,8 @@ mod tests {
             .max_iter(50)
             .learning_rate(0.01);
 
-        let fitted_ovr = ovr_svm.fit(&x, &y).unwrap();
-        let predictions = fitted_ovr.predict(&x).unwrap();
+        let fitted_ovr = ovr_svm.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted_ovr.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test Cumulative strategy
@@ -991,8 +1041,12 @@ mod tests {
             .max_iter(50)
             .learning_rate(0.01);
 
-        let fitted_cumulative = cumulative_svm.fit(&x, &y).unwrap();
-        let predictions = fitted_cumulative.predict(&x).unwrap();
+        let fitted_cumulative = cumulative_svm
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted_cumulative
+            .predict(&x)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 }

@@ -170,7 +170,7 @@ impl StatisticalMomentsExtractor {
     fn robust_mean(&self, data: &ArrayView1<Float>) -> Float {
         // Use median as robust mean estimator
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted_data.len();
 
         if n % 2 == 1 {
@@ -184,7 +184,7 @@ impl StatisticalMomentsExtractor {
         // Use median absolute deviation (MAD) scaled to match variance
         let mad_values: Vec<Float> = data.iter().map(|&x| (x - center).abs()).collect();
         let mut sorted_mad = mad_values;
-        sorted_mad.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_mad.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted_mad.len();
 
         let mad = if n % 2 == 1 {
@@ -313,7 +313,7 @@ impl DistributionFeaturesExtractor {
 
         // Sort data for quantile computation
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Quantile features
         for i in 1..=self.n_quantiles {
@@ -417,7 +417,7 @@ impl DistributionFeaturesExtractor {
         let mode_bin = histogram
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(i, _)| i)
             .unwrap_or(0);
 

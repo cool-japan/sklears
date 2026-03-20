@@ -1214,17 +1214,17 @@ mod tests {
     #[test]
     fn test_data_persistence_manager_creation() {
         let manager = DataPersistenceManager::new();
-        let backend_names = manager.get_storage_backend_names().unwrap();
+        let backend_names = manager.get_storage_backend_names().unwrap_or_default();
         assert!(backend_names.is_empty());
     }
 
     #[test]
     fn test_backup_job_creation() {
         let manager = DataPersistenceManager::new();
-        let job_id = manager.create_backup_job("config-1".to_string(), BackupJobType::Full).unwrap();
+        let job_id = manager.create_backup_job("config-1".to_string(), BackupJobType::Full).unwrap_or_default();
         assert!(!job_id.is_empty());
 
-        let status = manager.get_backup_job_status(&job_id).unwrap();
+        let status = manager.get_backup_job_status(&job_id).unwrap_or_default();
         assert_eq!(status, Some(BackupJobStatus::Pending));
     }
 
@@ -1278,7 +1278,7 @@ mod tests {
         let operation_id = manager.start_recovery(
             "plan-1".to_string(),
             RecoveryTrigger::Manual { operator: "admin".to_string() }
-        ).unwrap();
+        ).unwrap_or_default();
 
         assert!(!operation_id.is_empty());
         assert!(manager.active_recoveries.contains_key(&operation_id));
@@ -1306,7 +1306,7 @@ mod tests {
         system.add_metric(metric);
         system.update_metric("throughput", 95.0);
 
-        assert_eq!(system.metrics.get("throughput").unwrap().current_value, 95.0);
-        assert_eq!(system.metrics.get("throughput").unwrap().historical_values.len(), 1);
+        assert_eq!(system.metrics.get("throughput").unwrap_or_default().current_value, 95.0);
+        assert_eq!(system.metrics.get("throughput").unwrap_or_default().historical_values.len(), 1);
     }
 }

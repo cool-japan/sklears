@@ -371,7 +371,11 @@ impl AutoMLAlgorithmSelector {
         let mut evaluated_algorithms = self.evaluate_algorithms(&filtered_algorithms, X, y)?;
 
         // Rank algorithms by performance
-        evaluated_algorithms.sort_by(|a, b| b.cv_score.partial_cmp(&a.cv_score).unwrap());
+        evaluated_algorithms.sort_by(|a, b| {
+            b.cv_score
+                .partial_cmp(&a.cv_score)
+                .expect("operation should succeed")
+        });
 
         // Assign ranks and selection probabilities
         let algorithms_copy = evaluated_algorithms.clone();
@@ -1214,7 +1218,7 @@ impl AutoMLAlgorithmSelector {
             }
             TaskType::Regression => {
                 // R² of predicting mean
-                let mean = y.mean().unwrap();
+                let mean = y.mean().expect("operation should succeed");
                 let tss: f64 = y.iter().map(|&yi| (yi - mean).powi(2)).sum();
                 let rss = tss; // Predicting mean gives R² = 0
                 Ok(1.0 - rss / tss)
@@ -1293,7 +1297,7 @@ impl AutoMLAlgorithmSelector {
 
             // Count unique values
             let mut unique_values = valid_values.clone();
-            unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            unique_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             unique_values.dedup();
 
             let n_unique = unique_values.len();
@@ -1339,7 +1343,7 @@ impl AutoMLAlgorithmSelector {
     }
 
     fn calculate_target_statistics(&self, y: &Array1<f64>) -> TargetStatistics {
-        let mean = y.mean().unwrap();
+        let mean = y.mean().expect("operation should succeed");
         let std = y.std(0.0);
 
         // Mock calculations for advanced statistics
@@ -1395,18 +1399,20 @@ mod tests {
 
     #[allow(non_snake_case)]
     fn create_test_classification_data() -> (Array2<f64>, Array1<f64>) {
-        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec((0..100).map(|i| (i % 3) as f64).collect());
         (X, y)
     }
 
     #[allow(non_snake_case)]
     fn create_test_regression_data() -> (Array2<f64>, Array1<f64>) {
-        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         use scirs2_core::essentials::Uniform;
         use scirs2_core::random::{thread_rng, Distribution};
         let mut rng = thread_rng();
-        let dist = Uniform::new(0.0, 1.0).unwrap();
+        let dist = Uniform::new(0.0, 1.0).expect("operation should succeed");
         let y = Array1::from_vec((0..100).map(|i| i as f64 + dist.sample(&mut rng)).collect());
         (X, y)
     }
@@ -1417,7 +1423,7 @@ mod tests {
         let result = select_best_algorithm(&X, &y, TaskType::Classification);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(!result.selected_algorithms.is_empty());
         assert!(result.best_algorithm.cv_score > 0.0);
     }
@@ -1428,7 +1434,7 @@ mod tests {
         let result = select_best_algorithm(&X, &y, TaskType::Regression);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(!result.selected_algorithms.is_empty());
         assert!(result.best_algorithm.cv_score > 0.0);
     }
@@ -1460,7 +1466,7 @@ mod tests {
         let result = selector.select_algorithms(&X, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.n_algorithms_evaluated <= 3);
 
         for alg in &result.selected_algorithms {
@@ -1489,7 +1495,7 @@ mod tests {
         let result = selector.select_algorithms(&X, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         // Should still find at least simple algorithms
         assert!(!result.selected_algorithms.is_empty());
     }

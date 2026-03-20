@@ -791,12 +791,20 @@ mod tests {
             .contamination(0.1)
             .random_state(42);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let scores = fitted.decision_function(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let scores = fitted
+            .decision_function(&x)
+            .expect("operation should succeed");
 
         // Compare average scores (fairer comparison)
-        let outlier_avg: Float = scores.slice(s![90..]).mean().unwrap();
-        let inlier_avg: Float = scores.slice(s![..90]).mean().unwrap();
+        let outlier_avg: Float = scores
+            .slice(s![90..])
+            .mean()
+            .expect("array should have elements for mean computation");
+        let inlier_avg: Float = scores
+            .slice(s![..90])
+            .mean()
+            .expect("array should have elements for mean computation");
 
         assert!(
             outlier_avg > inlier_avg,
@@ -830,8 +838,8 @@ mod tests {
             .extension_level(2)
             .random_state(42);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Most normal samples should be classified as inliers (1)
         let inliers: i32 = predictions
@@ -855,16 +863,22 @@ mod tests {
         for i in 0..60 {
             let sample =
                 Array1::from_vec(vec![(i as Float / 30.0) - 1.0, (i as Float / 30.0) - 1.0]);
-            let _score = streaming_if.process_sample(sample).unwrap();
+            let _score = streaming_if
+                .process_sample(sample)
+                .expect("sampling should succeed");
         }
 
         // Process an outlier
         let outlier = Array1::from_vec(vec![10.0, 10.0]);
-        let outlier_score = streaming_if.process_sample(outlier).unwrap();
+        let outlier_score = streaming_if
+            .process_sample(outlier)
+            .expect("sampling should succeed");
 
         // Process a normal sample
         let normal = Array1::from_vec(vec![0.1, 0.1]);
-        let normal_score = streaming_if.process_sample(normal).unwrap();
+        let normal_score = streaming_if
+            .process_sample(normal)
+            .expect("sampling should succeed");
 
         // Outlier should have higher score (after trees are built)
         if streaming_if.trees.len() > 0 {

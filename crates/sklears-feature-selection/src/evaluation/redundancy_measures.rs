@@ -184,7 +184,11 @@ impl CorrelationRedundancy {
         }
 
         // Sort by correlation strength
-        redundant_pairs.sort_by(|a, b| b.2.abs().partial_cmp(&a.2.abs()).unwrap());
+        redundant_pairs.sort_by(|a, b| {
+            b.2.abs()
+                .partial_cmp(&a.2.abs())
+                .expect("operation should succeed")
+        });
 
         Ok(redundant_pairs)
     }
@@ -534,7 +538,7 @@ impl VarianceInflationFactor {
         }
 
         // Sort by VIF score (descending)
-        high_vif_features.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        high_vif_features.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         Ok(high_vif_features)
     }
@@ -791,13 +795,15 @@ mod tests {
 
         let feature_indices = vec![0, 1, 2]; // Features 0 and 1 are highly correlated, 2 is similar
         let redundancy = CorrelationRedundancy::new(0.5, true);
-        let score = redundancy.compute(X.view(), &feature_indices).unwrap();
+        let score = redundancy
+            .compute(X.view(), &feature_indices)
+            .expect("operation should succeed");
 
         assert!(score > 0.0);
 
         let pairs = redundancy
             .identify_redundant_pairs(X.view(), &feature_indices)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(!pairs.is_empty());
     }
 
@@ -813,7 +819,9 @@ mod tests {
 
         let feature_indices = vec![0, 1, 2];
         let redundancy = MutualInformationRedundancy::new(0.1, 3);
-        let score = redundancy.compute(X.view(), &feature_indices).unwrap();
+        let score = redundancy
+            .compute(X.view(), &feature_indices)
+            .expect("operation should succeed");
 
         assert!(score >= 0.0);
     }
@@ -832,7 +840,7 @@ mod tests {
         let vif_analyzer = VarianceInflationFactor::new(5.0);
         let vif_scores = vif_analyzer
             .compute_all(X.view(), &feature_indices)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(vif_scores.len(), 3);
         for score in &vif_scores {
@@ -841,7 +849,7 @@ mod tests {
 
         let high_vif = vif_analyzer
             .identify_high_vif_features(X.view(), &feature_indices)
-            .unwrap();
+            .expect("operation should succeed");
         // Might be empty if VIF scores are below threshold
         assert!(high_vif.len() <= feature_indices.len());
     }
@@ -858,7 +866,8 @@ mod tests {
         ];
 
         let feature_indices = vec![0, 1, 2, 3, 4];
-        let assessment = RedundancyMeasures::compute(X.view(), &feature_indices).unwrap();
+        let assessment = RedundancyMeasures::compute(X.view(), &feature_indices)
+            .expect("operation should succeed");
 
         assert!(assessment.correlation_redundancy_score >= 0.0);
         assert!(assessment.mutual_information_redundancy_score >= 0.0);
@@ -878,7 +887,9 @@ mod tests {
         let feature_indices = vec![0];
 
         let redundancy = CorrelationRedundancy::new(0.5, true);
-        let score = redundancy.compute(X.view(), &feature_indices).unwrap();
+        let score = redundancy
+            .compute(X.view(), &feature_indices)
+            .expect("operation should succeed");
         assert_eq!(score, 0.0); // No redundancy with single feature
     }
 }

@@ -25,7 +25,7 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::StandardNormal;
 use scirs2_linalg::compat::{Eig, Inverse, SVD};
@@ -218,19 +218,20 @@ impl Fit<Array2<f64>, ()> for AnisotropicRBFSampler {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         let mut random_weights = Array2::zeros((self.n_components, n_features));
         for j in 0..n_features {
-            let normal = RandNormal::new(0.0, 1.0 / length_scales[j]).unwrap();
+            let normal =
+                RandNormal::new(0.0, 1.0 / length_scales[j]).expect("operation should succeed");
             for i in 0..self.n_components {
                 random_weights[(i, j)] = rng.sample(normal);
             }
         }
 
         // Generate random biases
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let random_biases = Array1::from_shape_fn(self.n_components, |_| rng.sample(uniform));
 
         Ok(FittedAnisotropicRBF {
@@ -340,7 +341,7 @@ impl Fit<Array2<f64>, ()> for MahalanobisRBFSampler {
         let n_samples = x.nrows();
 
         // Compute mean
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
 
         // Center data
         let x_centered = x - &mean.clone().insert_axis(Axis(0));
@@ -377,7 +378,7 @@ impl Fit<Array2<f64>, ()> for MahalanobisRBFSampler {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         let mut random_weights = Array2::zeros((self.n_components, n_features));
@@ -388,7 +389,7 @@ impl Fit<Array2<f64>, ()> for MahalanobisRBFSampler {
         }
 
         // Generate random biases
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let random_biases = Array1::from_shape_fn(self.n_components, |_| rng.sample(uniform));
 
         Ok(FittedMahalanobisRBF {
@@ -532,7 +533,7 @@ impl RobustAnisotropicRBFSampler {
             let subset = x.select(Axis(0), &indices);
 
             // Compute mean and covariance of subset
-            let mean = subset.mean_axis(Axis(0)).unwrap();
+            let mean = subset.mean_axis(Axis(0)).expect("operation should succeed");
             let centered = &subset - &mean.clone().insert_axis(Axis(0));
             let cov = centered.t().dot(&centered) / (h - 1) as f64;
 
@@ -570,7 +571,7 @@ impl RobustAnisotropicRBFSampler {
         let n_features = x.ncols();
 
         // Start with sample mean and covariance
-        let mut mean = x.mean_axis(Axis(0)).unwrap();
+        let mut mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean.clone().insert_axis(Axis(0));
         let mut cov = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
@@ -648,7 +649,7 @@ impl Fit<Array2<f64>, ()> for RobustAnisotropicRBFSampler {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Cholesky decomposition of precision matrix for sampling
@@ -670,7 +671,7 @@ impl Fit<Array2<f64>, ()> for RobustAnisotropicRBFSampler {
         }
 
         // Generate random biases
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let random_biases = Array1::from_shape_fn(self.n_components, |_| rng.sample(uniform));
 
         Ok(FittedRobustAnisotropicRBF {
@@ -726,14 +727,16 @@ mod tests {
             .signal_variance(1.5);
 
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [-1.0, -1.0]];
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[4, 100]);
         assert!(features.iter().all(|&x| x.is_finite()));
 
         // Check that features have approximately zero mean
-        let mean = features.mean_axis(Axis(0)).unwrap();
+        let mean = features
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
         for &m in mean.iter() {
             assert!(m.abs() < 0.5);
         }
@@ -757,8 +760,8 @@ mod tests {
             [-2.0, -0.2]
         ];
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[8, 50]);
         assert!(features.iter().all(|&x| x.is_finite()));
@@ -784,15 +787,15 @@ mod tests {
             [4.0, 8.0]
         ];
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[8, 80]);
         assert!(features.iter().all(|&x| x.is_finite()));
 
         // Test with new data
         let x_test = array![[2.0, 4.0], [1.0, 2.0]];
-        let features_test = fitted.transform(&x_test).unwrap();
+        let features_test = fitted.transform(&x_test).expect("operation should succeed");
         assert_eq!(features_test.shape(), &[2, 80]);
         assert!(features_test.iter().all(|&x| x.is_finite()));
     }
@@ -819,8 +822,8 @@ mod tests {
             [1.15, 1.15]
         ];
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[10, 60]);
         assert!(features.iter().all(|&x| x.is_finite()));
@@ -843,8 +846,8 @@ mod tests {
             [5.0, 5.0] // outlier
         ];
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[8, 40]);
         assert!(features.iter().all(|&x| x.is_finite()));
@@ -862,8 +865,16 @@ mod tests {
 
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let features1 = sampler1.fit(&x, &()).unwrap().transform(&x).unwrap();
-        let features2 = sampler2.fit(&x, &()).unwrap().transform(&x).unwrap();
+        let features1 = sampler1
+            .fit(&x, &())
+            .expect("operation should succeed")
+            .transform(&x)
+            .expect("operation should succeed");
+        let features2 = sampler2
+            .fit(&x, &())
+            .expect("operation should succeed")
+            .transform(&x)
+            .expect("operation should succeed");
 
         for i in 0..features1.nrows() {
             for j in 0..features1.ncols() {
@@ -890,7 +901,7 @@ mod tests {
             [25.0, 0.25]
         ];
 
-        let fitted = sampler.fit(&x, &()).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
 
         // First dimension should have much larger length scale
         assert!(fitted.length_scales[0] > 5.0 * fitted.length_scales[1]);

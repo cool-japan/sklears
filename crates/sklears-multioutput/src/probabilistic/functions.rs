@@ -66,8 +66,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[3, 2]);
         assert!(trained.log_marginal_likelihood().is_finite());
     }
@@ -85,8 +89,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[3, 2]);
         assert!(trained.weight_posterior().samples.is_some());
     }
@@ -102,8 +110,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[3, 2]);
     }
     #[test]
@@ -118,8 +130,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[3, 2]);
     }
     #[test]
@@ -133,8 +149,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[3, 2]);
     }
     #[test]
@@ -149,8 +169,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let prediction_with_uncertainty = trained.predict_with_uncertainty(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let prediction_with_uncertainty = trained
+            .predict_with_uncertainty(&X.view())
+            .expect("operation should succeed");
         assert_eq!(prediction_with_uncertainty.mean.shape(), &[3, 2]);
         assert_eq!(prediction_with_uncertainty.variance.shape(), &[3, 2]);
         assert_eq!(
@@ -174,8 +198,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[3, 2]);
     }
     #[test]
@@ -191,8 +219,12 @@ mod tests {
             ..Default::default()
         };
         let model = BayesianMultiOutputModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[3, 2]);
     }
     #[test]
@@ -210,11 +242,17 @@ mod tests {
         let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]];
         let y = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]];
         let model = BayesianMultiOutputModel::new();
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
         let X_test = array![[1.5, 2.5], [2.5, 3.5]];
-        let predictions = trained.predict(&X_test.view()).unwrap();
+        let predictions = trained
+            .predict(&X_test.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[2, 2]);
-        let prediction_with_uncertainty = trained.predict_with_uncertainty(&X_test.view()).unwrap();
+        let prediction_with_uncertainty = trained
+            .predict_with_uncertainty(&X_test.view())
+            .expect("operation should succeed");
         assert_eq!(prediction_with_uncertainty.mean.shape(), &[2, 2]);
         assert_eq!(prediction_with_uncertainty.variance.shape(), &[2, 2]);
         assert_eq!(
@@ -232,8 +270,12 @@ mod tests {
             .kernel(KernelFunction::RBF(1.0))
             .noise_level(0.1)
             .random_state(Some(42));
-        let trained = gp.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = gp
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (3, 2));
         let (X_train, y_train) = trained.training_data();
         assert_eq!(X_train.dim(), (3, 2));
@@ -247,9 +289,13 @@ mod tests {
         let gp = GaussianProcessMultiOutput::new()
             .kernel(KernelFunction::RBF(1.0))
             .noise_level(0.01);
-        let trained = gp.fit(&X.view(), &y.view()).unwrap();
+        let trained = gp
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
         let X_test = array![[1.5, 2.5], [2.5, 3.5]];
-        let (mean, variance) = trained.predict_with_variance(&X_test.view()).unwrap();
+        let (mean, variance) = trained
+            .predict_with_variance(&X_test.view())
+            .expect("operation should succeed");
         assert_eq!(mean.dim(), (2, 2));
         assert_eq!(variance.dim(), (2, 2));
         for i in 0..variance.nrows() {
@@ -274,8 +320,12 @@ mod tests {
             let gp = GaussianProcessMultiOutput::new()
                 .kernel(kernel.clone())
                 .noise_level(0.1);
-            let trained = gp.fit(&X.view(), &y.view()).unwrap();
-            let predictions = trained.predict(&X.view()).unwrap();
+            let trained = gp
+                .fit(&X.view(), &y.view())
+                .expect("model fitting should succeed");
+            let predictions = trained
+                .predict(&X.view())
+                .expect("prediction should succeed");
             assert_eq!(predictions.dim(), (2, 2));
             assert_eq!(trained.kernel(), &kernel);
         }
@@ -289,8 +339,12 @@ mod tests {
             .kernel(KernelFunction::RBF(1.0))
             .normalize_y(true)
             .noise_level(0.1);
-        let trained = gp.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = gp
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (3, 2));
         for i in 0..predictions.nrows() {
             for j in 0..predictions.ncols() {
@@ -309,7 +363,9 @@ mod tests {
         let X_train = array![[1.0, 2.0], [2.0, 3.0]];
         let y_train = array![[1.0, 0.0], [0.0, 1.0]];
         let X_test = array![[1.0]];
-        let trained = gp.fit(&X_train.view(), &y_train.view()).unwrap();
+        let trained = gp
+            .fit(&X_train.view(), &y_train.view())
+            .expect("model fitting should succeed");
         assert!(trained.predict(&X_test.view()).is_err());
     }
     #[test]
@@ -341,8 +397,12 @@ mod tests {
             ..Default::default()
         };
         let model = EnsembleBayesianModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (4, 2));
         assert_eq!(trained.n_models(), 3);
         let weights_sum: Float = trained.model_weights().sum();
@@ -373,8 +433,12 @@ mod tests {
                 ..Default::default()
             };
             let model = EnsembleBayesianModel::new().config(config);
-            let trained = model.fit(&X.view(), &y.view()).unwrap();
-            let predictions = trained.predict(&X.view()).unwrap();
+            let trained = model
+                .fit(&X.view(), &y.view())
+                .expect("model fitting should succeed");
+            let predictions = trained
+                .predict(&X.view())
+                .expect("prediction should succeed");
             assert_eq!(predictions.dim(), (3, 2));
         }
     }
@@ -395,8 +459,12 @@ mod tests {
             ..Default::default()
         };
         let model = EnsembleBayesianModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let uncertainty = trained.predict_with_uncertainty(&X.view(), 0.95).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let uncertainty = trained
+            .predict_with_uncertainty(&X.view(), 0.95)
+            .expect("operation should succeed");
         assert_eq!(uncertainty.mean.dim(), (3, 2));
         assert_eq!(uncertainty.variance.dim(), (3, 2));
         assert_eq!(uncertainty.confidence_intervals.dim(), (3, 2, 2));
@@ -419,8 +487,12 @@ mod tests {
             .n_models(4)
             .strategy(EnsembleStrategy::CommitteeMachine)
             .random_state(123);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (2, 2));
         assert_eq!(trained.n_models(), 4);
     }
@@ -441,7 +513,9 @@ mod tests {
             ..Default::default()
         };
         let model = EnsembleBayesianModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
         let expected_weight = 1.0 / 5.0;
         for &weight in trained.model_weights().iter() {
             assert_abs_diff_eq!(weight, expected_weight, epsilon = 1e-6);
@@ -460,7 +534,7 @@ mod tests {
         let trained = EnsembleBayesianModel::new()
             .random_state(42)
             .fit(&X_train.view(), &y_train.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(trained.predict(&X_test.view()).is_err());
     }
     #[test]
@@ -480,8 +554,12 @@ mod tests {
             ..Default::default()
         };
         let model = EnsembleBayesianModel::new().config(config);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (4, 2));
         for i in 0..predictions.nrows() {
             for j in 0..predictions.ncols() {
@@ -506,11 +584,19 @@ mod tests {
             ..Default::default()
         };
         let model1 = EnsembleBayesianModel::new().config(config.clone());
-        let trained1 = model1.fit(&X.view(), &y.view()).unwrap();
-        let pred1 = trained1.predict(&X.view()).unwrap();
+        let trained1 = model1
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let pred1 = trained1
+            .predict(&X.view())
+            .expect("prediction should succeed");
         let model2 = EnsembleBayesianModel::new().config(config);
-        let trained2 = model2.fit(&X.view(), &y.view()).unwrap();
-        let pred2 = trained2.predict(&X.view()).unwrap();
+        let trained2 = model2
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let pred2 = trained2
+            .predict(&X.view())
+            .expect("prediction should succeed");
         for i in 0..pred1.nrows() {
             for j in 0..pred1.ncols() {
                 assert_abs_diff_eq!(pred1[[i, j]], pred2[[i, j]], epsilon = 1e-6);

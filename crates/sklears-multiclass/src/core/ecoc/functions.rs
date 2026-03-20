@@ -384,7 +384,7 @@ mod tests {
     }
     #[test]
     fn test_sparse_matrix_from_dense() {
-        let dense = Array2::from_shape_vec((2, 3), vec![1, 0, -1, 0, 1, 0]).unwrap();
+        let dense = Array2::from_shape_vec((2, 3), vec![1, 0, -1, 0, 1, 0]).expect("operation should succeed");
         let sparse = SparseMatrix::from_dense(&dense, 0);
         assert_eq!(sparse.n_rows, 2);
         assert_eq!(sparse.n_cols, 3);
@@ -435,7 +435,7 @@ mod tests {
     }
     #[test]
     fn test_code_matrix_dense() {
-        let dense_array = Array2::from_shape_vec((2, 3), vec![1, -1, 1, -1, 1, -1]).unwrap();
+        let dense_array = Array2::from_shape_vec((2, 3), vec![1, -1, 1, -1, 1, -1]).expect("operation should succeed");
         let code_matrix = CodeMatrix::Dense(dense_array.clone());
         assert_eq!(code_matrix.dim(), (2, 3));
         assert_eq!(code_matrix.nrows(), 2);

@@ -21,10 +21,10 @@ mod stress_tests {
 
         // Create large dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create large parameter space (100+ parameters)
@@ -70,10 +70,10 @@ mod stress_tests {
 
         // Create large dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create moderate parameter space
@@ -103,10 +103,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Test with many folds
@@ -139,10 +139,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space
@@ -179,10 +179,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create very large grid
@@ -212,10 +212,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space
@@ -248,10 +248,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space with extreme ranges
@@ -288,10 +288,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space
@@ -326,10 +326,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space
@@ -360,10 +360,10 @@ mod stress_tests {
 
         // Create dataset
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space

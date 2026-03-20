@@ -620,7 +620,7 @@ mod tests {
 
     #[test]
     fn test_dataset_view_basic() {
-        let features = Array::from_shape_vec((6, 3), (0..18).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((6, 3), (0..18).map(|x| x as f64).collect()).expect("shape and data length should match");
         let targets = Array::from_vec((0..6).map(|x| x as f64).collect());
 
         let view = DatasetView::new(features.view(), Some(targets.view()));
@@ -631,38 +631,38 @@ mod tests {
         assert!(view.has_targets());
 
         // Test sample access
-        let sample = view.sample(2).unwrap();
+        let sample = view.sample(2).expect("sampling should succeed");
         assert_eq!(sample[0], 6.0); // 2 * 3 + 0
         assert_eq!(sample[1], 7.0); // 2 * 3 + 1
         assert_eq!(sample[2], 8.0); // 2 * 3 + 2
 
         // Test feature access
-        let feature = view.feature(1).unwrap();
+        let feature = view.feature(1).expect("operation should succeed");
         assert_eq!(feature[0], 1.0); // 0 * 3 + 1
         assert_eq!(feature[2], 7.0); // 2 * 3 + 1
 
         // Test targets
-        let targets_view = view.targets().unwrap();
+        let targets_view = view.targets().expect("operation should succeed");
         assert_eq!(targets_view[2], 2.0);
     }
 
     #[test]
     fn test_dataset_view_ranges() {
-        let features = Array::from_shape_vec((10, 4), (0..40).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((10, 4), (0..40).map(|x| x as f64).collect()).expect("shape and data length should match");
         let view = DatasetView::new(features.view(), None);
 
         // Test sample range
-        let samples = view.samples(2..5).unwrap();
+        let samples = view.samples(2..5).expect("sampling should succeed");
         assert_eq!(samples.dim(), (3, 4));
         assert_eq!(samples[[0, 0]], 8.0); // Sample 2, feature 0
 
         // Test feature range
-        let features_range = view.features_range(1..3).unwrap();
+        let features_range = view.features_range(1..3).expect("operation should succeed");
         assert_eq!(features_range.dim(), (10, 2));
         assert_eq!(features_range[[0, 0]], 1.0); // Sample 0, feature 1
 
         // Test subview
-        let subview = view.subview(1..4, 1..3).unwrap();
+        let subview = view.subview(1..4, 1..3).expect("operation should succeed");
         assert_eq!(subview.dim(), (3, 2));
         assert_eq!(subview[[0, 0]], 5.0); // Sample 1, feature 1
     }
@@ -679,17 +679,17 @@ mod tests {
                 9.0, 10.0, // Sample 4: sum = 19
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let view = DatasetView::new(features.view(), None);
 
         // Filter samples where sum > 10
-        let filtered = view.filter(|sample| sample.sum() > 10.0).unwrap();
+        let filtered = view.filter(|sample| sample.sum() > 10.0).expect("sampling should succeed");
 
         assert_eq!(filtered.n_samples(), 3); // Samples 2, 3, 4
         assert_eq!(filtered.n_features(), 2);
 
-        let sample0 = filtered.sample(0).unwrap();
+        let sample0 = filtered.sample(0).expect("sampling should succeed");
         assert_eq!(sample0[0], 5.0); // Original sample 2
         assert_eq!(sample0[1], 6.0);
 
@@ -700,37 +700,37 @@ mod tests {
 
     #[test]
     fn test_selected_features_view() {
-        let features = Array::from_shape_vec((3, 4), (0..12).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((3, 4), (0..12).map(|x| x as f64).collect()).expect("shape and data length should match");
         let view = DatasetView::new(features.view(), None);
 
         // Select features 0 and 2
-        let selected = view.select_features(&[0, 2]).unwrap();
+        let selected = view.select_features(&[0, 2]).expect("operation should succeed");
 
         assert_eq!(selected.n_samples(), 3);
         assert_eq!(selected.n_features(), 2);
 
-        let sample0 = selected.sample(0).unwrap();
+        let sample0 = selected.sample(0).expect("sampling should succeed");
         assert_eq!(sample0, vec![0.0, 2.0]); // Features 0 and 2 of sample 0
 
-        let sample1 = selected.sample(1).unwrap();
+        let sample1 = selected.sample(1).expect("sampling should succeed");
         assert_eq!(sample1, vec![4.0, 6.0]); // Features 0 and 2 of sample 1
     }
 
     #[test]
     fn test_strided_view() {
-        let features = Array::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).expect("shape and data length should match");
         let view = DatasetView::new(features.view(), None);
 
         // Every 3rd sample starting from index 1
-        let strided = view.strided(3, 1).unwrap();
+        let strided = view.strided(3, 1).expect("operation should succeed");
 
         assert_eq!(strided.n_samples(), 3); // Samples 1, 4, 7
         assert_eq!(strided.n_features(), 2);
 
-        let sample0 = strided.sample(0).unwrap();
+        let sample0 = strided.sample(0).expect("sampling should succeed");
         assert_eq!(sample0[0], 2.0); // Sample 1, feature 0: 1 * 2 + 0
 
-        let sample1 = strided.sample(1).unwrap();
+        let sample1 = strided.sample(1).expect("sampling should succeed");
         assert_eq!(sample1[0], 8.0); // Sample 4, feature 0: 4 * 2 + 0
 
         // Test original index mapping
@@ -741,20 +741,20 @@ mod tests {
 
     #[test]
     fn test_sample_iterator() {
-        let features = Array::from_shape_vec((3, 2), (0..6).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((3, 2), (0..6).map(|x| x as f64).collect()).expect("shape and data length should match");
         let view = DatasetView::new(features.view(), None);
 
         let mut iter = view.samples_iter();
 
-        let sample0 = iter.next().unwrap().unwrap();
+        let sample0 = iter.next().expect("sampling should succeed").expect("sampling should succeed");
         assert_eq!(sample0[0], 0.0);
         assert_eq!(sample0[1], 1.0);
 
-        let sample1 = iter.next().unwrap().unwrap();
+        let sample1 = iter.next().expect("sampling should succeed").expect("sampling should succeed");
         assert_eq!(sample1[0], 2.0);
         assert_eq!(sample1[1], 3.0);
 
-        let sample2 = iter.next().unwrap().unwrap();
+        let sample2 = iter.next().expect("sampling should succeed").expect("sampling should succeed");
         assert_eq!(sample2[0], 4.0);
         assert_eq!(sample2[1], 5.0);
 
@@ -763,21 +763,21 @@ mod tests {
 
     #[test]
     fn test_batch_iterator() {
-        let features = Array::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).expect("shape and data length should match");
         let view = DatasetView::new(features.view(), None);
 
         let mut iter = view.batches(3);
 
-        let batch0 = iter.next().unwrap().unwrap();
+        let batch0 = iter.next().expect("operation should succeed").expect("operation should succeed");
         assert_eq!(batch0.dim(), (3, 2));
 
-        let batch1 = iter.next().unwrap().unwrap();
+        let batch1 = iter.next().expect("operation should succeed").expect("operation should succeed");
         assert_eq!(batch1.dim(), (3, 2));
 
-        let batch2 = iter.next().unwrap().unwrap();
+        let batch2 = iter.next().expect("operation should succeed").expect("operation should succeed");
         assert_eq!(batch2.dim(), (3, 2));
 
-        let batch3 = iter.next().unwrap().unwrap();
+        let batch3 = iter.next().expect("operation should succeed").expect("operation should succeed");
         assert_eq!(batch3.dim(), (1, 2)); // Last batch is smaller
 
         assert!(iter.next().is_none());
@@ -785,17 +785,17 @@ mod tests {
 
     #[test]
     fn test_window_view() {
-        let features = Array::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).expect("shape and data length should match");
         let view = DatasetView::new(features.view(), None);
 
-        let windows = view.windows(3, 2).unwrap(); // Window size 3, step 2
+        let windows = view.windows(3, 2).expect("operation should succeed"); // Window size 3, step 2
 
         assert_eq!(windows.n_windows(), 4); // Windows at positions 0, 2, 4, 6
 
-        let window0 = windows.window(0).unwrap();
+        let window0 = windows.window(0).expect("operation should succeed");
         assert_eq!(window0.dim(), (3, 2)); // Samples 0, 1, 2
 
-        let window1 = windows.window(1).unwrap();
+        let window1 = windows.window(1).expect("operation should succeed");
         assert_eq!(window1.dim(), (3, 2)); // Samples 2, 3, 4
 
         // Test window content
@@ -806,7 +806,7 @@ mod tests {
     #[test]
     fn test_mutable_dataset_view() {
         let mut features =
-            Array::from_shape_vec((3, 2), (0..6).map(|x| x as f64).collect()).unwrap();
+            Array::from_shape_vec((3, 2), (0..6).map(|x| x as f64).collect()).expect("shape and data length should match");
         let mut targets = Array::from_vec(vec![10.0, 20.0, 30.0]);
 
         let mut view = DatasetViewMut::new(features.view_mut(), Some(targets.view_mut()));
@@ -816,14 +816,14 @@ mod tests {
 
         // Modify a sample
         {
-            let mut sample = view.sample_mut(1).unwrap();
+            let mut sample = view.sample_mut(1).expect("sampling should succeed");
             sample[0] = 99.0;
             sample[1] = 88.0;
         }
 
         // Verify the change
         let immutable_view = view.as_view();
-        let sample = immutable_view.sample(1).unwrap();
+        let sample = immutable_view.sample(1).expect("sampling should succeed");
         assert_eq!(sample[0], 99.0);
         assert_eq!(sample[1], 88.0);
 
@@ -832,13 +832,13 @@ mod tests {
             targets_mut[1] = 999.0;
         }
 
-        let targets_view = immutable_view.targets().unwrap();
+        let targets_view = immutable_view.targets().expect("operation should succeed");
         assert_eq!(targets_view[1], 999.0);
     }
 
     #[test]
     fn test_error_handling() {
-        let features = Array::from_shape_vec((3, 2), (0..6).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((3, 2), (0..6).map(|x| x as f64).collect()).expect("shape and data length should match");
         let view = DatasetView::new(features.view(), None);
 
         // Index out of bounds

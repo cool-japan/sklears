@@ -936,7 +936,8 @@ mod tests {
         let config = VisualizationConfig::default();
         let mut plot = Plot2D::new(config);
 
-        let x = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 0.5, 0.5]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 0.5, 0.5])
+            .expect("array shape mismatch");
         let y = Array1::from_vec(vec![-1.0, 1.0, 1.0]);
         let support_vectors = vec![0, 2];
 

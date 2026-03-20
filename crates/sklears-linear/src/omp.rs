@@ -124,7 +124,11 @@ impl Fit<Array2<Float>, Array1<Float>> for OrthogonalMatchingPursuit<Untrained> 
         let tol = self.config.tol.unwrap_or(1e-3);
 
         // Center X and y
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let mut x_centered = x - &x_mean;
 
         let y_mean = if self.config.fit_intercept {
@@ -320,7 +324,7 @@ mod tests {
             .fit_intercept(false)
             .normalize(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should recover the true coefficients
         let coef = model.coef();
@@ -328,7 +332,7 @@ mod tests {
         assert_abs_diff_eq!(coef[1], 3.0, epsilon = 1e-5);
 
         // Predictions should be perfect
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         for i in 0..y.len() {
             assert_abs_diff_eq!(predictions[i], y[i], epsilon = 1e-5);
         }
@@ -352,7 +356,7 @@ mod tests {
             .fit_intercept(false)
             .normalize(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         let coef = model.coef();
         let n_nonzero = coef.iter().filter(|&&c| c.abs() > 1e-10).count();
@@ -375,11 +379,11 @@ mod tests {
             .tol(0.5) // Relatively high tolerance
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should get a reasonable approximation
-        let _predictions = model.predict(&x).unwrap();
-        let r2 = model.score(&x, &y).unwrap();
+        let _predictions = model.predict(&x).expect("prediction should succeed");
+        let r2 = model.score(&x, &y).expect("scoring should succeed");
         assert!(r2 > 0.95);
     }
 
@@ -391,10 +395,14 @@ mod tests {
         let model = OrthogonalMatchingPursuit::new()
             .fit_intercept(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 1e-5);
-        assert_abs_diff_eq!(model.intercept().unwrap(), 1.0, epsilon = 1e-5);
+        assert_abs_diff_eq!(
+            model.intercept().expect("intercept should be available"),
+            1.0,
+            epsilon = 1e-5
+        );
     }
 
     #[test]
@@ -424,7 +432,7 @@ mod tests {
             .fit_intercept(false)
             .normalize(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         let coef = model.coef();
 

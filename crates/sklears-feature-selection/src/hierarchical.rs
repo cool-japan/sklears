@@ -316,7 +316,7 @@ impl HierarchicalFeatureSelector<Untrained> {
                 .collect();
 
             // Sort by score (descending)
-            level_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            level_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             // Select best features from current level
             let mut next_candidates: VecDeque<usize> = VecDeque::new();
@@ -372,7 +372,7 @@ impl HierarchicalFeatureSelector<Untrained> {
 
         // Select top k features based on aggregated scores
         let mut scored_features: Vec<(usize, Float)> = aggregated_scores.into_iter().collect();
-        scored_features.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored_features.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         Ok(scored_features
             .into_iter()
@@ -398,7 +398,7 @@ impl HierarchicalFeatureSelector<Untrained> {
                 })
                 .collect();
 
-            level_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            level_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             let k_for_level = if level < remaining {
                 features_per_level + 1
@@ -433,7 +433,8 @@ impl HierarchicalFeatureSelector<Untrained> {
                 .iter()
                 .map(|(&feature_id, &score)| (feature_id, score))
                 .collect();
-            scored_features.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            scored_features
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             return Ok(scored_features
                 .into_iter()
@@ -457,7 +458,7 @@ impl HierarchicalFeatureSelector<Untrained> {
                 })
                 .collect();
 
-            group_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            group_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             let k_for_group = if group_idx < remaining {
                 features_per_group + 1
@@ -616,7 +617,8 @@ impl Fit<Array2<Float>, Array1<Float>> for MultiLevelHierarchicalSelector<Untrai
                 })
                 .collect();
 
-            level_feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            level_feature_scores
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             let selected_at_level: Vec<usize> = level_feature_scores
                 .into_iter()
@@ -738,13 +740,23 @@ mod tests {
         let mut hierarchy = FeatureHierarchy::new();
 
         // Add root features
-        hierarchy.add_node(0, None, Some(0)).unwrap();
-        hierarchy.add_node(1, None, Some(1)).unwrap();
+        hierarchy
+            .add_node(0, None, Some(0))
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(1, None, Some(1))
+            .expect("operation should succeed");
 
         // Add child features
-        hierarchy.add_node(2, Some(0), Some(0)).unwrap();
-        hierarchy.add_node(3, Some(0), Some(0)).unwrap();
-        hierarchy.add_node(4, Some(1), Some(1)).unwrap();
+        hierarchy
+            .add_node(2, Some(0), Some(0))
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(3, Some(0), Some(0))
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(4, Some(1), Some(1))
+            .expect("operation should succeed");
 
         assert_eq!(hierarchy.root_nodes.len(), 2);
         assert_eq!(hierarchy.max_level, 1);
@@ -762,10 +774,18 @@ mod tests {
     #[test]
     fn test_hierarchical_selector_top_down() {
         let mut hierarchy = FeatureHierarchy::new();
-        hierarchy.add_node(0, None, None).unwrap();
-        hierarchy.add_node(1, Some(0), None).unwrap();
-        hierarchy.add_node(2, Some(0), None).unwrap();
-        hierarchy.add_node(3, None, None).unwrap();
+        hierarchy
+            .add_node(0, None, None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(1, Some(0), None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(2, Some(0), None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(3, None, None)
+            .expect("operation should succeed");
 
         let x = array![
             [1.0, 0.5, 0.8, 2.0],
@@ -777,7 +797,7 @@ mod tests {
 
         let selector = HierarchicalFeatureSelector::new(hierarchy, 2)
             .selection_strategy(HierarchicalSelectionStrategy::TopDown);
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         let selected = fitted.selected_features();
         assert!(!selected.is_empty());
@@ -787,18 +807,24 @@ mod tests {
     #[test]
     fn test_hierarchical_selector_transform() {
         let mut hierarchy = FeatureHierarchy::new();
-        hierarchy.add_node(0, None, None).unwrap();
-        hierarchy.add_node(1, None, None).unwrap();
-        hierarchy.add_node(2, None, None).unwrap();
+        hierarchy
+            .add_node(0, None, None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(1, None, None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(2, None, None)
+            .expect("operation should succeed");
 
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
         let y = array![1.0, 2.0, 3.0];
 
         let selector = HierarchicalFeatureSelector::new(hierarchy, 2);
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         let test_x = array![[10.0, 11.0, 12.0], [13.0, 14.0, 15.0]];
-        let transformed = fitted.transform(&test_x).unwrap();
+        let transformed = fitted.transform(&test_x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 2);
         assert!(transformed.ncols() <= 2);
@@ -807,10 +833,18 @@ mod tests {
     #[test]
     fn test_multi_level_selector() {
         let mut hierarchy = FeatureHierarchy::new();
-        hierarchy.add_node(0, None, None).unwrap();
-        hierarchy.add_node(1, Some(0), None).unwrap();
-        hierarchy.add_node(2, Some(0), None).unwrap();
-        hierarchy.add_node(3, None, None).unwrap();
+        hierarchy
+            .add_node(0, None, None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(1, Some(0), None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(2, Some(0), None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(3, None, None)
+            .expect("operation should succeed");
 
         let x = array![
             [1.0, 0.5, 0.8, 2.0],
@@ -824,10 +858,10 @@ mod tests {
         k_per_level.insert(1, 1); // Select 1 feature at level 1
 
         let selector = MultiLevelHierarchicalSelector::new(hierarchy).k_per_level(k_per_level);
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         let level_0_selected = fitted.selected_features_at_level(0);
         assert!(level_0_selected.is_some());
-        assert_eq!(level_0_selected.unwrap().len(), 1);
+        assert_eq!(level_0_selected.expect("operation should succeed").len(), 1);
     }
 }

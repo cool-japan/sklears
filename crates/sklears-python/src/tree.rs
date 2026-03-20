@@ -3,8 +3,9 @@
 //! This module provides PyO3-based Python bindings for sklears tree algorithms,
 //! including Decision Trees, Random Forest, and Extra Trees.
 
+use crate::linear::common::core_array1_to_py;
 use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
-use numpy::{IntoPyArray, PyArray1, PyArray2};
+use numpy::{PyArray1, PyArray2};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
@@ -122,7 +123,7 @@ impl PyDecisionTreeClassifier {
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
                 .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
-        Ok(predictions.into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, &predictions))
     }
 
     /// Get feature importances
@@ -132,7 +133,7 @@ impl PyDecisionTreeClassifier {
         })?;
 
         match trained_model.feature_importances() {
-            Some(importances) => Ok(importances.clone().into_pyarray(py).unbind()),
+            Some(importances) => Ok(core_array1_to_py(py, importances)),
             None => Err(PyRuntimeError::new_err("Feature importances not available")),
         }
     }
@@ -249,7 +250,7 @@ impl PyDecisionTreeRegressor {
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
                 .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
-        Ok(predictions.into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, &predictions))
     }
 
     /// Get feature importances
@@ -259,7 +260,7 @@ impl PyDecisionTreeRegressor {
         })?;
 
         match trained_model.feature_importances() {
-            Some(importances) => Ok(importances.clone().into_pyarray(py).unbind()),
+            Some(importances) => Ok(core_array1_to_py(py, importances)),
             None => Err(PyRuntimeError::new_err("Feature importances not available")),
         }
     }
@@ -422,7 +423,7 @@ impl PyRandomForestClassifier {
         })?;
 
         match trained_model.feature_importances() {
-            Ok(importances) => Ok(importances.into_pyarray(py).unbind()),
+            Ok(importances) => Ok(core_array1_to_py(py, &importances)),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Failed to compute feature importances: {}",
                 e
@@ -567,7 +568,7 @@ impl PyRandomForestRegressor {
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
                 .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
-        Ok(predictions.into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, &predictions))
     }
 
     /// Get feature importances
@@ -577,7 +578,7 @@ impl PyRandomForestRegressor {
         })?;
 
         match trained_model.feature_importances() {
-            Ok(importances) => Ok(importances.into_pyarray(py).unbind()),
+            Ok(importances) => Ok(core_array1_to_py(py, &importances)),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Failed to compute feature importances: {}",
                 e

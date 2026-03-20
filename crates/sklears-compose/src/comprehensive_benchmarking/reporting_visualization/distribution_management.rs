@@ -410,19 +410,19 @@ impl DistributionManagementSystem {
 
         // Register with channel manager
         {
-            let mut channel_manager = self.channel_manager.write().unwrap();
+            let mut channel_manager = self.channel_manager.write().unwrap_or_else(|e| e.into_inner());
             channel_manager.register_channel(channel.clone()).await?;
         }
 
         // Initialize tracking for channel
         {
-            let mut tracking_system = self.tracking_system.write().unwrap();
+            let mut tracking_system = self.tracking_system.write().unwrap_or_else(|e| e.into_inner());
             tracking_system.initialize_channel_tracking(&channel.id).await?;
         }
 
         // Update analytics
         {
-            let mut analytics_engine = self.analytics_engine.write().unwrap();
+            let mut analytics_engine = self.analytics_engine.write().unwrap_or_else(|e| e.into_inner());
             analytics_engine.register_channel(&channel.id).await?;
         }
 
@@ -451,13 +451,13 @@ impl DistributionManagementSystem {
 
         // Submit to distribution pipeline
         {
-            let mut pipeline = self.distribution_pipeline.write().unwrap();
+            let mut pipeline = self.distribution_pipeline.write().unwrap_or_else(|e| e.into_inner());
             pipeline.submit_job(job).await?;
         }
 
         // Update tracking
         {
-            let mut tracking_system = self.tracking_system.write().unwrap();
+            let mut tracking_system = self.tracking_system.write().unwrap_or_else(|e| e.into_inner());
             tracking_system.track_job_submission(&job_id).await?;
         }
 
@@ -470,7 +470,7 @@ impl DistributionManagementSystem {
 
         // Get job from pipeline
         let mut job = {
-            let mut pipeline = self.distribution_pipeline.write().unwrap();
+            let mut pipeline = self.distribution_pipeline.write().unwrap_or_else(|e| e.into_inner());
             pipeline.get_job(job_id).await?
         };
 
@@ -494,7 +494,7 @@ impl DistributionManagementSystem {
 
         // Update metrics
         {
-            let mut analytics_engine = self.analytics_engine.write().unwrap();
+            let mut analytics_engine = self.analytics_engine.write().unwrap_or_else(|e| e.into_inner());
             analytics_engine.record_job_completion(&job_id, processing_time).await?;
         }
 
@@ -513,7 +513,7 @@ impl DistributionManagementSystem {
 
         // Get channel configuration
         let channel = {
-            let channel_manager = self.channel_manager.read().unwrap();
+            let channel_manager = self.channel_manager.read().unwrap_or_else(|e| e.into_inner());
             channel_manager.get_channel(channel_id).await?
         };
 
@@ -547,25 +547,25 @@ impl DistributionManagementSystem {
 
     /// Get distribution analytics
     pub async fn get_distribution_analytics(&self, request: AnalyticsRequest) -> Result<DistributionAnalytics> {
-        let analytics_engine = self.analytics_engine.read().unwrap();
+        let analytics_engine = self.analytics_engine.read().unwrap_or_else(|e| e.into_inner());
         analytics_engine.generate_analytics(request).await
     }
 
     /// Optimize distribution channels
     pub async fn optimize_distribution(&self, optimization_config: OptimizationConfig) -> Result<OptimizationResult> {
-        let optimization_system = self.optimization_system.read().unwrap();
+        let optimization_system = self.optimization_system.read().unwrap_or_else(|e| e.into_inner());
         optimization_system.optimize_distribution(optimization_config).await
     }
 
     /// Schedule distribution
     pub async fn schedule_distribution(&self, schedule_request: DistributionScheduleRequest) -> Result<String> {
-        let scheduling_system = self.scheduling_system.read().unwrap();
+        let scheduling_system = self.scheduling_system.read().unwrap_or_else(|e| e.into_inner());
         scheduling_system.schedule_distribution(schedule_request).await
     }
 
     /// Get channel health status
     pub async fn get_channel_health(&self) -> Result<ChannelHealthReport> {
-        let channel_manager = self.channel_manager.read().unwrap();
+        let channel_manager = self.channel_manager.read().unwrap_or_else(|e| e.into_inner());
         channel_manager.get_health_report().await
     }
 
@@ -577,7 +577,7 @@ impl DistributionManagementSystem {
 
     /// Validate channel security
     async fn validate_channel_security(&self, channel: &DistributionChannel) -> Result<()> {
-        let security_manager = self.security_manager.read().unwrap();
+        let security_manager = self.security_manager.read().unwrap_or_else(|e| e.into_inner());
         security_manager.validate_channel_security(channel).await
     }
 
@@ -595,7 +595,7 @@ impl DistributionManagementSystem {
 
     /// Apply security measures
     async fn apply_security_measures(&self, content: &TransformedContent, channel: &DistributionChannel) -> Result<SecuredContent> {
-        let security_manager = self.security_manager.read().unwrap();
+        let security_manager = self.security_manager.read().unwrap_or_else(|e| e.into_inner());
         security_manager.secure_content(content, channel).await
     }
 

@@ -843,15 +843,15 @@ mod tests {
 
     #[test]
     fn test_predefined_roles() {
-        let viewer = Role::predefined("viewer").unwrap();
+        let viewer = Role::predefined("viewer").expect("operation should succeed");
         assert!(viewer.has_permission(&Permission::ViewExplanations));
         assert!(!viewer.has_permission(&Permission::GenerateExplanations));
 
-        let analyst = Role::predefined("analyst").unwrap();
+        let analyst = Role::predefined("analyst").expect("operation should succeed");
         assert!(analyst.has_permission(&Permission::ViewExplanations));
         assert!(analyst.has_permission(&Permission::GenerateExplanations));
 
-        let admin = Role::predefined("admin").unwrap();
+        let admin = Role::predefined("admin").expect("operation should succeed");
         assert!(admin.has_permission(&Permission::ViewExplanations));
         assert!(admin.has_permission(&Permission::ViewUsers));
     }
@@ -884,7 +884,9 @@ mod tests {
 
         // Test adding custom role
         let custom_role = Role::new("custom".to_string(), "Custom role".to_string());
-        manager.add_role(custom_role).unwrap();
+        manager
+            .add_role(custom_role)
+            .expect("operation should succeed");
         assert!(manager.get_role("custom").is_some());
 
         // Test adding user
@@ -894,7 +896,7 @@ mod tests {
             "test@example.com".to_string(),
             "Test User".to_string(),
         );
-        manager.add_user(user).unwrap();
+        manager.add_user(user).expect("operation should succeed");
         assert!(manager.get_user("user1").is_some());
     }
 
@@ -928,10 +930,14 @@ mod tests {
             "Test User".to_string(),
         );
         user.add_role("viewer".to_string());
-        ac.role_manager_mut().add_user(user).unwrap();
+        ac.role_manager_mut()
+            .add_user(user)
+            .expect("operation should succeed");
 
         // Create session
-        let context = ac.create_session("user1", "session1".to_string()).unwrap();
+        let context = ac
+            .create_session("user1", "session1".to_string())
+            .expect("operation should succeed");
         assert_eq!(context.user.id, "user1");
         assert!(context.has_permission(&Permission::ViewExplanations));
     }

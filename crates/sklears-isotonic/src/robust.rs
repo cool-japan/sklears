@@ -160,7 +160,7 @@ pub mod robust_statistics {
         }
 
         let mut sorted_values: Vec<Float> = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted_values.len() % 2 == 0 {
             let mid = sorted_values.len() / 2;
@@ -172,7 +172,7 @@ pub mod robust_statistics {
         let deviations: Vec<Float> = sorted_values.iter().map(|&x| (x - median).abs()).collect();
 
         let mut sorted_deviations = deviations;
-        sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         if sorted_deviations.len() % 2 == 0 {
             let mid = sorted_deviations.len() / 2;
@@ -189,7 +189,7 @@ pub mod robust_statistics {
         }
 
         let mut sorted_values: Vec<Float> = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = sorted_values.len();
         let q1_idx = n / 4;

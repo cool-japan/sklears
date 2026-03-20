@@ -821,7 +821,8 @@ mod tests {
 
     #[test]
     fn test_compute_image_statistics() {
-        let image = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let image = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let (mean, std_dev, skewness, kurtosis) = compute_image_statistics(&image.view());
 
         assert!((mean - 2.5).abs() < 1e-6);
@@ -832,7 +833,8 @@ mod tests {
 
     #[test]
     fn test_normalize_image() {
-        let image = Array2::from_shape_vec((2, 2), vec![10.0, 20.0, 30.0, 40.0]).unwrap();
+        let image = Array2::from_shape_vec((2, 2), vec![10.0, 20.0, 30.0, 40.0])
+            .expect("operation should succeed");
         let normalized = normalize_image(&image.view());
 
         assert!((normalized[[0, 0]] - 0.0).abs() < 1e-6);
@@ -843,9 +845,11 @@ mod tests {
 
     #[test]
     fn test_extract_patches_fallback() {
-        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect()).unwrap();
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let positions = vec![(0, 0), (1, 1), (2, 2)];
-        let patches = extract_patches_fallback(&image.view(), (2, 2), &positions).unwrap();
+        let patches = extract_patches_fallback(&image.view(), (2, 2), &positions)
+            .expect("operation should succeed");
 
         assert_eq!(patches.shape(), &[3, 2, 2]);
         assert_eq!(patches[[0, 0, 0]], 0.0);
@@ -1077,7 +1081,7 @@ fn test_haar_x_response_vertical_edge() {
             0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
         ],
     )
-    .unwrap();
+    .expect("operation should succeed");
 
     let integral = simd_image::simd_compute_integral_image(&image.view());
 
@@ -1110,7 +1114,7 @@ fn test_haar_y_response_horizontal_edge() {
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
         ],
     )
-    .unwrap();
+    .expect("operation should succeed");
 
     let integral = simd_image::simd_compute_integral_image(&image.view());
 
@@ -1172,8 +1176,8 @@ fn test_haar_responses_bounds_checking() {
 #[test]
 fn test_integral_image_computation() {
     // Test integral image correctness
-    let image =
-        Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]).unwrap();
+    let image = Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+        .expect("operation should succeed");
 
     let integral = simd_image::simd_compute_integral_image(&image.view());
 
@@ -1196,7 +1200,7 @@ fn test_haar_x_response_negative_edge() {
             1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
         ],
     )
-    .unwrap();
+    .expect("operation should succeed");
 
     let integral = simd_image::simd_compute_integral_image(&image.view());
 
@@ -1223,7 +1227,7 @@ fn test_haar_y_response_negative_edge() {
             1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ],
     )
-    .unwrap();
+    .expect("operation should succeed");
 
     let integral = simd_image::simd_compute_integral_image(&image.view());
 

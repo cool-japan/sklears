@@ -33,14 +33,15 @@ fn generate_separated_clusters(
             let mut point = Vec::new();
             for feature_id in 0..n_features {
                 let center = if feature_id == 0 { center_offset } else { 0.0 };
-                let normal = Normal::new(center, 1.0).unwrap();
+                let normal = Normal::new(center, 1.0).expect("operation should succeed");
                 point.push(normal.sample(&mut rng));
             }
             data.extend(point);
         }
     }
 
-    Array2::from_shape_vec((n_clusters * n_samples_per_cluster, n_features), data).unwrap()
+    Array2::from_shape_vec((n_clusters * n_samples_per_cluster, n_features), data)
+        .expect("operation should succeed")
 }
 
 #[allow(non_snake_case)]

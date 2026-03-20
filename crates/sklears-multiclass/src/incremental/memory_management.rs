@@ -376,7 +376,7 @@ mod tests {
 
         assert!(manager.add_example(x, 0).is_ok());
 
-        manager.flush().unwrap();
+        manager.flush().expect("operation should succeed");
         let stats = manager.memory_stats();
         assert_eq!(stats.num_examples, 1);
     }
@@ -386,11 +386,17 @@ mod tests {
         let mut manager: MemoryManager<f64> = MemoryManager::new(MemoryConfig::default());
 
         // Add examples for different classes
-        manager.add_example(array![1.0, 2.0], 0).unwrap();
-        manager.add_example(array![3.0, 4.0], 1).unwrap();
-        manager.add_example(array![5.0, 6.0], 0).unwrap();
+        manager
+            .add_example(array![1.0, 2.0], 0)
+            .expect("operation should succeed");
+        manager
+            .add_example(array![3.0, 4.0], 1)
+            .expect("operation should succeed");
+        manager
+            .add_example(array![5.0, 6.0], 0)
+            .expect("operation should succeed");
 
-        manager.flush().unwrap();
+        manager.flush().expect("operation should succeed");
 
         // Check class weights
         let weight_0 = manager.class_weight(0);
@@ -423,10 +429,10 @@ mod tests {
         // Add multiple examples for class 0
         for i in 0..10 {
             let x = array![i as f64, (i + 1) as f64];
-            manager.add_example(x, 0).unwrap();
+            manager.add_example(x, 0).expect("operation should succeed");
         }
 
-        manager.flush().unwrap();
+        manager.flush().expect("operation should succeed");
 
         // Sample 5 examples
         let samples = manager.sample_examples(0, 5);

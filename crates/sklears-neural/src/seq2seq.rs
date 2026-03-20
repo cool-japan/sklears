@@ -43,7 +43,8 @@ impl<T: FloatBounds> Default for Seq2SeqConfig<T> {
             output_vocab_size: 1000,
             hidden_size: 256,
             num_layers: 2,
-            dropout_rate: T::from(0.1).unwrap_or_else(|| T::one() / T::from(10).unwrap()),
+            dropout_rate: T::from(0.1)
+                .unwrap_or_else(|| T::one() / T::from(10).unwrap_or_else(|| T::zero())),
             use_attention: true,
             attention_heads: 8,
             bidirectional: false,

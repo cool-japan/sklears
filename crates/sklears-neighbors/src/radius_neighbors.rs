@@ -206,8 +206,8 @@ impl Predict<Features, Array1<Int>> for RadiusNeighborsClassifier<sklears_core::
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
-        let y_train = self.y_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -234,8 +234,8 @@ impl Predict<Features, Array1<Float>> for RadiusNeighborsRegressor<sklears_core:
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
-        let y_train = self.y_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -320,7 +320,7 @@ impl RadiusNeighborsClassifier<sklears_core::traits::Trained> {
                 // Return the class with the highest weighted vote
                 class_weights
                     .into_iter()
-                    .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                    .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
                     .map(|(class, _)| class)
                     .ok_or(NeighborsError::NoNeighbors)
             }
@@ -491,7 +491,7 @@ impl AdaptiveRadiusNeighborsClassifier {
             let distances = metric.to_matrix(&sample, &x.view());
 
             let mut sample_distances: Vec<Float> = distances.iter().copied().collect();
-            sample_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sample_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             // k-distance is the distance to the k-th nearest neighbor (excluding self)
             k_distances[i] = if sample_distances.len() > k {
@@ -558,7 +558,7 @@ impl AdaptiveRadiusNeighborsRegressor {
             let distances = metric.to_matrix(&sample, &x.view());
 
             let mut sample_distances: Vec<Float> = distances.iter().copied().collect();
-            sample_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sample_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             // k-distance is the distance to the k-th nearest neighbor (excluding self)
             k_distances[i] = if sample_distances.len() > k {
@@ -715,8 +715,8 @@ impl Predict<Features, Array1<Int>>
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
-        let y_train = self.y_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -745,8 +745,8 @@ impl Predict<Features, Array1<Float>>
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
-        let y_train = self.y_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -782,7 +782,7 @@ impl AdaptiveRadiusNeighborsClassifier<sklears_core::traits::Trained> {
             let distances = metric.to_matrix(&sample, &x.view());
 
             let mut sample_distances: Vec<Float> = distances.iter().copied().collect();
-            sample_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sample_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             // k-distance is the distance to the k-th nearest neighbor (excluding self)
             k_distances[i] = if sample_distances.len() > k {
@@ -821,13 +821,13 @@ impl AdaptiveRadiusNeighborsClassifier<sklears_core::traits::Trained> {
             }
             RadiusStrategy::Adaptive { k: _, multiplier } => {
                 // For adaptive radius in prediction, use the closest training point's k-distance
-                let k_distances = self.k_distances.as_ref().unwrap();
+                let k_distances = self.k_distances.as_ref().expect("operation should succeed");
 
                 // Find the closest training point to determine adaptive radius
                 let min_distance_idx = distances
                     .iter()
                     .enumerate()
-                    .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                    .min_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0);
 
@@ -884,7 +884,7 @@ impl AdaptiveRadiusNeighborsClassifier<sklears_core::traits::Trained> {
 
                 class_weights
                     .into_iter()
-                    .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                    .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
                     .map(|(class, _)| class)
                     .ok_or(NeighborsError::NoNeighbors)
             }
@@ -907,7 +907,7 @@ impl AdaptiveRadiusNeighborsRegressor<sklears_core::traits::Trained> {
             let distances = metric.to_matrix(&sample, &x.view());
 
             let mut sample_distances: Vec<Float> = distances.iter().copied().collect();
-            sample_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sample_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             k_distances[i] = if sample_distances.len() > k {
                 sample_distances[k]
@@ -944,12 +944,12 @@ impl AdaptiveRadiusNeighborsRegressor<sklears_core::traits::Trained> {
                 Ok(neighbors)
             }
             RadiusStrategy::Adaptive { k: _, multiplier } => {
-                let k_distances = self.k_distances.as_ref().unwrap();
+                let k_distances = self.k_distances.as_ref().expect("operation should succeed");
 
                 let min_distance_idx = distances
                     .iter()
                     .enumerate()
-                    .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                    .min_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0);
 
@@ -1051,11 +1051,11 @@ mod tests {
                 5.2, 5.2, // Class 1 cluster
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = RadiusNeighborsClassifier::new(0.5);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test prediction within clusters
         let x_test = Array2::from_shape_vec(
@@ -1065,9 +1065,9 @@ mod tests {
                 5.05, 5.05, // Should be class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
     }
@@ -1075,15 +1075,16 @@ mod tests {
     #[test]
     fn test_radius_neighbors_regressor() {
         // Create a simple dataset
-        let x = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let y = array![2.0, 4.0, 6.0, 8.0]; // y = 2 * x
 
         let regressor = RadiusNeighborsRegressor::new(0.5);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("operation should succeed");
 
         // Test prediction
-        let x_test = Array2::from_shape_vec((1, 1), vec![2.1]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((1, 1), vec![2.1]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict close to 4.0 (only the point at x=2 is within radius)
         assert_abs_diff_eq!(predictions[0], 4.0, epsilon = 0.1);
@@ -1091,14 +1092,14 @@ mod tests {
 
     #[test]
     fn test_radius_neighbors_no_neighbors() {
-        let x = Array2::from_shape_vec((2, 1), vec![1.0, 10.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 1), vec![1.0, 10.0]).expect("operation should succeed");
         let y = array![0, 1];
 
         let classifier = RadiusNeighborsClassifier::new(0.5);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test point far from any training data
-        let x_test = Array2::from_shape_vec((1, 1), vec![5.0]).unwrap();
+        let x_test = Array2::from_shape_vec((1, 1), vec![5.0]).expect("operation should succeed");
         let result = fitted.predict(&x_test);
 
         // Should fail with no neighbors
@@ -1107,15 +1108,15 @@ mod tests {
 
     #[test]
     fn test_radius_neighbors_with_outlier_label() {
-        let x = Array2::from_shape_vec((2, 1), vec![1.0, 10.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 1), vec![1.0, 10.0]).expect("operation should succeed");
         let y = array![0, 1];
 
         let classifier = RadiusNeighborsClassifier::new(0.5).with_outlier_label(-1);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test point far from any training data
-        let x_test = Array2::from_shape_vec((1, 1), vec![5.0]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((1, 1), vec![5.0]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict the outlier label
         assert_eq!(predictions[0], -1);
@@ -1123,7 +1124,8 @@ mod tests {
 
     #[test]
     fn test_radius_neighbors_function() {
-        let x = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).expect("operation should succeed");
         let y = array![10, 20, 50];
 
         let sample = array![1.5];
@@ -1147,14 +1149,15 @@ mod tests {
                 5.1, 5.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let classifier = AdaptiveRadiusNeighborsClassifier::new_fixed(0.5);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05])
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
@@ -1174,12 +1177,12 @@ mod tests {
                 9.0, 9.0, // Class 1 - sparse area
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         // Use adaptive radius based on 2nd nearest neighbor with multiplier 1.5
         let classifier = AdaptiveRadiusNeighborsClassifier::new_adaptive(2, 1.5);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test points in both dense and sparse regions
         let x_test = Array2::from_shape_vec(
@@ -1189,9 +1192,9 @@ mod tests {
                 6.0, 6.0, // Between sparse points
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
         // Specific predictions depend on the adaptive radius computation
         // but both should be valid predictions
@@ -1202,14 +1205,15 @@ mod tests {
 
     #[test]
     fn test_adaptive_radius_neighbors_regressor_fixed() {
-        let x = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let y = array![2.0, 4.0, 6.0, 8.0]; // y = 2 * x
 
         let regressor = AdaptiveRadiusNeighborsRegressor::new_fixed(0.5);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((1, 1), vec![2.1]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((1, 1), vec![2.1]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict close to 4.0
         assert_abs_diff_eq!(predictions[0], 4.0, epsilon = 0.1);
@@ -1217,15 +1221,17 @@ mod tests {
 
     #[test]
     fn test_adaptive_radius_neighbors_regressor_adaptive() {
-        let x = Array2::from_shape_vec((5, 1), vec![1.0, 1.1, 1.2, 5.0, 5.5]).unwrap();
+        let x = Array2::from_shape_vec((5, 1), vec![1.0, 1.1, 1.2, 5.0, 5.5])
+            .expect("operation should succeed");
         let y = array![1.0, 1.1, 1.2, 5.0, 5.5];
 
         // Use adaptive radius with k=1 and multiplier=2.0
         let regressor = AdaptiveRadiusNeighborsRegressor::new_adaptive(1, 2.0);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((2, 1), vec![1.05, 5.25]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((2, 1), vec![1.05, 5.25]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
         // Predictions should be reasonable given the adaptive radius
@@ -1235,7 +1241,8 @@ mod tests {
 
     #[test]
     fn test_adaptive_radius_neighbors_errors() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
         let y = array![0, 1, 2];
 
         // Test invalid k (too large)

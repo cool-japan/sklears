@@ -128,8 +128,8 @@ impl IsotonicCalibrator {
         if x <= self.x_[0] {
             return self.y_[0];
         }
-        if x >= *self.x_.last().unwrap() {
-            return *self.y_.last().unwrap();
+        if x >= self.x_.last().copied().unwrap_or(0.0) {
+            return self.y_.last().copied().unwrap_or(0.0);
         }
 
         // Find the two points to interpolate between
@@ -186,9 +186,11 @@ mod tests {
 
         let calibrator = IsotonicCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 4);
 
@@ -220,9 +222,11 @@ mod tests {
 
         let calibrator = IsotonicCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         // Should preserve isotonic property
         for i in 1..calibrated.len() {
@@ -238,9 +242,11 @@ mod tests {
 
         let calibrator = IsotonicCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&array![0.5]).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&array![0.5])
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 1);
         assert!(calibrated[0] >= 0.0 && calibrated[0] <= 1.0);
 
@@ -250,9 +256,11 @@ mod tests {
 
         let calibrator = IsotonicCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 3);
     }
 

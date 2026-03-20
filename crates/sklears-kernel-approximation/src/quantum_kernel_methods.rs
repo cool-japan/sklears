@@ -398,7 +398,7 @@ impl Fit<Array2<Float>, ()> for QuantumKernelApproximation<Untrained> {
         // This uses random projections similar to classical Random Fourier Features
         // but inspired by quantum sampling
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let feature_dim = (1 << self.config.n_qubits).min(self.config.n_samples);
         let feature_basis = Array2::from_shape_fn((x.ncols(), feature_dim), |_| rng.sample(normal));
@@ -414,7 +414,10 @@ impl Fit<Array2<Float>, ()> for QuantumKernelApproximation<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for QuantumKernelApproximation<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let feature_basis = self.feature_basis.as_ref().unwrap();
+        let feature_basis = self
+            .feature_basis
+            .as_ref()
+            .expect("operation should succeed");
 
         if x.ncols() != feature_basis.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -458,12 +461,14 @@ impl Transform<Array2<Float>, Array2<Float>> for QuantumKernelApproximation<Trai
 impl QuantumKernelApproximation<Trained> {
     /// Get the training data
     pub fn x_train(&self) -> &Array2<Float> {
-        self.x_train.as_ref().unwrap()
+        self.x_train.as_ref().expect("operation should succeed")
     }
 
     /// Get the feature basis
     pub fn feature_basis(&self) -> &Array2<Float> {
-        self.feature_basis.as_ref().unwrap()
+        self.feature_basis
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Compute quantum kernel matrix explicitly (slow, for small datasets)
@@ -510,8 +515,8 @@ mod tests {
         let qkernel = QuantumKernelApproximation::new(config);
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-        let fitted = qkernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = qkernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 2);
         assert!(features.ncols() > 0);
@@ -532,8 +537,8 @@ mod tests {
         for feature_map in feature_maps {
             let qkernel = QuantumKernelApproximation::with_qubits(2).feature_map(feature_map);
 
-            let fitted = qkernel.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = qkernel.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 2);
             assert!(features.iter().all(|&v| v.is_finite()));
@@ -554,8 +559,8 @@ mod tests {
         for pattern in patterns {
             let qkernel = QuantumKernelApproximation::with_qubits(2).entanglement(pattern);
 
-            let fitted = qkernel.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = qkernel.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 2);
         }
@@ -574,7 +579,7 @@ mod tests {
         let qkernel = QuantumKernelApproximation::new(config);
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let fitted = qkernel.fit(&x, &()).unwrap();
+        let fitted = qkernel.fit(&x, &()).expect("operation should succeed");
         let kernel_matrix = fitted.compute_kernel_matrix(&x);
 
         // Kernel should be symmetric
@@ -592,8 +597,8 @@ mod tests {
         for depth in 1..=3 {
             let qkernel = QuantumKernelApproximation::with_qubits(2).circuit_depth(depth);
 
-            let fitted = qkernel.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = qkernel.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert!(features.iter().all(|&v| v.is_finite()));
         }
@@ -613,7 +618,9 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]];
 
-        let fitted = qkernel.fit(&x_train, &()).unwrap();
+        let fitted = qkernel
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         assert!(fitted.transform(&x_test).is_err());
     }
 

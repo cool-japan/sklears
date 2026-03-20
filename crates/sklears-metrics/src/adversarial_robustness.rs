@@ -35,7 +35,8 @@
 
 use crate::{MetricsError, MetricsResult};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::Random;
+use scirs2_core::RngExt;
 use std::collections::HashMap;
 
 /// Configuration for adversarial robustness evaluation
@@ -550,7 +551,7 @@ where
             // Add noise (simplified - in practice would use proper random number generation)
             let mut rng = Random::default();
             for j in 0..noisy_example.len() {
-                noisy_example[j] += noise_std * (rng.gen::<f64>() - 0.5) * 2.0;
+                noisy_example[j] += noise_std * (rng.random::<f64>() - 0.5) * 2.0;
             }
 
             // Convert to 2D array for prediction function
@@ -673,7 +674,7 @@ pub fn area_under_robustness_curve(
         .zip(robust_accuracies.iter())
         .map(|(&eps, &acc)| (eps, acc))
         .collect();
-    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     // Calculate area using trapezoidal rule
     let mut area = 0.0;
@@ -698,7 +699,8 @@ mod tests {
         let clean_preds = Array1::from_vec(vec![1, 0, 1, 1, 0]);
         let adv_preds = Array1::from_vec(vec![0, 0, 1, 0, 0]);
 
-        let adv_acc = adversarial_accuracy(&y_true, &clean_preds, &adv_preds).unwrap();
+        let adv_acc = adversarial_accuracy(&y_true, &clean_preds, &adv_preds)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(adv_acc, 0.6, epsilon = 1e-10); // 3/5 correct
     }
 
@@ -707,7 +709,8 @@ mod tests {
         let clean_preds = Array1::from_vec(vec![1, 0, 1, 1, 0]);
         let adv_preds = Array1::from_vec(vec![0, 0, 1, 0, 0]);
 
-        let success_rate = attack_success_rate(&clean_preds, &adv_preds).unwrap();
+        let success_rate =
+            attack_success_rate(&clean_preds, &adv_preds).expect("operation should succeed");
         assert_abs_diff_eq!(success_rate, 0.4, epsilon = 1e-10); // 2/5 changed
     }
 
@@ -718,8 +721,8 @@ mod tests {
         let adv_preds = Array1::from_vec(vec![0, 0, 1, 0, 0]);
         let perturbations = Array1::from_vec(vec![0.1, 0.05, 0.15, 0.2, 0.08]);
 
-        let robust_acc =
-            robust_accuracy(&y_true, &clean_preds, &adv_preds, &perturbations, 0.1).unwrap();
+        let robust_acc = robust_accuracy(&y_true, &clean_preds, &adv_preds, &perturbations, 0.1)
+            .expect("operation should succeed");
         // Should count examples that are either:
         // 1. Correctly classified on clean AND (within budget AND correct on adv) OR outside budget
         assert!((0.0..=1.0).contains(&robust_acc));
@@ -731,28 +734,33 @@ mod tests {
         let cert_preds = Array1::from_vec(vec![1, 0, 1, 1, 0]);
         let cert_radii = Array1::from_vec(vec![0.1, 0.2, 0.05, 0.15, 0.3]);
 
-        let cert_acc = certified_accuracy(&y_true, &cert_preds, &cert_radii, 0.1).unwrap();
+        let cert_acc = certified_accuracy(&y_true, &cert_preds, &cert_radii, 0.1)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(cert_acc, 0.8, epsilon = 1e-10); // 4/5 have radius >= 0.1
     }
 
     #[test]
     fn test_average_perturbation_magnitude() {
-        let clean = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let adv = Array2::from_shape_vec((2, 3), vec![1.1, 2.1, 3.1, 4.1, 5.1, 6.1]).unwrap();
+        let clean = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        let adv = Array2::from_shape_vec((2, 3), vec![1.1, 2.1, 3.1, 4.1, 5.1, 6.1])
+            .expect("operation should succeed");
 
         // L-infinity norm should be 0.1 for all examples
-        let linf_pert = average_perturbation_magnitude(&clean, &adv, NormType::LInfinity).unwrap();
+        let linf_pert = average_perturbation_magnitude(&clean, &adv, NormType::LInfinity)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(linf_pert, 0.1, epsilon = 1e-10);
 
         // L2 norm
-        let l2_pert = average_perturbation_magnitude(&clean, &adv, NormType::L2).unwrap();
+        let l2_pert = average_perturbation_magnitude(&clean, &adv, NormType::L2)
+            .expect("operation should succeed");
         let expected_l2 = (3.0_f64 * 0.1 * 0.1).sqrt(); // sqrt(3 * 0.1^2)
         assert_abs_diff_eq!(l2_pert, expected_l2, epsilon = 1e-10);
     }
 
     #[test]
     fn test_robustness_score() {
-        let score = robustness_score(0.9, 0.7, &[0.6, 0.4]).unwrap();
+        let score = robustness_score(0.9, 0.7, &[0.6, 0.4]).expect("operation should succeed");
         let expected = 0.6 * 0.9 + 0.4 * 0.7; // 0.54 + 0.28 = 0.82
         assert_abs_diff_eq!(score, expected, epsilon = 1e-10);
     }
@@ -764,22 +772,26 @@ mod tests {
         let clean_target = Array1::from_vec(vec![1, 0, 1, 1, 0]);
 
         let transfer_rate =
-            adversarial_transferability(&source_preds, &target_preds, &clean_target).unwrap();
+            adversarial_transferability(&source_preds, &target_preds, &clean_target)
+                .expect("operation should succeed");
         assert_abs_diff_eq!(transfer_rate, 0.4, epsilon = 1e-10); // 2/5 examples transferred
     }
 
     #[test]
     fn test_gradient_based_robustness() {
-        let gradients = Array2::from_shape_vec((2, 3), vec![0.1, 0.2, 0.1, 0.3, 0.1, 0.2]).unwrap();
-        let inputs = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let gradients = Array2::from_shape_vec((2, 3), vec![0.1, 0.2, 0.1, 0.3, 0.1, 0.2])
+            .expect("operation should succeed");
+        let inputs = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
-        let lid = gradient_based_robustness(&gradients, &inputs).unwrap();
+        let lid = gradient_based_robustness(&gradients, &inputs).expect("operation should succeed");
         assert!(lid > 0.0); // Should be positive
     }
 
     #[test]
     fn test_adaptive_attack_resistance() {
-        let resistance = adaptive_attack_resistance(0.3, 0.5, 0.2).unwrap();
+        let resistance =
+            adaptive_attack_resistance(0.3, 0.5, 0.2).expect("operation should succeed");
         let expected = (1.0 - 0.5) * (1.0 - 0.2); // 0.5 * 0.8 = 0.4
         assert_abs_diff_eq!(resistance, expected, epsilon = 1e-10);
     }
@@ -789,7 +801,8 @@ mod tests {
         let epsilons = Array1::from_vec(vec![0.0, 0.1, 0.2, 0.3]);
         let accuracies = Array1::from_vec(vec![1.0, 0.8, 0.6, 0.4]);
 
-        let area = area_under_robustness_curve(&epsilons, &accuracies).unwrap();
+        let area =
+            area_under_robustness_curve(&epsilons, &accuracies).expect("operation should succeed");
 
         // Trapezoidal rule: (0.1*(1.0+0.8)/2) + (0.1*(0.8+0.6)/2) + (0.1*(0.6+0.4)/2)
         // = 0.09 + 0.07 + 0.05 = 0.21
@@ -805,12 +818,12 @@ mod tests {
             (5, 2),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let adv_examples = Array2::from_shape_vec(
             (5, 2),
             vec![1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let config = AdversarialConfig::default();
 
         let result = comprehensive_adversarial_evaluation(
@@ -821,7 +834,7 @@ mod tests {
             &adv_examples,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.clean_accuracy, 1.0);
         assert_eq!(result.adversarial_accuracy, 0.6);

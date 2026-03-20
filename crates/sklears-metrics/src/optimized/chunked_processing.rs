@@ -75,7 +75,7 @@ impl<F: FloatTrait + FromPrimitive + Send + Sync> ChunkedMetricProcessor<F> {
             total_sum = total_sum + chunk_sum;
         }
 
-        Ok(total_sum / F::from(len).unwrap())
+        Ok(total_sum / F::from(len).expect("operation should succeed"))
     }
 
     /// Compute MSE using chunked processing
@@ -115,7 +115,7 @@ impl<F: FloatTrait + FromPrimitive + Send + Sync> ChunkedMetricProcessor<F> {
             total_sum = total_sum + chunk_sum;
         }
 
-        Ok(total_sum / F::from(len).unwrap())
+        Ok(total_sum / F::from(len).expect("operation should succeed"))
     }
 
     /// Compute RMSE using chunked processing
@@ -160,7 +160,7 @@ impl<F: FloatTrait + FromPrimitive + Send + Sync> ChunkedMetricProcessor<F> {
         }
 
         // Calculate R² score
-        let n = F::from(len).unwrap();
+        let n = F::from(len).expect("operation should succeed");
         let mean_true = sum_true / n;
         let total_sum_squares = sum_true_squared - n * mean_true * mean_true;
 
@@ -226,7 +226,7 @@ impl<F: FloatTrait + FromPrimitive + Send + Sync> ChunkedMetricProcessor<F> {
         }
 
         let len = x.len();
-        let n = F::from(len).unwrap();
+        let n = F::from(len).expect("operation should succeed");
         let mut sum_x = F::zero();
         let mut sum_y = F::zero();
         let mut sum_x_squared = F::zero();
@@ -303,7 +303,7 @@ impl<F: FloatTrait + FromPrimitive + Send + Sync> ChunkedMetricProcessor<F> {
             }
         }
 
-        let n = F::from(len).unwrap();
+        let n = F::from(len).expect("operation should succeed");
         let mae = sum_absolute_error / n;
         let mse = sum_squared_error / n;
         let rmse = mse.sqrt();
@@ -366,13 +366,15 @@ mod tests {
 
         let mae = processor
             .chunked_mean_absolute_error(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
         let mse = processor
             .chunked_mean_squared_error(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let expected_mae = crate::regression::mean_absolute_error(&y_true, &y_pred).unwrap();
-        let expected_mse = crate::regression::mean_squared_error(&y_true, &y_pred).unwrap();
+        let expected_mae = crate::regression::mean_absolute_error(&y_true, &y_pred)
+            .expect("operation should succeed");
+        let expected_mse = crate::regression::mean_squared_error(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_relative_eq!(mae, expected_mae, epsilon = 1e-10);
         assert_relative_eq!(mse, expected_mse, epsilon = 1e-10);
@@ -388,8 +390,11 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let y_pred = array![1.1, 2.1, 2.9, 4.1, 4.9, 6.1];
 
-        let r2 = processor.chunked_r2_score(&y_true, &y_pred).unwrap();
-        let expected_r2 = crate::regression::r2_score(&y_true, &y_pred).unwrap();
+        let r2 = processor
+            .chunked_r2_score(&y_true, &y_pred)
+            .expect("operation should succeed");
+        let expected_r2 =
+            crate::regression::r2_score(&y_true, &y_pred).expect("operation should succeed");
 
         assert_relative_eq!(r2, expected_r2, epsilon = 1e-10);
     }
@@ -404,7 +409,9 @@ mod tests {
         let a = array![1.0, 2.0, 3.0, 4.0];
         let b = array![2.0, 4.0, 6.0, 8.0];
 
-        let similarity = processor.chunked_cosine_similarity(&a, &b).unwrap();
+        let similarity = processor
+            .chunked_cosine_similarity(&a, &b)
+            .expect("operation should succeed");
 
         // Manual calculation: a·b = 60, |a| = √30, |b| = √120, cos = 60/(√30*√120) = 1.0
         assert_relative_eq!(similarity, 1.0, epsilon = 1e-10);
@@ -420,7 +427,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // Perfect correlation
 
-        let correlation = processor.chunked_correlation(&x, &y).unwrap();
+        let correlation = processor
+            .chunked_correlation(&x, &y)
+            .expect("operation should succeed");
         assert_relative_eq!(correlation, 1.0, epsilon = 1e-10);
     }
 
@@ -436,7 +445,7 @@ mod tests {
 
         let metrics = processor
             .chunked_regression_metrics(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(metrics.n_samples, 6);
         assert!(metrics.mae > 0.0);

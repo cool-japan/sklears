@@ -828,8 +828,8 @@ impl ProbabilisticDistance {
         // Simplified version: sort and compute L1 distance
         let mut p_sorted = p.to_vec();
         let mut q_sorted = q.to_vec();
-        p_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        q_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        p_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+        q_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         p_sorted
             .iter()
@@ -891,11 +891,11 @@ mod tests {
     fn test_graph_distances() {
         let adj1 =
             Array2::from_shape_vec((3, 3), vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let adj2 =
             Array2::from_shape_vec((3, 3), vec![0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let graph1 = SimpleGraph::new(adj1);
         let graph2 = SimpleGraph::new(adj2);

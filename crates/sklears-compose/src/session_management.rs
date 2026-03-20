@@ -734,7 +734,7 @@ impl SessionManager {
 
     /// Create new monitoring session
     pub fn create_session(&mut self, session_id: String, config: MonitoringConfig) -> SklResult<MonitoringSession> {
-        let _lock = self.creation_lock.lock().unwrap();
+        let _lock = self.creation_lock.lock().unwrap_or_else(|e| e.into_inner());
 
         // Check session limits
         if self.sessions.len() >= self.limits.max_concurrent_sessions {
@@ -947,7 +947,7 @@ mod tests {
         let config = MonitoringConfig::default();
 
         // Create session
-        let session = manager.create_session("test_session".to_string(), config.clone()).unwrap();
+        let session = manager.create_session("test_session".to_string(), config.clone()).unwrap_or_default();
         assert_eq!(session.session_id, "test_session");
         assert_eq!(manager.session_count(), 1);
 

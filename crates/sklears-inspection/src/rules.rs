@@ -385,7 +385,7 @@ fn compute_feature_statistics(X: &ArrayView2<Float>) -> Vec<(Float, Float, Float
         let mean = column.mean().unwrap_or(0.0);
 
         let mut sorted_values: Vec<Float> = column.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let min_val = sorted_values.first().copied().unwrap_or(0.0);
         let max_val = sorted_values.last().copied().unwrap_or(0.0);
@@ -987,7 +987,7 @@ mod tests {
 
         let result =
             extract_rules_from_model(&predict_fn, &X_train.view(), &y_train.view(), &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         // For small test data, rules might not always be found
         // Just check that the function runs without error and returns valid metrics
@@ -1005,7 +1005,8 @@ mod tests {
         let mut config = RuleExtractionConfig::default();
         config.min_support = 1; // Lower threshold for small test data
 
-        let rules = generate_decision_rules(&X.view(), &y.view(), &config).unwrap();
+        let rules = generate_decision_rules(&X.view(), &y.view(), &config)
+            .expect("operation should succeed");
 
         assert!(!rules.is_empty());
     }
@@ -1024,7 +1025,7 @@ mod tests {
 
         let explanations =
             generate_logical_explanations(&predict_fn, &instance.view(), &X_train.view(), &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(!explanations.is_empty());
         // Should contain some textual explanation
@@ -1045,7 +1046,8 @@ mod tests {
         config.min_support = 1;
         config.min_confidence = 0.1;
 
-        let association_rules = mine_association_rules(&X.view(), &config).unwrap();
+        let association_rules =
+            mine_association_rules(&X.view(), &config).expect("operation should succeed");
 
         // Association rule mining might not find rules for small/simple datasets
         // Just check that the function runs without error
@@ -1090,8 +1092,8 @@ mod tests {
         let X = array![[1.0, 1.0], [3.0, 2.0], [4.0, 3.0]];
         let y = array![0.0, 1.0, 1.0];
 
-        let simplified_rules =
-            simplify_rules(&[complex_rule], &X.view(), &y.view(), &predict_fn).unwrap();
+        let simplified_rules = simplify_rules(&[complex_rule], &X.view(), &y.view(), &predict_fn)
+            .expect("operation should succeed");
 
         assert!(!simplified_rules.is_empty());
         // The simplified rule might have fewer conditions

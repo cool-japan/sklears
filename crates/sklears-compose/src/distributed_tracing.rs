@@ -67,7 +67,7 @@ impl DistributedTracer {
             service_id: service_id.to_string(),
             start_time: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_nanos() as u64,
             end_time: None,
             duration_ns: None,
@@ -108,7 +108,7 @@ impl DistributedTracer {
             service_id: service_id.to_string(),
             start_time: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_nanos() as u64,
             end_time: None,
             duration_ns: None,
@@ -228,7 +228,7 @@ impl DistributedTracer {
     pub fn cleanup_old_traces(&self, retention_period: Duration) {
         let cutoff = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_nanos() as u64
             - retention_period.as_nanos() as u64;
 
@@ -369,7 +369,7 @@ impl TraceHandle {
         let log_entry = LogEntry {
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_nanos() as u64,
             level,
             message: message.to_string(),
@@ -404,7 +404,7 @@ impl TraceHandle {
     pub fn finish(self) {
         let end_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_nanos() as u64;
 
         if let Ok(mut spans) = self.spans.write() {

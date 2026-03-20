@@ -249,12 +249,12 @@ impl Logger {
     }
 
     pub fn add_output(&self, output: Box<dyn LogOutput>) {
-        let mut outputs = self.outputs.lock().unwrap();
+        let mut outputs = self.outputs.lock().expect("operation should succeed");
         outputs.push(output);
     }
 
     pub fn log(&self, entry: LogEntry) {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().expect("operation should succeed");
 
         // Check if we should log this entry
         if !self.should_log(&entry.level, &entry.module, &config) {
@@ -263,7 +263,7 @@ impl Logger {
 
         // Update stats
         {
-            let mut stats = self.stats.lock().unwrap();
+            let mut stats = self.stats.lock().expect("operation should succeed");
             stats.total_logs += 1;
             *stats.logs_by_level.entry(entry.level).or_insert(0) += 1;
             *stats
@@ -274,10 +274,10 @@ impl Logger {
 
         // Add to buffer
         {
-            let mut buffer = self.buffer.lock().unwrap();
+            let mut buffer = self.buffer.lock().expect("operation should succeed");
             if buffer.len() >= config.buffer_size {
                 buffer.remove(0); // Remove oldest entry
-                let mut stats = self.stats.lock().unwrap();
+                let mut stats = self.stats.lock().expect("operation should succeed");
                 stats.buffer_overflows += 1;
             }
             buffer.push(entry.clone());
@@ -301,11 +301,11 @@ impl Logger {
 
     fn flush_entry(&self, entry: &LogEntry) {
         let formatted = self.formatter.format(entry);
-        let mut outputs = self.outputs.lock().unwrap();
+        let mut outputs = self.outputs.lock().expect("operation should succeed");
 
         for output in outputs.iter_mut() {
             if output.write(&formatted).is_err() {
-                let mut stats = self.stats.lock().unwrap();
+                let mut stats = self.stats.lock().expect("operation should succeed");
                 stats.write_errors += 1;
             }
         }
@@ -313,7 +313,7 @@ impl Logger {
 
     pub fn flush(&self) {
         let buffer = {
-            let mut buffer = self.buffer.lock().unwrap();
+            let mut buffer = self.buffer.lock().expect("operation should succeed");
             let entries = buffer.clone();
             buffer.clear();
             entries
@@ -324,28 +324,28 @@ impl Logger {
         }
 
         // Flush all outputs
-        let mut outputs = self.outputs.lock().unwrap();
+        let mut outputs = self.outputs.lock().expect("operation should succeed");
         for output in outputs.iter_mut() {
             let _ = output.flush();
         }
     }
 
     pub fn set_level(&self, level: LogLevel) {
-        let mut config = self.config.write().unwrap();
+        let mut config = self.config.write().expect("operation should succeed");
         config.level = level;
     }
 
     pub fn set_module_level(&self, module: String, level: LogLevel) {
-        let mut config = self.config.write().unwrap();
+        let mut config = self.config.write().expect("operation should succeed");
         config.module_filters.insert(module, level);
     }
 
     pub fn stats(&self) -> LogStats {
-        self.stats.lock().unwrap().clone()
+        self.stats.lock().expect("operation should succeed").clone()
     }
 
     pub fn clear_stats(&self) {
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().expect("operation should succeed");
         *stats = LogStats::default();
     }
 }
@@ -386,7 +386,7 @@ impl PerformanceLogger {
 
         // Record timing
         {
-            let mut operations = self.operations.lock().unwrap();
+            let mut operations = self.operations.lock().expect("operation should succeed");
             operations
                 .entry(name.to_string())
                 .or_default()
@@ -410,7 +410,7 @@ impl PerformanceLogger {
     }
 
     pub fn get_operation_stats(&self, name: &str) -> Option<OperationStats> {
-        let operations = self.operations.lock().unwrap();
+        let operations = self.operations.lock().expect("operation should succeed");
         if let Some(durations) = operations.get(name) {
             if durations.is_empty() {
                 return None;
@@ -423,8 +423,14 @@ impl PerformanceLogger {
             let mut sorted_durations = durations.clone();
             sorted_durations.sort();
 
-            let min_ms = sorted_durations.first().unwrap().as_millis() as f64;
-            let max_ms = sorted_durations.last().unwrap().as_millis() as f64;
+            let min_ms = sorted_durations
+                .first()
+                .expect("operation should succeed")
+                .as_millis() as f64;
+            let max_ms = sorted_durations
+                .last()
+                .expect("operation should succeed")
+                .as_millis() as f64;
 
             let median_ms = if count % 2 == 0 {
                 let mid = count / 2;
@@ -449,12 +455,12 @@ impl PerformanceLogger {
     }
 
     pub fn clear_operation_stats(&self, name: &str) {
-        let mut operations = self.operations.lock().unwrap();
+        let mut operations = self.operations.lock().expect("operation should succeed");
         operations.remove(name);
     }
 
     pub fn get_all_operations(&self) -> Vec<String> {
-        let operations = self.operations.lock().unwrap();
+        let operations = self.operations.lock().expect("operation should succeed");
         operations.keys().cloned().collect()
     }
 }
@@ -487,14 +493,20 @@ impl DistributedLogger {
     }
 
     pub fn add_node(&self, node_id: String) {
-        let mut nodes = self.cluster_nodes.write().unwrap();
+        let mut nodes = self
+            .cluster_nodes
+            .write()
+            .expect("operation should succeed");
         if !nodes.contains(&node_id) {
             nodes.push(node_id);
         }
     }
 
     pub fn remove_node(&self, node_id: &str) {
-        let mut nodes = self.cluster_nodes.write().unwrap();
+        let mut nodes = self
+            .cluster_nodes
+            .write()
+            .expect("operation should succeed");
         nodes.retain(|id| id != node_id);
     }
 
@@ -510,7 +522,10 @@ impl DistributedLogger {
     }
 
     pub fn get_cluster_nodes(&self) -> Vec<String> {
-        self.cluster_nodes.read().unwrap().clone()
+        self.cluster_nodes
+            .read()
+            .expect("operation should succeed")
+            .clone()
     }
 }
 
@@ -701,10 +716,13 @@ mod tests {
 
         assert_eq!(entry.fields.len(), 2);
         assert_eq!(
-            entry.fields.get("key1").unwrap(),
+            entry.fields.get("key1").expect("operation should succeed"),
             &Value::String("value1".to_string())
         );
-        assert_eq!(entry.fields.get("key2").unwrap(), &Value::Number(42.into()));
+        assert_eq!(
+            entry.fields.get("key2").expect("operation should succeed"),
+            &Value::Number(42.into())
+        );
     }
 
     #[test]
@@ -718,11 +736,11 @@ mod tests {
 
     #[test]
     fn test_logger_with_file_output() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let config = LoggerConfig::default();
         let logger = Logger::new(config);
 
-        let file_output = FileOutput::new(temp_file.path()).unwrap();
+        let file_output = FileOutput::new(temp_file.path()).expect("operation should succeed");
         logger.add_output(Box::new(file_output));
 
         let entry = LogEntry::new(
@@ -753,7 +771,9 @@ mod tests {
 
         assert_eq!(result, 42);
 
-        let stats = perf_logger.get_operation_stats("test_op").unwrap();
+        let stats = perf_logger
+            .get_operation_stats("test_op")
+            .expect("operation should succeed");
         assert_eq!(stats.count, 1);
         assert!(stats.avg_ms >= 10.0);
     }
@@ -790,10 +810,34 @@ mod tests {
         let analysis = analyzer.analyze_patterns();
 
         assert_eq!(analysis.total_entries, 3);
-        assert_eq!(*analysis.entries_by_level.get(&LogLevel::Info).unwrap(), 1);
-        assert_eq!(*analysis.entries_by_level.get(&LogLevel::Error).unwrap(), 1);
-        assert_eq!(*analysis.entries_by_module.get("module1").unwrap(), 2);
-        assert_eq!(*analysis.entries_by_module.get("module2").unwrap(), 1);
+        assert_eq!(
+            *analysis
+                .entries_by_level
+                .get(&LogLevel::Info)
+                .expect("operation should succeed"),
+            1
+        );
+        assert_eq!(
+            *analysis
+                .entries_by_level
+                .get(&LogLevel::Error)
+                .expect("operation should succeed"),
+            1
+        );
+        assert_eq!(
+            *analysis
+                .entries_by_module
+                .get("module1")
+                .expect("operation should succeed"),
+            2
+        );
+        assert_eq!(
+            *analysis
+                .entries_by_module
+                .get("module2")
+                .expect("operation should succeed"),
+            1
+        );
     }
 
     #[test]

@@ -319,7 +319,7 @@ impl ExecutionMonitoringCoordinator {
         session_id: String,
     ) -> SklResult<MonitoringSession> {
         // Check session limit
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if sessions.len() >= self.config.max_concurrent_sessions {
             return Err(SklearsError::ResourceExhausted(
                 "Maximum concurrent monitoring sessions reached".to_string()
@@ -346,12 +346,12 @@ impl ExecutionMonitoringCoordinator {
         self.initialize_session_monitoring(&session_id).await?;
 
         // Store session
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         sessions.insert(session_id.clone(), session.clone());
         drop(sessions);
 
         // Update coordinator state
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active_sessions_count += 1;
         state.status = CoordinatorStatus::Active;
         drop(state);
@@ -371,7 +371,7 @@ impl ExecutionMonitoringCoordinator {
         let report = self.generate_final_report(session_id).await?;
 
         // Remove session
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         let mut session = sessions.remove(session_id)
             .ok_or_else(|| SklearsError::NotFound(format!("Session {} not found", session_id)))?;
 
@@ -380,7 +380,7 @@ impl ExecutionMonitoringCoordinator {
         drop(sessions);
 
         // Update coordinator state
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active_sessions_count = state.active_sessions_count.saturating_sub(1);
         if state.active_sessions_count == 0 {
             state.status = CoordinatorStatus::Idle;
@@ -400,27 +400,27 @@ impl ExecutionMonitoringCoordinator {
         self.validate_session_exists(session_id)?;
 
         // Record through metrics collection system
-        let mut collector = self.metrics_collector.write().unwrap();
+        let mut collector = self.metrics_collector.write().unwrap_or_else(|e| e.into_inner());
         collector.record_metric(session_id, metric.clone()).await?;
         drop(collector);
 
         // Update performance monitoring
-        let mut monitor = self.performance_monitor.write().unwrap();
+        let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
         monitor.update_performance_data(session_id, &metric).await?;
         drop(monitor);
 
         // Check for anomalies
-        let mut detector = self.anomaly_detector.write().unwrap();
+        let mut detector = self.anomaly_detector.write().unwrap_or_else(|e| e.into_inner());
         detector.analyze_metric(session_id, &metric).await?;
         drop(detector);
 
         // Store in data storage
-        let mut storage = self.data_storage.write().unwrap();
+        let mut storage = self.data_storage.write().unwrap_or_else(|e| e.into_inner());
         storage.store_metric(session_id, &metric).await?;
         drop(storage);
 
         // Update coordinator state
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.total_metrics_collected += 1;
         drop(state);
 
@@ -437,29 +437,29 @@ impl ExecutionMonitoringCoordinator {
         self.validate_session_exists(session_id)?;
 
         // Record through event tracking system
-        let mut tracker = self.event_tracker.write().unwrap();
+        let mut tracker = self.event_tracker.write().unwrap_or_else(|e| e.into_inner());
         tracker.record_event(session_id, event.clone()).await?;
         drop(tracker);
 
         // Update performance monitoring if relevant
         if event.has_performance_data() {
-            let mut monitor = self.performance_monitor.write().unwrap();
+            let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             monitor.process_task_event(session_id, &event).await?;
             drop(monitor);
         }
 
         // Check for alert conditions
-        let mut alerts = self.alert_manager.write().unwrap();
+        let mut alerts = self.alert_manager.write().unwrap_or_else(|e| e.into_inner());
         alerts.evaluate_event_alerts(session_id, &event).await?;
         drop(alerts);
 
         // Store in data storage
-        let mut storage = self.data_storage.write().unwrap();
+        let mut storage = self.data_storage.write().unwrap_or_else(|e| e.into_inner());
         storage.store_event(session_id, &event).await?;
         drop(storage);
 
         // Update coordinator state
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.total_events_processed += 1;
         drop(state);
 
@@ -476,28 +476,28 @@ impl ExecutionMonitoringCoordinator {
 
         // Collect status from all subsystems
         let metrics_status = {
-            let collector = self.metrics_collector.read().unwrap();
+            let collector = self.metrics_collector.read().unwrap_or_else(|e| e.into_inner());
             collector.get_session_status(session_id)?
         };
 
         let performance_status = {
-            let monitor = self.performance_monitor.read().unwrap();
+            let monitor = self.performance_monitor.read().unwrap_or_else(|e| e.into_inner());
             monitor.get_session_status(session_id)?
         };
 
         let health_status = {
-            let health = self.health_monitor.read().unwrap();
+            let health = self.health_monitor.read().unwrap_or_else(|e| e.into_inner());
             health.get_current_health(session_id)?
         };
 
         let alert_status = {
-            let alerts = self.alert_manager.read().unwrap();
+            let alerts = self.alert_manager.read().unwrap_or_else(|e| e.into_inner());
             alerts.get_active_alerts(session_id)?
         };
 
         // Get session data
         let session = {
-            let sessions = self.active_sessions.read().unwrap();
+            let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
             sessions.get(session_id).cloned()
                 .ok_or_else(|| SklearsError::NotFound(format!("Session {} not found", session_id)))?
         };
@@ -529,7 +529,7 @@ impl ExecutionMonitoringCoordinator {
         self.validate_session_exists(session_id)?;
 
         // Generate report through reporting engine
-        let mut engine = self.reporting_engine.write().unwrap();
+        let mut engine = self.reporting_engine.write().unwrap_or_else(|e| e.into_inner());
         let report = engine.generate_comprehensive_report(session_id, report_config).await?;
         drop(engine);
 
@@ -538,7 +538,7 @@ impl ExecutionMonitoringCoordinator {
 
     /// Get coordinator health status
     pub fn get_coordinator_health(&self) -> SklResult<CoordinatorHealthStatus> {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
 
         let health = CoordinatorHealthStatus {
             status: state.status.clone(),
@@ -561,7 +561,7 @@ impl ExecutionMonitoringCoordinator {
         &self,
         config_updates: ConfigurationUpdate,
     ) -> SklResult<()> {
-        let mut config_mgr = self.config_manager.write().unwrap();
+        let mut config_mgr = self.config_manager.write().unwrap_or_else(|e| e.into_inner());
         config_mgr.apply_configuration_update(config_updates).await?;
         drop(config_mgr);
 
@@ -572,37 +572,37 @@ impl ExecutionMonitoringCoordinator {
     async fn initialize_session_monitoring(&self, session_id: &str) -> SklResult<()> {
         // Initialize metrics collection
         {
-            let mut collector = self.metrics_collector.write().unwrap();
+            let mut collector = self.metrics_collector.write().unwrap_or_else(|e| e.into_inner());
             collector.initialize_session(session_id).await?;
         }
 
         // Initialize event tracking
         {
-            let mut tracker = self.event_tracker.write().unwrap();
+            let mut tracker = self.event_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.initialize_session(session_id).await?;
         }
 
         // Initialize performance monitoring
         {
-            let mut monitor = self.performance_monitor.write().unwrap();
+            let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             monitor.initialize_session(session_id).await?;
         }
 
         // Initialize health monitoring
         {
-            let mut health = self.health_monitor.write().unwrap();
+            let mut health = self.health_monitor.write().unwrap_or_else(|e| e.into_inner());
             health.start_health_checks(session_id).await?;
         }
 
         // Initialize alert management
         {
-            let mut alerts = self.alert_manager.write().unwrap();
+            let mut alerts = self.alert_manager.write().unwrap_or_else(|e| e.into_inner());
             alerts.initialize_session(session_id).await?;
         }
 
         // Initialize anomaly detection
         {
-            let mut detector = self.anomaly_detector.write().unwrap();
+            let mut detector = self.anomaly_detector.write().unwrap_or_else(|e| e.into_inner());
             detector.initialize_session(session_id).await?;
         }
 
@@ -612,32 +612,32 @@ impl ExecutionMonitoringCoordinator {
     async fn shutdown_session_monitoring(&self, session_id: &str) -> SklResult<()> {
         // Shutdown all subsystems for this session
         {
-            let mut collector = self.metrics_collector.write().unwrap();
+            let mut collector = self.metrics_collector.write().unwrap_or_else(|e| e.into_inner());
             collector.shutdown_session(session_id).await?;
         }
 
         {
-            let mut tracker = self.event_tracker.write().unwrap();
+            let mut tracker = self.event_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.shutdown_session(session_id).await?;
         }
 
         {
-            let mut monitor = self.performance_monitor.write().unwrap();
+            let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             monitor.shutdown_session(session_id).await?;
         }
 
         {
-            let mut health = self.health_monitor.write().unwrap();
+            let mut health = self.health_monitor.write().unwrap_or_else(|e| e.into_inner());
             health.stop_health_checks(session_id).await?;
         }
 
         {
-            let mut alerts = self.alert_manager.write().unwrap();
+            let mut alerts = self.alert_manager.write().unwrap_or_else(|e| e.into_inner());
             alerts.shutdown_session(session_id).await?;
         }
 
         {
-            let mut detector = self.anomaly_detector.write().unwrap();
+            let mut detector = self.anomaly_detector.write().unwrap_or_else(|e| e.into_inner());
             detector.shutdown_session(session_id).await?;
         }
 
@@ -645,13 +645,13 @@ impl ExecutionMonitoringCoordinator {
     }
 
     async fn generate_final_report(&self, session_id: &str) -> SklResult<MonitoringReport> {
-        let engine = self.reporting_engine.read().unwrap();
+        let engine = self.reporting_engine.read().unwrap_or_else(|e| e.into_inner());
         let report_config = ReportConfiguration::comprehensive();
         engine.generate_comprehensive_report(session_id, report_config).await
     }
 
     fn validate_session_exists(&self, session_id: &str) -> SklResult<()> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if !sessions.contains_key(session_id) {
             return Err(SklearsError::NotFound(format!("Session {} not found", session_id)));
         }
@@ -668,49 +668,49 @@ impl ExecutionMonitoringCoordinator {
 
         // Get health from each subsystem
         {
-            let collector = self.metrics_collector.read().unwrap();
+            let collector = self.metrics_collector.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("metrics_collection".to_string(),
                 collector.get_health_status());
         }
 
         {
-            let tracker = self.event_tracker.read().unwrap();
+            let tracker = self.event_tracker.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("event_tracking".to_string(),
                 tracker.get_health_status());
         }
 
         {
-            let monitor = self.performance_monitor.read().unwrap();
+            let monitor = self.performance_monitor.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("performance_monitoring".to_string(),
                 monitor.get_health_status());
         }
 
         {
-            let health = self.health_monitor.read().unwrap();
+            let health = self.health_monitor.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("health_monitoring".to_string(),
                 health.get_health_status());
         }
 
         {
-            let alerts = self.alert_manager.read().unwrap();
+            let alerts = self.alert_manager.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("alert_management".to_string(),
                 alerts.get_health_status());
         }
 
         {
-            let detector = self.anomaly_detector.read().unwrap();
+            let detector = self.anomaly_detector.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("anomaly_detection".to_string(),
                 detector.get_health_status());
         }
 
         {
-            let engine = self.reporting_engine.read().unwrap();
+            let engine = self.reporting_engine.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("reporting_engine".to_string(),
                 engine.get_health_status());
         }
 
         {
-            let storage = self.data_storage.read().unwrap();
+            let storage = self.data_storage.read().unwrap_or_else(|e| e.into_inner());
             health_map.insert("data_storage".to_string(),
                 storage.get_health_status());
         }
@@ -767,7 +767,7 @@ impl ExecutionMonitor for ExecutionMonitoringCoordinator {
 
     fn get_historical_data(&self, session_id: &str, time_range: TimeRange) -> SklResult<HistoricalMonitoringData> {
         // Retrieve from data storage
-        let storage = self.data_storage.read().unwrap();
+        let storage = self.data_storage.read().unwrap_or_else(|e| e.into_inner());
         storage.get_historical_data(session_id, &time_range)
     }
 
@@ -780,12 +780,12 @@ impl ExecutionMonitor for ExecutionMonitoringCoordinator {
     }
 
     fn configure_alert_thresholds(&mut self, session_id: &str, thresholds: Vec<AlertThreshold>) -> SklResult<()> {
-        let mut alerts = self.alert_manager.write().unwrap();
+        let mut alerts = self.alert_manager.write().unwrap_or_else(|e| e.into_inner());
         alerts.configure_thresholds(session_id, thresholds)
     }
 
     fn get_alert_status(&self, session_id: &str) -> SklResult<Vec<ActiveAlert>> {
-        let alerts = self.alert_manager.read().unwrap();
+        let alerts = self.alert_manager.read().unwrap_or_else(|e| e.into_inner());
         alerts.get_active_alerts(session_id)
     }
 }

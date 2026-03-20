@@ -2,6 +2,11 @@
 //!
 //! Imputation using Random Forest specifically designed for categorical data.
 //! Uses ensemble of categorical decision trees for robust imputation.
+//!
+//! # Note
+//!
+//! Not implemented in v0.1.0. `fit` and `transform` return
+//! `Err(SklearsError::NotImplemented)`. Planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::{
@@ -188,28 +193,12 @@ impl Fit<ArrayView2<'_, Float>, ()> for CategoricalRandomForestImputer<Untrained
         let X = X.mapv(|x| x);
         let (_n_samples, n_features) = X.dim();
 
-        // Simplified stub implementation
-        let trees = vec![CategoricalTree::default(); self.n_estimators];
-        let feature_importances = Array1::zeros(n_features);
-
-        Ok(CategoricalRandomForestImputer {
-            state: CategoricalRandomForestImputerTrained {
-                trees_: trees,
-                feature_importances_: feature_importances,
-                n_features_in_: n_features,
-                n_estimators_: self.n_estimators,
-            },
-            n_estimators: self.n_estimators,
-            max_depth: self.max_depth,
-            min_samples_split: self.min_samples_split,
-            min_samples_leaf: self.min_samples_leaf,
-            max_features: self.max_features,
-            bootstrap: self.bootstrap,
-            max_iter: self.max_iter,
-            tol: self.tol,
-            missing_values: self.missing_values,
-            random_state: self.random_state,
-        })
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = (n_features, _n_samples);
+        Err(SklearsError::NotImplemented(
+            "CategoricalRandomForestImputer::fit: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        ))
     }
 }
 
@@ -228,17 +217,11 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
             )));
         }
 
-        // Simplified stub - just fill with zeros
-        let mut X_imputed = X.clone();
-        for i in 0..n_samples {
-            for j in 0..n_features {
-                if self.is_missing(X[[i, j]]) {
-                    X_imputed[[i, j]] = 0.0;
-                }
-            }
-        }
-
-        Ok(X_imputed.mapv(|x| x as Float))
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = (n_samples, n_features);
+        Err(SklearsError::NotImplemented(
+            "CategoricalRandomForestImputer::transform: not implemented in v0.1.0. Planned for v0.2.0.".to_string(),
+        ))
     }
 }
 

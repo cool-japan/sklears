@@ -209,9 +209,9 @@ impl PolynomialFeatures<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for PolynomialFeatures<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
-        let n_input_features = self.n_input_features_.unwrap();
-        let n_output_features = self.n_output_features_.unwrap();
-        let powers = self.powers_.as_ref().unwrap();
+        let n_input_features = self.n_input_features_.expect("operation should succeed");
+        let n_output_features = self.n_output_features_.expect("operation should succeed");
+        let powers = self.powers_.as_ref().expect("operation should succeed");
 
         if n_features != n_input_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -241,17 +241,17 @@ impl Transform<Array2<Float>, Array2<Float>> for PolynomialFeatures<Trained> {
 impl PolynomialFeatures<Trained> {
     /// Get the number of input features
     pub fn n_input_features(&self) -> usize {
-        self.n_input_features_.unwrap()
+        self.n_input_features_.expect("operation should succeed")
     }
 
     /// Get the number of output features
     pub fn n_output_features(&self) -> usize {
-        self.n_output_features_.unwrap()
+        self.n_output_features_.expect("operation should succeed")
     }
 
     /// Get the powers for each feature
     pub fn powers(&self) -> &[Vec<u32>] {
-        self.powers_.as_ref().unwrap()
+        self.powers_.as_ref().expect("operation should succeed")
     }
 }
 
@@ -266,8 +266,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let poly = PolynomialFeatures::new(2);
-        let fitted = poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Features: [1, b, a, b^2, ab, a^2] = 6 features
         assert_eq!(x_transformed.shape(), &[2, 6]);
@@ -286,8 +286,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let poly = PolynomialFeatures::new(2).include_bias(false);
-        let fitted = poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Features: [a, b, a^2, ab, b^2] = 5 features
         assert_eq!(x_transformed.shape(), &[2, 5]);
@@ -298,8 +298,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let poly = PolynomialFeatures::new(2).interaction_only(true);
-        let fitted = poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         println!("Interaction only powers: {:?}", fitted.powers());
         println!("Interaction only shape: {:?}", x_transformed.shape());
@@ -315,8 +315,8 @@ mod tests {
         let x = array![[1.0, 2.0]];
 
         let poly = PolynomialFeatures::new(3).include_bias(false);
-        let fitted = poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Features: [a, b, a^2, ab, b^2, a^3, a^2b, ab^2, b^3] = 9 features
         assert_eq!(x_transformed.shape(), &[1, 9]);
@@ -336,7 +336,7 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Different number of features
 
         let poly = PolynomialFeatures::new(2);
-        let fitted = poly.fit(&x_train, &()).unwrap();
+        let fitted = poly.fit(&x_train, &()).expect("operation should succeed");
         let result = fitted.transform(&x_test);
         assert!(result.is_err());
     }
@@ -346,8 +346,8 @@ mod tests {
         let x = array![[2.0], [3.0]];
 
         let poly = PolynomialFeatures::new(3);
-        let fitted = poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Features: [1, a, a^2, a^3] = 4 features
         assert_eq!(x_transformed.shape(), &[2, 4]);

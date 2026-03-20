@@ -389,9 +389,9 @@ mod tests {
 
         let viz_data = VisualizationData::new(embedding)
             .with_labels(labels.clone())
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(viz_data.labels.unwrap(), labels);
+        assert_eq!(viz_data.labels.expect("operation should succeed"), labels);
     }
 
     #[test]
@@ -401,14 +401,16 @@ mod tests {
 
         let viz_data = VisualizationData::new(embedding)
             .with_labels(labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         let config = VisualizationConfig::default();
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
 
-        viz_data.export(temp_file.path(), &config).unwrap();
+        viz_data
+            .export(temp_file.path(), &config)
+            .expect("operation should succeed");
 
-        let content = std::fs::read_to_string(temp_file.path()).unwrap();
+        let content = std::fs::read_to_string(temp_file.path()).expect("operation should succeed");
         assert!(content.contains("dim_0,dim_1,label"));
         assert!(content.contains("1,2,A"));
         assert!(content.contains("3,4,B"));
@@ -427,10 +429,12 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        let temp_file = NamedTempFile::new().unwrap();
-        viz_data.export(temp_file.path(), &config).unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
+        viz_data
+            .export(temp_file.path(), &config)
+            .expect("operation should succeed");
 
-        let content = std::fs::read_to_string(temp_file.path()).unwrap();
+        let content = std::fs::read_to_string(temp_file.path()).expect("operation should succeed");
         assert!(content.contains("\"coordinates\""));
         assert!(content.contains("[1, 2]"));
         assert!(content.contains("[3, 4]"));
@@ -441,12 +445,12 @@ mod tests {
         let embedding = array![[1.0, 2.0], [3.0, 4.0]];
         let labels = array!["A".to_string(), "B".to_string()];
 
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
 
         QuickVisualization::to_matplotlib_csv(embedding.view(), temp_file.path(), Some(labels))
-            .unwrap();
+            .expect("operation should succeed");
 
-        let content = std::fs::read_to_string(temp_file.path()).unwrap();
+        let content = std::fs::read_to_string(temp_file.path()).expect("operation should succeed");
         assert!(content.contains("dim_0,dim_1,label"));
     }
 }

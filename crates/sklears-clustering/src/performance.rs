@@ -149,7 +149,9 @@ impl CacheAwareData {
                 let coord_i = point_i[0] + point_i[1] * 1000.0;
                 let coord_j = point_j[0] + point_j[1] * 1000.0;
 
-                coord_i.partial_cmp(&coord_j).unwrap()
+                coord_i
+                    .partial_cmp(&coord_j)
+                    .expect("operation should succeed")
             });
         }
 
@@ -241,8 +243,10 @@ mod tests {
 
     #[test]
     fn test_cache_friendly_distance_matrix() {
-        let points1 = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
-        let points2 = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
+        let points1 = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
+        let points2 = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         let distances = cache_friendly_distance_matrix(&points1, &points2, 32);
 
@@ -253,8 +257,8 @@ mod tests {
 
     #[test]
     fn test_cache_optimized_centroids() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            .expect("operation should succeed");
         let labels = vec![0, 0, 1, 1];
 
         let centroids = cache_optimized_centroids(&data, &labels, 2);
@@ -268,8 +272,10 @@ mod tests {
 
     #[test]
     fn test_memory_efficient_knn() {
-        let query = Array2::from_shape_vec((1, 2), vec![0.0, 0.0]).unwrap();
-        let reference = Array2::from_shape_vec((3, 2), vec![1.0, 0.0, 0.0, 1.0, 2.0, 0.0]).unwrap();
+        let query =
+            Array2::from_shape_vec((1, 2), vec![0.0, 0.0]).expect("operation should succeed");
+        let reference = Array2::from_shape_vec((3, 2), vec![1.0, 0.0, 0.0, 1.0, 2.0, 0.0])
+            .expect("operation should succeed");
 
         let knn_results = memory_efficient_knn(&query, &reference, 2);
 
@@ -288,7 +294,8 @@ mod tests {
 
     #[test]
     fn test_cache_aware_data() {
-        let data = Array2::from_shape_vec((3, 2), vec![2.0, 2.0, 0.0, 0.0, 1.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![2.0, 2.0, 0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         let cache_aware = CacheAwareData::from_data(data);
         let labels = vec![0, 1, 2];

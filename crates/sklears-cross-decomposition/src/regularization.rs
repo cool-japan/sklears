@@ -111,7 +111,7 @@ impl ElasticNet {
 
         // Center target if fitting intercept
         let (y_centered, y_mean) = if self.fit_intercept {
-            let mean = y.mean().unwrap();
+            let mean = y.mean().unwrap_or_default();
             (y - mean, mean)
         } else {
             (y.clone(), 0.0)
@@ -185,7 +185,9 @@ impl ElasticNet {
         &self,
         X: &Array2<Float>,
     ) -> Result<(Array2<Float>, Array1<Float>, Array1<Float>)> {
-        let means = X.mean_axis(Axis(0)).unwrap();
+        let means = X.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
         let centered = X - &means.view().insert_axis(Axis(0));
         let stds = centered.var_axis(Axis(0), 1.0).mapv(|x| x.sqrt());
 
@@ -294,7 +296,7 @@ impl GroupLasso {
 
         // Center target if fitting intercept
         let y_centered = if self.fit_intercept {
-            let mean = y.mean().unwrap();
+            let mean = y.mean().expect("operation should succeed");
             y - mean
         } else {
             y.clone()
@@ -707,7 +709,7 @@ impl SCAD {
 
         // Center target if fitting intercept
         let y_centered = if self.fit_intercept {
-            let mean = y.mean().unwrap();
+            let mean = y.mean().unwrap_or_default();
             y - mean
         } else {
             y.clone()
@@ -805,7 +807,7 @@ impl SCAD {
 
 impl Default for SCAD {
     fn default() -> Self {
-        Self::new(1.0, 3.7).unwrap() // Standard choice a = 3.7
+        Self::new(1.0, 3.7).expect("operation should succeed") // Standard choice a = 3.7
     }
 }
 
@@ -893,7 +895,7 @@ impl MCP {
 
         // Center target if fitting intercept
         let y_centered = if self.fit_intercept {
-            let mean = y.mean().unwrap();
+            let mean = y.mean().unwrap_or_default();
             y - mean
         } else {
             y.clone()
@@ -982,7 +984,7 @@ impl MCP {
 
 impl Default for MCP {
     fn default() -> Self {
-        Self::new(1.0, 3.0).unwrap() // Standard choice gamma = 3.0
+        Self::new(1.0, 3.0).expect("operation should succeed") // Standard choice gamma = 3.0
     }
 }
 
@@ -998,7 +1000,7 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let elastic_net = ElasticNet::new(0.1, 0.5);
-        let coef = elastic_net.fit(&X, &y).unwrap();
+        let coef = elastic_net.fit(&X, &y).expect("fit should succeed");
 
         assert_eq!(coef.len(), 2);
 
@@ -1014,7 +1016,7 @@ mod tests {
         let groups = vec![vec![0, 1], vec![2]];
 
         let group_lasso = GroupLasso::new(0.1, groups);
-        let coef = group_lasso.fit(&X, &y).unwrap();
+        let coef = group_lasso.fit(&X, &y).expect("fit should succeed");
 
         assert_eq!(coef.len(), 3);
 
@@ -1028,7 +1030,7 @@ mod tests {
         let y = array![1.0, 2.0, 3.0];
 
         let fused_lasso = FusedLasso::new(0.1, 0.1);
-        let coef = fused_lasso.fit(&X, &y).unwrap();
+        let coef = fused_lasso.fit(&X, &y).expect("fit should succeed");
 
         assert_eq!(coef.len(), 3);
 
@@ -1041,8 +1043,9 @@ mod tests {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let adaptive_lasso = AdaptiveLasso::from_ols(0.1, &X, &y, 1.0).unwrap();
-        let coef = adaptive_lasso.fit(&X, &y).unwrap();
+        let adaptive_lasso =
+            AdaptiveLasso::from_ols(0.1, &X, &y, 1.0).expect("operation should succeed");
+        let coef = adaptive_lasso.fit(&X, &y).expect("fit should succeed");
 
         assert_eq!(coef.len(), 2);
 
@@ -1057,7 +1060,9 @@ mod tests {
         let alphas = array![0.001, 0.01, 0.1, 1.0];
 
         let elastic_net = ElasticNet::new(0.1, 0.5);
-        let coef_path = elastic_net.path(&X, &y, &alphas).unwrap();
+        let coef_path = elastic_net
+            .path(&X, &y, &alphas)
+            .expect("operation should succeed");
 
         assert_eq!(coef_path.shape(), &[2, 4]);
     }
@@ -1069,11 +1074,11 @@ mod tests {
 
         // Pure L1 (Lasso) with weaker regularization
         let lasso = ElasticNet::new(0.01, 1.0);
-        let coef_l1 = lasso.fit(&X, &y).unwrap();
+        let coef_l1 = lasso.fit(&X, &y).expect("fit should succeed");
 
         // Pure L2 (Ridge) with weaker regularization
         let ridge = ElasticNet::new(0.01, 0.0);
-        let coef_l2 = ridge.fit(&X, &y).unwrap();
+        let coef_l2 = ridge.fit(&X, &y).expect("fit should succeed");
 
         // At least one coefficient should be non-zero
         assert!(coef_l1.iter().any(|&x| x.abs() > 1e-6) || coef_l2.iter().any(|&x| x.abs() > 1e-6));
@@ -1084,8 +1089,8 @@ mod tests {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let scad = SCAD::new(0.1, 3.7).unwrap();
-        let coef = scad.fit(&X, &y).unwrap();
+        let scad = SCAD::new(0.1, 3.7).expect("operation should succeed");
+        let coef = scad.fit(&X, &y).expect("fit should succeed");
 
         assert_eq!(coef.len(), 2);
 
@@ -1106,7 +1111,7 @@ mod tests {
 
     #[test]
     fn test_scad_penalty_function() {
-        let scad = SCAD::new(1.0, 3.7).unwrap();
+        let scad = SCAD::new(1.0, 3.7).expect("operation should succeed");
 
         // Test penalty for small coefficients (L1 region)
         let coef_small = array![0.5, 0.3];
@@ -1126,8 +1131,8 @@ mod tests {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let mcp = MCP::new(0.1, 3.0).unwrap();
-        let coef = mcp.fit(&X, &y).unwrap();
+        let mcp = MCP::new(0.1, 3.0).expect("operation should succeed");
+        let coef = mcp.fit(&X, &y).expect("fit should succeed");
 
         assert_eq!(coef.len(), 2);
 
@@ -1148,7 +1153,7 @@ mod tests {
 
     #[test]
     fn test_mcp_penalty_function() {
-        let mcp = MCP::new(1.0, 3.0).unwrap();
+        let mcp = MCP::new(1.0, 3.0).expect("operation should succeed");
 
         // Test penalty for small coefficients (MCP region)
         let coef_small = array![0.5, 0.3];
@@ -1165,8 +1170,8 @@ mod tests {
 
     #[test]
     fn test_scad_vs_mcp_penalties() {
-        let scad = SCAD::new(0.1, 3.7).unwrap();
-        let mcp = MCP::new(0.1, 3.0).unwrap();
+        let scad = SCAD::new(0.1, 3.7).expect("operation should succeed");
+        let mcp = MCP::new(0.1, 3.0).expect("operation should succeed");
 
         // For very small coefficients, both should behave like L1
         let coef_tiny = array![0.01, 0.02];
@@ -1185,7 +1190,7 @@ mod tests {
     fn test_regularization_builders() {
         // Test SCAD builder pattern
         let scad = SCAD::new(0.1, 3.7)
-            .unwrap()
+            .expect("operation should succeed")
             .max_iter(500)
             .tol(1e-6)
             .fit_intercept(false)
@@ -1198,7 +1203,7 @@ mod tests {
 
         // Test MCP builder pattern
         let mcp = MCP::new(0.2, 2.5)
-            .unwrap()
+            .expect("operation should succeed")
             .max_iter(800)
             .tol(1e-5)
             .fit_intercept(true)

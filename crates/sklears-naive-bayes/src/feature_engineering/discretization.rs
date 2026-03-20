@@ -414,22 +414,26 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(discretizer.fit(&x.view()).is_ok());
         assert!(discretizer.bin_edges().is_some());
 
-        let discretized = discretizer.transform(&x.view()).unwrap();
+        let discretized = discretizer
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert_eq!(discretized.dim(), x.dim());
     }
 
     #[test]
     fn test_binning_optimizer() {
         let mut optimizer = BinningOptimizer::new();
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
-        let best_bins = optimizer.optimize_bins(&x.view(), None).unwrap();
+        let best_bins = optimizer
+            .optimize_bins(&x.view(), None)
+            .expect("operation should succeed");
         assert!(best_bins > 0);
         assert!(optimizer.best_n_bins().is_some());
     }

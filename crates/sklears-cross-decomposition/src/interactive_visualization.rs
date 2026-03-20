@@ -892,8 +892,8 @@ mod tests {
 
         assert_eq!(data.x, x);
         assert_eq!(data.y, y);
-        assert_eq!(data.z.unwrap(), z);
-        assert_eq!(data.colors.unwrap(), colors);
+        assert_eq!(data.z.expect("operation should succeed"), z);
+        assert_eq!(data.colors.expect("operation should succeed"), colors);
     }
 
     #[test]
@@ -916,7 +916,8 @@ mod tests {
     fn test_loading_heatmap() -> Result<(), VisualizationError> {
         let mut visualizer = InteractiveVisualizer::new();
 
-        let loadings = Array2::from_shape_vec((3, 2), vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6]).unwrap();
+        let loadings = Array2::from_shape_vec((3, 2), vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+            .expect("shape should match data length");
         let feature_names = Some(vec![
             "Feature1".to_string(),
             "Feature2".to_string(),
@@ -975,7 +976,7 @@ mod tests {
 
         let correlation_matrix =
             Array2::from_shape_vec((3, 3), vec![1.0, 0.5, 0.3, 0.5, 1.0, 0.7, 0.3, 0.7, 1.0])
-                .unwrap();
+                .expect("operation should succeed");
         let variable_names = Some(vec![
             "Var1".to_string(),
             "Var2".to_string(),
@@ -1005,7 +1006,7 @@ mod tests {
         let html_result = visualizer.generate_html_content();
         assert!(html_result.is_ok());
 
-        let html = html_result.unwrap();
+        let html = html_result.expect("operation should succeed");
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("Interactive Cross-Decomposition"));
         assert!(html.contains("Plotly"));

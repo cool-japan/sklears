@@ -217,7 +217,8 @@ impl SplineTransformer<Untrained> {
                 }
                 KnotStrategy::Quantile => {
                     let mut sorted_values = feature_values.to_vec();
-                    sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted_values
+                        .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                     for i in 1..=n_internal_knots {
                         let quantile = i as Float / (n_internal_knots + 1) as Float;

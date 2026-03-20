@@ -212,7 +212,7 @@ impl BiasVarianceAnalyzer {
         x_train: &[X],
         y_train: &[Y],
         sample_size: usize,
-        rng: &mut impl scirs2_core::random::Rng,
+        rng: &mut impl scirs2_core::random::RngExt,
     ) -> Result<(Vec<X>, Vec<Y>)>
     where
         X: Clone,
@@ -225,7 +225,7 @@ impl BiasVarianceAnalyzer {
         if self.config.with_replacement {
             // Sample with replacement
             for _ in 0..sample_size {
-                let idx = rng.gen_range(0..n_train);
+                let idx = rng.random_range(0..n_train);
                 x_boot.push(x_train[idx].clone());
                 y_boot.push(y_train[idx].clone());
             }
@@ -352,7 +352,7 @@ impl BiasVarianceAnalyzer {
     }
 
     /// Get random number generator
-    fn get_rng(&self) -> impl scirs2_core::random::Rng {
+    fn get_rng(&self) -> impl scirs2_core::random::RngExt {
         use scirs2_core::random::rngs::StdRng;
         use scirs2_core::random::SeedableRng;
 
@@ -477,7 +477,7 @@ mod tests {
         let result = analyzer.decompose(&estimator, &x_train, &y_train, &x_test, &y_test);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.n_bootstrap, 10);
         assert!(result.bias_squared >= 0.0);
         assert!(result.variance >= 0.0);
@@ -514,7 +514,7 @@ mod tests {
             bias_variance_decompose(&estimator, &x_train, &y_train, &x_test, &y_test, Some(20));
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.n_bootstrap, 20);
     }
 }

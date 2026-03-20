@@ -878,18 +878,20 @@ mod tests {
 
     #[allow(non_snake_case)]
     fn create_test_classification_data() -> (Array2<f64>, Array1<f64>) {
-        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec((0..100).map(|i| (i % 3) as f64).collect());
         (X, y)
     }
 
     #[allow(non_snake_case)]
     fn create_test_regression_data() -> (Array2<f64>, Array1<f64>) {
-        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         use scirs2_core::essentials::Uniform;
         use scirs2_core::random::{thread_rng, Distribution};
         let mut rng = thread_rng();
-        let dist = Uniform::new(0.0, 1.0).unwrap();
+        let dist = Uniform::new(0.0, 1.0).expect("operation should succeed");
         let y = Array1::from_vec((0..100).map(|i| i as f64 + dist.sample(&mut rng)).collect());
         (X, y)
     }
@@ -900,7 +902,7 @@ mod tests {
         let result = automl(&X, &y, TaskType::Classification);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.cv_score > 0.0);
         assert!(result.total_time > 0.0);
         assert!(!result.recommendations.is_empty());
@@ -912,7 +914,7 @@ mod tests {
         let result = automl(&X, &y, TaskType::Regression);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.cv_score >= 0.0);
         assert!(result.total_time > 0.0);
     }
@@ -935,7 +937,7 @@ mod tests {
         let result = pipeline.fit(&X, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.feature_engineering.is_none());
         assert!(result.ensemble_selection.is_none());
     }
@@ -954,7 +956,7 @@ mod tests {
         let result = pipeline.fit(&X, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
 
         // Check that all stages were executed
         assert!(result
@@ -978,7 +980,7 @@ mod tests {
             (5, 2),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0]); // Wrong length
 
         let mut pipeline = AutoMLPipeline::default();

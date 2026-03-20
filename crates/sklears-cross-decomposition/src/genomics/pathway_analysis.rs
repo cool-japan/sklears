@@ -275,7 +275,7 @@ impl PathwayAnalysis {
             .enumerate()
             .map(|(i, &score)| (i, score))
             .collect();
-        sorted_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        sorted_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let n_significant = (sorted_scores.len() as Float * (1.0 - threshold_percentile)) as usize;
 
@@ -377,7 +377,7 @@ impl PathwayAnalysis {
             .enumerate()
             .map(|(i, &score)| (i, score))
             .collect();
-        gene_rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        gene_rankings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Calculate enrichment score
         let n_genes = gene_rankings.len();
@@ -483,7 +483,11 @@ impl PathwayAnalysis {
 
         // Create sorted indices
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| p_values[a].partial_cmp(&p_values[b]).unwrap());
+        indices.sort_by(|&a, &b| {
+            p_values[a]
+                .partial_cmp(&p_values[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut corrected = vec![0.0; n];
 
@@ -518,7 +522,11 @@ impl PathwayAnalysis {
         let harmonic_n = (1..=n).map(|i| 1.0 / i as Float).sum::<Float>();
 
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| p_values[a].partial_cmp(&p_values[b]).unwrap());
+        indices.sort_by(|&a, &b| {
+            p_values[a]
+                .partial_cmp(&p_values[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut corrected = vec![0.0; n];
 

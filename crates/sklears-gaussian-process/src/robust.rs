@@ -853,7 +853,7 @@ impl RobustGaussianProcessRegressor<Trained> {
                 ._state
                 .kernel
                 .compute_kernel_matrix(&self._state.training_data.0, None)
-                .unwrap()
+                .expect("operation should succeed")
                 .dot(&self._state.alpha);
 
         residuals
@@ -1004,8 +1004,8 @@ mod tests {
             .max_iterations(10)
             .build();
 
-        let trained = robust_gp.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = robust_gp.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), X.nrows());
     }
@@ -1021,7 +1021,7 @@ mod tests {
             .outlier_detection_threshold(1.5) // Lower threshold to be more sensitive
             .build();
 
-        let trained = robust_gp.fit(&X, &y).unwrap();
+        let trained = robust_gp.fit(&X, &y).expect("model fitting should succeed");
         let outliers = trained.outlier_indices();
 
         // Should detect the outlier (may be empty for very robust fits)
@@ -1092,8 +1092,10 @@ mod tests {
             .robust_likelihood(RobustLikelihood::student_t(3.0))
             .build();
 
-        let trained = robust_gp.fit(&X, &y).unwrap();
-        let (predictions, uncertainties) = trained.predict_with_robust_uncertainty(&X).unwrap();
+        let trained = robust_gp.fit(&X, &y).expect("model fitting should succeed");
+        let (predictions, uncertainties) = trained
+            .predict_with_robust_uncertainty(&X)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), X.nrows());
         assert_eq!(uncertainties.len(), X.nrows());
@@ -1110,7 +1112,7 @@ mod tests {
             .robust_likelihood(RobustLikelihood::student_t(3.0))
             .build();
 
-        let trained = robust_gp.fit(&X, &y).unwrap();
+        let trained = robust_gp.fit(&X, &y).expect("model fitting should succeed");
         let influence = trained.compute_influence_function();
 
         assert_eq!(influence.len(), X.nrows());
@@ -1176,8 +1178,10 @@ mod tests {
             .max_iterations(5)
             .build();
 
-        let trained = robust_gp.fit(&X, &y).unwrap();
-        let cv_score = trained.robust_cross_validation(3).unwrap();
+        let trained = robust_gp.fit(&X, &y).expect("model fitting should succeed");
+        let cv_score = trained
+            .robust_cross_validation(3)
+            .expect("operation should succeed");
 
         assert!(cv_score >= 0.0);
     }

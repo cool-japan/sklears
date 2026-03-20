@@ -426,7 +426,7 @@ impl FeatureTransformer<f64> for StandardNormalizer<f64> {
         }
 
         if self.with_mean {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
             self.mean = Some(mean);
         }
 
@@ -538,17 +538,22 @@ mod tests {
 
     #[test]
     fn test_standard_normalizer() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let mut normalizer = StandardNormalizer::new(true, true);
 
         assert!(normalizer.fit(&data.view()).is_ok());
         assert!(normalizer.mean().is_some());
         assert!(normalizer.std().is_some());
 
-        let transformed = normalizer.transform(&data.view()).unwrap();
+        let transformed = normalizer
+            .transform(&data.view())
+            .expect("operation should succeed");
         assert_eq!(transformed.dim(), data.dim());
 
-        let inverse = normalizer.inverse_transform(&transformed.view()).unwrap();
+        let inverse = normalizer
+            .inverse_transform(&transformed.view())
+            .expect("operation should succeed");
         // Check that inverse transformation approximately recovers original data
         for (orig, inv) in data.iter().zip(inverse.iter()) {
             assert!((orig - inv).abs() < 1e-10);
@@ -577,7 +582,12 @@ mod tests {
 
         let skewness = Array1::from_vec(vec![0.5, -0.2, 1.1]);
         analyzer.set_skewness_before(skewness.clone());
-        assert_eq!(analyzer.skewness_before().unwrap(), &skewness);
+        assert_eq!(
+            analyzer
+                .skewness_before()
+                .expect("operation should succeed"),
+            &skewness
+        );
 
         analyzer.add_normality_test(
             "shapiro".to_string(),

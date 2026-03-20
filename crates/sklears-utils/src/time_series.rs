@@ -187,8 +187,8 @@ impl<T: Clone> TimeSeries<T> {
             return Ok(TimeSeries::new());
         }
 
-        let start = self.first_timestamp().unwrap();
-        let end = self.last_timestamp().unwrap();
+        let start = self.first_timestamp().expect("operation should succeed");
+        let end = self.last_timestamp().expect("operation should succeed");
         let mut resampled = TimeSeries::new();
 
         let mut current = start;
@@ -405,7 +405,10 @@ impl TimeZoneUtils {
     /// Get timestamp for start of day
     pub fn start_of_day(timestamp: Timestamp) -> Timestamp {
         let datetime = timestamp.to_datetime_utc();
-        let start_of_day = datetime.date_naive().and_hms_opt(0, 0, 0).unwrap();
+        let start_of_day = datetime
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .expect("operation should succeed");
         let start_of_day_utc: DateTime<Utc> =
             DateTime::from_naive_utc_and_offset(start_of_day, Utc);
         Timestamp::from_millis(start_of_day_utc.timestamp_millis())
@@ -414,7 +417,10 @@ impl TimeZoneUtils {
     /// Get timestamp for end of day
     pub fn end_of_day(timestamp: Timestamp) -> Timestamp {
         let datetime = timestamp.to_datetime_utc();
-        let end_of_day = datetime.date_naive().and_hms_opt(23, 59, 59).unwrap();
+        let end_of_day = datetime
+            .date_naive()
+            .and_hms_opt(23, 59, 59)
+            .expect("operation should succeed");
         let end_of_day_utc: DateTime<Utc> = DateTime::from_naive_utc_and_offset(end_of_day, Utc);
         Timestamp::from_millis(end_of_day_utc.timestamp_millis())
     }
@@ -512,7 +518,7 @@ impl LagFeatureGenerator {
             return Err(UtilsError::EmptyInput);
         }
 
-        let max_lag = *lags.iter().max().unwrap();
+        let max_lag = *lags.iter().max().expect("operation should succeed");
         if data.len() <= max_lag {
             return Err(UtilsError::InsufficientData {
                 min: max_lag + 1,
@@ -548,7 +554,7 @@ impl LagFeatureGenerator {
             return Err(UtilsError::EmptyInput);
         }
 
-        let max_order = *orders.iter().max().unwrap();
+        let max_order = *orders.iter().max().expect("operation should succeed");
         if data.len() <= max_order {
             return Err(UtilsError::InsufficientData {
                 min: max_order + 1,
@@ -657,7 +663,8 @@ mod tests {
         let data = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let lags = vec![1, 2];
 
-        let features = LagFeatureGenerator::generate_lag_features(&data, &lags).unwrap();
+        let features = LagFeatureGenerator::generate_lag_features(&data, &lags)
+            .expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 3]); // 3 samples, 3 features (original + 2 lags)
         assert_eq!(features[(0, 0)], 3.0); // Original value at index 2
@@ -670,7 +677,8 @@ mod tests {
         let data = Array1::from(vec![1.0, 3.0, 6.0, 10.0, 15.0]);
         let orders = vec![1, 2];
 
-        let features = LagFeatureGenerator::generate_diff_features(&data, &orders).unwrap();
+        let features = LagFeatureGenerator::generate_diff_features(&data, &orders)
+            .expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 2]); // 3 samples, 2 features (1st and 2nd diff)
         assert_eq!(features[(0, 0)], 2.0); // First difference: 3-1
@@ -687,10 +695,10 @@ mod tests {
         ];
         let values = vec![1.0, 2.0, 3.0, 4.0];
 
-        let ts = TimeSeries::from_vecs(timestamps, values).unwrap();
+        let ts = TimeSeries::from_vecs(timestamps, values).expect("operation should succeed");
         let resampled = ts
             .resample(Duration::from_secs(2), AggregationMethod::Mean)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!resampled.is_empty());
     }

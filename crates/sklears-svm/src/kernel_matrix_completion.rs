@@ -109,7 +109,7 @@ impl ObservationMask {
         use scirs2_core::random::{essentials::Uniform, seeded_rng, CoreRandom};
 
         let mut rng = seeded_rng(42);
-        let uniform = Uniform::new(0.0, 1.0).unwrap();
+        let uniform = Uniform::new(0.0, 1.0).expect("valid distribution params");
         let mut mask = Array2::from_elem((n_rows, n_cols), true);
         let mut n_observed = n_rows * n_cols;
 
@@ -708,7 +708,7 @@ impl KernelMatrixCompletion {
         use scirs2_core::random::{essentials::Normal, seeded_rng, CoreRandom};
 
         let mut rng = seeded_rng(42);
-        let normal = Normal::new(0.0, 0.1).unwrap();
+        let normal = Normal::new(0.0, 0.1).expect("valid distribution params");
         let mut matrix = Array2::zeros((rows, cols));
 
         for i in 0..rows {
@@ -886,10 +886,10 @@ mod tests {
     fn test_matrix_completion_simple() {
         // Create a simple square low-rank matrix for easier completion
         let U =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0]).expect("array shape mismatch");
 
         let V =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0]).expect("array shape mismatch");
 
         // Original matrix: U * V^T = (4x2) * (2x4) = (4x4)
         let original = U.dot(&V.t());
@@ -913,9 +913,9 @@ mod tests {
         config.tolerance = 1e-3;
 
         let mut solver = KernelMatrixCompletion::new(config);
-        solver.fit(&partial, &mask).unwrap();
+        solver.fit(&partial, &mask).expect("model fitting should succeed");
 
-        let completed = solver.completed_matrix().unwrap();
+        let completed = solver.completed_matrix().expect("operation should succeed");
 
         // Check that observed entries are reasonably close (SVT may have small approximation error)
         assert_abs_diff_eq!(completed[[0, 0]], original[[0, 0]], epsilon = 0.15);

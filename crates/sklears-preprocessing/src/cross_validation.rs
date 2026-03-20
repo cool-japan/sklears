@@ -47,7 +47,7 @@ impl KFold {
             let seed = self.random_state.unwrap_or_else(|| {
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs()
             });
 
@@ -55,7 +55,7 @@ impl KFold {
 
             // Fisher-Yates shuffle
             for i in (1..indices.len()).rev() {
-                let uniform = Uniform::new(0, i + 1).unwrap();
+                let uniform = Uniform::new(0, i + 1).expect("operation should succeed");
                 let j = uniform.sample(&mut rng);
                 indices.swap(i, j);
             }
@@ -131,7 +131,7 @@ impl StratifiedKFold {
             let seed = self.random_state.unwrap_or_else(|| {
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs()
             });
 
@@ -139,7 +139,7 @@ impl StratifiedKFold {
 
             for indices in class_indices.values_mut() {
                 for i in (1..indices.len()).rev() {
-                    let uniform = Uniform::new(0, i + 1).unwrap();
+                    let uniform = Uniform::new(0, i + 1).expect("operation should succeed");
                     let j = uniform.sample(&mut rng);
                     indices.swap(i, j);
                 }
@@ -273,7 +273,7 @@ impl ParameterDistribution {
         let seed = random_state.unwrap_or_else(|| {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs()
         });
 
@@ -284,7 +284,8 @@ impl ParameterDistribution {
                 self.parameters
                     .iter()
                     .map(|(name, &(min, max))| {
-                        let uniform = Uniform::new_inclusive(min, max).unwrap();
+                        let uniform =
+                            Uniform::new_inclusive(min, max).expect("operation should succeed");
                         (name.clone(), uniform.sample(&mut rng))
                     })
                     .collect()
@@ -420,19 +421,19 @@ mod tests {
 
     fn generate_test_data(nrows: usize, ncols: usize, seed: u64) -> Array2<f64> {
         let mut rng = seeded_rng(seed);
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let data: Vec<f64> = (0..nrows * ncols)
             .map(|_| normal.sample(&mut rng))
             .collect();
 
-        Array2::from_shape_vec((nrows, ncols), data).unwrap()
+        Array2::from_shape_vec((nrows, ncols), data).expect("shape and data length should match")
     }
 
     #[test]
     fn test_kfold_split() {
         let kfold = KFold::new(5, false, Some(42));
-        let splits = kfold.split(100).unwrap();
+        let splits = kfold.split(100).expect("operation should succeed");
 
         assert_eq!(splits.len(), 5);
 
@@ -446,10 +447,10 @@ mod tests {
     #[test]
     fn test_kfold_shuffle() {
         let kfold1 = KFold::new(3, true, Some(42));
-        let splits1 = kfold1.split(30).unwrap();
+        let splits1 = kfold1.split(30).expect("operation should succeed");
 
         let kfold2 = KFold::new(3, false, None);
-        let splits2 = kfold2.split(30).unwrap();
+        let splits2 = kfold2.split(30).expect("operation should succeed");
 
         // Shuffled and non-shuffled should be different
         let different = splits1[0].0 != splits2[0].0;
@@ -461,7 +462,7 @@ mod tests {
         let y = Array1::from_vec(vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]);
 
         let stratified = StratifiedKFold::new(3, false, Some(42));
-        let splits = stratified.split(&y).unwrap();
+        let splits = stratified.split(&y).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -509,8 +510,8 @@ mod tests {
         assert_eq!(samples.len(), 10);
 
         for sample in &samples {
-            let alpha = sample.get("alpha").unwrap();
-            let beta = sample.get("beta").unwrap();
+            let alpha = sample.get("alpha").expect("sampling should succeed");
+            let beta = sample.get("beta").expect("sampling should succeed");
 
             assert!(*alpha >= 0.0 && *alpha <= 1.0);
             assert!(*beta >= 0.0 && *beta <= 10.0);

@@ -646,7 +646,10 @@ mod tests {
         assert!(widths.contains(&recommended));
 
         // Should pick a width that fits within energy budget
-        let energy_index = widths.iter().position(|&w| w == recommended).unwrap();
+        let energy_index = widths
+            .iter()
+            .position(|&w| w == recommended)
+            .expect("operation should succeed");
         assert!(energies[energy_index] <= 10.0);
     }
 

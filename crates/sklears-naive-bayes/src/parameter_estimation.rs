@@ -53,7 +53,7 @@ impl<F: Float> GaussianEstimator<F> {
             method,
             prior_mean: None,
             prior_variance: None,
-            prior_strength: F::from(1.0).unwrap(),
+            prior_strength: F::from(1.0).expect("operation should succeed"),
         }
     }
 
@@ -76,7 +76,7 @@ impl<F: Float> ParameterEstimator<F> for GaussianEstimator<F> {
 
         match self.method {
             ParameterEstimationMethod::MaximumLikelihood => {
-                let n = F::from(data.len()).unwrap();
+                let n = F::from(data.len()).expect("operation should succeed");
                 let mean = data.iter().fold(F::zero(), |acc, &x| acc + x) / n;
                 let variance = if data.len() > 1 {
                     data.iter()
@@ -84,7 +84,7 @@ impl<F: Float> ParameterEstimator<F> for GaussianEstimator<F> {
                         .fold(F::zero(), |acc, x| acc + x)
                         / n
                 } else {
-                    F::from(1e-10).unwrap() // Small variance for single sample
+                    F::from(1e-10).expect("operation should succeed") // Small variance for single sample
                 };
 
                 Ok(GaussianParameters { mean, variance })
@@ -93,7 +93,7 @@ impl<F: Float> ParameterEstimator<F> for GaussianEstimator<F> {
             ParameterEstimationMethod::MaximumAPosteriori => {
                 if let (Some(prior_mean), Some(prior_var)) = (self.prior_mean, self.prior_variance)
                 {
-                    let n = F::from(data.len()).unwrap();
+                    let n = F::from(data.len()).expect("operation should succeed");
                     let sample_mean = data.iter().fold(F::zero(), |acc, &x| acc + x) / n;
 
                     // MAP estimate with Normal-Inverse-Gamma prior
@@ -132,7 +132,7 @@ impl<F: Float> ParameterEstimator<F> for GaussianEstimator<F> {
 
             ParameterEstimationMethod::EmpiricalBayes => {
                 // Estimate hyperparameters from data, then use those as priors
-                let n = F::from(data.len()).unwrap();
+                let n = F::from(data.len()).expect("operation should succeed");
                 let sample_mean = data.iter().fold(F::zero(), |acc, &x| acc + x) / n;
                 let sample_var = if data.len() > 1 {
                     data.iter()
@@ -140,19 +140,23 @@ impl<F: Float> ParameterEstimator<F> for GaussianEstimator<F> {
                         .fold(F::zero(), |acc, x| acc + x)
                         / (n - F::one())
                 } else {
-                    F::from(1e-10).unwrap()
+                    F::from(1e-10).expect("operation should succeed")
                 };
 
                 // Use empirical moments as priors and then do MAP
                 let estimator =
                     GaussianEstimator::new(ParameterEstimationMethod::MaximumAPosteriori)
-                        .with_priors(sample_mean, sample_var, F::from(0.1).unwrap());
+                        .with_priors(
+                            sample_mean,
+                            sample_var,
+                            F::from(0.1).expect("operation should succeed"),
+                        );
                 estimator.estimate(data)
             }
 
             ParameterEstimationMethod::MethodOfMoments => {
                 // Same as MLE for Gaussian
-                let n = F::from(data.len()).unwrap();
+                let n = F::from(data.len()).expect("operation should succeed");
                 let mean = data.iter().fold(F::zero(), |acc, &x| acc + x) / n;
                 let variance = if data.len() > 1 {
                     data.iter()
@@ -160,7 +164,7 @@ impl<F: Float> ParameterEstimator<F> for GaussianEstimator<F> {
                         .fold(F::zero(), |acc, x| acc + x)
                         / (n - F::one()) // Unbiased estimate
                 } else {
-                    F::from(1e-10).unwrap()
+                    F::from(1e-10).expect("operation should succeed")
                 };
 
                 Ok(GaussianParameters { mean, variance })
@@ -218,7 +222,7 @@ impl<F: Float> ParameterEstimator<F> for MultinomialEstimator<F> {
             ParameterEstimationMethod::MaximumAPosteriori => {
                 // MAP with Dirichlet prior
                 let total = data.iter().fold(F::zero(), |acc, &x| acc + x);
-                let vocab_size = F::from(data.len()).unwrap();
+                let vocab_size = F::from(data.len()).expect("operation should succeed");
                 let smoothed_total = total + self.alpha * vocab_size;
 
                 let probabilities = data
@@ -232,7 +236,7 @@ impl<F: Float> ParameterEstimator<F> for MultinomialEstimator<F> {
             _ => {
                 // For other methods, use MAP as default
                 let total = data.iter().fold(F::zero(), |acc, &x| acc + x);
-                let vocab_size = F::from(data.len()).unwrap();
+                let vocab_size = F::from(data.len()).expect("operation should succeed");
                 let smoothed_total = total + self.alpha * vocab_size;
 
                 let probabilities = data
@@ -323,7 +327,7 @@ impl CrossValidationSelector {
 
             if !scores.is_empty() {
                 let avg_score = scores.iter().fold(F::zero(), |acc, &x| acc + x)
-                    / F::from(scores.len()).unwrap();
+                    / F::from(scores.len()).expect("operation should succeed");
                 if avg_score > best_score {
                     best_score = avg_score;
                     best_alpha = alpha;
@@ -370,7 +374,10 @@ impl CrossValidationSelector {
         let total_samples = train_labels.len() as f64;
         let mut class_priors: std::collections::HashMap<i32, F> = std::collections::HashMap::new();
         for (&class, &count) in &class_counts {
-            class_priors.insert(class, F::from(count as f64 / total_samples).unwrap());
+            class_priors.insert(
+                class,
+                F::from(count as f64 / total_samples).expect("operation should succeed"),
+            );
         }
 
         // Compute feature log probabilities for each class with smoothing
@@ -393,7 +400,7 @@ impl CrossValidationSelector {
             }
 
             // Apply Laplace smoothing and compute log probabilities
-            let vocab_size = F::from(n_features).unwrap();
+            let vocab_size = F::from(n_features).expect("operation should succeed");
             let smoothed_total = total_count + alpha * vocab_size;
 
             let log_probs: Vec<F> = feature_counts
@@ -438,7 +445,8 @@ impl CrossValidationSelector {
         }
 
         // Return accuracy as score
-        let accuracy = F::from(correct as f64 / test_indices.len() as f64).unwrap();
+        let accuracy =
+            F::from(correct as f64 / test_indices.len() as f64).expect("operation should succeed");
         Ok(accuracy)
     }
 }
@@ -483,7 +491,7 @@ impl EmpiricalBayesEstimator {
             }
         }
 
-        let n_f = F::from(n).unwrap();
+        let n_f = F::from(n).expect("operation should succeed");
         for i in 0..k {
             mean_probs[i] = mean_probs[i] / n_f;
             mean_log_probs[i] = mean_log_probs[i] / n_f;
@@ -493,19 +501,21 @@ impl EmpiricalBayesEstimator {
         // For Dirichlet: E[ln(X_i)] = ψ(α_i) - ψ(Σα_j)
         // Assuming symmetric Dirichlet: α_i = α for all i
 
-        let mean_log_prob =
-            mean_log_probs.iter().fold(F::zero(), |acc, &x| acc + x) / F::from(k).unwrap();
-        let mean_prob = mean_probs.iter().fold(F::zero(), |acc, &x| acc + x) / F::from(k).unwrap();
+        let mean_log_prob = mean_log_probs.iter().fold(F::zero(), |acc, &x| acc + x)
+            / F::from(k).expect("operation should succeed");
+        let mean_prob = mean_probs.iter().fold(F::zero(), |acc, &x| acc + x)
+            / F::from(k).expect("operation should succeed");
 
         // Simple approximation: use the relationship between mean and variance
         let mut alpha = F::one();
 
         // Newton-Raphson iteration would go here for more precise estimation
         // For now, use a simple heuristic
-        alpha = mean_prob / (F::one() - mean_prob + F::from(1e-10).unwrap());
+        alpha =
+            mean_prob / (F::one() - mean_prob + F::from(1e-10).expect("operation should succeed"));
         alpha = alpha
-            .max(F::from(0.1).unwrap())
-            .min(F::from(100.0).unwrap());
+            .max(F::from(0.1).expect("operation should succeed"))
+            .min(F::from(100.0).expect("operation should succeed"));
 
         Ok(alpha)
     }
@@ -527,7 +537,7 @@ mod tests {
     fn test_gaussian_mle() {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let estimator = GaussianEstimator::new(ParameterEstimationMethod::MaximumLikelihood);
-        let params = estimator.estimate(&data).unwrap();
+        let params = estimator.estimate(&data).expect("operation should succeed");
 
         assert_abs_diff_eq!(params.mean, 3.0, epsilon = 1e-10);
         assert_abs_diff_eq!(params.variance, 2.0, epsilon = 1e-10);
@@ -538,7 +548,7 @@ mod tests {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let estimator = GaussianEstimator::new(ParameterEstimationMethod::MaximumAPosteriori)
             .with_priors(0.0, 1.0, 1.0);
-        let params = estimator.estimate(&data).unwrap();
+        let params = estimator.estimate(&data).expect("operation should succeed");
 
         // Should be pulled towards prior
         assert!(params.mean < 3.0);
@@ -549,7 +559,7 @@ mod tests {
     fn test_multinomial_mle() {
         let data = vec![10.0, 20.0, 30.0];
         let estimator = MultinomialEstimator::new(ParameterEstimationMethod::MaximumLikelihood);
-        let params = estimator.estimate(&data).unwrap();
+        let params = estimator.estimate(&data).expect("operation should succeed");
 
         let expected = vec![10.0 / 60.0, 20.0 / 60.0, 30.0 / 60.0];
         for (i, &prob) in params.probabilities.iter().enumerate() {
@@ -562,7 +572,7 @@ mod tests {
         let data = vec![10.0, 20.0, 30.0];
         let estimator = MultinomialEstimator::new(ParameterEstimationMethod::MaximumAPosteriori)
             .with_alpha(1.0);
-        let params = estimator.estimate(&data).unwrap();
+        let params = estimator.estimate(&data).expect("operation should succeed");
 
         // Should be smoothed
         let total = 60.0 + 3.0; // data sum + alpha * vocab_size
@@ -582,7 +592,9 @@ mod tests {
         let alphas = vec![0.1, 0.5, 1.0, 2.0];
 
         let selector = CrossValidationSelector::new(3);
-        let best_alpha = selector.select_best_alpha(&data, &labels, &alphas).unwrap();
+        let best_alpha = selector
+            .select_best_alpha(&data, &labels, &alphas)
+            .expect("operation should succeed");
 
         // Should return one of the candidates
         assert!(alphas.contains(&best_alpha));

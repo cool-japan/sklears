@@ -698,7 +698,9 @@ mod tests {
         let mut scheduler = DefaultTaskScheduler::new(SchedulerConfig::default());
         let task = create_test_task();
 
-        let handle = scheduler.schedule_task(task).unwrap();
+        let handle = scheduler
+            .schedule_task(task)
+            .expect("operation should succeed");
         assert!(!handle.task_id.is_empty());
 
         let status = scheduler.get_status();

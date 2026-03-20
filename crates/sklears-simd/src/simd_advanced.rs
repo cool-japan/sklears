@@ -558,7 +558,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let result = cross_product(&a, &b).unwrap();
+        let result = cross_product(&a, &b).expect("operation should succeed");
 
         // Expected: a × b = (2*6 - 3*5, 3*4 - 1*6, 1*5 - 2*4) = (-3, 6, -3)
         assert_relative_eq(result[0], -3.0, 1e-6);
@@ -568,7 +568,7 @@ mod tests {
         // Test with orthogonal unit vectors
         let i = vec![1.0, 0.0, 0.0];
         let j = vec![0.0, 1.0, 0.0];
-        let k_result = cross_product(&i, &j).unwrap();
+        let k_result = cross_product(&i, &j).expect("operation should succeed");
 
         assert_relative_eq(k_result[0], 0.0, 1e-6);
         assert_relative_eq(k_result[1], 0.0, 1e-6);
@@ -606,7 +606,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let distance = euclidean_distance(&a, &b).unwrap();
+        let distance = euclidean_distance(&a, &b).expect("operation should succeed");
         // Distance = sqrt((4-1)² + (5-2)² + (6-3)²) = sqrt(9 + 9 + 9) = sqrt(27) ≈ 5.196
         assert_relative_eq(distance, 5.196152, 1e-5);
 
@@ -620,7 +620,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let distance = manhattan_distance(&a, &b).unwrap();
+        let distance = manhattan_distance(&a, &b).expect("operation should succeed");
         // Distance = |4-1| + |5-2| + |6-3| = 3 + 3 + 3 = 9
         assert_relative_eq(distance, 9.0, 1e-6);
     }
@@ -630,7 +630,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let similarity = cosine_similarity(&a, &b).unwrap();
+        let similarity = cosine_similarity(&a, &b).expect("operation should succeed");
         // dot(a,b) = 32, |a| = sqrt(14), |b| = sqrt(77)
         // similarity = 32 / (sqrt(14) * sqrt(77)) ≈ 0.9746
         assert_relative_eq(similarity, 0.9746318, 1e-6);
@@ -638,7 +638,7 @@ mod tests {
         // Test orthogonal vectors
         let x = vec![1.0, 0.0];
         let y = vec![0.0, 1.0];
-        let orthogonal_sim = cosine_similarity(&x, &y).unwrap();
+        let orthogonal_sim = cosine_similarity(&x, &y).expect("operation should succeed");
         assert_relative_eq(orthogonal_sim, 0.0, 1e-6);
     }
 
@@ -647,7 +647,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0, 4.0];
         let b = vec![5.0, 6.0, 7.0, 8.0];
 
-        let result = hadamard_product(&a, &b).unwrap();
+        let result = hadamard_product(&a, &b).expect("operation should succeed");
 
         assert_eq!(result, vec![5.0, 12.0, 21.0, 32.0]);
     }
@@ -655,7 +655,7 @@ mod tests {
     #[test]
     fn test_normalize() {
         let vector = vec![3.0, 4.0];
-        let normalized = normalize(&vector).unwrap();
+        let normalized = normalize(&vector).expect("operation should succeed");
 
         // Length should be 5, so normalized is [3/5, 4/5] = [0.6, 0.8]
         assert_relative_eq(normalized[0], 0.6, 1e-6);
@@ -674,7 +674,7 @@ mod tests {
         ];
         let vector = vec![7.0, 8.0, 9.0];
 
-        let result = matrix_vector_multiply(&matrix, &vector).unwrap();
+        let result = matrix_vector_multiply(&matrix, &vector).expect("operation should succeed");
 
         // [1*7 + 2*8 + 3*9, 4*7 + 5*8 + 6*9] = [50, 122]
         assert_eq!(result, vec![50.0, 122.0]);
@@ -685,13 +685,13 @@ mod tests {
         let a = vec![0.0, 0.0];
         let b = vec![10.0, 20.0];
 
-        let result = lerp(&a, &b, 0.5).unwrap();
+        let result = lerp(&a, &b, 0.5).expect("operation should succeed");
         assert_eq!(result, vec![5.0, 10.0]);
 
-        let result2 = lerp(&a, &b, 0.0).unwrap();
+        let result2 = lerp(&a, &b, 0.0).expect("operation should succeed");
         assert_eq!(result2, a);
 
-        let result3 = lerp(&a, &b, 1.0).unwrap();
+        let result3 = lerp(&a, &b, 1.0).expect("operation should succeed");
         assert_eq!(result3, b);
     }
 

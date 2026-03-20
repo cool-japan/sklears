@@ -96,7 +96,7 @@ impl EnhancedSelfTraining<Untrained> {
             }
             "margin" => {
                 let mut sorted_probs: Vec<f64> = probabilities.to_vec();
-                sorted_probs.sort_by(|a, b| b.partial_cmp(a).unwrap());
+                sorted_probs.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
                 if sorted_probs.len() >= 2 {
                     sorted_probs[0] - sorted_probs[1]
                 } else {
@@ -197,7 +197,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EnhancedSelfTraining<Un
                         distances.push((labeled_idx, dist, y[labeled_idx]));
                     }
 
-                    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    distances
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                     // Compute class probabilities based on k-NN
                     let k = labeled_indices.len().clamp(1, 7);
@@ -223,8 +224,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EnhancedSelfTraining<Un
                     let predicted_class_idx = proba_array
                         .iter()
                         .enumerate()
-                        .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                        .unwrap()
+                        .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                        .expect("operation should succeed")
                         .0;
 
                     candidates.push((i, classes[predicted_class_idx], confidence));
@@ -243,7 +244,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EnhancedSelfTraining<Un
                     }
                 }
                 "k_best" => {
-                    candidates.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+                    candidates
+                        .sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
                     for (i, label, _) in candidates.into_iter().take(self.k_best) {
                         selected_indices.push((i, label));
                     }

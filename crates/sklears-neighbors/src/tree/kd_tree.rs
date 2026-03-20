@@ -190,7 +190,12 @@ impl KdTree {
                 distance,
                 index: node.index,
             });
-        } else if distance < candidates.peek().unwrap().distance {
+        } else if distance
+            < candidates
+                .peek()
+                .expect("operation should succeed")
+                .distance
+        {
             candidates.pop();
             candidates.push(NeighborCandidate {
                 distance,
@@ -218,7 +223,10 @@ impl KdTree {
         let worst_distance = if candidates.len() < k {
             Float::INFINITY
         } else {
-            candidates.peek().unwrap().distance
+            candidates
+                .peek()
+                .expect("operation should succeed")
+                .distance
         };
 
         if diff.abs() < worst_distance {
@@ -317,10 +325,10 @@ mod tests {
 
     #[test]
     fn test_kdtree_construction() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![2.0, 3.0, 5.0, 4.0, 9.0, 6.0, 4.0, 7.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![2.0, 3.0, 5.0, 4.0, 9.0, 6.0, 4.0, 7.0])
+            .expect("operation should succeed");
 
-        let tree = KdTree::new(&data, Distance::Euclidean).unwrap();
+        let tree = KdTree::new(&data, Distance::Euclidean).expect("operation should succeed");
         assert_eq!(tree.n_points(), 4);
         assert_eq!(tree.n_dimensions(), 2);
     }
@@ -337,12 +345,14 @@ mod tests {
                 11.0, 11.0, // Point 4
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let tree = KdTree::new(&data, Distance::Euclidean).unwrap();
+        let tree = KdTree::new(&data, Distance::Euclidean).expect("operation should succeed");
         let query = array![1.5, 1.5];
 
-        let (distances, indices) = tree.kneighbors(&query.view(), 3).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 3)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 3);
         assert_eq!(indices.len(), 3);
@@ -371,12 +381,14 @@ mod tests {
                 10.0, 10.0, // Point 3 - distance = sqrt(144.5) ≈ 12.02 (outside radius 2.0)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let tree = KdTree::new(&data, Distance::Euclidean).unwrap();
+        let tree = KdTree::new(&data, Distance::Euclidean).expect("operation should succeed");
         let query = array![1.5, 1.5];
 
-        let (distances, indices) = tree.radius_neighbors(&query.view(), 2.0).unwrap();
+        let (distances, indices) = tree
+            .radius_neighbors(&query.view(), 2.0)
+            .expect("operation should succeed");
 
         // Should find points 0 and 1 within radius 2.0 (point 2 is at distance ~2.121 > 2.0)
         assert_eq!(distances.len(), 2);
@@ -394,11 +406,14 @@ mod tests {
 
     #[test]
     fn test_kdtree_single_point() {
-        let data = Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).unwrap();
-        let tree = KdTree::new(&data, Distance::Euclidean).unwrap();
+        let data =
+            Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).expect("operation should succeed");
+        let tree = KdTree::new(&data, Distance::Euclidean).expect("operation should succeed");
 
         let query = array![1.0, 2.0];
-        let (distances, indices) = tree.kneighbors(&query.view(), 1).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 1)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 1);
         assert_eq!(indices.len(), 1);
@@ -415,15 +430,17 @@ mod tests {
 
     #[test]
     fn test_kdtree_invalid_metric() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let result = KdTree::new(&data, Distance::Manhattan);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_kdtree_shape_mismatch() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
-        let tree = KdTree::new(&data, Distance::Euclidean).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
+        let tree = KdTree::new(&data, Distance::Euclidean).expect("operation should succeed");
 
         let query = array![1.0]; // Wrong dimension
         let result = tree.kneighbors(&query.view(), 1);

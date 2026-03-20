@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -345,11 +345,12 @@ where
         &self,
         input_dim: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
 
         let weights = match Kernel::NAME {
             "rbf" => {
-                let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+                let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt())
+                    .expect("operation should succeed");
                 let mut weights = Array2::zeros((N, input_dim));
                 for i in 0..N {
                     for j in 0..input_dim {
@@ -364,8 +365,8 @@ where
                 let mut weights = Array2::zeros((N, input_dim));
                 for i in 0..N {
                     for j in 0..input_dim {
-                        let u1: f64 = rng.gen();
-                        let _u2: f64 = rng.gen();
+                        let u1: f64 = rng.random();
+                        let _u2: f64 = rng.random();
                         let cauchy_sample = cauchy_scale * (PI * (u1 - 0.5)).tan();
                         weights[[i, j]] = cauchy_sample;
                     }
@@ -380,7 +381,7 @@ where
             }
         };
 
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let biases = Array1::from_vec((0..N).map(|_| rng.sample(uniform)).collect());
 
         Ok((weights, biases))
@@ -391,8 +392,8 @@ where
         input_dim: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
         // Simplified Nyström approximation
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
 
         let mut weights = Array2::zeros((N, input_dim));
         for i in 0..N {
@@ -415,8 +416,9 @@ where
             ));
         }
 
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
 
         let mut weights = Array2::zeros((N, input_dim));
         for i in 0..N {
@@ -425,7 +427,7 @@ where
             }
         }
 
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let biases = Array1::from_vec((0..N).map(|_| rng.sample(uniform)).collect());
 
         Ok((weights, biases))
@@ -529,9 +531,9 @@ where
 
     fn center_kernel(&self, kernel: &Array2<f64>) -> Result<Array2<f64>> {
         let n = kernel.nrows();
-        let row_means = kernel.mean_axis(Axis(1)).unwrap();
-        let col_means = kernel.mean_axis(Axis(0)).unwrap();
-        let overall_mean = kernel.mean().unwrap();
+        let row_means = kernel.mean_axis(Axis(1)).expect("operation should succeed");
+        let col_means = kernel.mean_axis(Axis(0)).expect("operation should succeed");
+        let overall_mean = kernel.mean().expect("operation should succeed");
 
         let mut centered = kernel.clone();
         for i in 0..n {
@@ -709,12 +711,15 @@ mod tests {
     fn test_type_safe_rbf_rff() {
         let x: Array2<f64> = Array::from_shape_fn((50, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
-        let kernel_approx = TypeSafeRBFRandomFourierFeatures::<100>::new(1.0).unwrap();
+        let kernel_approx =
+            TypeSafeRBFRandomFourierFeatures::<100>::new(1.0).expect("operation should succeed");
 
-        let fitted = kernel_approx.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = kernel_approx
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[50, 100]);
         assert_eq!(fitted.get_kernel_name(), "rbf");
@@ -726,12 +731,15 @@ mod tests {
     fn test_type_safe_laplacian_rff() {
         let x: Array2<f64> = Array::from_shape_fn((30, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
-        let kernel_approx = TypeSafeLaplacianRandomFourierFeatures::<50>::new(0.5).unwrap();
+        let kernel_approx = TypeSafeLaplacianRandomFourierFeatures::<50>::new(0.5)
+            .expect("operation should succeed");
 
-        let fitted = kernel_approx.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = kernel_approx
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[30, 50]);
         assert_eq!(fitted.get_kernel_name(), "laplacian");
@@ -742,12 +750,14 @@ mod tests {
     fn test_type_safe_nystrom() {
         let x: Array2<f64> = Array::from_shape_fn((40, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
-        let kernel_approx = TypeSafeRBFNystrom::<64>::new(1.0).unwrap();
+        let kernel_approx = TypeSafeRBFNystrom::<64>::new(1.0).expect("operation should succeed");
 
-        let fitted = kernel_approx.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = kernel_approx
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[40, 64]);
         assert_eq!(fitted.get_method_name(), "nystrom");
@@ -758,12 +768,14 @@ mod tests {
     fn test_fastfood_power_of_two_requirement() {
         let x: Array2<f64> = Array::from_shape_fn((20, 8), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         }); // 8 is power of 2
-        let kernel_approx = TypeSafeRBFFastfood::<32>::new(1.0).unwrap();
+        let kernel_approx = TypeSafeRBFFastfood::<32>::new(1.0).expect("operation should succeed");
 
-        let fitted = kernel_approx.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = kernel_approx
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[20, 32]);
         assert_eq!(fitted.get_method_name(), "fastfood");
@@ -771,9 +783,10 @@ mod tests {
         // Test with non-power-of-2 dimension
         let x_invalid: Array2<f64> = Array::from_shape_fn((20, 7), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         }); // 7 is not power of 2
-        let kernel_approx_invalid = TypeSafeRBFFastfood::<32>::new(1.0).unwrap();
+        let kernel_approx_invalid =
+            TypeSafeRBFFastfood::<32>::new(1.0).expect("operation should succeed");
 
         let result = kernel_approx_invalid.fit(&x_invalid, &());
         assert!(result.is_err());
@@ -783,11 +796,14 @@ mod tests {
     fn test_quality_metrics() {
         let x: Array2<f64> = Array::from_shape_fn((25, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
-        let kernel_approx = TypeSafeRBFRandomFourierFeatures::<50>::new(1.0).unwrap();
+        let kernel_approx =
+            TypeSafeRBFRandomFourierFeatures::<50>::new(1.0).expect("operation should succeed");
 
-        let fitted = kernel_approx.fit(&x, &()).unwrap();
+        let fitted = kernel_approx
+            .fit(&x, &())
+            .expect("operation should succeed");
         let quality = fitted.get_quality_metrics();
 
         assert!(quality.kernel_alignment >= 0.0);
@@ -801,15 +817,17 @@ mod tests {
     #[test]
     fn test_compile_time_compatibility() {
         // This should compile - RBF kernel is compatible with RFF
-        let _valid = TypeSafeRBFRandomFourierFeatures::<100>::new(1.0).unwrap();
+        let _valid =
+            TypeSafeRBFRandomFourierFeatures::<100>::new(1.0).expect("operation should succeed");
 
         // This should also compile - Laplacian kernel is compatible with RFF
-        let _valid2 = TypeSafeLaplacianRandomFourierFeatures::<100>::new(1.0).unwrap();
+        let _valid2 = TypeSafeLaplacianRandomFourierFeatures::<100>::new(1.0)
+            .expect("operation should succeed");
 
         // This should also compile - RBF kernel is compatible with Nyström
-        let _valid3 = TypeSafeRBFNystrom::<100>::new(1.0).unwrap();
+        let _valid3 = TypeSafeRBFNystrom::<100>::new(1.0).expect("operation should succeed");
 
         // This should compile - Polynomial kernel is compatible with Nyström
-        let _valid4 = TypeSafePolynomialNystrom::<100>::new(1.0).unwrap();
+        let _valid4 = TypeSafePolynomialNystrom::<100>::new(1.0).expect("operation should succeed");
     }
 }

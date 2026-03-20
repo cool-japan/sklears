@@ -1175,57 +1175,57 @@ mod tests {
         let context = DiagnosticContext::new("test-diagnostic".to_string());
         assert!(context.is_ok());
 
-        let ctx = context.unwrap();
+        let ctx = context.unwrap_or_default();
         assert_eq!(ctx.context_id(), "test-diagnostic");
         assert_eq!(ctx.context_type(), "diagnostic");
     }
 
     #[test]
     fn test_diagnostic_session_lifecycle() {
-        let context = DiagnosticContext::new("test-session".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-session".to_string()).unwrap_or_default();
 
         let session_id = context.start_diagnostic_session();
         assert!(session_id.is_ok());
 
-        let session_id = session_id.unwrap();
+        let session_id = session_id.unwrap_or_default();
         let report = context.stop_diagnostic_session(&session_id);
         assert!(report.is_ok());
     }
 
     #[test]
     fn test_diagnostic_snapshot() {
-        let context = DiagnosticContext::new("test-snapshot".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-snapshot".to_string()).unwrap_or_default();
         let snapshot = context.collect_diagnostics();
         assert!(snapshot.is_ok());
 
-        let snap = snapshot.unwrap();
+        let snap = snapshot.unwrap_or_default();
         assert_eq!(snap.context_id, "test-snapshot");
     }
 
     #[test]
     fn test_performance_monitoring() {
-        let context = DiagnosticContext::new("test-performance".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-performance".to_string()).unwrap_or_default();
         let bottlenecks = context.analyze_performance_bottlenecks();
         assert!(bottlenecks.is_ok());
     }
 
     #[test]
     fn test_health_monitoring() {
-        let context = DiagnosticContext::new("test-health".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-health".to_string()).unwrap_or_default();
         let health_report = context.generate_health_report();
         assert!(health_report.is_ok());
     }
 
     #[test]
     fn test_error_prediction() {
-        let context = DiagnosticContext::new("test-prediction".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-prediction".to_string()).unwrap_or_default();
         let predicted_issues = context.predict_system_issues();
         assert!(predicted_issues.is_ok());
     }
 
     #[test]
     fn test_data_export() {
-        let context = DiagnosticContext::new("test-export".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-export".to_string()).unwrap_or_default();
         let exported_data = context.export_diagnostic_data(ExportFormat::Json);
         assert!(exported_data.is_ok());
     }
@@ -1235,7 +1235,7 @@ mod tests {
         let profiler = ExecutionProfiler::new();
         assert!(profiler.is_ok());
 
-        let prof = profiler.unwrap();
+        let prof = profiler.unwrap_or_default();
         assert!(!prof.profiler_id.is_empty());
     }
 
@@ -1249,15 +1249,15 @@ mod tests {
 
     #[test]
     fn test_context_validation() {
-        let context = DiagnosticContext::new("test-validation".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-validation".to_string()).unwrap_or_default();
         let validation_result = context.validate();
         assert!(validation_result.is_ok());
-        assert!(validation_result.unwrap());
+        assert!(validation_result.unwrap_or_default());
     }
 
     #[test]
     fn test_context_cleanup() {
-        let context = DiagnosticContext::new("test-cleanup".to_string()).unwrap();
+        let context = DiagnosticContext::new("test-cleanup".to_string()).unwrap_or_default();
         let cleanup_result = context.cleanup();
         assert!(cleanup_result.is_ok());
     }

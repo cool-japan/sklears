@@ -107,10 +107,10 @@ mod reproducibility_tests {
         // Create test data
         let mut rng = seeded_rng(seed);
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space
@@ -141,10 +141,10 @@ mod reproducibility_tests {
         // Create test data
         let mut rng = seeded_rng(seed);
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create parameter space
@@ -212,10 +212,10 @@ mod reproducibility_tests {
         // Create test data
         let mut rng = seeded_rng(seed);
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Run feature selection twice with same seed
@@ -238,10 +238,10 @@ mod reproducibility_tests {
         // Create test data
         let mut rng = seeded_rng(seed);
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Build ensemble twice with same seed
@@ -264,10 +264,10 @@ mod reproducibility_tests {
         // Create test data
         let mut rng = seeded_rng(seed);
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Create model
@@ -309,10 +309,10 @@ mod reproducibility_tests {
         // Create test data
         let mut rng = seeded_rng(seed);
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Run parallel operations twice with same seed

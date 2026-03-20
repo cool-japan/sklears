@@ -5,7 +5,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{seq::SliceRandom, Rng, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -331,7 +331,7 @@ where
     // Generate random coalitions
     for _ in 2..config.n_samples {
         let mut coalition = vec![false; n_features];
-        let coalition_size = rng.gen_range(1..n_features);
+        let coalition_size = rng.random_range(1..n_features);
 
         let mut indices: Vec<usize> = (0..n_features).collect();
         indices.shuffle(&mut rng);
@@ -833,14 +833,19 @@ mod tests {
             &X_background.view(),
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.shap_values.len(), 3);
         assert_eq!(result.method, ShapleyMethod::LinearSHAP);
 
         // For linear models, sum of SHAP values should equal prediction - base_value
         let prediction = bias + weights.dot(&instance);
-        let base_prediction = bias + weights.dot(&X_background.mean_axis(Axis(0)).unwrap());
+        let base_prediction = bias
+            + weights.dot(
+                &X_background
+                    .mean_axis(Axis(0))
+                    .expect("operation should succeed"),
+            );
         let expected_sum = prediction - base_prediction;
         let actual_sum: Float = result.shap_values.iter().sum();
 
@@ -866,7 +871,7 @@ mod tests {
 
         let result =
             compute_kernel_shap(&predict_fn, &instance.view(), &X_background.view(), &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(result.shap_values.len(), 2);
         assert_eq!(result.method, ShapleyMethod::KernelSHAP);
@@ -904,7 +909,7 @@ mod tests {
             &partition,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.shap_values.len(), 4);
         assert_eq!(result.method, ShapleyMethod::PartitionSHAP);
@@ -967,7 +972,7 @@ mod tests {
             &X_background.view(),
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.shap_values.len(), 2);
         assert_eq!(result.method, ShapleyMethod::TreeSHAP);
@@ -996,10 +1001,16 @@ mod tests {
             &X_background.view(),
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.feature_names.is_some());
-        assert_eq!(result.feature_names.unwrap().len(), 2);
+        assert_eq!(
+            result
+                .feature_names
+                .expect("operation should succeed")
+                .len(),
+            2
+        );
         assert!(result.metadata.computation_time_ms >= 0);
         assert!(result.metadata.converged);
     }

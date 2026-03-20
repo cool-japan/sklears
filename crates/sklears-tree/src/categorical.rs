@@ -499,7 +499,7 @@ impl CategoricalProcessor {
         };
 
         // Sort by value
-        category_values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        category_values.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Create ordinal mapping
         let mut mapping = HashMap::new();
@@ -1000,7 +1000,7 @@ impl HighCardinalityHandler {
             .collect();
 
         // Sort by target mean
-        category_means.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        category_means.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Create groups
         let categories_per_group = category_means.len() / n_groups;

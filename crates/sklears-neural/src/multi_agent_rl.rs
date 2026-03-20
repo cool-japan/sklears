@@ -240,7 +240,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Inde
             let td_error = target - q_value;
 
             // Update weights (gradient descent on squared TD error)
-            let gradient = state.mapv(|s| s * td_error * T::from(2.0).unwrap());
+            let gradient = state.mapv(|s| s * td_error * T::from(2.0).unwrap_or_else(|| T::zero()));
             let mut row = self.agent_networks[agent_idx].row_mut(action);
             for (w, &g) in row.iter_mut().zip(gradient.iter()) {
                 *w = *w + g * self.learning_rate;
@@ -253,7 +253,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Inde
     /// Decay exploration rate
     pub fn decay_epsilon(&mut self, decay_rate: T) {
         self.epsilon = self.epsilon * decay_rate;
-        let min_epsilon = T::from(0.01).unwrap();
+        let min_epsilon = T::from(0.01).unwrap_or_else(|| T::zero());
         if self.epsilon < min_epsilon {
             self.epsilon = min_epsilon;
         }
@@ -343,8 +343,8 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> VDN<
     /// Update using shared reward (cooperative setting)
     pub fn update_cooperative(&mut self, experience: &MultiAgentExperience<T>) -> NeuralResult<()> {
         // Shared reward for all agents
-        let shared_reward =
-            experience.rewards.iter().cloned().sum::<T>() / T::from(self.n_agents as f64).unwrap();
+        let shared_reward = experience.rewards.iter().cloned().sum::<T>()
+            / T::from(self.n_agents as f64).unwrap_or_else(|| T::zero());
 
         // Current total Q-value
         let current_q = self.compute_total_q(&experience.agent_states, &experience.actions);
@@ -380,7 +380,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> VDN<
 
         for (agent_idx, state) in experience.agent_states.iter().enumerate() {
             let action = experience.actions[agent_idx];
-            let gradient = state.mapv(|s| s * td_error * T::from(2.0).unwrap());
+            let gradient = state.mapv(|s| s * td_error * T::from(2.0).unwrap_or_else(|| T::zero()));
             let mut row = self.agent_networks[agent_idx].row_mut(action);
             for (w, &g) in row.iter_mut().zip(gradient.iter()) {
                 *w = *w + g * self.learning_rate;
@@ -620,7 +620,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> CommunicationLayer<T> {
         let sum = states
             .iter()
             .fold(Array1::zeros(states[0].len()), |acc, state| acc + state);
-        sum / T::from(states.len() as f64).unwrap()
+        sum / T::from(states.len() as f64).unwrap_or_else(|| T::zero())
     }
 
     /// Concatenate state with message
@@ -641,8 +641,8 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> CommunicationLayer<T> {
                 let prev_idx = if i > 0 { i - 1 } else { agent_states.len() - 1 };
                 let next_idx = (i + 1) % agent_states.len();
 
-                let neighbor_message =
-                    (&agent_states[prev_idx] + &agent_states[next_idx]) / T::from(2.0).unwrap();
+                let neighbor_message = (&agent_states[prev_idx] + &agent_states[next_idx])
+                    / T::from(2.0).unwrap_or_else(|| T::zero());
                 self.concatenate_state_message(state, &neighbor_message)
             })
             .collect()
@@ -662,7 +662,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> CommunicationLayer<T> {
                             let att_weight = &attention.slice(s![i, j, ..]);
                             let att_sum = att_weight.iter().cloned().sum::<T>();
                             let weighted_message = other_state.mapv(|x| x) * att_sum
-                                / T::from(att_weight.len() as f64).unwrap();
+                                / T::from(att_weight.len() as f64).unwrap_or_else(|| T::zero());
                             messages.push(weighted_message);
                         }
                     }
@@ -672,7 +672,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> CommunicationLayer<T> {
                         messages
                             .iter()
                             .fold(Array1::zeros(state.len()), |acc, msg| acc + msg)
-                            / T::from(messages.len() as f64).unwrap()
+                            / T::from(messages.len() as f64).unwrap_or_else(|| T::zero())
                     } else {
                         Array1::zeros(state.len())
                     };

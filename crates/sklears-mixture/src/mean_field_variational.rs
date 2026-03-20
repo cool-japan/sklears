@@ -7,7 +7,7 @@
 
 use crate::common::CovarianceType;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -379,7 +379,7 @@ impl MeanFieldVariationalGMM<Untrained> {
         let mut q_z = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for k in 0..self.n_components {
-                q_z[[i, k]] = rng.gen();
+                q_z[[i, k]] = rng.random();
             }
             // Normalize
             let sum = q_z.row(i).sum();
@@ -984,7 +984,9 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 2);
         assert!(fitted.converged() || fitted.n_iter() == 10);
     }
@@ -999,8 +1001,12 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let labels = fitted.predict(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let labels = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(labels.len(), 4);
         // Check that labels are in valid range
@@ -1019,8 +1025,12 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -1041,8 +1051,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let score = fitted.score(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let score = fitted.score(&X.view()).expect("operation should succeed");
 
         // Score should be finite
         assert!(score.is_finite());
@@ -1058,7 +1070,9 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         // Check weights
         let weights = fitted.weights();
@@ -1089,7 +1103,9 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         // Check posterior assignments
         let q_z = fitted.posterior_assignments();
@@ -1133,7 +1149,9 @@ mod tests {
                 .max_iter(10)
                 .random_state(42);
 
-            let fitted = model.fit(&X.view(), &()).unwrap();
+            let fitted = model
+                .fit(&X.view(), &())
+                .expect("model fitting should succeed");
             assert_eq!(fitted.n_components, 2);
         }
     }
@@ -1152,7 +1170,9 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 2);
         assert!(fitted.lower_bound().is_finite());
     }
@@ -1169,7 +1189,9 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 2);
         assert!(fitted.lower_bound().is_finite());
     }

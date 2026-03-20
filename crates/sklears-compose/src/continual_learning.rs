@@ -214,14 +214,14 @@ impl MemoryBuffer {
             match self.sampling_strategy {
                 SamplingStrategy::Random => {
                     let replace_idx = thread_rng().gen_range(0..self.samples.len());
-                    if let Some(old_sample) = self.samples.get(replace_idx) {
-                        let count = self
-                            .task_distributions
-                            .get_mut(&old_sample.task_id)
-                            .unwrap();
-                        *count -= 1;
-                        if *count == 0 {
-                            self.task_distributions.remove(&old_sample.task_id);
+                    if let Some(old_task_id) =
+                        self.samples.get(replace_idx).map(|s| s.task_id.clone())
+                    {
+                        if let Some(count) = self.task_distributions.get_mut(&old_task_id) {
+                            *count -= 1;
+                            if *count == 0 {
+                                self.task_distributions.remove(&old_task_id);
+                            }
                         }
                     }
                     self.samples[replace_idx] = sample;
@@ -230,14 +230,14 @@ impl MemoryBuffer {
                     // Standard reservoir sampling
                     let replace_idx = thread_rng().gen_range(0..(self.samples.len() + 1));
                     if replace_idx < self.samples.len() {
-                        if let Some(old_sample) = self.samples.get(replace_idx) {
-                            let count = self
-                                .task_distributions
-                                .get_mut(&old_sample.task_id)
-                                .unwrap();
-                            *count -= 1;
-                            if *count == 0 {
-                                self.task_distributions.remove(&old_sample.task_id);
+                        if let Some(old_task_id) =
+                            self.samples.get(replace_idx).map(|s| s.task_id.clone())
+                        {
+                            if let Some(count) = self.task_distributions.get_mut(&old_task_id) {
+                                *count -= 1;
+                                if *count == 0 {
+                                    self.task_distributions.remove(&old_task_id);
+                                }
                             }
                         }
                         self.samples[replace_idx] = sample;
@@ -249,18 +249,24 @@ impl MemoryBuffer {
                         .samples
                         .iter()
                         .enumerate()
-                        .min_by(|(_, a), (_, b)| a.importance.partial_cmp(&b.importance).unwrap())
+                        .min_by(|(_, a), (_, b)| {
+                            a.importance
+                                .partial_cmp(&b.importance)
+                                .unwrap_or(std::cmp::Ordering::Equal)
+                        })
                         .map_or(0, |(idx, _)| idx);
 
                     if sample.importance > self.samples[min_importance_idx].importance {
-                        if let Some(old_sample) = self.samples.get(min_importance_idx) {
-                            let count = self
-                                .task_distributions
-                                .get_mut(&old_sample.task_id)
-                                .unwrap();
-                            *count -= 1;
-                            if *count == 0 {
-                                self.task_distributions.remove(&old_sample.task_id);
+                        if let Some(old_task_id) = self
+                            .samples
+                            .get(min_importance_idx)
+                            .map(|s| s.task_id.clone())
+                        {
+                            if let Some(count) = self.task_distributions.get_mut(&old_task_id) {
+                                *count -= 1;
+                                if *count == 0 {
+                                    self.task_distributions.remove(&old_task_id);
+                                }
                             }
                         }
                         self.samples[min_importance_idx] = sample;
@@ -278,10 +284,11 @@ impl MemoryBuffer {
                         if let Some(idx) =
                             self.samples.iter().position(|s| s.task_id == overrep_task)
                         {
-                            let count = self.task_distributions.get_mut(&overrep_task).unwrap();
-                            *count -= 1;
-                            if *count == 0 {
-                                self.task_distributions.remove(&overrep_task);
+                            if let Some(count) = self.task_distributions.get_mut(&overrep_task) {
+                                *count -= 1;
+                                if *count == 0 {
+                                    self.task_distributions.remove(&overrep_task);
+                                }
                             }
                             self.samples[idx] = sample;
                         }
@@ -291,14 +298,14 @@ impl MemoryBuffer {
                     // For GEM, replace based on gradient diversity
                     // Simplified: replace random sample
                     let replace_idx = thread_rng().gen_range(0..self.samples.len());
-                    if let Some(old_sample) = self.samples.get(replace_idx) {
-                        let count = self
-                            .task_distributions
-                            .get_mut(&old_sample.task_id)
-                            .unwrap();
-                        *count -= 1;
-                        if *count == 0 {
-                            self.task_distributions.remove(&old_sample.task_id);
+                    if let Some(old_task_id) =
+                        self.samples.get(replace_idx).map(|s| s.task_id.clone())
+                    {
+                        if let Some(count) = self.task_distributions.get_mut(&old_task_id) {
+                            *count -= 1;
+                            if *count == 0 {
+                                self.task_distributions.remove(&old_task_id);
+                            }
                         }
                     }
                     self.samples[replace_idx] = sample;
@@ -330,7 +337,7 @@ impl MemoryBuffer {
                 // Sample based on importance weights
                 let total_importance: f64 = self.samples.iter().map(|s| s.importance).sum();
                 for _ in 0..n_samples {
-                    let target = thread_rng().gen::<f64>() * total_importance;
+                    let target = thread_rng().random::<f64>() * total_importance;
                     let mut cumulative = 0.0;
                     for sample in &self.samples {
                         cumulative += sample.importance;
@@ -692,7 +699,7 @@ impl ContinualLearningPipeline<Untrained> {
                 // Store samples with gradient information
                 for i in 0..x.nrows() {
                     let mut gradient_info = HashMap::new();
-                    gradient_info.insert("grad_norm".to_string(), thread_rng().gen::<f64>()); // Placeholder
+                    gradient_info.insert("grad_norm".to_string(), thread_rng().random::<f64>()); // Placeholder
 
                     let sample = MemorySample {
                         features: x.row(i).mapv(|v| v),
@@ -922,8 +929,10 @@ mod tests {
         let pipeline = ContinualLearningPipeline::experience_replay(base_estimator, 100, 10, 5)
             .set_current_task("task1".to_string());
 
-        let fitted_pipeline = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
-        let predictions = fitted_pipeline.predict(&x.view()).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
+        let predictions = fitted_pipeline.predict(&x.view()).unwrap_or_default();
 
         assert_eq!(predictions.len(), x.nrows());
         assert!(fitted_pipeline
@@ -940,11 +949,13 @@ mod tests {
         let pipeline =
             ContinualLearningPipeline::elastic_weight_consolidation(base_estimator, 0.1, 10);
 
-        let fitted_pipeline = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
 
         assert!(!fitted_pipeline.importance_weights().is_empty());
 
-        let predictions = fitted_pipeline.predict(&x.view()).unwrap();
+        let predictions = fitted_pipeline.predict(&x.view()).unwrap_or_default();
         assert_eq!(predictions.len(), x.nrows());
     }
 
@@ -956,14 +967,16 @@ mod tests {
         let base_estimator = Box::new(MockPredictor::new());
         let pipeline = ContinualLearningPipeline::experience_replay(base_estimator, 100, 10, 5);
 
-        let mut fitted_pipeline = pipeline.fit(&x1.view(), &Some(&y1.view())).unwrap();
+        let mut fitted_pipeline = pipeline
+            .fit(&x1.view(), &Some(&y1.view()))
+            .expect("operation should succeed");
 
         // Learn new task
         let x2 = array![[5.0, 6.0], [7.0, 8.0]];
         let y2 = array![0.0, 1.0];
         let task2 = Task::new("task2".to_string(), x2, y2);
 
-        fitted_pipeline.learn_task(task2).unwrap();
+        fitted_pipeline.learn_task(task2).unwrap_or_default();
 
         assert_eq!(fitted_pipeline.learned_tasks().len(), 2);
         assert!(fitted_pipeline

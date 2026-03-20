@@ -237,7 +237,7 @@ impl ImageFeatureSelector<Untrained> {
             .map(|(i, &score)| (i, score))
             .collect();
 
-        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected: Vec<usize> = if let Some(k) = self.k {
             feature_indices
@@ -268,7 +268,10 @@ impl ImageFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for ImageFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -282,7 +285,10 @@ impl Transform<Array2<Float>> for ImageFeatureSelector<Trained> {
 
 impl SelectorMixin for ImageFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_features = if let Some(ref scores) = self.spatial_scores_ {
             scores.len()
         } else if let Some(ref scores) = self.frequency_scores_ {
@@ -303,7 +309,10 @@ impl SelectorMixin for ImageFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -335,12 +344,17 @@ impl ImageFeatureSelector<Trained> {
 
     /// Get the indices of selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_selected(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 
     /// Get a summary of feature scores across all analysis types
@@ -565,7 +579,8 @@ mod tests {
 
     #[test]
     fn test_spatial_correlation_scores() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0])
+            .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0];
 
         let scores = compute_spatial_correlation_scores(&x, &y);
@@ -588,13 +603,13 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
         assert_eq!(fitted.n_features_selected(), 1);
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(transformed.ncols(), 1);
     }
 
@@ -612,10 +627,10 @@ mod tests {
                 3.0, 0.0, 3.0, // Strong correlation
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0];
 
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         // Should select features with high correlation (0 and 2)
         assert!(fitted.n_features_selected() >= 1);

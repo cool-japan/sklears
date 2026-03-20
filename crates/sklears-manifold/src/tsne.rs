@@ -5,8 +5,8 @@
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -243,7 +243,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for TSNE<Untrained> {
                 let mut embedding = Array2::zeros((n_samples, self.n_components));
                 for i in 0..n_samples {
                     for j in 0..self.n_components {
-                        embedding[[i, j]] = rng.gen::<f64>() * 1e-4;
+                        embedding[[i, j]] = rng.random::<f64>() * 1e-4;
                     }
                 }
                 embedding
@@ -321,7 +321,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for TSNE<Untrained> {
             y = &y + &iy;
 
             // Center embedding
-            let mean = y.mean_axis(Axis(0)).unwrap();
+            let mean = y.mean_axis(Axis(0)).expect("operation should succeed");
             y -= &mean.insert_axis(Axis(0));
 
             // Check convergence

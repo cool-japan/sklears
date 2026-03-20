@@ -424,7 +424,7 @@ impl GridSearch {
         }
 
         Ok(GridSearchResult {
-            best_params: best_params.unwrap(),
+            best_params: best_params.expect("operation should succeed"),
             best_score,
             cv_results: all_results,
         })
@@ -496,7 +496,9 @@ mod tests {
         let config = GaussianMixtureConfig::default();
         let selector = ModelSelector::new(1, 3).criterion(ModelSelectionCriterion::BIC);
 
-        let result = selector.select_best_model(&x.view(), &config).unwrap();
+        let result = selector
+            .select_best_model(&x.view(), &config)
+            .expect("operation should succeed");
 
         assert!(result.best_n_components >= 1 && result.best_n_components <= 3);
         assert_eq!(result.criterion_values.len(), 3);

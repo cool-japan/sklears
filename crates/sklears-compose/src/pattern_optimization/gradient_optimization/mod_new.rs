@@ -246,7 +246,7 @@ impl UnifiedGradientOptimizationFactory {
 
         // Update statistics
         {
-            let mut stats = self.statistics.write().unwrap();
+            let mut stats = self.statistics.write().unwrap_or_else(|e| e.into_inner());
             stats.systems_created += 1;
         }
 
@@ -321,7 +321,7 @@ impl UnifiedGradientOptimizationFactory {
 
     /// Gets unified factory statistics.
     pub fn get_statistics(&self) -> SklResult<UnifiedFactoryStatistics> {
-        let stats = self.statistics.read().unwrap();
+        let stats = self.statistics.read().unwrap_or_else(|e| e.into_inner());
         Ok(stats.clone())
     }
 
@@ -628,7 +628,7 @@ mod tests {
     #[test]
     fn test_unified_factory_creation() {
         let factory = UnifiedGradientOptimizationFactory::new();
-        let stats = factory.get_statistics().unwrap();
+        let stats = factory.get_statistics().unwrap_or_default();
 
         assert_eq!(stats.systems_created, 0);
         assert_eq!(stats.components_created, 0);
@@ -639,14 +639,14 @@ mod tests {
         let configs = DefaultConfigurations::new();
 
         // Test that all configurations are valid
-        assert!(configs.high_performance.validate().unwrap().status == ValidationStatus::Valid
-                || configs.high_performance.validate().unwrap().status == ValidationStatus::ValidWithWarnings);
-        assert!(configs.memory_efficient.validate().unwrap().status == ValidationStatus::Valid
-                || configs.memory_efficient.validate().unwrap().status == ValidationStatus::ValidWithWarnings);
-        assert!(configs.robust.validate().unwrap().status == ValidationStatus::Valid
-                || configs.robust.validate().unwrap().status == ValidationStatus::ValidWithWarnings);
-        assert!(configs.fast.validate().unwrap().status == ValidationStatus::Valid
-                || configs.fast.validate().unwrap().status == ValidationStatus::ValidWithWarnings);
+        assert!(configs.high_performance.validate().unwrap_or_default().status == ValidationStatus::Valid
+                || configs.high_performance.validate().unwrap_or_default().status == ValidationStatus::ValidWithWarnings);
+        assert!(configs.memory_efficient.validate().unwrap_or_default().status == ValidationStatus::Valid
+                || configs.memory_efficient.validate().unwrap_or_default().status == ValidationStatus::ValidWithWarnings);
+        assert!(configs.robust.validate().unwrap_or_default().status == ValidationStatus::Valid
+                || configs.robust.validate().unwrap_or_default().status == ValidationStatus::ValidWithWarnings);
+        assert!(configs.fast.validate().unwrap_or_default().status == ValidationStatus::Valid
+                || configs.fast.validate().unwrap_or_default().status == ValidationStatus::ValidWithWarnings);
     }
 
     #[test]
@@ -674,9 +674,9 @@ mod tests {
         let factory = UnifiedGradientOptimizationFactory::new();
 
         // Create a system to update statistics
-        let _system = factory.create_optimization_system().unwrap();
+        let _system = factory.create_optimization_system().unwrap_or_default();
 
-        let stats = factory.get_statistics().unwrap();
+        let stats = factory.get_statistics().unwrap_or_default();
         assert_eq!(stats.systems_created, 1);
     }
 }

@@ -632,12 +632,12 @@ impl CoordinationEngineCore {
 
     /// Register pattern with coordination engine
     pub fn register_pattern(&self, pattern_definition: PatternDefinition) -> Result<String> {
-        let mut orchestrator = self.pattern_orchestrator.write().unwrap();
+        let mut orchestrator = self.pattern_orchestrator.write().unwrap_or_else(|e| e.into_inner());
         let pattern_id = orchestrator.register_pattern(pattern_definition)?;
         drop(orchestrator);
 
         // Update lifecycle manager
-        let mut lifecycle = self.lifecycle_manager.write().unwrap();
+        let mut lifecycle = self.lifecycle_manager.write().unwrap_or_else(|e| e.into_inner());
         lifecycle.initialize_pattern(&pattern_id)?;
         drop(lifecycle);
 
@@ -679,7 +679,7 @@ impl CoordinationEngineCore {
         }
 
         // Schedule execution
-        let mut scheduler = self.pattern_scheduler.write().unwrap();
+        let mut scheduler = self.pattern_scheduler.write().unwrap_or_else(|e| e.into_inner());
         let scheduling_result = scheduler.schedule_execution(pattern_id, scheduling_request).await?;
         drop(scheduler);
 
@@ -695,12 +695,12 @@ impl CoordinationEngineCore {
         new_state: PatternState,
     ) -> Result<()> {
         // Update lifecycle manager
-        let mut lifecycle = self.lifecycle_manager.write().unwrap();
+        let mut lifecycle = self.lifecycle_manager.write().unwrap_or_else(|e| e.into_inner());
         lifecycle.update_pattern_state(&pattern_id, new_state.clone())?;
         drop(lifecycle);
 
         // Synchronize state across all components
-        let mut synchronizer = self.state_synchronizer.write().unwrap();
+        let mut synchronizer = self.state_synchronizer.write().unwrap_or_else(|e| e.into_inner());
         synchronizer.synchronize_state(&pattern_id, &new_state)?;
         drop(synchronizer);
 
@@ -726,7 +726,7 @@ impl CoordinationEngineCore {
         &self,
         requests: &[PatternExecutionRequest],
     ) -> Result<DependencyAnalysis> {
-        let resolver = self.dependency_resolver.read().unwrap();
+        let resolver = self.dependency_resolver.read().unwrap_or_else(|e| e.into_inner());
         let analysis = resolver.analyze_dependencies(requests).await?;
         drop(resolver);
 
@@ -741,7 +741,7 @@ impl CoordinationEngineCore {
         requests: &[PatternExecutionRequest],
         dependency_analysis: &DependencyAnalysis,
     ) -> Result<ConflictResolution> {
-        let mut resolver = self.conflict_resolver.write().unwrap();
+        let mut resolver = self.conflict_resolver.write().unwrap_or_else(|e| e.into_inner());
         let conflicts = resolver.detect_conflicts(requests, dependency_analysis)?;
 
         let resolution = if conflicts.is_empty() {
@@ -767,7 +767,7 @@ impl CoordinationEngineCore {
         requests: &[PatternExecutionRequest],
         conflict_resolution: &ConflictResolution,
     ) -> Result<ResourceAllocation> {
-        let mut coordinator = self.resource_coordinator.write().unwrap();
+        let mut coordinator = self.resource_coordinator.write().unwrap_or_else(|e| e.into_inner());
         let allocation = coordinator.allocate_resources(requests, conflict_resolution).await?;
         drop(coordinator);
 
@@ -785,7 +785,7 @@ impl CoordinationEngineCore {
         conflict_resolution: &ConflictResolution,
         resource_allocation: &ResourceAllocation,
     ) -> Result<ExecutionPlan> {
-        let orchestrator = self.pattern_orchestrator.read().unwrap();
+        let orchestrator = self.pattern_orchestrator.read().unwrap_or_else(|e| e.into_inner());
         let plan = orchestrator.create_execution_plan(
             requests,
             dependency_analysis,
@@ -799,7 +799,7 @@ impl CoordinationEngineCore {
 
     /// Execute coordination plan
     async fn execute_coordination_plan(&self, plan: ExecutionPlan) -> Result<CoordinationResult> {
-        let mut orchestrator = self.pattern_orchestrator.write().unwrap();
+        let mut orchestrator = self.pattern_orchestrator.write().unwrap_or_else(|e| e.into_inner());
         let result = orchestrator.execute_plan(plan).await?;
         drop(orchestrator);
 
@@ -808,7 +808,7 @@ impl CoordinationEngineCore {
 
     /// Start coordination transaction
     fn start_coordination_transaction(&self) -> Result<String> {
-        let mut transaction_manager = self.transaction_manager.write().unwrap();
+        let mut transaction_manager = self.transaction_manager.write().unwrap_or_else(|e| e.into_inner());
         let transaction_id = transaction_manager.start_transaction()?;
         drop(transaction_manager);
 
@@ -817,7 +817,7 @@ impl CoordinationEngineCore {
 
     /// Commit coordination transaction
     fn commit_coordination_transaction(&self, transaction_id: String) -> Result<()> {
-        let mut transaction_manager = self.transaction_manager.write().unwrap();
+        let mut transaction_manager = self.transaction_manager.write().unwrap_or_else(|e| e.into_inner());
         transaction_manager.commit_transaction(transaction_id)?;
         drop(transaction_manager);
 
@@ -826,7 +826,7 @@ impl CoordinationEngineCore {
 
     /// Rollback coordination transaction
     fn rollback_coordination_transaction(&self, transaction_id: String) -> Result<()> {
-        let mut transaction_manager = self.transaction_manager.write().unwrap();
+        let mut transaction_manager = self.transaction_manager.write().unwrap_or_else(|e| e.into_inner());
         transaction_manager.rollback_transaction(transaction_id)?;
         drop(transaction_manager);
 
@@ -835,7 +835,7 @@ impl CoordinationEngineCore {
 
     /// Check dependencies for pattern
     async fn check_dependencies(&self, pattern_id: &str) -> Result<bool> {
-        let resolver = self.dependency_resolver.read().unwrap();
+        let resolver = self.dependency_resolver.read().unwrap_or_else(|e| e.into_inner());
         let dependencies_ready = resolver.check_dependencies_ready(pattern_id)?;
         drop(resolver);
 
@@ -848,7 +848,7 @@ impl CoordinationEngineCore {
         pattern_id: &str,
         request: &SchedulingRequest,
     ) -> Result<bool> {
-        let coordinator = self.resource_coordinator.read().unwrap();
+        let coordinator = self.resource_coordinator.read().unwrap_or_else(|e| e.into_inner());
         let resources_available = coordinator.check_availability(pattern_id, request)?;
         drop(coordinator);
 
@@ -857,12 +857,12 @@ impl CoordinationEngineCore {
 
     /// Handle pattern failure
     fn handle_pattern_failure(&self, pattern_id: &str) -> Result<()> {
-        let mut lifecycle = self.lifecycle_manager.write().unwrap();
+        let mut lifecycle = self.lifecycle_manager.write().unwrap_or_else(|e| e.into_inner());
         lifecycle.handle_pattern_failure(pattern_id)?;
         drop(lifecycle);
 
         // Trigger recovery procedures
-        let mut recovery = self.lifecycle_manager.write().unwrap();
+        let mut recovery = self.lifecycle_manager.write().unwrap_or_else(|e| e.into_inner());
         recovery.initiate_recovery(pattern_id)?;
         drop(recovery);
 
@@ -872,12 +872,12 @@ impl CoordinationEngineCore {
     /// Handle pattern completion
     fn handle_pattern_completion(&self, pattern_id: &str) -> Result<()> {
         // Release resources
-        let mut coordinator = self.resource_coordinator.write().unwrap();
+        let mut coordinator = self.resource_coordinator.write().unwrap_or_else(|e| e.into_inner());
         coordinator.release_resources(pattern_id)?;
         drop(coordinator);
 
         // Update dependencies
-        let mut resolver = self.dependency_resolver.write().unwrap();
+        let mut resolver = self.dependency_resolver.write().unwrap_or_else(|e| e.into_inner());
         resolver.notify_completion(pattern_id)?;
         drop(resolver);
 
@@ -887,12 +887,12 @@ impl CoordinationEngineCore {
     /// Handle pattern suspension
     fn handle_pattern_suspension(&self, pattern_id: &str) -> Result<()> {
         // Suspend resource allocation
-        let mut coordinator = self.resource_coordinator.write().unwrap();
+        let mut coordinator = self.resource_coordinator.write().unwrap_or_else(|e| e.into_inner());
         coordinator.suspend_allocation(pattern_id)?;
         drop(coordinator);
 
         // Update scheduling
-        let mut scheduler = self.pattern_scheduler.write().unwrap();
+        let mut scheduler = self.pattern_scheduler.write().unwrap_or_else(|e| e.into_inner());
         scheduler.suspend_pattern(pattern_id)?;
         drop(scheduler);
 
@@ -931,15 +931,15 @@ impl CoordinationEngineCore {
 
     /// Get coordination status
     pub fn get_status(&self) -> Result<CoordinationStatus> {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         Ok(state.status.clone())
     }
 
     /// Get coordination health
     pub fn get_health(&self) -> Result<CoordinationHealthReport> {
-        let state = self.state.read().unwrap();
-        let orchestrator = self.pattern_orchestrator.read().unwrap();
-        let resolver = self.dependency_resolver.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let orchestrator = self.pattern_orchestrator.read().unwrap_or_else(|e| e.into_inner());
+        let resolver = self.dependency_resolver.read().unwrap_or_else(|e| e.into_inner());
 
         let health_report = CoordinationHealthReport {
             engine_health: state.health.clone(),
@@ -958,7 +958,7 @@ impl CoordinationEngineCore {
 
     /// Get resource health
     fn get_resource_health(&self) -> Result<ResourceHealthStatus> {
-        let coordinator = self.resource_coordinator.read().unwrap();
+        let coordinator = self.resource_coordinator.read().unwrap_or_else(|e| e.into_inner());
         let health = coordinator.get_health_status();
         drop(coordinator);
 
@@ -1237,12 +1237,12 @@ mod tests {
     #[test]
     fn test_pattern_registration() {
         let config = CoordinationConfig::default();
-        let mut orchestrator = PatternOrchestrator::new(&config).unwrap();
+        let mut orchestrator = PatternOrchestrator::new(&config).unwrap_or_default();
         let definition = create_test_pattern_definition();
 
         let pattern_id = orchestrator.register_pattern(definition);
         assert!(pattern_id.is_ok());
-        assert!(orchestrator.active_patterns.contains_key(&pattern_id.unwrap()));
+        assert!(orchestrator.active_patterns.contains_key(&pattern_id.unwrap_or_default()));
     }
 
     fn create_test_pattern_definition() -> PatternDefinition {

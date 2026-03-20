@@ -273,7 +273,7 @@ impl HotDeckImputer<HotDeckImputerTrained> {
         }
 
         // Sort by distance and take the closest donors
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let selected_donors: Vec<usize> = distances
             .iter()
             .take(self.n_donors)

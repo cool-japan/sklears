@@ -253,8 +253,10 @@ impl SimdProfiler {
                 sorted_times[count / 2]
             };
 
-            let min = *sorted_times.first().unwrap();
-            let max = *sorted_times.last().unwrap();
+            let min = *sorted_times
+                .first()
+                .expect("collection should not be empty");
+            let max = *sorted_times.last().expect("collection should not be empty");
 
             OperationStats {
                 count,
@@ -315,7 +317,7 @@ impl SimdProfiler {
         }
 
         // Sort limiters by impact
-        limiters.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        limiters.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let primary_bottleneck = limiters
             .first()
@@ -666,11 +668,15 @@ mod tests {
         profiler.record_time("vector_add", Duration::from_micros(12));
         profiler.record_time("vector_add", Duration::from_micros(8));
 
-        let avg_time = profiler.average_time("vector_add").unwrap();
+        let avg_time = profiler
+            .average_time("vector_add")
+            .expect("operation should succeed");
         assert!(avg_time >= Duration::from_micros(8));
         assert!(avg_time <= Duration::from_micros(12));
 
-        let stats = profiler.get_statistics("vector_add").unwrap();
+        let stats = profiler
+            .get_statistics("vector_add")
+            .expect("operation should succeed");
         assert_eq!(stats.count, 3);
         assert_eq!(stats.min, Duration::from_micros(8));
         assert_eq!(stats.max, Duration::from_micros(12));

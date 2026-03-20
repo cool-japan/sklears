@@ -631,12 +631,14 @@ mod tests {
         for i in 0..10 {
             let mut metrics = HashMap::new();
             metrics.insert(ConvergenceMetric::Objective, 1.0 / (i + 1) as Float);
-            tracker.record_metrics(metrics).unwrap();
+            tracker
+                .record_metrics(metrics)
+                .expect("operation should succeed");
         }
 
         let history = tracker
             .get_metric_history(ConvergenceMetric::Objective)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(history.values.len(), 10);
         assert!(history.values[0] > history.values[9]); // Should be decreasing
     }
@@ -664,7 +666,7 @@ mod tests {
         assert!(rate.is_some());
 
         // Rate should be negative (decreasing)
-        assert!(rate.unwrap() < 0.0);
+        assert!(rate.expect("operation should succeed") < 0.0);
     }
 
     #[test]
@@ -698,10 +700,14 @@ mod tests {
             let mut metrics = HashMap::new();
             metrics.insert(ConvergenceMetric::Objective, 1.0 / (i + 1) as Float);
             metrics.insert(ConvergenceMetric::GradientNorm, 0.1 / (i + 1) as Float);
-            tracker.record_metrics(metrics).unwrap();
+            tracker
+                .record_metrics(metrics)
+                .expect("operation should succeed");
         }
 
-        let plot_data = tracker.export_for_plotting().unwrap();
+        let plot_data = tracker
+            .export_for_plotting()
+            .expect("operation should succeed");
         assert_eq!(plot_data.len(), 2);
         assert!(plot_data.contains_key("Objective"));
         assert!(plot_data.contains_key("GradientNorm"));

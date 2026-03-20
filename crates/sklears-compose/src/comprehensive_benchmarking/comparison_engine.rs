@@ -428,11 +428,11 @@ impl ComparisonEngine {
     }
 
     fn generate_comparison_id(&self) -> String {
-        format!("comp_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis())
+        format!("comp_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_recommendation_id(&self) -> String {
-        format!("rec_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis())
+        format!("rec_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_cache_key(&self, results: &[BenchmarkResult], baseline_name: &str) -> String {
@@ -1231,7 +1231,7 @@ impl ComparisonEngine {
         let mean = improvements.iter().sum::<f64>() / improvements.len() as f64;
 
         let mut sorted_improvements = improvements.clone();
-        sorted_improvements.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_improvements.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median = sorted_improvements[sorted_improvements.len() / 2];
 
         let variance = improvements.iter()
@@ -1402,10 +1402,10 @@ mod tests {
         let config = ComparisonEngineConfig::default();
         let engine = ComparisonEngine::new(config);
 
-        let effect_size = engine.calculate_effect_size(110.0, 100.0).unwrap();
+        let effect_size = engine.calculate_effect_size(110.0, 100.0).unwrap_or_default();
         assert_eq!(effect_size, 0.1);
 
-        let negative_effect = engine.calculate_effect_size(90.0, 100.0).unwrap();
+        let negative_effect = engine.calculate_effect_size(90.0, 100.0).unwrap_or_default();
         assert_eq!(negative_effect, -0.1);
     }
 

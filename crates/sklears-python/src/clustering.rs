@@ -5,7 +5,6 @@
 
 use numpy::{PyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
-use scirs2_core::ndarray::Array1;
 
 /// Stub KMeans implementation for testing refactored structure
 #[pyclass(name = "KMeans")]
@@ -27,8 +26,7 @@ impl PyKMeans {
     }
 
     fn predict(&self, _x: PyReadonlyArray2<f64>, py: Python<'_>) -> PyResult<Py<PyArray1<i32>>> {
-        let labels = Array1::<i32>::zeros(1);
-        Ok(PyArray1::from_array(py, &labels).unbind())
+        Ok(PyArray1::from_vec(py, vec![0i32]).unbind())
     }
 }
 
@@ -52,7 +50,6 @@ impl PyDBSCAN {
     }
 
     fn predict(&self, _x: PyReadonlyArray2<f64>, py: Python<'_>) -> PyResult<Py<PyArray1<i32>>> {
-        let labels = Array1::<i32>::zeros(1);
-        Ok(PyArray1::from_array(py, &labels).unbind())
+        Ok(PyArray1::from_vec(py, vec![0i32]).unbind())
     }
 }

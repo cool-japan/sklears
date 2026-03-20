@@ -183,7 +183,7 @@ pub mod math {
 
         // Sort singular values in descending order
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&i, &j| singular_values[j].partial_cmp(&singular_values[i]).unwrap());
+        indices.sort_by(|&i, &j| singular_values[j].partial_cmp(&singular_values[i]).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut sorted_singular_values = Array1::zeros(n);
         let mut sorted_v = Array2::zeros((n, n));
@@ -283,7 +283,7 @@ pub mod stats {
             ));
         }
 
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
         let mut cov = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {
@@ -358,7 +358,7 @@ pub mod stats {
             .max(n_features + 1)
             .min(n_samples);
 
-        let mut best_mean = data.mean_axis(Axis(0)).unwrap();
+        let mut best_mean = data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
         let mut best_cov = Array2::eye(n_features);
         let mut best_det = Float::INFINITY;
         let mut best_weights = Array1::ones(n_samples);
@@ -381,7 +381,7 @@ pub mod stats {
                 data[[indices[i], j]]
             });
 
-            let subset_mean = subset_data.mean_axis(Axis(0)).unwrap();
+            let subset_mean = subset_data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
             let subset_cov = covariance_matrix(&subset_data, 1)?;
 
             // Compute determinant approximation
@@ -491,7 +491,7 @@ pub mod preprocessing {
             return Err(SklearsError::InvalidInput("Cannot standardize empty data".to_string()));
         }
 
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
         let mut std_dev = Array1::zeros(n_features);
 
         // Compute standard deviation
@@ -534,7 +534,7 @@ pub mod preprocessing {
             return Err(SklearsError::InvalidInput("Cannot center empty data".to_string()));
         }
 
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
         let mut centered = Array2::zeros((n_samples, n_features));
 
         for i in 0..n_samples {
@@ -594,7 +594,7 @@ pub mod preprocessing {
         // Compute median and MAD for each feature
         for j in 0..n_features {
             let mut column: Vec<Float> = data.column(j).to_vec();
-            column.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            column.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             // Median
             let median = if n_samples % 2 == 0 {
@@ -608,7 +608,7 @@ pub mod preprocessing {
             let mut abs_devs: Vec<Float> = column.iter()
                 .map(|&x| (x - median).abs())
                 .collect();
-            abs_devs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            abs_devs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             let mad = if n_samples % 2 == 0 {
                 (abs_devs[n_samples / 2 - 1] + abs_devs[n_samples / 2]) / 2.0
@@ -921,7 +921,7 @@ mod tests {
     #[test]
     fn test_matrix_inverse() {
         let matrix = array![[2.0, 1.0], [1.0, 1.0]];
-        let inv = math::matrix_inverse(&matrix, 1e-12).unwrap();
+        let inv = math::matrix_inverse(&matrix, 1e-12).expect("operation should succeed");
         let identity = matrix.dot(&inv);
 
         // Check if result is close to identity matrix
@@ -934,7 +934,7 @@ mod tests {
     #[test]
     fn test_qr_decomposition() {
         let matrix = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let (q, r) = math::qr_decomposition(&matrix).unwrap();
+        let (q, r) = math::qr_decomposition(&matrix).expect("operation should succeed");
         let reconstructed = q.dot(&r);
 
         // Check reconstruction accuracy
@@ -948,7 +948,7 @@ mod tests {
     #[test]
     fn test_covariance_matrix() {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let cov = stats::covariance_matrix(&data, 1).unwrap();
+        let cov = stats::covariance_matrix(&data, 1).expect("operation should succeed");
 
         // Check symmetry
         assert!((cov[[0, 1]] - cov[[1, 0]]).abs() < 1e-10);
@@ -961,10 +961,10 @@ mod tests {
     #[test]
     fn test_standardization() {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let (standardized, mean, std_dev) = preprocessing::standardize(&data).unwrap();
+        let (standardized, mean, std_dev) = preprocessing::standardize(&data).expect("operation should succeed");
 
         // Check that standardized data has zero mean
-        let new_mean = standardized.mean_axis(Axis(0)).unwrap();
+        let new_mean = standardized.mean_axis(Axis(0)).expect("operation should succeed");
         assert!(new_mean[0].abs() < 1e-10);
         assert!(new_mean[1].abs() < 1e-10);
 
@@ -978,9 +978,9 @@ mod tests {
         let x1 = array![1.0, 2.0, 3.0];
         let x2 = array![4.0, 5.0, 6.0];
 
-        let euclidean = distance::euclidean_distance(&x1.view(), &x2.view()).unwrap();
-        let manhattan = distance::manhattan_distance(&x1.view(), &x2.view()).unwrap();
-        let cosine = distance::cosine_distance(&x1.view(), &x2.view()).unwrap();
+        let euclidean = distance::euclidean_distance(&x1.view(), &x2.view()).expect("operation should succeed");
+        let manhattan = distance::manhattan_distance(&x1.view(), &x2.view()).expect("operation should succeed");
+        let cosine = distance::cosine_distance(&x1.view(), &x2.view()).expect("operation should succeed");
 
         assert!(euclidean > 0.0);
         assert!(manhattan > 0.0);
@@ -992,7 +992,7 @@ mod tests {
 
     #[test]
     fn test_cross_validation_split() {
-        let folds = cross_validation::kfold_split(10, 5, false, None).unwrap();
+        let folds = cross_validation::kfold_split(10, 5, false, None).expect("operation should succeed");
 
         assert_eq!(folds.len(), 5);
 

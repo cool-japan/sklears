@@ -153,7 +153,11 @@ impl StreamingPCA {
 
             // Sort by eigenvalue (descending)
             let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-            indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+            indices.sort_by(|&i, &j| {
+                eigenvalues[j]
+                    .partial_cmp(&eigenvalues[i])
+                    .expect("operation should succeed")
+            });
 
             // Select top components
             let n_components = self.n_components.min(eigenvalues.len());
@@ -731,7 +735,7 @@ mod tests {
         // Add some samples
         for i in 0..100 {
             let sample = Array1::from_vec(vec![i as Float, (i * 2) as Float, (i * 3) as Float]);
-            pca.partial_fit(&sample).unwrap();
+            pca.partial_fit(&sample).expect("sampling should succeed");
         }
 
         assert!(pca.n_samples_seen() == 100);
@@ -745,7 +749,7 @@ mod tests {
         // Add some samples
         for i in 0..100 {
             let sample = Array1::from_vec(vec![i as Float, (i * 2) as Float]);
-            ica.partial_fit(&sample).unwrap();
+            ica.partial_fit(&sample).expect("sampling should succeed");
         }
 
         assert!(ica.n_samples_seen() == 100);
@@ -759,7 +763,9 @@ mod tests {
         // Add some samples
         for i in 0..100 {
             let sample = Array1::from_vec(vec![i as Float, (i * 2) as Float]);
-            adaptive.partial_fit(&sample).unwrap();
+            adaptive
+                .partial_fit(&sample)
+                .expect("sampling should succeed");
         }
 
         assert!(adaptive.active_algorithm() == "PCA" || adaptive.active_algorithm() == "ICA");

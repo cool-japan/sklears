@@ -190,7 +190,7 @@ impl NeighborExplainer {
         let most_influential_neighbor = neighbor_weights
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| neighbor_indices[idx])
             .unwrap_or(0);
 
@@ -265,7 +265,11 @@ impl NeighborExplainer {
 
         // Create feature ranks
         let mut feature_ranks: Vec<usize> = (0..n_features).collect();
-        feature_ranks.sort_by(|&a, &b| feature_scores[b].partial_cmp(&feature_scores[a]).unwrap());
+        feature_ranks.sort_by(|&a, &b| {
+            feature_scores[b]
+                .partial_cmp(&feature_scores[a])
+                .expect("operation should succeed")
+        });
 
         Ok(LocalImportanceExplanation {
             feature_scores,
@@ -324,7 +328,11 @@ impl NeighborExplainer {
             }
 
             // Sort by score and take top n
-            candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+            candidates.sort_by(|a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .expect("operation should succeed")
+            });
             candidates.truncate(n_prototypes_per_class);
 
             class_prototypes.insert(class_label, candidates);
@@ -385,7 +393,7 @@ impl NeighborExplainer {
             .map(|(idx, &score)| (idx, score))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let most_influential: Vec<usize> = indexed_scores
             .iter()
@@ -533,7 +541,8 @@ impl NeighborExplainer {
         }
 
         // Sort by distance and take k nearest
-        distances_with_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances_with_indices
+            .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         distances_with_indices.truncate(self.k);
 
         let indices: Vec<usize> = distances_with_indices.iter().map(|&(idx, _)| idx).collect();
@@ -701,7 +710,8 @@ impl NeighborExplainer {
         }
 
         // Sort by distance and take k nearest
-        distances_with_indices.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances_with_indices
+            .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         distances_with_indices.truncate(k);
 
         let indices: Vec<usize> = distances_with_indices.iter().map(|&(idx, _)| idx).collect();
@@ -726,7 +736,7 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1, 9.0, 9.0, 9.1, 9.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 
@@ -743,13 +753,14 @@ mod tests {
     #[test]
     fn test_prediction_explanation() {
         let (X, y) = create_test_data();
-        let explainer = NeighborExplainer::from_data(X.clone(), y, 3, Distance::Euclidean).unwrap();
+        let explainer = NeighborExplainer::from_data(X.clone(), y, 3, Distance::Euclidean)
+            .expect("operation should succeed");
 
         let test_sample = Array1::from_vec(vec![1.05, 1.05]);
         let explanation = explainer.explain_prediction(test_sample.view());
 
         assert!(explanation.is_ok());
-        let explanation = explanation.unwrap();
+        let explanation = explanation.expect("operation should succeed");
         assert_eq!(explanation.prediction, 0); // Should predict class 0
         assert!(explanation.confidence > 0.0);
         assert_eq!(explanation.neighbor_indices.len(), 3);
@@ -758,13 +769,14 @@ mod tests {
     #[test]
     fn test_local_importance() {
         let (X, y) = create_test_data();
-        let explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean).unwrap();
+        let explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean)
+            .expect("operation should succeed");
 
         let test_sample = Array1::from_vec(vec![1.05, 1.05]);
         let importance = explainer.explain_local_importance(test_sample.view());
 
         assert!(importance.is_ok());
-        let importance = importance.unwrap();
+        let importance = importance.expect("operation should succeed");
         assert_eq!(importance.feature_scores.len(), 2);
         assert_eq!(importance.feature_ranks.len(), 2);
     }
@@ -772,12 +784,13 @@ mod tests {
     #[test]
     fn test_prototype_identification() {
         let (X, y) = create_test_data();
-        let mut explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean).unwrap();
+        let mut explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean)
+            .expect("operation should succeed");
 
         let prototypes = explainer.identify_prototypes(1);
         assert!(prototypes.is_ok());
 
-        let prototypes = prototypes.unwrap();
+        let prototypes = prototypes.expect("operation should succeed");
         assert_eq!(prototypes.len(), 3); // Three classes
 
         for (&class_label, class_prototypes) in prototypes.iter() {
@@ -789,13 +802,14 @@ mod tests {
     #[test]
     fn test_influence_analysis() {
         let (X, y) = create_test_data();
-        let explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean).unwrap();
+        let explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean)
+            .expect("operation should succeed");
 
         let test_sample = Array1::from_vec(vec![1.05, 1.05]);
         let influence = explainer.analyze_influence(test_sample.view());
 
         assert!(influence.is_ok());
-        let influence = influence.unwrap();
+        let influence = influence.expect("operation should succeed");
         assert_eq!(influence.influence_scores.len(), 6); // Training set size
         assert!(!influence.most_influential.is_empty());
         assert!(influence.prediction_stability >= 0.0 && influence.prediction_stability <= 1.0);
@@ -804,14 +818,16 @@ mod tests {
     #[test]
     fn test_multiple_explanations() {
         let (X, y) = create_test_data();
-        let explainer = NeighborExplainer::from_data(X.clone(), y, 3, Distance::Euclidean).unwrap();
+        let explainer = NeighborExplainer::from_data(X.clone(), y, 3, Distance::Euclidean)
+            .expect("operation should succeed");
 
-        let test_X = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05]).unwrap();
+        let test_X = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05])
+            .expect("operation should succeed");
 
         let explanations = explainer.explain_predictions(test_X.view());
         assert!(explanations.is_ok());
 
-        let explanations = explanations.unwrap();
+        let explanations = explanations.expect("operation should succeed");
         assert_eq!(explanations.len(), 2);
         assert_eq!(explanations[0].sample_index, 0);
         assert_eq!(explanations[1].sample_index, 1);
@@ -820,13 +836,14 @@ mod tests {
     #[test]
     fn test_report_generation() {
         let (X, y) = create_test_data();
-        let mut explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean).unwrap();
+        let mut explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean)
+            .expect("operation should succeed");
 
         let test_sample = Array1::from_vec(vec![1.05, 1.05]);
         let report = explainer.generate_report(test_sample.view());
 
         assert!(report.is_ok());
-        let report = report.unwrap();
+        let report = report.expect("operation should succeed");
         assert!(report.contains("Prediction Summary"));
         assert!(report.contains("Nearest Neighbors Analysis"));
         assert!(report.contains("Local Feature Importance"));
@@ -836,13 +853,14 @@ mod tests {
     #[test]
     fn test_neighbor_weights_calculation() {
         let (X, y) = create_test_data();
-        let explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean).unwrap();
+        let explainer = NeighborExplainer::from_data(X, y, 3, Distance::Euclidean)
+            .expect("operation should succeed");
 
         let distances = vec![0.1, 0.2, 0.3];
         let weights = explainer.calculate_neighbor_weights(&distances);
 
         assert!(weights.is_ok());
-        let weights = weights.unwrap();
+        let weights = weights.expect("operation should succeed");
         assert_eq!(weights.len(), 3);
 
         // Check normalization

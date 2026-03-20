@@ -37,7 +37,7 @@ impl<T: FloatBounds> Default for AttentionRNNConfig<T> {
         Self {
             num_heads: 8,
             attention_dim: 64,
-            attention_dropout: Some(T::from(0.1).unwrap()),
+            attention_dropout: Some(T::from(0.1).unwrap_or_else(|| T::zero())),
             hierarchical: false,
             context_dim: None,
             use_global_context: false,
@@ -474,7 +474,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> HierarchicalAttention
         let attention_output = self.word_attention.apply_attention(
             &query
                 .broadcast((sentence.len_of(Axis(0)), 1, self.word_context.len()))
-                .unwrap()
+                .expect("value should be present")
                 .to_owned(),
             &lstm_output,
             &lstm_output,
@@ -506,7 +506,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> HierarchicalAttention
         let attention_output = self.sentence_attention.apply_attention(
             &query
                 .broadcast((sentences.len_of(Axis(0)), 1, self.sentence_context.len()))
-                .unwrap()
+                .expect("value should be present")
                 .to_owned(),
             &lstm_output,
             &lstm_output,
@@ -597,7 +597,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SelfAttentionRNN<T> {
                     .mapv(|v| (v - mean) * (v - mean))
                     .mean()
                     .unwrap_or(T::zero());
-                let std = (variance + T::from(1e-5).unwrap()).sqrt();
+                let std = (variance + T::from(1e-5).unwrap_or_else(|| T::zero())).sqrt();
 
                 let normalized = x.mapv(|v| (v - mean) / std);
                 let scaled = &normalized * &self.layer_norm_weights + &self.layer_norm_bias;
@@ -639,16 +639,17 @@ mod tests {
     fn test_attention_lstm_forward() {
         let config = AttentionRNNConfig::<f64>::default();
         // Use hidden_size=64 which is divisible by num_heads=8
-        let mut lstm = AttentionLSTM::new(10, 64, config, AttentionType::MultiHead).unwrap();
+        let mut lstm = AttentionLSTM::new(10, 64, config, AttentionType::MultiHead)
+            .expect("construction should succeed");
 
         let input = Array2::from_shape_fn((5, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = lstm.forward_with_attention(&input, false);
         assert!(output.is_ok());
 
-        let output = output.unwrap();
+        let output = output.expect("operation should succeed");
         assert_eq!(output.dim(), (5, 64));
     }
 
@@ -657,16 +658,17 @@ mod tests {
         let config = AttentionRNNConfig::<f64>::default();
         // Use dimensions that are divisible by num_heads=8
         // vocab_size=96, word_hidden_size=64, sentence_hidden_size=96
-        let mut han = HierarchicalAttentionNetwork::new(96, 64, 96, config).unwrap();
+        let mut han = HierarchicalAttentionNetwork::new(96, 64, 96, config)
+            .expect("construction should succeed");
 
         let document = Array3::from_shape_fn((2, 5, 96), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         }); // 2 docs, 5 sentences, 96 word features
         let output = han.forward_hierarchical(&document, false);
         assert!(output.is_ok());
 
-        let output = output.unwrap();
+        let output = output.expect("operation should succeed");
         assert_eq!(output.dim(), (2, 96)); // batch_size x sentence_hidden_size
     }
 
@@ -674,16 +676,17 @@ mod tests {
     fn test_self_attention_rnn() {
         let config = AttentionRNNConfig::<f64>::default();
         // Use hidden_size=64 which is divisible by num_heads=8
-        let mut self_attn_rnn = SelfAttentionRNN::new(10, 64, config).unwrap();
+        let mut self_attn_rnn =
+            SelfAttentionRNN::new(10, 64, config).expect("construction should succeed");
 
         let input = Array3::from_shape_fn((2, 8, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         }); // batch, seq, features
         let output = self_attn_rnn.forward_self_attention(&input, false);
         assert!(output.is_ok());
 
-        let output = output.unwrap();
+        let output = output.expect("operation should succeed");
         assert_eq!(output.dim(), (2, 8, 64));
     }
 
@@ -691,20 +694,23 @@ mod tests {
     fn test_attention_weights_storage() {
         let config = AttentionRNNConfig::<f64>::default();
         // Use hidden_size=64 which is divisible by num_heads=8
-        let mut lstm = AttentionLSTM::new(10, 64, config, AttentionType::MultiHead).unwrap();
+        let mut lstm = AttentionLSTM::new(10, 64, config, AttentionType::MultiHead)
+            .expect("construction should succeed");
 
         // Set encoder states
         let encoder_states = Array3::from_shape_fn((1, 5, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         lstm.set_encoder_states(encoder_states);
 
         let input = Array2::from_shape_fn((1, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
-        let _output = lstm.forward_with_attention(&input, false).unwrap();
+        let _output = lstm
+            .forward_with_attention(&input, false)
+            .expect("operation should succeed");
 
         // Check if attention weights are stored
         assert!(lstm.get_attention_weights().is_some());

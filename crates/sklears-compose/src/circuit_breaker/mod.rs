@@ -478,7 +478,7 @@ pub mod test_utils {
             .success_threshold(2)
             .timeout(Duration::from_secs(5))
             .build()
-            .unwrap()
+            .expect("operation should succeed")
     }
 
     /// Create multiple test circuit breakers
@@ -489,7 +489,7 @@ pub mod test_utils {
                     .id(format!("test-circuit-{}", i))
                     .name(format!("Test Circuit {}", i))
                     .build()
-                    .unwrap()
+                    .expect("operation should succeed")
             })
             .collect()
     }

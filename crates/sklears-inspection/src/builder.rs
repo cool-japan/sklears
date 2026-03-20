@@ -657,7 +657,7 @@ mod tests {
         let results = study.execute();
         assert!(results.is_ok());
 
-        let comparison_results = results.unwrap();
+        let comparison_results = results.expect("operation should succeed");
         assert_eq!(comparison_results.results.len(), 1);
         assert_eq!(comparison_results.results[0].method, "SHAP");
         assert_eq!(comparison_results.results[0].dataset, "iris");

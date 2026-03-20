@@ -223,7 +223,7 @@ impl MetricsCollector {
             custom_data: HashMap::new(),
         };
 
-        self.active_tasks.lock().unwrap().insert(task_id.clone(), task_metrics);
+        self.active_tasks.lock().unwrap_or_else(|e| e.into_inner()).insert(task_id.clone(), task_metrics);
 
         let _ = self.event_sender.send(MetricsEvent::TaskStarted {
             task_id,
@@ -234,7 +234,7 @@ impl MetricsCollector {
     }
 
     pub fn complete_task(&self, task_id: String, status: TaskStatus, error_details: Option<String>) -> SklResult<ExecutionMetrics> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         let task_metrics = active_tasks.remove(&task_id)
             .ok_or_else(|| scirs2_core::error::CoreError::InvalidInput(format!("Task {} not found", task_id)))?;
 
@@ -275,7 +275,7 @@ impl MetricsCollector {
     }
 
     pub fn record_operation(&self, task_id: &str, operation_count: u64, latency: Duration) -> SklResult<()> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task_metrics) = active_tasks.get_mut(task_id) {
             task_metrics.performance_tracker.record_operation(operation_count, latency);
         }
@@ -283,7 +283,7 @@ impl MetricsCollector {
     }
 
     pub fn record_error(&self, task_id: &str) -> SklResult<()> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task_metrics) = active_tasks.get_mut(task_id) {
             task_metrics.performance_tracker.record_error();
         }
@@ -291,7 +291,7 @@ impl MetricsCollector {
     }
 
     pub fn record_retry(&self, task_id: &str) -> SklResult<()> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task_metrics) = active_tasks.get_mut(task_id) {
             task_metrics.performance_tracker.record_retry();
         }
@@ -299,7 +299,7 @@ impl MetricsCollector {
     }
 
     pub fn record_cache_hit(&self, task_id: &str) -> SklResult<()> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task_metrics) = active_tasks.get_mut(task_id) {
             task_metrics.performance_tracker.record_cache_hit();
         }
@@ -307,7 +307,7 @@ impl MetricsCollector {
     }
 
     pub fn record_cache_miss(&self, task_id: &str) -> SklResult<()> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task_metrics) = active_tasks.get_mut(task_id) {
             task_metrics.performance_tracker.record_cache_miss();
         }
@@ -315,7 +315,7 @@ impl MetricsCollector {
     }
 
     pub fn add_custom_metric(&self, task_id: &str, key: String, value: f64) -> SklResult<()> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task_metrics) = active_tasks.get_mut(task_id) {
             task_metrics.performance_tracker.add_custom_metric(key, value);
         }
@@ -323,7 +323,7 @@ impl MetricsCollector {
     }
 
     pub fn add_custom_data(&self, task_id: &str, key: String, value: String) -> SklResult<()> {
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task_metrics) = active_tasks.get_mut(task_id) {
             task_metrics.custom_data.insert(key, value);
         }
@@ -331,16 +331,16 @@ impl MetricsCollector {
     }
 
     pub fn get_aggregated_stats(&self) -> AggregatedStats {
-        self.aggregated_stats.read().unwrap().clone()
+        self.aggregated_stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn get_recent_metrics(&self, count: usize) -> Vec<ExecutionMetrics> {
-        let store = self.metrics_store.read().unwrap();
+        let store = self.metrics_store.read().unwrap_or_else(|e| e.into_inner());
         store.iter().rev().take(count).cloned().collect()
     }
 
     pub fn get_metrics_by_strategy(&self, strategy_name: &str) -> Vec<ExecutionMetrics> {
-        let store = self.metrics_store.read().unwrap();
+        let store = self.metrics_store.read().unwrap_or_else(|e| e.into_inner());
         store.iter()
             .filter(|m| m.strategy_name == strategy_name)
             .cloned()
@@ -348,7 +348,7 @@ impl MetricsCollector {
     }
 
     pub fn get_metrics_in_range(&self, start: SystemTime, end: SystemTime) -> Vec<ExecutionMetrics> {
-        let store = self.metrics_store.read().unwrap();
+        let store = self.metrics_store.read().unwrap_or_else(|e| e.into_inner());
         store.iter()
             .filter(|m| m.start_time >= start && m.start_time <= end)
             .cloned()
@@ -360,8 +360,8 @@ impl MetricsCollector {
     }
 
     pub fn export_metrics(&self) -> SklResult<String> {
-        let store = self.metrics_store.read().unwrap();
-        let stats = self.aggregated_stats.read().unwrap();
+        let store = self.metrics_store.read().unwrap_or_else(|e| e.into_inner());
+        let stats = self.aggregated_stats.read().unwrap_or_else(|e| e.into_inner());
 
         let export_data = MetricsExport {
             aggregated_stats: stats.clone(),
@@ -374,7 +374,7 @@ impl MetricsCollector {
     }
 
     pub fn clear_old_metrics(&self) -> SklResult<usize> {
-        let mut store = self.metrics_store.write().unwrap();
+        let mut store = self.metrics_store.write().unwrap_or_else(|e| e.into_inner());
         let cutoff = SystemTime::now() - self.config.retention_duration;
         let initial_len = store.len();
 
@@ -384,7 +384,7 @@ impl MetricsCollector {
     }
 
     fn store_metrics(&self, metrics: ExecutionMetrics) -> SklResult<()> {
-        let mut store = self.metrics_store.write().unwrap();
+        let mut store = self.metrics_store.write().unwrap_or_else(|e| e.into_inner());
 
         if store.len() >= self.config.max_stored_metrics {
             store.pop_front();
@@ -395,7 +395,7 @@ impl MetricsCollector {
     }
 
     fn update_aggregated_stats(&self, metrics: &ExecutionMetrics) -> SklResult<()> {
-        let mut stats = self.aggregated_stats.write().unwrap();
+        let mut stats = self.aggregated_stats.write().unwrap_or_else(|e| e.into_inner());
 
         stats.total_tasks += 1;
 

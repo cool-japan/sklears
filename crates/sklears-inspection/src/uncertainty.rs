@@ -8,7 +8,7 @@ use crate::{Float, SklResult, SklearsError};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 
 /// Configuration for uncertainty quantification
 #[derive(Debug, Clone)]
@@ -238,7 +238,7 @@ fn estimate_epistemic_uncertainty_bootstrap<M: UncertaintyEstimator>(
         // Add noise to parameters to simulate parameter uncertainty
         let noisy_params: Vec<Float> = base_params
             .iter()
-            .map(|&p| p + rng.gen::<Float>() * 0.1 - 0.05) // Add small random noise
+            .map(|&p| p + rng.random::<Float>() * 0.1 - 0.05) // Add small random noise
             .collect();
 
         let predictions = model.predict_with_parameters(X, &noisy_params)?;
@@ -263,7 +263,7 @@ fn estimate_aleatoric_uncertainty<M: UncertaintyEstimator>(
         // Create noisy version of input
         let mut X_noisy = X.to_owned();
         for element in X_noisy.iter_mut() {
-            *element += rng.gen::<Float>() * 0.01 - 0.005; // Small noise
+            *element += rng.random::<Float>() * 0.01 - 0.005; // Small noise
         }
 
         let predictions = model.predict_with_uncertainty(&X_noisy.view())?;
@@ -275,11 +275,13 @@ fn estimate_aleatoric_uncertainty<M: UncertaintyEstimator>(
 
 /// Compute uncertainty (standard deviation) from prediction samples
 fn compute_uncertainty_from_samples(samples: &Array2<Float>) -> Array1<Float> {
-    let mean = samples.mean_axis(Axis(1)).unwrap();
+    let mean = samples
+        .mean_axis(Axis(1))
+        .expect("operation should succeed");
     let variance = samples
         .axis_iter(Axis(0))
         .map(|row| {
-            let row_mean = row.mean().unwrap();
+            let row_mean = row.mean().expect("operation should succeed");
             row.iter().map(|&x| (x - row_mean).powi(2)).sum::<Float>() / row.len() as Float
         })
         .collect::<Vec<_>>();
@@ -298,7 +300,7 @@ fn compute_confidence_intervals(samples: &Array2<Float>, confidence_level: Float
 
     for i in 0..n_samples {
         let mut row_values: Vec<Float> = samples.row(i).to_vec();
-        row_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        row_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let lower_idx =
             ((row_values.len() as Float * lower_percentile) as usize).min(row_values.len() - 1);
@@ -548,7 +550,7 @@ pub fn analyze_prediction_uncertainty(
 
     // Compute percentiles
     let mut sorted_uncertainties: Vec<Float> = uncertainty_values.to_vec();
-    sorted_uncertainties.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_uncertainties.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = sorted_uncertainties.len();
     let p25_idx = (n as Float * 0.25) as usize;
@@ -646,7 +648,8 @@ mod tests {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let config = UncertaintyConfig::default();
 
-        let result = quantify_uncertainty(&model, &X.view(), &config).unwrap();
+        let result =
+            quantify_uncertainty(&model, &X.view(), &config).expect("operation should succeed");
 
         assert_eq!(result.predictions.len(), 3);
         assert_eq!(result.epistemic_uncertainty.len(), 3);
@@ -660,8 +663,8 @@ mod tests {
         let predicted_probs = array![0.1, 0.4, 0.7, 0.9];
         let true_labels = array![0.0, 0.0, 1.0, 1.0];
 
-        let metrics =
-            compute_calibration_metrics(&predicted_probs.view(), &true_labels.view()).unwrap();
+        let metrics = compute_calibration_metrics(&predicted_probs.view(), &true_labels.view())
+            .expect("operation should succeed");
 
         assert!(metrics.expected_calibration_error >= 0.0);
         assert!(metrics.brier_score >= 0.0);
@@ -720,8 +723,8 @@ mod tests {
         let predicted_probs = array![0.1, 0.4, 0.7, 0.9];
         let true_labels = array![0.0, 0.0, 1.0, 1.0];
 
-        let calibrated_model =
-            calibrate_platt(&predicted_probs.view(), &true_labels.view()).unwrap();
+        let calibrated_model = calibrate_platt(&predicted_probs.view(), &true_labels.view())
+            .expect("operation should succeed");
 
         assert_eq!(
             calibrated_model.method as u8,
@@ -729,7 +732,9 @@ mod tests {
         );
         assert_eq!(calibrated_model.parameters.len(), 2);
 
-        let calibrated_preds = calibrated_model.calibrate(&predicted_probs.view()).unwrap();
+        let calibrated_preds = calibrated_model
+            .calibrate(&predicted_probs.view())
+            .expect("operation should succeed");
         assert_eq!(calibrated_preds.len(), 4);
     }
 }

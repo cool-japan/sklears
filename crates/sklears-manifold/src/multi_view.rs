@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
@@ -162,7 +162,7 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiViewManifold {
         // Center each view
         let mut centered_views = Vec::new();
         for view in views {
-            let mean = view.mean_axis(Axis(0)).unwrap();
+            let mean = view.mean_axis(Axis(0)).expect("operation should succeed");
             let centered = view - &mean.insert_axis(Axis(0));
             centered_views.push(centered);
         }
@@ -214,7 +214,7 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiViewManifold {
             .map(|(&val, vec)| (val, vec.to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Take top n_components
         let selected_eigenvalues: Array1<Float> = eigen_pairs
@@ -308,7 +308,7 @@ impl Transform<Vec<Array2<Float>>, Array2<Float>> for FittedMultiViewManifold {
         // Center each view (using training mean would be better, but this is a simplification)
         let mut centered_views = Vec::new();
         for view in views {
-            let mean = view.mean_axis(Axis(0)).unwrap();
+            let mean = view.mean_axis(Axis(0)).expect("operation should succeed");
             let centered = view - &mean.insert_axis(Axis(0));
             centered_views.push(centered);
         }
@@ -445,8 +445,8 @@ impl Fit<(Array2<Float>, Array2<Float>), ()> for CanonicalCorrelationAnalysis {
         }
 
         // Center the data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
+        let y_mean = y.mean_axis(Axis(0)).expect("operation should succeed");
         let x_centered = x - &x_mean.insert_axis(Axis(0));
         let y_centered = y - &y_mean.insert_axis(Axis(0));
 
@@ -538,8 +538,8 @@ impl Transform<(Array2<Float>, Array2<Float>), (Array2<Float>, Array2<Float>)>
         }
 
         // Center the data (using training mean would be better)
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
+        let y_mean = y.mean_axis(Axis(0)).expect("operation should succeed");
         let x_centered = x - &x_mean.insert_axis(Axis(0));
         let y_centered = y - &y_mean.insert_axis(Axis(0));
 
@@ -708,7 +708,7 @@ impl Fit<Vec<Array2<Float>>, ()> for MultiModalEmbedding {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         let mut modal_embeddings = Vec::new();
@@ -870,8 +870,8 @@ mod tests {
         let views = vec![view1, view2];
 
         let model = MultiViewManifold::new(2);
-        let fitted = model.fit(&views, &()).unwrap();
-        let embedding = fitted.transform(&views).unwrap();
+        let fitted = model.fit(&views, &()).expect("operation should succeed");
+        let embedding = fitted.transform(&views).expect("operation should succeed");
 
         assert_eq!(embedding.shape(), &[4, 2]);
         assert!(embedding.iter().all(|&x| x.is_finite()));
@@ -883,8 +883,12 @@ mod tests {
         let view2 = array![[0.5, 1.5], [2.5, 3.5], [4.5, 5.5], [6.5, 7.5]];
 
         let cca = CanonicalCorrelationAnalysis::new(2);
-        let fitted = cca.fit(&(view1.clone(), view2.clone()), &()).unwrap();
-        let (proj1, proj2) = fitted.transform(&(view1, view2)).unwrap();
+        let fitted = cca
+            .fit(&(view1.clone(), view2.clone()), &())
+            .expect("operation should succeed");
+        let (proj1, proj2) = fitted
+            .transform(&(view1, view2))
+            .expect("operation should succeed");
 
         assert_eq!(proj1.shape(), &[4, 2]);
         assert_eq!(proj2.shape(), &[4, 2]);
@@ -899,8 +903,12 @@ mod tests {
         let modalities = vec![modal1, modal2];
 
         let model = MultiModalEmbedding::new(2);
-        let fitted = model.fit(&modalities, &()).unwrap();
-        let embedding = fitted.transform(&modalities).unwrap();
+        let fitted = model
+            .fit(&modalities, &())
+            .expect("operation should succeed");
+        let embedding = fitted
+            .transform(&modalities)
+            .expect("operation should succeed");
 
         assert_eq!(embedding.shape(), &[4, 2]);
         assert!(embedding.iter().all(|&x| x.is_finite()));
@@ -914,8 +922,8 @@ mod tests {
 
         let weights = array![0.8, 0.2];
         let model = MultiViewManifold::new(2).view_weights(weights);
-        let fitted = model.fit(&views, &()).unwrap();
-        let embedding = fitted.transform(&views).unwrap();
+        let fitted = model.fit(&views, &()).expect("operation should succeed");
+        let embedding = fitted.transform(&views).expect("operation should succeed");
 
         assert_eq!(embedding.shape(), &[4, 2]);
         assert!(embedding.iter().all(|&x| x.is_finite()));
@@ -943,7 +951,9 @@ mod tests {
         let view2 = array![[0.5, 1.5], [2.5, 3.5], [4.5, 5.5], [6.5, 7.5]];
 
         let cca = CanonicalCorrelationAnalysis::new(2);
-        let fitted = cca.fit(&(view1, view2), &()).unwrap();
+        let fitted = cca
+            .fit(&(view1, view2), &())
+            .expect("operation should succeed");
 
         let correlations = fitted.canonical_correlations();
         assert_eq!(correlations.len(), 2);

@@ -370,7 +370,7 @@ impl SparseDistanceMatrix {
         }
 
         // Sort by distance and take k nearest
-        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         neighbors.truncate(k);
 
         neighbors
@@ -407,7 +407,7 @@ impl SparseDistanceMatrix {
         }
 
         // Sort by distance
-        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         neighbors
     }
@@ -869,8 +869,8 @@ mod tests {
         let mut matrix = SparseDistanceMatrix::new(3, 3, true);
 
         // Set some values
-        matrix.set(0, 1, 2.5).unwrap();
-        matrix.set(1, 2, 3.0).unwrap();
+        matrix.set(0, 1, 2.5).expect("operation should succeed");
+        matrix.set(1, 2, 3.0).expect("operation should succeed");
 
         // Check values
         assert_eq!(matrix.get(0, 1), 2.5);
@@ -901,7 +901,8 @@ mod tests {
             ..Default::default()
         };
 
-        let sparse_matrix = SparseDistanceMatrix::from_data(&data, config).unwrap();
+        let sparse_matrix =
+            SparseDistanceMatrix::from_data(&data, config).expect("operation should succeed");
 
         // Should have captured close pairs only
         assert!(sparse_matrix.get(0, 1) > 0.0); // Points 0 and 1 are close
@@ -915,9 +916,9 @@ mod tests {
         let mut matrix = SparseDistanceMatrix::new(4, 4, true);
 
         // Set up distances: point 0 connected to 1 (distance 1.0) and 2 (distance 2.0)
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(0, 2, 2.0).unwrap();
-        matrix.set(0, 3, 5.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(0, 2, 2.0).expect("operation should succeed");
+        matrix.set(0, 3, 5.0).expect("operation should succeed");
 
         let neighbors = matrix.k_nearest_neighbors(0, 2);
 
@@ -930,9 +931,9 @@ mod tests {
     fn test_neighbors_within_radius() {
         let mut matrix = SparseDistanceMatrix::new(4, 4, true);
 
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(0, 2, 2.0).unwrap();
-        matrix.set(0, 3, 5.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(0, 2, 2.0).expect("operation should succeed");
+        matrix.set(0, 3, 5.0).expect("operation should succeed");
 
         let neighbors = matrix.neighbors_within_radius(0, 2.5);
 
@@ -946,8 +947,8 @@ mod tests {
     fn test_sparse_matrix_stats() {
         let mut matrix = SparseDistanceMatrix::new(4, 4, true);
 
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 2.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 2.0).expect("operation should succeed");
 
         let stats = matrix.stats();
 
@@ -962,8 +963,8 @@ mod tests {
     fn test_to_dense_conversion() {
         let mut matrix = SparseDistanceMatrix::new(3, 3, true);
 
-        matrix.set(0, 1, 1.5).unwrap();
-        matrix.set(1, 2, 2.5).unwrap();
+        matrix.set(0, 1, 1.5).expect("operation should succeed");
+        matrix.set(1, 2, 2.5).expect("operation should succeed");
 
         let dense = matrix.to_dense();
 
@@ -984,9 +985,9 @@ mod tests {
     fn test_neighborhood_graph() {
         let mut matrix = SparseDistanceMatrix::new(4, 4, true);
 
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.5).unwrap();
-        matrix.set(2, 3, 2.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.5).expect("operation should succeed");
+        matrix.set(2, 3, 2.0).expect("operation should succeed");
 
         let graph = SparseNeighborhoodGraph::from_sparse_matrix(matrix);
 
@@ -1008,8 +1009,8 @@ mod tests {
     fn test_graph_stats() {
         let mut matrix = SparseDistanceMatrix::new(3, 3, true);
 
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.5).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.5).expect("operation should succeed");
 
         let graph = SparseNeighborhoodGraph::from_sparse_matrix(matrix);
         let stats = graph.graph_stats();
@@ -1026,9 +1027,9 @@ mod tests {
         let mut matrix = SparseDistanceMatrix::new(5, 5, true);
 
         // Create two disconnected components: {0,1,2} and {3,4}
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.0).unwrap();
-        matrix.set(3, 4, 1.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.0).expect("operation should succeed");
+        matrix.set(3, 4, 1.0).expect("operation should succeed");
 
         let components = matrix.connected_components();
 
@@ -1050,9 +1051,9 @@ mod tests {
         let mut matrix = SparseDistanceMatrix::new(4, 4, true);
 
         // Create a linear graph: 0-1-2-3
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.0).unwrap();
-        matrix.set(2, 3, 1.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.0).expect("operation should succeed");
+        matrix.set(2, 3, 1.0).expect("operation should succeed");
 
         let diameter = matrix.graph_diameter();
         assert_eq!(diameter, Some(3)); // Distance from 0 to 3
@@ -1063,10 +1064,10 @@ mod tests {
         let mut matrix = SparseDistanceMatrix::new(4, 4, true);
 
         // Create a triangle plus one: 0-1-2-0, and 1-3
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.0).unwrap();
-        matrix.set(2, 0, 1.0).unwrap(); // Triangle complete
-        matrix.set(1, 3, 1.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.0).expect("operation should succeed");
+        matrix.set(2, 0, 1.0).expect("operation should succeed"); // Triangle complete
+        matrix.set(1, 3, 1.0).expect("operation should succeed");
 
         // Vertex 0: neighbors are {1, 2}, they are connected → coefficient = 1.0
         let coeff_0 = matrix.clustering_coefficient(0);
@@ -1086,9 +1087,9 @@ mod tests {
         let mut matrix = SparseDistanceMatrix::new(3, 3, true);
 
         // Create a complete triangle
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.0).unwrap();
-        matrix.set(2, 0, 1.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.0).expect("operation should succeed");
+        matrix.set(2, 0, 1.0).expect("operation should succeed");
 
         let avg_coeff = matrix.average_clustering_coefficient();
         // In a complete triangle, all vertices have clustering coefficient 1.0
@@ -1101,9 +1102,9 @@ mod tests {
 
         // Create a linear graph: 0-1-2-3
         // Vertices 1 and 2 should have higher betweenness centrality
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.0).unwrap();
-        matrix.set(2, 3, 1.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.0).expect("operation should succeed");
+        matrix.set(2, 3, 1.0).expect("operation should succeed");
 
         let centrality = matrix.approximate_betweenness_centrality(4);
 
@@ -1118,9 +1119,9 @@ mod tests {
         let mut matrix = SparseDistanceMatrix::new(4, 4, true);
 
         // Create a simple path: 0-1-2-3
-        matrix.set(0, 1, 1.0).unwrap();
-        matrix.set(1, 2, 1.0).unwrap();
-        matrix.set(2, 3, 1.0).unwrap();
+        matrix.set(0, 1, 1.0).expect("operation should succeed");
+        matrix.set(1, 2, 1.0).expect("operation should succeed");
+        matrix.set(2, 3, 1.0).expect("operation should succeed");
 
         let distances = matrix.bfs_distances(0);
 

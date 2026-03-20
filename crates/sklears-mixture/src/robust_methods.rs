@@ -182,6 +182,7 @@ pub struct MEstimatorGMM<S = Untrained> {
     tol: f64,
     reg_covar: f64,
     random_state: Option<u64>,
+    trained_state: Option<MEstimatorGMMTrained>,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -291,6 +292,7 @@ impl MEstimatorGMMBuilder {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
+            trained_state: None,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -477,6 +479,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MEstimatorGMM<Untrained> {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
+            trained_state: None,
             _phantom: std::marker::PhantomData,
         }
         .with_state(trained_state))
@@ -484,7 +487,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MEstimatorGMM<Untrained> {
 }
 
 impl MEstimatorGMM<Untrained> {
-    fn with_state(self, _state: MEstimatorGMMTrained) -> MEstimatorGMM<MEstimatorGMMTrained> {
+    fn with_state(self, state: MEstimatorGMMTrained) -> MEstimatorGMM<MEstimatorGMMTrained> {
         MEstimatorGMM {
             n_components: self.n_components,
             m_estimator: self.m_estimator,
@@ -493,6 +496,7 @@ impl MEstimatorGMM<Untrained> {
             tol: self.tol,
             reg_covar: self.reg_covar,
             random_state: self.random_state,
+            trained_state: Some(state),
             _phantom: std::marker::PhantomData,
         }
     }
@@ -500,25 +504,81 @@ impl MEstimatorGMM<Untrained> {
 
 impl MEstimatorGMM<MEstimatorGMMTrained> {
     /// Get the trained state
-    pub fn state(&self) -> &MEstimatorGMMTrained {
-        // This is a workaround since we can't directly access the state
-        // In a real implementation, you'd store it properly
-        unimplemented!("State access needs proper implementation")
+    pub fn state(&self) -> SklResult<&MEstimatorGMMTrained> {
+        self.trained_state.as_ref().ok_or_else(|| {
+            SklearsError::InvalidInput(
+                "Model has no trained state - this should not happen for a trained MEstimatorGMM"
+                    .to_string(),
+            )
+        })
     }
 
     /// Compute influence diagnostics for the fitted model
+    #[allow(non_snake_case)]
     pub fn influence_diagnostics(
         &self,
         X: &ArrayView2<'_, Float>,
     ) -> SklResult<InfluenceDiagnostics> {
-        let (n_samples, _n_features) = X.dim();
+        let trained = self.state()?;
+        let (n_samples, n_features) = X.dim();
 
-        // Placeholder implementation - would need full state access
-        let influence_scores = Array1::zeros(n_samples);
-        let cooks_distance = Array1::zeros(n_samples);
-        let leverage = Array1::zeros(n_samples);
-        let standardized_residuals = Array1::zeros(n_samples);
-        let outlier_flags = vec![false; n_samples];
+        let mut influence_scores = Array1::zeros(n_samples);
+        let mut cooks_distance = Array1::zeros(n_samples);
+        let mut leverage = Array1::zeros(n_samples);
+        let mut standardized_residuals = Array1::zeros(n_samples);
+        let mut outlier_flags = vec![false; n_samples];
+
+        // Compute per-observation diagnostics using trained parameters
+        for i in 0..n_samples {
+            let x = X.row(i);
+
+            // Find the closest component (smallest Mahalanobis distance)
+            let mut best_mahal = f64::MAX;
+
+            for k in 0..trained.means.nrows() {
+                let mean = trained.means.row(k);
+                let mahal_sq: f64 = x
+                    .iter()
+                    .zip(mean.iter())
+                    .zip(trained.covariances.diag().iter())
+                    .map(|((xi, mi), cov)| {
+                        let diff = xi - mi;
+                        diff * diff / cov.max(self.reg_covar)
+                    })
+                    .sum();
+                if mahal_sq < best_mahal {
+                    best_mahal = mahal_sq;
+                }
+            }
+
+            let mahal_dist = best_mahal.sqrt();
+
+            // Standardized residual: Mahalanobis distance
+            standardized_residuals[i] = mahal_dist;
+
+            // Leverage: based on distance from component mean relative to covariance
+            // h_i = 1/n + mahal^2 / (n - 1), clamped to [0, 1]
+            let n = n_samples as f64;
+            let h_i = (1.0 / n + best_mahal / (n - 1.0).max(1.0)).min(1.0);
+            leverage[i] = h_i;
+
+            // M-estimator weight for this observation
+            let m_weight = trained.m_estimator.weight(mahal_dist);
+
+            // Influence score: combination of leverage and M-estimator down-weighting
+            // Observations with low M-weight have high influence (they were down-weighted)
+            influence_scores[i] = h_i * (1.0 - m_weight + 1e-10);
+
+            // Cook's distance: measures effect of deleting observation i
+            // D_i = (r_i^2 * h_i) / (p * (1 - h_i)^2)
+            let p = n_features as f64;
+            let one_minus_h = (1.0 - h_i).max(1e-10);
+            cooks_distance[i] = (mahal_dist * mahal_dist * h_i) / (p * one_minus_h * one_minus_h);
+
+            // Flag outliers: high Mahalanobis distance AND low M-estimator weight
+            let outlier_threshold = (n_features as f64).sqrt() * 3.0;
+            outlier_flags[i] = mahal_dist > outlier_threshold || m_weight < 0.1;
+        }
 
         Ok(InfluenceDiagnostics {
             influence_scores,
@@ -546,9 +606,52 @@ impl MEstimatorGMM<MEstimatorGMMTrained> {
 impl Predict<ArrayView2<'_, Float>, Array1<usize>> for MEstimatorGMM<MEstimatorGMMTrained> {
     #[allow(non_snake_case)]
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<usize>> {
-        // Placeholder - would need full implementation with state access
-        let (n_samples, _) = X.dim();
-        Ok(Array1::zeros(n_samples))
+        let trained = self.state()?;
+        let (n_samples, n_features) = X.dim();
+        let n_components = trained.means.nrows();
+
+        let mut labels = Array1::zeros(n_samples);
+
+        for i in 0..n_samples {
+            let x = X.row(i);
+            let mut best_k = 0;
+            let mut best_log_prob = f64::NEG_INFINITY;
+
+            for k in 0..n_components {
+                let mean = trained.means.row(k);
+
+                // Compute Mahalanobis distance using trained covariances
+                let mahal_sq: f64 = x
+                    .iter()
+                    .zip(mean.iter())
+                    .zip(trained.covariances.diag().iter())
+                    .map(|((xi, mi), cov)| {
+                        let diff = xi - mi;
+                        diff * diff / cov.max(self.reg_covar)
+                    })
+                    .sum();
+
+                // Log probability with component weight
+                let log_det: f64 = trained
+                    .covariances
+                    .diag()
+                    .iter()
+                    .map(|c| c.max(self.reg_covar).ln())
+                    .sum();
+                let log_prob = trained.weights[k].max(1e-300).ln()
+                    - 0.5 * (n_features as f64 * (2.0 * PI).ln() + log_det)
+                    - 0.5 * mahal_sq;
+
+                if log_prob > best_log_prob {
+                    best_log_prob = log_prob;
+                    best_k = k;
+                }
+            }
+
+            labels[i] = best_k;
+        }
+
+        Ok(labels)
     }
 }
 

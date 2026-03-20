@@ -470,7 +470,7 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 0.0, 1.0]; // 3 samples each of classes 0,1,2, plus extras
         let splitter = StratifiedKFold::new(2);
 
-        let splits = splitter.split(&y).unwrap();
+        let splits = splitter.split(&y).expect("operation should succeed");
         assert_eq!(splits.len(), 2);
 
         // Check that all samples are covered exactly once
@@ -487,7 +487,7 @@ mod tests {
         let y = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]; // Equal distribution
         let splitter = StratifiedKFold::new(2);
 
-        let splits = splitter.split(&y).unwrap();
+        let splits = splitter.split(&y).expect("operation should succeed");
 
         for (_, test_indices) in &splits {
             let mut class_counts = HashMap::new();
@@ -527,7 +527,8 @@ mod tests {
         let cv = CrossValidatorWithEarlyStopping::stratified_kfold(2)
             .with_early_stopping(early_stopping_config);
 
-        let result = cross_validate_with_early_stopping("mock_model", &x, &y, &cv, None).unwrap();
+        let result = cross_validate_with_early_stopping("mock_model", &x, &y, &cv, None)
+            .expect("cross validation should succeed");
 
         assert_eq!(result.n_splits, 2);
         assert_eq!(result.test_scores.len(), 2);
@@ -538,7 +539,9 @@ mod tests {
     #[test]
     fn test_kfold_split() {
         let cv = CrossValidatorWithEarlyStopping::kfold(3);
-        let splits = cv.kfold_split(10, 3, false, Some(42)).unwrap();
+        let splits = cv
+            .kfold_split(10, 3, false, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -558,7 +561,7 @@ mod tests {
             early_stopping_config: None,
         };
 
-        let splits = cv.leave_one_out_split(5).unwrap();
+        let splits = cv.leave_one_out_split(5).expect("operation should succeed");
         assert_eq!(splits.len(), 5);
 
         for (i, (train_indices, test_indices)) in splits.iter().enumerate() {

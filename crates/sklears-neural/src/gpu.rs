@@ -545,8 +545,8 @@ impl GpuContext {
 
     /// Get memory pool statistics
     pub fn memory_pool_stats(&self) -> (f64, f64) {
-        let f32_hit_rate = self.f32_pool.lock().unwrap().hit_rate();
-        let f64_hit_rate = self.f64_pool.lock().unwrap().hit_rate();
+        let f32_hit_rate = self.f32_pool.lock().expect("lock not poisoned").hit_rate();
+        let f64_hit_rate = self.f64_pool.lock().expect("lock not poisoned").hit_rate();
         (f32_hit_rate, f64_hit_rate)
     }
 
@@ -1387,10 +1387,14 @@ mod tests {
     #[test]
     fn test_cpu_matrix_multiply() {
         let ops = GpuAcceleratedOps::new();
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array shape mismatch");
+        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array shape mismatch");
 
-        let result = ops.cpu_matrix_multiply(&a, &b).unwrap();
+        let result = ops
+            .cpu_matrix_multiply(&a, &b)
+            .expect("operation should succeed");
 
         assert_eq!(result.dim(), (2, 2));
         assert_relative_eq!(result[[0, 0]], 22.0, epsilon = 1e-6);
@@ -1405,21 +1409,27 @@ mod tests {
         let input = Array1::from_vec(vec![-2.0, -1.0, 0.0, 1.0, 2.0]);
 
         // Test ReLU
-        let relu_result = ops.cpu_apply_activation(&input, "relu").unwrap();
+        let relu_result = ops
+            .cpu_apply_activation(&input, "relu")
+            .expect("operation should succeed");
         let expected_relu = vec![0.0, 0.0, 0.0, 1.0, 2.0];
         for (actual, expected) in relu_result.iter().zip(expected_relu.iter()) {
             assert_relative_eq!(actual, expected, epsilon = 1e-6);
         }
 
         // Test Sigmoid
-        let sigmoid_result = ops.cpu_apply_activation(&input, "sigmoid").unwrap();
+        let sigmoid_result = ops
+            .cpu_apply_activation(&input, "sigmoid")
+            .expect("operation should succeed");
         for (input_val, output_val) in input.iter().zip(sigmoid_result.iter()) {
             let expected = 1.0 / (1.0 + (-input_val).exp());
             assert_relative_eq!(*output_val, expected, epsilon = 1e-6);
         }
 
         // Test Tanh
-        let tanh_result = ops.cpu_apply_activation(&input, "tanh").unwrap();
+        let tanh_result = ops
+            .cpu_apply_activation(&input, "tanh")
+            .expect("operation should succeed");
         for (input_val, output_val) in input.iter().zip(tanh_result.iter()) {
             assert_relative_eq!(*output_val, input_val.tanh(), epsilon = 1e-6);
         }
@@ -1431,7 +1441,9 @@ mod tests {
         let input = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
         // Should use CPU fallback even if GPU threshold is met
-        let result = ops.apply_activation(&input, "relu").unwrap();
+        let result = ops
+            .apply_activation(&input, "relu")
+            .expect("operation should succeed");
         assert_eq!(result.len(), 3);
         assert_relative_eq!(result[0], 1.0, epsilon = 1e-6);
         assert_relative_eq!(result[1], 2.0, epsilon = 1e-6);
@@ -1441,11 +1453,15 @@ mod tests {
     #[test]
     fn test_matrix_multiply_fallback() {
         let ops = GpuAcceleratedOps::new();
-        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![2.0, 0.0, 1.0, 2.0]).unwrap();
+        let a =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("array shape mismatch");
+        let b =
+            Array2::from_shape_vec((2, 2), vec![2.0, 0.0, 1.0, 2.0]).expect("array shape mismatch");
 
         // Should use CPU fallback
-        let result = ops.matrix_multiply(&a, &b).unwrap();
+        let result = ops
+            .matrix_multiply(&a, &b)
+            .expect("operation should succeed");
         assert_eq!(result.dim(), (2, 2));
         assert_relative_eq!(result[[0, 0]], 4.0, epsilon = 1e-6);
         assert_relative_eq!(result[[0, 1]], 4.0, epsilon = 1e-6);
@@ -1485,12 +1501,12 @@ mod tests {
                     assert_eq!(tensor.ndim(), 2);
 
                     // Test reshape
-                    let reshaped = tensor.reshape(&[4, 1]).unwrap();
+                    let reshaped = tensor.reshape(&[4, 1]).expect("operation should succeed");
                     assert_eq!(reshaped.shape, vec![4, 1]);
                     assert_eq!(reshaped.len(), 4);
 
                     // Test host copy
-                    let host_data = tensor.to_host().unwrap();
+                    let host_data = tensor.to_host().expect("operation should succeed");
                     assert_eq!(host_data, data);
                 }
                 Err(_) => {
@@ -1505,8 +1521,8 @@ mod tests {
         let ops = GpuAcceleratedOps::new();
 
         // Test dimension mismatch
-        let a = Array2::from_shape_vec((2, 3), vec![1.0; 6]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![1.0; 4]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0; 6]).expect("array shape mismatch");
+        let b = Array2::from_shape_vec((2, 2), vec![1.0; 4]).expect("array shape mismatch");
 
         assert!(ops.matrix_multiply(&a, &b).is_err());
 
@@ -1520,18 +1536,24 @@ mod tests {
         let ops = GpuAcceleratedOps::new();
 
         // Test tensor core friendly dimensions (multiples of 8, >= 64)
-        let a_good = Array2::from_shape_vec((64, 64), vec![1.0; 64 * 64]).unwrap();
-        let b_good = Array2::from_shape_vec((64, 64), vec![1.0; 64 * 64]).unwrap();
+        let a_good =
+            Array2::from_shape_vec((64, 64), vec![1.0; 64 * 64]).expect("array shape mismatch");
+        let b_good =
+            Array2::from_shape_vec((64, 64), vec![1.0; 64 * 64]).expect("array shape mismatch");
         assert!(ops.is_tensor_core_friendly(&a_good, &b_good));
 
         // Test non-tensor core friendly dimensions
-        let a_bad = Array2::from_shape_vec((63, 63), vec![1.0; 63 * 63]).unwrap();
-        let b_bad = Array2::from_shape_vec((63, 63), vec![1.0; 63 * 63]).unwrap();
+        let a_bad =
+            Array2::from_shape_vec((63, 63), vec![1.0; 63 * 63]).expect("array shape mismatch");
+        let b_bad =
+            Array2::from_shape_vec((63, 63), vec![1.0; 63 * 63]).expect("array shape mismatch");
         assert!(!ops.is_tensor_core_friendly(&a_bad, &b_bad));
 
         // Test too small dimensions
-        let a_small = Array2::from_shape_vec((32, 32), vec![1.0; 32 * 32]).unwrap();
-        let b_small = Array2::from_shape_vec((32, 32), vec![1.0; 32 * 32]).unwrap();
+        let a_small =
+            Array2::from_shape_vec((32, 32), vec![1.0; 32 * 32]).expect("array shape mismatch");
+        let b_small =
+            Array2::from_shape_vec((32, 32), vec![1.0; 32 * 32]).expect("array shape mismatch");
         assert!(!ops.is_tensor_core_friendly(&a_small, &b_small));
     }
 
@@ -1561,8 +1583,8 @@ mod tests {
         let ops = GpuAcceleratedOps::new();
 
         // Test with tensor core friendly dimensions
-        let a = Array2::from_shape_vec((64, 64), vec![1.0; 64 * 64]).unwrap();
-        let b = Array2::from_shape_vec((64, 64), vec![2.0; 64 * 64]).unwrap();
+        let a = Array2::from_shape_vec((64, 64), vec![1.0; 64 * 64]).expect("array shape mismatch");
+        let b = Array2::from_shape_vec((64, 64), vec![2.0; 64 * 64]).expect("array shape mismatch");
 
         // Should not panic even if GPU/tensor cores are not available
         match ops.tensor_core_matrix_multiply(&a, &b, true) {

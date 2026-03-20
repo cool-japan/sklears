@@ -153,43 +153,82 @@ pub type TrainedNearestShrunkenCentroids = NearestShrunkenCentroids<Trained>;
 
 impl NearestShrunkenCentroids<Trained> {
     pub fn shrunken_centroids(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().shrunken_centroids
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .shrunken_centroids
     }
 
     pub fn original_centroids(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().original_centroids
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .original_centroids
     }
 
     pub fn class_priors(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().class_priors
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .class_priors
     }
 
     pub fn classes(&self) -> &Array1<i32> {
-        &self.data.as_ref().unwrap().classes
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .classes
     }
 
     pub fn n_features(&self) -> usize {
-        self.data.as_ref().unwrap().n_features
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .n_features
     }
 
     pub fn overall_centroid(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().overall_centroid
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .overall_centroid
     }
 
     pub fn pooled_stds(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().pooled_stds
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .pooled_stds
     }
 
     pub fn selected_features(&self) -> &Array1<bool> {
-        &self.data.as_ref().unwrap().selected_features
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .selected_features
     }
 
     pub fn shrinkage_factors(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().shrinkage_factors
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .shrinkage_factors
     }
 
     pub fn cv_results(&self) -> Option<&Vec<(Float, Float)>> {
-        self.data.as_ref().unwrap().cv_results.as_ref()
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .cv_results
+            .as_ref()
     }
 
     /// Get the number of selected features
@@ -209,7 +248,10 @@ impl NearestShrunkenCentroids<Trained> {
 
     /// Compute feature scores based on centroid differences
     pub fn feature_scores(&self) -> Array1<Float> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let n_features = data.n_features;
         let n_classes = data.classes.len();
         let mut scores = Array1::zeros(n_features);
@@ -357,7 +399,9 @@ impl NearestShrunkenCentroids<Untrained> {
         x: &Array2<Float>,
     ) -> (Array2<Float>, Array1<Float>, Array1<Float>) {
         let n_features = x.ncols();
-        let means = x.mean_axis(Axis(0)).unwrap();
+        let means = x
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
         let mut stds = Array1::zeros(n_features);
 
         // Compute standard deviations
@@ -366,7 +410,7 @@ impl NearestShrunkenCentroids<Untrained> {
                 .column(j)
                 .mapv(|val| (val - means[j]).powi(2))
                 .mean()
-                .unwrap();
+                .expect("value should be present");
             stds[j] = (var + 1e-8).sqrt(); // Add small epsilon to avoid division by zero
         }
 
@@ -432,7 +476,8 @@ impl NearestShrunkenCentroids<Untrained> {
 
     /// Compute overall centroid (global mean)
     fn compute_overall_centroid(&self, x: &Array2<Float>) -> Array1<Float> {
-        x.mean_axis(Axis(0)).unwrap()
+        x.mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array")
     }
 
     /// Compute pooled within-class standard deviations
@@ -731,7 +776,10 @@ impl NearestShrunkenCentroids<Trained> {
             return x.clone();
         }
 
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let mut x_standardized = x.clone();
 
         for (_i, mut row) in x_standardized.axis_iter_mut(Axis(0)).enumerate() {
@@ -747,7 +795,10 @@ impl NearestShrunkenCentroids<Trained> {
 impl Predict<Array2<Float>, Array1<i32>> for NearestShrunkenCentroids<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
         let (n_samples, n_features) = x.dim();
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
 
         if n_features != data.n_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -777,7 +828,10 @@ impl Predict<Array2<Float>, Array1<i32>> for NearestShrunkenCentroids<Trained> {
 impl PredictProba<Array2<Float>, Array2<Float>> for NearestShrunkenCentroids<Trained> {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
 
         if n_features != data.n_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -829,7 +883,10 @@ impl PredictProba<Array2<Float>, Array2<Float>> for NearestShrunkenCentroids<Tra
 impl Transform<Array2<Float>, Array2<Float>> for NearestShrunkenCentroids<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
 
         if n_features != data.n_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -874,8 +931,8 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let nsc = NearestShrunkenCentroids::new().threshold(0.0);
-        let fitted = nsc.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -888,8 +945,10 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let nsc = NearestShrunkenCentroids::new().threshold(0.1);
-        let fitted = nsc.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -911,13 +970,13 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let nsc = NearestShrunkenCentroids::new().threshold(2.0);
-        let fitted = nsc.fit(&x, &y).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
 
         // Third feature should be shrunk to zero due to low discrimination
         let selected_features = fitted.selected_features();
         assert!(selected_features[0] || selected_features[1]); // At least one of first two selected
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -929,16 +988,20 @@ mod tests {
         let nsc_std = NearestShrunkenCentroids::new()
             .threshold(0.1)
             .standardize(true);
-        let fitted_std = nsc_std.fit(&x, &y).unwrap();
+        let fitted_std = nsc_std.fit(&x, &y).expect("model fitting should succeed");
 
         let nsc_no_std = NearestShrunkenCentroids::new()
             .threshold(0.1)
             .standardize(false);
-        let fitted_no_std = nsc_no_std.fit(&x, &y).unwrap();
+        let fitted_no_std = nsc_no_std
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Both should work but may give different results
-        let predictions_std = fitted_std.predict(&x).unwrap();
-        let predictions_no_std = fitted_no_std.predict(&x).unwrap();
+        let predictions_std = fitted_std.predict(&x).expect("prediction should succeed");
+        let predictions_no_std = fitted_no_std
+            .predict(&x)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions_std.len(), 4);
         assert_eq!(predictions_no_std.len(), 4);
@@ -955,8 +1018,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let nsc = NearestShrunkenCentroids::new().threshold(1.0);
-        let fitted = nsc.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         // Should select features with good discrimination
         assert!(transformed.ncols() > 0);
@@ -975,7 +1038,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let nsc = NearestShrunkenCentroids::new().threshold(0.0);
-        let fitted = nsc.fit(&x, &y).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
         let scores = fitted.feature_scores();
 
         assert_eq!(scores.len(), 3);
@@ -1002,13 +1065,13 @@ mod tests {
         let nsc = NearestShrunkenCentroids::new()
             .cv_folds(Some(2))
             .threshold_range(0.0, 2.0, 5);
-        let fitted = nsc.fit(&x, &y).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
 
         assert!(fitted.cv_results().is_some());
-        let cv_results = fitted.cv_results().unwrap();
+        let cv_results = fitted.cv_results().expect("operation should succeed");
         assert!(!cv_results.is_empty());
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 8);
     }
 
@@ -1025,9 +1088,11 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let nsc = NearestShrunkenCentroids::new().threshold(0.1);
-        let fitted = nsc.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 3);
@@ -1051,7 +1116,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let nsc = NearestShrunkenCentroids::new().threshold(1.5);
-        let fitted = nsc.fit(&x, &y).unwrap();
+        let fitted = nsc.fit(&x, &y).expect("model fitting should succeed");
         let selected_indices = fitted.selected_feature_indices();
 
         // Should select features with good discrimination
@@ -1074,17 +1139,21 @@ mod tests {
         let nsc_uniform = NearestShrunkenCentroids::new()
             .threshold(0.0)
             .prior_type("uniform");
-        let fitted_uniform = nsc_uniform.fit(&x, &y).unwrap();
+        let fitted_uniform = nsc_uniform
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Test class priors
         let nsc_class = NearestShrunkenCentroids::new()
             .threshold(0.0)
             .prior_type("class_prior");
-        let fitted_class = nsc_class.fit(&x, &y).unwrap();
+        let fitted_class = nsc_class.fit(&x, &y).expect("model fitting should succeed");
 
         // Both should work
-        let predictions_uniform = fitted_uniform.predict(&x).unwrap();
-        let predictions_class = fitted_class.predict(&x).unwrap();
+        let predictions_uniform = fitted_uniform
+            .predict(&x)
+            .expect("prediction should succeed");
+        let predictions_class = fitted_class.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions_uniform.len(), 5);
         assert_eq!(predictions_class.len(), 5);

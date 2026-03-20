@@ -31,7 +31,7 @@ use std::marker::PhantomData;
 /// let views = vec![view1, view2, view3];
 ///
 /// let cpca = ConsensusPCA::new(2).consensus_weight(0.5);
-/// let fitted = cpca.fit(&views, &()).unwrap();
+/// let fitted = cpca.fit(&views, &()).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ConsensusPCA<State = Untrained> {
@@ -183,7 +183,11 @@ impl ConsensusPCA<Untrained> {
         }
 
         // Validate n_components
-        let min_features = views.iter().map(|v| v.ncols()).min().unwrap();
+        let min_features = views
+            .iter()
+            .map(|v| v.ncols())
+            .min()
+            .expect("operation should succeed");
         let max_components = (n_samples - 1).min(min_features);
         if self.n_components > max_components {
             return Err(SklearsError::InvalidInput(format!(
@@ -198,7 +202,9 @@ impl ConsensusPCA<Untrained> {
         let mut stds = Vec::new();
 
         for view in views {
-            let view_mean = view.mean_axis(Axis(0)).unwrap();
+            let view_mean = view.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
             let mut centered_view = view - &view_mean.view().insert_axis(Axis(0));
 
             let view_std = if self.scale {
@@ -498,7 +504,7 @@ impl ConsensusPCA<Untrained> {
             .map(|(i, &val)| (val, eigenvectors.column(i).to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_eigenvalues: Array1<Float> = eigen_pairs.iter().map(|(val, _)| *val).collect();
         let sorted_eigenvectors: Array2<Float> = {
@@ -516,9 +522,18 @@ impl ConsensusPCA<Untrained> {
 impl Transform<Vec<Array2<Float>>, Vec<Array2<Float>>> for ConsensusPCA<Trained> {
     /// Transform views to consensus space
     fn transform(&self, views: &Vec<Array2<Float>>) -> Result<Vec<Array2<Float>>> {
-        let transformations = self.transformations_.as_ref().unwrap();
-        let means = self.means_.as_ref().unwrap();
-        let stds = self.stds_.as_ref().unwrap();
+        let transformations = self
+            .transformations_
+            .as_ref()
+            .ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
+        let means = self.means_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let stds = self.stds_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         if views.len() != transformations.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -554,42 +569,56 @@ impl Transform<Vec<Array2<Float>>, Vec<Array2<Float>>> for ConsensusPCA<Trained>
 impl ConsensusPCA<Trained> {
     /// Get the consensus components (shared across views)
     pub fn consensus_components(&self) -> &Array2<Float> {
-        self.consensus_components_.as_ref().unwrap()
+        self.consensus_components_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the individual components for each view
     pub fn individual_components(&self) -> &Vec<Array2<Float>> {
-        self.individual_components_.as_ref().unwrap()
+        self.individual_components_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the transformation matrices for each view
     pub fn transformations(&self) -> &Vec<Array2<Float>> {
-        self.transformations_.as_ref().unwrap()
+        self.transformations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the consensus explained variance for each component
     pub fn consensus_explained_variance(&self) -> &Array1<Float> {
-        self.consensus_explained_variance_.as_ref().unwrap()
+        self.consensus_explained_variance_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the individual explained variance for each view
     pub fn individual_explained_variance(&self) -> &Vec<Array1<Float>> {
-        self.individual_explained_variance_.as_ref().unwrap()
+        self.individual_explained_variance_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance ratio
     pub fn explained_variance_ratio(&self) -> &Array1<Float> {
-        self.explained_variance_ratio_.as_ref().unwrap()
+        self.explained_variance_ratio_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations for convergence
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Get the reconstruction errors for each view
     pub fn reconstruction_errors(&self) -> &Array1<Float> {
-        self.reconstruction_errors_.as_ref().unwrap()
+        self.reconstruction_errors_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 }
 
@@ -608,7 +637,7 @@ mod tests {
         let views = vec![view1.clone(), view2, view3];
 
         let cpca = ConsensusPCA::new(1);
-        let fitted = cpca.fit_views(&views).unwrap();
+        let fitted = cpca.fit_views(&views).expect("fit should succeed");
 
         // Check that components were computed
         assert_eq!(fitted.consensus_components().shape(), &[2, 1]);
@@ -629,8 +658,8 @@ mod tests {
         let views = vec![view1.clone(), view2.clone()];
 
         let cpca = ConsensusPCA::new(1);
-        let fitted = cpca.fit_views(&views).unwrap();
-        let transformed = fitted.transform(&views).unwrap();
+        let fitted = cpca.fit_views(&views).expect("fit should succeed");
+        let transformed = fitted.transform(&views).expect("transform should succeed");
 
         assert_eq!(transformed.len(), 2);
         assert_eq!(transformed[0].shape(), &[4, 1]);
@@ -645,10 +674,10 @@ mod tests {
 
         // Test with different consensus weights
         let cpca1 = ConsensusPCA::new(1).consensus_weight(0.0);
-        let fitted1 = cpca1.fit_views(&views).unwrap();
+        let fitted1 = cpca1.fit_views(&views).expect("fit should succeed");
 
         let cpca2 = ConsensusPCA::new(1).consensus_weight(1.0);
-        let fitted2 = cpca2.fit_views(&views).unwrap();
+        let fitted2 = cpca2.fit_views(&views).expect("fit should succeed");
 
         // Both should work but give different results
         assert!(fitted1.n_iter() > 0);
@@ -676,7 +705,7 @@ mod tests {
         let views = vec![view1];
 
         let cpca = ConsensusPCA::new(1);
-        let fitted = cpca.fit_views(&views).unwrap();
+        let fitted = cpca.fit_views(&views).expect("fit should succeed");
 
         // Should work with single view (reduces to PCA)
         assert_eq!(fitted.consensus_components().shape(), &[2, 1]);

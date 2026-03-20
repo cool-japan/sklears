@@ -520,19 +520,21 @@ mod tests {
 
     fn generate_test_data(nrows: usize, ncols: usize, seed: u64) -> Array2<f64> {
         let mut rng = seeded_rng(seed);
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let data: Vec<f64> = (0..nrows * ncols)
             .map(|_| normal.sample(&mut rng))
             .collect();
 
-        Array2::from_shape_vec((nrows, ncols), data).unwrap()
+        Array2::from_shape_vec((nrows, ncols), data).expect("shape and data length should match")
     }
 
     #[test]
     fn test_pipeline_validator_empty() {
         let validator = PipelineValidator::new();
-        let result = validator.validate(&[], None).unwrap();
+        let result = validator
+            .validate(&[], None)
+            .expect("operation should succeed");
 
         assert!(!result.is_valid);
         assert!(!result.errors.is_empty());
@@ -543,7 +545,9 @@ mod tests {
         let validator = PipelineValidator::new();
         let steps = vec!["StandardScaler".to_string(), "MinMaxScaler".to_string()];
 
-        let result = validator.validate(&steps, None).unwrap();
+        let result = validator
+            .validate(&steps, None)
+            .expect("operation should succeed");
 
         // Should warn about redundant scaling
         assert!(!result.warnings.is_empty());
@@ -557,7 +561,9 @@ mod tests {
             "SimpleImputer".to_string(), // Imputation should come first
         ];
 
-        let result = validator.validate(&steps, None).unwrap();
+        let result = validator
+            .validate(&steps, None)
+            .expect("operation should succeed");
 
         // Should recommend reordering
         assert!(!result.recommendations.is_empty());
@@ -569,7 +575,9 @@ mod tests {
         let validator = PipelineValidator::new();
         let steps = vec!["StandardScaler".to_string()];
 
-        let result = validator.validate(&steps, Some(&data)).unwrap();
+        let result = validator
+            .validate(&steps, Some(&data))
+            .expect("operation should succeed");
 
         assert!(result.is_valid);
     }
@@ -580,7 +588,9 @@ mod tests {
         let validator = PipelineValidator::new();
         let steps = vec!["KNNImputer".to_string()];
 
-        let result = validator.validate(&steps, Some(&data)).unwrap();
+        let result = validator
+            .validate(&steps, Some(&data))
+            .expect("operation should succeed");
 
         // Should error on insufficient samples
         assert!(!result.is_valid);
@@ -595,7 +605,9 @@ mod tests {
         let validator = PipelineValidator::new();
         let steps = vec!["StandardScaler".to_string()];
 
-        let result = validator.validate(&steps, Some(&data)).unwrap();
+        let result = validator
+            .validate(&steps, Some(&data))
+            .expect("operation should succeed");
 
         // Should error on NaN without imputation
         assert!(!result.is_valid);
@@ -610,10 +622,12 @@ mod tests {
             "PolynomialFeatures".to_string(),
         ];
 
-        let result = validator.validate(&steps, Some(&data)).unwrap();
+        let result = validator
+            .validate(&steps, Some(&data))
+            .expect("operation should succeed");
 
         assert!(result.estimated_memory.is_some());
-        assert!(result.estimated_memory.unwrap() > 0);
+        assert!(result.estimated_memory.expect("operation should succeed") > 0);
     }
 
     #[test]
@@ -622,10 +636,12 @@ mod tests {
         let validator = PipelineValidator::new();
         let steps = vec!["StandardScaler".to_string(), "PCA".to_string()];
 
-        let result = validator.validate(&steps, Some(&data)).unwrap();
+        let result = validator
+            .validate(&steps, Some(&data))
+            .expect("operation should succeed");
 
         assert!(result.estimated_time.is_some());
-        assert!(result.estimated_time.unwrap() > 0.0);
+        assert!(result.estimated_time.expect("operation should succeed") > 0.0);
     }
 
     #[test]
@@ -637,7 +653,9 @@ mod tests {
             "SimpleImputer".to_string(),
         ];
 
-        let result = validator.validate(&steps, None).unwrap();
+        let result = validator
+            .validate(&steps, None)
+            .expect("operation should succeed");
 
         let high_warnings = result.high_severity_warnings();
         assert!(high_warnings.len() <= result.warnings.len());

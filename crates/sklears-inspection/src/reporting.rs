@@ -858,10 +858,15 @@ fn export_to_json(report: &InterpretabilityReport, output_path: &str) -> SklResu
     Ok(())
 }
 
-/// Export report to PDF format (placeholder - would require additional dependencies)
+/// Export report to PDF format.
+///
+/// # Note
+///
+/// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
+/// PDF generation requires additional pure-Rust rendering capabilities.
 fn export_to_pdf(_report: &InterpretabilityReport, _output_path: &str) -> SklResult<()> {
-    Err(crate::SklearsError::InvalidInput(
-        "PDF export not yet implemented".to_string(),
+    Err(crate::SklearsError::NotImplemented(
+        "PDF export not yet implemented. Planned for v0.2.0.".to_string(),
     ))
 }
 
@@ -979,7 +984,9 @@ mod tests {
         let config = ReportConfig::default();
         let generator = ReportGenerator::new(config);
 
-        let metadata = generator.generate_metadata().unwrap();
+        let metadata = generator
+            .generate_metadata()
+            .expect("operation should succeed");
         assert_eq!(metadata.version, "1.0.0");
         assert_eq!(metadata.tool_version, "sklears-inspection-0.1.0");
     }
@@ -989,7 +996,9 @@ mod tests {
         let config = ReportConfig::default();
         let generator = ReportGenerator::new(config);
 
-        let summary = generator.generate_executive_summary().unwrap();
+        let summary = generator
+            .generate_executive_summary()
+            .expect("operation should succeed");
         assert!(summary.contains("Executive Summary"));
         assert!(summary.contains("Untitled Model"));
         assert!(summary.contains("Untitled Dataset"));
@@ -1000,7 +1009,9 @@ mod tests {
         let config = ReportConfig::default();
         let generator = ReportGenerator::new(config);
 
-        let model_card = generator.generate_model_card().unwrap();
+        let model_card = generator
+            .generate_model_card()
+            .expect("operation should succeed");
         assert_eq!(model_card.model_details.name, "Untitled Model");
         assert_eq!(model_card.model_details.version, "1.0.0");
         assert!(!model_card.intended_use.primary_uses.is_empty());
@@ -1012,7 +1023,9 @@ mod tests {
         let config = ReportConfig::default();
         let generator = ReportGenerator::new(config);
 
-        let scorecard = generator.generate_scorecard().unwrap();
+        let scorecard = generator
+            .generate_scorecard()
+            .expect("operation should succeed");
         assert!(scorecard.overall_score > 0.0);
         assert!(scorecard.overall_score <= 100.0);
         assert!(scorecard.scores.contains_key("transparency"));
@@ -1026,7 +1039,9 @@ mod tests {
         let config = ReportConfig::default();
         let generator = ReportGenerator::new(config);
 
-        let report = generator.generate_report().unwrap();
+        let report = generator
+            .generate_report()
+            .expect("operation should succeed");
         assert_eq!(report.metadata.version, "1.0.0");
         assert!(!report.executive_summary.is_empty());
         assert_eq!(report.model_card.model_details.name, "Untitled Model");
@@ -1038,7 +1053,9 @@ mod tests {
     fn test_export_to_json() {
         let config = ReportConfig::default();
         let generator = ReportGenerator::new(config);
-        let report = generator.generate_report().unwrap();
+        let report = generator
+            .generate_report()
+            .expect("operation should succeed");
 
         let result = export_to_json(&report, "/tmp/test_report.json");
         assert!(result.is_ok());
@@ -1048,9 +1065,11 @@ mod tests {
     fn test_generate_markdown_report() {
         let config = ReportConfig::default();
         let generator = ReportGenerator::new(config);
-        let report = generator.generate_report().unwrap();
+        let report = generator
+            .generate_report()
+            .expect("operation should succeed");
 
-        let markdown = generate_markdown_report(&report).unwrap();
+        let markdown = generate_markdown_report(&report).expect("operation should succeed");
         assert!(markdown.contains("# Model Interpretability Report"));
         assert!(markdown.contains("## Executive Summary"));
         assert!(markdown.contains("## Interpretability Scorecard"));
@@ -1072,7 +1091,7 @@ mod tests {
             &feature_importance.view(),
             Some(&feature_names),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(report.metadata.config.model_name, "Test Model");
         assert_eq!(report.metadata.config.dataset_name, "Test Dataset");

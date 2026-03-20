@@ -9,7 +9,7 @@ use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4};
 use scirs2_core::random::essentials::{
     Normal, Normal as RandNormal, Uniform, Uniform as RandUniform,
 };
-use scirs2_core::random::{Distribution, Rng};
+use scirs2_core::random::{Distribution, Rng, RngExt};
 use scirs2_core::{ChaCha8Rng, SeedableRng};
 use sklears_core::types::FloatBounds;
 use std::collections::HashMap;
@@ -59,7 +59,7 @@ impl<T: FloatBounds> AugmentationPipeline<T> {
     pub fn apply(&mut self, data: &Array2<T>) -> NeuralResult<Array2<T>> {
         // Check if we should apply augmentation based on probability
         let apply_prob: f64 = self.probability.to_f64().unwrap_or(1.0);
-        if self.rng.gen::<f64>() > apply_prob {
+        if self.rng.random::<f64>() > apply_prob {
             return Ok(data.clone());
         }
 
@@ -137,7 +137,7 @@ impl<T: FloatBounds> GaussianNoise<T> {
 impl<T: FloatBounds> Transformation<T> for GaussianNoise<T> {
     fn apply(&mut self, data: &Array2<T>, rng: &mut ChaCha8Rng) -> NeuralResult<Array2<T>> {
         let prob: f64 = self.probability.to_f64().unwrap_or(1.0);
-        if rng.gen::<f64>() > prob {
+        if rng.random::<f64>() > prob {
             return Ok(data.clone());
         }
 
@@ -201,14 +201,14 @@ impl<T: FloatBounds> UniformNoise<T> {
 impl<T: FloatBounds> Transformation<T> for UniformNoise<T> {
     fn apply(&mut self, data: &Array2<T>, rng: &mut ChaCha8Rng) -> NeuralResult<Array2<T>> {
         let prob: f64 = self.probability.to_f64().unwrap_or(1.0);
-        if rng.gen::<f64>() > prob {
+        if rng.random::<f64>() > prob {
             return Ok(data.clone());
         }
 
         let low: f64 = self.low.to_f64().unwrap_or(0.0);
         let high: f64 = self.high.to_f64().unwrap_or(1.0);
 
-        let uniform = Uniform::new(low, high).unwrap();
+        let uniform = Uniform::new(low, high).expect("valid distribution params");
         let mut result = data.clone();
 
         result.mapv_inplace(|x| {
@@ -258,7 +258,7 @@ impl<T: FloatBounds> FeatureDropout<T> {
 impl<T: FloatBounds> Transformation<T> for FeatureDropout<T> {
     fn apply(&mut self, data: &Array2<T>, rng: &mut ChaCha8Rng) -> NeuralResult<Array2<T>> {
         let prob: f64 = self.probability.to_f64().unwrap_or(1.0);
-        if rng.gen::<f64>() > prob {
+        if rng.random::<f64>() > prob {
             return Ok(data.clone());
         }
 
@@ -267,7 +267,7 @@ impl<T: FloatBounds> Transformation<T> for FeatureDropout<T> {
 
         // Apply dropout to features (columns)
         for mut column in result.columns_mut() {
-            if rng.gen::<f64>() < dropout_rate {
+            if rng.random::<f64>() < dropout_rate {
                 column.fill(T::zero());
             }
         }
@@ -316,14 +316,14 @@ impl<T: FloatBounds> FeatureScaling<T> {
 impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Transformation<T> for FeatureScaling<T> {
     fn apply(&mut self, data: &Array2<T>, rng: &mut ChaCha8Rng) -> NeuralResult<Array2<T>> {
         let prob: f64 = self.probability.to_f64().unwrap_or(1.0);
-        if rng.gen::<f64>() > prob {
+        if rng.random::<f64>() > prob {
             return Ok(data.clone());
         }
 
         let min_scale: f64 = self.scale_range.0.to_f64().unwrap_or(0.8);
         let max_scale: f64 = self.scale_range.1.to_f64().unwrap_or(1.2);
 
-        let uniform = RandUniform::new(min_scale, max_scale).unwrap();
+        let uniform = RandUniform::new(min_scale, max_scale).expect("valid distribution params");
         let scale_factor = T::from(uniform.sample(rng)).unwrap_or_else(T::one);
 
         Ok(data * scale_factor)
@@ -368,7 +368,7 @@ impl<T: FloatBounds> FeaturePermutation<T> {
 impl<T: FloatBounds> Transformation<T> for FeaturePermutation<T> {
     fn apply(&mut self, data: &Array2<T>, rng: &mut ChaCha8Rng) -> NeuralResult<Array2<T>> {
         let prob: f64 = self.probability.to_f64().unwrap_or(1.0);
-        if rng.gen::<f64>() > prob {
+        if rng.random::<f64>() > prob {
             return Ok(data.clone());
         }
 
@@ -381,7 +381,7 @@ impl<T: FloatBounds> Transformation<T> for FeaturePermutation<T> {
         // Select random features to permute
         let mut features_to_permute = Vec::new();
         for _ in 0..n_permute {
-            features_to_permute.push(rng.gen_range(0..n_features));
+            features_to_permute.push(rng.random_range(0..n_features));
         }
 
         // Permute selected features
@@ -390,7 +390,7 @@ impl<T: FloatBounds> Transformation<T> for FeaturePermutation<T> {
 
             // Fisher-Yates shuffle
             for i in (1..n_samples).rev() {
-                let j = rng.gen_range(0..=i);
+                let j = rng.random_range(0..=i);
                 column.swap(i, j);
             }
 
@@ -454,7 +454,7 @@ impl<T: FloatBounds> TimeSeriesAugmentation<T> {
 impl<T: FloatBounds> Transformation<T> for TimeSeriesAugmentation<T> {
     fn apply(&mut self, data: &Array2<T>, rng: &mut ChaCha8Rng) -> NeuralResult<Array2<T>> {
         let prob: f64 = self.probability.to_f64().unwrap_or(1.0);
-        if rng.gen::<f64>() > prob {
+        if rng.random::<f64>() > prob {
             return Ok(data.clone());
         }
 
@@ -603,7 +603,7 @@ impl<T: FloatBounds> TimeSeriesAugmentation<T> {
         let mut result = Array2::zeros((n_samples, n_features));
 
         for i in 0..n_samples {
-            let start_idx = rng.gen_range(0..(n_features - window_size + 1));
+            let start_idx = rng.random_range(0..(n_features - window_size + 1));
             let original_row = data.row(i);
 
             // Copy the selected window and pad with zeros or repeat

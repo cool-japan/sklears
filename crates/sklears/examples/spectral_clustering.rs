@@ -213,7 +213,8 @@ fn create_concentric_circles() -> Array2<f64> {
         data.push([x, y]);
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }
 
 /// Create two moons dataset
@@ -238,7 +239,8 @@ fn create_two_moons() -> Array2<f64> {
         data.push([x, y]);
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }
 
 /// Create spiral dataset with 3 arms
@@ -261,7 +263,8 @@ fn create_spiral_dataset() -> Array2<f64> {
         }
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }
 
 /// Simple clustering quality evaluation

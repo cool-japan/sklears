@@ -299,7 +299,7 @@ impl MemoryOptimizer {
 
     /// Track memory usage
     fn track_memory_usage(&self, additional_bytes: usize) -> Result<()> {
-        let mut usage = self.memory_usage.lock().unwrap();
+        let mut usage = self.memory_usage.lock().expect("operation should succeed");
         *usage += additional_bytes;
 
         if let Some(limit) = self.config.memory_limit {
@@ -343,7 +343,7 @@ impl MemoryOptimizer {
     }
 
     pub fn memory_usage(&self) -> usize {
-        *self.memory_usage.lock().unwrap()
+        *self.memory_usage.lock().expect("operation should succeed")
     }
 
     pub fn performance_metrics(&self) -> &HashMap<String, f64> {
@@ -380,20 +380,20 @@ where
     {
         // Check cache first
         {
-            let cache = self.cache.lock().unwrap();
+            let cache = self.cache.lock().expect("operation should succeed");
             if let Some(cached_result) = cache.get(key) {
-                *self.cache_hits.lock().unwrap() += 1;
+                *self.cache_hits.lock().expect("operation should succeed") += 1;
                 return Ok(cached_result.clone());
             }
         }
 
         // Cache miss - compute result
-        *self.cache_misses.lock().unwrap() += 1;
+        *self.cache_misses.lock().expect("operation should succeed") += 1;
         let result = compute_fn()?;
 
         // Store in cache if within size limit
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock().expect("operation should succeed");
             if cache.len() < self.config.cache_size {
                 cache.insert(key.to_string(), result.clone());
             }
@@ -404,13 +404,13 @@ where
 
     /// Clear cache
     pub fn clear_cache(&self) {
-        self.cache.lock().unwrap().clear();
+        self.cache.lock().expect("operation should succeed").clear();
     }
 
     /// Get cache statistics
     pub fn cache_statistics(&self) -> HashMap<String, f64> {
-        let hits = *self.cache_hits.lock().unwrap() as f64;
-        let misses = *self.cache_misses.lock().unwrap() as f64;
+        let hits = *self.cache_hits.lock().expect("operation should succeed") as f64;
+        let misses = *self.cache_misses.lock().expect("operation should succeed") as f64;
         let total = hits + misses;
         let hit_rate = if total > 0.0 { hits / total } else { 0.0 };
 
@@ -420,7 +420,7 @@ where
         stats.insert("hit_rate".to_string(), hit_rate);
         stats.insert(
             "cache_size".to_string(),
-            self.cache.lock().unwrap().len() as f64,
+            self.cache.lock().expect("operation should succeed").len() as f64,
         );
         stats
     }
@@ -670,12 +670,14 @@ mod tests {
         let config = OptimizationConfig::default();
         let optimizer = SimdOptimizer::new(config);
 
-        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let b = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
 
         let result = optimizer
             .simd_matrix_multiply(&a.view(), &b.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(result.dim(), (2, 2));
     }
 
@@ -684,12 +686,12 @@ mod tests {
         let config = OptimizationConfig::default();
         let optimizer = ParallelOptimizer::new(config);
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
         let result = optimizer
             .parallel_transform(&data.view(), |row| Ok(row.to_owned()))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.dim(), data.dim());
     }
@@ -700,12 +702,12 @@ mod tests {
         config.batch_size = 2;
         let optimizer = MemoryOptimizer::new(config);
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
         let result = optimizer
             .batch_process(&data.view(), |batch| Ok(batch.to_owned()))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.dim(), data.dim());
     }
@@ -717,13 +719,13 @@ mod tests {
 
         let result1 = optimizer
             .get_or_compute("test_key", || Ok(Array2::zeros((2, 2))))
-            .unwrap();
+            .expect("operation should succeed");
 
         let result2 = optimizer
             .get_or_compute("test_key", || {
                 Ok(Array2::ones((2, 2))) // This should not be called due to cache hit
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result1.dim(), result2.dim());
 
@@ -752,12 +754,12 @@ mod tests {
         config.batch_size = 2;
         let processor = BatchProcessor::new(config);
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
         let results = processor
             .process_batches(&data.view(), |batch| Ok(batch.nrows()))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 2); // 4 rows / 2 batch_size = 2 batches
         assert_eq!(results[0], 2);

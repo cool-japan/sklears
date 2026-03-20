@@ -625,9 +625,13 @@ mod tests {
         ];
 
         let model = SparseMultiOutput::new().sparsity_threshold(0.05);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
-        let predictions = trained.predict(&X.view()).unwrap();
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[4, 3]);
 
         // Check that model learned something reasonable
@@ -651,7 +655,9 @@ mod tests {
         ];
 
         let model = SparseMultiOutput::new().sparsity_threshold(1e-6);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         let memory_usage = trained.memory_usage();
         println!("{}", memory_usage);
@@ -710,7 +716,9 @@ mod tests {
         let y = array![[1.0, 0.0], [0.0, 2.0]];
 
         let model = SparseMultiOutput::new().sparsity_threshold(1e-3);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         // Test coefficient access for each output
         for output in 0..2 {
@@ -732,10 +740,14 @@ mod tests {
         // All zeros - coefficients should be small due to regularization
         let y_zeros = array![[0.0, 0.0], [0.0, 0.0]];
         let model = SparseMultiOutput::new().sparsity_threshold(1e-3);
-        let trained = model.fit(&X.view(), &y_zeros.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y_zeros.view())
+            .expect("model fitting should succeed");
 
         // Check that predictions are close to zero
-        let pred_zeros = trained.predict(&X.view()).unwrap();
+        let pred_zeros = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         for i in 0..pred_zeros.nrows() {
             for j in 0..pred_zeros.ncols() {
                 assert!(
@@ -754,8 +766,10 @@ mod tests {
         let model_single = SparseMultiOutput::new();
         let trained_single = model_single
             .fit(&X_single.view(), &y_single.view())
-            .unwrap();
-        let pred = trained_single.predict(&X_single.view()).unwrap();
+            .expect("operation should succeed");
+        let pred = trained_single
+            .predict(&X_single.view())
+            .expect("prediction should succeed");
         assert_eq!(pred.shape(), &[2, 1]);
 
         // Test with many zero outputs
@@ -764,10 +778,12 @@ mod tests {
         let model_many = SparseMultiOutput::new().sparsity_threshold(1e-6);
         let trained_many = model_many
             .fit(&X_many.view(), &y_many_sparse.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Just check that training completed and we can make predictions
-        let pred_many = trained_many.predict(&X_many.view()).unwrap();
+        let pred_many = trained_many
+            .predict(&X_many.view())
+            .expect("prediction should succeed");
         assert_eq!(pred_many.shape(), &[2, 5]);
 
         println!(

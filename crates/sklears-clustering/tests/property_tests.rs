@@ -26,7 +26,7 @@ fn random_data_strategy() -> impl Strategy<Value = Array2<Float>> {
                         (n_samples, n_features),
                         data.into_iter().flatten().collect(),
                     )
-                    .unwrap()
+                    .expect("operation should succeed")
                 })
         },
     )
@@ -537,7 +537,10 @@ mod tests {
         // Test that our data generation strategy works
         let strategy = random_data_strategy();
         let mut runner = proptest::test_runner::TestRunner::default();
-        let data = strategy.new_tree(&mut runner).unwrap().current();
+        let data = strategy
+            .new_tree(&mut runner)
+            .expect("operation should succeed")
+            .current();
 
         assert!(data.nrows() >= 10);
         assert!(data.ncols() >= 2);

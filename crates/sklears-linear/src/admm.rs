@@ -339,11 +339,14 @@ mod tests {
 
     #[test]
     fn test_admm_lasso_simple() {
-        let a = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
         let b = Array::from_vec(vec![1.0, 2.0, 3.0]);
 
         let solver = AdmmSolver::new();
-        let solution = solver.solve_lasso(&a, &b, 0.1, None).unwrap();
+        let solution = solver
+            .solve_lasso(&a, &b, 0.1, None)
+            .expect("operation should succeed");
 
         assert!(solution.x.len() == 2);
         assert!(solution.n_iter > 0);
@@ -356,11 +359,13 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let b = Array::from_vec(vec![1.0, 2.0, 3.0, 6.0]);
 
         let solver = AdmmSolver::new();
-        let solution = solver.solve_elastic_net(&a, &b, 0.1, 0.5, None).unwrap();
+        let solution = solver
+            .solve_elastic_net(&a, &b, 0.1, 0.5, None)
+            .expect("operation should succeed");
 
         assert!(solution.x.len() == 3);
         assert!(solution.converged || solution.n_iter == solver.config.max_iter);
@@ -380,12 +385,15 @@ mod tests {
 
     #[test]
     fn test_admm_with_warm_start() {
-        let a = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
         let b = Array::from_vec(vec![1.0, 2.0, 3.0]);
         let initial_x = Array::from_vec(vec![0.5, 0.5]);
 
         let solver = AdmmSolver::new();
-        let solution = solver.solve_lasso(&a, &b, 0.1, Some(&initial_x)).unwrap();
+        let solution = solver
+            .solve_lasso(&a, &b, 0.1, Some(&initial_x))
+            .expect("operation should succeed");
 
         assert!(solution.x.len() == 2);
         assert!(solution.n_iter > 0);

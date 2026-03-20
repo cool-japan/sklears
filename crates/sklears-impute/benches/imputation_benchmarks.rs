@@ -61,8 +61,12 @@ fn bench_simple_imputer_mean(c: &mut Criterion) {
                 |b, data| {
                     b.iter(|| {
                         let imputer = SimpleImputer::new().strategy("mean".to_string());
-                        let fitted = imputer.fit(&data.view(), &()).unwrap();
-                        let _result = fitted.transform(&data.view()).unwrap();
+                        let fitted = imputer
+                            .fit(&data.view(), &())
+                            .expect("model fitting should succeed");
+                        let _result = fitted
+                            .transform(&data.view())
+                            .expect("transformation should succeed");
                     });
                 },
             );
@@ -88,8 +92,12 @@ fn bench_simple_imputer_median(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let imputer = SimpleImputer::new().strategy("median".to_string());
-                    let fitted = imputer.fit(&data.view(), &()).unwrap();
-                    let _result = fitted.transform(&data.view()).unwrap();
+                    let fitted = imputer
+                        .fit(&data.view(), &())
+                        .expect("model fitting should succeed");
+                    let _result = fitted
+                        .transform(&data.view())
+                        .expect("transformation should succeed");
                 });
             },
         );
@@ -116,8 +124,12 @@ fn bench_knn_imputer(c: &mut Criterion) {
                 |b, data| {
                     b.iter(|| {
                         let imputer = KNNImputer::new().n_neighbors(*k);
-                        let fitted = imputer.fit(&data.view(), &()).unwrap();
-                        let _result = fitted.transform(&data.view()).unwrap();
+                        let fitted = imputer
+                            .fit(&data.view(), &())
+                            .expect("model fitting should succeed");
+                        let _result = fitted
+                            .transform(&data.view())
+                            .expect("transformation should succeed");
                     });
                 },
             );
@@ -143,8 +155,12 @@ fn bench_knn_weights(c: &mut Criterion) {
                 let imputer = KNNImputer::new()
                     .n_neighbors(5)
                     .weights(weights.to_string());
-                let fitted = imputer.fit(&data.view(), &()).unwrap();
-                let _result = fitted.transform(&data.view()).unwrap();
+                let fitted = imputer
+                    .fit(&data.view(), &())
+                    .expect("model fitting should succeed");
+                let _result = fitted
+                    .transform(&data.view())
+                    .expect("transformation should succeed");
             });
         });
     }
@@ -169,8 +185,12 @@ fn bench_varying_missing_rates(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let imputer = SimpleImputer::new().strategy("mean".to_string());
-                    let fitted = imputer.fit(&data.view(), &()).unwrap();
-                    let _result = fitted.transform(&data.view()).unwrap();
+                    let fitted = imputer
+                        .fit(&data.view(), &())
+                        .expect("model fitting should succeed");
+                    let _result = fitted
+                        .transform(&data.view())
+                        .expect("transformation should succeed");
                 });
             },
         );
@@ -196,8 +216,12 @@ fn bench_varying_features(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let imputer = SimpleImputer::new().strategy("mean".to_string());
-                    let fitted = imputer.fit(&data.view(), &()).unwrap();
-                    let _result = fitted.transform(&data.view()).unwrap();
+                    let fitted = imputer
+                        .fit(&data.view(), &())
+                        .expect("model fitting should succeed");
+                    let _result = fitted
+                        .transform(&data.view())
+                        .expect("transformation should succeed");
                 });
             },
         );
@@ -219,17 +243,23 @@ fn bench_fit_vs_transform(c: &mut Criterion) {
     group.bench_function("fit_only", |b| {
         b.iter(|| {
             let imputer = SimpleImputer::new().strategy("mean".to_string());
-            let _fitted = imputer.fit(&data.view(), &()).unwrap();
+            let _fitted = imputer
+                .fit(&data.view(), &())
+                .expect("model fitting should succeed");
         });
     });
 
     // Benchmark transform only (with pre-fitted model)
     let imputer = SimpleImputer::new().strategy("mean".to_string());
-    let fitted = imputer.fit(&data.view(), &()).unwrap();
+    let fitted = imputer
+        .fit(&data.view(), &())
+        .expect("model fitting should succeed");
 
     group.bench_function("transform_only", |b| {
         b.iter(|| {
-            let _result = fitted.transform(&data.view()).unwrap();
+            let _result = fitted
+                .transform(&data.view())
+                .expect("transformation should succeed");
         });
     });
 
@@ -237,8 +267,12 @@ fn bench_fit_vs_transform(c: &mut Criterion) {
     group.bench_function("fit_and_transform", |b| {
         b.iter(|| {
             let imputer = SimpleImputer::new().strategy("mean".to_string());
-            let fitted = imputer.fit(&data.view(), &()).unwrap();
-            let _result = fitted.transform(&data.view()).unwrap();
+            let fitted = imputer
+                .fit(&data.view(), &())
+                .expect("model fitting should succeed");
+            let _result = fitted
+                .transform(&data.view())
+                .expect("transformation should succeed");
         });
     });
 
@@ -262,8 +296,12 @@ fn bench_large_dataset(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let imputer = SimpleImputer::new().strategy("mean".to_string());
-                    let fitted = imputer.fit(&data.view(), &()).unwrap();
-                    let _result = fitted.transform(&data.view()).unwrap();
+                    let fitted = imputer
+                        .fit(&data.view(), &())
+                        .expect("model fitting should succeed");
+                    let _result = fitted
+                        .transform(&data.view())
+                        .expect("transformation should succeed");
                 });
             },
         );

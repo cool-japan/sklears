@@ -50,7 +50,7 @@ impl BayesianModelSelectionResult {
             .map(|(i, name)| (i, name.as_str(), self.log_evidence[i]))
             .collect();
 
-        ranking.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+        ranking.sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
         ranking
     }
 
@@ -161,9 +161,9 @@ impl BayesianModelSelector {
         let best_model_index = log_evidence
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(i, _)| i)
-            .unwrap();
+            .expect("operation should succeed");
 
         Ok(BayesianModelSelectionResult {
             model_names,
@@ -343,7 +343,7 @@ impl BayesianModelSelector {
 
         // Sort samples by likelihood
         let mut sorted_samples = data.posterior_samples.clone();
-        sorted_samples.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_samples.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Approximate evidence using nested sampling logic
         let mut log_evidence = f64::NEG_INFINITY;
@@ -372,7 +372,10 @@ impl BayesianModelSelector {
             ));
         }
 
-        let cv_log_likes = data.cv_log_likelihoods.as_ref().unwrap();
+        let cv_log_likes = data
+            .cv_log_likelihoods
+            .as_ref()
+            .expect("operation should succeed");
         if cv_log_likes.len() != n_folds {
             return Err(SklearsError::InvalidInput(
                 "Number of CV scores must match number of folds".to_string(),
@@ -573,7 +576,9 @@ mod tests {
         let data = ModelEvidenceData::new(-100.0, 5, 100);
         let mut selector = BayesianModelSelector::new(EvidenceEstimationMethod::BIC, Some(42));
 
-        let log_evidence = selector.estimate_evidence(&data).unwrap();
+        let log_evidence = selector
+            .estimate_evidence(&data)
+            .expect("operation should succeed");
         assert!(log_evidence < 0.0); // Should be negative
     }
 
@@ -586,7 +591,9 @@ mod tests {
 
         let mut selector = BayesianModelSelector::new(EvidenceEstimationMethod::BIC, Some(42));
 
-        let result: BayesianModelSelectionResult = selector.compare_models::<f64>(&models).unwrap();
+        let result: BayesianModelSelectionResult = selector
+            .compare_models::<f64>(&models)
+            .expect("operation should succeed");
 
         assert_eq!(result.model_names.len(), 2);
         assert_eq!(result.best_model(), "Model1"); // Better likelihood, fewer parameters
@@ -602,14 +609,18 @@ mod tests {
 
         let mut selector = BayesianModelSelector::new(EvidenceEstimationMethod::BIC, Some(42));
 
-        let selection_result = selector.compare_models::<f64>(&models).unwrap();
+        let selection_result = selector
+            .compare_models::<f64>(&models)
+            .expect("operation should succeed");
         let averager = BayesianModelAverager::new(selection_result);
 
         let pred1 = array![1.0, 2.0, 3.0];
         let pred2 = array![1.1, 2.1, 3.1];
         let predictions = vec![pred1, pred2];
 
-        let averaged = averager.predict(&predictions).unwrap();
+        let averaged = averager
+            .predict(&predictions)
+            .expect("operation should succeed");
         assert_eq!(averaged.len(), 3);
 
         // Check effective number of models

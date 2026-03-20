@@ -29,7 +29,7 @@ use std::marker::PhantomData;
 /// let y = Array2::zeros((20, 3));
 ///
 /// let robust_pls = RobustPLS::new(2).estimator_type(MEstimatorType::Huber);
-/// let fitted = robust_pls.fit(&x, &y).unwrap();
+/// let fitted = robust_pls.fit(&x, &y).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RobustPLS<State = Untrained> {
@@ -292,7 +292,7 @@ impl RobustPLS<Untrained> {
 
             // Robust location: median
             let mut sorted_col = col.to_vec();
-            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             location[j] = if sorted_col.len() % 2 == 0 {
                 (sorted_col[sorted_col.len() / 2 - 1] + sorted_col[sorted_col.len() / 2]) / 2.0
             } else {
@@ -302,7 +302,7 @@ impl RobustPLS<Untrained> {
             // Robust scale: MAD
             let deviations: Vec<Float> = col.iter().map(|&x| (x - location[j]).abs()).collect();
             let mut sorted_deviations = deviations;
-            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             scale[j] = if sorted_deviations.len() % 2 == 0 {
                 (sorted_deviations[sorted_deviations.len() / 2 - 1]
@@ -510,12 +510,22 @@ impl Transform<Array2<Float>, Array2<Float>> for RobustPLS<Trained> {
         // Preprocess using robust estimates
         let X_processed = self.preprocess_data(
             X,
-            self.robust_mean_x_.as_ref().unwrap(),
-            self.robust_scale_x_.as_ref().unwrap(),
+            self.robust_mean_x_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?,
+            self.robust_scale_x_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?,
         )?;
 
         // Project to PLS space
-        let scores = X_processed.dot(self.weights_x_.as_ref().unwrap());
+        let scores = X_processed.dot(self.weights_x_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?);
         Ok(scores)
     }
 }
@@ -523,32 +533,42 @@ impl Transform<Array2<Float>, Array2<Float>> for RobustPLS<Trained> {
 impl RobustPLS<Trained> {
     /// Get PLS weights for X
     pub fn weights_x(&self) -> &Array2<Float> {
-        self.weights_x_.as_ref().unwrap()
+        self.weights_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get PLS weights for Y
     pub fn weights_y(&self) -> &Array2<Float> {
-        self.weights_y_.as_ref().unwrap()
+        self.weights_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get PLS loadings for X
     pub fn loadings_x(&self) -> &Array2<Float> {
-        self.loadings_x_.as_ref().unwrap()
+        self.loadings_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get PLS loadings for Y
     pub fn loadings_y(&self) -> &Array2<Float> {
-        self.loadings_y_.as_ref().unwrap()
+        self.loadings_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get observation weights
     pub fn observation_weights(&self) -> &Array1<Float> {
-        self.observation_weights_.as_ref().unwrap()
+        self.observation_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Helper method for preprocessing

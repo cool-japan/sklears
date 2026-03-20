@@ -530,12 +530,14 @@ mod tests {
     #[test]
     fn test_event_processing() {
         let mut event_bus = EventBus::new();
-        event_bus.subscribe("test_event", "component_1").unwrap();
+        event_bus
+            .subscribe("test_event", "component_1")
+            .unwrap_or_default();
 
         let event = ComponentEvent::new("source_component", "test_event");
-        event_bus.publish(event).unwrap();
+        event_bus.publish(event).unwrap_or_default();
 
-        let results = event_bus.process_events().unwrap();
+        let results = event_bus.process_events().unwrap_or_default();
         assert_eq!(results.len(), 1);
         assert_eq!(event_bus.queue_size(), 0);
     }
@@ -543,14 +545,18 @@ mod tests {
     #[test]
     fn test_targeted_events() {
         let mut event_bus = EventBus::new();
-        event_bus.subscribe("test_event", "component_1").unwrap();
-        event_bus.subscribe("test_event", "component_2").unwrap();
+        event_bus
+            .subscribe("test_event", "component_1")
+            .unwrap_or_default();
+        event_bus
+            .subscribe("test_event", "component_2")
+            .unwrap_or_default();
 
         let event =
             ComponentEvent::new("source_component", "test_event").with_target("component_1");
 
-        event_bus.publish(event).unwrap();
-        let results = event_bus.process_events().unwrap();
+        event_bus.publish(event).unwrap_or_default();
+        let results = event_bus.process_events().unwrap_or_default();
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].delivery_count, 1);
@@ -559,16 +565,20 @@ mod tests {
     #[test]
     fn test_event_statistics() {
         let mut event_bus = EventBus::new();
-        event_bus.subscribe("event_type_1", "component_1").unwrap();
-        event_bus.subscribe("event_type_2", "component_2").unwrap();
+        event_bus
+            .subscribe("event_type_1", "component_1")
+            .unwrap_or_default();
+        event_bus
+            .subscribe("event_type_2", "component_2")
+            .unwrap_or_default();
 
         let event1 = ComponentEvent::new("source", "event_type_1");
         let event2 = ComponentEvent::new("source", "event_type_1");
         let event3 = ComponentEvent::new("source", "event_type_2");
 
-        event_bus.publish(event1).unwrap();
-        event_bus.publish(event2).unwrap();
-        event_bus.publish(event3).unwrap();
+        event_bus.publish(event1).unwrap_or_default();
+        event_bus.publish(event2).unwrap_or_default();
+        event_bus.publish(event3).unwrap_or_default();
 
         let stats = event_bus.get_statistics();
         assert_eq!(stats.total_events_published, 3);

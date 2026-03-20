@@ -3,7 +3,7 @@
 // ✅ SciRS2 Policy Compliant Imports
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -321,7 +321,7 @@ fn generate_baseline(X_train: &ArrayView2<Float>, strategy: SamplingStrategy) ->
         SamplingStrategy::Median => {
             for j in 0..n_features {
                 let mut column_values: Vec<Float> = X_train.column(j).to_vec();
-                column_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                column_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let median_idx = column_values.len() / 2;
                 baseline[j] = column_values[median_idx];
             }
@@ -445,7 +445,7 @@ fn generate_perturbation(
     match strategy {
         PerturbationStrategy::Gaussian { std } => {
             for i in 0..n_features {
-                perturbation[i] += rng.gen::<Float>() * std * 2.0 - std;
+                perturbation[i] += rng.random::<Float>() * std * 2.0 - std;
             }
         }
         PerturbationStrategy::Uniform => {
@@ -455,23 +455,23 @@ fn generate_perturbation(
                 let max_val = col_values
                     .iter()
                     .fold(Float::NEG_INFINITY, |a, &b| a.max(b));
-                perturbation[i] = rng.gen_range(min_val..max_val);
+                perturbation[i] = rng.random_range(min_val..max_val);
             }
         }
         PerturbationStrategy::Empirical => {
             for i in 0..n_features {
                 let col_values: Vec<Float> = X_train.column(i).to_vec();
                 if !col_values.is_empty() {
-                    perturbation[i] = col_values[rng.gen_range(0..col_values.len())];
+                    perturbation[i] = col_values[rng.random_range(0..col_values.len())];
                 }
             }
         }
         PerturbationStrategy::Targeted => {
             // Perturb only a subset of features
-            let n_perturb = rng.gen_range(1..n_features + 1);
+            let n_perturb = rng.random_range(1..n_features + 1);
             let mut indices: Vec<usize> = (0..n_features).collect();
             indices.sort_by(|_, _| {
-                if rng.gen::<bool>() {
+                if rng.random::<bool>() {
                     std::cmp::Ordering::Less
                 } else {
                     std::cmp::Ordering::Greater
@@ -481,7 +481,7 @@ fn generate_perturbation(
             for &idx in indices.iter().take(n_perturb) {
                 let col_values: Vec<Float> = X_train.column(idx).to_vec();
                 if !col_values.is_empty() {
-                    perturbation[idx] = col_values[rng.gen_range(0..col_values.len())];
+                    perturbation[idx] = col_values[rng.random_range(0..col_values.len())];
                 }
             }
         }
@@ -490,7 +490,7 @@ fn generate_perturbation(
             for i in 0..n_features {
                 let col_values: Vec<Float> = X_train.column(i).to_vec();
                 if !col_values.is_empty() {
-                    perturbation[i] = col_values[rng.gen_range(0..col_values.len())];
+                    perturbation[i] = col_values[rng.random_range(0..col_values.len())];
                 }
             }
         }
@@ -607,7 +607,7 @@ where
             // Sample a random value for this feature from training data
             let col_values: Vec<Float> = X_train.column(feature_idx).to_vec();
             if !col_values.is_empty() {
-                perturbed_instance[feature_idx] = col_values[rng.gen_range(0..col_values.len())];
+                perturbed_instance[feature_idx] = col_values[rng.random_range(0..col_values.len())];
             }
 
             let pert_2d = perturbed_instance.insert_axis(Axis(0));
@@ -865,7 +865,7 @@ where
     let sample_size = n_samples.min(X_train.nrows());
 
     for _ in 0..sample_size {
-        let sample_idx = rng.gen_range(0..X_train.nrows());
+        let sample_idx = rng.random_range(0..X_train.nrows());
         let instance = X_train.row(sample_idx);
 
         // Compute local importance for this instance
@@ -912,7 +912,7 @@ where
 
     // Sample predictions for analysis
     for _ in 0..n_samples {
-        let sample_idx = rng.gen_range(0..X_train.nrows());
+        let sample_idx = rng.random_range(0..X_train.nrows());
         let instance = X_train.row(sample_idx);
         let instance_2d = instance.insert_axis(Axis(0));
         let prediction = predict_fn(&instance_2d.view())[0];
@@ -1118,7 +1118,7 @@ mod tests {
             &X_train.view(),
             &ModelAgnosticConfig::default(),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.local_explanation.feature_contributions.len(), 3);
         assert!(result.local_explanation.confidence >= 0.0);

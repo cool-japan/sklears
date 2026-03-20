@@ -997,8 +997,8 @@ mod tests {
         calibrator.add_group_calibrator(0, Box::new(SigmoidCalibrator::new()));
         calibrator.add_group_calibrator(1, Box::new(SigmoidCalibrator::new()));
 
-        calibrator.fit_with_groups(&probabilities, &targets, &groups).unwrap();
-        let predictions = calibrator.predict_with_groups(&probabilities, &groups).unwrap();
+        calibrator.fit_with_groups(&probabilities, &targets, &groups).expect("operation should succeed");
+        let predictions = calibrator.predict_with_groups(&probabilities, &groups).expect("operation should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -1011,8 +1011,8 @@ mod tests {
         let mut calibrator = BiasMitigationCalibrator::new(BiasStrategy::PostProcessingAdjustment)
             .with_base_calibrator(Box::new(SigmoidCalibrator::new()));
 
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -1035,8 +1035,8 @@ mod tests {
             calibrator.add_group_calibrator(0, Box::new(SigmoidCalibrator::new()));
             calibrator.add_group_calibrator(1, Box::new(SigmoidCalibrator::new()));
 
-            calibrator.fit_with_groups(&probabilities, &targets, &groups).unwrap();
-            let predictions = calibrator.predict_with_groups(&probabilities, &groups).unwrap();
+            calibrator.fit_with_groups(&probabilities, &targets, &groups).expect("operation should succeed");
+            let predictions = calibrator.predict_with_groups(&probabilities, &groups).expect("operation should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -1058,8 +1058,8 @@ mod tests {
             let mut calibrator = BiasMitigationCalibrator::new(strategy)
                 .with_base_calibrator(Box::new(SigmoidCalibrator::new()));
 
-            calibrator.fit(&probabilities, &targets).unwrap();
-            let predictions = calibrator.predict_proba(&probabilities).unwrap();
+            calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+            let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));

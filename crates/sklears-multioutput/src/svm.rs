@@ -143,8 +143,13 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>> for MLTSVM<Untrained> {
         }
 
         // Compute feature statistics for normalization
-        let feature_means = x.mean_axis(Axis(0)).unwrap();
-        let feature_stds = x.mapv(|val| val * val).mean_axis(Axis(0)).unwrap()
+        let feature_means = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
+        let feature_stds = x
+            .mapv(|val| val * val)
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation")
             - &feature_means.mapv(|mean| mean * mean);
         let feature_stds = feature_stds.mapv(|var| (var.max(1e-10)).sqrt());
 
@@ -652,7 +657,8 @@ impl RankSVM<Untrained> {
             .map(|(&score, &label)| (score, label))
             .collect();
 
-        score_threshold_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        score_threshold_pairs
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let mut best_f1 = 0.0;
         let mut best_threshold = 0.0;
@@ -728,7 +734,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<i32>> for RankSVM<RankSVMTrained> {
                         scores.push((score, label_idx));
                     }
 
-                    scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+                    scores.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
                     for (i, &(_, label_idx)) in scores.iter().take(*k).enumerate() {
                         predictions[[sample_idx, label_idx]] = 1;
@@ -818,7 +824,7 @@ impl RankSVM<RankSVMTrained> {
             }
 
             // Sort by score descending
-            scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+            scores.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
             // Assign rankings
             for (rank, &(_score, label_idx)) in scores.iter().enumerate() {
@@ -950,8 +956,13 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for MultiOutputSVM<Untrai
         }
 
         // Compute feature statistics
-        let feature_means = x.mean_axis(Axis(0)).unwrap();
-        let feature_stds = x.mapv(|val| val * val).mean_axis(Axis(0)).unwrap()
+        let feature_means = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
+        let feature_stds = x
+            .mapv(|val| val * val)
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation")
             - &feature_means.mapv(|mean| mean * mean);
         let feature_stds = feature_stds.mapv(|var| (var.max(1e-10)).sqrt());
 
@@ -1019,7 +1030,9 @@ impl MultiOutputSVM<Untrained> {
         let mut support_coefficients = Array1::<Float>::zeros(n_samples);
 
         // Simple heuristic: coefficients proportional to target values
-        let y_mean = y.mean().unwrap();
+        let y_mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
         for i in 0..n_samples {
             support_coefficients[i] = (y[i] - y_mean) / self.c;
         }

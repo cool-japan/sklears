@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn test_point_creation() {
         let coords = array![1.0, 2.0, 3.0];
-        let point = Point::<Euclidean, 3>::new(coords).unwrap();
+        let point = Point::<Euclidean, 3>::new(coords).expect("operation should succeed");
 
         assert_eq!(Point::<Euclidean, 3>::dim(), 3);
         assert_eq!(Point::<Euclidean, 3>::space_name(), "Euclidean");
@@ -512,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_point_from_slice() {
-        let point = EuclideanPoint2D::from_slice(&[1.0, 2.0]).unwrap();
+        let point = EuclideanPoint2D::from_slice(&[1.0, 2.0]).expect("operation should succeed");
         assert_eq!(point.coordinates()[0], 1.0);
         assert_eq!(point.coordinates()[1], 2.0);
 
@@ -522,8 +522,8 @@ mod tests {
 
     #[test]
     fn test_euclidean_distance() {
-        let p1 = EuclideanPoint3D::from_slice(&[0.0, 0.0, 0.0]).unwrap();
-        let p2 = EuclideanPoint3D::from_slice(&[3.0, 4.0, 0.0]).unwrap();
+        let p1 = EuclideanPoint3D::from_slice(&[0.0, 0.0, 0.0]).expect("operation should succeed");
+        let p2 = EuclideanPoint3D::from_slice(&[3.0, 4.0, 0.0]).expect("operation should succeed");
 
         let dist = EuclideanPoint3D::distance(&p1, &p2);
         assert!((dist - 5.0).abs() < 1e-10);
@@ -532,8 +532,10 @@ mod tests {
     #[test]
     fn test_spherical_distance() {
         // Two orthogonal unit vectors
-        let p1 = Point::<Spherical, 3>::from_slice(&[1.0, 0.0, 0.0]).unwrap();
-        let p2 = Point::<Spherical, 3>::from_slice(&[0.0, 1.0, 0.0]).unwrap();
+        let p1 =
+            Point::<Spherical, 3>::from_slice(&[1.0, 0.0, 0.0]).expect("operation should succeed");
+        let p2 =
+            Point::<Spherical, 3>::from_slice(&[0.0, 1.0, 0.0]).expect("operation should succeed");
 
         let dist = Point::<Spherical, 3>::distance(&p1, &p2);
         assert!((dist - std::f64::consts::FRAC_PI_2).abs() < 1e-10);
@@ -543,8 +545,8 @@ mod tests {
     fn test_manifold_operations() {
         let mut manifold = EuclideanManifold3D::<2>::new();
 
-        let p1 = EuclideanPoint3D::from_slice(&[1.0, 2.0, 3.0]).unwrap();
-        let p2 = EuclideanPoint3D::from_slice(&[4.0, 5.0, 6.0]).unwrap();
+        let p1 = EuclideanPoint3D::from_slice(&[1.0, 2.0, 3.0]).expect("operation should succeed");
+        let p2 = EuclideanPoint3D::from_slice(&[4.0, 5.0, 6.0]).expect("operation should succeed");
 
         manifold.add_point(p1);
         manifold.add_point(p2);
@@ -560,7 +562,8 @@ mod tests {
     #[test]
     fn test_manifold_from_array() {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let manifold = EuclideanManifold2D::<1>::from_array(data.view()).unwrap();
+        let manifold =
+            EuclideanManifold2D::<1>::from_array(data.view()).expect("operation should succeed");
 
         assert_eq!(manifold.len(), 3);
         assert_eq!(manifold.points()[0].coordinates()[0], 1.0);
@@ -574,18 +577,23 @@ mod tests {
     #[test]
     fn test_embedding() {
         let input_manifold = EuclideanManifold3D::<3>::new();
-        let output_points = vec![EuclideanPoint2D::from_slice(&[1.0, 2.0]).unwrap()];
+        let output_points =
+            vec![EuclideanPoint2D::from_slice(&[1.0, 2.0]).expect("operation should succeed")];
 
         // This should fail because point counts don't match
         assert!(Embedding::new(input_manifold, output_points).is_err());
 
         // Test with matching counts
         let mut input_manifold = EuclideanManifold3D::<3>::new();
-        input_manifold.add_point(EuclideanPoint3D::from_slice(&[1.0, 2.0, 3.0]).unwrap());
+        input_manifold.add_point(
+            EuclideanPoint3D::from_slice(&[1.0, 2.0, 3.0]).expect("operation should succeed"),
+        );
 
-        let output_points = vec![EuclideanPoint2D::from_slice(&[1.0, 2.0]).unwrap()];
+        let output_points =
+            vec![EuclideanPoint2D::from_slice(&[1.0, 2.0]).expect("operation should succeed")];
 
-        let embedding = Embedding::new(input_manifold, output_points).unwrap();
+        let embedding =
+            Embedding::new(input_manifold, output_points).expect("operation should succeed");
         assert_eq!(Embedding::<Euclidean, 3, 2>::input_dim(), 3);
         assert_eq!(Embedding::<Euclidean, 3, 2>::output_dim(), 2);
     }
@@ -593,12 +601,12 @@ mod tests {
     #[test]
     fn test_geometric_operations() {
         let points = vec![
-            EuclideanPoint2D::from_slice(&[0.0, 0.0]).unwrap(),
-            EuclideanPoint2D::from_slice(&[2.0, 0.0]).unwrap(),
-            EuclideanPoint2D::from_slice(&[0.0, 2.0]).unwrap(),
+            EuclideanPoint2D::from_slice(&[0.0, 0.0]).expect("operation should succeed"),
+            EuclideanPoint2D::from_slice(&[2.0, 0.0]).expect("operation should succeed"),
+            EuclideanPoint2D::from_slice(&[0.0, 2.0]).expect("operation should succeed"),
         ];
 
-        let centroid = GeometricOps::centroid(&points).unwrap();
+        let centroid = GeometricOps::centroid(&points).expect("operation should succeed");
         assert!((centroid.coordinates()[0] - 2.0 / 3.0).abs() < 1e-10);
         assert!((centroid.coordinates()[1] - 2.0 / 3.0).abs() < 1e-10);
 

@@ -13,7 +13,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Distribution, Rng};
+use scirs2_core::random::{thread_rng, Distribution, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::Estimator;
 use std::collections::HashMap;
@@ -225,7 +225,7 @@ impl LargeScaleDummyEstimator {
         reservoir_size: usize,
         replacement_rate: f64,
     ) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().expect("operation should succeed");
         let mut rng = thread_rng();
 
         // Initialize reservoir if needed
@@ -241,12 +241,12 @@ impl LargeScaleDummyEstimator {
                 state.reservoir.push(value);
             } else {
                 // Reservoir sampling algorithm
-                let k = rng.gen_range(0..state.sample_count);
+                let k = rng.random_range(0..state.sample_count);
                 if k < reservoir_size {
                     state.reservoir[k] = value;
-                } else if rng.gen::<f64>() < replacement_rate {
+                } else if rng.random::<f64>() < replacement_rate {
                     // Occasional replacement to handle concept drift
-                    let idx = rng.gen_range(0..reservoir_size);
+                    let idx = rng.random_range(0..reservoir_size);
                     state.reservoir[idx] = value;
                 }
             }
@@ -269,7 +269,7 @@ impl LargeScaleDummyEstimator {
         sketch_size: usize,
         hash_functions: usize,
     ) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().expect("operation should succeed");
 
         // Initialize sketches
         for h in 0..hash_functions {
@@ -305,7 +305,7 @@ impl LargeScaleDummyEstimator {
         total_nodes: usize,
         coordinator_address: &str,
     ) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().expect("operation should succeed");
 
         // Compute local statistics
         let local_count = y.len();
@@ -341,7 +341,7 @@ impl LargeScaleDummyEstimator {
 
     /// Update running statistics
     fn update_statistics(&self, x: &ArrayView2<f64>, y: &ArrayView1<f64>) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().expect("operation should succeed");
 
         let chunk_count = y.len();
         let chunk_sum: f64 = y.iter().sum();
@@ -418,7 +418,7 @@ impl LargeScaleDummyEstimator {
 
     /// Get current mean estimate
     pub fn get_mean(&self) -> f64 {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().expect("operation should succeed");
         if state.sample_count > 0 {
             state.running_sum / state.sample_count as f64
         } else {
@@ -428,7 +428,7 @@ impl LargeScaleDummyEstimator {
 
     /// Get current variance estimate
     pub fn get_variance(&self) -> f64 {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().expect("operation should succeed");
         if state.sample_count > 1 {
             let mean = state.running_sum / state.sample_count as f64;
             let variance = state.running_sum_squares / state.sample_count as f64 - mean * mean;
@@ -441,12 +441,15 @@ impl LargeScaleDummyEstimator {
 
     /// Get memory usage statistics
     pub fn get_memory_usage(&self) -> usize {
-        self.state.read().unwrap().current_memory_usage
+        self.state
+            .read()
+            .expect("operation should succeed")
+            .current_memory_usage
     }
 
     /// Get processing statistics
     pub fn get_processing_stats(&self) -> ProcessingStats {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().expect("operation should succeed");
         ProcessingStats {
             total_samples_processed: state.sample_count,
             current_memory_usage: state.current_memory_usage,
@@ -660,7 +663,7 @@ impl ApproximateBaseline {
             let mut sample_sum = 0.0;
 
             for _ in 0..sample_size {
-                let idx = rng.gen_range(0..total_samples);
+                let idx = rng.random_range(0..total_samples);
                 sample_sum += y[idx];
             }
 
@@ -700,7 +703,7 @@ impl ApproximateBaseline {
         // Sort data for stratification
         let mut indexed_data: Vec<(usize, f64)> =
             y.iter().enumerate().map(|(i, &v)| (i, v)).collect();
-        indexed_data.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        indexed_data.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         let stratum_size = total_samples / n_strata;
         let mut stratum_means = Vec::new();
@@ -723,7 +726,7 @@ impl ApproximateBaseline {
             let mut stratum_sum = 0.0;
 
             for _ in 0..actual_samples {
-                let idx = rng.gen_range(0..stratum_data.len());
+                let idx = rng.random_range(0..stratum_data.len());
                 stratum_sum += stratum_data[idx].1;
                 total_sampled += 1;
             }
@@ -773,7 +776,7 @@ impl ApproximateBaseline {
             ));
         }
 
-        let start = rng.gen_range(0..sampling_interval);
+        let start = rng.random_range(0..sampling_interval);
         let mut sample_sum = 0.0;
         let mut sample_count = 0;
 
@@ -830,7 +833,7 @@ impl ApproximateBaseline {
         let mut total_sampled = 0;
 
         for _ in 0..selected_clusters {
-            let cluster_id = rng.gen_range(0..n_clusters);
+            let cluster_id = rng.random_range(0..n_clusters);
             let start = cluster_id * cluster_size;
             let end = if cluster_id == n_clusters - 1 {
                 total_samples
@@ -961,7 +964,7 @@ impl SamplingBasedBaseline {
             if sample.len() < actual_samples {
                 sample.push(value);
             } else {
-                let j = rng.gen_range(0..i + 1);
+                let j = rng.random_range(0..i + 1);
                 if j < actual_samples {
                     sample[j] = value;
                 }
@@ -1043,8 +1046,10 @@ mod tests {
 
     #[test]
     fn test_large_scale_chunked_processing() {
-        let x = Array2::from_shape_vec((1000, 5), (0..5000).map(|i| i as f64).collect()).unwrap();
-        let y = Array1::from_shape_vec(1000, (0..1000).map(|i| (i % 10) as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((1000, 5), (0..5000).map(|i| i as f64).collect())
+            .expect("shape and data length should match");
+        let y = Array1::from_shape_vec(1000, (0..1000).map(|i| (i % 10) as f64).collect())
+            .expect("shape and data length should match");
 
         let estimator = LargeScaleDummyEstimator::new(LargeScaleStrategy::ChunkedProcessing {
             chunk_size: 100,
@@ -1075,7 +1080,8 @@ mod tests {
     #[test]
     fn test_reservoir_sampling() {
         let x = Array2::zeros((1000, 5));
-        let y = Array1::from_shape_vec(1000, (0..1000).map(|i| i as f64).collect()).unwrap();
+        let y = Array1::from_shape_vec(1000, (0..1000).map(|i| i as f64).collect())
+            .expect("shape and data length should match");
 
         let estimator = LargeScaleDummyEstimator::new(LargeScaleStrategy::ReservoirSampling {
             reservoir_size: 100,
@@ -1096,12 +1102,12 @@ mod tests {
 
         let approx =
             ApproximateBaseline::new(ApproximateMethod::Bootstrap { n_samples: 50 }, 0.05, 0.95)
-                .unwrap();
+                .expect("operation should succeed");
 
         let result = approx.compute_approximate_stats(&y.view());
         assert!(result.is_ok());
 
-        let stats = result.unwrap();
+        let stats = result.expect("operation should succeed");
         assert!(stats.estimated_mean > 0.0);
         assert!(stats.estimated_variance >= 0.0);
         assert!(stats.confidence_interval.0 < stats.confidence_interval.1);
@@ -1109,13 +1115,14 @@ mod tests {
 
     #[test]
     fn test_sampling_based_baseline() {
-        let y = Array1::from_shape_vec(1000, (0..1000).map(|i| i as f64).collect()).unwrap();
+        let y = Array1::from_shape_vec(1000, (0..1000).map(|i| i as f64).collect())
+            .expect("shape and data length should match");
 
-        let baseline = SamplingBasedBaseline::new(0.1, 50, 200).unwrap();
+        let baseline = SamplingBasedBaseline::new(0.1, 50, 200).expect("operation should succeed");
         let result = baseline.compute_sampled_baseline(&y.view());
 
         assert!(result.is_ok());
-        let stats = result.unwrap();
+        let stats = result.expect("operation should succeed");
         assert!(stats.sample_size >= 50 && stats.sample_size <= 200);
         assert!(stats.sampling_efficiency > 0.0 && stats.sampling_efficiency <= 1.0);
     }
@@ -1141,7 +1148,8 @@ mod tests {
     #[test]
     fn test_sketch_based_processing() {
         let x = Array2::zeros((200, 4));
-        let y = Array1::from_shape_vec(200, (0..200).map(|i| (i % 20) as f64).collect()).unwrap();
+        let y = Array1::from_shape_vec(200, (0..200).map(|i| (i % 20) as f64).collect())
+            .expect("shape and data length should match");
 
         let estimator = LargeScaleDummyEstimator::new(LargeScaleStrategy::SketchBased {
             sketch_size: 32,

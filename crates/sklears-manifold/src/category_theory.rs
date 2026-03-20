@@ -343,7 +343,12 @@ impl SheafBasedManifoldLearning {
         }
 
         // Simple concatenation for demonstration
-        let first_patch = self.topos.presheaves.values().next().unwrap();
+        let first_patch = self
+            .topos
+            .presheaves
+            .values()
+            .next()
+            .expect("operation should succeed");
         let mut global_sections = first_patch.local_sections.clone();
 
         for (_, presheaf) in self.topos.presheaves.iter().skip(1) {
@@ -459,18 +464,22 @@ mod tests {
         let obj2 = cml.add_manifold(3, MetricType::Euclidean, TopologyType::Connected);
         let obj3 = cml.add_manifold(2, MetricType::Euclidean, TopologyType::Connected);
 
-        let m1 = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f64).collect()).unwrap();
-        let m2 = Array2::from_shape_vec((2, 3), (0..6).map(|x| x as f64).collect()).unwrap();
+        let m1 = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+        let m2 = Array2::from_shape_vec((2, 3), (0..6).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         cml.add_embedding(obj1, obj2, TransformationType::Linear(m1))
-            .unwrap();
+            .expect("operation should succeed");
         cml.add_embedding(obj2, obj3, TransformationType::Linear(m2))
-            .unwrap();
+            .expect("operation should succeed");
 
-        let composed = cml.compose_embeddings(obj1, obj2, obj3).unwrap();
+        let composed = cml
+            .compose_embeddings(obj1, obj2, obj3)
+            .expect("operation should succeed");
         assert!(composed.is_some());
 
-        let composed_embedding = composed.unwrap();
+        let composed_embedding = composed.expect("operation should succeed");
         assert_eq!(composed_embedding.source_dim, 4);
         assert_eq!(composed_embedding.target_dim, 2);
     }
@@ -479,8 +488,8 @@ mod tests {
     fn test_topos_structure() {
         let mut topos = ToposStructure::new("TestTopos".to_string());
 
-        let local_data =
-            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let local_data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let presheaf_data = PresheafData {
             local_sections: local_data,
             gluing_data: vec![],
@@ -490,15 +499,23 @@ mod tests {
 
         let retrieved = topos.get_presheaf("patch1");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().local_sections.shape(), &[2, 3]);
+        assert_eq!(
+            retrieved
+                .expect("operation should succeed")
+                .local_sections
+                .shape(),
+            &[2, 3]
+        );
     }
 
     #[test]
     fn test_sheaf_based_manifold_learning() {
         let mut sml = SheafBasedManifoldLearning::new("TestSheaf".to_string());
 
-        let patch1 = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let patch2 = Array2::from_shape_vec((2, 3), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
+        let patch1 = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        let patch2 = Array2::from_shape_vec((2, 3), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+            .expect("operation should succeed");
 
         sml.add_local_patch("patch1".to_string(), patch1);
         sml.add_local_patch("patch2".to_string(), patch2);
@@ -506,7 +523,7 @@ mod tests {
 
         let global = sml.compute_global_sections();
         assert!(global.is_ok());
-        assert_eq!(global.unwrap().shape(), &[4, 3]);
+        assert_eq!(global.expect("operation should succeed").shape(), &[4, 3]);
     }
 
     #[test]
@@ -518,21 +535,26 @@ mod tests {
 
         let retrieved = hce.get_higher_morphism(&[0, 1, 2]);
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().shape(), &[3, 3]);
+        assert_eq!(
+            retrieved.expect("operation should succeed").shape(),
+            &[3, 3]
+        );
     }
 
     #[test]
     fn test_higher_morphism_composition() {
         let mut hce = HigherCategoryEmbedding::new(2);
 
-        let m1 = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let m2 = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let m1 = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        let m2 = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
         hce.add_higher_morphism(vec![0, 1, 2], m1);
         hce.add_higher_morphism(vec![1, 2, 3], m2);
 
         let composed = hce.compose_higher_morphisms(&[0, 1, 2], &[1, 2, 3]);
         assert!(composed.is_some());
-        assert_eq!(composed.unwrap().shape(), &[3, 3]);
+        assert_eq!(composed.expect("operation should succeed").shape(), &[3, 3]);
     }
 }

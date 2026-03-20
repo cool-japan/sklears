@@ -3,7 +3,7 @@
 use super::helpers::*;
 use super::types::*;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use sklears_core::{
     error::{Result, SklearsError},
     prelude::{Fit, Predict},
@@ -67,7 +67,7 @@ impl AdaBoostClassifier<Untrained> {
     /// Find unique classes in the target array
     pub(crate) fn find_classes(y: &Array1<Float>) -> Array1<Float> {
         let mut classes: Vec<Float> = y.iter().cloned().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         classes.dedup();
         Array1::from_vec(classes)
     }
@@ -140,7 +140,7 @@ impl AdaBoostClassifier<Untrained> {
         x: &Array2<Float>,
         y: &Array1<i32>,
         sample_weight: &Array1<Float>,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<Float>, Array1<i32>)> {
         let n_samples = x.nrows();
 
@@ -994,7 +994,7 @@ impl Predict<Array2<Float>, Array1<Float>> for AdaBoostClassifier<Trained> {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = classes[max_idx];

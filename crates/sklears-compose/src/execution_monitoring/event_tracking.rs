@@ -261,7 +261,7 @@ impl EventTrackingSystem {
         // Initialize system if enabled
         if config.enabled {
             {
-                let mut state = system.state.write().unwrap();
+                let mut state = system.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = TrackingStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -279,31 +279,31 @@ impl EventTrackingSystem {
 
         // Add to active sessions
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.to_string(), session_tracker);
         }
 
         // Initialize session in buffer manager
         {
-            let mut buffer_mgr = self.buffer_manager.write().unwrap();
+            let mut buffer_mgr = self.buffer_manager.write().unwrap_or_else(|e| e.into_inner());
             buffer_mgr.initialize_session(session_id)?;
         }
 
         // Initialize session in correlation engine
         {
-            let mut correlation = self.correlation_engine.write().unwrap();
+            let mut correlation = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
             correlation.initialize_session(session_id)?;
         }
 
         // Initialize session in stream manager
         {
-            let mut stream_mgr = self.stream_manager.write().unwrap();
+            let mut stream_mgr = self.stream_manager.write().unwrap_or_else(|e| e.into_inner());
             stream_mgr.initialize_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count += 1;
             state.total_sessions_initialized += 1;
         }
@@ -318,7 +318,7 @@ impl EventTrackingSystem {
 
         // Remove from active sessions
         let tracker = {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.remove(session_id)
         };
 
@@ -329,25 +329,25 @@ impl EventTrackingSystem {
 
         // Shutdown session in buffer manager
         {
-            let mut buffer_mgr = self.buffer_manager.write().unwrap();
+            let mut buffer_mgr = self.buffer_manager.write().unwrap_or_else(|e| e.into_inner());
             buffer_mgr.shutdown_session(session_id)?;
         }
 
         // Shutdown session in correlation engine
         {
-            let mut correlation = self.correlation_engine.write().unwrap();
+            let mut correlation = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
             correlation.shutdown_session(session_id)?;
         }
 
         // Shutdown session in stream manager
         {
-            let mut stream_mgr = self.stream_manager.write().unwrap();
+            let mut stream_mgr = self.stream_manager.write().unwrap_or_else(|e| e.into_inner());
             stream_mgr.shutdown_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count = state.active_sessions_count.saturating_sub(1);
             state.total_sessions_finalized += 1;
         }
@@ -375,7 +375,7 @@ impl EventTrackingSystem {
 
         // Record in session tracker
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(tracker) = sessions.get_mut(session_id) {
                 tracker.record_event(tracked_event.clone()).await?;
             } else {
@@ -385,13 +385,13 @@ impl EventTrackingSystem {
 
         // Process through global processor
         {
-            let mut processor = self.global_processor.write().unwrap();
+            let mut processor = self.global_processor.write().unwrap_or_else(|e| e.into_inner());
             processor.process_event(&tracked_event).await?;
         }
 
         // Apply filters
         {
-            let mut filter_mgr = self.filter_manager.write().unwrap();
+            let mut filter_mgr = self.filter_manager.write().unwrap_or_else(|e| e.into_inner());
             if !filter_mgr.should_process_event(&tracked_event)? {
                 return Ok(());
             }
@@ -399,37 +399,37 @@ impl EventTrackingSystem {
 
         // Enrich event
         {
-            let mut enrichment = self.enrichment_processor.write().unwrap();
+            let mut enrichment = self.enrichment_processor.write().unwrap_or_else(|e| e.into_inner());
             enrichment.enrich_event(&mut tracked_event.clone()).await?;
         }
 
         // Update correlation engine
         {
-            let mut correlation = self.correlation_engine.write().unwrap();
+            let mut correlation = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
             correlation.process_event(&tracked_event).await?;
         }
 
         // Send to batch processor
         {
-            let mut batch_processor = self.batch_processor.write().unwrap();
+            let mut batch_processor = self.batch_processor.write().unwrap_or_else(|e| e.into_inner());
             batch_processor.add_event(tracked_event.clone()).await?;
         }
 
         // Publish to streams
         {
-            let mut stream_mgr = self.stream_manager.write().unwrap();
+            let mut stream_mgr = self.stream_manager.write().unwrap_or_else(|e| e.into_inner());
             stream_mgr.publish_event(session_id, &tracked_event).await?;
         }
 
         // Update performance tracking
         {
-            let mut perf = self.performance_tracker.write().unwrap();
+            let mut perf = self.performance_tracker.write().unwrap_or_else(|e| e.into_inner());
             perf.record_event_processed();
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.total_events_processed += 1;
             state.last_event_time = Some(SystemTime::now());
         }
@@ -439,7 +439,7 @@ impl EventTrackingSystem {
 
     /// Get session event status
     pub fn get_session_status(&self, session_id: &str) -> SklResult<SessionEventStatus> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(tracker) = sessions.get(session_id) {
             Ok(tracker.get_status())
         } else {
@@ -453,7 +453,7 @@ impl EventTrackingSystem {
         session_id: &str,
         filter: Option<EventStreamFilter>,
     ) -> SklResult<broadcast::Receiver<TrackedEvent>> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(tracker) = sessions.get(session_id) {
             tracker.get_event_stream(filter)
         } else {
@@ -467,7 +467,7 @@ impl EventTrackingSystem {
         session_id: &str,
         query: EventQuery,
     ) -> SklResult<Vec<TrackedEvent>> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(tracker) = sessions.get(session_id) {
             tracker.query_events(&query).await
         } else {
@@ -481,13 +481,13 @@ impl EventTrackingSystem {
         session_id: &str,
         event_id: &str,
     ) -> SklResult<Vec<EventCorrelation>> {
-        let correlation_engine = self.correlation_engine.read().unwrap();
+        let correlation_engine = self.correlation_engine.read().unwrap_or_else(|e| e.into_inner());
         correlation_engine.get_correlations(session_id, event_id)
     }
 
     /// Get event statistics
     pub fn get_event_statistics(&self, session_id: &str) -> SklResult<EventStatistics> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(tracker) = sessions.get(session_id) {
             Ok(tracker.get_statistics())
         } else {
@@ -501,7 +501,7 @@ impl EventTrackingSystem {
         session_id: &str,
         filters: Vec<EventFilter>,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(tracker) = sessions.get_mut(session_id) {
             tracker.configure_filters(filters).await
         } else {
@@ -511,8 +511,8 @@ impl EventTrackingSystem {
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let health = self.health_monitor.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let health = self.health_monitor.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -530,8 +530,8 @@ impl EventTrackingSystem {
 
     /// Get tracking statistics
     pub fn get_tracking_statistics(&self) -> SklResult<TrackingStatistics> {
-        let state = self.state.read().unwrap();
-        let perf = self.performance_tracker.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let perf = self.performance_tracker.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(TrackingStatistics {
             total_events_processed: state.total_events_processed,
@@ -550,17 +550,17 @@ impl EventTrackingSystem {
     }
 
     async fn flush_session_events(&self, session_id: &str) -> SklResult<()> {
-        let buffer_mgr = self.buffer_manager.read().unwrap();
+        let buffer_mgr = self.buffer_manager.read().unwrap_or_else(|e| e.into_inner());
         buffer_mgr.flush_session(session_id).await
     }
 
     fn calculate_buffer_utilization(&self) -> SklResult<f64> {
-        let buffer_mgr = self.buffer_manager.read().unwrap();
+        let buffer_mgr = self.buffer_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(buffer_mgr.get_utilization())
     }
 
     fn calculate_correlation_efficiency(&self) -> SklResult<f64> {
-        let correlation_engine = self.correlation_engine.read().unwrap();
+        let correlation_engine = self.correlation_engine.read().unwrap_or_else(|e| e.into_inner());
         Ok(correlation_engine.get_efficiency_score())
     }
 }
@@ -1085,7 +1085,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_initialization() {
         let config = EventTrackingConfig::default();
-        let mut system = EventTrackingSystem::new(&config).unwrap();
+        let mut system = EventTrackingSystem::new(&config).unwrap_or_default();
 
         let result = system.initialize_session("test_session").await;
         assert!(result.is_ok());

@@ -219,7 +219,7 @@ impl<X, Y> BayesianGaussianMixture<X, Y> {
             }
         } else {
             // Use data mean as default
-            let data_mean = x.mean_axis(Axis(0)).unwrap();
+            let data_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
             for i in 0..self.config.n_components {
                 means.row_mut(i).assign(&data_mean);
             }
@@ -253,9 +253,12 @@ impl<X, Y> BayesianGaussianMixture<X, Y> {
         x: &ArrayView2<Float>,
         responsibilities: &mut Array2<Float>,
     ) -> Result<()> {
-        let means = self.means_.as_ref().unwrap();
-        let covariances = self.covariances_.as_ref().unwrap();
-        let weights = self.weights_.as_ref().unwrap();
+        let means = self.means_.as_ref().expect("operation should succeed");
+        let covariances = self
+            .covariances_
+            .as_ref()
+            .expect("operation should succeed");
+        let weights = self.weights_.as_ref().expect("operation should succeed");
 
         for (i, sample) in x.outer_iter().enumerate() {
             let mut log_probs = Array1::zeros(self.config.n_components);
@@ -325,7 +328,7 @@ impl<X, Y> BayesianGaussianMixture<X, Y> {
 
         // Update means (Normal posterior) with SIMD-accelerated weighted sum
         let mut means = Array2::zeros((self.config.n_components, n_features));
-        let default_mean = x.mean_axis(Axis(0)).unwrap();
+        let default_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let prior_mean = self.config.mean_prior.as_ref().unwrap_or(&default_mean);
 
         for k in 0..self.config.n_components {
@@ -412,9 +415,12 @@ impl<X, Y> BayesianGaussianMixture<X, Y> {
         let mut lower_bound = 0.0;
 
         // Expected log likelihood of the data
-        let means = self.means_.as_ref().unwrap();
-        let covariances = self.covariances_.as_ref().unwrap();
-        let weights = self.weights_.as_ref().unwrap();
+        let means = self.means_.as_ref().expect("operation should succeed");
+        let covariances = self
+            .covariances_
+            .as_ref()
+            .expect("operation should succeed");
+        let weights = self.weights_.as_ref().expect("operation should succeed");
 
         for i in 0..n_samples {
             for k in 0..self.config.n_components {
@@ -453,7 +459,10 @@ impl<X, Y> BayesianGaussianMixture<X, Y> {
 
     /// Compute KL divergence for weight concentration parameters with SIMD acceleration
     fn compute_kl_divergence_weights(&self) -> Result<Float> {
-        let weight_concentration = self.weight_concentration_.as_ref().unwrap();
+        let weight_concentration = self
+            .weight_concentration_
+            .as_ref()
+            .expect("operation should succeed");
         let prior_concentration = self.config.weight_concentration_prior;
 
         // Use SIMD-accelerated KL divergence computation for Dirichlet distributions
@@ -478,8 +487,11 @@ impl<X, Y> BayesianGaussianMixture<X, Y> {
 
     /// Compute KL divergence for mean parameters
     fn compute_kl_divergence_means(&self) -> Result<Float> {
-        let means = self.means_.as_ref().unwrap();
-        let mean_precision = self.mean_precision_.as_ref().unwrap();
+        let means = self.means_.as_ref().expect("operation should succeed");
+        let mean_precision = self
+            .mean_precision_
+            .as_ref()
+            .expect("operation should succeed");
         let n_features = means.ncols();
         let default_mean = Array1::zeros(n_features);
         let prior_mean = self.config.mean_prior.as_ref().unwrap_or(&default_mean);
@@ -501,8 +513,14 @@ impl<X, Y> BayesianGaussianMixture<X, Y> {
 
     /// Compute KL divergence for covariance parameters
     fn compute_kl_divergence_covariances(&self) -> Result<Float> {
-        let covariances = self.covariances_.as_ref().unwrap();
-        let degrees_of_freedom = self.degrees_of_freedom_.as_ref().unwrap();
+        let covariances = self
+            .covariances_
+            .as_ref()
+            .expect("operation should succeed");
+        let degrees_of_freedom = self
+            .degrees_of_freedom_
+            .as_ref()
+            .expect("operation should succeed");
         let n_features = covariances[0].ncols();
         let default_cov = Array2::eye(n_features);
         let cov_prior = self

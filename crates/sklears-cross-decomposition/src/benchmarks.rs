@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 ///     .add_method("CCA")
 ///     .n_runs(10);
 ///
-/// let results = suite.run_benchmarks().unwrap();
+/// let results = suite.run_benchmarks().expect("operation should succeed");
 /// results.print_summary();
 /// ```
 #[derive(Debug, Clone)]
@@ -804,7 +804,9 @@ mod tests {
     #[test]
     fn test_synthetic_data_generation() {
         let suite = BenchmarkSuite::new();
-        let (x, y) = suite.generate_synthetic_dataset(100, 20).unwrap();
+        let (x, y) = suite
+            .generate_synthetic_dataset(100, 20)
+            .expect("operation should succeed");
 
         assert_eq!(x.shape(), &[100, 20]);
         assert_eq!(y.shape(), &[100, 11]); // n_features / 2 + 1
@@ -813,8 +815,10 @@ mod tests {
     #[test]
     fn test_rmse_computation() {
         let suite = BenchmarkSuite::new();
-        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![1.1, 2.1, 3.1, 4.1]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape should match data length");
+        let b = Array2::from_shape_vec((2, 2), vec![1.1, 2.1, 3.1, 4.1])
+            .expect("shape should match data length");
 
         let rmse = suite.compute_rmse(&a, &b);
         assert!((rmse - 0.1).abs() < 1e-10);

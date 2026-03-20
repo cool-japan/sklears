@@ -1,7 +1,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use scirs2_core::StandardNormal;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
@@ -407,7 +407,10 @@ impl MultipleKernelLearning {
 
     /// Learn optimal kernel weights
     fn learn_weights(&mut self, y: Option<&Array1<f64>>) -> Result<()> {
-        let kernel_matrices = self.kernel_matrices.as_ref().unwrap();
+        let kernel_matrices = self
+            .kernel_matrices
+            .as_ref()
+            .expect("operation should succeed");
         let n_kernels = kernel_matrices.len();
 
         let weights = match &self.config.weight_learning {
@@ -692,9 +695,9 @@ impl MultipleKernelLearning {
         if self.config.center_kernels {
             // Center kernel matrix
             let _n = kernel.nrows() as f64;
-            let row_means = kernel.mean_axis(Axis(1)).unwrap();
-            let col_means = kernel.mean_axis(Axis(0)).unwrap();
-            let total_mean = kernel.mean().unwrap();
+            let row_means = kernel.mean_axis(Axis(1)).expect("operation should succeed");
+            let col_means = kernel.mean_axis(Axis(0)).expect("operation should succeed");
+            let total_mean = kernel.mean().expect("operation should succeed");
 
             for i in 0..kernel.nrows() {
                 for j in 0..kernel.ncols() {
@@ -744,7 +747,7 @@ impl MultipleKernelLearning {
         // Generate random bias
         let mut bias = Array1::zeros(n_components);
         for i in 0..n_components {
-            bias[i] = self.rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+            bias[i] = self.rng.random_range(0.0..2.0 * std::f64::consts::PI);
         }
 
         // Compute features
@@ -768,7 +771,7 @@ impl MultipleKernelLearning {
         let mut weights = Array2::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
-                let u: f64 = self.rng.gen_range(0.001..0.999);
+                let u: f64 = self.rng.random_range(0.001..0.999);
                 weights[[i, j]] = ((std::f64::consts::PI * (u - 0.5)).tan()) * gamma;
             }
         }
@@ -776,7 +779,7 @@ impl MultipleKernelLearning {
         // Generate random bias
         let mut bias = Array1::zeros(n_components);
         for i in 0..n_components {
-            bias[i] = self.rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+            bias[i] = self.rng.random_range(0.0..2.0 * std::f64::consts::PI);
         }
 
         // Compute features
@@ -799,7 +802,7 @@ impl MultipleKernelLearning {
         // Select random landmarks
         let mut landmark_indices = Vec::new();
         for _ in 0..n_landmarks {
-            landmark_indices.push(self.rng.gen_range(0..n_samples));
+            landmark_indices.push(self.rng.random_range(0..n_samples));
         }
 
         // Compute kernel between all points and landmarks
@@ -982,9 +985,9 @@ mod tests {
 
         let mut mkl = MultipleKernelLearning::new(base_kernels).with_random_state(42);
 
-        mkl.fit(&x, None).unwrap();
+        mkl.fit(&x, None).expect("operation should succeed");
 
-        let weights = mkl.kernel_weights().unwrap();
+        let weights = mkl.kernel_weights().expect("operation should succeed");
         assert_eq!(weights.len(), 3);
         assert!((weights.sum() - 1.0).abs() < 1e-10); // Should sum to 1 for convex combination
     }
@@ -994,7 +997,9 @@ mod tests {
         let kernel = array![[1.0, 0.5, 0.2], [0.5, 1.0, 0.3], [0.2, 0.3, 1.0]];
 
         let mkl = MultipleKernelLearning::new(vec![]);
-        let stats = mkl.compute_kernel_statistics(&kernel, None).unwrap();
+        let stats = mkl
+            .compute_kernel_statistics(&kernel, None)
+            .expect("operation should succeed");
 
         assert!((stats.alignment - 1.0).abs() < 1e-10); // Diagonal mean should be 1.0
         assert!(stats.effective_rank > 0.0);
@@ -1008,7 +1013,9 @@ mod tests {
         let mut mkl = MultipleKernelLearning::new(vec![]);
         mkl.config.combination_strategy = CombinationStrategy::Convex;
 
-        let constrained = mkl.apply_combination_constraints(weights.clone()).unwrap();
+        let constrained = mkl
+            .apply_combination_constraints(weights.clone())
+            .expect("operation should succeed");
 
         // Should be non-negative and sum to 1
         assert!(constrained.iter().all(|&x| x >= 0.0));
@@ -1072,10 +1079,14 @@ mod tests {
 
         let mut mkl_unsupervised =
             MultipleKernelLearning::new(base_kernels.clone()).with_random_state(42);
-        mkl_unsupervised.fit(&x, None).unwrap();
+        mkl_unsupervised
+            .fit(&x, None)
+            .expect("operation should succeed");
 
         let mut mkl_supervised = MultipleKernelLearning::new(base_kernels).with_random_state(42);
-        mkl_supervised.fit(&x, Some(&y)).unwrap();
+        mkl_supervised
+            .fit(&x, Some(&y))
+            .expect("operation should succeed");
 
         // Both should work without errors
         assert!(mkl_unsupervised.kernel_weights().is_some());
@@ -1098,8 +1109,8 @@ mod tests {
             })
             .with_random_state(42);
 
-        mkl.fit(&x_train, None).unwrap();
-        let features = mkl.transform(&x_test).unwrap();
+        mkl.fit(&x_train, None).expect("operation should succeed");
+        let features = mkl.transform(&x_test).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 2); // Two test samples
         assert!(features.ncols() > 0); // Some features generated

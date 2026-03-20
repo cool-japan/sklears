@@ -201,7 +201,7 @@ impl Fit<Array2<f64>, Array1<f64>> for AdaptiveSVM<Untrained> {
         let (optimal_c, optimization_history) = self.optimize_regularization(x, y)?;
 
         // Train final SVM with optimal C
-        let mut base_config = self.base_svm_config.unwrap_or_default();
+        let mut base_config = self.base_svm_config.expect("value should be present");
         base_config.c = optimal_c;
 
         let base_svm = crate::svc::SVC::new()
@@ -557,7 +557,10 @@ impl AdaptiveSVM<Untrained> {
 
 impl Predict<Array2<f64>, Array1<f64>> for AdaptiveSVM<Trained> {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
-        let trained_svm = self.trained_svm.as_ref().unwrap();
+        let trained_svm = self
+            .trained_svm
+            .as_ref()
+            .expect("trained_svm not available - model not fitted");
         //         use sklears_core::traits::Predict;
         trained_svm.predict(x)
     }
@@ -566,17 +569,24 @@ impl Predict<Array2<f64>, Array1<f64>> for AdaptiveSVM<Trained> {
 impl AdaptiveSVM<Trained> {
     /// Get the optimal regularization parameter
     pub fn optimal_c(&self) -> f64 {
-        *self.optimal_c.as_ref().unwrap()
+        *self
+            .optimal_c
+            .as_ref()
+            .expect("optimal_c not available - model not fitted")
     }
 
     /// Get the optimization history
     pub fn optimization_history(&self) -> &[(f64, f64)] {
-        self.optimization_history.as_ref().unwrap()
+        self.optimization_history
+            .as_ref()
+            .expect("optimization_history not available - model not fitted")
     }
 
     /// Get the underlying trained SVM
     pub fn base_svm(&self) -> &crate::svc::SVC<Trained> {
-        self.trained_svm.as_ref().unwrap()
+        self.trained_svm
+            .as_ref()
+            .expect("trained_svm not available - model not fitted")
     }
 }
 
@@ -636,7 +646,7 @@ mod tests {
         let result = adaptive_svm.fit(&x, &y);
         assert!(result.is_ok());
 
-        let trained_model = result.unwrap();
+        let trained_model = result.expect("operation should succeed");
         assert!(trained_model.optimal_c.is_some());
         assert!(trained_model.optimization_history.is_some());
     }
@@ -658,7 +668,7 @@ mod tests {
         let result = adaptive_svm.fit(&x, &y);
         assert!(result.is_ok());
 
-        let trained_model = result.unwrap();
+        let trained_model = result.expect("operation should succeed");
         assert!(trained_model.optimal_c.is_some());
     }
 
@@ -676,12 +686,14 @@ mod tests {
             .verbose(false);
 
         use sklears_core::traits::Predict;
-        let trained_model = adaptive_svm.fit(&x, &y).unwrap();
+        let trained_model = adaptive_svm
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         let predictions = trained_model.predict(&x);
         assert!(predictions.is_ok());
 
-        let pred_labels = predictions.unwrap();
+        let pred_labels = predictions.expect("operation should succeed");
         assert_eq!(pred_labels.len(), x.nrows());
     }
 

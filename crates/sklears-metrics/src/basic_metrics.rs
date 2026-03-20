@@ -80,7 +80,8 @@ pub fn precision_score<T: PartialEq + Copy + Ord>(
         return Err(MetricsError::EmptyInput);
     }
 
-    let label = pos_label.unwrap_or_else(|| *y_true.iter().max().unwrap());
+    let label =
+        pos_label.unwrap_or_else(|| *y_true.iter().max().expect("operation should succeed"));
 
     let tp = y_true
         .iter()
@@ -125,7 +126,8 @@ pub fn recall_score<T: PartialEq + Copy + Ord>(
         return Err(MetricsError::EmptyInput);
     }
 
-    let label = pos_label.unwrap_or_else(|| *y_true.iter().max().unwrap());
+    let label =
+        pos_label.unwrap_or_else(|| *y_true.iter().max().expect("operation should succeed"));
 
     let tp = y_true
         .iter()
@@ -204,8 +206,14 @@ pub fn confusion_matrix<T: PartialEq + Copy + Ord>(
     let mut matrix = Array2::zeros((n_labels, n_labels));
 
     for (true_label, pred_label) in y_true.iter().zip(y_pred.iter()) {
-        let true_idx = labels.iter().position(|&x| x == *true_label).unwrap();
-        let pred_idx = labels.iter().position(|&x| x == *pred_label).unwrap();
+        let true_idx = labels
+            .iter()
+            .position(|&x| x == *true_label)
+            .expect("operation should succeed");
+        let pred_idx = labels
+            .iter()
+            .position(|&x| x == *pred_label)
+            .expect("operation should succeed");
         matrix[[true_idx, pred_idx]] += 1;
     }
 

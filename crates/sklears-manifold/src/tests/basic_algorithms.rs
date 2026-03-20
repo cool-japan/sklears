@@ -17,7 +17,7 @@ fn test_tsne_basic() {
         .n_iter(50)
         .verbose(false);
 
-    let fitted = tsne.fit(&x.view(), &()).unwrap();
+    let fitted = tsne.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (4, 2));
@@ -29,7 +29,9 @@ fn test_isomap_basic() {
 
     let isomap = Isomap::new().n_neighbors(2).n_components(2);
 
-    let fitted = isomap.fit(&x.view(), &()).unwrap();
+    let fitted = isomap
+        .fit(&x.view(), &())
+        .expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (4, 2));
@@ -41,8 +43,10 @@ fn test_tsne_transform() {
 
     let tsne = TSNE::new().n_components(2).perplexity(1.0).n_iter(50);
 
-    let fitted = tsne.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = tsne.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (4, 2));
 }
@@ -53,8 +57,12 @@ fn test_isomap_transform() {
 
     let isomap = Isomap::new().n_neighbors(2).n_components(2);
 
-    let fitted = isomap.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = isomap
+        .fit(&x.view(), &())
+        .expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (4, 2));
 }
@@ -75,7 +83,7 @@ fn test_lle_basic() {
 
     let lle = LocallyLinearEmbedding::new().n_neighbors(2).n_components(2);
 
-    let fitted = lle.fit(&x.view(), &()).unwrap();
+    let fitted = lle.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (5, 2));
@@ -87,8 +95,10 @@ fn test_lle_transform() {
 
     let lle = LocallyLinearEmbedding::new().n_neighbors(2).n_components(2);
 
-    let fitted = lle.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = lle.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 2));
 }
@@ -109,7 +119,9 @@ fn test_laplacian_eigenmaps_basic() {
 
     let laplacian = LaplacianEigenmaps::new().n_neighbors(2).n_components(2);
 
-    let fitted = laplacian.fit(&x.view(), &()).unwrap();
+    let fitted = laplacian
+        .fit(&x.view(), &())
+        .expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (5, 2));
@@ -121,8 +133,12 @@ fn test_laplacian_eigenmaps_transform() {
 
     let laplacian = LaplacianEigenmaps::new().n_neighbors(2).n_components(2);
 
-    let fitted = laplacian.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = laplacian
+        .fit(&x.view(), &())
+        .expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 2));
 }
@@ -143,7 +159,7 @@ fn test_mds_basic() {
 
     let mds = MDS::new().n_components(2);
 
-    let fitted = mds.fit(&x.view(), &()).unwrap();
+    let fitted = mds.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (5, 2));
@@ -155,8 +171,10 @@ fn test_mds_transform() {
 
     let mds = MDS::new().n_components(2);
 
-    let fitted = mds.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = mds.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 2));
 }
@@ -167,7 +185,7 @@ fn test_mds_stress() {
 
     let mds = MDS::new().n_components(2);
 
-    let fitted = mds.fit(&x.view(), &()).unwrap();
+    let fitted = mds.fit(&x.view(), &()).expect("operation should succeed");
     let stress = fitted.stress();
 
     assert!(stress >= 0.0); // Stress should be non-negative
@@ -183,7 +201,7 @@ fn test_umap_basic() {
         .n_epochs(Some(10)) // Short for testing
         .random_state(Some(42));
 
-    let fitted = umap.fit(&x.view(), &()).unwrap();
+    let fitted = umap.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (5, 2));
@@ -199,8 +217,10 @@ fn test_umap_transform() {
         .n_epochs(Some(10))
         .random_state(Some(42));
 
-    let fitted = umap.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = umap.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 2));
 }
@@ -228,7 +248,7 @@ fn test_umap_params() {
         .n_epochs(Some(10))
         .random_state(Some(42));
 
-    let fitted = umap.fit(&x.view(), &()).unwrap();
+    let fitted = umap.fit(&x.view(), &()).expect("operation should succeed");
 
     assert!(fitted.a() > 0.0);
     assert!(fitted.b() > 0.0);
@@ -242,7 +262,8 @@ fn test_tsne_barnes_hut() {
         // Reduced from 300
         x_data.push([i as f64 / 100.0, (i as f64 / 100.0).sin()]);
     }
-    let x = Array2::from_shape_vec((100, 2), x_data.into_iter().flatten().collect()).unwrap();
+    let x = Array2::from_shape_vec((100, 2), x_data.into_iter().flatten().collect())
+        .expect("operation should succeed");
 
     let tsne = TSNE::new()
         .n_components(2)
@@ -252,7 +273,7 @@ fn test_tsne_barnes_hut() {
         .n_iter(20) // Reduced for faster testing
         .random_state(Some(42));
 
-    let fitted = tsne.fit(&x.view(), &()).unwrap();
+    let fitted = tsne.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (100, 2));
@@ -270,7 +291,9 @@ fn test_tsne_exact_vs_barnes_hut() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted_exact = tsne_exact.fit(&x.view(), &()).unwrap();
+    let fitted_exact = tsne_exact
+        .fit(&x.view(), &())
+        .expect("operation should succeed");
 
     // Test Barnes-Hut method (should fall back to exact for small datasets)
     let tsne_bh = TSNE::new()
@@ -280,7 +303,9 @@ fn test_tsne_exact_vs_barnes_hut() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted_bh = tsne_bh.fit(&x.view(), &()).unwrap();
+    let fitted_bh = tsne_bh
+        .fit(&x.view(), &())
+        .expect("operation should succeed");
 
     // Both should produce valid embeddings
     assert_eq!(fitted_exact.embedding().dim(), (5, 2));
@@ -297,7 +322,7 @@ fn test_diffusion_maps_basic() {
         .diffusion_time(1)
         .alpha(1.0);
 
-    let fitted = dm.fit(&x.view(), &()).unwrap();
+    let fitted = dm.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (5, 2));
@@ -310,8 +335,10 @@ fn test_diffusion_maps_transform() {
 
     let dm = DiffusionMaps::new().n_components(2).epsilon(1.5);
 
-    let fitted = dm.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = dm.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 2));
 }
@@ -322,7 +349,7 @@ fn test_diffusion_maps_auto_epsilon() {
 
     let dm = DiffusionMaps::new().n_components(2).diffusion_time(2);
 
-    let fitted = dm.fit(&x.view(), &()).unwrap();
+    let fitted = dm.fit(&x.view(), &()).expect("operation should succeed");
 
     // Should automatically estimate epsilon
     assert!(fitted.epsilon() > 0.0);
@@ -345,7 +372,7 @@ fn test_diffusion_maps_eigenvalues() {
 
     let dm = DiffusionMaps::new().n_components(2).epsilon(1.0);
 
-    let fitted = dm.fit(&x.view(), &()).unwrap();
+    let fitted = dm.fit(&x.view(), &()).expect("operation should succeed");
 
     assert_eq!(fitted.eigenvalues().dim(), (5, 1)); // All eigenvalues are stored, not just n_components
     assert_eq!(fitted.eigenvectors().dim(), (5, 5)); // All eigenvectors are stored

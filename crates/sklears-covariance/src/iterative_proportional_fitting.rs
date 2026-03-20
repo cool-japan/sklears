@@ -251,7 +251,11 @@ impl Fit<ArrayView2<'_, f64>, ()> for IPFCovariance {
         }
 
         // Compute empirical mean and covariance as starting point
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let mut x_centered = x.to_owned();
         for mut row in x_centered.axis_iter_mut(Axis(0)) {
             row -= &mean;
@@ -710,7 +714,10 @@ impl IPFCovariance {
             let prev_cov = cov.clone();
 
             // Compound symmetry: all variances equal, all covariances equal
-            let avg_var = cov.diag().mean().unwrap();
+            let avg_var = cov
+                .diag()
+                .mean()
+                .expect("mean computation should succeed for non-empty array");
             let mut sum_cov = 0.0;
             let mut count_cov = 0;
 
@@ -747,7 +754,10 @@ impl IPFCovariance {
 
             // Compute constraint violations
             let mut violation = 0.0;
-            let current_avg_var = cov.diag().mean().unwrap();
+            let current_avg_var = cov
+                .diag()
+                .mean()
+                .expect("mean computation should succeed for non-empty array");
             let mut current_sum_cov = 0.0;
             for i in 0..n {
                 violation += (cov[[i, i]] - current_avg_var).abs();
@@ -989,7 +999,9 @@ mod tests {
             .constraint_type(ConstraintType::MarginalVariances)
             .max_iter(100);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_n_iter() > 0);
@@ -1015,7 +1027,9 @@ mod tests {
             .constraint_type(ConstraintType::ConditionalIndependence)
             .independence_graph(independence_graph);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let cov = fitted.get_covariance();
 
@@ -1040,7 +1054,9 @@ mod tests {
             block_structure: block_structure.clone(),
         });
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let cov = fitted.get_covariance();
 
@@ -1063,7 +1079,9 @@ mod tests {
 
         let estimator = IPFCovariance::new().constraint_type(ConstraintType::CompoundSymmetry);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let cov = fitted.get_covariance();
 
@@ -1104,7 +1122,9 @@ mod tests {
             pattern: pattern.clone(),
         });
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let cov = fitted.get_covariance();
 
@@ -1126,7 +1146,7 @@ mod tests {
             .max_iter(50)
             .tolerance(1e-6)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let history = fitted.get_convergence_history();
         let violations = fitted.get_constraint_violations();
@@ -1136,7 +1156,10 @@ mod tests {
 
         // Convergence should generally decrease
         if history.len() > 1 {
-            assert!(history.last().unwrap() <= history.first().unwrap());
+            assert!(
+                history.last().expect("operation should succeed")
+                    <= history.first().expect("operation should succeed")
+            );
         }
     }
 
@@ -1154,7 +1177,9 @@ mod tests {
 
         let estimator = IPFCovariance::new().marginal_constraints(vec![constraint]);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let cov = fitted.get_covariance();
 

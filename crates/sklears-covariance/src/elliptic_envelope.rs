@@ -54,7 +54,7 @@ pub struct EllipticEnvelopeConfig {
 /// let detector = EllipticEnvelope::new().contamination(0.25);
 /// match detector.fit(&x.view(), &()) {
 ///     Ok(fitted) => {
-///         let predictions = fitted.predict(&x.view()).unwrap();
+///         let predictions = fitted.predict(&x.view()).expect("prediction should succeed");
 ///         assert_eq!(predictions.len(), 9);
 ///     }
 ///     Err(_) => {
@@ -171,7 +171,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for EllipticEnvelope<Untrained> {
 
         // Determine threshold based on contamination
         let mut sorted_distances = distances.to_vec();
-        sorted_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let threshold_idx = ((1.0 - self.config.contamination) * n_samples as f64) as usize;
         let threshold = if threshold_idx < sorted_distances.len() {
             sorted_distances[threshold_idx]

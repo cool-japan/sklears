@@ -346,10 +346,20 @@ mod tests {
         let x = array![[1.0], [2.0], [3.0], [4.0], [5.0]];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // y = 2x
 
-        let model = HuberRegressor::new().fit(&x, &y).unwrap();
+        let model = HuberRegressor::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        assert_abs_diff_eq!(model.coef().unwrap()[0], 2.0, epsilon = 1e-3);
-        assert_abs_diff_eq!(model.intercept().unwrap(), 0.0, epsilon = 1e-3);
+        assert_abs_diff_eq!(
+            model.coef().expect("operation should succeed")[0],
+            2.0,
+            epsilon = 1e-3
+        );
+        assert_abs_diff_eq!(
+            model.intercept().expect("intercept should be available"),
+            0.0,
+            epsilon = 1e-3
+        );
     }
 
     #[test]
@@ -375,23 +385,24 @@ mod tests {
             .epsilon(1.35)
             .max_iter(200)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // The coefficient should be somewhat robust to the outlier
         println!(
             "Coefficient: {}, Intercept: {}",
-            model.coef().unwrap()[0],
-            model.intercept().unwrap()
+            model.coef().expect("operation should succeed")[0],
+            model.intercept().expect("intercept should be available")
         );
         assert!(
-            model.coef().unwrap()[0] > 1.8 && model.coef().unwrap()[0] < 3.0,
+            model.coef().expect("operation should succeed")[0] > 1.8
+                && model.coef().expect("operation should succeed")[0] < 3.0,
             "Coefficient: {}",
-            model.coef().unwrap()[0]
+            model.coef().expect("operation should succeed")[0]
         );
 
         // Test that predictions are reasonable
         let x_test = array![[3.0], [5.0], [7.0]];
-        let predictions = model.predict(&x_test).unwrap();
+        let predictions = model.predict(&x_test).expect("prediction should succeed");
         // With the outlier affecting the fit, predictions will be different
         // Just ensure they're in a reasonable range
         assert!(predictions[0] > 0.0 && predictions[0] < 15.0);
@@ -406,10 +417,18 @@ mod tests {
         let model = HuberRegressor::new()
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_abs_diff_eq!(model.coef().unwrap()[0], 2.0, epsilon = 1e-3);
-        assert_abs_diff_eq!(model.intercept().unwrap(), 0.0, epsilon = 1e-3);
+        assert_abs_diff_eq!(
+            model.coef().expect("operation should succeed")[0],
+            2.0,
+            epsilon = 1e-3
+        );
+        assert_abs_diff_eq!(
+            model.intercept().expect("intercept should be available"),
+            0.0,
+            epsilon = 1e-3
+        );
     }
 
     #[test]
@@ -417,10 +436,13 @@ mod tests {
         let x = array![[1.0], [2.0], [3.0], [4.0], [5.0]];
         let y = array![2.1, 3.9, 6.1, 7.9, 10.1];
 
-        let model = HuberRegressor::new().alpha(0.1).fit(&x, &y).unwrap();
+        let model = HuberRegressor::new()
+            .alpha(0.1)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // With regularization, coefficient should be slightly shrunk
-        assert!(model.coef().unwrap()[0] < 2.0);
+        assert!(model.coef().expect("operation should succeed")[0] < 2.0);
     }
 
     #[test]
@@ -428,10 +450,21 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0],];
         let y = array![5.0, 8.0, 11.0, 14.0]; // y = 1*x1 + 2*x2
 
-        let model = HuberRegressor::new().max_iter(200).fit(&x, &y).unwrap();
+        let model = HuberRegressor::new()
+            .max_iter(200)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // With limited data points and regularization, exact fit is difficult
-        assert_abs_diff_eq!(model.coef().unwrap()[0], 1.0, epsilon = 0.6);
-        assert_abs_diff_eq!(model.coef().unwrap()[1], 2.0, epsilon = 0.6);
+        assert_abs_diff_eq!(
+            model.coef().expect("operation should succeed")[0],
+            1.0,
+            epsilon = 0.6
+        );
+        assert_abs_diff_eq!(
+            model.coef().expect("operation should succeed")[1],
+            2.0,
+            epsilon = 0.6
+        );
     }
 }

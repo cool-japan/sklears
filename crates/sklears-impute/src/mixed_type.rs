@@ -4,7 +4,7 @@
 //! including ordinal variables, semi-continuous data, and bounded variables.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -288,7 +288,7 @@ impl HeterogeneousImputer<Untrained> {
         if all_integers && unique_values.len() <= 10 {
             // Assume ordinal if few unique integer values
             let mut sorted_values: Vec<f64> = values.to_vec();
-            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             sorted_values.dedup();
             return VariableType::Ordinal(sorted_values);
         }
@@ -524,7 +524,7 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
                 if let Some(predicted) = self.predict_continuous(X, sample_idx, feature_idx)? {
                     Ok(predicted)
                 } else {
-                    Ok(mean + std * rng.gen::<f64>())
+                    Ok(mean + std * rng.random::<f64>())
                 }
             }
             (
@@ -532,7 +532,7 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
                 VariableParameters::OrdinalParams { probabilities, .. },
             ) => {
                 // Sample from learned probability distribution
-                let random_val: f64 = rng.gen();
+                let random_val: f64 = rng.random();
                 let mut cumulative = 0.0;
 
                 for (i, &prob) in probabilities.iter().enumerate() {
@@ -550,7 +550,7 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
                 VariableParameters::CategoricalParams { probabilities, .. },
             ) => {
                 // Sample from categorical distribution
-                let random_val: f64 = rng.gen();
+                let random_val: f64 = rng.random();
                 let mut cumulative = 0.0;
 
                 for (i, &prob) in probabilities.iter().enumerate() {
@@ -573,10 +573,10 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
                 },
             ) => {
                 // Two-step process: first decide if zero, then sample continuous part
-                if rng.gen::<f64>() < *zero_prob {
+                if rng.random::<f64>() < *zero_prob {
                     Ok(0.0)
                 } else {
-                    Ok(continuous_mean + continuous_std * rng.gen::<f64>())
+                    Ok(continuous_mean + continuous_std * rng.random::<f64>())
                 }
             }
             (
@@ -593,7 +593,7 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
                 Ok(lower + (upper - lower) * beta_sample)
             }
             (VariableType::Binary, VariableParameters::BinaryParams { probability }) => {
-                if rng.gen::<f64>() < *probability {
+                if rng.random::<f64>() < *probability {
                     Ok(1.0)
                 } else {
                     Ok(0.0)
@@ -761,17 +761,17 @@ impl HeterogeneousImputer<HeterogeneousImputerTrained> {
         // Simple rejection sampling for Beta distribution
         // This is not the most efficient method but works for basic cases
         if alpha <= 0.0 || beta <= 0.0 {
-            return rng.gen::<f64>();
+            return rng.random::<f64>();
         }
 
         // Use transformation method for Beta(1,1) = Uniform(0,1)
         if (alpha - 1.0).abs() < 1e-10 && (beta - 1.0).abs() < 1e-10 {
-            return rng.gen::<f64>();
+            return rng.random::<f64>();
         }
 
         // For other cases, use simple approximation
-        let u1: f64 = rng.gen();
-        let u2: f64 = rng.gen();
+        let u1: f64 = rng.random();
+        let u2: f64 = rng.random();
 
         let x = u1.powf(1.0 / alpha);
         let y = u2.powf(1.0 / beta);
@@ -1077,13 +1077,13 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
                                 },
                             ) => *continuous_mean,
                             (VariableType::Bounded { lower, upper }, _) => {
-                                lower + (upper - lower) * rng.gen::<f64>()
+                                lower + (upper - lower) * rng.random::<f64>()
                             }
                             (
                                 VariableType::Binary,
                                 VariableParameters::BinaryParams { probability },
                             ) => {
-                                if rng.gen::<f64>() < *probability {
+                                if rng.random::<f64>() < *probability {
                                     1.0
                                 } else {
                                     0.0
@@ -1121,7 +1121,7 @@ impl MixedTypeMICEImputer<MixedTypeMICEImputerTrained> {
             variable_types: HashMap::new(),
             max_iter: 1,
             tol: self.tol,
-            random_state: Some(rng.gen::<u64>()),
+            random_state: Some(rng.random::<u64>()),
             missing_values: self.missing_values,
         };
 
@@ -1361,7 +1361,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for OrdinalImputer<Untrained> {
         // Auto-detect levels if not provided
         let levels = if self.levels.is_empty() {
             let mut unique_values: Vec<f64> = observed_values.clone().into_iter().collect();
-            unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            unique_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             unique_values.dedup();
             unique_values
         } else {
@@ -1512,7 +1512,7 @@ impl OrdinalImputer<OrdinalImputerTrained> {
             .level_probabilities
             .iter()
             .enumerate()
-            .max_by(|(_, &a), (_, &b)| a.partial_cmp(&b).unwrap())
+            .max_by(|(_, &a), (_, &b)| a.partial_cmp(&b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -1521,7 +1521,7 @@ impl OrdinalImputer<OrdinalImputerTrained> {
 
     fn impute_proportional_odds(&self, rng: &mut Random) -> f64 {
         // Sample from cumulative distribution
-        let random_val: f64 = rng.gen();
+        let random_val: f64 = rng.random();
 
         for (i, &cum_prob) in self.state.cumulative_probabilities.iter().enumerate() {
             if random_val <= cum_prob {
@@ -1566,7 +1566,7 @@ impl OrdinalImputer<OrdinalImputerTrained> {
                     .position(|&level| (level - closest_val).abs() < 1e-10)
                 {
                     // Sample from transition probabilities
-                    let random_val: f64 = rng.gen();
+                    let random_val: f64 = rng.random();
                     let mut cumulative = 0.0;
 
                     for (to_idx, &prob) in transition_matrix.row(from_idx).iter().enumerate() {
@@ -1611,8 +1611,12 @@ mod tests {
             .variable_types(variable_types)
             .max_iter(10);
 
-        let fitted = imputer.fit(&data.view(), &()).unwrap();
-        let result = fitted.transform(&data.view()).unwrap();
+        let fitted = imputer
+            .fit(&data.view(), &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data.view())
+            .expect("transformation should succeed");
 
         // Should have no missing values
         assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -1642,8 +1646,12 @@ mod tests {
             .n_imputations(3)
             .max_iter(5);
 
-        let fitted = imputer.fit(&data.view(), &()).unwrap();
-        let results = fitted.transform_multiple(&data.view()).unwrap();
+        let fitted = imputer
+            .fit(&data.view(), &())
+            .expect("model fitting should succeed");
+        let results = fitted
+            .transform_multiple(&data.view())
+            .expect("operation should succeed");
 
         // Should generate requested number of imputations
         assert_eq!(results.imputations.len(), 3);
@@ -1666,8 +1674,12 @@ mod tests {
             .levels(levels)
             .method("mode".to_string());
 
-        let fitted = imputer.fit(&data.view(), &()).unwrap();
-        let result = fitted.transform(&data.view()).unwrap();
+        let fitted = imputer
+            .fit(&data.view(), &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data.view())
+            .expect("transformation should succeed");
 
         // Should have no missing values
         assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -1688,7 +1700,9 @@ mod tests {
         let data = array![[1.0, 1.0, 0.5], [2.0, 0.0, 0.8], [3.0, 1.0, 0.0]];
 
         let imputer = HeterogeneousImputer::new().max_iter(5);
-        let fitted = imputer.fit(&data.view(), &()).unwrap();
+        let fitted = imputer
+            .fit(&data.view(), &())
+            .expect("model fitting should succeed");
 
         // Should auto-detect variable types
         let variable_types = &fitted.state.variable_types;

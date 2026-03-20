@@ -13,10 +13,15 @@ use std::collections::HashMap;
 // ============================================================================
 
 /// Build a contingency matrix describing the relationship between two labelings
-fn contingency_matrix(labels_true: &ArrayView1<i32>, labels_pred: &ArrayView1<i32>) -> Array2<i64> {
+fn contingency_matrix(
+    labels_true: &ArrayView1<i32>,
+    labels_pred: &ArrayView1<i32>,
+) -> MetricsResult<Array2<i64>> {
     let n = labels_true.len();
     if n != labels_pred.len() {
-        panic!("labels_true and labels_pred must have the same length");
+        return Err(MetricsError::InvalidInput(
+            "labels_true and labels_pred must have the same length".to_string(),
+        ));
     }
 
     // Find unique labels
@@ -52,16 +57,16 @@ fn contingency_matrix(labels_true: &ArrayView1<i32>, labels_pred: &ArrayView1<i3
         contingency[[class_idx, cluster_idx]] += 1;
     }
 
-    contingency
+    Ok(contingency)
 }
 
 /// Compute pair confusion matrix for two clusterings
 fn pair_confusion_matrix(
     labels_true: &ArrayView1<i32>,
     labels_pred: &ArrayView1<i32>,
-) -> Array2<i64> {
+) -> MetricsResult<Array2<i64>> {
     let n = labels_true.len() as i64;
-    let contingency = contingency_matrix(labels_true, labels_pred);
+    let contingency = contingency_matrix(labels_true, labels_pred)?;
 
     // Compute sums
     let n_c: Vec<i64> = contingency.sum_axis(Axis(1)).iter().copied().collect();
@@ -99,7 +104,7 @@ fn pair_confusion_matrix(
     // C[0,0] = n^2 - C[0,1] - C[1,0] - sum_squares
     c[[0, 0]] = n * n - c[[0, 1]] - c[[1, 0]] - sum_squares;
 
-    c
+    Ok(c)
 }
 
 /// Calculate entropy for a labeling
@@ -154,7 +159,7 @@ pub fn rand_score(labels_true: &Array1<i32>, labels_pred: &Array1<i32>) -> Metri
         ));
     }
 
-    let contingency = pair_confusion_matrix(&labels_true.view(), &labels_pred.view());
+    let contingency = pair_confusion_matrix(&labels_true.view(), &labels_pred.view())?;
     let numerator = contingency[[0, 0]] + contingency[[1, 1]];
     let denominator = contingency.iter().sum::<i64>();
 
@@ -188,7 +193,7 @@ pub fn adjusted_rand_score(
         ));
     }
 
-    let confusion = pair_confusion_matrix(&labels_true.view(), &labels_pred.view());
+    let confusion = pair_confusion_matrix(&labels_true.view(), &labels_pred.view())?;
     let tn = confusion[[0, 0]] as f64;
     let fp = confusion[[0, 1]] as f64;
     let fn_val = confusion[[1, 0]] as f64;
@@ -226,7 +231,7 @@ pub fn fowlkes_mallows_score(
         ));
     }
 
-    let confusion = pair_confusion_matrix(&labels_true.view(), &labels_pred.view());
+    let confusion = pair_confusion_matrix(&labels_true.view(), &labels_pred.view())?;
     let tp = confusion[[1, 1]] as f64;
     let fp = confusion[[0, 1]] as f64;
     let fn_val = confusion[[1, 0]] as f64;
@@ -261,7 +266,7 @@ pub fn mutual_info_score(
         ));
     }
 
-    let contingency = contingency_matrix(&labels_true.view(), &labels_pred.view());
+    let contingency = contingency_matrix(&labels_true.view(), &labels_pred.view())?;
     let n = labels_true.len() as f64;
 
     // Row and column sums
@@ -520,7 +525,7 @@ pub fn silhouette_score(x: &Array2<f64>, labels: &Array1<i32>) -> MetricsResult<
         let b = cluster_dists
             .values()
             .map(|(sum, count)| sum / *count as f64)
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
             .unwrap_or(0.0);
 
         let s = if a.max(b) > 0.0 {
@@ -838,7 +843,7 @@ mod tests {
     fn test_rand_score_perfect_match() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![1, 1, 0, 0]);
-        let score = rand_score(&labels_true, &labels_pred).unwrap();
+        let score = rand_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (score - 1.0).abs() < 1e-10,
             "Perfect match should give score of 1.0"
@@ -849,7 +854,7 @@ mod tests {
     fn test_rand_score_partial_match() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 2]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let score = rand_score(&labels_true, &labels_pred).unwrap();
+        let score = rand_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             score > 0.5 && score < 1.0,
             "Partial match should be between 0.5 and 1.0"
@@ -860,7 +865,8 @@ mod tests {
     fn test_adjusted_rand_score_perfect() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let score = adjusted_rand_score(&labels_true, &labels_pred).unwrap();
+        let score =
+            adjusted_rand_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (score - 1.0).abs() < 1e-10,
             "Perfect match should give ARI of 1.0"
@@ -871,7 +877,8 @@ mod tests {
     fn test_adjusted_rand_score_permuted() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![1, 1, 0, 0]);
-        let score = adjusted_rand_score(&labels_true, &labels_pred).unwrap();
+        let score =
+            adjusted_rand_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (score - 1.0).abs() < 1e-10,
             "Permuted labels should still give ARI of 1.0"
@@ -882,7 +889,8 @@ mod tests {
     fn test_adjusted_rand_score_negative() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 1, 0, 1]);
-        let score = adjusted_rand_score(&labels_true, &labels_pred).unwrap();
+        let score =
+            adjusted_rand_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(score < 0.0, "Discordant labeling should give negative ARI");
     }
 
@@ -890,7 +898,8 @@ mod tests {
     fn test_fowlkes_mallows_score() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let score = fowlkes_mallows_score(&labels_true, &labels_pred).unwrap();
+        let score =
+            fowlkes_mallows_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (score - 1.0).abs() < 1e-10,
             "Perfect match should give FMI of 1.0"
@@ -901,7 +910,7 @@ mod tests {
     fn test_mutual_info_score_perfect() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
-        let mi = mutual_info_score(&labels_true, &labels_pred).unwrap();
+        let mi = mutual_info_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(mi > 0.0, "Perfect clustering should have positive MI");
     }
 
@@ -909,7 +918,7 @@ mod tests {
     fn test_mutual_info_score_single_cluster() {
         let labels_true = Array1::from_vec(vec![0, 0, 0, 0]);
         let labels_pred = Array1::from_vec(vec![1, 1, 1, 1]);
-        let mi = mutual_info_score(&labels_true, &labels_pred).unwrap();
+        let mi = mutual_info_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (mi - 0.0).abs() < 1e-10,
             "Single cluster should have MI of 0"
@@ -920,7 +929,8 @@ mod tests {
     fn test_normalized_mutual_info_score() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let nmi = normalized_mutual_info_score(&labels_true, &labels_pred).unwrap();
+        let nmi = normalized_mutual_info_score(&labels_true, &labels_pred)
+            .expect("operation should succeed");
         assert!(
             (nmi - 1.0).abs() < 1e-10,
             "Perfect match should give NMI of 1.0"
@@ -931,7 +941,7 @@ mod tests {
     fn test_homogeneity_score_perfect() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let h = homogeneity_score(&labels_true, &labels_pred).unwrap();
+        let h = homogeneity_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (h - 1.0).abs() < 1e-10,
             "Perfect clustering is perfectly homogeneous"
@@ -943,7 +953,7 @@ mod tests {
         // Homogeneous but not complete: each cluster has only one class, but classes are split
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 1, 2, 3]);
-        let h = homogeneity_score(&labels_true, &labels_pred).unwrap();
+        let h = homogeneity_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (h - 1.0).abs() < 1e-10,
             "Oversplit clusters are still homogeneous"
@@ -954,7 +964,7 @@ mod tests {
     fn test_completeness_score_perfect() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let c = completeness_score(&labels_true, &labels_pred).unwrap();
+        let c = completeness_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (c - 1.0).abs() < 1e-10,
             "Perfect clustering is perfectly complete"
@@ -966,7 +976,7 @@ mod tests {
         // Complete but not homogeneous: all members of each class in same cluster
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 0, 0]);
-        let c = completeness_score(&labels_true, &labels_pred).unwrap();
+        let c = completeness_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!((c - 1.0).abs() < 1e-10, "All in one cluster is complete");
     }
 
@@ -974,7 +984,7 @@ mod tests {
     fn test_v_measure_score() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let v = v_measure_score(&labels_true, &labels_pred).unwrap();
+        let v = v_measure_score(&labels_true, &labels_pred).expect("operation should succeed");
         assert!(
             (v - 1.0).abs() < 1e-10,
             "Perfect clustering should give V-measure of 1.0"
@@ -993,7 +1003,7 @@ mod tests {
             [10.0, 10.1],
         ];
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let score = silhouette_score(&x, &labels).unwrap();
+        let score = silhouette_score(&x, &labels).expect("operation should succeed");
         assert!(
             score > 0.5,
             "Well-separated clusters should have high silhouette score"
@@ -1012,7 +1022,7 @@ mod tests {
             [0.5, 0.5],
         ];
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let score = silhouette_score(&x, &labels).unwrap();
+        let score = silhouette_score(&x, &labels).expect("operation should succeed");
         // Overlapping clusters should have lower silhouette score
         assert!(
             score < 0.9,
@@ -1032,7 +1042,7 @@ mod tests {
             [10.0, 10.1],
         ];
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let score = calinski_harabasz_score(&x, &labels).unwrap();
+        let score = calinski_harabasz_score(&x, &labels).expect("operation should succeed");
         assert!(
             score > 1.0,
             "Well-separated clusters should have high CH score"
@@ -1051,7 +1061,7 @@ mod tests {
             [10.0, 10.1],
         ];
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let score = davies_bouldin_score(&x, &labels).unwrap();
+        let score = davies_bouldin_score(&x, &labels).expect("operation should succeed");
         assert!(
             score < 1.0,
             "Well-separated clusters should have low DB score"
@@ -1070,7 +1080,7 @@ mod tests {
             [2.5, 2.5],
         ];
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let score = davies_bouldin_score(&x, &labels).unwrap();
+        let score = davies_bouldin_score(&x, &labels).expect("operation should succeed");
         // Poor clustering should have higher DB score
         assert!(
             score > 0.1,
@@ -1090,7 +1100,7 @@ mod tests {
             [10.0, 10.1],
         ];
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let score = dunn_index(&x, &labels).unwrap();
+        let score = dunn_index(&x, &labels).expect("operation should succeed");
         assert!(
             score > 5.0,
             "Well-separated clusters should have high Dunn index"
@@ -1109,7 +1119,7 @@ mod tests {
             [2.5, 2.5],
         ];
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
-        let score = dunn_index(&x, &labels).unwrap();
+        let score = dunn_index(&x, &labels).expect("operation should succeed");
         assert!(
             score < 5.0,
             "Overlapping clusters should have lower Dunn index"
@@ -1120,7 +1130,8 @@ mod tests {
     fn test_contingency_matrix() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 2, 2, 2]);
-        let c = contingency_matrix(&labels_true.view(), &labels_pred.view());
+        let c = contingency_matrix(&labels_true.view(), &labels_pred.view())
+            .expect("contingency_matrix should succeed with equal-length inputs");
 
         // Check dimensions
         assert_eq!(c.nrows(), 3); // 3 unique true labels
@@ -1177,7 +1188,8 @@ mod tests {
     fn test_adjusted_mutual_info_score_simple() {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1]);
-        let ami = adjusted_mutual_info_score(&labels_true, &labels_pred).unwrap();
+        let ami = adjusted_mutual_info_score(&labels_true, &labels_pred)
+            .expect("operation should succeed");
         assert!(
             (ami - 1.0).abs() < 1e-10,
             "Perfect match should give AMI close to 1.0"
@@ -1190,12 +1202,39 @@ mod tests {
         let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
         let labels_pred = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 
-        assert!((rand_score(&labels_true, &labels_pred).unwrap() - 1.0).abs() < 1e-10);
-        assert!((adjusted_rand_score(&labels_true, &labels_pred).unwrap() - 1.0).abs() < 1e-10);
-        assert!((fowlkes_mallows_score(&labels_true, &labels_pred).unwrap() - 1.0).abs() < 1e-10);
-        assert!((homogeneity_score(&labels_true, &labels_pred).unwrap() - 1.0).abs() < 1e-10);
-        assert!((completeness_score(&labels_true, &labels_pred).unwrap() - 1.0).abs() < 1e-10);
-        assert!((v_measure_score(&labels_true, &labels_pred).unwrap() - 1.0).abs() < 1e-10);
+        assert!(
+            (rand_score(&labels_true, &labels_pred).expect("operation should succeed") - 1.0).abs()
+                < 1e-10
+        );
+        assert!(
+            (adjusted_rand_score(&labels_true, &labels_pred).expect("operation should succeed")
+                - 1.0)
+                .abs()
+                < 1e-10
+        );
+        assert!(
+            (fowlkes_mallows_score(&labels_true, &labels_pred).expect("operation should succeed")
+                - 1.0)
+                .abs()
+                < 1e-10
+        );
+        assert!(
+            (homogeneity_score(&labels_true, &labels_pred).expect("operation should succeed")
+                - 1.0)
+                .abs()
+                < 1e-10
+        );
+        assert!(
+            (completeness_score(&labels_true, &labels_pred).expect("operation should succeed")
+                - 1.0)
+                .abs()
+                < 1e-10
+        );
+        assert!(
+            (v_measure_score(&labels_true, &labels_pred).expect("operation should succeed") - 1.0)
+                .abs()
+                < 1e-10
+        );
     }
 
     #[test]
@@ -1215,10 +1254,10 @@ mod tests {
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1, 2, 2, 2]);
 
         // All metrics should indicate good clustering
-        let sil = silhouette_score(&x, &labels).unwrap();
-        let ch = calinski_harabasz_score(&x, &labels).unwrap();
-        let db = davies_bouldin_score(&x, &labels).unwrap();
-        let dunn = dunn_index(&x, &labels).unwrap();
+        let sil = silhouette_score(&x, &labels).expect("operation should succeed");
+        let ch = calinski_harabasz_score(&x, &labels).expect("operation should succeed");
+        let db = davies_bouldin_score(&x, &labels).expect("operation should succeed");
+        let dunn = dunn_index(&x, &labels).expect("operation should succeed");
 
         assert!(
             sil > 0.5,

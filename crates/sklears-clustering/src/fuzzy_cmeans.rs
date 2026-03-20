@@ -8,7 +8,7 @@
 use std::marker::PhantomData;
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, Rng, RngExt};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
@@ -287,27 +287,31 @@ impl Fit<Array2<Float>, ()> for FuzzyCMeans<Untrained> {
 impl FuzzyCMeans<Trained> {
     /// Get the cluster centroids
     pub fn centroids(&self) -> &Array2<Float> {
-        self.centroids_.as_ref().unwrap()
+        self.centroids_.as_ref().expect("operation should succeed")
     }
 
     /// Get the membership matrix (samples × clusters)
     pub fn membership_matrix(&self) -> &Array2<Float> {
-        self.membership_matrix_.as_ref().unwrap()
+        self.membership_matrix_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the hard cluster labels
     pub fn labels(&self) -> &Array1<usize> {
-        self.labels_.as_ref().unwrap()
+        self.labels_.as_ref().expect("operation should succeed")
     }
 
     /// Get the objective function history
     pub fn objective_function_history(&self) -> &[Float] {
-        self.objective_function_history_.as_ref().unwrap()
+        self.objective_function_history_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of iterations performed
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("operation should succeed")
     }
 
     /// Get the membership degree for a specific sample and cluster
@@ -573,7 +577,7 @@ mod tests {
             .max_iter(100)
             .random_state(42)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         assert_eq!(labels.len(), data.nrows());
@@ -600,10 +604,10 @@ mod tests {
         let model = FuzzyCMeans::new(2)
             .random_state(42)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![[0.5, 0.5], [10.5, 10.5]];
-        let predictions = model.predict(&test_data).unwrap();
+        let predictions = model.predict(&test_data).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
         // Points should likely be assigned to different clusters
@@ -617,10 +621,12 @@ mod tests {
         let model = FuzzyCMeans::new(2)
             .random_state(42)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![[0.5, 0.5], [10.5, 10.5]];
-        let membership = model.predict_membership(&test_data).unwrap();
+        let membership = model
+            .predict_membership(&test_data)
+            .expect("operation should succeed");
 
         assert_eq!(membership.nrows(), 2);
         assert_eq!(membership.ncols(), 2);
@@ -657,7 +663,7 @@ mod tests {
         let model = FuzzyCMeans::new(2)
             .random_state(42)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let membership = model.membership_matrix();
 
@@ -667,7 +673,9 @@ mod tests {
         assert!(model.membership_degree(10, 0).is_none()); // Invalid sample index
 
         // Test sample memberships
-        let sample_0_memberships = model.sample_memberships(0).unwrap();
+        let sample_0_memberships = model
+            .sample_memberships(0)
+            .expect("operation should succeed");
         assert_eq!(sample_0_memberships.len(), 2);
 
         assert!(model.sample_memberships(10).is_none()); // Invalid sample index

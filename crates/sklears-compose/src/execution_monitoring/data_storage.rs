@@ -251,7 +251,7 @@ impl DataStorageSystem {
         // Initialize system if enabled
         if config.enabled {
             {
-                let mut state = system.state.write().unwrap();
+                let mut state = system.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = StorageStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -281,25 +281,25 @@ impl DataStorageSystem {
 
         // Update indexes
         {
-            let mut index_mgr = self.index_manager.write().unwrap();
+            let mut index_mgr = self.index_manager.write().unwrap_or_else(|e| e.into_inner());
             index_mgr.update_indexes(&storage_record).await?;
         }
 
         // Replicate if enabled
         if self.config.replication.enabled {
-            let mut replication_mgr = self.replication_manager.write().unwrap();
+            let mut replication_mgr = self.replication_manager.write().unwrap_or_else(|e| e.into_inner());
             replication_mgr.replicate_record(&storage_record).await?;
         }
 
         // Update performance tracking
         {
-            let mut perf_monitor = self.performance_monitor.write().unwrap();
+            let mut perf_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             perf_monitor.record_write_operation();
         }
 
         // Update system statistics
         {
-            let mut stats = self.statistics_collector.write().unwrap();
+            let mut stats = self.statistics_collector.write().unwrap_or_else(|e| e.into_inner());
             stats.record_metric_stored();
         }
 
@@ -327,13 +327,13 @@ impl DataStorageSystem {
 
         // Update indexes
         {
-            let mut index_mgr = self.index_manager.write().unwrap();
+            let mut index_mgr = self.index_manager.write().unwrap_or_else(|e| e.into_inner());
             index_mgr.update_indexes(&storage_record).await?;
         }
 
         // Update performance tracking
         {
-            let mut perf_monitor = self.performance_monitor.write().unwrap();
+            let mut perf_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             perf_monitor.record_write_operation();
         }
 
@@ -402,7 +402,7 @@ impl DataStorageSystem {
 
     /// Execute complex data query
     pub fn execute_query(&self, query: DataQuery) -> SklResult<Vec<StorageRecord>> {
-        let query_engine = self.query_engine.read().unwrap();
+        let query_engine = self.query_engine.read().unwrap_or_else(|e| e.into_inner());
         let optimized_query = query_engine.optimize_query(&query)?;
 
         // Execute query through appropriate backend
@@ -426,7 +426,7 @@ impl DataStorageSystem {
         &self,
         backup_config: BackupConfiguration,
     ) -> SklResult<BackupResult> {
-        let mut backup_mgr = self.backup_manager.write().unwrap();
+        let mut backup_mgr = self.backup_manager.write().unwrap_or_else(|e| e.into_inner());
         backup_mgr.create_backup(backup_config).await
     }
 
@@ -435,7 +435,7 @@ impl DataStorageSystem {
         &self,
         restore_config: RestoreConfiguration,
     ) -> SklResult<RestoreResult> {
-        let mut backup_mgr = self.backup_manager.write().unwrap();
+        let mut backup_mgr = self.backup_manager.write().unwrap_or_else(|e| e.into_inner());
         backup_mgr.restore_from_backup(restore_config).await
     }
 
@@ -444,7 +444,7 @@ impl DataStorageSystem {
         &self,
         archival_criteria: ArchivalCriteria,
     ) -> SklResult<ArchivalResult> {
-        let mut archival_mgr = self.archival_manager.write().unwrap();
+        let mut archival_mgr = self.archival_manager.write().unwrap_or_else(|e| e.into_inner());
         archival_mgr.archive_data(archival_criteria).await
     }
 
@@ -453,7 +453,7 @@ impl DataStorageSystem {
         &self,
         verification_scope: VerificationScope,
     ) -> SklResult<IntegrityReport> {
-        let integrity_monitor = self.integrity_monitor.read().unwrap();
+        let integrity_monitor = self.integrity_monitor.read().unwrap_or_else(|e| e.into_inner());
         integrity_monitor.verify_integrity(verification_scope).await
     }
 
@@ -462,7 +462,7 @@ impl DataStorageSystem {
         &self,
         repair_request: DataRepairRequest,
     ) -> SklResult<RepairResult> {
-        let mut integrity_monitor = self.integrity_monitor.write().unwrap();
+        let mut integrity_monitor = self.integrity_monitor.write().unwrap_or_else(|e| e.into_inner());
         integrity_monitor.repair_data(repair_request).await
     }
 
@@ -473,13 +473,13 @@ impl DataStorageSystem {
     ) -> SklResult<OptimizationResult> {
         // Optimize indexes
         {
-            let mut index_mgr = self.index_manager.write().unwrap();
+            let mut index_mgr = self.index_manager.write().unwrap_or_else(|e| e.into_inner());
             index_mgr.optimize_indexes().await?;
         }
 
         // Compress data if enabled
         if optimization_config.enable_compression {
-            let mut compression_mgr = self.compression_manager.write().unwrap();
+            let mut compression_mgr = self.compression_manager.write().unwrap_or_else(|e| e.into_inner());
             compression_mgr.compress_data().await?;
         }
 
@@ -498,8 +498,8 @@ impl DataStorageSystem {
 
     /// Get storage statistics
     pub fn get_storage_statistics(&self) -> SklResult<StorageStatistics> {
-        let stats = self.statistics_collector.read().unwrap();
-        let state = self.state.read().unwrap();
+        let stats = self.statistics_collector.read().unwrap_or_else(|e| e.into_inner());
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(StorageStatistics {
             total_records: state.total_records_stored,
@@ -515,8 +515,8 @@ impl DataStorageSystem {
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let health = self.health_tracker.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let health = self.health_tracker.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -534,7 +534,7 @@ impl DataStorageSystem {
 
     /// Private helper methods
     fn initialize_backends(&self) -> SklResult<()> {
-        let mut backends = self.storage_backends.write().unwrap();
+        let mut backends = self.storage_backends.write().unwrap_or_else(|e| e.into_inner());
 
         // Initialize primary backend
         let primary_backend = StorageBackend::new(
@@ -558,7 +558,7 @@ impl DataStorageSystem {
     }
 
     async fn store_record(&self, record: StorageRecord) -> SklResult<()> {
-        let backends = self.storage_backends.read().unwrap();
+        let backends = self.storage_backends.read().unwrap_or_else(|e| e.into_inner());
 
         // Store in primary backend
         if let Some(primary) = backends.get("primary") {
@@ -569,7 +569,7 @@ impl DataStorageSystem {
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.total_records_stored += 1;
             state.total_storage_size += record.data.len() as u64;
             *state.records_by_type.entry(record.record_type).or_insert(0) += 1;
@@ -579,7 +579,7 @@ impl DataStorageSystem {
     }
 
     fn execute_optimized_query(&self, query: OptimizedQuery) -> SklResult<Vec<StorageRecord>> {
-        let backends = self.storage_backends.read().unwrap();
+        let backends = self.storage_backends.read().unwrap_or_else(|e| e.into_inner());
 
         // Execute query through appropriate backend
         if let Some(primary) = backends.get("primary") {
@@ -648,7 +648,7 @@ impl DataStorageSystem {
     }
 
     fn get_backend_statistics(&self) -> SklResult<HashMap<String, BackendStatistics>> {
-        let backends = self.storage_backends.read().unwrap();
+        let backends = self.storage_backends.read().unwrap_or_else(|e| e.into_inner());
         let mut stats = HashMap::new();
 
         for (name, backend) in backends.iter() {
@@ -659,22 +659,22 @@ impl DataStorageSystem {
     }
 
     fn get_index_statistics(&self) -> SklResult<HashMap<String, IndexStatistics>> {
-        let index_mgr = self.index_manager.read().unwrap();
+        let index_mgr = self.index_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(index_mgr.get_all_statistics())
     }
 
     fn get_query_performance_stats(&self) -> SklResult<QueryPerformanceStatistics> {
-        let query_engine = self.query_engine.read().unwrap();
+        let query_engine = self.query_engine.read().unwrap_or_else(|e| e.into_inner());
         Ok(query_engine.get_performance_statistics())
     }
 
     fn get_compression_ratio(&self) -> SklResult<f64> {
-        let compression_mgr = self.compression_manager.read().unwrap();
+        let compression_mgr = self.compression_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(compression_mgr.get_compression_ratio())
     }
 
     fn get_cache_hit_rate(&self) -> SklResult<f64> {
-        let cache_mgr = self.cache_manager.read().unwrap();
+        let cache_mgr = self.cache_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(cache_mgr.get_hit_rate())
     }
 }

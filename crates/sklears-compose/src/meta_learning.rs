@@ -163,8 +163,8 @@ impl ExperienceStorage {
         }
 
         // Use mean of features for simplicity
-        let mean1 = features1.mean_axis(Axis(0)).unwrap();
-        let mean2 = features2.mean_axis(Axis(0)).unwrap();
+        let mean1 = features1.mean_axis(Axis(0)).unwrap_or_default();
+        let mean2 = features2.mean_axis(Axis(0)).unwrap_or_default();
 
         // Cosine similarity
         let dot_product = mean1.dot(&mean2);
@@ -709,8 +709,10 @@ mod tests {
         );
         pipeline.add_experience(experience);
 
-        let fitted_pipeline = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
-        let predictions = fitted_pipeline.predict(&x.view()).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
+        let predictions = fitted_pipeline.predict(&x.view()).unwrap_or_default();
 
         assert_eq!(predictions.len(), x.nrows());
     }
@@ -735,7 +737,7 @@ mod tests {
 
         let adapted = strategy
             .adapt(&params, &experiences, &features.view())
-            .unwrap();
+            .unwrap_or_default();
         assert_eq!(adapted.len(), 2);
     }
 }

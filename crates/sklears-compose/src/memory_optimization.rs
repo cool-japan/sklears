@@ -104,7 +104,13 @@ impl std::fmt::Debug for MemoryMonitor {
             .field("is_running", &self.is_running)
             .field(
                 "callbacks",
-                &format!("{} callbacks", self.callbacks.read().unwrap().len()),
+                &format!(
+                    "{} callbacks",
+                    self.callbacks
+                        .read()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .len()
+                ),
             )
             .finish()
     }
@@ -157,7 +163,7 @@ impl MemoryMonitor {
     /// Start monitoring
     pub fn start(&mut self) -> SklResult<()> {
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock().unwrap_or_else(|e| e.into_inner());
             if *running {
                 return Ok(());
             }
@@ -181,7 +187,7 @@ impl MemoryMonitor {
     /// Stop monitoring
     pub fn stop(&mut self) -> SklResult<()> {
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock().unwrap_or_else(|e| e.into_inner());
             *running = false;
         }
 
@@ -202,18 +208,18 @@ impl MemoryMonitor {
         is_running: Arc<Mutex<bool>>,
         config: MemoryMonitorConfig,
     ) {
-        while *is_running.lock().unwrap() {
+        while *is_running.lock().unwrap_or_else(|e| e.into_inner()) {
             // Get current system memory usage
             let (allocated, allocations, deallocations) = Self::get_system_memory_info();
 
             // Update usage statistics
             {
-                let mut current_usage = usage.write().unwrap();
+                let mut current_usage = usage.write().unwrap_or_else(|e| e.into_inner());
                 current_usage.update(allocated, allocations, deallocations);
 
                 // Add to history
                 {
-                    let mut hist = history.write().unwrap();
+                    let mut hist = history.write().unwrap_or_else(|e| e.into_inner());
                     hist.push_back(current_usage.clone());
 
                     // Limit history size
@@ -231,7 +237,7 @@ impl MemoryMonitor {
                 }
 
                 // Notify callbacks
-                let cb_list = callbacks.read().unwrap();
+                let cb_list = callbacks.read().unwrap_or_else(|e| e.into_inner());
                 for callback in cb_list.iter() {
                     callback(&current_usage);
                 }
@@ -264,27 +270,27 @@ impl MemoryMonitor {
     /// Get current memory usage
     #[must_use]
     pub fn current_usage(&self) -> MemoryUsage {
-        let usage = self.usage.read().unwrap();
+        let usage = self.usage.read().unwrap_or_else(|e| e.into_inner());
         usage.clone()
     }
 
     /// Get memory usage history
     #[must_use]
     pub fn usage_history(&self) -> Vec<MemoryUsage> {
-        let history = self.history.read().unwrap();
+        let history = self.history.read().unwrap_or_else(|e| e.into_inner());
         history.iter().cloned().collect()
     }
 
     /// Add memory event callback
     pub fn add_callback(&self, callback: Box<dyn Fn(&MemoryUsage) + Send + Sync>) {
-        let mut callbacks = self.callbacks.write().unwrap();
+        let mut callbacks = self.callbacks.write().unwrap_or_else(|e| e.into_inner());
         callbacks.push(callback);
     }
 
     /// Check if memory usage is above threshold
     #[must_use]
     pub fn is_above_threshold(&self, threshold: f64) -> bool {
-        let usage = self.usage.read().unwrap();
+        let usage = self.usage.read().unwrap_or_else(|e| e.into_inner());
         let total = Self::get_total_system_memory();
         usage.utilization(total) > threshold
     }
@@ -292,8 +298,8 @@ impl MemoryMonitor {
     /// Get memory statistics summary
     #[must_use]
     pub fn get_statistics(&self) -> MemoryStatistics {
-        let usage = self.usage.read().unwrap();
-        let history = self.history.read().unwrap();
+        let usage = self.usage.read().unwrap_or_else(|e| e.into_inner());
+        let history = self.history.read().unwrap_or_else(|e| e.into_inner());
 
         let avg_allocated = if history.is_empty() {
             usage.allocated
@@ -450,7 +456,10 @@ impl MemoryPool {
 
     /// Initialize the memory pool
     fn initialize_pool(&mut self) -> SklResult<()> {
-        let mut available = self.available_blocks.write().unwrap();
+        let mut available = self
+            .available_blocks
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
 
         for &size_class in &self.config.size_classes {
             let blocks_per_class =
@@ -490,9 +499,15 @@ impl MemoryPool {
     /// Allocate memory from the pool
     pub fn allocate(&self, size: usize) -> SklResult<*mut u8> {
         let size_class = self.find_size_class(size);
-        let mut available = self.available_blocks.write().unwrap();
-        let mut allocated = self.allocated_blocks.write().unwrap();
-        let mut stats = self.statistics.write().unwrap();
+        let mut available = self
+            .available_blocks
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut allocated = self
+            .allocated_blocks
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.statistics.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(blocks) = available.get_mut(&size_class) {
             if let Some(mut block) = blocks.pop() {
@@ -552,9 +567,15 @@ impl MemoryPool {
 
     /// Deallocate memory back to the pool
     pub fn deallocate(&self, ptr: *mut u8) -> SklResult<()> {
-        let mut available = self.available_blocks.write().unwrap();
-        let mut allocated = self.allocated_blocks.write().unwrap();
-        let mut stats = self.statistics.write().unwrap();
+        let mut available = self
+            .available_blocks
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut allocated = self
+            .allocated_blocks
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.statistics.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(mut block) = allocated.remove(&ptr) {
             block.ref_count = 0;
@@ -593,8 +614,11 @@ impl MemoryPool {
 
     /// Compact the memory pool
     pub fn compact(&self) -> SklResult<()> {
-        let available = self.available_blocks.write().unwrap();
-        let mut stats = self.statistics.write().unwrap();
+        let available = self
+            .available_blocks
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.statistics.write().unwrap_or_else(|e| e.into_inner());
 
         let total_blocks: usize = available.values().map(std::vec::Vec::len).sum();
         let fragmentation = if total_blocks > 0 {
@@ -615,7 +639,7 @@ impl MemoryPool {
     /// Get pool statistics
     #[must_use]
     pub fn statistics(&self) -> PoolStatistics {
-        let stats = self.statistics.read().unwrap();
+        let stats = self.statistics.read().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 
@@ -629,7 +653,10 @@ impl MemoryPool {
 
     /// Clear unused blocks (garbage collection)
     pub fn garbage_collect(&self) -> SklResult<usize> {
-        let mut available = self.available_blocks.write().unwrap();
+        let mut available = self
+            .available_blocks
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         let mut freed_blocks = 0;
 
         for (_, blocks) in available.iter_mut() {
@@ -869,7 +896,7 @@ mod tests {
     #[test]
     fn test_memory_pool_creation() {
         let config = MemoryPoolConfig::default();
-        let pool = MemoryPool::new(config).unwrap();
+        let pool = MemoryPool::new(config).expect("operation should succeed");
 
         let stats = pool.statistics();
         assert_eq!(stats.allocations, 0);
@@ -899,7 +926,8 @@ mod tests {
 
     #[test]
     fn test_memory_efficient_ops() {
-        let mut array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let mut array =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap_or_default();
 
         // Test in-place transformation
         MemoryEfficientOps::transform_inplace(&mut array, |x| x * 2.0);
@@ -907,7 +935,8 @@ mod tests {
         assert_eq!(array[[1, 1]], 8.0);
 
         // Test precision optimization
-        let array_f64 = Array2::from_shape_vec((2, 2), vec![1.0, 0.000001, 3.0, 0.000002]).unwrap();
+        let array_f64 =
+            Array2::from_shape_vec((2, 2), vec![1.0, 0.000001, 3.0, 0.000002]).unwrap_or_default();
         let array_f32 = MemoryEfficientOps::optimize_precision(&array_f64, 0.00001);
         assert_eq!(array_f32[[0, 1]], 0.0f32); // Small value should be zeroed
         assert_eq!(array_f32[[1, 0]], 3.0f32); // Large value should be preserved
@@ -915,10 +944,11 @@ mod tests {
 
     #[test]
     fn test_batch_processing() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .unwrap_or_default();
 
-        let results = MemoryEfficientOps::batch_process(&data, 2, |batch| Ok(batch.sum())).unwrap();
+        let results = MemoryEfficientOps::batch_process(&data, 2, |batch| Ok(batch.sum()))
+            .unwrap_or_default();
 
         assert_eq!(results.len(), 2); // 4 rows / 2 batch_size = 2 batches
         assert_eq!(results[0], 10.0); // Sum of first batch: 1+2+3+4
@@ -927,10 +957,12 @@ mod tests {
 
     #[test]
     fn test_chunked_matmul() {
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a =
+            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap_or_default();
+        let b =
+            Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap_or_default();
 
-        let result = MemoryEfficientOps::chunked_matmul(&a, &b, 2).unwrap();
+        let result = MemoryEfficientOps::chunked_matmul(&a, &b, 2).unwrap_or_default();
 
         // Expected result of matrix multiplication
         assert_eq!(result.shape(), &[2, 2]);

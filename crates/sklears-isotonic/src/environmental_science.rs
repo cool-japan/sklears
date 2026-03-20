@@ -84,7 +84,11 @@ impl EnvironmentalDoseResponseRegression {
 
         // Sort by dose
         let mut indices: Vec<usize> = (0..dose.len()).collect();
-        indices.sort_by(|&i, &j| dose[i].partial_cmp(&dose[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            dose[i]
+                .partial_cmp(&dose[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut sorted_dose = Array1::zeros(dose.len());
         let mut sorted_response = Array1::zeros(response.len());
@@ -527,7 +531,11 @@ impl ClimateTrendAnalysis {
 
         // Sort by time
         let mut indices: Vec<usize> = (0..time.len()).collect();
-        indices.sort_by(|&i, &j| time[i].partial_cmp(&time[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            time[i]
+                .partial_cmp(&time[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut sorted_time = Array1::zeros(time.len());
         let mut sorted_values = Array1::zeros(values.len());
@@ -731,7 +739,11 @@ impl PollutionDispersionRegression {
 
         // Sort by distance
         let mut indices: Vec<usize> = (0..distance.len()).collect();
-        indices.sort_by(|&i, &j| distance[i].partial_cmp(&distance[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            distance[i]
+                .partial_cmp(&distance[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut sorted_distance = Array1::zeros(distance.len());
         let mut sorted_concentration = Array1::zeros(concentration.len());
@@ -887,7 +899,7 @@ impl EcosystemIsotonicRegression {
         indices.sort_by(|&i, &j| {
             environmental_gradient[i]
                 .partial_cmp(&environmental_gradient[j])
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let mut sorted_gradient = Array1::zeros(environmental_gradient.len());
@@ -993,7 +1005,14 @@ pub fn environmental_dose_response_regression(
     let mut model = EnvironmentalDoseResponseRegression::new().model_type(model_type);
     model.fit(dose, response)?;
 
-    Ok((model.fitted_dose.unwrap(), model.fitted_response.unwrap()))
+    Ok((
+        model
+            .fitted_dose
+            .ok_or_else(|| SklearsError::NumericalError("fitted_dose not set".into()))?,
+        model
+            .fitted_response
+            .ok_or_else(|| SklearsError::NumericalError("fitted_response not set".into()))?,
+    ))
 }
 
 /// Detect ecological thresholds
@@ -1016,7 +1035,14 @@ pub fn analyze_climate_trend(
     let mut model = ClimateTrendAnalysis::new().trend_type(trend_type);
     model.fit(time, values)?;
 
-    Ok((model.fitted_time.unwrap(), model.fitted_trend.unwrap()))
+    Ok((
+        model
+            .fitted_time
+            .ok_or_else(|| SklearsError::NumericalError("fitted_time not set".into()))?,
+        model
+            .fitted_trend
+            .ok_or_else(|| SklearsError::NumericalError("fitted_trend not set".into()))?,
+    ))
 }
 
 /// Model pollution dispersion
@@ -1029,8 +1055,12 @@ pub fn pollution_dispersion_regression(
     model.fit(distance, concentration)?;
 
     Ok((
-        model.fitted_distance.unwrap(),
-        model.fitted_concentration.unwrap(),
+        model
+            .fitted_distance
+            .ok_or_else(|| SklearsError::NumericalError("fitted_distance not set".into()))?,
+        model
+            .fitted_concentration
+            .ok_or_else(|| SklearsError::NumericalError("fitted_concentration not set".into()))?,
     ))
 }
 
@@ -1043,7 +1073,14 @@ pub fn ecosystem_isotonic_regression(
     let mut model = EcosystemIsotonicRegression::new().metric(metric);
     model.fit(environmental_gradient, metric_values)?;
 
-    Ok((model.fitted_gradient.unwrap(), model.fitted_metric.unwrap()))
+    Ok((
+        model
+            .fitted_gradient
+            .ok_or_else(|| SklearsError::NumericalError("fitted_gradient not set".into()))?,
+        model
+            .fitted_metric
+            .ok_or_else(|| SklearsError::NumericalError("fitted_metric not set".into()))?,
+    ))
 }
 
 // ============================================================================
@@ -1062,10 +1099,14 @@ mod tests {
         let mut model = EnvironmentalDoseResponseRegression::new()
             .model_type(EnvironmentalDoseResponseModel::Linear);
 
-        model.fit(&dose, &response).unwrap();
+        model
+            .fit(&dose, &response)
+            .expect("model fitting should succeed");
 
         let test_dose = Array1::from_vec(vec![1.5, 2.5, 3.5]);
-        let predictions = model.predict(&test_dose).unwrap();
+        let predictions = model
+            .predict(&test_dose)
+            .expect("prediction should succeed");
 
         // Check monotonicity
         for i in 1..predictions.len() {
@@ -1079,9 +1120,11 @@ mod tests {
         let response = Array1::from_vec(vec![0.0, 0.1, 0.2, 0.6, 0.9]);
 
         let mut model = EnvironmentalDoseResponseRegression::new();
-        model.fit(&dose, &response).unwrap();
+        model
+            .fit(&dose, &response)
+            .expect("model fitting should succeed");
 
-        let noael = model.estimate_noael(0.5).unwrap();
+        let noael = model.estimate_noael(0.5).expect("operation should succeed");
 
         assert!(noael >= 0.0 && noael <= 4.0);
     }
@@ -1101,7 +1144,7 @@ mod tests {
 
         let thresholds =
             detect_ecological_threshold(&pressure, &state, ThresholdDetectionMethod::ChangePoint)
-                .unwrap();
+                .expect("operation should succeed");
 
         // Should detect a threshold around pressure = 10
         assert!(!thresholds.is_empty());
@@ -1114,10 +1157,14 @@ mod tests {
 
         let mut model = ClimateTrendAnalysis::new().trend_type(ClimateTrendType::Temperature);
 
-        model.fit(&time, &temp).unwrap();
+        model
+            .fit(&time, &temp)
+            .expect("model fitting should succeed");
 
         let test_time = Array1::from_vec(vec![1992.0, 2002.0, 2012.0]);
-        let predictions = model.predict(&test_time).unwrap();
+        let predictions = model
+            .predict(&test_time)
+            .expect("prediction should succeed");
 
         // Check increasing trend
         for i in 1..predictions.len() {
@@ -1125,7 +1172,9 @@ mod tests {
         }
 
         // Estimate rate of change
-        let rate = model.estimate_rate_of_change().unwrap();
+        let rate = model
+            .estimate_rate_of_change()
+            .expect("operation should succeed");
         assert!(rate > 0.0); // Temperature is increasing
     }
 
@@ -1137,10 +1186,14 @@ mod tests {
         let mut model =
             PollutionDispersionRegression::new().model_type(PollutionDispersionModel::Atmospheric);
 
-        model.fit(&distance, &concentration).unwrap();
+        model
+            .fit(&distance, &concentration)
+            .expect("model fitting should succeed");
 
         let test_distance = Array1::from_vec(vec![15.0, 25.0, 35.0]);
-        let predictions = model.predict(&test_distance).unwrap();
+        let predictions = model
+            .predict(&test_distance)
+            .expect("prediction should succeed");
 
         // Check decreasing monotonicity
         for i in 1..predictions.len() {
@@ -1160,10 +1213,14 @@ mod tests {
 
         let mut model = EcosystemIsotonicRegression::new().metric(EcosystemMetric::Biomass);
 
-        model.fit(&gradient, &biomass).unwrap();
+        model
+            .fit(&gradient, &biomass)
+            .expect("model fitting should succeed");
 
         let test_gradient = Array1::from_vec(vec![0.5, 1.5, 2.5]);
-        let predictions = model.predict(&test_gradient).unwrap();
+        let predictions = model
+            .predict(&test_gradient)
+            .expect("prediction should succeed");
 
         // Check increasing trend for biomass
         for i in 1..predictions.len() {
@@ -1190,7 +1247,9 @@ mod tests {
             .method(ThresholdDetectionMethod::RegimeShift)
             .sensitivity(0.5);
 
-        let shifts = model.detect_threshold(&pressure, &state).unwrap();
+        let shifts = model
+            .detect_threshold(&pressure, &state)
+            .expect("operation should succeed");
 
         // Should detect a regime shift
         assert!(!shifts.is_empty());

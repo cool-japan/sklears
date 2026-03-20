@@ -267,7 +267,7 @@ impl<T> BoundaryAdjustmentDiscriminantAnalysis<T> {
         let mut class_accuracies = Vec::new();
 
         for &class in classes {
-            let class_idx = classes.iter().position(|&c| c == class).unwrap();
+            let class_idx = classes.iter().position(|&c| c == class).expect("element not found");
             let threshold = thresholds.get(&class).copied().unwrap_or(0.5);
 
             let mut correct = 0;
@@ -710,8 +710,8 @@ mod tests {
             },
         );
 
-        let fitted = boundary_adj.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = boundary_adj.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert_eq!(fitted.classes().len(), 2);
@@ -731,8 +731,8 @@ mod tests {
             },
         );
 
-        let fitted = boundary_adj.fit(&x, &y).unwrap();
-        let probabilities = fitted.predict_proba(&x).unwrap();
+        let fitted = boundary_adj.fit(&x, &y).expect("model fitting should succeed");
+        let probabilities = fitted.predict_proba(&x).expect("probability prediction should succeed");
 
         assert_eq!(probabilities.dim(), (4, 2));
         // Check that probabilities sum to 1
@@ -753,7 +753,7 @@ mod tests {
 
         let f1_score = boundary_adj
             .calculate_f1_score(&probabilities, &y_true, 0.5, 0, &classes)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(f1_score >= 0.0 && f1_score <= 1.0);
     }

@@ -52,7 +52,7 @@ impl DataCleaningEngine {
 
         // Update performance metrics
         {
-            let mut monitor = self.performance_monitor.write().unwrap();
+            let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             monitor.record_cleaning_operation(
                 strategy_id.to_string(),
                 Utc::now().signed_duration_since(start_time),
@@ -166,7 +166,7 @@ impl DataCleaningEngine {
         let mut processed_indices = std::collections::HashSet::new();
 
         for record in &data.records {
-            let record_index = data.records.iter().position(|r| r.id == record.id).unwrap();
+            let record_index = data.records.iter().position(|r| r.id == record.id).unwrap_or_default();
 
             if processed_indices.contains(&record_index) {
                 continue;
@@ -180,7 +180,7 @@ impl DataCleaningEngine {
                 match config.resolution_strategy {
                     DuplicateResolutionStrategy::KeepFirst => {
                         if let Some(group) = duplicate_groups.iter().find(|g| g.record_indices.contains(&record_index)) {
-                            let first_index = *group.record_indices.iter().min().unwrap();
+                            let first_index = *group.record_indices.iter().min().unwrap_or_default();
                             if record_index == first_index {
                                 cleaned_records.push(record.clone());
                             }
@@ -192,7 +192,7 @@ impl DataCleaningEngine {
                     },
                     DuplicateResolutionStrategy::KeepLast => {
                         if let Some(group) = duplicate_groups.iter().find(|g| g.record_indices.contains(&record_index)) {
-                            let last_index = *group.record_indices.iter().max().unwrap();
+                            let last_index = *group.record_indices.iter().max().unwrap_or_default();
                             if record_index == last_index {
                                 cleaned_records.push(record.clone());
                             }
@@ -204,7 +204,7 @@ impl DataCleaningEngine {
                     },
                     DuplicateResolutionStrategy::Merge => {
                         if let Some(group) = duplicate_groups.iter().find(|g| g.record_indices.contains(&record_index)) {
-                            let first_index = *group.record_indices.iter().min().unwrap();
+                            let first_index = *group.record_indices.iter().min().unwrap_or_default();
                             if record_index == first_index {
                                 let merged_record = self.merge_duplicate_records(data, &group.record_indices)?;
                                 cleaned_records.push(merged_record);
@@ -570,7 +570,7 @@ impl DataCleaningEngine {
         let std_dev = variance.sqrt();
 
         let mut sorted_values = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted_values.len() % 2 == 0 {
             (sorted_values[sorted_values.len() / 2 - 1] + sorted_values[sorted_values.len() / 2]) / 2.0
@@ -1005,7 +1005,7 @@ impl OutlierDetector {
                 continue; // Not enough data for quartile analysis
             }
 
-            values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
             let q1_index = values.len() / 4;
             let q3_index = 3 * values.len() / 4;

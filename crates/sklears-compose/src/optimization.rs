@@ -4,7 +4,7 @@
 //! and validation.
 
 use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, Rng, RngExt};
 use sklears_core::{
     error::Result as SklResult,
     prelude::SklearsError,
@@ -399,7 +399,8 @@ impl PipelineOptimizer {
                 .enumerate()
                 .map(|(i, &score)| (i, score))
                 .collect();
-            indexed_fitness.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            indexed_fitness
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             for i in 0..elite_count {
                 let elite_idx = indexed_fitness[i].0;
@@ -562,11 +563,11 @@ impl PipelineOptimizer {
     /// Tournament selection for evolutionary algorithms
     fn tournament_selection(&self, fitness_scores: &[f64], rng: &mut impl Rng) -> usize {
         let tournament_size = 3;
-        let mut best_idx = rng.gen_range(0..fitness_scores.len());
+        let mut best_idx = rng.random_range(0..fitness_scores.len());
         let mut best_score = fitness_scores[best_idx];
 
         for _ in 1..tournament_size {
-            let candidate_idx = rng.gen_range(0..fitness_scores.len());
+            let candidate_idx = rng.random_range(0..fitness_scores.len());
             let candidate_score = fitness_scores[candidate_idx];
 
             if candidate_score > best_score {
@@ -592,19 +593,19 @@ impl PipelineOptimizer {
             let value2 = parent2.get(&space.name).copied().unwrap_or(0.0);
 
             // Uniform crossover: randomly choose from either parent
-            let offspring_value = if rng.gen_bool(0.5) { value1 } else { value2 };
+            let offspring_value = if rng.random_bool(0.5) { value1 } else { value2 };
 
             // For continuous parameters, also try blend crossover
             let final_value = match &space.param_type {
                 ParameterType::Continuous { min, max } => {
-                    if rng.gen_bool(0.3) {
+                    if rng.random_bool(0.3) {
                         // Blend crossover
                         let alpha = 0.5;
                         let range = (value2 - value1).abs();
                         let min_blend = value1.min(value2) - alpha * range;
                         let max_blend = value1.max(value2) + alpha * range;
 
-                        rng.gen_range(min_blend.max(*min)..=max_blend.min(*max))
+                        rng.random_range(min_blend.max(*min)..=max_blend.min(*max))
                     } else {
                         offspring_value.clamp(*min, *max)
                     }
@@ -632,23 +633,23 @@ impl PipelineOptimizer {
         let mutation_rate = 0.1;
 
         for space in &self.parameter_spaces {
-            if rng.gen_bool(mutation_rate) {
+            if rng.random_bool(mutation_rate) {
                 let current_value = individual.get(&space.name).copied().unwrap_or(0.0);
 
                 let mutated_value = match &space.param_type {
                     ParameterType::Continuous { min, max } => {
                         // Gaussian mutation
                         let sigma = (max - min) * 0.1;
-                        let noise = rng.gen_range(-sigma..=sigma);
+                        let noise = rng.random_range(-sigma..=sigma);
                         (current_value + noise).clamp(*min, *max)
                     }
                     ParameterType::Discrete { min, max } => {
                         // Random integer in range
-                        f64::from(rng.gen_range(*min..=*max))
+                        f64::from(rng.random_range(*min..=*max))
                     }
                     ParameterType::Categorical { choices } => {
                         // Random choice
-                        rng.gen_range(0..choices.len()) as f64
+                        rng.random_range(0..choices.len()) as f64
                     }
                 };
 
@@ -728,7 +729,8 @@ impl PipelineOptimizer {
                     .collect();
 
                 // Sort by crowding distance (descending)
-                front_with_distance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                front_with_distance
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
                 for i in 0..remaining_slots {
                     let idx = front_with_distance[i].0;
@@ -831,14 +833,14 @@ impl PipelineOptimizer {
             sorted_front.sort_by(|&a, &b| {
                 population[a].scores[obj]
                     .partial_cmp(&population[b].scores[obj])
-                    .unwrap()
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
 
             // Find position of individual in sorted front
             let pos = sorted_front
                 .iter()
                 .position(|&idx| idx == individual_idx)
-                .unwrap();
+                .unwrap_or_default();
 
             if pos == 0 || pos == sorted_front.len() - 1 {
                 // Boundary solutions get infinite distance
@@ -872,7 +874,11 @@ impl PipelineOptimizer {
         // Simple hypervolume calculation for 2D case
         if n_objectives == 2 {
             let mut sorted_solutions = solutions.to_vec();
-            sorted_solutions.sort_by(|a, b| a.scores[0].partial_cmp(&b.scores[0]).unwrap());
+            sorted_solutions.sort_by(|a, b| {
+                a.scores[0]
+                    .partial_cmp(&b.scores[0])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             let mut hypervolume = 0.0;
             let mut prev_x = 0.0;
@@ -922,10 +928,10 @@ impl PipelineOptimizer {
 
         for space in &self.parameter_spaces {
             let value = match &space.param_type {
-                ParameterType::Continuous { min, max } => rng.gen_range(*min..*max),
-                ParameterType::Discrete { min, max } => f64::from(rng.gen_range(*min..=*max)),
+                ParameterType::Continuous { min, max } => rng.random_range(*min..*max),
+                ParameterType::Discrete { min, max } => f64::from(rng.random_range(*min..=*max)),
                 ParameterType::Categorical { choices } => {
-                    let idx = rng.gen_range(0..choices.len());
+                    let idx = rng.random_range(0..choices.len());
                     idx as f64
                 }
             };

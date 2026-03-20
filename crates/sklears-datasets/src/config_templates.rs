@@ -423,9 +423,9 @@ impl TemplateLibrary {
         match value {
             serde_yaml::Value::Number(n) => {
                 if n.is_i64() {
-                    Ok(ConfigValue::Int(n.as_i64().unwrap()))
+                    Ok(ConfigValue::Int(n.as_i64().expect("operation should succeed")))
                 } else if n.is_f64() {
-                    Ok(ConfigValue::Float(n.as_f64().unwrap()))
+                    Ok(ConfigValue::Float(n.as_f64().expect("operation should succeed")))
                 } else {
                     Err(ConfigTemplateError::ParameterOverride(
                         "Invalid number type".to_string(),
@@ -443,11 +443,11 @@ impl TemplateLibrary {
                     match item {
                         serde_yaml::Value::Number(n) => {
                             if n.is_i64() {
-                                int_vec.push(n.as_i64().unwrap());
-                                float_vec.push(n.as_f64().unwrap());
+                                int_vec.push(n.as_i64().expect("operation should succeed"));
+                                float_vec.push(n.as_f64().expect("operation should succeed"));
                             } else if n.is_f64() {
                                 is_int = false;
-                                float_vec.push(n.as_f64().unwrap());
+                                float_vec.push(n.as_f64().expect("operation should succeed"));
                             }
                         }
                         _ => {
@@ -828,7 +828,7 @@ mod tests {
         // Resolve template
         let config = library
             .resolve_template("classification_basic", None)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(config.n_samples, 1000);
         assert_eq!(config.n_features, 10);
 
@@ -841,7 +841,7 @@ mod tests {
 
         let config_with_overrides = library
             .resolve_template("classification_basic", Some(overrides))
-            .unwrap();
+            .expect("operation should succeed");
 
         if let Some(crate::traits::ConfigValue::Int(n_classes)) =
             config_with_overrides.get_parameter("n_classes")
@@ -853,10 +853,10 @@ mod tests {
     #[test]
     fn test_yaml_serialization() {
         let template = create_regression_template();
-        let yaml = serde_yaml::to_string(&template).unwrap();
+        let yaml = serde_yaml::to_string(&template).expect("operation should succeed");
 
         // Verify it can be parsed back
-        let parsed: DatasetTemplate = serde_yaml::from_str(&yaml).unwrap();
+        let parsed: DatasetTemplate = serde_yaml::from_str(&yaml).expect("parsing should succeed");
         assert_eq!(parsed.metadata.name, "regression_basic");
     }
 
@@ -885,7 +885,7 @@ mod tests {
         // Resolve derived template
         let config = library
             .resolve_template("classification_advanced", None)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(config.n_samples, 5000); // Should be overridden
         assert_eq!(config.n_features, 20); // Should be overridden
     }

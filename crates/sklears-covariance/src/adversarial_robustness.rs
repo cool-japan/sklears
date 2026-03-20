@@ -217,7 +217,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         let mut outliers = Array1::from_elem(n_samples, false);
         let mut distance_indices: Vec<(f64, usize)> =
             distances.iter().enumerate().map(|(i, &d)| (d, i)).collect();
-        distance_indices.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        distance_indices.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         for i in 0..trim_count.min(n_samples) {
             outliers[distance_indices[i].1] = true;
@@ -372,7 +372,11 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         influence_values.mapv_inplace(|x| x / (1.0 + self.influence_regularization));
 
         // Identify outliers based on high influence
-        let threshold = influence_values.mean().unwrap() + 2.0 * influence_values.std(1.0);
+        let threshold = influence_values.mean().ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })? + 2.0 * influence_values.std(1.0);
         let outliers = influence_values.mapv(|x| x > threshold);
 
         // Compute robust covariance excluding high-influence points
@@ -501,7 +505,11 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
             ));
         }
 
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = &X - &mean;
         let covariance = centered.t().dot(&centered) / ((n_samples - 1) as f64);
         Ok(covariance)
@@ -513,7 +521,11 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
         covariance: &Array2<f64>,
     ) -> Result<Array1<f64>, SklearsError> {
         let (n_samples, _) = X.dim();
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
 
         // Simple pseudo-inverse for demonstration (in practice, use proper SVD)
         let inv_cov = self.pseudo_inverse(covariance)?;
@@ -682,7 +694,7 @@ impl AdversarialRobustCovariance<AdversarialRobustCovarianceUntrained> {
 
     fn compute_median(&self, array: &Array1<f64>) -> Result<f64, SklearsError> {
         let mut sorted: Vec<f64> = array.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = sorted.len();
         if n == 0 {
@@ -799,7 +811,7 @@ mod tests {
     #[test]
     fn test_adversarial_robust_covariance() {
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let mut X = Array2::from_shape_fn((100, 3), |_| dist.sample(&mut local_rng));
 
         // Add some outliers
@@ -814,7 +826,7 @@ mod tests {
         let result = estimator.fit(&X.view(), &());
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         let outliers = trained.outliers();
 
         // Should detect some outliers
@@ -825,7 +837,7 @@ mod tests {
     #[test]
     fn test_robustness_methods() {
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((50, 4), |_| dist.sample(&mut local_rng));
 
         let methods = vec![
@@ -847,13 +859,15 @@ mod tests {
     #[test]
     fn test_influence_function_diagnostics() {
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((30, 3), |_| dist.sample(&mut local_rng));
 
         let estimator = AdversarialRobustCovariance::new()
             .with_method(RobustnessMethod::InfluenceFunctionBased);
 
-        let trained = estimator.fit(&X.view(), &()).unwrap();
+        let trained = estimator
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         let diagnostics = trained.diagnostics();
 
         assert!(diagnostics.robustness_score >= 0.0 && diagnostics.robustness_score <= 1.0);

@@ -16,8 +16,12 @@ fn test_count_vectorizer() {
     ];
 
     let vectorizer = text::CountVectorizer::new();
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
-    let features = fitted.transform(&documents).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features.nrows(), 3);
     assert!(features.ncols() > 0);
@@ -40,8 +44,12 @@ fn test_tfidf_vectorizer() {
     ];
 
     let vectorizer = text::TfidfVectorizer::new();
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
-    let features = fitted.transform(&documents).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features.nrows(), 3);
     assert!(features.ncols() > 0);
@@ -59,8 +67,12 @@ fn test_count_vectorizer_binary() {
     ];
 
     let vectorizer = text::CountVectorizer::new().binary(true);
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
-    let features = fitted.transform(&documents).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
 
     // All non-zero entries should be 1.0
     for &value in features.iter() {
@@ -82,7 +94,9 @@ fn test_count_vectorizer_stop_words() {
     let stop_words_vec: Vec<String> = stop_words.into_iter().collect();
 
     let vectorizer = text::CountVectorizer::new().stop_words(Some(stop_words_vec));
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
 
     let vocab = fitted.get_vocabulary();
     if let Some(vocab_map) = vocab {
@@ -99,8 +113,12 @@ fn test_count_vectorizer_ngram_range() {
     ];
 
     let vectorizer = text::CountVectorizer::new().ngram_range((1, 2)); // Unigrams and bigrams
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
-    let features = fitted.transform(&documents).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
     assert_eq!(features.nrows(), documents.len());
 
     let vocab = fitted.get_vocabulary();
@@ -128,14 +146,18 @@ fn test_count_vectorizer_min_max_df() {
         .min_df(2) // Word must appear in at least 2 documents
         .max_df(3.0); // Word must appear in at most 3 documents
 
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
     let _vocab = fitted.get_vocabulary();
 
     // "common" and "word" appear in all 4 documents, so should be excluded by max_df=3
     // Individual unique words appear only once, so should be excluded by min_df=2
     // This particular configuration might result in no terms, which is valid
 
-    let features = fitted.transform(&documents).unwrap();
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
     assert_eq!(features.nrows(), 4);
 }
 
@@ -146,11 +168,19 @@ fn test_tfidf_vectorizer_sublinear_tf() {
     let vectorizer_regular = text::TfidfVectorizer::new().sublinear_tf(false);
     let vectorizer_sublinear = text::TfidfVectorizer::new().sublinear_tf(true);
 
-    let fitted_regular = vectorizer_regular.fit(&documents, &()).unwrap();
-    let fitted_sublinear = vectorizer_sublinear.fit(&documents, &()).unwrap();
+    let fitted_regular = vectorizer_regular
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let fitted_sublinear = vectorizer_sublinear
+        .fit(&documents, &())
+        .expect("operation should succeed");
 
-    let features_regular = fitted_regular.transform(&documents).unwrap();
-    let features_sublinear = fitted_sublinear.transform(&documents).unwrap();
+    let features_regular = fitted_regular
+        .transform(&documents)
+        .expect("operation should succeed");
+    let features_sublinear = fitted_sublinear
+        .transform(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features_regular.shape(), features_sublinear.shape());
 
@@ -185,13 +215,25 @@ fn test_tfidf_vectorizer_normalization() {
     let vectorizer_l2 = text::TfidfVectorizer::new().norm(Some("l2".to_string()));
     let vectorizer_none = text::TfidfVectorizer::new().norm(None);
 
-    let fitted_l1 = vectorizer_l1.fit(&documents, &()).unwrap();
-    let fitted_l2 = vectorizer_l2.fit(&documents, &()).unwrap();
-    let fitted_none = vectorizer_none.fit(&documents, &()).unwrap();
+    let fitted_l1 = vectorizer_l1
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let fitted_l2 = vectorizer_l2
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let fitted_none = vectorizer_none
+        .fit(&documents, &())
+        .expect("operation should succeed");
 
-    let features_l1 = fitted_l1.transform(&documents).unwrap();
-    let features_l2 = fitted_l2.transform(&documents).unwrap();
-    let features_none = fitted_none.transform(&documents).unwrap();
+    let features_l1 = fitted_l1
+        .transform(&documents)
+        .expect("operation should succeed");
+    let features_l2 = fitted_l2
+        .transform(&documents)
+        .expect("operation should succeed");
+    let features_none = fitted_none
+        .transform(&documents)
+        .expect("operation should succeed");
 
     // Check L1 normalization - each row should sum to 1
     for i in 0..features_l1.nrows() {
@@ -243,8 +285,12 @@ fn test_count_vectorizer_max_features() {
     ];
 
     let vectorizer = text::CountVectorizer::new().max_features(Some(5));
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
-    let features = fitted.transform(&documents).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
 
     let vocab = fitted.get_vocabulary();
 
@@ -266,8 +312,12 @@ fn test_text_vectorizer_empty_documents() {
     let documents = vec!["".to_string(), "word".to_string(), "".to_string()];
 
     let vectorizer = text::CountVectorizer::new();
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
-    let features = fitted.transform(&documents).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features.nrows(), 3);
 
@@ -286,8 +336,12 @@ fn test_tfidf_vectorizer_single_document() {
     let documents = vec!["single document with multiple words".to_string()];
 
     let vectorizer = text::TfidfVectorizer::new();
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
-    let features = fitted.transform(&documents).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features.nrows(), 1);
     assert!(features.ncols() > 0);
@@ -314,8 +368,12 @@ fn test_count_vectorizer_case_sensitivity() {
     let vectorizer_case_sensitive = text::CountVectorizer::new().lowercase(false);
     let vectorizer_case_insensitive = text::CountVectorizer::new().lowercase(true);
 
-    let fitted_sensitive = vectorizer_case_sensitive.fit(&documents, &()).unwrap();
-    let fitted_insensitive = vectorizer_case_insensitive.fit(&documents, &()).unwrap();
+    let fitted_sensitive = vectorizer_case_sensitive
+        .fit(&documents, &())
+        .expect("operation should succeed");
+    let fitted_insensitive = vectorizer_case_insensitive
+        .fit(&documents, &())
+        .expect("operation should succeed");
 
     let vocab_sensitive = fitted_sensitive.get_vocabulary();
     let vocab_insensitive = fitted_insensitive.get_vocabulary();
@@ -343,7 +401,9 @@ fn test_text_tokenization_patterns() {
     ];
 
     let vectorizer = text::CountVectorizer::new();
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
     let vocab = fitted.get_vocabulary();
 
     // Check that tokenization handles punctuation appropriately
@@ -361,7 +421,9 @@ fn test_text_tokenization_patterns() {
         }
     }
 
-    let features = fitted.transform(&documents).unwrap();
+    let features = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
     assert_eq!(features.nrows(), 2);
 
     // All features should be finite
@@ -383,10 +445,14 @@ fn test_vectorizer_transform_unseen_documents() {
     ];
 
     let vectorizer = text::CountVectorizer::new();
-    let fitted = vectorizer.fit(&train_documents, &()).unwrap();
+    let fitted = vectorizer
+        .fit(&train_documents, &())
+        .expect("operation should succeed");
 
     // Transform unseen test documents
-    let test_features = fitted.transform(&test_documents).unwrap();
+    let test_features = fitted
+        .transform(&test_documents)
+        .expect("operation should succeed");
 
     assert_eq!(test_features.nrows(), 2);
     assert_eq!(
@@ -410,11 +476,17 @@ fn test_tfidf_consistency() {
     ];
 
     let vectorizer = text::TfidfVectorizer::new();
-    let fitted = vectorizer.fit(&documents, &()).unwrap();
+    let fitted = vectorizer
+        .fit(&documents, &())
+        .expect("operation should succeed");
 
     // Transform same documents multiple times - should be consistent
-    let features1 = fitted.transform(&documents).unwrap();
-    let features2 = fitted.transform(&documents).unwrap();
+    let features1 = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
+    let features2 = fitted
+        .transform(&documents)
+        .expect("operation should succeed");
 
     assert_eq!(features1.shape(), features2.shape());
 
@@ -585,7 +657,9 @@ fn test_emotion_detector_extract_features() {
         "I am angry and frustrated.".to_string(),
     ];
 
-    let features = detector.extract_features(&documents).unwrap();
+    let features = detector
+        .extract_features(&documents)
+        .expect("operation should succeed");
 
     // Should have correct shape: (n_documents, 14)
     assert_eq!(features.nrows(), 3);
@@ -794,7 +868,9 @@ fn test_aspect_sentiment_extract_features() {
         "The service was okay, food was amazing.".to_string(),
     ];
 
-    let features = analyzer.extract_features(&documents).unwrap();
+    let features = analyzer
+        .extract_features(&documents)
+        .expect("operation should succeed");
 
     // Should have correct shape: (n_documents, 6)
     assert_eq!(features.nrows(), 3);

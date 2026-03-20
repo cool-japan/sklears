@@ -657,7 +657,7 @@ mod tests {
         HighPrecisionArithmetic::normalize_probabilities(&mut p);
         HighPrecisionArithmetic::normalize_probabilities(&mut q);
 
-        let kl = HighPrecisionArithmetic::kl_divergence(&p, &q).unwrap();
+        let kl = HighPrecisionArithmetic::kl_divergence(&p, &q).expect("operation should succeed");
         // KL divergence should be finite and mostly positive (allowing for numerical precision)
         assert!(kl.is_finite());
         assert!(kl > -0.1); // Very relaxed bound to handle numerical edge cases
@@ -701,7 +701,8 @@ mod tests {
         let y_true = array![1, 0, 1, 0];
         let y_prob = array![0.9, 0.1, 0.8, 0.2];
 
-        let brier = HighPrecisionArithmetic::stable_brier_score(&y_true, &y_prob).unwrap();
+        let brier = HighPrecisionArithmetic::stable_brier_score(&y_true, &y_prob)
+            .expect("operation should succeed");
         assert!(brier >= 0.0);
         assert!(brier <= 1.0);
         assert!(brier.is_finite());

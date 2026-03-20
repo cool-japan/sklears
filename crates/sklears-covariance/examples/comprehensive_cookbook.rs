@@ -165,7 +165,7 @@ fn recipe_professional_workflow() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📊 Step 4: Performance comparison");
     println!("Estimator Performance Ranking:");
     let mut candidates = selection_result.candidate_results.clone();
-    candidates.sort_by(|a, b| b.mean_score.partial_cmp(&a.mean_score).unwrap());
+    candidates.sort_by(|a, b| b.mean_score.partial_cmp(&a.mean_score).expect("operation should succeed"));
 
     for (rank, candidate) in candidates.iter().enumerate().take(3) {
         println!(
@@ -419,7 +419,7 @@ fn recipe_hyperparameter_optimization() -> Result<(), Box<dyn std::error::Error>
             let history = &tuning_result.optimization_history;
             if history.best_scores.len() >= 3 {
                 let initial_score = history.best_scores[0];
-                let final_score = *history.best_scores.last().unwrap();
+                let final_score = *history.best_scores.last().expect("operation should succeed");
                 let improvement = final_score - initial_score;
 
                 println!("   Initial score: {:.6}", initial_score);
@@ -632,6 +632,7 @@ fn create_professional_dataset(
     n_assets: usize,
 ) -> SklResult<CovarianceDataFrame> {
     use scirs2_core::random::thread_rng;
+use scirs2_core::random::RngExt;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_assets));

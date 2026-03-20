@@ -1,5 +1,5 @@
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::Rng;
+use scirs2_core::RngExt;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::types::{Float, Int};
 use std::collections::HashMap;
@@ -59,7 +59,7 @@ pub fn create_stratified_folds(
     // Shuffle indices within each class
     for indices in class_indices.values_mut() {
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..i + 1);
+            let j = rng.random_range(0..i + 1);
             indices.swap(i, j);
         }
     }
@@ -106,7 +106,7 @@ pub fn create_shuffled_indices(n_samples: usize, random_state: Option<u64>) -> V
     let mut rng = create_rng(random_state);
 
     for i in (1..indices.len()).rev() {
-        let j = rng.gen_range(0..i + 1);
+        let j = rng.random_range(0..i + 1);
         indices.swap(i, j);
     }
 
@@ -195,7 +195,7 @@ fn create_stratified_train_test_split(
     for (_, mut indices) in class_indices {
         // Shuffle indices within class
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..i + 1);
+            let j = rng.random_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -291,7 +291,7 @@ pub fn create_group_folds(
 
     // Shuffle groups
     for i in (1..unique_groups.len()).rev() {
-        let j = rng.gen_range(0..i + 1);
+        let j = rng.random_range(0..i + 1);
         unique_groups.swap(i, j);
     }
 

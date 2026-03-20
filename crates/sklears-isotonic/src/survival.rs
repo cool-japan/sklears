@@ -939,7 +939,7 @@ mod tests {
         assert!(hazard_predictions.is_ok());
 
         // Check that survival function is decreasing
-        let survival = survival_predictions.unwrap();
+        let survival = survival_predictions.expect("operation should succeed");
         for i in 0..survival.len() - 1 {
             assert!(survival[i] >= survival[i + 1]);
         }
@@ -1016,7 +1016,7 @@ mod tests {
         assert!(cumulative_predictions.is_ok());
 
         // Check that cumulative intensity is increasing
-        let cumulative = cumulative_predictions.unwrap();
+        let cumulative = cumulative_predictions.expect("operation should succeed");
         for i in 0..cumulative.len() - 1 {
             assert!(cumulative[i] <= cumulative[i + 1]);
         }
@@ -1045,7 +1045,7 @@ mod tests {
         // Test survival regression API
         let result = isotonic_survival_regression(&data, false);
         assert!(result.is_ok());
-        let (times, survival) = result.unwrap();
+        let (times, survival) = result.expect("operation should succeed");
         assert_eq!(times.len(), survival.len());
 
         // Test hazard estimation API

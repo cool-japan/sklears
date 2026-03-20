@@ -348,7 +348,7 @@ pub mod async_support {
                 let template_id = template_id.to_string();
                 let inner = &self.inner;
                 move || inner.quick_generate(&generator_id, &template_id, parameters)
-            }).await.unwrap()
+            }).await.unwrap_or_default()
         }
     }
 }
@@ -374,7 +374,7 @@ pub mod metrics_integration {
 
         /// Export metrics in Prometheus format
         pub fn export(&self) -> String {
-            let metrics = self.metrics.read().unwrap();
+            let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
             format!(
                 "# HELP report_generation_total Total number of reports generated\n\
                  # TYPE report_generation_total counter\n\

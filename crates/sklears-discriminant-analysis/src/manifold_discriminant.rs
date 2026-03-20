@@ -183,7 +183,7 @@ impl ManifoldDiscriminantAnalysis {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
             for (neighbor_idx, dist) in distances.iter().take(self.config.n_neighbors) {
                 graph[[i, *neighbor_idx]] = *dist;
@@ -239,9 +239,15 @@ impl ManifoldDiscriminantAnalysis {
         }
 
         // Double centering
-        let row_means = gram_matrix.mean_axis(Axis(1)).unwrap();
-        let col_means = gram_matrix.mean_axis(Axis(0)).unwrap();
-        let total_mean = gram_matrix.mean().unwrap();
+        let row_means = gram_matrix
+            .mean_axis(Axis(1))
+            .expect("mean should not fail on non-empty array");
+        let col_means = gram_matrix
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
+        let total_mean = gram_matrix
+            .mean()
+            .expect("mean should not fail on non-empty array");
 
         for i in 0..n_samples {
             for j in 0..n_samples {
@@ -392,7 +398,10 @@ impl ManifoldDiscriminantAnalysis {
                 let mut total_count = 0;
 
                 for i in 0..embedding.nrows() {
-                    let class_idx = classes.iter().position(|&c| c == y[i]).unwrap();
+                    let class_idx = classes
+                        .iter()
+                        .position(|&c| c == y[i])
+                        .expect("element not found");
                     let centered = embedding.row(i).to_owned() - means.row(class_idx);
 
                     for j in 0..n_components {
@@ -513,7 +522,7 @@ impl ManifoldDiscriminantAnalysis {
             }
 
             // Sort and take k nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             let k = self.config.n_neighbors.min(distances.len());
 
             // Weighted average of neighbor embeddings
@@ -830,8 +839,8 @@ mod tests {
             .manifold_method("isomap")
             .n_components(Some(1));
 
-        let fitted = mda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = mda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -846,8 +855,10 @@ mod tests {
             .n_neighbors(1)
             .manifold_method("lle");
 
-        let fitted = mda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = mda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -872,8 +883,8 @@ mod tests {
             .n_neighbors(2)
             .n_components(Some(2));
 
-        let fitted = mda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = mda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 2));
     }
@@ -890,8 +901,8 @@ mod tests {
                 .manifold_method(method)
                 .n_neighbors(1);
 
-            let fitted = mda.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = mda.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert_eq!(fitted.classes().len(), 2);
@@ -907,8 +918,8 @@ mod tests {
             .base_discriminant("qda")
             .n_neighbors(1);
 
-        let fitted = mda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = mda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);

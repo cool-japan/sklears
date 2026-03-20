@@ -52,7 +52,7 @@ pub fn make_nonstationary_timeseries(
     match non_stationary_type {
         "random_walk" => {
             // Simple random walk: y_t = y_{t-1} + ε_t
-            let noise_dist = Normal::new(0.0, innovation_std).unwrap();
+            let noise_dist = Normal::new(0.0, innovation_std).expect("operation should succeed");
 
             for t in 1..n_samples {
                 let innovation: f64 = rng.sample(noise_dist);
@@ -97,7 +97,7 @@ pub fn make_nonstationary_timeseries(
 
             let break_point = ((parameters[0] * n_samples as f64) as usize).min(n_samples - 1);
             let break_magnitude = parameters[1];
-            let noise_dist = Normal::new(0.0, innovation_std).unwrap();
+            let noise_dist = Normal::new(0.0, innovation_std).expect("operation should succeed");
 
             for t in 1..n_samples {
                 let innovation: f64 = rng.sample(noise_dist);
@@ -120,7 +120,7 @@ pub fn make_nonstationary_timeseries(
 
             let initial_ar = parameters[0].clamp(-0.99, 0.99);
             let final_ar = parameters[1].clamp(-0.99, 0.99);
-            let noise_dist = Normal::new(0.0, innovation_std).unwrap();
+            let noise_dist = Normal::new(0.0, innovation_std).expect("operation should succeed");
 
             for t in 1..n_samples {
                 let progress = t as f64 / (n_samples - 1) as f64;
@@ -180,7 +180,7 @@ pub fn make_stationary_arma(
     }
 
     let mut rng = Random::from_seed(random_state.unwrap_or_else(|| rng().gen()));
-    let noise_dist = Normal::new(0.0, innovation_std).unwrap();
+    let noise_dist = Normal::new(0.0, innovation_std).expect("operation should succeed");
 
     let p = ar_coeffs.len();
     let q = ma_coeffs.len();

@@ -341,7 +341,7 @@ impl AdditiveIsotonicRegression<Untrained> {
     /// Compute argsort indices for sorting
     fn argsort(&self, x: &Array1<Float>) -> Vec<usize> {
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap_or(std::cmp::Ordering::Equal));
         indices
     }
 }
@@ -358,8 +358,14 @@ impl Predict<Array2<Float>, Array1<Float>> for AdditiveIsotonicRegression<Traine
             )));
         }
 
-        let feature_functions = self.feature_functions_.as_ref().unwrap();
-        let feature_grids = self.feature_grids_.as_ref().unwrap();
+        let feature_functions = self
+            .feature_functions_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let feature_grids = self
+            .feature_grids_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let intercept = self.intercept_.unwrap_or(0.0);
 
         let mut predictions = Array1::zeros(n_samples);
@@ -423,12 +429,16 @@ impl AdditiveIsotonicRegression<Trained> {
 
     /// Get the fitted feature functions
     pub fn feature_functions(&self) -> &[Array1<Float>] {
-        self.feature_functions_.as_ref().unwrap()
+        self.feature_functions_
+            .as_ref()
+            .expect("value should be present")
     }
 
     /// Get the fitted feature grids
     pub fn feature_grids(&self) -> &[Array1<Float>] {
-        self.feature_grids_.as_ref().unwrap()
+        self.feature_grids_
+            .as_ref()
+            .expect("value should be present")
     }
 
     /// Get the fitted intercept
@@ -438,7 +448,10 @@ impl AdditiveIsotonicRegression<Trained> {
 
     /// Compute feature importance based on function variance
     pub fn feature_importance(&self) -> Array1<Float> {
-        let feature_functions = self.feature_functions_.as_ref().unwrap();
+        let feature_functions = self
+            .feature_functions_
+            .as_ref()
+            .expect("value should be present");
         let mut importance = Array1::zeros(self.n_features);
 
         for (j, function) in feature_functions.iter().enumerate() {
@@ -455,7 +468,10 @@ impl AdditiveIsotonicRegression<Trained> {
 
     /// Evaluate the additive model's complexity
     pub fn model_complexity(&self) -> Float {
-        let feature_functions = self.feature_functions_.as_ref().unwrap();
+        let feature_functions = self
+            .feature_functions_
+            .as_ref()
+            .expect("value should be present");
         let mut complexity = 0.0;
 
         for function in feature_functions {
@@ -540,7 +556,7 @@ mod tests {
         let y = array![2.0, 2.5, 5.0];
 
         let regressor = AdditiveIsotonicRegression::new(2);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.feature_functions().len(), 2);
         assert_eq!(fitted.feature_grids().len(), 2);
@@ -552,8 +568,8 @@ mod tests {
         let y = array![1.0, 4.0, 9.0]; // Roughly x1^2 + x2^2
 
         let regressor = AdditiveIsotonicRegression::new(2);
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 3);
         // Predictions should be reasonable approximations
@@ -568,7 +584,7 @@ mod tests {
         let y = array![5.0, 6.0, 7.0]; // Linear with intercept
 
         let regressor = AdditiveIsotonicRegression::new(1).fit_intercept(true);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         let intercept = fitted.intercept();
         assert!(intercept.is_finite()); // Should learn a finite intercept
@@ -580,7 +596,7 @@ mod tests {
         let y = array![1.0, 4.0, 9.0]; // Only first feature matters
 
         let regressor = AdditiveIsotonicRegression::new(2);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
         let importance = fitted.feature_importance();
 
         // First feature should be more important than second
@@ -594,10 +610,12 @@ mod tests {
         let weights = array![1.0, 0.1, 1.0]; // Low weight on outlier
 
         let regressor = AdditiveIsotonicRegression::new(1);
-        let fitted = regressor.fit_weighted(&x, &y, Some(&weights)).unwrap();
+        let fitted = regressor
+            .fit_weighted(&x, &y, Some(&weights))
+            .expect("operation should succeed");
 
         // Should still produce reasonable results despite outlier
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -610,7 +628,7 @@ mod tests {
         let result = additive_isotonic_regression(&x, &y, &constraints, Some(0.1), Some(true));
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -642,7 +660,7 @@ mod tests {
         let y = array![1.0, 4.0, 9.0];
 
         let regressor = AdditiveIsotonicRegression::new(2);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         let complexity = fitted.model_complexity();
         assert!(complexity > 0.0);
@@ -673,10 +691,10 @@ mod tests {
         let y = Array1::<Float>::zeros(0);
 
         let regressor = AdditiveIsotonicRegression::new(1);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         let x_test = Array2::<Float>::zeros((0, 1));
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 0);
     }
 }

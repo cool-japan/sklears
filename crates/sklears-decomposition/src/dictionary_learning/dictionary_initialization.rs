@@ -1,7 +1,7 @@
 //! Dictionary initialization strategies
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{error::Result, types::Float};
@@ -80,7 +80,7 @@ impl DictionaryInitializer {
         // Simple random initialization
         for i in 0..n_atoms {
             for j in 0..n_features {
-                dictionary[[i, j]] = (rng.gen::<Float>() - 0.5) * 2.0 * self.config.scale;
+                dictionary[[i, j]] = (rng.random::<Float>() - 0.5) * 2.0 * self.config.scale;
             }
         }
 

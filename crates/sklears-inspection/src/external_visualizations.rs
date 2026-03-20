@@ -848,36 +848,49 @@ impl VisualizationBackend for D3Backend {
         })
     }
 
+    /// Render a SHAP plot using the D3 backend.
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     fn render_shap_plot(
         &self,
         _data: &ShapData,
         _config: &BackendConfig,
     ) -> SklResult<RenderedVisualization> {
-        // Implementation would be similar to feature importance but with SHAP-specific styling
         Err(SklearsError::NotImplemented(
-            "SHAP plot for D3 backend not yet implemented".to_string(),
+            "SHAP plot for D3 backend not yet implemented. Planned for v0.2.0.".to_string(),
         ))
     }
 
+    /// Render a partial dependence plot using the D3 backend.
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     fn render_partial_dependence(
         &self,
         _data: &PartialDependenceData,
         _config: &BackendConfig,
     ) -> SklResult<RenderedVisualization> {
-        // Implementation would create line plots for partial dependence
         Err(SklearsError::NotImplemented(
-            "Partial dependence plot for D3 backend not yet implemented".to_string(),
+            "Partial dependence plot for D3 backend not yet implemented. Planned for v0.2.0."
+                .to_string(),
         ))
     }
 
+    /// Render a comparative plot using the D3 backend.
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     fn render_comparative_plot(
         &self,
         _data: &ComparativeData,
         _config: &BackendConfig,
     ) -> SklResult<RenderedVisualization> {
-        // Implementation would create grouped bar charts
         Err(SklearsError::NotImplemented(
-            "Comparative plot for D3 backend not yet implemented".to_string(),
+            "Comparative plot for D3 backend not yet implemented. Planned for v0.2.0.".to_string(),
         ))
     }
 
@@ -1165,36 +1178,50 @@ impl VisualizationBackend for VegaLiteBackend {
         })
     }
 
+    /// Render a SHAP plot using the Vega-Lite backend.
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     fn render_shap_plot(
         &self,
         _data: &ShapData,
         _config: &BackendConfig,
     ) -> SklResult<RenderedVisualization> {
-        // Implementation would be similar to feature importance but with SHAP-specific styling
         Err(SklearsError::NotImplemented(
-            "SHAP plot for Vega-Lite backend not yet implemented".to_string(),
+            "SHAP plot for Vega-Lite backend not yet implemented. Planned for v0.2.0.".to_string(),
         ))
     }
 
+    /// Render a partial dependence plot using the Vega-Lite backend.
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     fn render_partial_dependence(
         &self,
         _data: &PartialDependenceData,
         _config: &BackendConfig,
     ) -> SklResult<RenderedVisualization> {
-        // Implementation would create line plots for partial dependence
         Err(SklearsError::NotImplemented(
-            "Partial dependence plot for Vega-Lite backend not yet implemented".to_string(),
+            "Partial dependence plot for Vega-Lite backend not yet implemented. Planned for v0.2.0."
+                .to_string(),
         ))
     }
 
+    /// Render a comparative plot using the Vega-Lite backend.
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     fn render_comparative_plot(
         &self,
         _data: &ComparativeData,
         _config: &BackendConfig,
     ) -> SklResult<RenderedVisualization> {
-        // Implementation would create grouped bar charts
         Err(SklearsError::NotImplemented(
-            "Comparative plot for Vega-Lite backend not yet implemented".to_string(),
+            "Comparative plot for Vega-Lite backend not yet implemented. Planned for v0.2.0."
+                .to_string(),
         ))
     }
 
@@ -1318,7 +1345,7 @@ mod tests {
         let result = backend.render_feature_importance(&data, &config);
         assert!(result.is_ok());
 
-        let visualization = result.unwrap();
+        let visualization = result.expect("operation should succeed");
         assert_eq!(visualization.format, OutputFormat::Html);
         assert!(visualization.content.contains("Plotly.newPlot"));
         assert_eq!(visualization.metadata.backend, "plotly");
@@ -1341,7 +1368,7 @@ mod tests {
         let result = backend.render_feature_importance(&data, &config);
         assert!(result.is_ok());
 
-        let visualization = result.unwrap();
+        let visualization = result.expect("operation should succeed");
         assert_eq!(visualization.format, OutputFormat::Html);
         assert!(visualization.content.contains("d3.select"));
         assert_eq!(visualization.metadata.backend, "d3");
@@ -1364,7 +1391,7 @@ mod tests {
         let result = backend.render_feature_importance(&data, &config);
         assert!(result.is_ok());
 
-        let visualization = result.unwrap();
+        let visualization = result.expect("operation should succeed");
         assert_eq!(visualization.format, OutputFormat::Html);
         assert!(visualization.content.contains("vegaEmbed"));
         assert_eq!(visualization.metadata.backend, "vega-lite");
@@ -1408,11 +1435,12 @@ mod tests {
         let result = backend.render_feature_importance(&data, &config);
         assert!(result.is_ok());
 
-        let visualization = result.unwrap();
+        let visualization = result.expect("operation should succeed");
         assert_eq!(visualization.format, OutputFormat::Json);
 
         // Verify it's valid JSON
-        let json_value: serde_json::Value = serde_json::from_str(&visualization.content).unwrap();
+        let json_value: serde_json::Value =
+            serde_json::from_str(&visualization.content).expect("operation should succeed");
         assert!(json_value.get("type").is_some());
         assert!(json_value.get("javascript").is_some());
     }

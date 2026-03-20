@@ -8,6 +8,7 @@ use crate::sparse_gp::core::*;
 use crate::sparse_gp::kernels::{KernelOps, SparseKernel};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::RngExt;
 use sklears_core::error::{Result, SklearsError};
 use std::f64::consts::PI;
 
@@ -457,7 +458,7 @@ impl StochasticVariationalInference {
 
         // Fisher-Yates shuffle
         for i in (1..n).rev() {
-            let j = rng.gen_range(0..i + 1);
+            let j = rng.random_range(0..i + 1);
             indices.swap(i, j);
         }
 
@@ -580,7 +581,7 @@ mod tests {
             &kernel,
             0.1,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(mean.len(), 2);
         assert_eq!(cov_factor.shape(), &[2, 2]);
@@ -594,7 +595,8 @@ mod tests {
         let cov = cov_factor.dot(&cov_factor.t());
 
         let (kl, grad_mean, grad_cov) =
-            VariationalFreeEnergy::compute_kl_divergence_whitened(&mean, &cov).unwrap();
+            VariationalFreeEnergy::compute_kl_divergence_whitened(&mean, &cov)
+                .expect("operation should succeed");
 
         assert!(kl >= 0.0); // KL divergence should be non-negative
         assert_eq!(grad_mean.len(), 2);
@@ -612,7 +614,7 @@ mod tests {
         let (ll, grad_mean, grad_cov) = VariationalFreeEnergy::compute_expected_log_likelihood(
             &y, &k_nm, &k_diag, &mean, &cov, 0.1,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(ll.is_finite());
         assert_eq!(grad_mean.len(), 2);
@@ -655,7 +657,7 @@ mod tests {
             &vfe_params,
             0.1,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(pred_mean.len(), 2);
         assert_eq!(pred_var.len(), 2);

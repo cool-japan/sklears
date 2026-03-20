@@ -851,7 +851,7 @@ impl VisualizationCoordinator {
     }
 
     fn generate_instance_id(&self) -> String {
-        format!("viz_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos())
+        format!("viz_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos())
     }
 
     // Additional helper method implementations would follow...

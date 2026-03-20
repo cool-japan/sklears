@@ -1721,8 +1721,8 @@ mod tests {
         ];
         let y = array![0, 0, 1, 1, 2, 2];
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = trained.predict(&X).expect("operation should succeed");
 
         // Should return predictions for all samples
         assert_eq!(predictions.len(), 6);
@@ -1742,8 +1742,8 @@ mod tests {
         let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
         let y = array![0, 1, 2, 3];
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = trained.predict(&X).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -1765,8 +1765,8 @@ mod tests {
         ];
         let y = array![0, 0, 1, 1, 2, 2];
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = trained.predict(&X).expect("operation should succeed");
 
         // Should return predictions for all samples
         assert_eq!(predictions.len(), 6);
@@ -1786,8 +1786,8 @@ mod tests {
         let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
         let y = array![0, 1, 2, 3];
 
-        let trained = classifier.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = trained.predict(&X).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -1797,26 +1797,26 @@ mod tests {
         let mut hierarchy = ClassHierarchy::new();
 
         // Root node
-        hierarchy.add_node(HierarchyNode::new(0, None, 0)).unwrap();
+        hierarchy.add_node(HierarchyNode::new(0, None, 0)).expect("operation should succeed");
 
         // Level 1 nodes
         hierarchy
             .add_node(HierarchyNode::new(1, Some(0), 1))
-            .unwrap();
+            .expect("operation should succeed");
         hierarchy
             .add_node(HierarchyNode::new(2, Some(0), 1))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Level 2 nodes (leaves)
         hierarchy
             .add_node(HierarchyNode::new(3, Some(1), 2))
-            .unwrap();
+            .expect("operation should succeed");
         hierarchy
             .add_node(HierarchyNode::new(4, Some(1), 2))
-            .unwrap();
+            .expect("operation should succeed");
         hierarchy
             .add_node(HierarchyNode::new(5, Some(2), 2))
-            .unwrap();
+            .expect("operation should succeed");
 
         hierarchy
     }
@@ -1835,10 +1835,10 @@ mod tests {
     fn test_hierarchy_path_to_leaf() {
         let hierarchy = create_simple_hierarchy();
 
-        let path = hierarchy.get_path_to_leaf(3).unwrap();
+        let path = hierarchy.get_path_to_leaf(3).expect("operation should succeed");
         assert_eq!(path, vec![0, 1, 3]);
 
-        let path = hierarchy.get_path_to_leaf(5).unwrap();
+        let path = hierarchy.get_path_to_leaf(5).expect("operation should succeed");
         assert_eq!(path, vec![0, 2, 5]);
     }
 
@@ -1850,7 +1850,7 @@ mod tests {
         let classifier = HierarchicalClassifier::new(base_classifier, hierarchy);
         assert!(classifier.is_ok());
 
-        let classifier = classifier.unwrap();
+        let classifier = classifier.expect("operation should succeed");
         assert_eq!(classifier.hierarchy().size(), 6);
         assert_eq!(classifier.hierarchy().max_depth(), 2);
     }
@@ -1861,7 +1861,7 @@ mod tests {
         let base_classifier = MockNativeClassifier::new();
 
         let classifier = HierarchicalClassifier::builder(base_classifier, hierarchy)
-            .unwrap()
+            .expect("operation should succeed")
             .strategy(HierarchicalStrategy::TopDown)
             .probability_threshold(0.7)
             .early_stopping(true)
@@ -1882,7 +1882,7 @@ mod tests {
         // Root concept
         taxonomy
             .add_concept(TaxonomyNode::new("Animal", None, vec![]))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Level 1 concepts
         taxonomy
@@ -1891,10 +1891,10 @@ mod tests {
                 Some("Animal"),
                 vec!["dog", "cat"],
             ))
-            .unwrap();
+            .expect("operation should succeed");
         taxonomy
             .add_concept(TaxonomyNode::new("Bird", Some("Animal"), vec!["eagle"]))
-            .unwrap();
+            .expect("operation should succeed");
 
         taxonomy
     }
@@ -1915,7 +1915,7 @@ mod tests {
         let classifier = TaxonomyAwareClassifier::new(base_classifier, taxonomy);
         assert!(classifier.is_ok());
 
-        let classifier = classifier.unwrap();
+        let classifier = classifier.expect("operation should succeed");
         assert_eq!(classifier.taxonomy().get_roots(), &["Animal"]);
         assert_eq!(classifier.taxonomy().get_leaves().len(), 2);
     }
@@ -1926,7 +1926,7 @@ mod tests {
         let base_classifier = MockNativeClassifier::new();
 
         let classifier = TaxonomyAwareClassifier::builder(base_classifier, taxonomy)
-            .unwrap()
+            .expect("operation should succeed")
             .strategy(TaxonomyStrategy::SemanticSimilarity)
             .confidence_threshold(0.7)
             .use_semantic_similarity(true)

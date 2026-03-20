@@ -437,7 +437,7 @@ impl ErrorMessageEnhancer {
         let context = if self.config.enable_context_collection {
             self.context_collector
                 .write()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .collect_context(error)?
         } else {
             EnhancedErrorContext::default()
@@ -445,7 +445,7 @@ impl ErrorMessageEnhancer {
         let classification = if self.config.enable_pattern_analysis {
             self.pattern_analyzer
                 .write()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .analyze_error(error, &context)?
         } else {
             ErrorClassification::default()
@@ -453,7 +453,7 @@ impl ErrorMessageEnhancer {
         let suggestions = if self.config.enable_auto_suggestions {
             self.suggestion_engine
                 .read()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .generate_suggestions(error, &context)?
         } else {
             Vec::new()
@@ -461,16 +461,16 @@ impl ErrorMessageEnhancer {
         let recovery_strategies = if self.config.enable_recovery_strategies {
             self.recovery_advisor
                 .read()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .generate_recovery_strategies(error, &context)?
         } else {
             Vec::new()
         };
-        let enhanced_message =
-            self.error_formatter
-                .read()
-                .unwrap()
-                .format_error(error, &context, &suggestions)?;
+        let enhanced_message = self
+            .error_formatter
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .format_error(error, &context, &suggestions)?;
         let documentation_links = self.generate_documentation_links(error, &classification)?;
         let similar_issues = self.find_similar_issues(error, &context)?;
         Ok(EnhancedErrorMessage {
@@ -489,11 +489,11 @@ impl ErrorMessageEnhancer {
         let context = self
             .context_collector
             .write()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .collect_context(error)?;
         self.recovery_advisor
             .write()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .attempt_auto_recovery(error, &context)
     }
     /// Learn from error resolution outcomes
@@ -506,20 +506,32 @@ impl ErrorMessageEnhancer {
         if self.config.enable_learning {
             self.pattern_analyzer
                 .write()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .update_success_rate(suggestion_id, outcome)?;
             self.suggestion_engine
                 .write()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .update_ranking_model(suggestion_id, outcome)?;
         }
         Ok(())
     }
     /// Export error enhancement statistics
     pub fn export_statistics(&self) -> Result<ErrorEnhancementStatistics> {
-        let pattern_stats = self.pattern_analyzer.read().unwrap().get_statistics();
-        let suggestion_stats = self.suggestion_engine.read().unwrap().get_statistics();
-        let recovery_stats = self.recovery_advisor.read().unwrap().get_statistics();
+        let pattern_stats = self
+            .pattern_analyzer
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_statistics();
+        let suggestion_stats = self
+            .suggestion_engine
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_statistics();
+        let recovery_stats = self
+            .recovery_advisor
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_statistics();
         Ok(ErrorEnhancementStatistics {
             total_errors_analyzed: pattern_stats.total_patterns,
             suggestions_generated: suggestion_stats.total_suggestions,
@@ -833,7 +845,11 @@ impl ErrorFormatter {
         context: &EnhancedErrorContext,
         suggestions: &[ActionableSuggestion],
     ) -> Result<String> {
-        let template = self.format_templates.get("default").unwrap();
+        let template = self
+            .format_templates
+            .get("default")
+            .cloned()
+            .unwrap_or_default();
         let mut formatted = format!("ERROR: {error}\n\n");
         formatted.push_str("CONTEXT:\n");
         formatted.push_str(&format!(
@@ -1256,7 +1272,7 @@ impl RecoveryAdvisor {
                         "err_{}",
                         SystemTime::now()
                             .duration_since(UNIX_EPOCH)
-                            .unwrap()
+                            .unwrap_or_default()
                             .as_millis()
                     ),
                     strategy_id: "auto_recovery".to_string(),

@@ -6,8 +6,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use scirs2_core::SliceRandomExt;
 use sklears_core::types::Float;
 
@@ -309,7 +309,7 @@ impl OODValidator {
             .map(|i| self.euclidean_distance(&x_train.row(i), &centroid))
             .collect();
 
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let threshold_idx = ((1.0 - nu) * distances.len() as Float) as usize;
         let threshold = distances[threshold_idx.min(distances.len() - 1)];
 
@@ -605,7 +605,7 @@ impl OODValidator {
 
         let mut centroids = Vec::new();
         for _ in 0..k {
-            let idx = rng.gen_range(0..x.nrows());
+            let idx = rng.random_range(0..x.nrows());
             centroids.push(x.row(idx).to_owned());
         }
 
@@ -674,8 +674,10 @@ mod tests {
 
     #[test]
     fn test_ood_detection_methods() {
-        let x_train = Array2::from_shape_vec((10, 3), vec![1.0; 30]).unwrap();
-        let x_ood = Array2::from_shape_vec((5, 3), vec![5.0; 15]).unwrap();
+        let x_train =
+            Array2::from_shape_vec((10, 3), vec![1.0; 30]).expect("operation should succeed");
+        let x_ood =
+            Array2::from_shape_vec((5, 3), vec![5.0; 15]).expect("operation should succeed");
 
         let validator = OODValidator::new()
             .detection_method(OODDetectionMethod::StatisticalDistance { threshold: 0.5 });
@@ -683,7 +685,7 @@ mod tests {
         let result = validator.detect_ood_samples(&x_train, &x_ood);
         assert!(result.is_ok());
 
-        let ood_mask = result.unwrap();
+        let ood_mask = result.expect("operation should succeed");
         assert_eq!(ood_mask.len(), 5);
     }
 
@@ -696,8 +698,9 @@ mod tests {
                 1.0, 1.0, 1.1, 0.9,
             ],
         )
-        .unwrap();
-        let x_ood = Array2::from_shape_vec((3, 2), vec![5.0, 5.0, 0.0, 0.0, 10.0, 10.0]).unwrap();
+        .expect("operation should succeed");
+        let x_ood = Array2::from_shape_vec((3, 2), vec![5.0, 5.0, 0.0, 0.0, 10.0, 10.0])
+            .expect("operation should succeed");
 
         let validator = OODValidator::new()
             .detection_method(OODDetectionMethod::MahalanobisDistance { threshold: 2.0 });
@@ -708,27 +711,30 @@ mod tests {
 
     #[test]
     fn test_feature_importance_calculation() {
-        let x_train = Array2::from_shape_vec((10, 3), vec![1.0; 30]).unwrap();
-        let x_ood = Array2::from_shape_vec((5, 3), vec![2.0; 15]).unwrap();
+        let x_train =
+            Array2::from_shape_vec((10, 3), vec![1.0; 30]).expect("operation should succeed");
+        let x_ood =
+            Array2::from_shape_vec((5, 3), vec![2.0; 15]).expect("operation should succeed");
 
         let validator = OODValidator::new();
         let result = validator.calculate_feature_importance(&x_train, &x_ood);
 
         assert!(result.is_ok());
-        let importance = result.unwrap();
+        let importance = result.expect("operation should succeed");
         assert_eq!(importance.len(), 3);
     }
 
     #[test]
     fn test_ood_data_splitting() {
-        let x_ood = Array2::from_shape_vec((10, 2), vec![1.0; 20]).unwrap();
-        let y_ood = Array1::from_shape_vec(10, vec![0.5; 10]).unwrap();
+        let x_ood =
+            Array2::from_shape_vec((10, 2), vec![1.0; 20]).expect("operation should succeed");
+        let y_ood = Array1::from_shape_vec(10, vec![0.5; 10]).expect("operation should succeed");
 
         let validator = OODValidator::new().validation_split(0.3);
         let result = validator.split_ood_data(&x_ood, &y_ood);
 
         assert!(result.is_ok());
-        let (x_val, y_val) = result.unwrap();
+        let (x_val, y_val) = result.expect("operation should succeed");
         assert_eq!(x_val.nrows(), 3); // 30% of 10
         assert_eq!(y_val.len(), 3);
     }
@@ -737,11 +743,12 @@ mod tests {
     fn test_distance_calculations() {
         let validator = OODValidator::new();
 
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let mean_result = validator.calculate_mean(&x);
 
         assert!(mean_result.is_ok());
-        let mean = mean_result.unwrap();
+        let mean = mean_result.expect("operation should succeed");
         assert_eq!(mean.len(), 2);
         assert!((mean[0] - 3.0).abs() < 1e-10);
         assert!((mean[1] - 4.0).abs() < 1e-10);
@@ -756,10 +763,12 @@ mod tests {
         struct MockPredictions;
 
         let estimator = MockEstimator;
-        let x_train = Array2::from_shape_vec((10, 2), vec![1.0; 20]).unwrap();
-        let y_train = Array1::from_shape_vec(10, vec![0.0; 10]).unwrap();
-        let x_ood = Array2::from_shape_vec((5, 2), vec![5.0; 10]).unwrap();
-        let y_ood = Array1::from_shape_vec(5, vec![1.0; 5]).unwrap();
+        let x_train =
+            Array2::from_shape_vec((10, 2), vec![1.0; 20]).expect("operation should succeed");
+        let y_train = Array1::from_shape_vec(10, vec![0.0; 10]).expect("operation should succeed");
+        let x_ood =
+            Array2::from_shape_vec((5, 2), vec![5.0; 10]).expect("operation should succeed");
+        let y_ood = Array1::from_shape_vec(5, vec![1.0; 5]).expect("operation should succeed");
 
         let result = validate_ood::<MockEstimator, MockPredictions>(
             &estimator, &x_train, &y_train, &x_ood, &y_ood, None,

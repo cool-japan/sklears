@@ -57,9 +57,6 @@ anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
-# Optional pandas integration
-polars = { workspace = true, optional = true }
-
 # Utility dependencies
 num_cpus = { workspace = true }
 rayon = { workspace = true }
@@ -67,8 +64,7 @@ rayon = { workspace = true }
 # rand = { workspace = true }  # Replaced with scirs2-core::random
 
 [features]
-default = ["pandas-integration"]
-pandas-integration = ["polars"]
+default = []
 parallel = []
 
 [dev-dependencies]

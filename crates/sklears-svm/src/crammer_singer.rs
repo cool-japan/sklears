@@ -102,7 +102,7 @@ impl<K: Kernel> CrammerSingerSVM<K, Untrained> {
     /// Find unique classes and create mapping
     fn prepare_classes(&self, y: &Array1<Float>) -> Array1<Float> {
         let mut classes: Vec<Float> = y.iter().cloned().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup();
 
         Array1::from_vec(classes)
@@ -243,14 +243,23 @@ impl<K: Kernel> CrammerSingerSVM<K, Trained> {
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
 
-        if n_features != self.n_features_in_.unwrap() {
+        if n_features
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.unwrap(),
+                expected: self
+                    .n_features_in_
+                    .expect("n_features_in_ not available - model not fitted"),
                 actual: n_features,
             });
         }
 
-        let training_x = self.training_x_.as_ref().unwrap();
+        let training_x = self
+            .training_x_
+            .as_ref()
+            .expect("training_x_ not available - model not fitted");
         let w = self.weights();
         let k_cross = self.kernel.compute_matrix(x, training_x);
 
@@ -403,7 +412,7 @@ mod tests {
             .learning_rate(0.1)
             .build()
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(svm.classes().len(), 3);
 
@@ -413,11 +422,13 @@ mod tests {
             [5.0, 5.0], // Should be class 1
             [9.0, 9.0], // Should be class 2
         ];
-        let predictions = svm.predict(&x_test).unwrap();
+        let predictions = svm.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
 
         // Test decision function
-        let scores = svm.decision_function(&x_test).unwrap();
+        let scores = svm
+            .decision_function(&x_test)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (3, 3)); // 3 samples, 3 classes
     }
 
@@ -432,12 +443,12 @@ mod tests {
             .max_iter(50)
             .build()
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(svm.classes().len(), 2);
 
         let x_test = array![[1.5, 1.5], [-1.5, -1.5]];
-        let predictions = svm.predict(&x_test).unwrap();
+        let predictions = svm.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 2);
     }
 

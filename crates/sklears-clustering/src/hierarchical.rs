@@ -551,7 +551,7 @@ impl AgglomerativeClustering<Trained> {
 
         // Extract merge distances (third column of linkage matrix)
         let mut distances: Vec<Float> = linkage_matrix.column(2).to_vec();
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Find the largest gap between consecutive merge distances
         let mut max_gap = 0.0;
@@ -856,7 +856,7 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -882,7 +882,7 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Ward)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -903,7 +903,7 @@ mod tests {
             .distance_threshold(2.0)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -923,7 +923,7 @@ mod tests {
             .add_must_link(0, 3)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -941,7 +941,7 @@ mod tests {
             .add_cannot_link(0, 1)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -990,7 +990,7 @@ mod tests {
             .n_clusters(2)
             .constraints(constraints)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -1016,7 +1016,7 @@ mod tests {
             .n_clusters(2)
             .streaming(2) // Use chunk size of 2
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         assert_eq!(labels.len(), data.nrows());
@@ -1031,7 +1031,7 @@ mod tests {
             .n_clusters(2)
             .sparse(0.5) // Density threshold of 0.5
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         assert_eq!(labels.len(), data.nrows());
@@ -1045,7 +1045,7 @@ mod tests {
             .n_clusters(2)
             .out_of_core()
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         assert_eq!(labels.len(), data.nrows());
@@ -1096,7 +1096,9 @@ mod tests {
         ];
 
         let model = AgglomerativeClustering::new();
-        let processed = model.process_streaming(&data, 2).unwrap();
+        let processed = model
+            .process_streaming(&data, 2)
+            .expect("operation should succeed");
 
         // Processed data should have same dimensions
         assert_eq!(processed.nrows(), data.nrows());
@@ -1111,9 +1113,9 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let dendrogram = model.dendrogram().unwrap();
+        let dendrogram = model.dendrogram().expect("operation should succeed");
 
         // Should have correct number of nodes (n_leaves + n_merges)
         assert_eq!(dendrogram.nodes.len(), 4 + 3); // 4 leaves + 3 merges
@@ -1151,9 +1153,9 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let dendrogram = model.dendrogram().unwrap();
+        let dendrogram = model.dendrogram().expect("operation should succeed");
 
         // Cut at a low height should give many clusters
         let clusters_low = dendrogram.cut_at_height(0.5);
@@ -1173,13 +1175,15 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test cutting at different heights
-        let labels_high = model.cut_dendrogram(100.0).unwrap();
+        let labels_high = model
+            .cut_dendrogram(100.0)
+            .expect("operation should succeed");
         assert_eq!(labels_high.len(), 4);
 
-        let labels_low = model.cut_dendrogram(0.1).unwrap();
+        let labels_low = model.cut_dendrogram(0.1).expect("operation should succeed");
         assert_eq!(labels_low.len(), 4);
     }
 
@@ -1198,9 +1202,11 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let suggested = model.suggest_n_clusters().unwrap();
+        let suggested = model
+            .suggest_n_clusters()
+            .expect("operation should succeed");
 
         // Should suggest a reasonable number of clusters
         assert!(suggested >= 1);
@@ -1215,9 +1221,9 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let dendrogram = model.dendrogram().unwrap();
+        let dendrogram = model.dendrogram().expect("operation should succeed");
         let ascii_viz = dendrogram.to_ascii(20, 10);
 
         // Should produce a non-empty string
@@ -1233,9 +1239,9 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let dendrogram = model.dendrogram().unwrap();
+        let dendrogram = model.dendrogram().expect("operation should succeed");
         let export = dendrogram.export_for_visualization();
 
         // Should have correct structure
@@ -1259,9 +1265,9 @@ mod tests {
             .n_clusters(2)
             .linkage(LinkageMethod::Single)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let dendrogram = model.dendrogram().unwrap();
+        let dendrogram = model.dendrogram().expect("operation should succeed");
 
         // Test node access
         assert!(dendrogram.get_node(0).is_some());
@@ -1269,7 +1275,9 @@ mod tests {
         assert!(dendrogram.get_node(1000).is_none());
 
         // Test root node properties
-        let root = dendrogram.get_node(dendrogram.root_id).unwrap();
+        let root = dendrogram
+            .get_node(dendrogram.root_id)
+            .expect("operation should succeed");
         assert!(!root.is_leaf);
         assert_eq!(root.size, 3); // All samples
         assert_eq!(root.children.len(), 2);

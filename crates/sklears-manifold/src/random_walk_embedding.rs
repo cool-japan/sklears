@@ -5,8 +5,8 @@
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -207,7 +207,7 @@ impl RandomWalkEmbedding<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, _) in distances.iter().take(k) {
@@ -260,7 +260,7 @@ impl RandomWalkEmbedding<Untrained> {
 
             // Simple uniform random choice for now
             // TODO: Implement biased sampling for node2vec (p, q parameters)
-            let next_idx = rng.gen_range(0..neighbors.len());
+            let next_idx = rng.random_range(0..neighbors.len());
             current = neighbors[next_idx];
             walk.push(current);
         }

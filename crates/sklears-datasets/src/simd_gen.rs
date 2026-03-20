@@ -89,7 +89,7 @@ fn generate_normal_matrix_scalar(
 ) -> Array2<f64> {
     let mut rng = Random::seed(random_state.unwrap_or(42));
 
-    let normal = RandNormal::new(mean, std).unwrap();
+    let normal = RandNormal::new(mean, std).expect("operation should succeed");
     Array2::from_shape_fn((n_samples, n_features), |_| normal.sample(&mut rng))
 }
 
@@ -105,7 +105,7 @@ unsafe fn generate_normal_matrix_sse(
 ) -> Array2<f64> {
     let mut rng = Random::seed(random_state.unwrap_or(42));
 
-    let normal = RandNormal::new(mean, std).unwrap();
+    let normal = RandNormal::new(mean, std).expect("operation should succeed");
     let total = n_samples * n_features;
     let mut data = Vec::with_capacity(total);
 
@@ -123,7 +123,8 @@ unsafe fn generate_normal_matrix_sse(
         data.push(normal.sample(&mut rng));
     }
 
-    Array2::from_shape_vec((n_samples, n_features), data).unwrap()
+    Array2::from_shape_vec((n_samples, n_features), data)
+        .expect("shape and data length should match")
 }
 
 /// AVX-optimized implementation
@@ -138,7 +139,7 @@ unsafe fn generate_normal_matrix_avx(
 ) -> Array2<f64> {
     let mut rng = Random::seed(random_state.unwrap_or(42));
 
-    let normal = RandNormal::new(mean, std).unwrap();
+    let normal = RandNormal::new(mean, std).expect("operation should succeed");
     let total = n_samples * n_features;
     let mut data = Vec::with_capacity(total);
 
@@ -156,7 +157,8 @@ unsafe fn generate_normal_matrix_avx(
         data.push(normal.sample(&mut rng));
     }
 
-    Array2::from_shape_vec((n_samples, n_features), data).unwrap()
+    Array2::from_shape_vec((n_samples, n_features), data)
+        .expect("shape and data length should match")
 }
 
 /// SIMD-optimized vector addition
@@ -313,10 +315,17 @@ pub fn make_classification_simd(
     for (i, &target) in targets.iter().enumerate() {
         let offset = target as f64 * class_sep;
         let mut row = separated_features.row_mut(i);
-        let row_slice = row.as_slice_mut().unwrap();
+        let row_slice = row.as_slice_mut().expect("matrix indexing should be valid");
 
         let offset_vec = vec![offset; n_features];
-        add_vectors_simd(features.row(i).as_slice().unwrap(), &offset_vec, row_slice);
+        add_vectors_simd(
+            features
+                .row(i)
+                .as_slice()
+                .expect("matrix indexing should be valid"),
+            &offset_vec,
+            row_slice,
+        );
     }
 
     (separated_features, targets)
@@ -335,7 +344,7 @@ pub fn make_regression_simd(
     // Generate coefficients
     let mut rng = Random::seed(random_state.unwrap_or(42).wrapping_add(1));
 
-    let normal_coef = RandNormal::new(0.0, 1.0).unwrap();
+    let normal_coef = RandNormal::new(0.0, 1.0).expect("operation should succeed");
     let coef = Array1::from_shape_fn(n_features, |_| normal_coef.sample(&mut rng));
 
     // Compute targets: y = X @ coef + noise
@@ -343,12 +352,14 @@ pub fn make_regression_simd(
 
     // Add noise using SIMD if requested
     if noise > 0.0 {
-        let normal_noise = RandNormal::new(0.0, noise).unwrap();
+        let normal_noise = RandNormal::new(0.0, noise).expect("operation should succeed");
         let noise_vec = Array1::from_shape_fn(n_samples, |_| normal_noise.sample(&mut rng));
         let mut targets_with_noise = vec![0.0; n_samples];
         add_vectors_simd(
-            targets.as_slice().unwrap(),
-            noise_vec.as_slice().unwrap(),
+            targets.as_slice().expect("slice operation should succeed"),
+            noise_vec
+                .as_slice()
+                .expect("slice operation should succeed"),
             &mut targets_with_noise,
         );
         (features, Array1::from_vec(targets_with_noise))

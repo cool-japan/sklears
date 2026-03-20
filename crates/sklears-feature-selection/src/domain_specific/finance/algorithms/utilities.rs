@@ -42,7 +42,7 @@ pub(crate) fn select_top_k_features(scores: &Array1<Float>, k: usize) -> Vec<usi
     let mut indexed_scores: Vec<(usize, Float)> =
         scores.iter().enumerate().map(|(i, &s)| (i, s)).collect();
 
-    indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
     indexed_scores.iter().take(k).map(|(i, _)| *i).collect()
 }

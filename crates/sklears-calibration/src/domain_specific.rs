@@ -86,7 +86,7 @@ impl TimeSeriesCalibrator {
             return probabilities.clone();
         }
 
-        let period = self.seasonal_period.unwrap();
+        let period = self.seasonal_period.expect("operation should succeed");
         let n = probabilities.len();
         let mut adjusted = probabilities.clone();
 
@@ -169,7 +169,12 @@ impl CalibrationEstimator for TimeSeriesCalibrator {
         }
 
         // For prediction, use the most recent calibrator or ensemble of recent calibrators
-        let recent_calibrator = self.window_calibrators.last().unwrap();
+        let recent_calibrator = self
+            .window_calibrators
+            .last()
+            .ok_or(SklearsError::NotFitted {
+                operation: "predict_proba".to_string(),
+            })?;
         let calibrated = recent_calibrator.predict_proba(probabilities)?;
 
         // Ensure probabilities are in valid range [0, 1]
@@ -240,7 +245,7 @@ impl RegressionCalibrator {
     /// Compute quantile threshold from residuals
     fn compute_quantile_threshold(&self, residuals: &Array1<Float>, quantile: Float) -> Float {
         let mut sorted_residuals: Vec<Float> = residuals.to_vec();
-        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let index = (quantile * (sorted_residuals.len() - 1) as Float).round() as usize;
         sorted_residuals[index.min(sorted_residuals.len() - 1)]
@@ -558,7 +563,12 @@ impl CalibrationEstimator for SurvivalCalibrator {
 
             // Account for censoring if enabled
             let adjusted_probs = if self.handle_censoring && self.censoring_indicators.is_some() {
-                let censoring = self.censoring_indicators.as_ref().unwrap();
+                let censoring =
+                    self.censoring_indicators
+                        .as_ref()
+                        .ok_or(SklearsError::NotFitted {
+                            operation: "accessing model attribute".to_string(),
+                        })?;
                 // Adjust probabilities based on censoring (simplified approach)
                 Array1::from_iter(probabilities.iter().zip(censoring.iter()).map(|(&p, &c)| {
                     if c == 0 {
@@ -985,8 +995,12 @@ mod tests {
             .with_temporal_decay(0.9)
             .with_seasonal_adjustment(4);
 
-        ts_calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = ts_calibrator.predict_proba(&probabilities).unwrap();
+        ts_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = ts_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1000,8 +1014,12 @@ mod tests {
             .with_quantiles(vec![0.25, 0.5, 0.75])
             .with_distributional_calibration();
 
-        reg_calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = reg_calibrator.predict_proba(&probabilities).unwrap();
+        reg_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = reg_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1015,8 +1033,12 @@ mod tests {
             .with_ranking_weight(0.3)
             .with_listwise_calibration(5);
 
-        ranking_calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = ranking_calibrator.predict_proba(&probabilities).unwrap();
+        ranking_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = ranking_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1034,8 +1056,12 @@ mod tests {
         let censoring = Array1::from(vec![1; probabilities.len()]);
         survival_calibrator.set_censoring_indicators(censoring);
 
-        survival_calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = survival_calibrator.predict_proba(&probabilities).unwrap();
+        survival_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = survival_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1050,8 +1076,12 @@ mod tests {
             .with_temperature(1.2)
             .with_mrf_modeling();
 
-        seq_calibrator.fit(&probabilities, &targets).unwrap();
-        let seq_predictions = seq_calibrator.predict_proba(&probabilities).unwrap();
+        seq_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let seq_predictions = seq_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(seq_predictions.len(), probabilities.len());
         assert!(seq_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1060,8 +1090,12 @@ mod tests {
         let mut tree_calibrator = StructuredPredictionCalibrator::new(StructureType::Tree)
             .with_dependencies(vec![(0, 1), (1, 2), (2, 3)]);
 
-        tree_calibrator.fit(&probabilities, &targets).unwrap();
-        let tree_predictions = tree_calibrator.predict_proba(&probabilities).unwrap();
+        tree_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let tree_predictions = tree_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(tree_predictions.len(), probabilities.len());
         assert!(tree_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1071,8 +1105,12 @@ mod tests {
             .with_mrf_modeling()
             .with_temperature(0.8);
 
-        graph_calibrator.fit(&probabilities, &targets).unwrap();
-        let graph_predictions = graph_calibrator.predict_proba(&probabilities).unwrap();
+        graph_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let graph_predictions = graph_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(graph_predictions.len(), probabilities.len());
         assert!(graph_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1083,8 +1121,12 @@ mod tests {
             width: 5,
         });
 
-        grid_calibrator.fit(&probabilities, &targets).unwrap();
-        let grid_predictions = grid_calibrator.predict_proba(&probabilities).unwrap();
+        grid_calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let grid_predictions = grid_calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(grid_predictions.len(), probabilities.len());
         assert!(grid_predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1103,8 +1145,12 @@ mod tests {
         ];
 
         for mut calibrator in calibrators {
-            calibrator.fit(&probabilities, &targets).unwrap();
-            let predictions = calibrator.predict_proba(&probabilities).unwrap();
+            calibrator
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
+            let predictions = calibrator
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));

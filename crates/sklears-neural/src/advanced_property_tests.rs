@@ -51,7 +51,7 @@ proptest! {
         prop_assert_eq!(xavier_weights.shape(), &[n_output, n_input]);
 
         // Xavier weights should have approximately zero mean (but allow larger variance for deterministic test)
-        let mean = xavier_weights.mean().unwrap();
+        let mean = xavier_weights.mean().expect("operation should succeed");
         prop_assert!(mean.abs() < 2.0); // Very relaxed bound for deterministic property tests
 
         // Xavier weights should have appropriate variance
@@ -67,7 +67,7 @@ proptest! {
         let he_weights = he_init(n_input, n_output, seed);
         prop_assert_eq!(he_weights.shape(), &[n_output, n_input]);
 
-        let he_mean = he_weights.mean().unwrap();
+        let he_mean = he_weights.mean().expect("operation should succeed");
         // The deterministic He init can produce extreme values due to Box-Muller approximation
         // Just check that weights are finite and in a reasonable range
         prop_assert!(he_mean.is_finite());
@@ -188,7 +188,7 @@ proptest! {
         // Batch normalization
         for j in 0..n_features {
             let col = x.column(j);
-            let mean = col.mean().unwrap();
+            let mean = col.mean().expect("operation should succeed");
             let variance = col.iter()
                 .map(|&val| (val - mean).powi(2))
                 .sum::<f64>() / batch_size as f64;
@@ -203,7 +203,7 @@ proptest! {
         // Test normalization properties
         for j in 0..n_features {
             let col = x.column(j);
-            let normalized_mean = col.mean().unwrap();
+            let normalized_mean = col.mean().expect("operation should succeed");
             let normalized_variance = col.iter()
                 .map(|&val| (val - normalized_mean).powi(2))
                 .sum::<f64>() / batch_size as f64;
@@ -448,7 +448,7 @@ proptest! {
 
         // Test ranking properties
         let mut sorted_scores = model_scores.clone();
-        sorted_scores.sort_by(|a, b| b.partial_cmp(a).unwrap()); // Descending order
+        sorted_scores.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed")); // Descending order
 
         // Rankings should be in descending order
         for i in 1..sorted_scores.len() {

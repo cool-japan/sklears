@@ -662,7 +662,10 @@ mod tests {
 
         let retrieved = attention.get_attention(ModalityType::Text, ModalityType::Vision);
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().shape(), &[10, 20]);
+        assert_eq!(
+            retrieved.expect("operation should succeed").shape(),
+            &[10, 20]
+        );
     }
 
     #[test]
@@ -686,7 +689,7 @@ mod tests {
 
     #[test]
     fn test_explain_single_modality() {
-        let explainer = MultiModalExplainer::new().unwrap();
+        let explainer = MultiModalExplainer::new().expect("operation should succeed");
 
         let mut input = MultiModalInput::new();
         input.text = Some(Array2::from_shape_fn((1, 10), |(_, j)| j as Float));
@@ -694,14 +697,14 @@ mod tests {
         let result = explainer.explain(&input);
         assert!(result.is_ok());
 
-        let explanation = result.unwrap();
+        let explanation = result.expect("operation should succeed");
         assert_eq!(explanation.modality_contributions.text, 1.0);
         assert_eq!(explanation.modality_contributions.vision, 0.0);
     }
 
     #[test]
     fn test_explain_multiple_modalities() {
-        let explainer = MultiModalExplainer::new().unwrap();
+        let explainer = MultiModalExplainer::new().expect("operation should succeed");
 
         let mut input = MultiModalInput::new();
         input.text = Some(Array2::from_shape_fn((1, 10), |(_, j)| j as Float));
@@ -710,7 +713,7 @@ mod tests {
         let result = explainer.explain(&input);
         assert!(result.is_ok());
 
-        let explanation = result.unwrap();
+        let explanation = result.expect("operation should succeed");
         assert!(explanation.modality_contributions.text > 0.0);
         assert!(explanation.modality_contributions.vision > 0.0);
         assert_eq!(explanation.modality_contributions.audio, 0.0);
@@ -718,7 +721,7 @@ mod tests {
 
     #[test]
     fn test_explain_empty_input_fails() {
-        let explainer = MultiModalExplainer::new().unwrap();
+        let explainer = MultiModalExplainer::new().expect("operation should succeed");
         let input = MultiModalInput::new();
 
         let result = explainer.explain(&input);

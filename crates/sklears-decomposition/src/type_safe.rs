@@ -108,7 +108,8 @@ impl<const RANK: usize> TypeSafePCA<Untrained, RANK> {
 
         // Center the data if requested
         let mean = if self.center {
-            data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap()
+            data.mean_axis(scirs2_core::ndarray::Axis(0))
+                .expect("array should have elements for mean computation")
         } else {
             Array1::zeros(n_features)
         };
@@ -145,7 +146,7 @@ impl<const RANK: usize> TypeSafePCA<Untrained, RANK> {
             .map(|(&val, vec)| (val, vec.to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         let mut components = Array2::zeros((n_features, RANK));
         let mut explained_variance = Array1::zeros(RANK);
@@ -219,12 +220,14 @@ impl<const RANK: usize> TypeSafePCA<Fitted, RANK> {
 
     /// Get the fitted components (guaranteed to be RANK columns)
     pub fn components(&self) -> &Array2<Float> {
-        self.components.as_ref().unwrap()
+        self.components.as_ref().expect("operation should succeed")
     }
 
     /// Get explained variance (guaranteed to be RANK elements)
     pub fn explained_variance(&self) -> &Array1<Float> {
-        self.explained_variance.as_ref().unwrap()
+        self.explained_variance
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get explained variance ratios
@@ -429,7 +432,9 @@ impl CenteringOperation {
 
 impl DecompositionOperation for CenteringOperation {
     fn apply(&self, data: &Array2<Float>) -> Result<Array2<Float>> {
-        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("array should have elements for mean computation");
         let mut centered = data.clone();
         for mut row in centered.axis_iter_mut(scirs2_core::ndarray::Axis(0)) {
             row -= &mean;
@@ -582,7 +587,7 @@ mod tests {
         ];
 
         let pca: TypeSafePCA<Untrained, 2> = TypeSafePCA::new();
-        let fitted_pca = pca.fit(&data).unwrap();
+        let fitted_pca = pca.fit(&data).expect("model fitting should succeed");
 
         assert_eq!(fitted_pca.components().dim(), (3, 2));
         assert_eq!(fitted_pca.explained_variance().len(), 2);
@@ -593,8 +598,10 @@ mod tests {
         let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
 
         let pca: TypeSafePCA<Untrained, 2> = TypeSafePCA::new();
-        let fitted_pca = pca.fit(&data).unwrap();
-        let transformed = fitted_pca.transform(&data).unwrap();
+        let fitted_pca = pca.fit(&data).expect("model fitting should succeed");
+        let transformed = fitted_pca
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(transformed.dim(), (3, 2));
     }
@@ -615,7 +622,8 @@ mod tests {
     #[test]
     fn test_type_safe_matrix_creation() {
         let data = array![[1.0, 2.0], [3.0, 4.0]];
-        let matrix: TypeSafeMatrix<2, 2> = TypeSafeMatrix::new(data).unwrap();
+        let matrix: TypeSafeMatrix<2, 2> =
+            TypeSafeMatrix::new(data).expect("operation should succeed");
         assert_eq!(matrix.data().dim(), (2, 2));
     }
 
@@ -631,8 +639,10 @@ mod tests {
         let a_data = array![[1.0, 2.0], [3.0, 4.0]];
         let b_data = array![[5.0, 6.0], [7.0, 8.0]];
 
-        let a: TypeSafeMatrix<2, 2> = TypeSafeMatrix::new(a_data).unwrap();
-        let b: TypeSafeMatrix<2, 2> = TypeSafeMatrix::new(b_data).unwrap();
+        let a: TypeSafeMatrix<2, 2> =
+            TypeSafeMatrix::new(a_data).expect("operation should succeed");
+        let b: TypeSafeMatrix<2, 2> =
+            TypeSafeMatrix::new(b_data).expect("operation should succeed");
 
         let result: TypeSafeMatrix<2, 2> = a.dot(&b);
         assert_eq!(result.data().dim(), (2, 2));
@@ -641,7 +651,8 @@ mod tests {
     #[test]
     fn test_type_safe_matrix_transpose() {
         let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
-        let matrix: TypeSafeMatrix<2, 3> = TypeSafeMatrix::new(data).unwrap();
+        let matrix: TypeSafeMatrix<2, 3> =
+            TypeSafeMatrix::new(data).expect("operation should succeed");
         let transposed: TypeSafeMatrix<3, 2> = matrix.t();
         assert_eq!(transposed.data().dim(), (3, 2));
     }
@@ -661,11 +672,13 @@ mod tests {
 
         let pipeline = DecompositionPipeline::new().center().scale();
 
-        let processed = pipeline.apply(&data).unwrap();
+        let processed = pipeline.apply(&data).expect("operation should succeed");
         assert_eq!(processed.dim(), data.dim());
 
-        let fitted_pipeline = pipeline.fit(&data).unwrap();
-        let transformed = fitted_pipeline.transform(&data).unwrap();
+        let fitted_pipeline = pipeline.fit(&data).expect("model fitting should succeed");
+        let transformed = fitted_pipeline
+            .transform(&data)
+            .expect("transformation should succeed");
         assert_eq!(transformed.dim(), data.dim());
     }
 
@@ -674,8 +687,10 @@ mod tests {
         let a_data = array![[1.0, 2.0], [3.0, 4.0]];
         let b_data = array![[5.0, 6.0], [7.0, 8.0]];
 
-        let a: TypeSafeMatrix<2, 2> = TypeSafeMatrix::new(a_data).unwrap();
-        let b: TypeSafeMatrix<2, 2> = TypeSafeMatrix::new(b_data).unwrap();
+        let a: TypeSafeMatrix<2, 2> =
+            TypeSafeMatrix::new(a_data).expect("operation should succeed");
+        let b: TypeSafeMatrix<2, 2> =
+            TypeSafeMatrix::new(b_data).expect("operation should succeed");
 
         // This should compile and succeed
         let result = validate_matrix_multiplication(&a, &b);

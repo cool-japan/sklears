@@ -379,14 +379,15 @@ impl RecurrentNeuralNetwork<Untrained> {
             let hidden_scale = (2.0 / (self.hidden_size + self.hidden_size) as Float).sqrt();
 
             let mut input_weight = Array2::<Float>::zeros((self.hidden_size, input_size));
-            let normal_dist = RandNormal::new(0.0, input_scale).unwrap();
+            let normal_dist = RandNormal::new(0.0, input_scale).expect("operation should succeed");
             for i in 0..self.hidden_size {
                 for j in 0..input_size {
                     input_weight[[i, j]] = rng.sample(normal_dist);
                 }
             }
             let mut hidden_weight = Array2::<Float>::zeros((self.hidden_size, self.hidden_size));
-            let hidden_normal_dist = RandNormal::new(0.0, hidden_scale).unwrap();
+            let hidden_normal_dist =
+                RandNormal::new(0.0, hidden_scale).expect("operation should succeed");
             for i in 0..self.hidden_size {
                 for j in 0..self.hidden_size {
                     hidden_weight[[i, j]] = rng.sample(hidden_normal_dist);
@@ -410,13 +411,17 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         let mut input_weight =
                             Array2::<Float>::zeros((self.hidden_size, input_size));
-                        let input_normal_dist = RandNormal::new(0.0, input_scale).unwrap();
+                        let input_normal_dist =
+                            RandNormal::new(0.0, input_scale).expect("operation should succeed");
                         for i in 0..self.hidden_size {
                             for j in 0..input_size {
                                 input_weight[[i, j]] = rng.sample(input_normal_dist);
                             }
                         }
-                        gate_weights.get_mut(&input_key).unwrap().push(input_weight);
+                        gate_weights
+                            .get_mut(&input_key)
+                            .expect("operation should succeed")
+                            .push(input_weight);
 
                         // Initialize hidden weights
                         let hidden_key = format!("{}_hidden", gate_name);
@@ -425,7 +430,8 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         let mut hidden_weight =
                             Array2::<Float>::zeros((self.hidden_size, self.hidden_size));
-                        let hidden_normal_dist = RandNormal::new(0.0, hidden_scale).unwrap();
+                        let hidden_normal_dist =
+                            RandNormal::new(0.0, hidden_scale).expect("operation should succeed");
                         for i in 0..self.hidden_size {
                             for j in 0..self.hidden_size {
                                 hidden_weight[[i, j]] = rng.sample(hidden_normal_dist);
@@ -433,7 +439,7 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         gate_weights
                             .get_mut(&hidden_key)
-                            .unwrap()
+                            .expect("operation should succeed")
                             .push(hidden_weight);
 
                         // Initialize biases
@@ -443,7 +449,7 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         gate_biases
                             .get_mut(&bias_key)
-                            .unwrap()
+                            .expect("operation should succeed")
                             .push(Array1::<Float>::zeros(self.hidden_size));
                     }
                 }
@@ -457,13 +463,17 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         let mut input_weight =
                             Array2::<Float>::zeros((self.hidden_size, input_size));
-                        let input_normal_dist = RandNormal::new(0.0, input_scale).unwrap();
+                        let input_normal_dist =
+                            RandNormal::new(0.0, input_scale).expect("operation should succeed");
                         for i in 0..self.hidden_size {
                             for j in 0..input_size {
                                 input_weight[[i, j]] = rng.sample(input_normal_dist);
                             }
                         }
-                        gate_weights.get_mut(&input_key).unwrap().push(input_weight);
+                        gate_weights
+                            .get_mut(&input_key)
+                            .expect("operation should succeed")
+                            .push(input_weight);
 
                         // Initialize hidden weights
                         let hidden_key = format!("{}_hidden", gate_name);
@@ -472,7 +482,8 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         let mut hidden_weight =
                             Array2::<Float>::zeros((self.hidden_size, self.hidden_size));
-                        let hidden_normal_dist = RandNormal::new(0.0, hidden_scale).unwrap();
+                        let hidden_normal_dist =
+                            RandNormal::new(0.0, hidden_scale).expect("operation should succeed");
                         for i in 0..self.hidden_size {
                             for j in 0..self.hidden_size {
                                 hidden_weight[[i, j]] = rng.sample(hidden_normal_dist);
@@ -480,7 +491,7 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         gate_weights
                             .get_mut(&hidden_key)
-                            .unwrap()
+                            .expect("operation should succeed")
                             .push(hidden_weight);
 
                         // Initialize biases
@@ -490,7 +501,7 @@ impl RecurrentNeuralNetwork<Untrained> {
                         }
                         gate_biases
                             .get_mut(&bias_key)
-                            .unwrap()
+                            .expect("operation should succeed")
                             .push(Array1::<Float>::zeros(self.hidden_size));
                     }
                 }
@@ -508,7 +519,8 @@ impl RecurrentNeuralNetwork<Untrained> {
         };
         let output_scale = (2.0 / (output_input_size + n_outputs) as Float).sqrt();
         let mut output_weights = Array2::<Float>::zeros((n_outputs, output_input_size));
-        let output_normal_dist = RandNormal::new(0.0, output_scale).unwrap();
+        let output_normal_dist =
+            RandNormal::new(0.0, output_scale).expect("operation should succeed");
         for i in 0..n_outputs {
             for j in 0..output_input_size {
                 output_weights[[i, j]] = rng.sample(output_normal_dist);
@@ -678,7 +690,8 @@ impl RecurrentNeuralNetwork<Untrained> {
             SequenceMode::ManyToOne => {
                 let final_hidden = &hidden_states[self.num_layers - 1][seq_len];
                 let output = output_weights.dot(final_hidden) + output_bias;
-                Array2::from_shape_vec((1, n_outputs), output.to_vec()).unwrap()
+                Array2::from_shape_vec((1, n_outputs), output.to_vec())
+                    .expect("shape and data length should match")
             }
             SequenceMode::OneToMany => {
                 // For one-to-many, we typically use the input at t=0 and generate sequence
@@ -712,7 +725,9 @@ impl RecurrentNeuralNetwork<Untrained> {
     /// Compute loss for sequence
     fn compute_sequence_loss(&self, predictions: &Array2<Float>, targets: &Array2<Float>) -> Float {
         let diff = predictions - targets;
-        diff.map(|x| x * x).mean().unwrap()
+        diff.map(|x| x * x)
+            .mean()
+            .expect("array should have elements for mean computation")
     }
 
     /// Backward pass through sequence (simplified BPTT)
@@ -893,7 +908,8 @@ impl RecurrentNeuralNetwork<RecurrentNeuralNetworkTrained> {
             SequenceMode::ManyToOne => {
                 let final_hidden = &hidden_states[self.state.num_layers - 1][seq_len];
                 let output = self.state.output_weights.dot(final_hidden) + &self.state.output_bias;
-                Array2::from_shape_vec((1, n_outputs), output.to_vec()).unwrap()
+                Array2::from_shape_vec((1, n_outputs), output.to_vec())
+                    .expect("shape and data length should match")
             }
             SequenceMode::OneToMany => {
                 let mut outputs = Array2::<Float>::zeros((seq_len, n_outputs));

@@ -224,7 +224,9 @@ pub fn analyze_attention<M: AttentionAnalyzer>(
     };
 
     // Compute average attention per head
-    let head_attention = attention_weights.mean_axis(Axis(0)).unwrap();
+    let head_attention = attention_weights
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
 
     // Compute attention entropy
     let attention_entropy = compute_attention_entropy(&attention_weights);
@@ -301,14 +303,14 @@ fn find_top_attended_positions(attention_weights: &Array3<Float>, top_k: usize) 
         let head_attention = attention_weights
             .slice(s![.., h, ..])
             .mean_axis(Axis(0))
-            .unwrap();
+            .expect("operation should succeed");
         let mut indexed_attention: Vec<(Float, usize)> = head_attention
             .iter()
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
 
-        indexed_attention.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        indexed_attention.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         let top_indices: Vec<usize> = indexed_attention
             .into_iter()
@@ -335,7 +337,7 @@ pub fn maximize_activation<M: AttentionAnalyzer>(
         Array2::<Float>::from_shape_fn((height, width), |_| rng.gen_range(-1.0..2.0)).into_dyn();
     let mut input = input_dynamic
         .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-        .unwrap();
+        .expect("operation should succeed");
 
     let mut activation_trajectory = Array1::zeros(config.max_iterations);
     let mut input_trajectory = Array3::zeros((config.max_iterations, height, width));
@@ -616,7 +618,8 @@ pub fn dissect_network<M: AttentionAnalyzer>(
             })
             .collect();
 
-        neuron_concept_scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        neuron_concept_scores
+            .sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         let top_concepts: Vec<String> = neuron_concept_scores
             .into_iter()
@@ -637,7 +640,7 @@ pub fn dissect_network<M: AttentionAnalyzer>(
             .map(|(i, &score)| (score, i))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        indexed_scores.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         let top_neurons: Vec<usize> = indexed_scores
             .into_iter()
@@ -687,7 +690,9 @@ mod tests {
                     rng.gen_range(0.0..2.0)
                 })
                 .into_dyn();
-            let result = result_dynamic.into_dimensionality::<Ix3>().unwrap();
+            let result = result_dynamic
+                .into_dimensionality::<Ix3>()
+                .expect("operation should succeed");
             Ok(result)
         }
 
@@ -702,7 +707,7 @@ mod tests {
                     .into_dyn();
             let result = result_dynamic
                 .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                .unwrap();
+                .expect("operation should succeed");
             Ok(result)
         }
 
@@ -718,7 +723,7 @@ mod tests {
                     .into_dyn();
             let result = result_dynamic
                 .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                .unwrap();
+                .expect("operation should succeed");
             Ok(result)
         }
 
@@ -735,7 +740,9 @@ mod tests {
                     rng.gen_range(0.0..2.0)
                 })
                 .into_dyn();
-            let result = result_dynamic.into_dimensionality::<Ix3>().unwrap();
+            let result = result_dynamic
+                .into_dimensionality::<Ix3>()
+                .expect("operation should succeed");
             Ok(result)
         }
 
@@ -750,7 +757,7 @@ mod tests {
                     .into_dyn();
             let result = result_dynamic
                 .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                .unwrap();
+                .expect("operation should succeed");
             activations.insert("layer1".to_string(), result);
             Ok(activations)
         }
@@ -764,10 +771,11 @@ mod tests {
             Array2::<Float>::from_shape_fn((2, 10), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let input = input_dynamic
             .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-            .unwrap();
+            .expect("operation should succeed");
         let config = AttentionConfig::default();
 
-        let result = analyze_attention(&model, &input.view(), &config).unwrap();
+        let result =
+            analyze_attention(&model, &input.view(), &config).expect("operation should succeed");
 
         assert_eq!(result.attention_weights.dim(), (2, 4, 10));
         assert_eq!(result.attention_patterns.dim(), (2, 4, 10, 10));
@@ -780,7 +788,8 @@ mod tests {
         let model = MockAnalyzer;
         let config = AttentionConfig::default();
 
-        let result = maximize_activation(&model, 0, (10, 10), &config).unwrap();
+        let result =
+            maximize_activation(&model, 0, (10, 10), &config).expect("operation should succeed");
 
         assert_eq!(result.optimal_input.dim(), (10, 10));
         assert_eq!(result.activation_trajectory.len(), config.max_iterations);
@@ -794,10 +803,13 @@ mod tests {
         let mut rng = thread_rng();
         let input_samples_dynamic =
             Array3::<Float>::from_shape_fn((5, 20, 20), |_| rng.gen_range(0.0..2.0)).into_dyn();
-        let input_samples = input_samples_dynamic.into_dimensionality::<Ix3>().unwrap();
+        let input_samples = input_samples_dynamic
+            .into_dimensionality::<Ix3>()
+            .expect("operation should succeed");
         let config = AttentionConfig::default();
 
-        let result = visualize_features(&model, "conv1", &input_samples.view(), &config).unwrap();
+        let result = visualize_features(&model, "conv1", &input_samples.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.feature_maps.dim().0, 32); // Number of filters
         assert_eq!(result.activation_stats.len(), 32);
@@ -812,7 +824,7 @@ mod tests {
             Array2::<Float>::from_shape_fn((20, 20), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let input = input_dynamic
             .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-            .unwrap();
+            .expect("operation should succeed");
         let config = GradCAMConfig {
             target_layer: "conv1".to_string(),
             target_class: 0,
@@ -820,7 +832,8 @@ mod tests {
             upsampling_method: UpsamplingMethod::Bilinear,
         };
 
-        let result = compute_gradcam(&model, &input.view(), &config).unwrap();
+        let result =
+            compute_gradcam(&model, &input.view(), &config).expect("operation should succeed");
 
         assert_eq!(result.activation_map.dim(), (10, 10)); // Reduced size from conv layer
         assert!(result.guided_gradients.is_some());
@@ -834,7 +847,7 @@ mod tests {
             Array3::<Float>::from_shape_fn((2, 3, 5), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let attention_weights = attention_weights_dynamic
             .into_dimensionality::<Ix3>()
-            .unwrap();
+            .expect("operation should succeed");
         let entropy = compute_attention_entropy(&attention_weights);
 
         assert_eq!(entropy.len(), 3);
@@ -861,11 +874,11 @@ mod tests {
             Array3::<Float>::from_shape_fn((10, 20, 20), |_| rng.gen_range(0.0..2.0)).into_dyn();
         let concept_dataset = concept_dataset_dynamic
             .into_dimensionality::<Ix3>()
-            .unwrap();
+            .expect("operation should succeed");
         let concept_labels = vec!["dog".to_string(), "cat".to_string(), "car".to_string()];
 
-        let result =
-            dissect_network(&model, &concept_dataset.view(), &concept_labels, "layer1").unwrap();
+        let result = dissect_network(&model, &concept_dataset.view(), &concept_labels, "layer1")
+            .expect("operation should succeed");
 
         assert_eq!(result.concept_activations.len(), 3);
         assert_eq!(result.alignment_scores.len(), 3);

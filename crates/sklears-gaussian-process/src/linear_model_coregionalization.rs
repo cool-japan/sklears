@@ -32,7 +32,7 @@ use crate::kernels::Kernel;
 use crate::utils;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -136,7 +136,7 @@ impl LinearModelCoregionalization<Untrained> {
 
             // Generate random values in range [-1, 1]
             for i in 0..self.n_outputs {
-                let random_val = rng.gen_range(-1.0..1.0);
+                let random_val = rng.random_range(-1.0..1.0);
                 matrix[[i, 0]] = random_val;
             }
 
@@ -516,8 +516,12 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = lmc.fit(&X.view(), &Y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = lmc
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
+        let predictions = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[4, 2]);
     }
@@ -537,8 +541,12 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = lmc.fit(&X.view(), &Y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = lmc
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
+        let predictions = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[4, 2]);
         assert_eq!(fitted.trained_state().n_latent, 2);
@@ -558,7 +566,9 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = lmc.fit(&X.view(), &Y.view()).unwrap();
+        let fitted = lmc
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
         let learned_mixing = &fitted.mixing_matrices()[0];
 
         assert_eq!(learned_mixing.shape(), mixing_matrix.shape());
@@ -578,7 +588,9 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = lmc.fit(&X.view(), &Y.view()).unwrap();
+        let fitted = lmc
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
         let log_ml = fitted.log_marginal_likelihood();
 
         assert!(log_ml.is_finite());
@@ -599,8 +611,12 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = lmc.fit(&X.view(), &Y.view()).unwrap();
-        let contributions = fitted.latent_contributions(&X.view()).unwrap();
+        let fitted = lmc
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
+        let contributions = fitted
+            .latent_contributions(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(contributions.len(), 2); // Two latent functions
         assert_eq!(contributions[0].shape(), &[4, 2]);

@@ -61,10 +61,7 @@ pub fn get_build_info() -> HashMap<String, String> {
     );
 
     // Feature information
-    let features = [
-        #[cfg(feature = "pandas-integration")]
-        "pandas-integration",
-    ];
+    let features: [&str; 0] = [];
 
     info.insert("features".to_string(), features.join(", "));
 
@@ -79,15 +76,8 @@ pub fn get_build_info() -> HashMap<String, String> {
 /// Check if specific features are enabled
 #[pyfunction]
 pub fn has_feature(feature_name: &str) -> bool {
-    match feature_name {
-        "pandas-integration" => {
-            #[cfg(feature = "pandas-integration")]
-            return true;
-            #[cfg(not(feature = "pandas-integration"))]
-            return false;
-        }
-        _ => false,
-    }
+    let _ = feature_name;
+    false
 }
 
 /// Get hardware acceleration capabilities

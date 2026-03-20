@@ -132,36 +132,36 @@ impl SignalProcessingFactory {
     }
 
     /// Create a new EMD instance with factory defaults
-    pub fn emd(&self) -> EmpiricalModeDecomposition {
+    pub fn emd(&self) -> Result<EmpiricalModeDecomposition> {
         let mut emd = EmpiricalModeDecomposition::new()
-            .tolerance(self.default_emd_config.tolerance)
-            .max_sift_iter(self.default_emd_config.max_sift_iter)
+            .tolerance(self.default_emd_config.tolerance)?
+            .max_sift_iter(self.default_emd_config.max_sift_iter)?
             .boundary_condition(self.default_emd_config.boundary_condition.clone())
             .interpolation(self.default_emd_config.interpolation.clone());
 
         if let Some(max_imfs) = self.default_emd_config.max_imfs {
-            emd = emd.max_imfs(max_imfs);
+            emd = emd.max_imfs(max_imfs)?;
         }
-        emd
+        Ok(emd)
     }
 
     /// Create a new EMD instance with custom configuration
-    pub fn emd_with_config(&self, config: EMDConfig) -> EmpiricalModeDecomposition {
+    pub fn emd_with_config(&self, config: EMDConfig) -> Result<EmpiricalModeDecomposition> {
         let mut emd = EmpiricalModeDecomposition::new()
-            .tolerance(config.tolerance)
-            .max_sift_iter(config.max_sift_iter)
+            .tolerance(config.tolerance)?
+            .max_sift_iter(config.max_sift_iter)?
             .boundary_condition(config.boundary_condition)
             .interpolation(config.interpolation);
 
         if let Some(max_imfs) = config.max_imfs {
-            emd = emd.max_imfs(max_imfs);
+            emd = emd.max_imfs(max_imfs)?;
         }
-        emd
+        Ok(emd)
     }
 
     /// Create a new multivariate EMD instance
-    pub fn memd(&self, n_channels: usize) -> MultivariateEMD {
-        MultivariateEMD::new(n_channels).config(self.default_emd_config.clone())
+    pub fn memd(&self, n_channels: usize) -> Result<MultivariateEMD> {
+        Ok(MultivariateEMD::new(n_channels)?.config(self.default_emd_config.clone()))
     }
 
     /// Create a new spectral decomposition instance
@@ -246,10 +246,10 @@ mod tests {
         let factory = SignalProcessingFactory::new();
 
         // Test EMD creation
-        let _emd = factory.emd();
+        let _emd = factory.emd().expect("valid parameter");
 
         // Test MEMD creation
-        let _memd = factory.memd(2);
+        let _memd = factory.memd(2).expect("valid parameter");
 
         // Test spectral decomposition creation
         let _spectral = factory.spectral(64);
@@ -268,13 +268,15 @@ mod tests {
         let signal = array![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0, 0.0];
 
         // Test quick EMD
-        let _emd_result = convenience::quick_emd(&signal).unwrap();
+        let _emd_result = convenience::quick_emd(&signal).expect("operation should succeed");
 
         // Test quick wavelet
-        let _wavelet_result = convenience::quick_wavelet(&signal, 2).unwrap();
+        let _wavelet_result =
+            convenience::quick_wavelet(&signal, 2).expect("operation should succeed");
 
         // Test quick spectral analysis
-        let _spectral_result = convenience::quick_stft(&signal, 4).unwrap();
+        let _spectral_result =
+            convenience::quick_stft(&signal, 4).expect("operation should succeed");
     }
 
     #[test]
@@ -286,15 +288,15 @@ mod tests {
         let signal = array![1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0];
 
         // Test EMD
-        let emd = factory.emd();
-        let _emd_result = emd.decompose(&signal).unwrap();
+        let emd = factory.emd().expect("valid parameter");
+        let _emd_result = emd.decompose(&signal).expect("operation should succeed");
 
         // Test wavelet
         let wavelet = factory.wavelet(WaveletType::Haar, 2);
-        let _wavelet_result = wavelet.dwt(&signal).unwrap();
+        let _wavelet_result = wavelet.dwt(&signal).expect("operation should succeed");
 
         // Test spectral analysis
         let spectral = factory.spectral(4);
-        let _spectral_result = spectral.stft(&signal).unwrap();
+        let _spectral_result = spectral.stft(&signal).expect("operation should succeed");
     }
 }

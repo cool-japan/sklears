@@ -368,7 +368,7 @@ mod integration_tests {
             coords.clone(),
             SpatialConstraint::Distance { radius: 2.0 },
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let values = array![1.0, 1.0, 0.0, 0.0];
         assert!(analyzer.morans_i(&values).is_ok());
@@ -404,15 +404,16 @@ mod integration_tests {
         assert!(utils::validate_coordinates(&coords).is_ok());
 
         // Test normalization
-        let normalized = utils::normalize_coordinates(&coords).unwrap();
+        let normalized = utils::normalize_coordinates(&coords).expect("operation should succeed");
         assert_eq!(normalized.shape(), coords.shape());
 
         // Test spatial extent
-        let extent = utils::spatial_extent(&coords).unwrap();
+        let extent = utils::spatial_extent(&coords).expect("operation should succeed");
         assert_eq!(extent.len(), 2); // 2D coordinates
 
         // Test spatial weight estimation
-        let weight = utils::estimate_spatial_weight(&coords, &data).unwrap();
+        let weight =
+            utils::estimate_spatial_weight(&coords, &data).expect("operation should succeed");
         assert!(weight > 0.0 && weight <= 1.0);
     }
 }

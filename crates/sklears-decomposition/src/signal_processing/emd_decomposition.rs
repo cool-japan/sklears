@@ -213,12 +213,15 @@ impl EmpiricalModeDecomposition {
     /// # Returns
     ///
     /// Self for method chaining
-    pub fn max_sift_iter(mut self, max_sift_iter: usize) -> Self {
+    pub fn max_sift_iter(mut self, max_sift_iter: usize) -> Result<Self> {
         if max_sift_iter == 0 {
-            panic!("max_sift_iter must be positive");
+            return Err(SklearsError::InvalidParameter {
+                name: "max_sift_iter".to_string(),
+                reason: "must be positive".to_string(),
+            });
         }
         self.config.max_sift_iter = max_sift_iter;
-        self
+        Ok(self)
     }
 
     /// Set convergence tolerance for sifting process
@@ -230,12 +233,15 @@ impl EmpiricalModeDecomposition {
     /// # Returns
     ///
     /// Self for method chaining
-    pub fn tolerance(mut self, tolerance: Float) -> Self {
+    pub fn tolerance(mut self, tolerance: Float) -> Result<Self> {
         if tolerance <= 0.0 {
-            panic!("tolerance must be positive");
+            return Err(SklearsError::InvalidParameter {
+                name: "tolerance".to_string(),
+                reason: "must be positive".to_string(),
+            });
         }
         self.config.tolerance = tolerance;
-        self
+        Ok(self)
     }
 
     /// Set maximum number of IMFs to extract
@@ -247,12 +253,15 @@ impl EmpiricalModeDecomposition {
     /// # Returns
     ///
     /// Self for method chaining
-    pub fn max_imfs(mut self, max_imfs: usize) -> Self {
+    pub fn max_imfs(mut self, max_imfs: usize) -> Result<Self> {
         if max_imfs == 0 {
-            panic!("max_imfs must be positive");
+            return Err(SklearsError::InvalidParameter {
+                name: "max_imfs".to_string(),
+                reason: "must be positive".to_string(),
+            });
         }
         self.config.max_imfs = Some(max_imfs);
-        self
+        Ok(self)
     }
 
     /// Set boundary condition method
@@ -941,8 +950,11 @@ mod tests {
     fn test_emd_builder_pattern() {
         let emd = EmpiricalModeDecomposition::new()
             .max_sift_iter(50)
+            .expect("valid parameter")
             .tolerance(1e-5)
+            .expect("valid parameter")
             .max_imfs(5)
+            .expect("valid parameter")
             .boundary_condition(BoundaryCondition::Periodic)
             .interpolation(InterpolationMethod::Linear);
 
@@ -982,7 +994,9 @@ mod tests {
                 .collect(),
         );
 
-        let emd = EmpiricalModeDecomposition::new().max_imfs(5);
+        let emd = EmpiricalModeDecomposition::new()
+            .max_imfs(5)
+            .expect("valid max_imfs");
         let result = emd.decompose(&signal).expect("EMD should succeed");
 
         assert!(
@@ -1071,7 +1085,7 @@ mod tests {
         let freq_result = result.instantaneous_frequency(100.0);
         assert!(freq_result.is_ok());
 
-        let frequencies = freq_result.unwrap();
+        let frequencies = freq_result.expect("operation should succeed");
         assert_eq!(frequencies.shape(), &[result.n_imfs, signal.len()]);
 
         // Test invalid sampling rate
@@ -1134,7 +1148,9 @@ mod tests {
         let start = std::time::Instant::now();
         let emd = EmpiricalModeDecomposition::new()
             .max_imfs(4)
-            .tolerance(1e-4); // More lenient tolerance for performance test
+            .expect("valid parameter")
+            .tolerance(1e-4)
+            .expect("valid parameter"); // More lenient tolerance for performance test
         let result = emd.decompose(&signal);
         let duration = start.elapsed();
 

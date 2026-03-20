@@ -98,8 +98,8 @@ impl RandomFourierFeatures {
             ));
         }
 
-        let omega = self.omega.as_ref().unwrap();
-        let phi = self.phi.as_ref().unwrap();
+        let omega = self.omega.as_ref().expect("operation should succeed");
+        let phi = self.phi.as_ref().expect("operation should succeed");
 
         let (n_samples, _) = X.dim();
         let mut features = Array2::<f64>::zeros((n_samples, self.n_components));

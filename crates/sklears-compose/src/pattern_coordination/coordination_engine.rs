@@ -1050,16 +1050,16 @@ impl CoordinationEngine {
             return Err("Engine session already active".into());
         }
 
-        *self.session_id.write().unwrap() = Some(session_id.to_string());
-        *self.session_start_time.write().unwrap() = Some(Instant::now());
+        *self.session_id.write().unwrap_or_else(|e| e.into_inner()) = Some(session_id.to_string());
+        *self.session_start_time.write().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
 
         // Initialize subsystem sessions
-        self.conflict_resolver.write().unwrap().initialize_session(session_id)?;
-        self.resource_arbitrator.write().unwrap().initialize_session(session_id)?;
-        self.priority_manager.write().unwrap().initialize_session(session_id)?;
+        self.conflict_resolver.write().unwrap_or_else(|e| e.into_inner()).initialize_session(session_id)?;
+        self.resource_arbitrator.write().unwrap_or_else(|e| e.into_inner()).initialize_session(session_id)?;
+        self.priority_manager.write().unwrap_or_else(|e| e.into_inner()).initialize_session(session_id)?;
 
         // Update coordination state
-        let mut state = self.coordination_state.write().unwrap();
+        let mut state = self.coordination_state.write().unwrap_or_else(|e| e.into_inner());
         state.current_phase = CoordinationPhase::Idle;
         state.last_updated = SystemTime::now();
 
@@ -1068,17 +1068,17 @@ impl CoordinationEngine {
 
     /// Detect conflicts in pattern execution
     pub fn detect_conflicts(&self, pattern_ids: &[String]) -> SklResult<Vec<PatternConflict>> {
-        self.conflict_resolver.read().unwrap().detect_conflicts(pattern_ids)
+        self.conflict_resolver.read().unwrap_or_else(|e| e.into_inner()).detect_conflicts(pattern_ids)
     }
 
     /// Analyze patterns for compatibility and requirements
     pub fn analyze_patterns(&self, pattern_ids: &[String]) -> SklResult<PatternAnalysisResult> {
-        self.pattern_analyzer.read().unwrap().analyze_patterns(pattern_ids)
+        self.pattern_analyzer.read().unwrap_or_else(|e| e.into_inner()).analyze_patterns(pattern_ids)
     }
 
     /// Resolve conflict with appropriate strategy
     pub fn resolve_conflict(&self, conflict: &PatternConflict, context: &ResolutionContext) -> SklResult<ConflictResolution> {
-        self.conflict_resolver.write().unwrap().resolve_conflict(conflict, context)
+        self.conflict_resolver.write().unwrap_or_else(|e| e.into_inner()).resolve_conflict(conflict, context)
     }
 
     /// Create execution plan for patterns
@@ -1088,12 +1088,12 @@ impl CoordinationEngine {
         let analysis = self.analyze_patterns(&pattern_ids)?;
 
         // Generate optimized execution plan
-        self.plan_generator.write().unwrap().generate_plan(&analysis)
+        self.plan_generator.write().unwrap_or_else(|e| e.into_inner()).generate_plan(&analysis)
     }
 
     /// Register coordination policy
     pub fn register_policy(&self, policy: CoordinationPolicy) -> SklResult<String> {
-        let mut policies = self.coordination_policies.write().unwrap();
+        let mut policies = self.coordination_policies.write().unwrap_or_else(|e| e.into_inner());
         let policy_id = policy.policy_id.clone();
         policies.add_policy(policy)?;
         Ok(policy_id)
@@ -1101,7 +1101,7 @@ impl CoordinationEngine {
 
     /// Update pattern priorities
     pub fn update_priorities(&self, priorities: HashMap<String, PatternPriority>) -> SklResult<()> {
-        self.priority_manager.write().unwrap().update_priorities(priorities)
+        self.priority_manager.write().unwrap_or_else(|e| e.into_inner()).update_priorities(priorities)
     }
 
     /// Shutdown coordination session
@@ -1111,13 +1111,13 @@ impl CoordinationEngine {
         }
 
         // Shutdown subsystem sessions
-        self.conflict_resolver.write().unwrap().shutdown_session()?;
-        self.resource_arbitrator.write().unwrap().shutdown_session()?;
-        self.priority_manager.write().unwrap().shutdown_session()?;
+        self.conflict_resolver.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
+        self.resource_arbitrator.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
+        self.priority_manager.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
 
         // Clear session state
-        *self.session_id.write().unwrap() = None;
-        *self.session_start_time.write().unwrap() = None;
+        *self.session_id.write().unwrap_or_else(|e| e.into_inner()) = None;
+        *self.session_start_time.write().unwrap_or_else(|e| e.into_inner()) = None;
         self.is_active.store(false, Ordering::SeqCst);
 
         Ok(())
@@ -1125,13 +1125,13 @@ impl CoordinationEngine {
 
     /// Get comprehensive engine metrics
     pub fn get_metrics(&self) -> SklResult<CoordinationEngineMetrics> {
-        let metrics_collector = self.metrics_collector.lock().unwrap();
+        let metrics_collector = self.metrics_collector.lock().unwrap_or_else(|e| e.into_inner());
         Ok(metrics_collector.metrics.clone())
     }
 
     /// Get current coordination state
     pub fn get_coordination_state(&self) -> CoordinationState {
-        self.coordination_state.read().unwrap().clone()
+        self.coordination_state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 
@@ -1351,7 +1351,7 @@ impl PriorityManager {
 
             if let Some(old) = old_priority {
                 let adjustment = PriorityAdjustment {
-                    adjustment_id: format!("adj_{}_{}", pattern_id, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+                    adjustment_id: format!("adj_{}_{}", pattern_id, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
                     pattern_id,
                     old_priority: old,
                     new_priority,
@@ -1398,7 +1398,7 @@ impl CoordinationPolicies {
 
         // Record update
         let update = PolicyUpdate {
-            update_id: format!("update_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+            update_id: format!("update_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
             policy_id: policy.policy_id,
             update_type: "add".to_string(),
             details: "Policy added".to_string(),
@@ -1441,7 +1441,7 @@ impl PatternAnalyzer {
         let performance_prediction = self.predict_performance(pattern_ids)?;
 
         let result = PatternAnalysisResult {
-            analysis_id: format!("analysis_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+            analysis_id: format!("analysis_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
             patterns: pattern_ids.to_vec(),
             compatibility_score,
             complexity_score,

@@ -158,7 +158,7 @@ impl EmergencyResponseCore {
 
     /// Check if emergency is currently active
     pub fn is_emergency_active(&self) -> bool {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         matches!(state.status, EmergencySystemStatus::Emergency)
     }
 

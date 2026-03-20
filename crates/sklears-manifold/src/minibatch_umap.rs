@@ -4,8 +4,8 @@
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
+use scirs2_core::RngExt;
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -227,7 +227,7 @@ impl MiniBatchUMAP<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, dist) in distances.iter().take(self.n_neighbors) {
@@ -291,7 +291,7 @@ impl MiniBatchUMAP<Untrained> {
             // Process negative samples (repulsive forces)
             for _ in 0..5 {
                 // Sample negative examples
-                let neg_j = rng.gen_range(0..embedding.nrows());
+                let neg_j = rng.random_range(0..embedding.nrows());
                 if neg_j != i {
                     self.apply_repulsive_force(embedding, i, neg_j);
                 }

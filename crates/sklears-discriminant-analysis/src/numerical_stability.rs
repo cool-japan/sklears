@@ -221,7 +221,11 @@ impl NumericalStability {
         eigenvectors: Array2<Float>,
     ) -> (Array1<Float>, Array2<Float>) {
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let sorted_eigenvalues = Array1::from_iter(indices.iter().map(|&i| eigenvalues[i]));
         let sorted_eigenvectors =
@@ -414,7 +418,11 @@ impl NumericalStability {
 
         // Take the k largest eigenvalues
         let mut indices: Vec<usize> = (0..theta.len()).collect();
-        indices.sort_by(|&i, &j| theta[j].partial_cmp(&theta[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            theta[j]
+                .partial_cmp(&theta[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let eigenvalues = Array1::from_iter(indices.iter().take(k).map(|&i| theta[i]));
 
@@ -526,7 +534,7 @@ impl NumericalStability {
 
         let median = if !history_vec.is_empty() {
             let mut sorted = history_vec.clone();
-            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let mid = sorted.len() / 2;
             if sorted.len() % 2 == 0 {
                 (sorted[mid - 1] + sorted[mid]) / 2.0
@@ -972,7 +980,9 @@ mod tests {
         // Create a simple symmetric matrix
         let matrix = array![[4.0, 2.0], [2.0, 3.0]];
 
-        let (eigenvalues, eigenvectors) = ns.stable_eigen_decomposition(&matrix).unwrap();
+        let (eigenvalues, eigenvectors) = ns
+            .stable_eigen_decomposition(&matrix)
+            .expect("operation should succeed");
 
         // Check that eigenvalues are real and sorted in descending order
         assert!(eigenvalues.len() == 2);
@@ -998,13 +1008,17 @@ mod tests {
         // Well-conditioned matrix
         let well_conditioned = array![[2.0, 0.0], [0.0, 1.0]];
 
-        let cond_num = ns.estimate_condition_number(&well_conditioned).unwrap();
+        let cond_num = ns
+            .estimate_condition_number(&well_conditioned)
+            .expect("operation should succeed");
         assert!(cond_num < 10.0); // Should be around 2.0
 
         // Ill-conditioned matrix
         let ill_conditioned = array![[1.0, 1.0], [1.0, 1.0001]];
 
-        let cond_num_ill = ns.estimate_condition_number(&ill_conditioned).unwrap();
+        let cond_num_ill = ns
+            .estimate_condition_number(&ill_conditioned)
+            .expect("operation should succeed");
         assert!(cond_num_ill > 1000.0); // Should be very large
     }
 
@@ -1020,12 +1034,20 @@ mod tests {
         // Full rank matrix
         let full_rank = array![[1.0, 0.0], [0.0, 1.0]];
 
-        assert_eq!(ns.numerical_rank(&full_rank).unwrap(), 2);
+        assert_eq!(
+            ns.numerical_rank(&full_rank)
+                .expect("operation should succeed"),
+            2
+        );
 
         // Rank deficient matrix
         let rank_deficient = array![[1.0, 1.0], [1.0, 1.0]];
 
-        assert_eq!(ns.numerical_rank(&rank_deficient).unwrap(), 1);
+        assert_eq!(
+            ns.numerical_rank(&rank_deficient)
+                .expect("operation should succeed"),
+            1
+        );
     }
 
     #[test]

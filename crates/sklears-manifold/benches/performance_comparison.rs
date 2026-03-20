@@ -10,8 +10,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
@@ -193,7 +193,7 @@ mod quality_metrics {
                     orig_distances.push((dist, j));
                 }
             }
-            orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let orig_neighbors: Vec<usize> =
                 orig_distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
@@ -206,7 +206,8 @@ mod quality_metrics {
                     embed_distances.push((dist, j));
                 }
             }
-            embed_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            embed_distances
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let embed_neighbors: Vec<usize> = embed_distances
                 .iter()
                 .take(k)
@@ -240,7 +241,8 @@ mod quality_metrics {
                     embed_distances.push((dist, j));
                 }
             }
-            embed_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            embed_distances
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let embed_neighbors: Vec<usize> = embed_distances
                 .iter()
                 .take(k)
@@ -256,7 +258,7 @@ mod quality_metrics {
                     orig_distances.push((dist, j));
                 }
             }
-            orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let orig_neighbors: Vec<usize> =
                 orig_distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
@@ -570,7 +572,9 @@ fn benchmark_scalability(c: &mut Criterion) {
                                 distances.push((dist, j));
                             }
                         }
-                        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                        distances.sort_by(|a, b| {
+                            a.0.partial_cmp(&b.0).expect("operation should succeed")
+                        });
                         let neighbors: Vec<usize> =
                             distances.iter().take(k).map(|(_, idx)| *idx).collect();
                         knn_graph.push(neighbors);

@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Float as FloatTrait;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::error::Result;
 use sklears_core::traits::{Fit, Transform};
 use sklears_core::types::{Features, Float};
@@ -91,7 +91,7 @@ impl LocallyLinearEmbedding {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for (k, &(j, _)) in distances.iter().take(self.n_neighbors).enumerate() {
                 neighbors[[i, k]] = j;
@@ -123,7 +123,9 @@ impl LocallyLinearEmbedding {
             }
 
             // Center the neighbors
-            let mean = neighbor_matrix.mean_axis(Axis(0)).unwrap();
+            let mean = neighbor_matrix
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
             for mut row in neighbor_matrix.axis_iter_mut(Axis(0)) {
                 row.zip_mut_with(&mean, |a, &b| *a -= b);
             }
@@ -212,12 +214,12 @@ impl LocallyLinearEmbedding {
         // Placeholder: fill with random values for now
         let rng_seed = self
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.gen_range(-1.0..1.0);
+                embedding[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -335,7 +337,7 @@ impl Isomap {
             }
 
             // Sort by distance and connect to k nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(j, dist) in distances.iter().take(self.n_neighbors) {
                 graph[[i, j]] = dist;
@@ -383,9 +385,13 @@ impl Isomap {
         let mut squared_distances = distances.mapv(|x| x.powi(2));
 
         // Compute row and column means
-        let row_means = squared_distances.mean_axis(Axis(1)).unwrap();
-        let col_means = squared_distances.mean_axis(Axis(0)).unwrap();
-        let grand_mean = squared_distances.mean().unwrap();
+        let row_means = squared_distances
+            .mean_axis(Axis(1))
+            .expect("operation should succeed");
+        let col_means = squared_distances
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
+        let grand_mean = squared_distances.mean().expect("operation should succeed");
 
         // Double center
         for i in 0..n_samples {
@@ -401,12 +407,12 @@ impl Isomap {
         // Placeholder: fill with random values for now
         let rng_seed = self
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.gen_range(-1.0..1.0);
+                embedding[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -529,7 +535,8 @@ impl LaplacianEigenmaps {
                     }
 
                     // Sort by distance and connect to k nearest neighbors
-                    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    distances
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                     for &(j, _) in distances.iter().take(self.n_neighbors) {
                         affinity[[i, j]] = 1.0;
@@ -561,7 +568,8 @@ impl LaplacianEigenmaps {
                         }
                     }
 
-                    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    distances
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                     for &(j, _) in distances.iter().take(self.n_neighbors) {
                         affinity[[i, j]] = 1.0;
@@ -629,12 +637,12 @@ impl LaplacianEigenmaps {
         // Placeholder: fill with random values for now
         let rng_seed = self
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.gen_range(-1.0..1.0);
+                embedding[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -831,13 +839,13 @@ impl TSNENeighbors {
         // Initialize embedding randomly
         let rng_seed = self
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for i in 0..n_samples {
             for j in 0..self.n_components {
-                embedding[[i, j]] = rng.gen_range(-1e-4..1e-4);
+                embedding[[i, j]] = rng.random_range(-1e-4..1e-4);
             }
         }
 
@@ -946,83 +954,83 @@ mod tests {
                 1.0, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let lle = LocallyLinearEmbedding::new(3, 2).with_random_state(42);
 
-        let fitted = lle.fit(&X, &()).unwrap();
+        let fitted = lle.fit(&X, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
 
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[6, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_isomap_basic() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+            .expect("operation should succeed");
 
         let isomap = Isomap::new(2, 2).with_random_state(42);
 
-        let fitted = isomap.fit(&X, &()).unwrap();
+        let fitted = isomap.fit(&X, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
         assert!(fitted.geodesic_distances.is_some());
 
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_laplacian_eigenmaps_basic() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+            .expect("operation should succeed");
 
         let le = LaplacianEigenmaps::new(2, 2).with_random_state(42);
 
-        let fitted = le.fit(&X, &()).unwrap();
+        let fitted = le.fit(&X, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
         assert!(fitted.affinity_matrix.is_some());
 
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_tsne_neighbors_basic() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+            .expect("operation should succeed");
 
         let tsne = TSNENeighbors::new(1.0, 2)
             .with_n_iter(10)
             .with_random_state(42);
 
-        let fitted = tsne.fit(&X, &()).unwrap();
+        let fitted = tsne.fit(&X, &()).expect("operation should succeed");
         assert!(fitted.probabilities.is_some());
         assert!(fitted.embedding.is_some());
 
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_laplacian_eigenmaps_rbf() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+            .expect("operation should succeed");
 
         let le = LaplacianEigenmaps::new(2, 2)
             .with_affinity("rbf".to_string())
             .with_gamma(1.0)
             .with_random_state(42);
 
-        let fitted = le.fit(&X, &()).unwrap();
+        let fitted = le.fit(&X, &()).expect("operation should succeed");
         assert!(fitted.components.is_some());
         assert!(fitted.affinity_matrix.is_some());
 
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 }

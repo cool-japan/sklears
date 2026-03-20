@@ -404,13 +404,17 @@ mod tests {
         let probabilities = array![0.1, 0.3, 0.7, 0.9];
         let y_true = array![0, 0, 1, 1];
 
-        let calibrator = BetaCalibrator::new().fit(&probabilities, &y_true).unwrap();
+        let calibrator = BetaCalibrator::new()
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
 
         assert!(calibrator.is_fitted());
         assert!(calibrator.alpha() > 0.0);
         assert!(calibrator.beta() > 0.0);
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 4);
 
         // Check that calibrated probabilities are valid
@@ -426,7 +430,7 @@ mod tests {
 
         let calibrator = EnsembleTemperatureScaling::new(3)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(calibrator.temperatures().len(), 3);
         assert_eq!(calibrator.weights().len(), 3);
@@ -435,7 +439,9 @@ mod tests {
         let weight_sum: Float = calibrator.weights().iter().sum();
         assert!((weight_sum - 1.0).abs() < 1e-6);
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 7);
 
         // Check that calibrated probabilities are valid
@@ -450,9 +456,13 @@ mod tests {
         let probabilities = array![0.5, 0.5, 0.5, 0.5];
         let y_true = array![0, 1, 0, 1];
 
-        let calibrator = BetaCalibrator::new().fit(&probabilities, &y_true).unwrap();
+        let calibrator = BetaCalibrator::new()
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 4);
 
         // Test with extreme probabilities
@@ -461,9 +471,11 @@ mod tests {
 
         let extreme_calibrator = BetaCalibrator::new()
             .fit(&extreme_probs, &extreme_y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let extreme_calibrated = extreme_calibrator.predict_proba(&extreme_probs).unwrap();
+        let extreme_calibrated = extreme_calibrator
+            .predict_proba(&extreme_probs)
+            .expect("predict_proba should succeed");
         assert_eq!(extreme_calibrated.len(), 2);
     }
 }

@@ -62,7 +62,10 @@ impl CategoricalParameter {
 
     /// Sample a random value from this parameter
     pub fn sample(&self, rng: &mut impl Rng) -> ParameterValue {
-        self.values.choose(rng).unwrap().clone()
+        self.values
+            .choose(rng)
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Get the index of a value (useful for ordered categories)
@@ -480,7 +483,9 @@ impl ParameterSpace {
             sorted_params.sort_by(|a, b| {
                 let weight_a = importance_weights.get(*a).unwrap_or(&1.0);
                 let weight_b = importance_weights.get(*b).unwrap_or(&1.0);
-                weight_b.partial_cmp(weight_a).unwrap()
+                weight_b
+                    .partial_cmp(weight_a)
+                    .expect("operation should succeed")
             });
 
             // Sample important parameters first
@@ -781,11 +786,11 @@ mod tests {
         space.add_conditional_parameter(conditional_kernel);
 
         let mut rng = scirs2_core::random::thread_rng();
-        let params = space.sample(&mut rng).unwrap();
+        let params = space.sample(&mut rng).expect("operation should succeed");
 
         assert!(params.contains_key("algorithm"));
 
-        if params.get("algorithm").unwrap() == &"svm".into() {
+        if params.get("algorithm").expect("operation should succeed") == &"svm".into() {
             assert!(params.contains_key("kernel"));
         }
     }

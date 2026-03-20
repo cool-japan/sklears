@@ -1,7 +1,7 @@
 //! Online Dictionary Learning algorithms for streaming data
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -104,7 +104,7 @@ impl Fit<Array2<Float>, ()> for OnlineDictionaryLearning<Untrained> {
 
         for i in 0..self.config.n_components {
             for j in 0..n_features {
-                components[[i, j]] = rng.gen::<Float>() - 0.5;
+                components[[i, j]] = rng.random::<Float>() - 0.5;
             }
         }
 

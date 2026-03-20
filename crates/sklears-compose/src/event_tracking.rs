@@ -544,7 +544,7 @@ impl EventBuffer {
 
     /// Add event to buffer
     pub fn add_event(&mut self, event: TaskExecutionEvent) -> SklResult<()> {
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock().unwrap_or_else(|e| e.into_inner());
 
         // Check buffer overflow
         if self.events.len() >= self.config.size {
@@ -578,7 +578,7 @@ impl EventBuffer {
 
     /// Get events from buffer
     pub fn get_events(&mut self, count: usize) -> Vec<TaskExecutionEvent> {
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock().unwrap_or_else(|e| e.into_inner());
         let mut events = Vec::new();
 
         for _ in 0..count.min(self.events.len()) {
@@ -593,7 +593,7 @@ impl EventBuffer {
 
     /// Drain all events from buffer
     pub fn drain_events(&mut self) -> Vec<TaskExecutionEvent> {
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock().unwrap_or_else(|e| e.into_inner());
         let events: Vec<TaskExecutionEvent> = self.events.drain(..).collect();
         self.stats.events_retrieved += events.len() as u64;
         events
@@ -621,7 +621,7 @@ impl EventBuffer {
 
     /// Clear buffer
     pub fn clear(&mut self) {
-        let _lock = self.lock.lock().unwrap();
+        let _lock = self.lock.lock().unwrap_or_else(|e| e.into_inner());
         let dropped_count = self.events.len();
         self.events.clear();
         self.stats.events_dropped += dropped_count as u64;
@@ -1016,7 +1016,7 @@ mod tests {
             .tag("component".to_string())
             .metadata("key".to_string(), "value".to_string())
             .build()
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(event.event_id, "event_1");
         assert_eq!(event.event_type, TaskEventType::TaskCompleted);
@@ -1041,7 +1041,7 @@ mod tests {
                 "task_1".to_string(),
                 TaskEventType::TaskProgress,
             );
-            buffer.add_event(event).unwrap();
+            buffer.add_event(event).unwrap_or_default();
         }
 
         // Should have 3 events (dropped 2 oldest)

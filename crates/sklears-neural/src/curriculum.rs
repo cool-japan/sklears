@@ -7,6 +7,7 @@
 use crate::NeuralResult;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::thread_rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::SliceRandomExt;
 use sklears_core::error::SklearsError;
 
@@ -172,7 +173,7 @@ impl CurriculumScheduler {
             DifficultyStrategy::Random => {
                 use scirs2_core::random::prelude::*;
                 let mut rng = thread_rng();
-                Array1::from_shape_fn(n_samples, |_| rng.gen())
+                Array1::from_shape_fn(n_samples, |_| rng.random())
             }
             DifficultyStrategy::SelfPaced { .. } => losses
                 .ok_or_else(|| SklearsError::InvalidParameter {
@@ -189,7 +190,7 @@ impl CurriculumScheduler {
             .map(|(i, &score)| (i, score))
             .collect();
 
-        indexed_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        indexed_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         self.sorted_indices = indexed_scores.into_iter().map(|(i, _)| i).collect();
         self.difficulty_scores = Some(scores);
 
@@ -558,13 +559,13 @@ mod tests {
         let mut scheduler = CurriculumScheduler::new(config);
         let model = MockModel;
 
-        let inputs =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let inputs = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("array shape mismatch");
         let targets = Array1::from_vec(vec![0, 0, 1, 2]);
 
         scheduler
             .update_difficulty_scores(&model, &inputs, &targets, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(scheduler.difficulty_scores.is_some());
         assert_eq!(scheduler.sorted_indices.len(), 4);
@@ -586,13 +587,17 @@ mod tests {
         scheduler.sorted_indices = vec![0, 1, 2, 3, 4];
 
         // Epoch 0: should get 2 examples
-        let indices = scheduler.get_current_examples().unwrap();
+        let indices = scheduler
+            .get_current_examples()
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 2);
 
         scheduler.step_epoch(None);
 
         // Epoch 1: should get 3 examples
-        let indices = scheduler.get_current_examples().unwrap();
+        let indices = scheduler
+            .get_current_examples()
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 3);
     }
 
@@ -611,13 +616,17 @@ mod tests {
         scheduler.sorted_indices = vec![0, 1, 2, 3, 4, 5, 6, 7];
 
         // Epoch 0: should get 2 examples
-        let indices = scheduler.get_current_examples().unwrap();
+        let indices = scheduler
+            .get_current_examples()
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 2);
 
         scheduler.step_epoch(None);
 
         // Epoch 1: should get floor(2 * 1.5) = 3 examples
-        let indices = scheduler.get_current_examples().unwrap();
+        let indices = scheduler
+            .get_current_examples()
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 3);
     }
 
@@ -633,7 +642,11 @@ mod tests {
         assert_eq!(stats.total_examples, 5);
         assert_eq!(stats.current_epoch, 0);
         assert!(stats.training_loss_trend.is_some());
-        assert_abs_diff_eq!(stats.training_loss_trend.unwrap(), -0.2, epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            stats.training_loss_trend.expect("operation should succeed"),
+            -0.2,
+            epsilon = 1e-10
+        );
     }
 
     #[test]
@@ -645,13 +658,13 @@ mod tests {
         let mut anti_scheduler = AntiCurriculumScheduler::new(config);
         let model = MockModel;
 
-        let inputs =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let inputs = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("array shape mismatch");
         let targets = Array1::from_vec(vec![0, 0, 1, 2]);
 
         anti_scheduler
             .update_difficulty_scores(&model, &inputs, &targets, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Anti-curriculum should start with the hardest examples
         // (Note: exact testing would require knowing the mock model's output pattern)

@@ -112,7 +112,9 @@ impl KernelPCA {
             }
 
             // Subtract column means (compute for test data)
-            let test_row_means = k.mean_axis(Axis(1)).unwrap();
+            let test_row_means = k
+                .mean_axis(Axis(1))
+                .expect("mean should not fail on non-empty array");
             for i in 0..n_test {
                 for j in 0..n_train {
                     k_centered[[i, j]] -= test_row_means[i];
@@ -126,13 +128,19 @@ impl KernelPCA {
             let n = k_train.nrows();
 
             // Compute row means
-            let row_means = k_train.mean_axis(Axis(1)).unwrap();
+            let row_means = k_train
+                .mean_axis(Axis(1))
+                .expect("mean should not fail on non-empty array");
 
             // Compute column means
-            let col_means = k_train.mean_axis(Axis(0)).unwrap();
+            let col_means = k_train
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
 
             // Compute grand mean
-            let grand_mean = k_train.mean().unwrap();
+            let grand_mean = k_train
+                .mean()
+                .expect("mean should not fail on non-empty array");
 
             // Center the matrix
             let mut k_centered = Array2::<Float>::zeros((n, n));
@@ -161,14 +169,17 @@ impl KernelPCA {
         }
 
         // Create kernel instance
-        let kernel = create_kernel(self.kernel.clone());
+        let kernel = create_kernel(self.kernel.clone())?;
 
         // Compute kernel matrix
         let k = kernel.compute_matrix(x, x);
 
         // Store training statistics for centering
-        self.k_fit_cols_ = Some(k.mean_axis(Axis(0)).unwrap()); // Column means
-        self.k_fit_all_ = Some(k.mean().unwrap());
+        self.k_fit_cols_ = Some(
+            k.mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array"),
+        ); // Column means
+        self.k_fit_all_ = Some(k.mean().expect("mean should not fail on non-empty array"));
 
         // Center the kernel matrix
         let k_centered = self.center_kernel_matrix(&k, Some(&k));
@@ -182,7 +193,11 @@ impl KernelPCA {
 
         // Sort eigenvalues and eigenvectors in descending order
         let mut indices: Vec<usize> = (0..n_samples).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Reorder based on sorted indices
         let sorted_eigenvalues = Array1::from_shape_fn(n_samples, |i| eigenvalues[indices[i]]);
@@ -249,7 +264,7 @@ impl KernelPCA {
         let n_components = alphas.ncols();
 
         // Create kernel instance
-        let kernel = create_kernel(self.kernel.clone());
+        let kernel = create_kernel(self.kernel.clone())?;
 
         // Compute kernel matrix between test and training data (shape: n_test x n_train)
         let k = kernel.compute_matrix(x, x_fit);
@@ -272,7 +287,10 @@ impl KernelPCA {
         let mut k_centered = Array2::zeros((n_test, n_train));
         for i in 0..n_test {
             // Compute row mean for test sample i
-            let test_row_mean = k.row(i).mean().unwrap();
+            let test_row_mean = k
+                .row(i)
+                .mean()
+                .expect("mean should not fail on non-empty array");
 
             for j in 0..n_train {
                 // Apply centering: K_ij - mean_j(train) - mean_i(test) + grand_mean(train)
@@ -295,12 +313,15 @@ impl KernelPCA {
     pub fn fit_transform(&mut self, x: &Array2<Float>) -> Result<Array2<Float>, SklearsError> {
         self.fit(x)?;
 
-        let alphas = self.alphas_.as_ref().unwrap();
+        let alphas = self
+            .alphas_
+            .as_ref()
+            .expect("alphas_ not available - model not fitted");
         let n_samples = x.nrows();
         let n_components = alphas.ncols();
 
         // Create kernel instance
-        let kernel = create_kernel(self.kernel.clone());
+        let kernel = create_kernel(self.kernel.clone())?;
 
         // Compute kernel matrix
         let k = kernel.compute_matrix(x, x);
@@ -404,7 +425,7 @@ mod tests {
                 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, -1.0, -1.0, -2.0, -2.0, 0.5, -0.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut kpca = KernelPCA::new()
             .with_n_components(2)
@@ -413,12 +434,12 @@ mod tests {
         let result = kpca.fit_transform(&x);
         assert!(result.is_ok());
 
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[6, 2]);
 
         // Check that eigenvalues are available
         assert!(kpca.eigenvalues().is_some());
-        let eigenvals = kpca.eigenvalues().unwrap();
+        let eigenvals = kpca.eigenvalues().expect("operation should succeed");
         assert_eq!(eigenvals.len(), 2);
 
         // Eigenvalues should be positive and in descending order
@@ -433,7 +454,7 @@ mod tests {
     #[test]
     fn test_kernel_pca_polynomial_kernel() {
         let x = Array::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, -1.0, -1.0, -2.0, -2.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let mut kpca = KernelPCA::new()
             .with_n_components(2)
@@ -446,16 +467,17 @@ mod tests {
         let result = kpca.fit_transform(&x);
         assert!(result.is_ok());
 
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
     #[test]
     fn test_kernel_pca_transform_new_data() {
-        let x_train =
-            Array::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, -1.0, -1.0, 0.0, 1.0]).unwrap();
+        let x_train = Array::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, -1.0, -1.0, 0.0, 1.0])
+            .expect("array shape mismatch");
 
-        let x_test = Array::from_shape_vec((2, 2), vec![0.5, 0.5, -0.5, -0.5]).unwrap();
+        let x_test = Array::from_shape_vec((2, 2), vec![0.5, 0.5, -0.5, -0.5])
+            .expect("array shape mismatch");
 
         let mut kpca = KernelPCA::new()
             .with_n_components(2)
@@ -463,13 +485,13 @@ mod tests {
             .with_fit_inverse_transform(true);
 
         // Fit on training data
-        kpca.fit(&x_train).unwrap();
+        kpca.fit(&x_train).expect("model fitting should succeed");
 
         // Transform test data
         let result = kpca.transform(&x_test);
         assert!(result.is_ok());
 
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[2, 2]);
     }
 
@@ -495,18 +517,19 @@ mod tests {
             (5, 2),
             vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0, -1.0, -1.0, -2.0, -2.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut kpca = KernelPCA::new()
             .with_n_components(2)
             .with_kernel(KernelType::Rbf { gamma: 1.0 });
 
-        kpca.fit_transform(&x).unwrap();
+        kpca.fit_transform(&x)
+            .expect("fit_transform should succeed");
 
         let explained_var_ratio = kpca.explained_variance_ratio();
         assert!(explained_var_ratio.is_some());
 
-        let ratios = explained_var_ratio.unwrap();
+        let ratios = explained_var_ratio.expect("operation should succeed");
         let sum: Float = ratios.sum();
         assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-10);
 
@@ -516,7 +539,8 @@ mod tests {
 
     #[test]
     fn test_kernel_pca_invalid_n_components() {
-        let x = Array::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, -1.0, -1.0]).unwrap();
+        let x = Array::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, -1.0, -1.0])
+            .expect("array shape mismatch");
 
         let mut kpca = KernelPCA::new().with_n_components(5); // More components than samples
 

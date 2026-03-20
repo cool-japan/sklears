@@ -180,7 +180,7 @@ impl Fit<Array2<Float>, Array1<Float>> for TimeSeriesSelector<Untrained> {
 
         // Compute seasonal importances if requested
         let seasonal_importances = if self.include_seasonal && self.seasonal_period.is_some() {
-            let period = self.seasonal_period.unwrap();
+            let period = self.seasonal_period.expect("operation should succeed");
             let mut importances = Array1::zeros(n_features);
             for (i, feature) in x.axis_iter(Axis(1)).enumerate() {
                 importances[i] = compute_seasonal_importance(&feature, period);
@@ -235,7 +235,7 @@ impl TimeSeriesSelector<Untrained> {
             .collect();
 
         // Sort by score descending
-        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Apply selection criteria
         let mut selected = Vec::new();
@@ -265,7 +265,10 @@ impl TimeSeriesSelector<Untrained> {
 
 impl Transform<Array2<Float>> for TimeSeriesSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -279,8 +282,15 @@ impl Transform<Array2<Float>> for TimeSeriesSelector<Trained> {
 
 impl SelectorMixin for TimeSeriesSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.autocorrelations_.as_ref().unwrap().nrows();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .autocorrelations_
+            .as_ref()
+            .expect("operation should succeed")
+            .nrows();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             support[idx] = true;
@@ -289,7 +299,10 @@ impl SelectorMixin for TimeSeriesSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -302,7 +315,9 @@ impl TimeSeriesSelector<Trained> {
     ///
     /// Returns a matrix where rows correspond to features and columns to lags.
     pub fn autocorrelations(&self) -> &Array2<Float> {
-        self.autocorrelations_.as_ref().unwrap()
+        self.autocorrelations_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the cross-correlation coefficients with the target
@@ -310,7 +325,9 @@ impl TimeSeriesSelector<Trained> {
     /// Returns an array where each element is the cross-correlation
     /// between the corresponding feature and the target variable.
     pub fn cross_correlations(&self) -> &Array1<Float> {
-        self.cross_correlations_.as_ref().unwrap()
+        self.cross_correlations_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the seasonal importance scores (if seasonal analysis was enabled)
@@ -322,12 +339,17 @@ impl TimeSeriesSelector<Trained> {
 
     /// Get the indices of selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_selected(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -545,13 +567,13 @@ mod tests {
                 1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0, 5.0, 10.0, 15.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
         assert_eq!(fitted.n_features_selected(), 2);
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(transformed.ncols(), 2);
     }
 }

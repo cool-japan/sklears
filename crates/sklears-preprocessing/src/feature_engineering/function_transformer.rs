@@ -281,8 +281,10 @@ mod tests {
 
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let fitted = transformer.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transformation should succeed");
 
         // Check that log transformation was applied
         let expected = array![[1.0_f64.ln(), 2.0_f64.ln()], [3.0_f64.ln(), 4.0_f64.ln()]];
@@ -299,8 +301,10 @@ mod tests {
 
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let fitted = transformer.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transformation should succeed");
 
         // Check that square transformation was applied
         let expected = array![[1.0, 4.0], [9.0, 16.0]];
@@ -318,9 +322,13 @@ mod tests {
 
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let fitted = transformer.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
-        let restored = fitted.inverse_transform(&transformed).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transformation should succeed");
+        let restored = fitted
+            .inverse_transform(&transformed)
+            .expect("operation should succeed");
 
         // Check that inverse transformation restores original
         for (original, restored) in x.iter().zip(restored.iter()) {
@@ -338,8 +346,10 @@ mod tests {
 
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let fitted = transformer.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = transformer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transformation should succeed");
 
         // Check that custom transformation was applied: 2x + 1
         let expected = array![[3.0, 5.0], [7.0, 9.0]];

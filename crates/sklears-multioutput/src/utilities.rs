@@ -217,8 +217,8 @@ fn kmeans_clustering(
 
     // Use seeded RNG for reproducibility, random seed if none provided
     let seed = random_state.unwrap_or_else(|| {
-        use scirs2_core::random::Rng;
-        thread_rng().gen()
+        use scirs2_core::random::RngExt;
+        thread_rng().random()
     });
     let mut rng = scirs2_core::random::seeded_rng(seed);
 
@@ -304,8 +304,12 @@ mod tests {
         let y = array![[1, 0], [0, 1], [1, 1], [0, 0]];
 
         let clare = CLARE::new().n_clusters(2).threshold(0.5);
-        let trained_clare = clare.fit(&X.view(), &y).unwrap();
-        let predictions = trained_clare.predict(&X.view()).unwrap();
+        let trained_clare = clare
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
+        let predictions = trained_clare
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (4, 2));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));
@@ -328,7 +332,8 @@ mod tests {
     #[test]
     fn test_kmeans_clustering() {
         let data = array![[1.0, 2.0], [2.0, 3.0], [8.0, 9.0], [9.0, 8.0]];
-        let (centers, assignments) = kmeans_clustering(&data.view(), 2, 100, Some(42)).unwrap();
+        let (centers, assignments) =
+            kmeans_clustering(&data.view(), 2, 100, Some(42)).expect("operation should succeed");
 
         assert_eq!(centers.dim(), (2, 2));
         assert_eq!(assignments.len(), 4);
@@ -349,7 +354,9 @@ mod tests {
         let y = array![[1, 0], [0, 1], [1, 1]];
 
         let clare = CLARE::new().n_clusters(2);
-        let trained_clare = clare.fit(&X.view(), &y).unwrap();
+        let trained_clare = clare
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
         let centers = trained_clare.cluster_centers();
         let assignments = trained_clare.cluster_assignments();

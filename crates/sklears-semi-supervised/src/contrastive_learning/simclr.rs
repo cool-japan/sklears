@@ -1,7 +1,7 @@
 //! SimCLR (A Simple Framework for Contrastive Learning) implementation for semi-supervised learning
 
 use super::{ContrastiveLearningError, *};
-use scirs2_core::random::{rand_prelude::SliceRandom, Rng};
+use scirs2_core::random::{rand_prelude::SliceRandom, Rng, RngExt};
 
 /// SimCLR (A Simple Framework for Contrastive Learning) adaptation for semi-supervised learning
 ///
@@ -150,7 +150,7 @@ impl SimCLR {
         let dropout_prob = 0.1 * self.augmentation_strength;
         for mut row in augmented.axis_iter_mut(Axis(0)) {
             for element in row.iter_mut() {
-                if rng.gen::<f64>() < dropout_prob {
+                if rng.random::<f64>() < dropout_prob {
                     *element = 0.0;
                 }
             }
@@ -534,15 +534,19 @@ mod tests {
             .batch_size(3)
             .random_state(42);
 
-        let fitted = simclr.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = simclr
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 6);
         for &pred in predictions.iter() {
             assert!(pred >= 0 && pred < 2);
         }
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -588,8 +592,10 @@ mod tests {
 
         let simclr = SimCLR::new().max_epochs(2).batch_size(2);
 
-        let fitted = simclr.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = simclr
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         // All predictions should be 0 when no labeled classes exist

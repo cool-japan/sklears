@@ -709,7 +709,7 @@ mod tests {
 
         timer.start();
         thread::sleep(Duration::from_millis(10));
-        let duration = timer.stop().unwrap();
+        let duration = timer.stop().expect("operation should succeed");
 
         assert!(duration >= Duration::from_millis(10));
         assert!(duration < Duration::from_millis(50)); // Allow some tolerance
@@ -734,10 +734,17 @@ mod tests {
 
         timer.start();
         thread::sleep(Duration::from_millis(10));
-        timer.stop_and_store("test".to_string()).unwrap();
+        timer
+            .stop_and_store("test".to_string())
+            .expect("operation should succeed");
 
         assert!(timer.get_measurement("test").is_some());
-        assert!(timer.get_measurement("test").unwrap() >= Duration::from_millis(10));
+        assert!(
+            timer
+                .get_measurement("test")
+                .expect("operation should succeed")
+                >= Duration::from_millis(10)
+        );
     }
 
     #[test]
@@ -766,7 +773,9 @@ mod tests {
         let mut tracker = MemoryTracker::new();
 
         tracker.set_baseline();
-        tracker.record("test".to_string()).unwrap();
+        tracker
+            .record("test".to_string())
+            .expect("operation should succeed");
 
         assert!(tracker.measurements().contains_key("test"));
         assert!(tracker.peak_usage().is_some());
@@ -781,7 +790,7 @@ mod tests {
                 thread::sleep(Duration::from_millis(10));
                 42
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result, 42);
         assert_eq!(profile_result.name, "test");
@@ -828,9 +837,13 @@ mod tests {
     fn test_profiler_sessions() {
         let mut profiler = Profiler::new();
 
-        profiler.start_session("session1".to_string()).unwrap();
+        profiler
+            .start_session("session1".to_string())
+            .expect("operation should succeed");
         thread::sleep(Duration::from_millis(10));
-        let result = profiler.end_session("session1").unwrap();
+        let result = profiler
+            .end_session("session1")
+            .expect("operation should succeed");
 
         assert_eq!(result.name, "session1");
         assert!(result.duration >= Duration::from_millis(10));
@@ -840,8 +853,12 @@ mod tests {
     fn test_profiler_report() {
         let mut profiler = Profiler::new();
 
-        profiler.profile("test1".to_string(), || {}).unwrap();
-        profiler.profile("test2".to_string(), || {}).unwrap();
+        profiler
+            .profile("test1".to_string(), || {})
+            .expect("operation should succeed");
+        profiler
+            .profile("test2".to_string(), || {})
+            .expect("operation should succeed");
 
         let report = profiler.report();
         assert_eq!(report.total_sessions, 2);
@@ -857,7 +874,9 @@ mod tests {
             detector.record_baseline("test_func".to_string(), Duration::from_millis(100 + i));
         }
 
-        let baseline = detector.get_baseline("test_func").unwrap();
+        let baseline = detector
+            .get_baseline("test_func")
+            .expect("operation should succeed");
         assert_eq!(baseline.sample_count, 10);
         assert!(baseline.average_duration >= Duration::from_millis(100));
         assert!(baseline.average_duration <= Duration::from_millis(110));
@@ -875,7 +894,7 @@ mod tests {
         // Test with similar performance (no regression)
         let result = detector.check_regression("test_func", Duration::from_millis(105));
         assert!(result.is_some());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(!result.is_regression);
         assert_eq!(result.test_name, "test_func");
     }
@@ -894,7 +913,7 @@ mod tests {
         // Test with 2x slower performance (regression)
         let result = detector.check_regression("test_func", Duration::from_millis(200));
         assert!(result.is_some());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.is_regression);
         assert!(result.deviation_factor > 1.5);
     }

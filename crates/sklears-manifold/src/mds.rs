@@ -235,9 +235,13 @@ impl MDS<Untrained> {
 
         // Double-center the squared distance matrix
         let mut d_squared = distances.mapv(|x| x * x);
-        let row_means = d_squared.mean_axis(Axis(1)).unwrap();
-        let col_means = d_squared.mean_axis(Axis(0)).unwrap();
-        let grand_mean = d_squared.mean().unwrap();
+        let row_means = d_squared
+            .mean_axis(Axis(1))
+            .expect("operation should succeed");
+        let col_means = d_squared
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
+        let grand_mean = d_squared.mean().expect("operation should succeed");
 
         // Apply double centering: B = -1/2 * J * D^2 * J
         for i in 0..n {
@@ -258,7 +262,7 @@ impl MDS<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Take the largest n_components eigenvalues and corresponding eigenvectors
         let mut embedding = Array2::zeros((n, self.n_components));

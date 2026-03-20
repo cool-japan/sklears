@@ -703,7 +703,7 @@ where
                         .iter()
                         .enumerate()
                         .max_by(|(_, a): &(usize, &f64), (_, b): &(usize, &f64)| {
-                            a.partial_cmp(b).unwrap()
+                            a.partial_cmp(b).expect("operation should succeed")
                         })
                         .map(|(idx, _)| idx)
                         .unwrap_or(0);
@@ -721,8 +721,8 @@ where
                 for (pair_idx, (i, j)) in data.class_pairs.iter().enumerate() {
                     let scores = data.estimators[pair_idx].predict(x)?;
                     for sample_idx in 0..n_samples {
-                        let class_i_idx = data.classes.iter().position(|&c| c == *i).unwrap();
-                        let class_j_idx = data.classes.iter().position(|&c| c == *j).unwrap();
+                        let class_i_idx = data.classes.iter().position(|&c| c == *i).expect("operation should succeed");
+                        let class_j_idx = data.classes.iter().position(|&c| c == *j).expect("operation should succeed");
 
                         if scores[sample_idx] > 0.0 {
                             votes[[sample_idx, class_i_idx]] += 1.0;
@@ -740,7 +740,7 @@ where
                         .iter()
                         .enumerate()
                         .max_by(|(_, a): &(usize, &f64), (_, b): &(usize, &f64)| {
-                            a.partial_cmp(b).unwrap()
+                            a.partial_cmp(b).expect("operation should succeed")
                         })
                         .map(|(idx, _)| idx)
                         .unwrap_or(0);

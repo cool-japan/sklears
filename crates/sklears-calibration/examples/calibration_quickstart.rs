@@ -61,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn generate_data(n: usize) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     let x = Array2::from_shape_fn((n, 2), |_| normal.sample(&mut rng));
     let y = Array1::from_shape_fn(n, |i| if i < n / 2 { 0 } else { 1 });

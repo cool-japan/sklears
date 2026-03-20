@@ -278,7 +278,11 @@ impl ParallelUtils {
             let pool = rayon::ThreadPoolBuilder::new()
                 .num_threads(n_threads)
                 .build()
-                .unwrap_or_else(|_| rayon::ThreadPoolBuilder::new().build().unwrap());
+                .unwrap_or_else(|_| {
+                    rayon::ThreadPoolBuilder::new()
+                        .build()
+                        .expect("operation should succeed")
+                });
             pool.install(f)
         }
     }
@@ -522,7 +526,8 @@ impl ParallelUtils {
             .collect();
 
         // Sort by feature value
-        feature_target_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        feature_target_pairs
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let mut best_threshold = 0.0;
         let mut best_impurity_reduction = f64::NEG_INFINITY;
@@ -618,7 +623,8 @@ impl ParallelUtils {
             .collect();
 
         // Sort by feature value
-        feature_target_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        feature_target_pairs
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let mut best_threshold = 0.0;
         let mut best_information_gain = f64::NEG_INFINITY;
@@ -736,7 +742,7 @@ impl ParallelUtils {
         }
 
         let mut sorted_values = values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = values.len();
         let sum: f64 = values.iter().sum();

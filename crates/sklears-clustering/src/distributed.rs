@@ -823,15 +823,15 @@ mod tests {
             .min_samples(2)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.labels().is_ok());
         assert!(model.core_sample_mask().is_ok());
 
-        let labels = model.labels().unwrap();
+        let labels = model.labels().expect("operation should succeed");
         assert_eq!(labels.len(), 6);
 
-        let core_mask = model.core_sample_mask().unwrap();
+        let core_mask = model.core_sample_mask().expect("operation should succeed");
         assert_eq!(core_mask.len(), 6);
     }
 
@@ -845,10 +845,12 @@ mod tests {
             .eps(0.3)
             .min_samples(2)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![[0.05, 0.05], [1.05, 1.05]];
-        let predictions = model.predict(&test_data.view()).unwrap();
+        let predictions = model
+            .predict(&test_data.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
     }
@@ -871,12 +873,12 @@ mod tests {
         };
 
         {
-            let mut queue = message_queue.lock().unwrap();
+            let mut queue = message_queue.lock().expect("operation should succeed");
             queue.push_back(message);
         }
 
         // Process the message
-        worker.process_messages().unwrap();
+        worker.process_messages().expect("operation should succeed");
 
         // Check if the point was assigned to the cluster
         assert_eq!(worker.labels[0], 1);
@@ -896,7 +898,9 @@ mod tests {
 
         let worker = DBSCANWorker::new(0, partition, config, message_queue);
 
-        let neighbor_lists = worker.build_neighbor_lists().unwrap();
+        let neighbor_lists = worker
+            .build_neighbor_lists()
+            .expect("operation should succeed");
 
         // Points 0 and 1 should be neighbors (distance ~0.14)
         assert!(neighbor_lists[0].contains(&1));

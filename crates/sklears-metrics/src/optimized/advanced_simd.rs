@@ -380,7 +380,7 @@ mod tests {
 
         let result = auto_select_mae(&y_true, &y_pred);
         assert!(result.is_ok());
-        assert!((result.unwrap() - 0.1).abs() < 1e-10);
+        assert!((result.expect("operation should succeed") - 0.1).abs() < 1e-10);
     }
 
     #[test]

@@ -237,8 +237,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for WassersteinSemiSupervis
                 .row(idx)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             final_labels[idx] = classes[class_idx];
         }
@@ -568,8 +568,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for EarthMoverDistance<Untr
                 .row(idx)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             final_labels[idx] = classes[class_idx];
         }
@@ -609,7 +609,7 @@ impl EarthMoverDistance<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors with EMD-based weights
             for &(j, dist) in distances.iter().take(self.n_neighbors) {
@@ -940,8 +940,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
                 .row(idx)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             final_labels[idx] = classes[class_idx];
         }
@@ -1030,8 +1030,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = wss.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = wss
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
@@ -1054,8 +1056,10 @@ mod tests {
             .alpha(0.8)
             .random_state(42);
 
-        let fitted = emd.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = emd
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
@@ -1097,7 +1101,9 @@ mod tests {
         let wss = WassersteinSemiSupervised::new();
         let X = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let cost_matrix = wss.compute_cost_matrix(&X).unwrap();
+        let cost_matrix = wss
+            .compute_cost_matrix(&X)
+            .expect("operation should succeed");
 
         assert_eq!(cost_matrix.dim(), (2, 2));
         assert_eq!(cost_matrix[[0, 0]], 0.0); // Distance to itself should be 0
@@ -1112,7 +1118,7 @@ mod tests {
         let emd = EarthMoverDistance::new().n_neighbors(1);
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let adjacency = emd.build_emd_graph(&X).unwrap();
+        let adjacency = emd.build_emd_graph(&X).expect("operation should succeed");
 
         assert_eq!(adjacency.dim(), (3, 3));
 
@@ -1154,8 +1160,10 @@ mod tests {
         let y = array![0]; // Single labeled sample
 
         let wss = WassersteinSemiSupervised::new().max_iter(5);
-        let fitted = wss.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = wss
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 1);
         assert_eq!(predictions[0], 0);
@@ -1172,8 +1180,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = gw.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = gw
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));

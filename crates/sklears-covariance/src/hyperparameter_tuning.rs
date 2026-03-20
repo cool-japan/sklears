@@ -536,8 +536,8 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
                 Ok(ParameterValue::String(choices[idx].clone()))
             }
             ParameterType::Boolean => {
-                let uniform =
-                    scirs2_core::random::essentials::Uniform::new(0.0f64, 1.0f64).unwrap();
+                let uniform = scirs2_core::random::essentials::Uniform::new(0.0f64, 1.0f64)
+                    .expect("operation should succeed");
                 Ok(ParameterValue::Bool(uniform.sample(rng) < 0.5))
             }
         }
@@ -704,7 +704,10 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
             return Ok(f64::NEG_INFINITY);
         }
 
-        let log_det = det.to_f64().unwrap().ln();
+        let log_det = det
+            .to_f64()
+            .ok_or_else(|| SklearsError::NumericalError("to_f64 failed".into()))?
+            .ln();
         let log_likelihood =
             -0.5 * n_samples * (n_features * (2.0 * std::f64::consts::PI).ln() + log_det);
 
@@ -727,7 +730,8 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
             .iter()
             .zip(true_cov.iter())
             .map(|(est, true_val)| {
-                let diff = est.to_f64().unwrap() - true_val.to_f64().unwrap();
+                let diff = est.to_f64().expect("operation should succeed")
+                    - true_val.to_f64().expect("operation should succeed");
                 diff * diff
             })
             .sum::<f64>()
@@ -741,11 +745,11 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
         // Simplified condition number computation
         // In practice, would use proper eigenvalue decomposition
         let trace = (0..matrix.nrows())
-            .map(|i| matrix[[i, i]].to_f64().unwrap())
+            .map(|i| matrix[[i, i]].to_f64().expect("operation should succeed"))
             .sum::<f64>();
         let norm = matrix
             .iter()
-            .map(|x| x.to_f64().unwrap().powi(2))
+            .map(|x| x.to_f64().expect("operation should succeed").powi(2))
             .sum::<f64>()
             .sqrt();
 
@@ -768,7 +772,12 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
 
         // This is a simplified version - in practice would need proper matrix inversion
         let trace_ratio = (0..estimated.nrows())
-            .map(|i| estimated[[i, i]].to_f64().unwrap() / true_cov[[i, i]].to_f64().unwrap())
+            .map(|i| {
+                estimated[[i, i]]
+                    .to_f64()
+                    .expect("operation should succeed")
+                    / true_cov[[i, i]].to_f64().expect("operation should succeed")
+            })
             .sum::<f64>();
 
         let stein_loss = trace_ratio - p;
@@ -857,9 +866,11 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
         let recent_scores = &best_scores[start_idx..];
 
         let improvement = if self.should_maximize() {
-            recent_scores.last().unwrap() - recent_scores.first().unwrap()
+            recent_scores.last().expect("operation should succeed")
+                - recent_scores.first().expect("operation should succeed")
         } else {
-            recent_scores.first().unwrap() - recent_scores.last().unwrap()
+            recent_scores.first().expect("operation should succeed")
+                - recent_scores.last().expect("operation should succeed")
         };
 
         improvement.max(0.0)
@@ -880,7 +891,7 @@ impl<F: NdFloat> CovarianceHyperparameterTuner<F> {
             recent_scores.iter().fold(f64::INFINITY, |a, &b| a.min(b))
         };
 
-        let current_best = *best_scores.last().unwrap();
+        let current_best = *best_scores.last().expect("operation should succeed");
         let improvement = if early_stopping.maximize {
             best_recent - current_best
         } else {

@@ -412,9 +412,11 @@ mod tests {
             .with_c(1.0)
             .with_epsilon(0.1)
             .with_max_iter(1000);
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X).unwrap();
+        let predictions = trained_model
+            .predict(&X)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Check that coefficients and intercept are reasonable
@@ -449,10 +451,14 @@ mod tests {
         let y = array![1.5, 2.5];
 
         let model = LinearSVR::new();
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X).unwrap();
-        let decision_values = trained_model.decision_function(&X).unwrap();
+        let predictions = trained_model
+            .predict(&X)
+            .expect("prediction should succeed");
+        let decision_values = trained_model
+            .decision_function(&X)
+            .expect("decision function should succeed");
 
         // For regression, decision function should equal predictions
         for (pred, dec) in predictions.iter().zip(decision_values.iter()) {
@@ -487,7 +493,9 @@ mod tests {
         let X_test_var = array![[1.0]]; // Wrong number of features
 
         let model = LinearSVR::new();
-        let trained_model = model.fit(&X_train_var, &y_train).unwrap();
+        let trained_model = model
+            .fit(&X_train_var, &y_train)
+            .expect("model fitting should succeed");
         let result = trained_model.predict(&X_test_var);
         assert!(result.is_err());
     }

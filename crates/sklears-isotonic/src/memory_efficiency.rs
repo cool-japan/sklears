@@ -1121,7 +1121,7 @@ pub fn memory_efficient_isotonic_regression(
 
     model.fit(x, y)?;
 
-    let fitted_values = model.fitted_values().unwrap().clone();
+    let fitted_values = model.fitted_values()?.clone();
     let memory_stats = model.memory_stats().clone();
 
     Ok((fitted_values, memory_stats))
@@ -1184,7 +1184,7 @@ mod tests {
         let predictions = model.predict(&x);
         assert!(predictions.is_ok());
 
-        let fitted = predictions.unwrap();
+        let fitted = predictions.expect("operation should succeed");
         assert_eq!(fitted.len(), 5);
 
         // Check monotonicity
@@ -1269,7 +1269,7 @@ mod tests {
 
         let predictions = model.predict(&x);
         assert!(predictions.is_ok());
-        assert_eq!(predictions.unwrap().len(), 6);
+        assert_eq!(predictions.expect("operation should succeed").len(), 6);
     }
 
     #[test]
@@ -1280,7 +1280,7 @@ mod tests {
         let result = processor.process_blocks(&data, |block| Ok(block.mapv(|x| x * 2.0)));
 
         assert!(result.is_ok());
-        let processed = result.unwrap();
+        let processed = result.expect("operation should succeed");
         assert_eq!(processed.len(), 6);
         for i in 0..6 {
             assert_abs_diff_eq!(processed[i], data[i] * 2.0, epsilon = 1e-10);
@@ -1296,7 +1296,7 @@ mod tests {
         let result = memory_efficient_isotonic_regression(&x, &y, Some(config), true);
         assert!(result.is_ok());
 
-        let (fitted, stats) = result.unwrap();
+        let (fitted, stats) = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 4);
         assert!(stats.allocations > 0);
     }
@@ -1390,7 +1390,7 @@ mod tests {
         let fitted = cache_data.fitted_values();
         assert!(fitted.is_some());
 
-        let fitted_values = fitted.unwrap();
+        let fitted_values = fitted.expect("operation should succeed");
         assert_eq!(fitted_values.len(), 5);
 
         // Check monotonicity
@@ -1412,7 +1412,7 @@ mod tests {
         let result = cache_friendly_isotonic_regression(&x, &y, false, None);
         assert!(result.is_ok());
 
-        let (fitted, performance) = result.unwrap();
+        let (fitted, performance) = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 5);
 
         // Check decreasing monotonicity
@@ -1440,7 +1440,7 @@ mod tests {
         let result = cache_friendly_isotonic_regression(&x, &y, true, Some(config));
         assert!(result.is_ok());
 
-        let (fitted, _) = result.unwrap();
+        let (fitted, _) = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 8);
 
         // Verify monotonicity

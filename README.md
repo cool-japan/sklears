@@ -7,13 +7,13 @@ A comprehensive machine learning library in Rust, inspired by scikit-learn's int
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-rc.1` (February 5, 2026) — 4,409/4,410 tests passing (99.98%), 173 skipped. See the [CHANGELOG.md](CHANGELOG.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0` (March 20, 2026) — 11,222 tests passing (100%), 175 skipped. See the [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## Overview
 
 sklears brings the familiar scikit-learn API to Rust, aiming for comprehensive compatibility while leveraging Rust's unique advantages:
 
-- **>99% scikit-learn API coverage** validated for `0.1.0-rc.1`
+- **>99% scikit-learn API coverage** validated for `0.1.0`
 - **Pure Rust implementation** with zero C/Fortran dependencies
 - **Memory safety** without garbage collection
 - **Type-safe APIs** that catch errors at compile time
@@ -161,10 +161,10 @@ Add sklears to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sklears = "0.1.0-rc.1"
+sklears = "0.1.0"
 
 # Or with specific features
-sklears = { version = "0.1.0-beta.1", features = ["linear", "clustering", "parallel"] }
+sklears = { version = "0.1.0", features = ["linear", "clustering", "parallel"] }
 ```
 
 ## 🎯 Current Implementation Status
@@ -788,18 +788,18 @@ cargo test -p sklears-linear
 
 See [TODO.md](TODO.md) for detailed implementation plans.
 
-### Current Release Snapshot (0.1.0-rc.1 — February 5, 2026)
+### Current Release Snapshot (0.1.0 — March 20, 2026)
 
 | Area | Status | Notes |
 |------|--------|-------|
 | API Coverage | ✅ >99% | End-to-end parity with scikit-learn's v1.5 feature set across 36 crates |
-| Testing | ✅ 4,409/4,410 passing (99.98%) | 173 skipped, comprehensive unit/integration/property tests |
+| Testing | ✅ 11,222/11,222 passing (100%) | 175 skipped, comprehensive unit/integration/property tests |
 | Performance | 🔄 Optimization In Progress | Correct results validated, performance optimization ongoing (see benchmarks) |
 | Pure Rust Stack | ✅ 100% | OxiBLAS v0.1.2 + Oxicode v0.1.1, zero system dependencies |
 | SciRS2 Integration | ✅ Complete | v0.1.3 stable, 18 files migrated (sklears-decomposition, linear, svm) |
 | Tooling | ✅ Ready | AutoML pipeline, benchmarking harnesses, Polars integration |
 
-### Performance Status (v0.1.0-rc.1)
+### Performance Status (v0.1.0)
 
 **Current Status**: Correctness validated, performance optimization in progress
 
@@ -827,7 +827,7 @@ See [TODO.md](TODO.md) for detailed implementation plans.
 - **v0.2.0**: Performance parity with scikit-learn
 - **v0.3.0**: Exceed scikit-learn with Rust-specific optimizations (SIMD, parallelization)
 
-### Next Up (toward 0.1.0 Stable)
+### Next Up (toward 0.1.1)
 1. **Stabilize Public APIs** — finalize breaking-change policy and document RFC process
 2. **Docs & Guides** — expand cookbook coverage, polish Python bridge documentation
 3. **Release Automation** — wire up crates.io + PyPI publishing pipelines
@@ -857,9 +857,30 @@ This project is licensed under the Apache License 2.0.
 
 ## 📞 Contact
 
+- Email: [contact@cooljapan.tech](mailto:contact@cooljapan.tech)
 - GitHub Issues: [cool-japan/sklears/issues](https://github.com/cool-japan/sklears/issues)
 - Discussions: [cool-japan/sklears/discussions](https://github.com/cool-japan/sklears/discussions)
 
 ---
 
-<p align="center">Made with ❤️ by the Rust ML community</p>
+<p align="center">Made with ❤️ by COOLJAPAN OU (Team KitaSan)</p>
+
+## Sponsorship
+
+SKLears is developed and maintained by **COOLJAPAN OU (Team KitaSan)**.
+
+If you find SKLears useful, please consider sponsoring the project to support continued development of the Pure Rust ecosystem.
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red?logo=github)](https://github.com/sponsors/cool-japan)
+
+**[https://github.com/sponsors/cool-japan](https://github.com/sponsors/cool-japan)**
+
+Your sponsorship helps us:
+- Maintain and improve the COOLJAPAN ecosystem
+- Keep the entire ecosystem (OxiBLAS, OxiFFT, SciRS2, etc.) 100% Pure Rust
+- Provide long-term support and security updates
+
+---
+
+Copyright 2025-2026 COOLJAPAN OU (Team KitaSan). Licensed under [Apache-2.0](LICENSE).
+

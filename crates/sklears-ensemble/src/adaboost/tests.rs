@@ -11,8 +11,8 @@ fn test_adaboost_decision_function() {
     let ada = AdaBoostClassifier::new()
         .n_estimators(5)
         .fit(&x, &y)
-        .unwrap();
-    let decision = ada.decision_function(&x).unwrap();
+        .expect("operation should succeed");
+    let decision = ada.decision_function(&x).expect("operation should succeed");
     assert_eq!(decision.dim(), (2, 1));
 }
 #[test]
@@ -46,7 +46,9 @@ fn test_adaboost_feature_mismatch() {
     let x_train = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0],];
     let y_train = array![0.0, 1.0];
     let x_test = array![[1.0, 2.0],];
-    let ada = AdaBoostClassifier::new().fit(&x_train, &y_train).unwrap();
+    let ada = AdaBoostClassifier::new()
+        .fit(&x_train, &y_train)
+        .expect("model fitting should succeed");
     let result = ada.predict(&x_test);
     assert!(result.is_err());
 }
@@ -69,19 +71,21 @@ fn test_adaboost_samme_r_algorithm() {
         .with_samme_r()
         .random_state(42)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
     assert_eq!(ada_r.classes().len(), 2);
     assert_eq!(ada_r.n_classes(), 2);
     assert_eq!(ada_r.n_features_in(), 2);
-    let predictions = ada_r.predict(&x).unwrap();
+    let predictions = ada_r.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions.len(), 8);
-    let probabilities = ada_r.predict_proba(&x).unwrap();
+    let probabilities = ada_r.predict_proba(&x).expect("operation should succeed");
     assert_eq!(probabilities.dim(), (8, 2));
     for i in 0..8 {
         let prob_sum = probabilities.row(i).sum();
         assert_abs_diff_eq!(prob_sum, 1.0, epsilon = 1e-10);
     }
-    let decision_scores = ada_r.decision_function(&x).unwrap();
+    let decision_scores = ada_r
+        .decision_function(&x)
+        .expect("operation should succeed");
     assert_eq!(decision_scores.dim(), (8, 1));
     let ada_samme = AdaBoostClassifier::new()
         .n_estimators(5)
@@ -89,10 +93,12 @@ fn test_adaboost_samme_r_algorithm() {
         .algorithm(AdaBoostAlgorithm::SAMME)
         .random_state(42)
         .fit(&x, &y)
-        .unwrap();
-    let predictions_samme = ada_samme.predict(&x).unwrap();
+        .expect("operation should succeed");
+    let predictions_samme = ada_samme.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions_samme.len(), 8);
-    let importances = ada_r.feature_importances().unwrap();
+    let importances = ada_r
+        .feature_importances()
+        .expect("operation should succeed");
     assert_eq!(importances.len(), 2);
     assert_abs_diff_eq!(importances.sum(), 1.0, epsilon = 1e-10);
 }
@@ -116,18 +122,20 @@ fn test_adaboost_samme_r_multiclass() {
         .with_samme_r()
         .random_state(123)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
     assert_eq!(ada_r.classes().len(), 3);
     assert_eq!(ada_r.n_classes(), 3);
-    let predictions = ada_r.predict(&x).unwrap();
+    let predictions = ada_r.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions.len(), 9);
-    let probabilities = ada_r.predict_proba(&x).unwrap();
+    let probabilities = ada_r.predict_proba(&x).expect("operation should succeed");
     assert_eq!(probabilities.dim(), (9, 3));
     for i in 0..9 {
         let prob_sum = probabilities.row(i).sum();
         assert_abs_diff_eq!(prob_sum, 1.0, epsilon = 1e-10);
     }
-    let decision_scores = ada_r.decision_function(&x).unwrap();
+    let decision_scores = ada_r
+        .decision_function(&x)
+        .expect("operation should succeed");
     assert_eq!(decision_scores.dim(), (9, 3));
 }
 #[test]
@@ -147,22 +155,26 @@ fn test_adaboost_real_algorithm() {
         .algorithm(AdaBoostAlgorithm::RealAdaBoost)
         .random_state(42)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
     assert_eq!(ada_real.classes().len(), 2);
     assert_eq!(ada_real.n_classes(), 2);
     assert_eq!(ada_real.n_features_in(), 2);
-    let predictions = ada_real.predict(&x).unwrap();
+    let predictions = ada_real.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions.len(), 6);
     for &pred in predictions.iter() {
         assert!(ada_real.classes().iter().any(|&c| c == pred));
     }
-    let probabilities = ada_real.predict_proba(&x).unwrap();
+    let probabilities = ada_real
+        .predict_proba(&x)
+        .expect("operation should succeed");
     assert_eq!(probabilities.dim(), (6, 2));
     for i in 0..6 {
         let prob_sum = probabilities.row(i).sum();
         assert_abs_diff_eq!(prob_sum, 1.0, epsilon = 1e-10);
     }
-    let decision_scores = ada_real.decision_function(&x).unwrap();
+    let decision_scores = ada_real
+        .decision_function(&x)
+        .expect("operation should succeed");
     assert_eq!(decision_scores.len(), 6);
     let weights = ada_real.estimator_weights();
     assert!(weights.len() > 0);

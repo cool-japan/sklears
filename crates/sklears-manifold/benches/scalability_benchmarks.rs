@@ -10,8 +10,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 
@@ -270,7 +270,7 @@ mod complexity_analysis {
                     }
                 }
 
-                distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 let neighbors: Vec<usize> = distances.iter().take(k).map(|(_, idx)| *idx).collect();
                 knn_indices.push(neighbors);
             }
@@ -399,7 +399,8 @@ fn benchmark_dataset_size_scaling(c: &mut Criterion) {
                             distances.push((dist_sq.sqrt(), j));
                         }
                     }
-                    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                    distances
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                     let neighbors: Vec<usize> =
                         distances.iter().take(k).map(|(_, idx)| *idx).collect();
                     knn_graph.push(neighbors);
@@ -547,7 +548,7 @@ fn benchmark_memory_efficiency(c: &mut Criterion) {
 
                     // In-place normalization
                     for mut row in data_copy.rows_mut() {
-                        let mean = row.mean().unwrap();
+                        let mean = row.mean().expect("operation should succeed");
                         for val in row.iter_mut() {
                             *val -= mean;
                         }
@@ -578,7 +579,7 @@ fn benchmark_memory_efficiency(c: &mut Criterion) {
                     // Copy-based normalization
                     for i in 0..n {
                         let row = data.row(i);
-                        let mean = row.mean().unwrap();
+                        let mean = row.mean().expect("operation should succeed");
 
                         let mut sum_sq = 0.0;
                         for j in 0..d {
@@ -651,7 +652,7 @@ fn benchmark_complexity_validation(c: &mut Criterion) {
                     let mut values: Vec<f64> = data.column(0).to_vec();
 
                     // Simulate O(n log n) operation (sorting)
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                     // Additional O(n log n) work
                     let mut result = 0.0;

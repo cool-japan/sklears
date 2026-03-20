@@ -586,7 +586,7 @@ impl Fit<Array2<Float>, ()> for ColumnTransformer<Untrained> {
                                 .transformers
                                 .iter()
                                 .find(|s| s.name == transformer_name)
-                                .unwrap()
+                                .expect("operation should succeed")
                                 .transformer
                                 .clone_box(),
                         });
@@ -626,8 +626,14 @@ impl Transform<Array2<Float>, Array2<Float>> for ColumnTransformer<Trained> {
             });
         }
 
-        let fitted_transformers = self.fitted_transformers_.as_ref().unwrap();
-        let remainder_indices = self.remainder_indices_.as_ref().unwrap();
+        let fitted_transformers = self
+            .fitted_transformers_
+            .as_ref()
+            .expect("operation should succeed");
+        let remainder_indices = self
+            .remainder_indices_
+            .as_ref()
+            .expect("operation should succeed");
 
         // Prepare transformer tasks for parallel processing
         let transformer_tasks: Vec<&TransformerStep> = fitted_transformers.iter().collect();
@@ -706,7 +712,11 @@ impl Transform<Array2<Float>, Array2<Float>> for ColumnTransformer<Trained> {
                     if transformed.ncols() > 0 {
                         // Skip empty results (from SkipOnError)
                         // For each original column index, store its min value to maintain order
-                        let min_index = *transform_result.original_indices.iter().min().unwrap();
+                        let min_index = *transform_result
+                            .original_indices
+                            .iter()
+                            .min()
+                            .expect("collection should not be empty for min/max");
                         column_outputs.push((min_index, transformed));
                     }
                 }
@@ -774,17 +784,21 @@ impl Transform<Array2<Float>, Array2<Float>> for ColumnTransformer<Trained> {
 impl ColumnTransformer<Trained> {
     /// Get the number of features seen during fitting
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_.expect("operation should succeed")
     }
 
     /// Get the output indices mapping
     pub fn output_indices(&self) -> &HashMap<String, Vec<usize>> {
-        self.output_indices_.as_ref().unwrap()
+        self.output_indices_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the remainder indices
     pub fn remainder_indices(&self) -> &Vec<usize> {
-        self.remainder_indices_.as_ref().unwrap()
+        self.remainder_indices_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -830,8 +844,10 @@ mod tests {
             )
             .remainder(RemainderStrategy::Passthrough);
 
-        let fitted_ct = ct.fit(&x, &()).unwrap();
-        let result = fitted_ct.transform(&x).unwrap();
+        let fitted_ct = ct.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_ct
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // First two columns should be scaled by 2, last column passed through
         assert_eq!(result.dim(), (3, 3));
@@ -852,8 +868,10 @@ mod tests {
             )
             .remainder(RemainderStrategy::Drop);
 
-        let fitted_ct = ct.fit(&x, &()).unwrap();
-        let result = fitted_ct.transform(&x).unwrap();
+        let fitted_ct = ct.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_ct
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Only middle two columns should remain (scaled by 3)
         assert_eq!(result.dim(), (2, 2));
@@ -878,8 +896,10 @@ mod tests {
             )
             .remainder(RemainderStrategy::Passthrough);
 
-        let fitted_ct = ct.fit(&x, &()).unwrap();
-        let result = fitted_ct.transform(&x).unwrap();
+        let fitted_ct = ct.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_ct
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 4 columns: [scaled_first, middle_two_passthrough, scaled_last]
         assert_eq!(result.dim(), (2, 4));
@@ -1008,8 +1028,10 @@ mod tests {
             .error_strategy(ColumnErrorStrategy::SkipOnError)
             .remainder(RemainderStrategy::Passthrough);
 
-        let fitted_ct = ct.fit(&x, &()).unwrap();
-        let result = fitted_ct.transform(&x).unwrap();
+        let fitted_ct = ct.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_ct
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 2 columns: working transformer output + remainder
         assert_eq!(result.dim(), (2, 2));
@@ -1030,8 +1052,10 @@ mod tests {
             .error_strategy(ColumnErrorStrategy::ReplaceWithZeros)
             .remainder(RemainderStrategy::Passthrough);
 
-        let fitted_ct = ct.fit(&x, &()).unwrap();
-        let result = fitted_ct.transform(&x).unwrap();
+        let fitted_ct = ct.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_ct
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 3 columns: zeros (replacement) + remainder passthrough
         assert_eq!(result.dim(), (2, 3));
@@ -1054,8 +1078,10 @@ mod tests {
             .fallback_transformer(MockTransformer { scale: 0.5 })
             .remainder(RemainderStrategy::Passthrough);
 
-        let fitted_ct = ct.fit(&x, &()).unwrap();
-        let result = fitted_ct.transform(&x).unwrap();
+        let fitted_ct = ct.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_ct
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 3 columns: fallback transformer output + remainder
         assert_eq!(result.dim(), (2, 3));
@@ -1082,8 +1108,10 @@ mod tests {
             .parallel_execution(true)
             .remainder(RemainderStrategy::Passthrough);
 
-        let fitted_ct = ct.fit(&x, &()).unwrap();
-        let result = fitted_ct.transform(&x).unwrap();
+        let fitted_ct = ct.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_ct
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 4 columns: 2 transformed + 2 remainder
         assert_eq!(result.dim(), (2, 4));
@@ -1117,8 +1145,10 @@ mod tests {
             ColumnSelector::DataType(DataType::Boolean),
         );
 
-        let fitted_ct_bool = ct_bool.fit(&x, &()).unwrap();
-        let result_bool = fitted_ct_bool.transform(&x).unwrap();
+        let fitted_ct_bool = ct_bool.fit(&x, &()).expect("model fitting should succeed");
+        let result_bool = fitted_ct_bool
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 1 column (boolean column scaled by 10)
         assert_eq!(result_bool.dim(), (8, 1));
@@ -1132,8 +1162,10 @@ mod tests {
             ColumnSelector::DataType(DataType::Categorical),
         );
 
-        let fitted_ct_cat = ct_cat.fit(&x, &()).unwrap();
-        let result_cat = fitted_ct_cat.transform(&x).unwrap();
+        let fitted_ct_cat = ct_cat.fit(&x, &()).expect("model fitting should succeed");
+        let result_cat = fitted_ct_cat
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 1 column (categorical column scaled by 0.1)
         assert_eq!(result_cat.dim(), (8, 1));
@@ -1146,8 +1178,10 @@ mod tests {
             ColumnSelector::DataType(DataType::Numeric),
         );
 
-        let fitted_ct_num = ct_num.fit(&x, &()).unwrap();
-        let result_num = fitted_ct_num.transform(&x).unwrap();
+        let fitted_ct_num = ct_num.fit(&x, &()).expect("model fitting should succeed");
+        let result_num = fitted_ct_num
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 1 column (numeric column scaled by 2.0)
         assert_eq!(result_num.dim(), (8, 1));

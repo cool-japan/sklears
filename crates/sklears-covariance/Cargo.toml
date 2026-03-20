@@ -42,16 +42,8 @@ name = "advanced_covariance_analysis"
 path = "examples/advanced_covariance_analysis.rs"
 
 [[example]]
-name = "polars_dataframe_demo"
-path = "examples/polars_dataframe_demo.rs"
-
-[[example]]
 name = "covariance_hyperparameter_tuning_demo"
 path = "examples/covariance_hyperparameter_tuning_demo.rs"
-
-[[example]]
-name = "automatic_model_selection_demo"
-path = "examples/automatic_model_selection_demo.rs"
 
 [[example]]
 name = "comprehensive_cookbook"

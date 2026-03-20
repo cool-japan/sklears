@@ -156,7 +156,7 @@ pub(crate) fn compute_regime_transitions(regime_probs: &Array2<Float>) -> Result
             .row(t - 1)
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -164,7 +164,7 @@ pub(crate) fn compute_regime_transitions(regime_probs: &Array2<Float>) -> Result
             .row(t)
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -204,7 +204,7 @@ pub(crate) fn compute_regime_based_scores(
                 .row(j)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx as Float)
                 .unwrap_or(0.0)
         });

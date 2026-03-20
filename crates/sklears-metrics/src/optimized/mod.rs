@@ -337,15 +337,16 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y_pred = array![1.1, 1.9, 3.1, 3.9, 5.1];
 
-        let mae = convenience::mae(&y_true, &y_pred).unwrap();
-        let mse = convenience::mse(&y_true, &y_pred).unwrap();
-        let r2 = convenience::r2(&y_true, &y_pred).unwrap();
+        let mae = convenience::mae(&y_true, &y_pred).expect("operation should succeed");
+        let mse = convenience::mse(&y_true, &y_pred).expect("operation should succeed");
+        let r2 = convenience::r2(&y_true, &y_pred).expect("operation should succeed");
 
         assert!(mae > 0.0);
         assert!(mse > 0.0);
         assert!(r2 > 0.5); // Should have good correlation
 
-        let chunked_mae = convenience::chunked_mae(&y_true, &y_pred, Some(2)).unwrap();
+        let chunked_mae =
+            convenience::chunked_mae(&y_true, &y_pred, Some(2)).expect("operation should succeed");
         assert_relative_eq!(mae, chunked_mae, epsilon = 1e-10);
     }
 
@@ -362,11 +363,19 @@ mod tests {
         let y_true = array![1.0, 2.0];
         let y_pred = array![1.1, 2.1];
 
-        streaming.update_batch(&y_true, &y_pred).unwrap();
-        incremental.update_batch(&y_true, &y_pred).unwrap();
+        streaming
+            .update_batch(&y_true, &y_pred)
+            .expect("operation should succeed");
+        incremental
+            .update_batch(&y_true, &y_pred)
+            .expect("operation should succeed");
 
-        let streaming_mae = streaming.mean_absolute_error().unwrap();
-        let incremental_mae = incremental.mean_absolute_error().unwrap();
+        let streaming_mae = streaming
+            .mean_absolute_error()
+            .expect("operation should succeed");
+        let incremental_mae = incremental
+            .mean_absolute_error()
+            .expect("operation should succeed");
 
         assert_relative_eq!(streaming_mae, incremental_mae, epsilon = 1e-10);
     }

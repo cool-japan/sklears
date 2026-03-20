@@ -112,7 +112,8 @@ impl BayesianParafac {
 
         // Initialize factor matrices
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(-0.1, 0.1).unwrap();
+        let uniform = RandUniform::new(-0.1, 0.1)
+            .map_err(|e| SklearsError::InvalidInput(format!("invalid Uniform params: {}", e)))?;
         let mut factors = vec![
             Array2::<Float>::random(Ix2(n1, self.rank), uniform, &mut rng),
             Array2::<Float>::random(Ix2(n2, self.rank), uniform, &mut rng),
@@ -197,7 +198,9 @@ impl BayesianParafac {
 
         // Update factor matrix (mean of posterior)
         let unfolded = self.unfold_tensor(tensor, mode)?;
-        let mean_update = unfolded.dot(&kr_product).dot(&precision.inv().unwrap());
+        let mean_update = unfolded
+            .dot(&kr_product)
+            .dot(&precision.inv().expect("operation should succeed"));
         factors[mode].assign(&mean_update);
 
         // Update uncertainty (diagonal of inverse precision)
@@ -438,7 +441,8 @@ impl ProbabilisticTucker {
 
         // Initialize factor matrices
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(-0.1, 0.1).unwrap();
+        let uniform = RandUniform::new(-0.1, 0.1)
+            .map_err(|e| SklearsError::InvalidInput(format!("invalid Uniform params: {}", e)))?;
         let mut factors = vec![
             Array2::<Float>::random(Ix2(n1, r1), uniform, &mut rng),
             Array2::<Float>::random(Ix2(n2, r2), uniform, &mut rng),
@@ -524,7 +528,8 @@ impl ProbabilisticTucker {
         // Placeholder implementation - would need full Tucker algebra
         let factor_size = factors[mode].dim();
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(-0.1, 0.1).unwrap();
+        let uniform =
+            RandUniform::new(-0.1, 0.1).expect("Uniform distribution params should be valid");
         factors[mode] =
             Array2::<Float>::random(Ix2(factor_size.0, factor_size.1), uniform, &mut rng);
         uncertainties[mode] = Array2::<Float>::ones(factor_size);
@@ -541,7 +546,8 @@ impl ProbabilisticTucker {
     ) -> Result<(), SklearsError> {
         // Placeholder implementation - would need tensor mode products
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(-0.1, 0.1).unwrap();
+        let uniform =
+            RandUniform::new(-0.1, 0.1).expect("Uniform distribution params should be valid");
         *core = Array3::<Float>::random(
             Ix3(self.core_dims[0], self.core_dims[1], self.core_dims[2]),
             uniform,
@@ -636,8 +642,16 @@ impl RobustProbabilisticTensor {
 
     /// Detect outliers in tensor data
     fn detect_outliers(&self, tensor: &Array3<Float>) -> Result<Array3<bool>, SklearsError> {
-        let mean = tensor.mean().unwrap();
-        let std_dev = (tensor.mapv(|x| (x - mean).powi(2)).mean().unwrap()).sqrt();
+        let mean = tensor.mean().ok_or(SklearsError::Other(
+            "empty tensor for mean computation".to_string(),
+        ))?;
+        let std_dev = (tensor
+            .mapv(|x| (x - mean).powi(2))
+            .mean()
+            .ok_or(SklearsError::Other(
+                "empty tensor for variance computation".to_string(),
+            ))?)
+        .sqrt();
 
         let outlier_mask = tensor.mapv(|x| (x - mean).abs() > self.outlier_threshold * std_dev);
 
@@ -670,14 +684,15 @@ mod tests {
     #[test]
     fn test_bayesian_parafac_basic() {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
         let tensor = Array3::<Float>::random(Ix3(10, 15, 8), uniform, &mut rng);
         let mut parafac = BayesianParafac::new(3);
 
         let result = parafac.fit(&tensor);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.factors.len(), 3);
         assert_eq!(result.factors[0].dim(), (10, 3));
         assert_eq!(result.factors[1].dim(), (15, 3));
@@ -687,25 +702,27 @@ mod tests {
     #[test]
     fn test_probabilistic_tucker_basic() {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
         let tensor = Array3::<Float>::random(Ix3(12, 10, 8), uniform, &mut rng);
         let tucker = ProbabilisticTucker::new([4, 3, 3]);
 
         let result = tucker.fit(&tensor);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.factors.len(), 3);
         assert!(result.core.is_some());
 
-        let core = result.core.unwrap();
+        let core = result.core.expect("operation should succeed");
         assert_eq!(core.dim(), (4, 3, 3));
     }
 
     #[test]
     fn test_robust_tensor_decomposition() {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
         let mut tensor = Array3::<Float>::random(Ix3(8, 6, 5), uniform, &mut rng);
 
         // Add some outliers
@@ -721,7 +738,8 @@ mod tests {
     #[test]
     fn test_automatic_rank_selection() {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
         let tensor = Array3::<Float>::random(Ix3(10, 8, 6), uniform, &mut rng);
         let mut tucker = ProbabilisticTucker::new([2, 2, 2]);
 
@@ -735,11 +753,12 @@ mod tests {
     #[test]
     fn test_uncertainty_quantification() {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
         let tensor = Array3::<Float>::random(Ix3(6, 8, 5), uniform, &mut rng);
         let mut parafac = BayesianParafac::new(2);
 
-        let result = parafac.fit(&tensor).unwrap();
+        let result = parafac.fit(&tensor).expect("fit should succeed");
 
         // Check uncertainty estimates are provided
         assert_eq!(result.factor_uncertainties.len(), 3);
@@ -749,11 +768,12 @@ mod tests {
     #[test]
     fn test_model_evidence_computation() {
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 1.0).expect("Uniform distribution params should be valid");
         let tensor = Array3::<Float>::random(Ix3(8, 6, 4), uniform, &mut rng);
         let mut parafac = BayesianParafac::new(3);
 
-        let result = parafac.fit(&tensor).unwrap();
+        let result = parafac.fit(&tensor).expect("fit should succeed");
 
         // Model evidence should be finite
         assert!(result.model_evidence.is_finite());
@@ -768,7 +788,7 @@ mod tests {
         config.tolerance = 1e-3;
 
         let mut parafac = BayesianParafac::new(2).with_config(config);
-        let result = parafac.fit(&tensor).unwrap();
+        let result = parafac.fit(&tensor).expect("fit should succeed");
 
         // Should converge quickly for simple tensor
         assert!(result.n_iterations < 10);

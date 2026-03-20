@@ -61,8 +61,8 @@ pub enum BlockScaling {
 ///     .block_scaling(BlockScaling::UnitVariance)
 ///     .max_iter(500);
 ///
-/// let fitted = mbpls.fit(&X_blocks, &Y).unwrap();
-/// let predictions = fitted.predict(&X_blocks).unwrap();
+/// let fitted = mbpls.fit(&X_blocks, &Y).expect("fit should succeed");
+/// let predictions = fitted.predict(&X_blocks).expect("predict should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct MultiBlockPLS<State = Untrained> {
@@ -164,47 +164,65 @@ impl MultiBlockPLS<Untrained> {
 impl MultiBlockPLS<Trained> {
     /// Get the block weights for each predictor block
     pub fn x_weights(&self) -> &Vec<Array2<Float>> {
-        self.x_weights_.as_ref().unwrap()
+        self.x_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y weights
     pub fn y_weights(&self) -> &Array2<Float> {
-        self.y_weights_.as_ref().unwrap()
+        self.y_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the block loadings for each predictor block
     pub fn x_loadings(&self) -> &Vec<Array2<Float>> {
-        self.x_loadings_.as_ref().unwrap()
+        self.x_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y loadings
     pub fn y_loadings(&self) -> &Array2<Float> {
-        self.y_loadings_.as_ref().unwrap()
+        self.y_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the super weights (combination weights for blocks)
     pub fn super_weights(&self) -> &Array1<Float> {
-        self.super_weights_.as_ref().unwrap()
+        self.super_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the regression coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations for each component
     pub fn n_iter(&self) -> &Vec<usize> {
-        self.n_iter_.as_ref().unwrap()
+        self.n_iter_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance for each component
     pub fn explained_variance(&self) -> &Array1<Float> {
-        self.explained_variance_.as_ref().unwrap()
+        self.explained_variance_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance ratio for each component
     pub fn explained_variance_ratio(&self) -> &Array1<Float> {
-        self.explained_variance_ratio_.as_ref().unwrap()
+        self.explained_variance_ratio_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Scale and center blocks according to the fitted scaling parameters
@@ -212,9 +230,15 @@ impl MultiBlockPLS<Trained> {
         let mut scaled_blocks = Vec::new();
 
         for (i, block) in x_blocks.iter().enumerate() {
-            let x_mean = &self.x_means_.as_ref().unwrap()[i];
-            let x_std = &self.x_stds_.as_ref().unwrap()[i];
-            let block_scale = self.block_scales_.as_ref().unwrap()[i];
+            let x_mean = &self.x_means_.as_ref().ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?[i];
+            let x_std = &self.x_stds_.as_ref().ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?[i];
+            let block_scale = self.block_scales_.as_ref().ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?[i];
 
             let mut scaled_block = block.clone();
 
@@ -245,8 +269,12 @@ impl MultiBlockPLS<Trained> {
             return Ok(y.clone());
         }
 
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
+        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_std = self.y_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         let mut y_scaled = y.clone();
 
@@ -276,7 +304,9 @@ impl MultiBlockPLS<Trained> {
 
             // Compute scores for each block
             for (block_idx, block) in scaled_blocks.iter().enumerate() {
-                let weights = &self.x_weights_.as_ref().unwrap()[block_idx];
+                let weights = &self.x_weights_.as_ref().ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?[block_idx];
                 let scores = block.dot(&weights.column(comp));
                 block_scores.push(scores);
             }
@@ -284,7 +314,13 @@ impl MultiBlockPLS<Trained> {
             // Combine block scores using super weights
             let mut combined_scores = Array1::zeros(n_samples);
             for (block_idx, scores) in block_scores.iter().enumerate() {
-                combined_scores += &(scores * self.super_weights_.as_ref().unwrap()[block_idx]);
+                combined_scores += &(scores
+                    * self
+                        .super_weights_
+                        .as_ref()
+                        .ok_or(SklearsError::NotFitted {
+                            operation: "accessing model attribute".to_string(),
+                        })?[block_idx]);
             }
 
             super_scores.column_mut(comp).assign(&combined_scores);
@@ -330,7 +366,9 @@ impl Fit<Vec<Array2<Float>>, Array2<Float>> for MultiBlockPLS<Untrained> {
         let mut x_means = Vec::new();
         let mut x_stds = Vec::new();
         for block in x_blocks {
-            let mean = block.mean_axis(Axis(0)).unwrap();
+            let mean = block.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
             let std = block.std_axis(Axis(0), 1.0);
             x_means.push(mean);
             x_stds.push(std);
@@ -338,7 +376,9 @@ impl Fit<Vec<Array2<Float>>, Array2<Float>> for MultiBlockPLS<Untrained> {
 
         // Compute Y statistics
         let y_mean = if self.scale_y {
-            Some(y.mean_axis(Axis(0)).unwrap())
+            Some(y.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?)
         } else {
             Some(Array1::zeros(n_targets))
         };
@@ -398,16 +438,20 @@ impl Fit<Vec<Array2<Float>>, Array2<Float>> for MultiBlockPLS<Untrained> {
         // Scale Y
         let mut y_scaled = y.clone();
         if self.scale_y {
-            for (mut row, mean) in y_scaled
-                .axis_iter_mut(Axis(0))
-                .zip(y_mean.as_ref().unwrap().iter())
-            {
+            for (mut row, mean) in y_scaled.axis_iter_mut(Axis(0)).zip(
+                y_mean
+                    .as_ref()
+                    .expect("value should be set after fitting")
+                    .iter(),
+            ) {
                 row -= *mean;
             }
-            for (mut row, std) in y_scaled
-                .axis_iter_mut(Axis(0))
-                .zip(y_std.as_ref().unwrap().iter())
-            {
+            for (mut row, std) in y_scaled.axis_iter_mut(Axis(0)).zip(
+                y_std
+                    .as_ref()
+                    .expect("value should be set after fitting")
+                    .iter(),
+            ) {
                 if *std > 0.0 {
                     row /= *std;
                 }
@@ -639,8 +683,12 @@ impl Predict<Vec<Array2<Float>>, Array2<Float>> for MultiBlockPLS<Trained> {
 
         // Unscale Y if necessary
         if self.scale_y {
-            let y_mean = self.y_mean_.as_ref().unwrap();
-            let y_std = self.y_std_.as_ref().unwrap();
+            let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
+            let y_std = self.y_std_.as_ref().ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
 
             for (mut row, (mean, std)) in y_pred
                 .axis_iter_mut(Axis(0))
@@ -674,8 +722,8 @@ mod tests {
 
         let mbpls = MultiBlockPLS::new(1).max_iter(100);
 
-        let fitted = mbpls.fit(&x_blocks, &y).unwrap();
-        let predictions = fitted.predict(&x_blocks).unwrap();
+        let fitted = mbpls.fit(&x_blocks, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x_blocks).expect("predict should succeed");
 
         assert_eq!(predictions.shape(), &[4, 1]);
         assert_eq!(fitted.x_weights().len(), 2); // Two blocks
@@ -704,8 +752,8 @@ mod tests {
                 .block_scaling(scaling.clone())
                 .max_iter(50);
 
-            let fitted = mbpls.fit(&x_blocks, &y).unwrap();
-            let predictions = fitted.predict(&x_blocks).unwrap();
+            let fitted = mbpls.fit(&x_blocks, &y).expect("fit should succeed");
+            let predictions = fitted.predict(&x_blocks).expect("predict should succeed");
 
             assert_eq!(predictions.shape(), &[4, 1]);
         }
@@ -725,8 +773,10 @@ mod tests {
 
         let mbpls = MultiBlockPLS::new(2).max_iter(100);
 
-        let fitted = mbpls.fit(&x_blocks, &y).unwrap();
-        let transformed = fitted.transform(&x_blocks).unwrap();
+        let fitted = mbpls.fit(&x_blocks, &y).expect("fit should succeed");
+        let transformed = fitted
+            .transform(&x_blocks)
+            .expect("transform should succeed");
 
         assert_eq!(transformed.shape(), &[4, 2]);
     }
@@ -740,7 +790,7 @@ mod tests {
 
         let mbpls = MultiBlockPLS::new(1).max_iter(100);
 
-        let fitted = mbpls.fit(&x_blocks, &y).unwrap();
+        let fitted = mbpls.fit(&x_blocks, &y).expect("fit should succeed");
 
         assert_eq!(fitted.explained_variance().len(), 1);
         assert_eq!(fitted.explained_variance_ratio().len(), 1);
@@ -778,8 +828,8 @@ mod tests {
             let mbpls = MultiBlockPLS::new(n_comp).max_iter(10);
 
             if let Ok(fitted) = mbpls.fit(&x_blocks, &y) {
-                let predictions = fitted.predict(&x_blocks).unwrap();
-                let transformed = fitted.transform(&x_blocks).unwrap();
+                let predictions = fitted.predict(&x_blocks).expect("predict should succeed");
+                let transformed = fitted.transform(&x_blocks).expect("transform should succeed");
 
                 // Check output dimensions
                 prop_assert_eq!(predictions.shape(), &[n_samples, n_targets]);

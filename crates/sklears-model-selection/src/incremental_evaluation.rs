@@ -1117,10 +1117,10 @@ mod tests {
 
         let result = evaluator
             .update(features, 1.0, 0.8, model_update_fn)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(result.is_some());
 
-        let snapshot = result.unwrap();
+        let snapshot = result.expect("operation should succeed");
         assert!(snapshot.performance_score >= 0.0 && snapshot.performance_score <= 1.0);
     }
 
@@ -1147,7 +1147,7 @@ mod tests {
 
             let result = evaluator
                 .update(features, label, prediction, &model_update_fn)
-                .unwrap();
+                .expect("operation should succeed");
 
             if i == 4 {
                 // Last sample should trigger evaluation
@@ -1190,8 +1190,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result =
-            evaluate_incremental_stream(data_stream, model_update_fn, Some(config)).unwrap();
+        let result = evaluate_incremental_stream(data_stream, model_update_fn, Some(config))
+            .expect("operation should succeed");
 
         assert!(result.streaming_statistics.total_samples_processed == 20);
         assert!(!result.performance_history.is_empty());

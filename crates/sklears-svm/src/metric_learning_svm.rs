@@ -221,7 +221,7 @@ impl MetricLearningSVM<Untrained> {
     /// Find unique classes in labels
     fn find_classes(y: &Array1<f64>) -> Array1<f64> {
         let mut classes: Vec<f64> = y.iter().cloned().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup();
         Array1::from_vec(classes)
     }
@@ -234,7 +234,10 @@ impl MetricLearningSVM<Untrained> {
 
         // Compute mean
         for j in 0..n_features {
-            mean[j] = x.column(j).mean().unwrap();
+            mean[j] = x
+                .column(j)
+                .mean()
+                .expect("mean should not fail on non-empty array");
         }
 
         // Compute standard deviation
@@ -630,7 +633,7 @@ impl MetricLearningSVM<Untrained> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             same_class_neighbors.extend(
                 distances
                     .iter()
@@ -763,7 +766,12 @@ impl Predict<Array2<f64>, Array1<f64>> for MetricLearningSVM<Trained> {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>> {
         let (n_samples, n_features) = x.dim();
 
-        if n_features != *self.n_features.as_ref().unwrap() {
+        if n_features
+            != *self
+                .n_features
+                .as_ref()
+                .expect("n_features not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Number of features must match training data".to_string(),
             ));
@@ -773,13 +781,25 @@ impl Predict<Array2<f64>, Array1<f64>> for MetricLearningSVM<Trained> {
         let x_std = self.standardize_input(x);
 
         // Transform using learned metric
-        let metric = self.metric_matrix.as_ref().unwrap();
+        let metric = self
+            .metric_matrix
+            .as_ref()
+            .expect("metric_matrix not available - model not fitted");
         let x_transformed = self.transform_data(&x_std, metric);
 
         // Predict using SVM
-        let weights = self.svm_weights.as_ref().unwrap();
-        let bias = *self.svm_intercept.as_ref().unwrap();
-        let classes = self.classes.as_ref().unwrap();
+        let weights = self
+            .svm_weights
+            .as_ref()
+            .expect("svm_weights not available - model not fitted");
+        let bias = *self
+            .svm_intercept
+            .as_ref()
+            .expect("svm_intercept not available - model not fitted");
+        let classes = self
+            .classes
+            .as_ref()
+            .expect("classes not available - model not fitted");
 
         let mut predictions = Array1::zeros(n_samples);
         for i in 0..n_samples {
@@ -795,7 +815,12 @@ impl Transform<Array2<f64>, Array2<f64>> for MetricLearningSVM<Trained> {
     fn transform(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
         let (_n_samples, n_features) = x.dim();
 
-        if n_features != *self.n_features.as_ref().unwrap() {
+        if n_features
+            != *self
+                .n_features
+                .as_ref()
+                .expect("n_features not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Number of features must match training data".to_string(),
             ));
@@ -805,7 +830,10 @@ impl Transform<Array2<f64>, Array2<f64>> for MetricLearningSVM<Trained> {
         let x_std = self.standardize_input(x);
 
         // Transform using learned metric
-        let metric = self.metric_matrix.as_ref().unwrap();
+        let metric = self
+            .metric_matrix
+            .as_ref()
+            .expect("metric_matrix not available - model not fitted");
         let x_transformed = self.transform_data(&x_std, metric);
 
         Ok(x_transformed)
@@ -816,8 +844,14 @@ impl MetricLearningSVM<Trained> {
     /// Standardize input data using training statistics
     fn standardize_input(&self, x: &Array2<f64>) -> Array2<f64> {
         let (n_samples, n_features) = x.dim();
-        let mean = self.mean.as_ref().unwrap();
-        let std = self.std.as_ref().unwrap();
+        let mean = self
+            .mean
+            .as_ref()
+            .expect("mean not available - model not fitted");
+        let std = self
+            .std
+            .as_ref()
+            .expect("std not available - model not fitted");
 
         let mut x_std = Array2::zeros((n_samples, n_features));
         for i in 0..n_samples {
@@ -835,17 +869,24 @@ impl MetricLearningSVM<Trained> {
 
     /// Get the learned metric matrix
     pub fn metric_matrix(&self) -> &Array2<f64> {
-        self.metric_matrix.as_ref().unwrap()
+        self.metric_matrix
+            .as_ref()
+            .expect("metric_matrix not available - model not fitted")
     }
 
     /// Get SVM weights
     pub fn svm_weights(&self) -> &Array1<f64> {
-        self.svm_weights.as_ref().unwrap()
+        self.svm_weights
+            .as_ref()
+            .expect("svm_weights not available - model not fitted")
     }
 
     /// Get SVM intercept
     pub fn svm_intercept(&self) -> f64 {
-        *self.svm_intercept.as_ref().unwrap()
+        *self
+            .svm_intercept
+            .as_ref()
+            .expect("svm_intercept not available - model not fitted")
     }
 }
 
@@ -901,7 +942,7 @@ mod tests {
         let result = ml_svm.fit(&x, &y);
         assert!(result.is_ok());
 
-        let trained_model = result.unwrap();
+        let trained_model = result.expect("operation should succeed");
         assert!(trained_model.metric_matrix.is_some());
         assert!(trained_model.svm_weights.is_some());
     }
@@ -918,12 +959,12 @@ mod tests {
             .with_tolerance(1e-1);
 
         use sklears_core::traits::Predict;
-        let trained_model = ml_svm.fit(&x, &y).unwrap();
+        let trained_model = ml_svm.fit(&x, &y).expect("model fitting should succeed");
 
         let predictions = trained_model.predict(&x);
         assert!(predictions.is_ok());
 
-        let pred_labels = predictions.unwrap();
+        let pred_labels = predictions.expect("operation should succeed");
         assert_eq!(pred_labels.len(), x.nrows());
     }
 
@@ -939,12 +980,12 @@ mod tests {
             .with_max_iter(5);
 
         use sklears_core::traits::Transform;
-        let trained_model = ml_svm.fit(&x, &y).unwrap();
+        let trained_model = ml_svm.fit(&x, &y).expect("model fitting should succeed");
 
         let transformed_x = trained_model.transform(&x);
         assert!(transformed_x.is_ok());
 
-        let x_new = transformed_x.unwrap();
+        let x_new = transformed_x.expect("operation should succeed");
         assert_eq!(x_new.dim(), x.dim());
     }
 

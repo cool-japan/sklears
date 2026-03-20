@@ -143,7 +143,7 @@ impl std::fmt::Debug for MemoryPool {
         f.debug_struct("MemoryPool")
             .field("config", &self.config)
             .field("allocated_size", &self.allocated_size)
-            .field("free_chunks_count", &self.free_chunks.lock().unwrap().len())
+            .field("free_chunks_count", &self.free_chunks.lock().expect("lock should not be poisoned").len())
             .finish()
     }
 }
@@ -160,8 +160,8 @@ impl MemoryPool {
 
     /// Allocate a chunk from the pool
     pub fn allocate(&self, size: usize) -> Result<Vec<Float>> {
-        let mut free_chunks = self.free_chunks.lock().unwrap();
-        let mut allocated_size = self.allocated_size.lock().unwrap();
+        let mut free_chunks = self.free_chunks.lock().expect("lock should not be poisoned");
+        let mut allocated_size = self.allocated_size.lock().expect("lock should not be poisoned");
 
         // Try to reuse an existing chunk
         if let Some(mut chunk) = free_chunks.pop_front() {
@@ -186,8 +186,8 @@ impl MemoryPool {
 
     /// Return a chunk to the pool
     pub fn deallocate(&self, chunk: Vec<Float>) {
-        let mut free_chunks = self.free_chunks.lock().unwrap();
-        let mut allocated_size = self.allocated_size.lock().unwrap();
+        let mut free_chunks = self.free_chunks.lock().expect("lock should not be poisoned");
+        let mut allocated_size = self.allocated_size.lock().expect("lock should not be poisoned");
 
         if free_chunks.len() < self.config.max_chunks {
             free_chunks.push_back(chunk);
@@ -201,8 +201,8 @@ impl MemoryPool {
     /// Force cleanup of unused chunks
     pub fn cleanup_if_needed(&self) -> Result<()> {
         if self.config.aggressive_gc {
-            let mut free_chunks = self.free_chunks.lock().unwrap();
-            let mut allocated_size = self.allocated_size.lock().unwrap();
+            let mut free_chunks = self.free_chunks.lock().expect("lock should not be poisoned");
+            let mut allocated_size = self.allocated_size.lock().expect("lock should not be poisoned");
 
             // Remove half the free chunks
             let to_remove = free_chunks.len() / 2;
@@ -219,8 +219,8 @@ impl MemoryPool {
 
     /// Get current memory usage statistics
     pub fn memory_stats(&self) -> MemoryStats {
-        let free_chunks = self.free_chunks.lock().unwrap();
-        let allocated_size = self.allocated_size.lock().unwrap();
+        let free_chunks = self.free_chunks.lock().expect("lock should not be poisoned");
+        let allocated_size = self.allocated_size.lock().expect("lock should not be poisoned");
 
         MemoryStats {
             allocated_bytes: *allocated_size,
@@ -499,8 +499,8 @@ mod tests {
         let pool = MemoryPool::new(config);
 
         // Allocate and deallocate chunks
-        let chunk1 = pool.allocate(100).unwrap();
-        let chunk2 = pool.allocate(200).unwrap();
+        let chunk1 = pool.allocate(100).expect("operation should succeed");
+        let chunk2 = pool.allocate(200).expect("operation should succeed");
 
         pool.deallocate(chunk1);
         pool.deallocate(chunk2);
@@ -584,7 +584,7 @@ mod tests {
 
         // Simulate processing multiple chunks
         for _ in 0..10 {
-            let chunk = pool.allocate(50).unwrap();
+            let chunk = pool.allocate(50).expect("operation should succeed");
             assert_eq!(chunk.len(), 50);
             pool.deallocate(chunk);
         }
@@ -859,7 +859,7 @@ impl AdvancedMemoryPool {
 
     /// Allocate cache-aligned memory with prefetching support
     pub fn allocate_optimized(&self, size: usize) -> Result<Vec<Float>> {
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().expect("lock should not be poisoned");
 
         // Try regular allocation first
         match self.base_pool.allocate(size) {
@@ -870,7 +870,7 @@ impl AdvancedMemoryPool {
             Err(_) => {
                 stats.cache_misses += 1;
                 // Fall back to cache-aligned allocation
-                let mut allocator = self.allocator.lock().unwrap();
+                let mut allocator = self.allocator.lock().expect("lock should not be poisoned");
                 allocator.allocate_aligned(size)
             }
         }
@@ -885,7 +885,7 @@ impl AdvancedMemoryPool {
 
     /// Get advanced memory statistics
     pub fn advanced_stats(&self) -> AdvancedMemoryStats {
-        let stats = self.stats.lock().unwrap();
+        let stats = self.stats.lock().expect("lock should not be poisoned");
         let base_stats = self.base_pool.memory_stats();
 
         AdvancedMemoryStats {
@@ -907,7 +907,7 @@ impl AdvancedMemoryPool {
 
             // Update stats
             {
-                let mut stats = self.stats.lock().unwrap();
+                let mut stats = self.stats.lock().expect("lock should not be poisoned");
                 stats.compression_ratio = (stats.compression_ratio + compression_ratio) / 2.0;
             }
 

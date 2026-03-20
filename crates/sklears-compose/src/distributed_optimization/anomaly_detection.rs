@@ -359,7 +359,7 @@ impl AnomalyDetector {
 
     fn calculate_median(&self, data: &[f64]) -> f64 {
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let len = sorted_data.len();
         if len % 2 == 0 {
@@ -655,7 +655,7 @@ mod tests {
         let result = detector.detect_anomalies(&data);
         assert!(result.is_ok());
 
-        let anomalies = result.unwrap();
+        let anomalies = result.unwrap_or_default();
         assert!(!anomalies.is_empty());
     }
 
@@ -666,7 +666,7 @@ mod tests {
         let result = detector.statistical_outlier_detection(&data);
         assert!(result.is_ok());
 
-        let anomalies = result.unwrap();
+        let anomalies = result.unwrap_or_default();
         assert!(!anomalies.is_empty());
         assert!(anomalies.iter().any(|a| a.value == 10.0));
     }
@@ -678,7 +678,7 @@ mod tests {
         let result = detector.isolation_forest_detection(&data);
         assert!(result.is_ok());
 
-        let anomalies = result.unwrap();
+        let anomalies = result.unwrap_or_default();
         assert!(!anomalies.is_empty());
         assert!(anomalies.iter().any(|a| a.value == 5.0));
     }
@@ -715,7 +715,7 @@ mod tests {
         let result = classifier.classify_anomalies(&[anomaly_score]);
         assert!(result.is_ok());
 
-        let classified = result.unwrap();
+        let classified = result.unwrap_or_default();
         assert_eq!(classified.len(), 1);
         assert!(classified[0].category.is_some());
     }
@@ -797,7 +797,7 @@ mod tests {
         let result = ensemble.aggregate_scores(&scores);
         assert!(result.is_ok());
 
-        let aggregated = result.unwrap();
+        let aggregated = result.unwrap_or_default();
         assert_eq!(aggregated.len(), 1);
         assert_eq!(aggregated[0].position, 0);
         assert!((aggregated[0].anomaly_score - 2.75).abs() < 0.01);

@@ -290,7 +290,7 @@ impl HoeffdingNode {
         for (&feature_idx, feature_stats) in &self.feature_stats {
             if let Some(splits) = self.get_candidate_splits(feature_stats) {
                 for (threshold, gain) in splits {
-                    if best_split.is_none() || gain > best_split.as_ref().unwrap().2 {
+                    if best_split.is_none() || gain > best_split.as_ref().expect("operation should succeed").2 {
                         if let Some((_, _, prev_best_gain)) = best_split {
                             second_best_gain = prev_best_gain;
                         }

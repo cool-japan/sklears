@@ -168,7 +168,11 @@ impl<T: FloatBounds + ScalarOperand> GCNLayer<T> {
         let std = (2.0 / in_features as f64).sqrt();
 
         let weight = Array2::from_shape_fn((in_features, out_features), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
 
         let bias = if use_bias {
@@ -203,7 +207,7 @@ impl<T: FloatBounds + ScalarOperand> GCNLayer<T> {
         let mut d_inv_sqrt = Array2::zeros((graph.num_nodes, graph.num_nodes));
         for i in 0..graph.num_nodes {
             if degrees[i] > T::zero() {
-                d_inv_sqrt[[i, i]] = degrees[i].powf(T::from(-0.5).unwrap());
+                d_inv_sqrt[[i, i]] = degrees[i].powf(T::from(-0.5).unwrap_or_else(|| T::zero()));
             }
         }
 
@@ -273,15 +277,27 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> GATLayer<T> {
 
         let std = (2.0 / in_features as f64).sqrt();
         let weight = Array2::from_shape_fn((in_features, total_out), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
 
         let attention_left = Array1::from_shape_fn(total_out, |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
 
         let attention_right = Array1::from_shape_fn(total_out, |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
 
         Self {
@@ -346,11 +362,11 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> GATLayer<T> {
                 .map(|&j| attention_logits[[i, j]])
                 .max_by(|a, b| {
                     a.to_f64()
-                        .unwrap()
-                        .partial_cmp(&b.to_f64().unwrap())
-                        .unwrap()
+                        .expect("value should be present")
+                        .partial_cmp(&b.to_f64().unwrap_or(0.0))
+                        .expect("value should be present")
                 })
-                .unwrap();
+                .expect("value should be present");
 
             let exp_sum: T = neighbors
                 .iter()
@@ -415,11 +431,19 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
         let std = (2.0 / in_features as f64).sqrt();
 
         let weight_self = Array2::from_shape_fn((in_features, out_features), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
 
         let weight_neighbor = Array2::from_shape_fn((in_features, out_features), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
 
         Self {
@@ -458,7 +482,7 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
                             aggregated[[i, j]] = aggregated[[i, j]] + x[[neighbor, j]];
                         }
                     }
-                    let n_neighbors = T::from(neighbors.len() as f64).unwrap();
+                    let n_neighbors = T::from(neighbors.len() as f64).unwrap_or_else(|| T::zero());
                     for j in 0..self.in_features {
                         aggregated[[i, j]] = aggregated[[i, j]] / n_neighbors;
                     }
@@ -479,11 +503,11 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
                             .map(|&n| x[[n, j]])
                             .max_by(|a, b| {
                                 a.to_f64()
-                                    .unwrap()
-                                    .partial_cmp(&b.to_f64().unwrap())
-                                    .unwrap()
+                                    .expect("value should be present")
+                                    .partial_cmp(&b.to_f64().unwrap_or(0.0))
+                                    .expect("value should be present")
                             })
-                            .unwrap();
+                            .expect("value should be present");
                         aggregated[[i, j]] = max_val;
                     }
                 }
@@ -494,7 +518,7 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
                             aggregated[[i, j]] = aggregated[[i, j]] + x[[neighbor, j]];
                         }
                     }
-                    let n_neighbors = T::from(neighbors.len() as f64).unwrap();
+                    let n_neighbors = T::from(neighbors.len() as f64).unwrap_or_else(|| T::zero());
                     for j in 0..self.in_features {
                         aggregated[[i, j]] = aggregated[[i, j]] / n_neighbors;
                     }
@@ -518,7 +542,7 @@ impl<T: FloatBounds + ScalarOperand> GraphSAGELayer<T> {
                     .mapv(|x| x * x)
                     .sum()
                     .sqrt()
-                    .max(T::from(1e-12).unwrap());
+                    .max(T::from(1e-12).unwrap_or_else(|| T::zero()));
                 for j in 0..self.out_features {
                     output[[i, j]] = output[[i, j]] / norm;
                 }
@@ -566,7 +590,11 @@ impl<T: FloatBounds + ScalarOperand> GINLayer<T> {
         // First layer
         let std = (2.0 / in_features as f64).sqrt();
         let w1 = Array2::from_shape_fn((in_features, hidden_dim), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
         let b1 = Array1::zeros(hidden_dim);
         mlp_weights.push(w1);
@@ -575,7 +603,11 @@ impl<T: FloatBounds + ScalarOperand> GINLayer<T> {
         // Second layer
         let std = (2.0 / hidden_dim as f64).sqrt();
         let w2 = Array2::from_shape_fn((hidden_dim, out_features), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * std,
+            )
+            .unwrap_or_else(|| T::zero())
         });
         let b2 = Array1::zeros(out_features);
         mlp_weights.push(w2);
@@ -662,7 +694,9 @@ pub fn pool_graph<T: FloatBounds + ScalarOperand>(
     pooling: GraphPooling,
 ) -> Array1<T> {
     match pooling {
-        GraphPooling::Mean => node_features.mean_axis(Axis(0)).unwrap(),
+        GraphPooling::Mean => node_features
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array"),
         GraphPooling::Sum => node_features.sum_axis(Axis(0)),
         GraphPooling::Max => {
             let mut result = Array1::zeros(node_features.ncols());
@@ -672,18 +706,20 @@ pub fn pool_graph<T: FloatBounds + ScalarOperand>(
                     .iter()
                     .max_by(|a, b| {
                         a.to_f64()
-                            .unwrap()
-                            .partial_cmp(&b.to_f64().unwrap())
-                            .unwrap()
+                            .expect("value should be present")
+                            .partial_cmp(&b.to_f64().unwrap_or(0.0))
+                            .expect("value should be present")
                     })
-                    .unwrap();
+                    .expect("value should be present");
                 result[j] = *max_val;
             }
             result
         }
         GraphPooling::Attention => {
             // Simplified attention pooling (equal weights for now)
-            node_features.mean_axis(Axis(0)).unwrap()
+            node_features
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array")
         }
     }
 }
@@ -700,11 +736,11 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let edge_list = vec![(0, 1), (1, 2), (2, 3), (3, 0), (1, 3)];
 
-        Graph::new(node_features, edge_list, None).unwrap()
+        Graph::new(node_features, edge_list, None).expect("construction should succeed")
     }
 
     #[test]
@@ -753,7 +789,9 @@ mod tests {
         let mut layer: GCNLayer<f64> = GCNLayer::new(3, 8, true);
         let graph = create_test_graph();
 
-        let output = layer.forward(&graph.node_features, &graph).unwrap();
+        let output = layer
+            .forward(&graph.node_features, &graph)
+            .expect("forward pass should succeed");
         assert_eq!(output.nrows(), 4);
         assert_eq!(output.ncols(), 8);
     }
@@ -771,7 +809,9 @@ mod tests {
         let mut layer: GATLayer<f64> = GATLayer::new(3, 8, 2, 0.2, 0.0);
         let graph = create_test_graph();
 
-        let output = layer.forward(&graph.node_features, &graph).unwrap();
+        let output = layer
+            .forward(&graph.node_features, &graph)
+            .expect("forward pass should succeed");
         assert_eq!(output.nrows(), 4);
         assert_eq!(output.ncols(), 8);
     }
@@ -790,7 +830,9 @@ mod tests {
             GraphSAGELayer::new(3, 8, AggregationType::Mean, false);
         let graph = create_test_graph();
 
-        let output = layer.forward(&graph.node_features, &graph).unwrap();
+        let output = layer
+            .forward(&graph.node_features, &graph)
+            .expect("forward pass should succeed");
         assert_eq!(output.nrows(), 4);
         assert_eq!(output.ncols(), 8);
     }
@@ -808,7 +850,9 @@ mod tests {
         let mut layer: GINLayer<f64> = GINLayer::new(3, 8, 16);
         let graph = create_test_graph();
 
-        let output = layer.forward(&graph.node_features, &graph).unwrap();
+        let output = layer
+            .forward(&graph.node_features, &graph)
+            .expect("forward pass should succeed");
         assert_eq!(output.nrows(), 4);
         assert_eq!(output.ncols(), 8);
     }
@@ -856,7 +900,9 @@ mod tests {
         let mut layer: GraphSAGELayer<f64> = GraphSAGELayer::new(3, 8, AggregationType::Max, false);
         let graph = create_test_graph();
 
-        let output = layer.forward(&graph.node_features, &graph).unwrap();
+        let output = layer
+            .forward(&graph.node_features, &graph)
+            .expect("forward pass should succeed");
         assert_eq!(output.dim(), (4, 8));
     }
 
@@ -865,7 +911,9 @@ mod tests {
         let mut layer: GraphSAGELayer<f64> = GraphSAGELayer::new(3, 8, AggregationType::Sum, false);
         let graph = create_test_graph();
 
-        let output = layer.forward(&graph.node_features, &graph).unwrap();
+        let output = layer
+            .forward(&graph.node_features, &graph)
+            .expect("forward pass should succeed");
         assert_eq!(output.dim(), (4, 8));
     }
 }

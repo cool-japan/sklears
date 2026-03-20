@@ -1685,7 +1685,7 @@ impl ReportScheduler {
     }
 
     fn add_schedule(&self, schedule: ScheduledReport) -> Result<(), ReportingError> {
-        let mut schedules = self.scheduled_reports.write().unwrap();
+        let mut schedules = self.scheduled_reports.write().unwrap_or_else(|e| e.into_inner());
         schedules.insert(schedule.id.clone(), schedule);
         Ok(())
     }
@@ -1735,7 +1735,7 @@ impl DashboardEngine {
     }
 
     fn create_dashboard(&self, dashboard: Dashboard) -> Result<(), ReportingError> {
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
         dashboards.insert(dashboard.id.clone(), dashboard);
         Ok(())
     }

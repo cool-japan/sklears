@@ -40,7 +40,8 @@ fn feature_matrix_strategy(
     )
     .prop_map(move |vecs| {
         let flat: Vec<Float> = vecs.into_iter().flatten().collect();
-        Array2::from_shape_vec((n_samples, n_features), flat).unwrap()
+        Array2::from_shape_vec((n_samples, n_features), flat)
+            .expect("shape should match data length")
     })
 }
 
@@ -98,7 +99,7 @@ proptest! {
     ) {
         // Sort probabilities to ensure input monotonicity
         let mut indices: Vec<usize> = (0..probabilities.len()).collect();
-        indices.sort_by(|&i, &j| probabilities[i].partial_cmp(&probabilities[j]).unwrap());
+        indices.sort_by(|&i, &j| probabilities[i].partial_cmp(&probabilities[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_probs: Array1<Float> = indices.iter().map(|&i| probabilities[i]).collect();
         let sorted_targets: Array1<i32> = indices.iter().map(|&i| targets[i]).collect();
@@ -400,7 +401,8 @@ mod unit_tests {
         }
 
         // Test feature matrix strategy
-        let features = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let features = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
         assert_eq!(features.dim(), (3, 2));
     }
 }

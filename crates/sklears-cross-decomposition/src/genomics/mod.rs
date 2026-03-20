@@ -65,7 +65,7 @@ mod tests {
         let result = integration.fit(&omics_data);
 
         assert!(result.is_ok());
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.n_components(), 2);
         assert_eq!(fitted.integration_scores().len(), 2);
         // Check that pathway enrichment doesn't crash (may be empty for small test datasets)
@@ -96,7 +96,7 @@ mod tests {
         let result = gei.fit(gene_data.view(), env_data.view(), phenotype.view());
 
         assert!(result.is_ok());
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.interaction_effects().nrows(), 2);
         assert_eq!(fitted.interaction_effects().ncols(), 2);
         assert!(!fitted.significant_interactions().is_empty());
@@ -111,14 +111,14 @@ mod tests {
         let gei = GeneEnvironmentInteraction::new(1);
         let fitted = gei
             .fit(gene_data.view(), env_data.view(), phenotype.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let new_gene_data = array![[9.0, 10.0], [11.0, 12.0]];
         let new_env_data = array![[8.5, 9.5], [10.5, 11.5]];
         let predictions = fitted.predict(new_gene_data.view(), new_env_data.view());
 
         assert!(predictions.is_ok());
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.nrows(), 2);
         assert_eq!(pred.ncols(), 1);
     }
@@ -137,7 +137,7 @@ mod tests {
         let result = scmm.fit(rna_data.view(), atac_data.view());
 
         assert!(result.is_ok());
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.cell_types().len(), 4);
         assert_eq!(fitted.modality_correlations().len(), 2);
     }
@@ -153,13 +153,15 @@ mod tests {
         let atac_data = array![[0.5, 1.5], [2.5, 3.5], [4.5, 5.5], [6.5, 7.5]];
 
         let scmm = SingleCellMultiModal::new(2);
-        let fitted = scmm.fit(rna_data.view(), atac_data.view()).unwrap();
+        let fitted = scmm
+            .fit(rna_data.view(), atac_data.view())
+            .expect("fit should succeed");
 
         let new_rna_data = array![[13.0, 14.0, 15.0], [16.0, 17.0, 18.0]];
         let predicted_types = fitted.predict_cell_types(new_rna_data.view());
 
         assert!(predicted_types.is_ok());
-        let types = predicted_types.unwrap();
+        let types = predicted_types.expect("operation should succeed");
         assert_eq!(types.len(), 2);
         assert!(types.iter().all(|&t| t < 4)); // Should be 0, 1, 2, or 3
     }
@@ -170,11 +172,15 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0];
         let y = array![2.0, 4.0, 6.0, 8.0];
 
-        let correlation = gei.compute_correlation(&x.view(), &y.view()).unwrap();
+        let correlation = gei
+            .compute_correlation(&x.view(), &y.view())
+            .expect("operation should succeed");
         assert_abs_diff_eq!(correlation, 1.0, epsilon = 1e-10);
 
         let z = array![4.0, 3.0, 2.0, 1.0];
-        let correlation = gei.compute_correlation(&x.view(), &z.view()).unwrap();
+        let correlation = gei
+            .compute_correlation(&x.view(), &z.view())
+            .expect("operation should succeed");
         assert_abs_diff_eq!(correlation, -1.0, epsilon = 1e-10);
     }
 
@@ -192,8 +198,12 @@ mod tests {
             let time = t as Float * 0.1;
             for (g, value) in row.iter_mut().enumerate() {
                 let frequency = (g + 1) as Float * 0.5;
-                *value =
-                    (time * frequency).sin() + 0.1 * rng.sample(&Uniform::new(0.0, 1.0).unwrap());
+                *value = (time * frequency).sin()
+                    + 0.1
+                        * rng.sample(
+                            &Uniform::new(0.0, 1.0)
+                                .expect("Uniform distribution params should be valid"),
+                        );
             }
         }
 
@@ -205,7 +215,7 @@ mod tests {
         let result = temporal_analysis.fit(expression_data.view(), time_points.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.n_components(), 3);
         assert_eq!(fitted.n_lags(), 2);
         assert_eq!(
@@ -235,13 +245,13 @@ mod tests {
 
         let fitted = temporal_analysis
             .fit(expression_data.view(), time_points.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test future prediction
         let predictions = fitted.predict_future(expression_data.view(), 3);
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.nrows(), 3);
         assert_eq!(pred.ncols(), n_genes);
     }
@@ -260,20 +270,22 @@ mod tests {
             row[0] = 1.0; // Constant gene
             row[1] = time * 0.1; // Linear trend
             row[2] = (time * 0.5).sin(); // Oscillating gene
-            row[3] = rng.sample(&Uniform::new(0.0, 1.0).unwrap()) - 0.5; // Random/noisy gene
+            row[3] = rng.sample(
+                &Uniform::new(0.0, 1.0).expect("Uniform distribution params should be valid"),
+            ) - 0.5; // Random/noisy gene
         }
 
         let temporal_analysis = TemporalGeneExpression::new(2).window_size(3);
 
         let fitted = temporal_analysis
             .fit(expression_data.view(), time_points.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test temporal gene identification
         let temporal_genes = fitted.identify_temporal_genes(0.01);
         assert!(temporal_genes.is_ok());
 
-        let genes = temporal_genes.unwrap();
+        let genes = temporal_genes.expect("operation should succeed");
         // Should identify genes with temporal patterns (genes 1, 2, 3 but not 0)
         assert!(!genes.is_empty());
     }
@@ -327,7 +339,7 @@ mod tests {
         let result = pathway_analyzer.analyze_enrichment(&integration_scores);
         assert!(result.is_ok());
 
-        let enrichment = result.unwrap();
+        let enrichment = result.expect("operation should succeed");
         assert!(!enrichment.is_empty());
 
         // Check that p-values are valid
@@ -488,7 +500,7 @@ mod tests {
         let result = integration.fit(&omics_data);
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.n_components(), 2);
 
         // Check that pathway enrichment doesn't crash (may be empty for small test datasets)

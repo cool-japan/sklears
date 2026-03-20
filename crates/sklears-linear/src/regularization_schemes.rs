@@ -526,14 +526,18 @@ mod tests {
 
     #[test]
     fn test_l2_regularization() {
-        let reg = L2Regularization::new(0.5).unwrap();
+        let reg = L2Regularization::new(0.5).expect("operation should succeed");
         let coefficients = Array::from_vec(vec![1.0, -2.0, 3.0]);
 
-        let penalty = reg.penalty(&coefficients).unwrap();
+        let penalty = reg
+            .penalty(&coefficients)
+            .expect("operation should succeed");
         let expected = 0.5 * 0.5 * (1.0 + 4.0 + 9.0); // α/2 * ||w||²
         assert!((penalty - expected).abs() < 1e-10);
 
-        let gradient = reg.penalty_gradient(&coefficients).unwrap();
+        let gradient = reg
+            .penalty_gradient(&coefficients)
+            .expect("operation should succeed");
         let expected_grad = Array::from_vec(vec![0.5, -1.0, 1.5]); // α * w
         for (actual, expected) in gradient.iter().zip(expected_grad.iter()) {
             assert!((actual - expected).abs() < 1e-10);
@@ -542,10 +546,12 @@ mod tests {
 
     #[test]
     fn test_l1_regularization() {
-        let reg = L1Regularization::new(0.3).unwrap();
+        let reg = L1Regularization::new(0.3).expect("operation should succeed");
         let coefficients = Array::from_vec(vec![1.0, -2.0, 3.0]);
 
-        let penalty = reg.penalty(&coefficients).unwrap();
+        let penalty = reg
+            .penalty(&coefficients)
+            .expect("operation should succeed");
         let expected = 0.3 * (1.0 + 2.0 + 3.0); // α * ||w||₁
         assert!((penalty - expected).abs() < 1e-10);
 
@@ -554,11 +560,13 @@ mod tests {
 
     #[test]
     fn test_l1_proximal_operator() {
-        let reg = L1Regularization::new(1.0).unwrap();
+        let reg = L1Regularization::new(1.0).expect("operation should succeed");
         let coefficients = Array::from_vec(vec![2.0, -1.0, 0.5]);
         let step_size = 1.0;
 
-        let result = reg.proximal_operator(&coefficients, step_size).unwrap();
+        let result = reg
+            .proximal_operator(&coefficients, step_size)
+            .expect("operation should succeed");
         // Soft thresholding with threshold = 1.0 * 1.0 = 1.0
         let expected = Array::from_vec(vec![1.0, 0.0, 0.0]);
         for (actual, expected) in result.iter().zip(expected.iter()) {
@@ -568,10 +576,12 @@ mod tests {
 
     #[test]
     fn test_elastic_net_regularization() {
-        let reg = ElasticNetRegularization::new(1.0, 0.7).unwrap();
+        let reg = ElasticNetRegularization::new(1.0, 0.7).expect("operation should succeed");
         let coefficients = Array::from_vec(vec![1.0, -1.0]);
 
-        let penalty = reg.penalty(&coefficients).unwrap();
+        let penalty = reg
+            .penalty(&coefficients)
+            .expect("operation should succeed");
         let l1_penalty = 0.7 * (1.0 + 1.0); // l1_ratio * α * ||w||₁
         let l2_penalty = 0.5 * 0.3 * (1.0 + 1.0); // (1-l1_ratio) * α/2 * ||w||²
         let expected = l1_penalty + l2_penalty;
@@ -583,10 +593,12 @@ mod tests {
     #[test]
     fn test_group_lasso_regularization() {
         let groups = vec![0, 0, 1, 1]; // Two groups: {0,1} and {2,3}
-        let reg = GroupLassoRegularization::new(1.0, groups).unwrap();
+        let reg = GroupLassoRegularization::new(1.0, groups).expect("operation should succeed");
         let coefficients = Array::from_vec(vec![3.0, 4.0, 0.0, 0.0]); // First group has norm 5.0, second group is zero
 
-        let penalty = reg.penalty(&coefficients).unwrap();
+        let penalty = reg
+            .penalty(&coefficients)
+            .expect("operation should succeed");
         let expected = 5.0 + 0.0; // Sum of group L2 norms
         assert!((penalty - expected).abs() < 1e-10);
 
@@ -597,13 +609,15 @@ mod tests {
     fn test_composite_regularization() {
         let composite = CompositeRegularization::new()
             .add_l1(0.1)
-            .unwrap()
+            .expect("operation should succeed")
             .add_l2(0.2)
-            .unwrap();
+            .expect("operation should succeed");
 
         let coefficients = Array::from_vec(vec![1.0, -2.0]);
 
-        let penalty = composite.penalty(&coefficients).unwrap();
+        let penalty = composite
+            .penalty(&coefficients)
+            .expect("operation should succeed");
         let l1_penalty = 0.1 * (1.0 + 2.0);
         let l2_penalty = 0.5 * 0.2 * (1.0 + 4.0);
         let expected = l1_penalty + l2_penalty;
@@ -614,13 +628,14 @@ mod tests {
 
     #[test]
     fn test_regularization_factory() {
-        let l1 = RegularizationFactory::l1(0.5).unwrap();
+        let l1 = RegularizationFactory::l1(0.5).expect("operation should succeed");
         assert_eq!(l1.name(), "L1Regularization");
 
-        let l2 = RegularizationFactory::l2(0.3).unwrap();
+        let l2 = RegularizationFactory::l2(0.3).expect("operation should succeed");
         assert_eq!(l2.name(), "L2Regularization");
 
-        let elastic_net = RegularizationFactory::elastic_net(1.0, 0.8).unwrap();
+        let elastic_net =
+            RegularizationFactory::elastic_net(1.0, 0.8).expect("operation should succeed");
         assert_eq!(elastic_net.name(), "ElasticNetRegularization");
     }
 

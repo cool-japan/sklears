@@ -41,7 +41,13 @@ fn bench_vector_addition(c: &mut Criterion) {
             BenchmarkId::new("simd_optimized", size),
             size,
             |bench, _| {
-                bench.iter(|| black_box(simd_ops.add_arrays(&a.view(), &b.view()).unwrap()));
+                bench.iter(|| {
+                    black_box(
+                        simd_ops
+                            .add_arrays(&a.view(), &b.view())
+                            .unwrap_or_default(),
+                    )
+                });
             },
         );
 
@@ -81,7 +87,7 @@ fn bench_matrix_multiplication(c: &mut Criterion) {
                     black_box(
                         simd_ops
                             .matrix_multiply(&matrix_a.view(), &matrix_b.view())
-                            .unwrap(),
+                            .unwrap_or_default(),
                     )
                 });
             },
@@ -117,7 +123,13 @@ fn bench_feature_standardization(c: &mut Criterion) {
             BenchmarkId::new("simd_standardize", size),
             size,
             |bench, _| {
-                bench.iter(|| black_box(simd_ops.standardize_features(&data.view()).unwrap()));
+                bench.iter(|| {
+                    black_box(
+                        simd_ops
+                            .standardize_features(&data.view())
+                            .unwrap_or_default(),
+                    )
+                });
             },
         );
 
@@ -127,7 +139,7 @@ fn bench_feature_standardization(c: &mut Criterion) {
             size,
             |bench, _| {
                 bench.iter(|| {
-                    let mean = data.mean_axis(Axis(0)).unwrap();
+                    let mean = data.mean_axis(Axis(0)).unwrap_or_default();
                     let std = data.std_axis(Axis(0), 1.0);
                     black_box((&data - &mean) / &std)
                 });
@@ -152,7 +164,7 @@ fn bench_min_max_scaling(c: &mut Criterion) {
 
         // Benchmark SIMD-optimized min-max scaling
         group.bench_with_input(BenchmarkId::new("simd_min_max", size), size, |bench, _| {
-            bench.iter(|| black_box(simd_ops.min_max_scale(&data.view()).unwrap()));
+            bench.iter(|| black_box(simd_ops.min_max_scale(&data.view()).unwrap_or_default()));
         });
 
         // Benchmark manual min-max scaling
@@ -191,7 +203,13 @@ fn bench_polynomial_features(c: &mut Criterion) {
             BenchmarkId::new("simd_poly_degree2", format!("{}x{}", samples, features)),
             &(samples, features),
             |bench, _| {
-                bench.iter(|| black_box(simd_ops.polynomial_features(&data.view(), 2).unwrap()));
+                bench.iter(|| {
+                    black_box(
+                        simd_ops
+                            .polynomial_features(&data.view(), 2)
+                            .unwrap_or_default(),
+                    )
+                });
             },
         );
 
@@ -247,7 +265,7 @@ fn bench_memory_alignment(c: &mut Criterion) {
 
         // Benchmark aligned operations
         group.bench_with_input(BenchmarkId::new("aligned_sum", size), size, |bench, _| {
-            bench.iter(|| black_box(simd_ops.vectorized_sum(&data.view()).unwrap()));
+            bench.iter(|| black_box(simd_ops.vectorized_sum(&data.view()).unwrap_or_default()));
         });
 
         // Benchmark standard sum
@@ -304,7 +322,13 @@ fn bench_simd_configurations(c: &mut Criterion) {
         let simd_ops = SimdOps::new(config);
 
         group.bench_function(format!("config_{}", name), |bench| {
-            bench.iter(|| black_box(simd_ops.add_arrays(&a.view(), &b.view()).unwrap()));
+            bench.iter(|| {
+                black_box(
+                    simd_ops
+                        .add_arrays(&a.view(), &b.view())
+                        .unwrap_or_default(),
+                )
+            });
         });
     }
 
@@ -332,7 +356,7 @@ fn bench_cache_performance(c: &mut Criterion) {
         let simd_ops = SimdOps::default();
 
         group.bench_function(format!("cache_test_{}", name), |bench| {
-            bench.iter(|| black_box(simd_ops.vectorized_sum(&data.view()).unwrap()));
+            bench.iter(|| black_box(simd_ops.vectorized_sum(&data.view()).unwrap_or_default()));
         });
     }
 

@@ -64,8 +64,8 @@ pub struct SPACEConfig {
 /// let X = array![[1.0, 0.0], [0.0, 1.0], [2.0, 1.0], [1.0, 2.0], [3.0, 1.0], [1.0, 3.0]];
 ///
 /// let space = SPACE::new().threshold(0.1);
-/// let fitted = space.fit(&X.view(), &()).unwrap();
-/// let precision = fitted.get_precision().unwrap();
+/// let fitted = space.fit(&X.view(), &()).expect("model fitting should succeed");
+/// let precision = fitted.get_precision().expect("operation should succeed");
 /// let partial_corr = fitted.get_partial_correlations();
 /// ```
 #[derive(Debug, Clone)]
@@ -367,7 +367,11 @@ impl SPACE<Untrained> {
         let location = if self.config.assume_centered {
             Array1::zeros(n_features)
         } else {
-            x.mean_axis(Axis(0)).unwrap()
+            x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?
         };
 
         let mut log_likelihood = 0.0;

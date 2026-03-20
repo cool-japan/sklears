@@ -9,6 +9,17 @@
 //!
 //! This module provides algorithms for selecting relevant features from data,
 //! compatible with scikit-learn's feature_selection module.
+//!
+//! ## Known Limitations
+//!
+//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `embedded` - Embedded feature selection methods (L1-based, tree-based)
+//! - `ensemble_selectors` - Ensemble-based feature selection (Boruta, Bootstrap)
+//! - `genetic_optimization` - Genetic algorithm-based multi-objective feature selection
+//! - `tree_based_selectors` - Tree importance-based feature selectors
+//! - `validation` - Statistical validation framework for feature selection
+//! - `wrapper` - Wrapper methods (RFE, RFECV, SequentialFeatureSelector)
 
 pub mod automl;
 pub mod base;
@@ -19,13 +30,13 @@ pub mod benchmark;
 pub mod comprehensive_benchmark;
 pub mod domain_benchmark;
 pub mod domain_specific;
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod embedded;
 // pub mod ensemble_selectors;
 pub mod evaluation;
 pub mod filter;
 pub mod fluent_api;
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod genetic_optimization;
 pub mod group_selection;
 pub mod hierarchical;
@@ -42,12 +53,12 @@ pub mod serialization;
 pub mod spectral;
 pub mod statistical_tests;
 pub mod streaming;
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod tree_based_selectors;
 pub mod type_safe;
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod validation;
-// TODO: ndarray 0.17 HRTB trait bound issues - closures in generic methods
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod wrapper;
 
 pub use automl::{
@@ -73,19 +84,19 @@ pub use crate::filter::{
     SureIndependenceScreening, VarianceThreshold,
 };
 
-// TODO: ndarray 0.17 HRTB trait bound issues - closures in generic methods
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use crate::wrapper::{
 //     FeatureImportance, HasCoefficients, IndexableTarget, RFECVResults, SelectFromModel,
 //     SequentialFeatureSelector, RFE, RFECV,
 // };
 
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use crate::embedded::{
 //     ConsensusFeatureSelector, ConsensusMethod, ConsensusThresholdParams, MultiTaskFeatureSelector,
 //     StabilitySelector,
 // };
 
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use crate::genetic_optimization::{
 //     CostSensitiveObjective, CrossValidator, FairnessAwareObjective, FairnessMetric,
 //     FeatureCountObjective, FeatureDiversityObjective, FeatureImportanceObjective, GeneticSelector,
@@ -93,13 +104,13 @@ pub use crate::filter::{
 //     PredictivePerformanceObjective,
 // };
 
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use crate::ensemble_selectors::{
 //     extract_features, AggregationMethod, BootstrapSelector, BorutaSelector, EnsembleFeatureRanking,
 //     SelectorFunction, UnivariateMethod, UnivariateSelector,
 // };
 
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use crate::tree_based_selectors::{
 //     GradientBoostingSelector, TreeImportance, TreeImportanceSelector, TreeSelector,
 // };
@@ -174,7 +185,7 @@ pub use crate::optimization::{
     ProximalGradientSelector, SemidefiniteFeatureSelector,
 };
 
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use crate::validation::{
 //     DistributionalPropertyTest, PermutationSignificanceTest, RobustnessTest,
 //     SelectionConsistencyTest, StatisticalValidationFramework, StatisticalValidationResults,

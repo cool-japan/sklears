@@ -550,7 +550,7 @@ impl TreeStatistics {
         if !leaf_depths.is_empty() {
             stats.avg_leaf_depth =
                 leaf_depths.iter().sum::<usize>() as f64 / leaf_depths.len() as f64;
-            stats.max_depth = *leaf_depths.iter().max().unwrap();
+            stats.max_depth = *leaf_depths.iter().max().expect("collection should not be empty for min/max");
         }
 
         stats

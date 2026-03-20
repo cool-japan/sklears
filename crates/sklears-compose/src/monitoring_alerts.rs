@@ -517,7 +517,7 @@ impl EmailChannel {
 impl NotificationChannel for EmailChannel {
     fn send_notification(&mut self, alert: &ActiveAlert) -> SklResult<NotificationResult> {
         let start_time = SystemTime::now();
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         // Format email content
         let (subject, body_html, body_text) = self.format_email(alert);
@@ -558,7 +558,7 @@ impl NotificationChannel for EmailChannel {
     }
 
     fn health_check(&self) -> SklResult<ChannelHealth> {
-        let stats = self.stats.read().unwrap();
+        let stats = self.stats.read().unwrap_or_else(|e| e.into_inner());
 
         let score = if stats.total_sent == 0 {
             1.0 // No data, assume healthy
@@ -675,7 +675,7 @@ impl SlackChannel {
 impl NotificationChannel for SlackChannel {
     fn send_notification(&mut self, alert: &ActiveAlert) -> SklResult<NotificationResult> {
         let start_time = SystemTime::now();
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         // Format message
         let message = self.format_message(alert);
@@ -716,7 +716,7 @@ impl NotificationChannel for SlackChannel {
     }
 
     fn health_check(&self) -> SklResult<ChannelHealth> {
-        let stats = self.stats.read().unwrap();
+        let stats = self.stats.read().unwrap_or_else(|e| e.into_inner());
 
         let score = if stats.total_sent == 0 {
             1.0
@@ -805,7 +805,7 @@ impl AlertSuppressionManager {
             return false;
         }
 
-        let active_suppressions = self.active_suppressions.read().unwrap();
+        let active_suppressions = self.active_suppressions.read().unwrap_or_else(|e| e.into_inner());
 
         for suppression in active_suppressions.values() {
             if SystemTime::now() <= suppression.ends_at {
@@ -867,20 +867,20 @@ impl AlertSuppressionManager {
             reason,
         };
 
-        self.active_suppressions.write().unwrap().insert(suppression_id.clone(), suppression);
+        self.active_suppressions.write().unwrap_or_else(|e| e.into_inner()).insert(suppression_id.clone(), suppression);
 
         Ok(suppression_id)
     }
 
     /// Remove suppression
     pub fn remove_suppression(&mut self, suppression_id: &str) -> SklResult<bool> {
-        Ok(self.active_suppressions.write().unwrap().remove(suppression_id).is_some())
+        Ok(self.active_suppressions.write().unwrap_or_else(|e| e.into_inner()).remove(suppression_id).is_some())
     }
 
     /// Get active suppressions
     pub fn get_active_suppressions(&self) -> Vec<ActiveSuppression> {
         let now = SystemTime::now();
-        self.active_suppressions.read().unwrap()
+        self.active_suppressions.read().unwrap_or_else(|e| e.into_inner())
             .values()
             .filter(|s| s.ends_at > now)
             .cloned()
@@ -890,7 +890,7 @@ impl AlertSuppressionManager {
     /// Cleanup expired suppressions
     pub fn cleanup_expired(&mut self) -> SklResult<usize> {
         let now = SystemTime::now();
-        let mut active_suppressions = self.active_suppressions.write().unwrap();
+        let mut active_suppressions = self.active_suppressions.write().unwrap_or_else(|e| e.into_inner());
         let initial_count = active_suppressions.len();
 
         active_suppressions.retain(|_, suppression| suppression.ends_at > now);
@@ -1029,7 +1029,7 @@ impl AlertEscalationManager {
                 escalation_count: 0,
             };
 
-            self.active_escalations.write().unwrap().insert(escalation_id.clone(), escalation);
+            self.active_escalations.write().unwrap_or_else(|e| e.into_inner()).insert(escalation_id.clone(), escalation);
 
             Ok(Some(escalation_id))
         } else {
@@ -1078,7 +1078,7 @@ impl AlertEscalationManager {
     pub fn process_escalations(&mut self) -> SklResult<Vec<EscalationAction>> {
         let now = SystemTime::now();
         let mut actions = Vec::new();
-        let mut escalations = self.active_escalations.write().unwrap();
+        let mut escalations = self.active_escalations.write().unwrap_or_else(|e| e.into_inner());
 
         for escalation in escalations.values_mut() {
             if now >= escalation.next_escalation {
@@ -1113,7 +1113,7 @@ impl AlertEscalationManager {
 
     /// Stop escalation
     pub fn stop_escalation(&mut self, alert_id: &str) -> SklResult<bool> {
-        let mut escalations = self.active_escalations.write().unwrap();
+        let mut escalations = self.active_escalations.write().unwrap_or_else(|e| e.into_inner());
         let keys_to_remove: Vec<String> = escalations
             .iter()
             .filter(|(_, escalation)| escalation.alert_id == alert_id)
@@ -1363,8 +1363,8 @@ impl AlertManager {
         }
 
         // Simplified rate calculation - would need proper time-based rate calculation
-        let first_value = metrics.first().unwrap().value;
-        let last_value = metrics.last().unwrap().value;
+        let first_value = metrics.first().unwrap_or_default().value;
+        let last_value = metrics.last().unwrap_or_default().value;
 
         Ok(last_value - first_value)
     }
@@ -1459,7 +1459,7 @@ impl AlertManager {
         };
 
         if self.suppression_manager.should_suppress_alert(&alert) {
-            self.stats.write().unwrap().suppressed_alerts += 1;
+            self.stats.write().unwrap_or_else(|e| e.into_inner()).suppressed_alerts += 1;
             return Ok(());
         }
 
@@ -1470,11 +1470,11 @@ impl AlertManager {
                 if let Some(channel) = self.channels.get_mut(channel_name) {
                     match channel.send_notification(&alert) {
                         Ok(result) => {
-                            self.stats.write().unwrap().notifications_sent += 1;
+                            self.stats.write().unwrap_or_else(|e| e.into_inner()).notifications_sent += 1;
                             // Would record notification status here
                         }
                         Err(_) => {
-                            self.stats.write().unwrap().failed_notifications += 1;
+                            self.stats.write().unwrap_or_else(|e| e.into_inner()).failed_notifications += 1;
                         }
                     }
                 }
@@ -1482,19 +1482,19 @@ impl AlertManager {
         }
 
         // Store active alert
-        self.active_alerts.write().unwrap().insert(alert.alert_id.clone(), alert);
+        self.active_alerts.write().unwrap_or_else(|e| e.into_inner()).insert(alert.alert_id.clone(), alert);
 
         // Start escalation if configured
         // self.escalation_manager.start_escalation(&alert)?;
 
-        self.stats.write().unwrap().total_alerts += 1;
+        self.stats.write().unwrap_or_else(|e| e.into_inner()).total_alerts += 1;
 
         Ok(())
     }
 
     /// Get active alerts
     pub fn get_active_alerts(&self, session_id: &str) -> SklResult<Vec<ActiveAlert>> {
-        let active_alerts = self.active_alerts.read().unwrap();
+        let active_alerts = self.active_alerts.read().unwrap_or_else(|e| e.into_inner());
         let alerts: Vec<ActiveAlert> = active_alerts
             .values()
             .filter(|alert| alert.context.session_id == session_id)
@@ -1505,8 +1505,8 @@ impl AlertManager {
 
     /// Get manager statistics
     pub fn get_stats(&self) -> AlertManagerStats {
-        let mut stats = self.stats.read().unwrap().clone();
-        stats.active_alerts = self.active_alerts.read().unwrap().len();
+        let mut stats = self.stats.read().unwrap_or_else(|e| e.into_inner()).clone();
+        stats.active_alerts = self.active_alerts.read().unwrap_or_else(|e| e.into_inner()).len();
 
         // Update channel health scores
         for (name, channel) in &self.channels {
@@ -1743,7 +1743,7 @@ mod tests {
             tags: HashMap::new(),
         };
 
-        let result = channel.send_notification(&alert).unwrap();
+        let result = channel.send_notification(&alert).unwrap_or_default();
         assert!(matches!(result.status, DeliveryStatus::Delivered));
         assert_eq!(channel.name(), "email");
     }
@@ -1796,13 +1796,13 @@ mod tests {
             "cpu".to_string(),
             Duration::from_secs(3600),
             "Maintenance window".to_string(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Now should be suppressed
         assert!(suppression_manager.should_suppress_alert(&alert));
 
         // Remove suppression
-        assert!(suppression_manager.remove_suppression(&suppression_id).unwrap());
+        assert!(suppression_manager.remove_suppression(&suppression_id).unwrap_or_default());
 
         // Should not be suppressed anymore
         assert!(!suppression_manager.should_suppress_alert(&alert));

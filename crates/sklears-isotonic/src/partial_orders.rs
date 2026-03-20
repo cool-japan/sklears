@@ -106,10 +106,10 @@ pub fn mutual_information(x: &Array1<Float>, y: &Array1<Float>) -> Result<Float>
     let n_bins = n_bins.max(5).min(20); // Reasonable range
 
     // Get ranges
-    let x_min = x.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-    let x_max = x.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-    let y_min = y.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-    let y_max = y.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let x_min = x.iter().min_by(|a, b| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
+    let x_max = x.iter().max_by(|a, b| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
+    let y_min = y.iter().min_by(|a, b| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
+    let y_max = y.iter().max_by(|a, b| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
 
     let x_range = x_max - x_min;
     let y_range = y_max - y_min;
@@ -377,7 +377,7 @@ impl PartialOrderIsotonicRegression<Untrained> {
 
         // Add edges for partial order constraints
         for &(i, j) in &self.partial_order {
-            graph.get_mut(&i).unwrap().push(j);
+            graph.get_mut(&i).expect("operation should succeed").push(j);
         }
 
         graph
@@ -539,18 +539,18 @@ impl Predict<Array1<Float>, Array1<Float>> for PartialOrderIsotonicRegression<Tr
 impl PartialOrderIsotonicRegression<Trained> {
     /// Get the fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 
     /// Get the partial order graph
     pub fn order_graph(&self) -> &HashMap<usize, Vec<usize>> {
-        self.order_graph_.as_ref().unwrap()
+        self.order_graph_.as_ref().expect("value should be present")
     }
 
     /// Check if the fitted values satisfy all partial order constraints
     pub fn validate_constraints(&self) -> bool {
-        let fitted = self.fitted_values_.as_ref().unwrap();
-        let graph = self.order_graph_.as_ref().unwrap();
+        let fitted = self.fitted_values_.as_ref().expect("value should be present");
+        let graph = self.order_graph_.as_ref().expect("value should be present");
 
         for (&i, successors) in graph {
             for &j in successors {
@@ -751,7 +751,7 @@ impl TreeOrderIsotonicRegression<Untrained> {
 
         // Add children for each parent
         for &(parent, child) in &self.tree_edges {
-            tree.get_mut(&parent).unwrap().push(child);
+            tree.get_mut(&parent).expect("operation should succeed").push(child);
         }
 
         tree
@@ -874,12 +874,12 @@ impl TreeOrderIsotonicRegression<Untrained> {
 impl TreeOrderIsotonicRegression<Trained> {
     /// Get fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 
     /// Get tree structure
     pub fn tree_structure(&self) -> &HashMap<usize, Vec<usize>> {
-        self.tree_structure_.as_ref().unwrap()
+        self.tree_structure_.as_ref().expect("value should be present")
     }
 
     /// Validate that fitted values satisfy tree constraints

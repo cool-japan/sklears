@@ -19,7 +19,7 @@ fn test_hessian_lle_basic() {
 
     let hlle = HessianLLE::new().n_neighbors(4).n_components(2);
 
-    let fitted = hlle.fit(&x.view(), &()).unwrap();
+    let fitted = hlle.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (6, 2));
@@ -76,7 +76,7 @@ fn test_hessian_lle_transform_error() {
 
     let hlle = HessianLLE::new().n_neighbors(4).n_components(2);
 
-    let fitted = hlle.fit(&x.view(), &()).unwrap();
+    let fitted = hlle.fit(&x.view(), &()).expect("operation should succeed");
 
     // HLLE doesn't support transforming new data
     let result = fitted.transform(&x.view());
@@ -96,7 +96,7 @@ fn test_hessian_lle_properties() {
 
     let hlle = HessianLLE::new().n_neighbors(4).n_components(2);
 
-    let fitted = hlle.fit(&x.view(), &()).unwrap();
+    let fitted = hlle.fit(&x.view(), &()).expect("operation should succeed");
 
     assert_eq!(fitted.embedding().dim(), (6, 2));
     assert_eq!(fitted.hessian_matrix().dim(), (6, 6));
@@ -115,7 +115,7 @@ fn test_ltsa_basic() {
 
     let ltsa = LTSA::new().n_neighbors(4).n_components(2);
 
-    let fitted = ltsa.fit(&x.view(), &()).unwrap();
+    let fitted = ltsa.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (6, 2));
@@ -172,7 +172,7 @@ fn test_ltsa_transform_error() {
 
     let ltsa = LTSA::new().n_neighbors(4).n_components(2);
 
-    let fitted = ltsa.fit(&x.view(), &()).unwrap();
+    let fitted = ltsa.fit(&x.view(), &()).expect("operation should succeed");
 
     // LTSA doesn't support transforming new data
     let result = fitted.transform(&x.view());
@@ -192,7 +192,7 @@ fn test_ltsa_properties() {
 
     let ltsa = LTSA::new().n_neighbors(4).n_components(2);
 
-    let fitted = ltsa.fit(&x.view(), &()).unwrap();
+    let fitted = ltsa.fit(&x.view(), &()).expect("operation should succeed");
 
     assert_eq!(fitted.embedding().dim(), (6, 2));
     assert_eq!(fitted.alignment_matrix().dim(), (6, 6));
@@ -211,7 +211,7 @@ fn test_mvu_basic() {
 
     let mvu = MVU::new().n_components(2).n_neighbors(2).max_iter(10); // Reduced for testing
 
-    let fitted = mvu.fit(&x.view(), &()).unwrap();
+    let fitted = mvu.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (5, 2));
@@ -229,8 +229,10 @@ fn test_mvu_transform() {
 
     let mvu = MVU::new().n_components(2).n_neighbors(2).max_iter(10);
 
-    let fitted = mvu.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = mvu.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 2));
 }
@@ -267,7 +269,7 @@ fn test_mvu_properties() {
 
     let mvu = MVU::new().n_components(2).n_neighbors(3).max_iter(10);
 
-    let fitted = mvu.fit(&x.view(), &()).unwrap();
+    let fitted = mvu.fit(&x.view(), &()).expect("operation should succeed");
 
     assert_eq!(fitted.embedding().dim(), (5, 2));
     assert_eq!(fitted.kernel_matrix().dim(), (5, 5));
@@ -284,7 +286,7 @@ fn test_sne_basic() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted = sne.fit(&x.view(), &()).unwrap();
+    let fitted = sne.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (4, 2));
@@ -300,8 +302,10 @@ fn test_sne_transform() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted = sne.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = sne.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (4, 2));
 }
@@ -336,7 +340,7 @@ fn test_sne_properties() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted = sne.fit(&x.view(), &()).unwrap();
+    let fitted = sne.fit(&x.view(), &()).expect("operation should succeed");
 
     assert_eq!(fitted.embedding().dim(), (4, 2));
     assert_eq!(fitted.conditional_probabilities().dim(), (4, 4));
@@ -352,7 +356,7 @@ fn test_symmetric_sne_basic() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted = ssne.fit(&x.view(), &()).unwrap();
+    let fitted = ssne.fit(&x.view(), &()).expect("operation should succeed");
     let embedding = fitted.embedding();
 
     assert_eq!(embedding.dim(), (4, 2));
@@ -368,8 +372,10 @@ fn test_symmetric_sne_transform() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted = ssne.fit(&x.view(), &()).unwrap();
-    let transformed = fitted.transform(&x.view()).unwrap();
+    let fitted = ssne.fit(&x.view(), &()).expect("operation should succeed");
+    let transformed = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (4, 2));
 }
@@ -404,7 +410,7 @@ fn test_symmetric_sne_properties() {
         .n_iter(50)
         .random_state(Some(42));
 
-    let fitted = ssne.fit(&x.view(), &()).unwrap();
+    let fitted = ssne.fit(&x.view(), &()).expect("operation should succeed");
 
     assert_eq!(fitted.embedding().dim(), (4, 2));
     assert_eq!(fitted.joint_probabilities().dim(), (4, 4));
@@ -437,8 +443,8 @@ fn test_reproducibility_new_algorithms() {
         .n_iter(20)
         .random_state(Some(seed));
 
-    let fitted1 = sne1.fit(&x.view(), &()).unwrap();
-    let fitted2 = sne2.fit(&x.view(), &()).unwrap();
+    let fitted1 = sne1.fit(&x.view(), &()).expect("operation should succeed");
+    let fitted2 = sne2.fit(&x.view(), &()).expect("operation should succeed");
 
     let embedding1 = fitted1.embedding();
     let embedding2 = fitted2.embedding();
@@ -468,8 +474,8 @@ fn test_reproducibility_new_algorithms() {
         .n_iter(20)
         .random_state(Some(seed));
 
-    let fitted1 = ssne1.fit(&x.view(), &()).unwrap();
-    let fitted2 = ssne2.fit(&x.view(), &()).unwrap();
+    let fitted1 = ssne1.fit(&x.view(), &()).expect("operation should succeed");
+    let fitted2 = ssne2.fit(&x.view(), &()).expect("operation should succeed");
 
     let embedding1 = fitted1.embedding();
     let embedding2 = fitted2.embedding();

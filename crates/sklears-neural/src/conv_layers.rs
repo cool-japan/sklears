@@ -6,7 +6,7 @@
 use crate::{activation::Activation, NeuralResult};
 use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, Array5, Axis};
 use scirs2_core::random::essentials::Normal;
-use scirs2_core::random::{Distribution, Rng};
+use scirs2_core::random::{Distribution, Rng, RngExt};
 use sklears_core::error::SklearsError;
 use sklears_core::types::FloatBounds;
 
@@ -98,7 +98,7 @@ impl Conv1D {
         // Initialize weights
         let mut weights = Array3::zeros((self.out_channels, in_channels, self.kernel_size));
         for weight in weights.iter_mut() {
-            let normal_dist = Normal::new(0.0, std).unwrap();
+            let normal_dist = Normal::new(0.0, std).expect("valid distribution params");
             *weight = rng.sample(normal_dist);
         }
         self.weights = Some(weights);
@@ -282,7 +282,7 @@ impl Conv2D {
         ));
 
         for weight in weights.iter_mut() {
-            let normal_dist = Normal::new(0.0, std).unwrap();
+            let normal_dist = Normal::new(0.0, std).expect("valid distribution params");
             *weight = rng.sample(normal_dist);
         }
         self.weights = Some(weights);
@@ -501,7 +501,7 @@ impl DepthwiseSeparableConv2D {
         ));
 
         for weight in depthwise_weights.iter_mut() {
-            let normal_dist = Normal::new(0.0, std_depthwise).unwrap();
+            let normal_dist = Normal::new(0.0, std_depthwise).expect("valid distribution params");
             *weight = rng.sample(normal_dist);
         }
         self.depthwise_weights = Some(depthwise_weights);
@@ -515,7 +515,7 @@ impl DepthwiseSeparableConv2D {
             Array2::zeros((self.out_channels, in_channels * self.depth_multiplier));
 
         for weight in pointwise_weights.iter_mut() {
-            let normal_dist = Normal::new(0.0, std_pointwise).unwrap();
+            let normal_dist = Normal::new(0.0, std_pointwise).expect("valid distribution params");
             *weight = rng.sample(normal_dist);
         }
         self.pointwise_weights = Some(pointwise_weights);
@@ -776,7 +776,7 @@ impl GroupConv2D {
         ));
 
         for weight in weights.iter_mut() {
-            let normal_dist = Normal::new(0.0, std).unwrap();
+            let normal_dist = Normal::new(0.0, std).expect("valid distribution params");
             *weight = rng.sample(normal_dist);
         }
         self.weights = Some(weights);
@@ -931,9 +931,21 @@ impl GroupConv2D {
 /// Pooling operations for dimensionality reduction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PoolingType {
+    /// Standard max pooling
     Max,
+    /// Standard average pooling
     Average,
+    /// Adaptive max pooling with target output size
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     AdaptiveMax,
+    /// Adaptive average pooling with target output size
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     AdaptiveAverage,
 }
 
@@ -1133,7 +1145,7 @@ impl Conv3D {
         ));
 
         for weight in weights.iter_mut() {
-            let normal_dist = Normal::new(0.0, std).unwrap();
+            let normal_dist = Normal::new(0.0, std).expect("valid distribution params");
             *weight = rng.sample(normal_dist);
         }
         self.weights = Some(weights);
@@ -1613,10 +1625,12 @@ mod tests {
             true,
         );
 
-        conv.initialize(1, &mut rng).unwrap();
+        conv.initialize(1, &mut rng)
+            .expect("operation should succeed");
 
-        let input = Array2::from_shape_vec((1, 5), vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
-        let output = conv.forward(&input).unwrap();
+        let input = Array2::from_shape_vec((1, 5), vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            .expect("array shape mismatch");
+        let output = conv.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (2, 3)); // 2 channels, length 3 (5-3+1)
     }
@@ -1634,10 +1648,11 @@ mod tests {
             true,
         );
 
-        conv.initialize(1, &mut rng).unwrap();
+        conv.initialize(1, &mut rng)
+            .expect("operation should succeed");
 
         let input = Array3::zeros((1, 5, 5));
-        let output = conv.forward(&input).unwrap();
+        let output = conv.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (2, 5, 5)); // Same size due to padding
     }
@@ -1652,7 +1667,7 @@ mod tests {
         input[[0, 1, 0]] = 3.0;
         input[[0, 1, 1]] = 4.0;
 
-        let output = pool.forward(&input).unwrap();
+        let output = pool.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (1, 2, 2));
         assert_eq!(output[[0, 0, 0]], 4.0); // Max of [1,2,3,4]
@@ -1669,10 +1684,12 @@ mod tests {
             Some((2, 2)), // pool_size
         );
 
-        block.initialize(3, &mut rng).unwrap();
+        block
+            .initialize(3, &mut rng)
+            .expect("operation should succeed");
 
         let input = Array3::zeros((3, 8, 8));
-        let output = block.forward(&input).unwrap();
+        let output = block.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (4, 4, 4)); // 8x8 -> conv -> 8x8 -> pool -> 4x4
     }
@@ -1690,10 +1707,11 @@ mod tests {
             true,
         );
 
-        conv.initialize(1, &mut rng).unwrap();
+        conv.initialize(1, &mut rng)
+            .expect("operation should succeed");
 
         let input = Array4::zeros((1, 4, 4, 4));
-        let output = conv.forward(&input).unwrap();
+        let output = conv.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (2, 4, 4, 4)); // Same size due to padding
     }
@@ -1712,7 +1730,7 @@ mod tests {
         input[[0, 1, 1, 0]] = 7.0;
         input[[0, 1, 1, 1]] = 8.0;
 
-        let output = pool.forward(&input).unwrap();
+        let output = pool.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (1, 2, 2, 2));
         assert_eq!(output[[0, 0, 0, 0]], 8.0); // Max of [1,2,3,4,5,6,7,8]
@@ -1732,10 +1750,11 @@ mod tests {
             2, // depth_multiplier
         );
 
-        conv.initialize(4, &mut rng).unwrap();
+        conv.initialize(4, &mut rng)
+            .expect("operation should succeed");
 
         let input = Array3::zeros((4, 8, 8));
-        let output = conv.forward(&input).unwrap();
+        let output = conv.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (8, 8, 8)); // Same spatial size due to padding
     }
@@ -1754,10 +1773,11 @@ mod tests {
             true,
         );
 
-        conv.initialize(4, &mut rng).unwrap();
+        conv.initialize(4, &mut rng)
+            .expect("operation should succeed");
 
         let input = Array3::zeros((4, 8, 8));
-        let output = conv.forward(&input).unwrap();
+        let output = conv.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (8, 8, 8)); // Same spatial size due to padding
     }

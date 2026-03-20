@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rand_prelude::*;
-use scirs2_core::random::Random;
+use scirs2_core::random::{Random, RngExt};
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
@@ -933,7 +933,7 @@ impl BreakdownPointAnalysis {
 
                 // Generate outlier far from the data range
                 let outlier_multiplier = rng.random_range(5.0..10.0);
-                let outlier_value = if rng.gen_bool(0.5) {
+                let outlier_value = if rng.random_bool() {
                     min_val - outlier_multiplier * range
                 } else {
                     max_val + outlier_multiplier * range
@@ -986,7 +986,7 @@ impl BreakdownPointAnalysis {
             return Ok(0.0);
         }
 
-        edge_weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        edge_weights.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_idx = edge_weights.len() / 2;
         Ok(if edge_weights.len() % 2 == 0 {
             (edge_weights[median_idx - 1] + edge_weights[median_idx]) / 2.0
@@ -1058,7 +1058,7 @@ impl BreakdownPointAnalysis {
             return Ok(0.0);
         }
 
-        edge_weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        edge_weights.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Trim 20% from each end
         let trim_size = (edge_weights.len() as f64 * 0.2) as usize;
@@ -1173,7 +1173,7 @@ mod tests {
         let result = rgc.fit(&X.view());
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (4, 4));
 
         // Check that diagonal is zero
@@ -1204,7 +1204,7 @@ mod tests {
             let result = rgc.fit(&X.view());
             assert!(result.is_ok());
 
-            let graph = result.unwrap();
+            let graph = result.expect("operation should succeed");
             assert_eq!(graph.dim(), (3, 3));
         }
     }
@@ -1225,7 +1225,7 @@ mod tests {
             let result = rgc.fit(&X.view());
             assert!(result.is_ok());
 
-            let graph = result.unwrap();
+            let graph = result.expect("operation should succeed");
             assert_eq!(graph.dim(), (3, 3));
         }
     }
@@ -1245,7 +1245,7 @@ mod tests {
         let result = nrp.fit(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let labels = result.unwrap();
+        let labels = result.expect("operation should succeed");
         assert_eq!(labels.len(), 4);
 
         // Check that labeled samples retain their labels
@@ -1270,7 +1270,7 @@ mod tests {
             let result = nrp.fit(&X.view(), &y.view());
             assert!(result.is_ok());
 
-            let labels = result.unwrap();
+            let labels = result.expect("operation should succeed");
             assert_eq!(labels.len(), 3);
         }
     }
@@ -1316,7 +1316,7 @@ mod tests {
         let result = bpa.analyze_graph_breakdown(&X.view());
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert!(!results.is_empty());
 
         // Check that we have results for each estimator
@@ -1366,7 +1366,9 @@ mod tests {
         let mut rng = Random::seed(42);
 
         // Test with 25% contamination
-        let contaminated = bpa.contaminate_data(&X.view(), 0.25, &mut rng).unwrap();
+        let contaminated = bpa
+            .contaminate_data(&X.view(), 0.25, &mut rng)
+            .expect("operation should succeed");
         assert_eq!(contaminated.dim(), X.dim());
 
         // Check that at least one sample was contaminated
@@ -1382,7 +1384,9 @@ mod tests {
         assert!(different);
 
         // Test with 0% contamination
-        let no_contamination = bpa.contaminate_data(&X.view(), 0.0, &mut rng).unwrap();
+        let no_contamination = bpa
+            .contaminate_data(&X.view(), 0.0, &mut rng)
+            .expect("operation should succeed");
         for i in 0..X.nrows() {
             for j in 0..X.ncols() {
                 assert_abs_diff_eq!(X[[i, j]], no_contamination[[i, j]], epsilon = 1e-10);
@@ -1404,7 +1408,7 @@ mod tests {
             let result = bpa.compute_robust_estimate(&X.view(), estimator, 0.0, &mut rng);
             assert!(result.is_ok());
 
-            let estimate = result.unwrap();
+            let estimate = result.expect("operation should succeed");
             assert!(estimate >= 0.0);
             assert!(estimate <= 1.0); // Should be normalized
         }

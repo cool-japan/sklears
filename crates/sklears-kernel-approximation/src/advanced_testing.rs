@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
@@ -126,7 +126,11 @@ impl ConvergenceAnalyzer {
         // Compute convergence rate
         let convergence_rate =
             self.estimate_convergence_rate(&convergence_rates, &approximation_errors)?;
-        let is_converged = approximation_errors.last().unwrap().mean < self.convergence_tolerance;
+        let is_converged = approximation_errors
+            .last()
+            .expect("operation should succeed")
+            .mean
+            < self.convergence_tolerance;
 
         Ok(ConvergenceResult {
             component_counts: convergence_rates,
@@ -181,9 +185,9 @@ impl ConvergenceAnalyzer {
         gamma: f64,
         n_components: usize,
     ) -> Result<Array2<f64>> {
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, (2.0 * gamma).sqrt()).unwrap();
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, (2.0 * gamma).sqrt()).expect("operation should succeed");
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
 
         let input_dim = x.ncols();
 
@@ -429,7 +433,7 @@ impl ErrorBoundsValidator {
             approximation_errors.push(error);
         }
 
-        approximation_errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        approximation_errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let empirical_mean =
             approximation_errors.iter().sum::<f64>() / approximation_errors.len() as f64;
@@ -496,9 +500,9 @@ impl ErrorBoundsValidator {
         gamma: f64,
         n_components: usize,
     ) -> Result<Array2<f64>> {
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, (2.0 * gamma).sqrt()).unwrap();
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, (2.0 * gamma).sqrt()).expect("operation should succeed");
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
 
         let input_dim = x.ncols();
         let n_samples = x.nrows();
@@ -768,9 +772,9 @@ impl QualityAssessment {
 
     fn center_kernel(&self, kernel: &Array2<f64>) -> Result<Array2<f64>> {
         let n = kernel.nrows();
-        let row_means = kernel.mean_axis(Axis(1)).unwrap();
-        let col_means = kernel.mean_axis(Axis(0)).unwrap();
-        let overall_mean = kernel.mean().unwrap();
+        let row_means = kernel.mean_axis(Axis(1)).expect("operation should succeed");
+        let col_means = kernel.mean_axis(Axis(0)).expect("operation should succeed");
+        let overall_mean = kernel.mean().expect("operation should succeed");
 
         let mut centered = kernel.clone();
 
@@ -932,13 +936,15 @@ mod tests {
     fn test_convergence_analyzer() {
         let x: Array2<f64> = Array::from_shape_fn((20, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let analyzer = ConvergenceAnalyzer::new(50)
             .component_steps(vec![10, 20, 30, 40, 50])
             .n_trials(3);
 
-        let result = analyzer.analyze_rbf_convergence(&x, 1.0).unwrap();
+        let result = analyzer
+            .analyze_rbf_convergence(&x, 1.0)
+            .expect("operation should succeed");
 
         assert_eq!(result.component_counts.len(), 5);
         assert!(result.convergence_rate >= 0.0);
@@ -948,13 +954,15 @@ mod tests {
     fn test_error_bounds_validator() {
         let x: Array2<f64> = Array::from_shape_fn((15, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let validator = ErrorBoundsValidator::new()
             .confidence_level(0.9)
             .n_bootstrap_samples(50);
 
-        let result = validator.validate_rff_bounds(&x, 1.0, 20).unwrap();
+        let result = validator
+            .validate_rff_bounds(&x, 1.0, 20)
+            .expect("operation should succeed");
 
         assert!(result.empirical_mean >= 0.0);
         assert!(result.empirical_variance >= 0.0);
@@ -968,7 +976,9 @@ mod tests {
         approx[[0, 0]] = 0.9; // Small perturbation
 
         let assessment = QualityAssessment::new();
-        let result = assessment.assess_approximation(&exact, &approx).unwrap();
+        let result = assessment
+            .assess_approximation(&exact, &approx)
+            .expect("operation should succeed");
 
         assert!(result.overall_score > 0.0);
         assert!(result.overall_score <= 1.0);

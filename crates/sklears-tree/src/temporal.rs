@@ -302,7 +302,7 @@ impl TemporalDataStructure {
             WindowStatistic::Max => Ok(data.iter().fold(f64::NEG_INFINITY, |acc, &x| acc.max(x))),
             WindowStatistic::Median => {
                 let mut sorted_data = data.to_vec();
-                sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let n = sorted_data.len();
                 if n % 2 == 0 {
                     Ok((sorted_data[n / 2 - 1] + sorted_data[n / 2]) / 2.0)
@@ -312,7 +312,7 @@ impl TemporalDataStructure {
             }
             WindowStatistic::Quantile(q) => {
                 let mut sorted_data = data.to_vec();
-                sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let index = (q * (sorted_data.len() - 1) as f64) as usize;
                 Ok(sorted_data.get(index).copied().unwrap_or(0.0))
             }

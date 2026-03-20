@@ -287,7 +287,7 @@ where
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             self.base_estimator.classes[max_idx]
@@ -361,8 +361,8 @@ where
             let (max_idx, &max_prob) = sample_probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .unwrap();
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed");
 
             if max_prob >= threshold {
                 predictions[sample_idx] = Some(self.base_estimator.classes[max_idx]);

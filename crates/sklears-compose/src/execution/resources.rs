@@ -789,7 +789,7 @@ fn detect_available_disk_space() -> u64 {
             fn statvfs(path: *const c_char, buf: *mut StatVfs) -> i32;
         }
 
-        let path = CString::new(".").unwrap();
+        let path = CString::new(".").unwrap_or_default();
         let mut stat: StatVfs = unsafe { mem::zeroed() };
 
         if unsafe { statvfs(path.as_ptr(), &mut stat) } == 0 {
@@ -836,23 +836,25 @@ mod tests {
 
     #[test]
     fn test_resource_allocation() {
-        let resource_manager = ResourceManager::new().unwrap();
+        let resource_manager = ResourceManager::new().expect("operation should succeed");
         let task = create_test_task();
 
         let allocation = resource_manager.allocate_resources(&task);
         assert!(allocation.is_ok());
 
-        let alloc = allocation.unwrap();
+        let alloc = allocation.expect("operation should succeed");
         assert_eq!(alloc.task_id, task.id);
         assert!(!alloc.cpu_cores.is_empty());
     }
 
     #[test]
     fn test_resource_release() {
-        let resource_manager = ResourceManager::new().unwrap();
+        let resource_manager = ResourceManager::new().expect("operation should succeed");
         let task = create_test_task();
 
-        let allocation = resource_manager.allocate_resources(&task).unwrap();
+        let allocation = resource_manager
+            .allocate_resources(&task)
+            .expect("operation should succeed");
         let result = resource_manager.release_resources(&allocation);
         assert!(result.is_ok());
     }

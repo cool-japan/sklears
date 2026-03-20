@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -173,16 +173,21 @@ impl Fit<Array2<f64>, ()> for MemoryEfficientRBFSampler {
         let mut rng = if let Some(seed) = self.random_seed {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::from_seed(thread_rng().gen())
+            StdRng::from_seed(thread_rng().random())
         };
 
         // Generate random weights and offsets
         let random_weights = Array2::from_shape_fn((self.n_components, n_features), |_| {
-            rng.sample(RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap())
+            rng.sample(
+                RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed"),
+            )
         });
 
         let random_offset = Array1::from_shape_fn(self.n_components, |_| {
-            rng.sample(RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap())
+            rng.sample(
+                RandUniform::new(0.0, 2.0 * std::f64::consts::PI)
+                    .expect("operation should succeed"),
+            )
         });
 
         Ok(FittedMemoryEfficientRBFSampler {
@@ -441,13 +446,13 @@ impl MemoryMonitor {
 
     /// Check if we can allocate more memory
     pub fn can_allocate(&self, bytes: usize) -> bool {
-        let current = *self.current_usage.lock().unwrap();
+        let current = *self.current_usage.lock().expect("operation should succeed");
         current + bytes <= self.max_memory_bytes
     }
 
     /// Allocate memory (tracking purposes)
     pub fn allocate(&self, bytes: usize) -> Result<()> {
-        let mut current = self.current_usage.lock().unwrap();
+        let mut current = self.current_usage.lock().expect("operation should succeed");
         if *current + bytes > self.max_memory_bytes {
             return Err(SklearsError::InvalidInput(format!(
                 "Memory limit exceeded: {} + {} > {}",
@@ -460,18 +465,18 @@ impl MemoryMonitor {
 
     /// Deallocate memory
     pub fn deallocate(&self, bytes: usize) {
-        let mut current = self.current_usage.lock().unwrap();
+        let mut current = self.current_usage.lock().expect("operation should succeed");
         *current = current.saturating_sub(bytes);
     }
 
     /// Get current memory usage
     pub fn current_usage(&self) -> usize {
-        *self.current_usage.lock().unwrap()
+        *self.current_usage.lock().expect("operation should succeed")
     }
 
     /// Get memory usage percentage
     pub fn usage_percentage(&self) -> f64 {
-        let current = *self.current_usage.lock().unwrap();
+        let current = *self.current_usage.lock().expect("operation should succeed");
         (current as f64 / self.max_memory_bytes as f64) * 100.0
     }
 }
@@ -485,7 +490,8 @@ mod tests {
 
     #[test]
     fn test_memory_efficient_rbf_sampler() {
-        let x = Array2::from_shape_vec((100, 10), (0..1000).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((100, 10), (0..1000).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let sampler = MemoryEfficientRBFSampler::new(50)
             .gamma(0.1)
@@ -494,14 +500,16 @@ mod tests {
                 ..Default::default()
             });
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[100, 50]);
 
         // Test chunked processing gives same results as small dataset
         let small_x = x.slice(s![0..10, ..]).to_owned();
-        let small_transformed = fitted.transform(&small_x).unwrap();
+        let small_transformed = fitted
+            .transform(&small_x)
+            .expect("operation should succeed");
         let chunked_transformed = transformed.slice(s![0..10, ..]);
 
         assert_abs_diff_eq!(small_transformed, chunked_transformed, epsilon = 1e-10);
@@ -509,8 +517,8 @@ mod tests {
 
     #[test]
     fn test_memory_efficient_rbf_chunked_parallel() {
-        let x =
-            Array2::from_shape_vec((200, 5), (0..1000).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((200, 5), (0..1000).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let sampler = MemoryEfficientRBFSampler::new(30)
             .gamma(1.0)
@@ -520,11 +528,13 @@ mod tests {
                 ..Default::default()
             });
 
-        let result = sampler.transform_chunked_parallel(&x).unwrap();
+        let result = sampler
+            .transform_chunked_parallel(&x)
+            .expect("operation should succeed");
         assert_eq!(result.shape(), &[200, 30]);
 
         // Verify output is reasonable (not all zeros, not all same values)
-        let mean_val = result.mean().unwrap();
+        let mean_val = result.mean().expect("operation should succeed");
         let std_val = result.std(0.0);
         assert!(mean_val.abs() < 0.5); // Should be roughly centered
         assert!(std_val > 0.1); // Should have some variance
@@ -532,8 +542,8 @@ mod tests {
 
     #[test]
     fn test_memory_efficient_nystroem() {
-        let x =
-            Array2::from_shape_vec((80, 6), (0..480).map(|i| i as f64 * 0.01).collect()).unwrap();
+        let x = Array2::from_shape_vec((80, 6), (0..480).map(|i| i as f64 * 0.01).collect())
+            .expect("operation should succeed");
 
         let nystroem = MemoryEfficientNystroem::new(20)
             .kernel("rbf")
@@ -543,8 +553,8 @@ mod tests {
                 ..Default::default()
             });
 
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[80, 20]);
     }
@@ -552,12 +562,12 @@ mod tests {
     #[test]
     fn test_memory_efficient_nystroem_incremental() {
         // Create multiple chunks
-        let chunk1 =
-            Array2::from_shape_vec((30, 4), (0..120).map(|i| i as f64 * 0.1).collect()).unwrap();
-        let chunk2 =
-            Array2::from_shape_vec((40, 4), (120..280).map(|i| i as f64 * 0.1).collect()).unwrap();
-        let chunk3 =
-            Array2::from_shape_vec((30, 4), (280..400).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let chunk1 = Array2::from_shape_vec((30, 4), (0..120).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
+        let chunk2 = Array2::from_shape_vec((40, 4), (120..280).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
+        let chunk3 = Array2::from_shape_vec((30, 4), (280..400).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let chunks = vec![chunk1, chunk2.clone(), chunk3];
 
@@ -568,8 +578,10 @@ mod tests {
                 ..Default::default()
             });
 
-        let fitted = nystroem.fit_incremental(chunks).unwrap();
-        let transformed = fitted.transform(&chunk2).unwrap();
+        let fitted = nystroem
+            .fit_incremental(chunks)
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&chunk2).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[40, 15]);
     }
@@ -618,8 +630,8 @@ mod tests {
 
     #[test]
     fn test_reproducibility() {
-        let x =
-            Array2::from_shape_vec((50, 8), (0..400).map(|i| i as f64 * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 8), (0..400).map(|i| i as f64 * 0.05).collect())
+            .expect("operation should succeed");
 
         let sampler1 = MemoryEfficientRBFSampler::new(20)
             .gamma(0.2)
@@ -629,11 +641,11 @@ mod tests {
             .gamma(0.2)
             .random_seed(42);
 
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
 
-        let result1 = fitted1.transform(&x).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         assert_abs_diff_eq!(result1, result2, epsilon = 1e-10);
     }

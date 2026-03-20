@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 /// Test configuration for reference comparisons
 use sklears_core::{error::Result as SklResult, traits::Estimator, types::Float};
@@ -110,13 +110,13 @@ impl ReferenceImplementation for SklearnTSNE {
         let mut rng = if let Some(seed) = params.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         // Initialize embedding randomly
         for i in 0..n_samples {
             for j in 0..params.n_components {
-                embedding[[i, j]] = rng.gen_range(-1.0..1.0) * 0.0001;
+                embedding[[i, j]] = rng.random_range(-1.0..1.0) * 0.0001;
             }
         }
 
@@ -125,7 +125,7 @@ impl ReferenceImplementation for SklearnTSNE {
             // Mock gradient updates
             for i in 0..n_samples {
                 for j in 0..params.n_components {
-                    embedding[[i, j]] += rng.gen_range(-0.001..0.001);
+                    embedding[[i, j]] += rng.random_range(-0.001..0.001);
                 }
             }
         }
@@ -179,7 +179,9 @@ impl ReferenceImplementation for SklearnPCA {
         let n_components = params.n_components.min(n_features).min(n_samples);
 
         // Center the data
-        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("operation should succeed");
         let mut centered = data.to_owned();
         for mut row in centered.rows_mut() {
             row -= &mean;
@@ -412,13 +414,13 @@ impl ReferenceTestFramework {
         let mut rng = if let Some(seed) = params.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         // Initialize embedding randomly
         for i in 0..n_samples {
             for j in 0..params.n_components {
-                embedding[[i, j]] = rng.gen_range(-1.0..1.0) * 0.0001;
+                embedding[[i, j]] = rng.random_range(-1.0..1.0) * 0.0001;
             }
         }
 
@@ -426,7 +428,7 @@ impl ReferenceTestFramework {
         for _iter in 0..params.n_iter.min(10) {
             for i in 0..n_samples {
                 for j in 0..params.n_components {
-                    embedding[[i, j]] += rng.gen_range(-0.0015..0.0015); // Slightly different from reference
+                    embedding[[i, j]] += rng.random_range(-0.0015..0.0015); // Slightly different from reference
                 }
             }
         }
@@ -446,7 +448,9 @@ impl ReferenceTestFramework {
         let n_components = params.n_components.min(n_features).min(n_samples);
 
         // Apply slightly different centering for testing
-        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("operation should succeed");
         let mut centered = data.to_owned();
         for mut row in centered.rows_mut() {
             row -= &mean;
@@ -592,7 +596,7 @@ impl ReferenceTestFramework {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                data[[i, j]] = rng.gen_range(-1.0..1.0);
+                data[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -790,7 +794,7 @@ impl BenchmarkComparison {
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                data[[i, j]] = rng.gen_range(-1.0..1.0);
+                data[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 

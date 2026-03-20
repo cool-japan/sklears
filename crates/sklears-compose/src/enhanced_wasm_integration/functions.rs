@@ -120,7 +120,7 @@ mod tests {
         };
         let result = manager.compile_pipeline("test_pipeline", &target);
         assert!(result.is_ok());
-        let module = result.unwrap();
+        let module = result.expect("operation should succeed");
         assert!(!module.module_id.is_empty());
         assert!(!module.bytecode.is_empty());
     }
@@ -130,7 +130,7 @@ mod tests {
         let source = ModuleSource::Bytes(vec![0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
         let result = manager.load_module(&source);
         assert!(result.is_ok());
-        let module_id = result.unwrap();
+        let module_id = result.unwrap_or_default();
         assert!(!module_id.is_empty());
     }
     #[test]
@@ -138,7 +138,7 @@ mod tests {
         let generator = JsBindingsGenerator::new();
         let result = generator.generate_for_module("test_module");
         assert!(result.is_ok());
-        let binding = result.unwrap();
+        let binding = result.expect("operation should succeed");
         assert!(binding.js_code.contains("class test_moduleModule"));
         assert!(binding
             .ts_definitions
@@ -149,7 +149,7 @@ mod tests {
         let detection = BrowserFeatureDetection::new();
         let result = detection.detect_all_features();
         assert!(result.is_ok());
-        let features = result.unwrap();
+        let features = result.unwrap_or_default();
         assert!(!features.is_empty());
     }
     #[test]
@@ -161,7 +161,7 @@ mod tests {
         });
         let worker_result = manager.create_worker("test_module");
         assert!(worker_result.is_ok());
-        let worker_id = worker_result.unwrap();
+        let worker_id = worker_result.unwrap_or_default();
         assert!(!worker_id.is_empty());
         let task = WorkerTask {
             task_id: "test_task".to_string(),

@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Normal, StandardNormal};
+use scirs2_core::random::{Normal, RngExt, StandardNormal};
 use sklears_core::error::{Result, SklearsError};
 use std::f64::consts::PI;
 
@@ -33,7 +33,7 @@ pub fn make_blobs(
     let mut center_points = Array2::zeros((centers, n_features));
     for i in 0..centers {
         for j in 0..n_features {
-            center_points[[i, j]] = rng.gen_range(-10.0..10.0);
+            center_points[[i, j]] = rng.random_range(-10.0..10.0);
         }
     }
 
@@ -53,7 +53,7 @@ pub fn make_blobs(
             samples_per_center
         };
 
-        let normal = Normal::new(0.0, cluster_std).unwrap();
+        let normal = Normal::new(0.0, cluster_std).expect("operation should succeed");
 
         for _ in 0..n_samples_for_center {
             y[sample_idx] = center_idx as i32;
@@ -105,7 +105,7 @@ pub fn make_classification(
 
     // Assign classes randomly
     for i in 0..n_samples {
-        y[i] = rng.gen_range(0..n_classes) as i32;
+        y[i] = rng.random_range(0..n_classes) as i32;
     }
 
     // Generate informative features based on class
@@ -119,8 +119,8 @@ pub fn make_classification(
 
     // Generate redundant features as linear combinations of informative features
     for j in n_informative..(n_informative + n_redundant) {
-        let informative_idx = rng.gen_range(0..n_informative);
-        let weight = rng.gen_range(-1.0..1.0);
+        let informative_idx = rng.random_range(0..n_informative);
+        let weight = rng.random_range(-1.0..1.0);
         for i in 0..n_samples {
             x[[i, j]] = x[[i, informative_idx]] * weight + rng.sample::<f64, _>(normal) * 0.1;
         }
@@ -174,7 +174,7 @@ pub fn make_regression(
     // Generate true coefficients for informative features
     let mut coef = Array1::zeros(n_features);
     for i in 0..n_informative {
-        coef[i] = rng.gen_range(-1.0..1.0) * 100.0;
+        coef[i] = rng.random_range(-1.0..1.0) * 100.0;
     }
 
     // Compute target values
@@ -187,7 +187,7 @@ pub fn make_regression(
 
         // Add noise
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             target += rng.sample(noise_dist);
         }
 
@@ -229,7 +229,7 @@ pub fn make_circles(
 
     // Generate outer circle
     for i in 0..n_samples_out {
-        let angle = rng.gen::<f64>() * 2.0 * PI;
+        let angle = rng.random::<f64>() * 2.0 * PI;
         x[[i, 0]] = angle.cos();
         x[[i, 1]] = angle.sin();
         y[i] = 0;
@@ -237,7 +237,7 @@ pub fn make_circles(
 
     // Generate inner circle
     for i in 0..n_samples_in {
-        let angle = rng.gen::<f64>() * 2.0 * PI;
+        let angle = rng.random::<f64>() * 2.0 * PI;
         x[[n_samples_out + i, 0]] = factor * angle.cos();
         x[[n_samples_out + i, 1]] = factor * angle.sin();
         y[n_samples_out + i] = 1;
@@ -246,7 +246,7 @@ pub fn make_circles(
     // Add noise if specified
     if let Some(noise_level) = noise {
         if noise_level > 0.0 {
-            let noise_dist = Normal::new(0.0, noise_level).unwrap();
+            let noise_dist = Normal::new(0.0, noise_level).expect("operation should succeed");
             for i in 0..n_samples {
                 x[[i, 0]] += rng.sample(noise_dist);
                 x[[i, 1]] += rng.sample(noise_dist);
@@ -282,7 +282,7 @@ pub fn make_moons(
 
     // Generate outer moon
     for i in 0..n_samples_out {
-        let t = rng.gen::<f64>() * PI;
+        let t = rng.random::<f64>() * PI;
         x[[i, 0]] = t.cos();
         x[[i, 1]] = t.sin();
         y[i] = 0;
@@ -290,7 +290,7 @@ pub fn make_moons(
 
     // Generate inner moon
     for i in 0..n_samples_in {
-        let t = rng.gen::<f64>() * PI;
+        let t = rng.random::<f64>() * PI;
         x[[n_samples_out + i, 0]] = 1.0 - t.cos();
         x[[n_samples_out + i, 1]] = 1.0 - t.sin() - 0.5;
         y[n_samples_out + i] = 1;
@@ -299,7 +299,7 @@ pub fn make_moons(
     // Add noise if specified
     if let Some(noise_level) = noise {
         if noise_level > 0.0 {
-            let noise_dist = Normal::new(0.0, noise_level).unwrap();
+            let noise_dist = Normal::new(0.0, noise_level).expect("operation should succeed");
             for i in 0..n_samples {
                 x[[i, 0]] += rng.sample(noise_dist);
                 x[[i, 1]] += rng.sample(noise_dist);
@@ -347,7 +347,11 @@ pub fn make_gaussian_quantiles(
 
     // Sort by norm to create quantiles
     let mut indices: Vec<usize> = (0..n_samples).collect();
-    indices.sort_by(|&a, &b| norms[a].partial_cmp(&norms[b]).unwrap());
+    indices.sort_by(|&a, &b| {
+        norms[a]
+            .partial_cmp(&norms[b])
+            .expect("operation should succeed")
+    });
 
     // Assign classes based on quantiles
     let mut y = Array1::zeros(n_samples);
@@ -370,7 +374,7 @@ mod tests {
 
     #[test]
     fn test_make_blobs() {
-        let (x, y) = make_blobs(100, 2, 3, 1.0, Some(42)).unwrap();
+        let (x, y) = make_blobs(100, 2, 3, 1.0, Some(42)).expect("operation should succeed");
         assert_eq!(x.shape(), &[100, 2]);
         assert_eq!(y.len(), 100);
 
@@ -383,7 +387,8 @@ mod tests {
 
     #[test]
     fn test_make_classification() {
-        let (x, y) = make_classification(100, 20, 10, 5, 3, Some(42)).unwrap();
+        let (x, y) =
+            make_classification(100, 20, 10, 5, 3, Some(42)).expect("operation should succeed");
         assert_eq!(x.shape(), &[100, 20]);
         assert_eq!(y.len(), 100);
 
@@ -396,19 +401,24 @@ mod tests {
 
     #[test]
     fn test_make_regression() {
-        let (x, y) = make_regression(50, 10, 5, 0.1, Some(42)).unwrap();
+        let (x, y) = make_regression(50, 10, 5, 0.1, Some(42)).expect("operation should succeed");
         assert_eq!(x.shape(), &[50, 10]);
         assert_eq!(y.len(), 50);
 
         // Check that target values have some variation
-        let mean = y.mean().unwrap();
-        let variance = y.mapv(|v| (v - mean).powi(2)).mean().unwrap();
+        let mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
+        let variance = y
+            .mapv(|v| (v - mean).powi(2))
+            .mean()
+            .expect("array should have elements for mean computation");
         assert!(variance > 0.0);
     }
 
     #[test]
     fn test_make_circles() {
-        let (x, y) = make_circles(100, Some(0.1), 0.4, Some(42)).unwrap();
+        let (x, y) = make_circles(100, Some(0.1), 0.4, Some(42)).expect("operation should succeed");
         assert_eq!(x.shape(), &[100, 2]);
         assert_eq!(y.len(), 100);
 
@@ -421,7 +431,7 @@ mod tests {
 
     #[test]
     fn test_make_moons() {
-        let (x, y) = make_moons(80, Some(0.15), Some(42)).unwrap();
+        let (x, y) = make_moons(80, Some(0.15), Some(42)).expect("operation should succeed");
         assert_eq!(x.shape(), &[80, 2]);
         assert_eq!(y.len(), 80);
 
@@ -434,7 +444,8 @@ mod tests {
 
     #[test]
     fn test_make_gaussian_quantiles() {
-        let (x, y) = make_gaussian_quantiles(120, 5, 3, Some(42)).unwrap();
+        let (x, y) =
+            make_gaussian_quantiles(120, 5, 3, Some(42)).expect("operation should succeed");
         assert_eq!(x.shape(), &[120, 5]);
         assert_eq!(y.len(), 120);
 

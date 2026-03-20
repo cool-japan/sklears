@@ -84,16 +84,20 @@ pub struct CVResults {
 impl CVResults {
     /// Get the best fold result (highest test score)
     pub fn best_fold(&self) -> Option<&CVFoldResult> {
-        self.fold_results
-            .iter()
-            .max_by(|a, b| a.test_score.partial_cmp(&b.test_score).unwrap())
+        self.fold_results.iter().max_by(|a, b| {
+            a.test_score
+                .partial_cmp(&b.test_score)
+                .expect("operation should succeed")
+        })
     }
 
     /// Get the worst fold result (lowest test score)
     pub fn worst_fold(&self) -> Option<&CVFoldResult> {
-        self.fold_results
-            .iter()
-            .min_by(|a, b| a.test_score.partial_cmp(&b.test_score).unwrap())
+        self.fold_results.iter().min_by(|a, b| {
+            a.test_score
+                .partial_cmp(&b.test_score)
+                .expect("operation should succeed")
+        })
     }
 
     /// Calculate 95% confidence interval for test scores
@@ -801,7 +805,8 @@ mod tests {
 
     #[allow(non_snake_case)]
     fn create_test_data() -> (Array2<Float>, Array1<Int>) {
-        let X = Array2::from_shape_vec((20, 2), (0..40).map(|x| x as Float).collect()).unwrap();
+        let X = Array2::from_shape_vec((20, 2), (0..40).map(|x| x as Float).collect())
+            .expect("operation should succeed");
         let y = Array1::from_iter((0..20).map(|i| (i % 3) as Int));
         (X, y)
     }
@@ -815,7 +820,7 @@ mod tests {
             cv.validate_classifier(X.view(), y.view(), 3, Distance::Euclidean, Algorithm::Brute);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.fold_results.len(), 5);
         assert!(result.mean_test_score >= 0.0 && result.mean_test_score <= 1.0);
     }
@@ -829,7 +834,7 @@ mod tests {
             cv.validate_classifier(X.view(), y.view(), 3, Distance::Euclidean, Algorithm::Brute);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.fold_results.len(), 3);
     }
 
@@ -842,7 +847,7 @@ mod tests {
             cv.validate_classifier(X.view(), y.view(), 3, Distance::Euclidean, Algorithm::Brute);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.fold_results.len(), 20); // One fold per sample
     }
 
@@ -858,7 +863,7 @@ mod tests {
             cv.validate_classifier(X.view(), y.view(), 3, Distance::Euclidean, Algorithm::Brute);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.fold_results.len() <= 5); // Some bootstraps might not have test samples
     }
 
@@ -874,7 +879,7 @@ mod tests {
             cv.validate_classifier(X.view(), y.view(), 3, Distance::Euclidean, Algorithm::Brute);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(!result.fold_results.is_empty());
     }
 
@@ -888,7 +893,7 @@ mod tests {
             cv.validate_classifier(X.view(), y.view(), 3, Distance::Euclidean, Algorithm::Brute);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.mean_train_score.is_some());
         assert!(result.fold_results.iter().all(|r| r.train_score.is_some()));
     }
@@ -903,7 +908,7 @@ mod tests {
             cv.compare_algorithms(X.view(), y.view(), 3, &algorithms, Distance::Euclidean);
 
         assert!(results.is_ok());
-        let results = results.unwrap();
+        let results = results.expect("operation should succeed");
         assert_eq!(results.len(), 2);
         assert!(results.contains_key(&Algorithm::Brute));
         assert!(results.contains_key(&Algorithm::KdTree));
@@ -924,7 +929,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let (best_k, results) = result.unwrap();
+        let (best_k, results) = result.expect("operation should succeed");
         assert!(k_values.contains(&best_k));
         assert_eq!(results.len(), 3);
     }
@@ -945,7 +950,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.fold_results.len(), 3);
         // For regression, we use negative MSE, so scores should be <= 0
         assert!(result.mean_test_score <= 0.0);
@@ -958,14 +963,17 @@ mod tests {
 
         let result = cv
             .validate_classifier(X.view(), y.view(), 3, Distance::Euclidean, Algorithm::Brute)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test best/worst fold methods
         let best = result.best_fold();
         let worst = result.worst_fold();
         assert!(best.is_some());
         assert!(worst.is_some());
-        assert!(best.unwrap().test_score >= worst.unwrap().test_score);
+        assert!(
+            best.expect("operation should succeed").test_score
+                >= worst.expect("operation should succeed").test_score
+        );
 
         // Test confidence interval
         let (ci_low, ci_high) = result.confidence_interval();

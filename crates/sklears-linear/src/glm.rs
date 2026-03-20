@@ -274,7 +274,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GeneralizedLinearModel<Untrained> {
         let mut coef = Array::zeros(n_features);
         let mut intercept = if self.config.fit_intercept {
             // Initialize intercept based on the mean of y through the link
-            let y_mean = y.mean().unwrap();
+            let y_mean = y.mean().ok_or_else(|| SklearsError::NumericalError("mean computation should succeed for non-empty array".into()))?;
             match self.config.family {
                 Family::Binomial => {
                     // For binomial, ensure y_mean is in (0, 1)
@@ -462,7 +462,7 @@ impl Score<Array2<Float>, Array1<Float>> for GeneralizedLinearModel<Trained> {
         let mut null_deviance = 0.0;
 
         // Null model prediction (just the mean)
-        let y_mean = y.mean().unwrap();
+        let y_mean = y.mean().ok_or_else(|| SklearsError::NumericalError("mean computation should succeed for non-empty array".into()))?;
         let link = self.link_.expect("Model is trained");
         let null_pred = link.inverse_link(link.link(y_mean.max(1e-10)));
 
@@ -528,13 +528,13 @@ mod tests {
         let model = GeneralizedLinearModel::new(Family::Gaussian)
             .fit_intercept(false) // No intercept since y = x1 + x2
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         let coef = model.coef();
         assert_abs_diff_eq!(coef[0], 1.0, epsilon = 0.1);
         assert_abs_diff_eq!(coef[1], 1.0, epsilon = 0.1);
 
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("scoring should succeed");
         println!("GLM Gaussian score = {}", score);
         assert!(score > 0.95); // Should be perfect fit
     }
@@ -545,9 +545,9 @@ mod tests {
         let x = array![[0.0], [1.0], [2.0], [3.0],];
         let y = array![1.0, 2.0, 4.0, 8.0]; // Roughly exponential
 
-        let model = GeneralizedLinearModel::poisson().fit(&x, &y).unwrap();
+        let model = GeneralizedLinearModel::poisson().fit(&x, &y).expect("model fitting should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Predictions should be positive
         for &pred in predictions.iter() {

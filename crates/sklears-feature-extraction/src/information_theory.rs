@@ -608,7 +608,7 @@ impl InformationGainExtractor<InformationGainExtractorTrained> {
         indices.sort_by(|&a, &b| {
             self.state.information_gains[b]
                 .partial_cmp(&self.state.information_gains[a])
-                .unwrap()
+                .expect("operation should succeed")
         });
         indices
     }
@@ -1124,7 +1124,7 @@ impl TopologicalDataAnalysis {
             .filter(|&&dist| dist > 0.0)
             .cloned()
             .collect();
-        scale_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        scale_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         scale_values.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
 
         // For dimension 0 (connected components)
@@ -1297,8 +1297,8 @@ mod tests {
             .include_compression_ratio(true)
             .n_bins(5);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 5);
         assert!(features.ncols() > 0);
@@ -1315,14 +1315,14 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]);
 
         let extractor = InformationGainExtractor::new().n_bins(3).normalize(false);
 
-        let fitted = extractor.fit(&x, &y).unwrap();
-        let gains = fitted.transform(&x).unwrap();
+        let fitted = extractor.fit(&x, &y).expect("operation should succeed");
+        let gains = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(gains.len(), 2);
 
@@ -1346,8 +1346,8 @@ mod tests {
             .complexity_penalty(0.5)
             .normalize(true);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
@@ -1400,12 +1400,12 @@ mod tests {
                 1.0, 10.0, 100.0, 2.0, 20.0, 200.0, 3.0, 30.0, 300.0, 4.0, 40.0, 400.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0]);
 
         let extractor = InformationGainExtractor::new();
-        let fitted = extractor.fit(&x, &y).unwrap();
+        let fitted = extractor.fit(&x, &y).expect("operation should succeed");
 
         let ranking = fitted.get_feature_ranking();
         assert_eq!(ranking.len(), 3);

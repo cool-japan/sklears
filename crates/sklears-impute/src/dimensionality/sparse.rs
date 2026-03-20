@@ -1,6 +1,11 @@
 //! Sparse Imputation methods
 //!
 //! This module provides sparse imputation methods for high-dimensional data.
+//!
+//! # Note
+//!
+//! `CompressedSensingImputer` is a stub in v0.1.0. Its `fit` and `transform`
+//! return `Err(SklearsError::NotImplemented)`. Planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::{
@@ -236,20 +241,12 @@ impl Fit<ArrayView2<'_, Float>, ()> for CompressedSensingImputer<Untrained> {
         let X = X.mapv(|x| x);
         let (_, n_features) = X.dim();
 
-        // Create a simple measurement matrix (stub implementation)
-        let measurement_matrix = Array2::eye(n_features);
-
-        Ok(CompressedSensingImputer {
-            state: CompressedSensingImputerTrained {
-                measurement_matrix_: measurement_matrix,
-                n_features_in_: n_features,
-            },
-            measurement_ratio: self.measurement_ratio,
-            regularization: self.regularization,
-            max_iter: self.max_iter,
-            tol: self.tol,
-            missing_values: self.missing_values,
-        })
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = n_features;
+        Err(SklearsError::NotImplemented(
+            "CompressedSensingImputer::fit: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        ))
     }
 }
 
@@ -268,9 +265,12 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
             )));
         }
 
-        // Stub implementation - just return input with zeros for missing values
-        let X_imputed = X.mapv(|x| if self.is_missing(x) { 0.0 } else { x });
-        Ok(X_imputed.mapv(|x| x as Float))
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = n_features;
+        Err(SklearsError::NotImplemented(
+            "CompressedSensingImputer::transform: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        ))
     }
 }
 

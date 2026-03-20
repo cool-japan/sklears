@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Normal;
+use scirs2_core::random::{Normal, RngExt};
 use sklears_core::error::{Result, SklearsError};
 
 /// Generate spatial point process data
@@ -49,8 +49,8 @@ pub fn make_spatial_point_process(
         "poisson" => {
             // Homogeneous Poisson process
             for i in 0..n_points {
-                points[[i, 0]] = rng.gen_range(x_min..x_max);
-                points[[i, 1]] = rng.gen_range(y_min..y_max);
+                points[[i, 0]] = rng.random_range(x_min..x_max);
+                points[[i, 1]] = rng.random_range(y_min..y_max);
                 intensities[i] = intensity;
             }
         }
@@ -61,15 +61,15 @@ pub fn make_spatial_point_process(
 
             let mut cluster_centers = Vec::new();
             for _ in 0..n_clusters {
-                let center_x = rng.gen_range(x_min..x_max);
-                let center_y = rng.gen_range(y_min..y_max);
+                let center_x = rng.random_range(x_min..x_max);
+                let center_y = rng.random_range(y_min..y_max);
                 cluster_centers.push((center_x, center_y));
             }
 
-            let normal = Normal::new(0.0, cluster_std).unwrap();
+            let normal = Normal::new(0.0, cluster_std).expect("operation should succeed");
 
             for i in 0..n_points {
-                let cluster_idx = rng.gen_range(0..n_clusters);
+                let cluster_idx = rng.random_range(0..n_clusters);
                 let (center_x, center_y) = cluster_centers[cluster_idx];
 
                 let offset_x: f64 = rng.sample(normal);
@@ -87,7 +87,7 @@ pub fn make_spatial_point_process(
             let y_step = (y_max - y_min) / grid_size as f64;
 
             let perturbation_std = (x_step + y_step) / 10.0;
-            let normal = Normal::new(0.0, perturbation_std).unwrap();
+            let normal = Normal::new(0.0, perturbation_std).expect("operation should succeed");
 
             for i in 0..n_points {
                 let grid_x = i % grid_size;
@@ -147,8 +147,8 @@ pub fn make_geostatistical_data(
     // Generate random locations
     let mut locations = Array2::zeros((n_points, 2));
     for i in 0..n_points {
-        locations[[i, 0]] = rng.gen_range(x_min..x_max);
-        locations[[i, 1]] = rng.gen_range(y_min..y_max);
+        locations[[i, 0]] = rng.random_range(x_min..x_max);
+        locations[[i, 1]] = rng.random_range(y_min..y_max);
     }
 
     // Create covariance matrix based on distances
@@ -192,7 +192,7 @@ pub fn make_geostatistical_data(
 
     // Generate correlated random field using Cholesky decomposition
     let mut values = Array1::zeros(n_points);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     // Simple approach: approximate multivariate normal by weighted sum
     let mut random_values = Array1::zeros(n_points);
@@ -259,8 +259,8 @@ pub fn make_geographic_information_dataset(
     // Generate coordinates
     let mut coordinates = Array2::zeros((n_locations, 2));
     for i in 0..n_locations {
-        coordinates[[i, 0]] = rng.gen_range(lat_min..lat_max); // latitude
-        coordinates[[i, 1]] = rng.gen_range(lon_min..lon_max); // longitude
+        coordinates[[i, 0]] = rng.random_range(lat_min..lat_max); // latitude
+        coordinates[[i, 1]] = rng.random_range(lon_min..lon_max); // longitude
     }
 
     // Generate geographic features (elevation, slope, aspect, distance to water, etc.)
@@ -273,7 +273,7 @@ pub fn make_geographic_information_dataset(
     // Generate elevation data based on elevation model
     let mut elevations = Array1::zeros(n_locations);
 
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     for i in 0..n_locations {
         let lat = coordinates[[i, 0]];
@@ -317,39 +317,39 @@ pub fn make_geographic_information_dataset(
             let distance = 0.001; // Approximate distance between points
             (elevation_diff / distance).atan().to_degrees().min(45.0)
         } else {
-            rng.gen_range(0.0..15.0)
+            rng.random_range(0.0..15.0)
         };
         geographic_features[[i, 1]] = slope;
 
         // Generate aspect (compass direction of slope)
-        let aspect = rng.gen_range(0.0..360.0);
+        let aspect = rng.random_range(0.0..360.0);
         geographic_features[[i, 2]] = aspect;
 
         // Generate distance to water (km)
-        let distance_to_water = rng.gen_range(0.1..50.0);
+        let distance_to_water = rng.random_range(0.1..50.0);
         geographic_features[[i, 3]] = distance_to_water;
 
         // Generate population density (people per km²) - correlated with distance to water
         let population_density = if distance_to_water < 5.0 {
-            rng.gen_range(100.0..2000.0) // High density near water
+            rng.random_range(100.0..2000.0) // High density near water
         } else if distance_to_water < 20.0 {
-            rng.gen_range(10.0..500.0) // Medium density
+            rng.random_range(10.0..500.0) // Medium density
         } else {
-            rng.gen_range(1.0..50.0) // Low density far from water
+            rng.random_range(1.0..50.0) // Low density far from water
         };
         geographic_features[[i, 4]] = population_density;
 
         // Generate road density (km/km²) - correlated with population
-        let road_density = population_density.ln() * 0.5 + rng.gen_range(0.0..2.0);
+        let road_density = population_density.ln() * 0.5 + rng.random_range(0.0..2.0);
         geographic_features[[i, 5]] = road_density.max(0.0);
 
         // Generate vegetation index (NDVI-like, 0-1)
         let vegetation_index = if elevations[i] > 1500.0 {
-            rng.gen_range(0.1..0.4) // Low vegetation at high elevation
+            rng.random_range(0.1..0.4) // Low vegetation at high elevation
         } else if distance_to_water < 10.0 {
-            rng.gen_range(0.6..0.9) // High vegetation near water
+            rng.random_range(0.6..0.9) // High vegetation near water
         } else {
-            rng.gen_range(0.3..0.7) // Medium vegetation
+            rng.random_range(0.3..0.7) // Medium vegetation
         };
         geographic_features[[i, 6]] = vegetation_index;
 
@@ -386,38 +386,38 @@ pub fn make_geographic_information_dataset(
 
             // Median age (years) - tends to be higher in suburban areas
             let median_age = if pop_density > 1000.0 {
-                rng.gen_range(28.0..42.0) // Urban: younger
+                rng.random_range(28.0..42.0) // Urban: younger
             } else if pop_density > 100.0 {
-                rng.gen_range(35.0..50.0) // Suburban: older
+                rng.random_range(35.0..50.0) // Suburban: older
             } else {
-                rng.gen_range(32.0..55.0) // Rural: varied
+                rng.random_range(32.0..55.0) // Rural: varied
             };
             demographics[[i, 0]] = median_age;
 
             // Median income (thousands) - correlated with population density and road access
             let road_access_factor = geographic_features[[i, 5]] / 10.0;
             let income_base = if pop_density > 1000.0 {
-                rng.gen_range(40.0..120.0) // Urban income range
+                rng.random_range(40.0..120.0) // Urban income range
             } else {
-                rng.gen_range(25.0..80.0) // Rural income range
+                rng.random_range(25.0..80.0) // Rural income range
             };
             let median_income = income_base * (1.0 + road_access_factor * 0.5);
             demographics[[i, 1]] = median_income;
 
             // Education level (years of schooling)
-            let education_level = median_income / 10.0 + rng.gen_range(8.0..18.0);
+            let education_level = median_income / 10.0 + rng.random_range(8.0..18.0);
             demographics[[i, 2]] = education_level.min(20.0);
 
             // Employment rate (percentage)
             let employment_rate = if pop_density > 500.0 {
-                rng.gen_range(85.0..96.0) // Higher employment in cities
+                rng.random_range(85.0..96.0) // Higher employment in cities
             } else {
-                rng.gen_range(70.0..90.0) // Lower in rural areas
+                rng.random_range(70.0..90.0) // Lower in rural areas
             };
             demographics[[i, 3]] = employment_rate;
 
             // Housing density (units per km²)
-            let housing_density = pop_density / rng.gen_range(2.0..4.0); // 2-4 people per housing unit
+            let housing_density = pop_density / rng.random_range(2.0..4.0); // 2-4 people per housing unit
             demographics[[i, 4]] = housing_density;
         }
 
@@ -485,8 +485,8 @@ pub fn make_spatial_clustering_dataset(
     for _i in 0..n_clusters {
         let mut attempts = 0;
         loop {
-            let center_x = rng.gen_range(x_min..x_max);
-            let center_y = rng.gen_range(y_min..y_max);
+            let center_x = rng.random_range(x_min..x_max);
+            let center_y = rng.random_range(y_min..y_max);
 
             // Check minimum separation from existing centers
             let mut valid = true;
@@ -508,7 +508,7 @@ pub fn make_spatial_clustering_dataset(
         }
     }
 
-    let _normal = Normal::new(0.0, 1.0).unwrap();
+    let _normal = Normal::new(0.0, 1.0).expect("operation should succeed");
     let mut point_idx = 0;
 
     // Generate points for each cluster
@@ -524,8 +524,8 @@ pub fn make_spatial_clustering_dataset(
             let (x, y) = match cluster_shape.as_str() {
                 "circular" => {
                     // Circular cluster
-                    let radius = rng.gen_range(0.0..cluster_size);
-                    let angle = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+                    let radius = rng.random_range(0.0..cluster_size);
+                    let angle = rng.random_range(0.0..2.0 * std::f64::consts::PI);
                     (
                         center_x + radius * angle.cos(),
                         center_y + radius * angle.sin(),
@@ -535,14 +535,14 @@ pub fn make_spatial_clustering_dataset(
                     // Elliptical cluster
                     let semi_major = cluster_size;
                     let semi_minor = cluster_size * 0.5;
-                    let angle = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
-                    let radius = rng.gen_range(0.0..1.0);
+                    let angle = rng.random_range(0.0..2.0 * std::f64::consts::PI);
+                    let radius = rng.random_range(0.0..1.0);
 
                     let x_offset = semi_major * radius * angle.cos();
                     let y_offset = semi_minor * radius * angle.sin();
 
                     // Random rotation
-                    let rotation = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+                    let rotation = rng.random_range(0.0..2.0 * std::f64::consts::PI);
                     let cos_rot = rotation.cos();
                     let sin_rot = rotation.sin();
 
@@ -554,7 +554,7 @@ pub fn make_spatial_clustering_dataset(
                 "irregular" => {
                     // Irregular cluster using multiple Gaussian components
                     let n_components = 3;
-                    let component = rng.gen_range(0..n_components);
+                    let component = rng.random_range(0..n_components);
                     let offset_angle =
                         (component as f64) * 2.0 * std::f64::consts::PI / (n_components as f64);
                     let offset_radius = cluster_size * 0.3;
@@ -563,7 +563,7 @@ pub fn make_spatial_clustering_dataset(
                     let component_center_y = center_y + offset_radius * offset_angle.sin();
 
                     let std_dev = cluster_size * 0.4;
-                    let gaussian = Normal::new(0.0, std_dev).unwrap();
+                    let gaussian = Normal::new(0.0, std_dev).expect("operation should succeed");
 
                     (
                         component_center_x + rng.sample(gaussian),
@@ -575,11 +575,12 @@ pub fn make_spatial_clustering_dataset(
                     let length = cluster_size * 2.0;
                     let width = cluster_size * 0.3;
 
-                    let t = rng.gen_range(-length / 2.0..length / 2.0);
-                    let perpendicular_offset = rng.sample(Normal::new(0.0, width).unwrap());
+                    let t = rng.random_range(-length / 2.0..length / 2.0);
+                    let perpendicular_offset =
+                        rng.sample(Normal::new(0.0, width).expect("sampling should succeed"));
 
                     // Random orientation
-                    let angle = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+                    let angle = rng.random_range(0.0..2.0 * std::f64::consts::PI);
                     let cos_angle = angle.cos();
                     let sin_angle = angle.sin();
 
@@ -615,8 +616,8 @@ pub fn make_spatial_clustering_dataset(
 
     // Generate noise points
     for _ in 0..n_noise_points {
-        points[[point_idx, 0]] = rng.gen_range(x_min..x_max);
-        points[[point_idx, 1]] = rng.gen_range(y_min..y_max);
+        points[[point_idx, 0]] = rng.random_range(x_min..x_max);
+        points[[point_idx, 1]] = rng.random_range(y_min..y_max);
         labels[point_idx] = n_clusters; // Noise label
         cluster_densities[point_idx] = 0.1; // Low density for noise
         point_idx += 1;
@@ -634,7 +635,7 @@ mod tests {
     fn test_make_spatial_point_process() {
         let (points, intensities) =
             make_spatial_point_process(100, (0.0, 10.0, 0.0, 10.0), "poisson", 1.0, Some(42))
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(points.shape(), &[100, 2]);
         assert_eq!(intensities.len(), 100);
@@ -660,13 +661,16 @@ mod tests {
     #[test]
     fn test_spatial_point_process_cluster() {
         let (points, intensities) =
-            make_spatial_point_process(50, (0.0, 5.0, 0.0, 5.0), "cluster", 2.0, Some(42)).unwrap();
+            make_spatial_point_process(50, (0.0, 5.0, 0.0, 5.0), "cluster", 2.0, Some(42))
+                .expect("operation should succeed");
 
         assert_eq!(points.shape(), &[50, 2]);
         assert_eq!(intensities.len(), 50);
 
         // Cluster process should have higher intensities
-        let mean_intensity = intensities.mean().unwrap();
+        let mean_intensity = intensities
+            .mean()
+            .expect("array should have elements for mean computation");
         assert!(
             mean_intensity > 2.0,
             "Cluster process should have higher mean intensity"
@@ -684,7 +688,7 @@ mod tests {
             "exponential",
             Some(42),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(locations.shape(), &[30, 2]);
         assert_eq!(values.len(), 30);
@@ -769,7 +773,7 @@ mod tests {
                 false,
                 Some(42),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(coordinates.shape(), &[50, 2]);
         assert_eq!(geographic_features.shape(), &[50, 8]);
@@ -835,7 +839,7 @@ mod tests {
             0.1,
             Some(42),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(points.shape(), &[100, 2]);
         assert_eq!(labels.len(), 100);
@@ -888,7 +892,7 @@ mod tests {
 
             assert!(result.is_ok(), "Shape {} should be valid", shape);
 
-            let (points, labels, _) = result.unwrap();
+            let (points, labels, _) = result.expect("operation should succeed");
             assert_eq!(points.shape(), &[50, 2]);
             assert_eq!(labels.len(), 50);
 

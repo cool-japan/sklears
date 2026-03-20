@@ -162,7 +162,9 @@ impl ConstrainedPCA {
         // Center the data if requested
         let mut centered_data = data.clone();
         let _mean = if self.center {
-            let mean = data.mean_axis(Axis(0)).unwrap();
+            let mean = data
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             for mut row in centered_data.axis_iter_mut(Axis(0)) {
                 row -= &mean;
             }
@@ -193,7 +195,7 @@ impl ConstrainedPCA {
         let mut rng = thread_rng();
         let mut components = Array2::zeros((self.n_components, n_features));
         for elem in components.iter_mut() {
-            *elem = rng.sample(RandNormal::new(0.0, 1.0).unwrap());
+            *elem = rng.sample(RandNormal::new(0.0, 1.0).expect("sampling should succeed"));
         }
 
         // Normalize initial components
@@ -591,7 +593,9 @@ impl ConstrainedICA {
         }
 
         // Center the data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let mut centered_data = data.clone();
         for mut row in centered_data.axis_iter_mut(Axis(0)) {
             row -= &mean;
@@ -603,7 +607,7 @@ impl ConstrainedICA {
         let mut rng = thread_rng();
         let mut unmixing_matrix = Array2::zeros((self.n_components, n_features));
         for elem in unmixing_matrix.iter_mut() {
-            *elem = rng.sample(RandNormal::new(0.0, 1.0).unwrap());
+            *elem = rng.sample(RandNormal::new(0.0, 1.0).expect("sampling should succeed"));
         }
 
         // Apply initial constraints
@@ -624,7 +628,7 @@ impl ConstrainedICA {
             let gradient = nonlinearity.dot(&centered_data) / (n_samples as Float)
                 - nonlinearity_derivative
                     .mean_axis(Axis(1))
-                    .unwrap()
+                    .expect("operation should succeed")
                     .insert_axis(Axis(1))
                     * &unmixing_matrix;
 
@@ -814,17 +818,17 @@ mod tests {
                 5.0, 6.0, 7.0, 8.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut pca = ConstrainedPCA::new(2).with_orthogonality(1.0);
         let result = pca.fit_transform(&data);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[5, 2]);
 
         // Check that components are orthogonal
-        let components = pca.components().unwrap();
+        let components = pca.components().expect("operation should succeed");
         let dot_product = components.row(0).dot(&components.row(1));
         assert_abs_diff_eq!(dot_product, 0.0, epsilon = 1e-5);
     }
@@ -837,7 +841,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut pca = ConstrainedPCA::new(2).with_non_negativity(1.0);
         let result = pca.fit_transform(&data);
@@ -846,11 +850,11 @@ mod tests {
             println!("Error: {e:?}");
         }
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
 
         // Check that all components are non-negative
-        let components = pca.components().unwrap();
+        let components = pca.components().expect("operation should succeed");
         for component in components.iter() {
             assert!(*component >= 0.0);
         }
@@ -864,7 +868,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut pca = ConstrainedPCA::new(2).with_sparsity(1.0);
         let result = pca.fit_transform(&data);
@@ -873,28 +877,29 @@ mod tests {
             println!("Error: {e:?}");
         }
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
 
         // Check that some components are zero (sparsity)
-        let components = pca.components().unwrap();
+        let components = pca.components().expect("operation should succeed");
         let zero_count = components.iter().filter(|&&x| x == 0.0).count();
         assert!(zero_count > 0);
     }
 
     #[test]
     fn test_constrained_ica_orthogonality() {
-        let data = Array2::from_shape_vec((100, 3), (0..300).map(|i| i as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((100, 3), (0..300).map(|i| i as f64).collect())
+            .expect("shape and data length should match");
 
         let mut ica = ConstrainedICA::new(2).with_orthogonality(1.0);
         let result = ica.fit_transform(&data);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[100, 2]);
 
         // Check that unmixing matrix rows are orthogonal
-        let unmixing_matrix = ica.unmixing_matrix().unwrap();
+        let unmixing_matrix = ica.unmixing_matrix().expect("operation should succeed");
         let dot_product = unmixing_matrix.row(0).dot(&unmixing_matrix.row(1));
         assert_abs_diff_eq!(dot_product, 0.0, epsilon = 1e-1); // More lenient for ICA
     }
@@ -915,7 +920,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut pca = ConstrainedPCA::new(2)
             .with_orthogonality(1.0)
@@ -924,7 +929,7 @@ mod tests {
         let result = pca.fit_transform(&data);
         assert!(result.is_ok());
 
-        let components = pca.components().unwrap();
+        let components = pca.components().expect("operation should succeed");
 
         // Check orthogonality
         let dot_product = components.row(0).dot(&components.row(1));

@@ -259,7 +259,7 @@ impl<T: FloatBounds> Default for ModelConfig<T> {
             output_dim: 10,
             hidden_layers: vec![128, 64],
             activation: "relu".to_string(),
-            dropout: Some(T::from(0.2).unwrap()),
+            dropout: Some(T::from(0.2).unwrap_or_else(|| T::zero())),
             batch_norm: false,
             layer_norm: false,
             weight_init: "xavier_uniform".to_string(),
@@ -273,10 +273,10 @@ impl<T: FloatBounds> Default for TrainingConfig<T> {
         Self {
             epochs: 100,
             batch_size: 32,
-            learning_rate: T::from(0.001).unwrap(),
+            learning_rate: T::from(0.001).unwrap_or_else(|| T::zero()),
             lr_schedule: LearningRateSchedule::default(),
             early_stopping: None,
-            validation_split: Some(T::from(0.2).unwrap()),
+            validation_split: Some(T::from(0.2).unwrap_or_else(|| T::zero())),
             random_seed: Some(42),
             mixed_precision: false,
             gradient_clipping: None,
@@ -302,10 +302,10 @@ impl<T: FloatBounds> Default for OptimizerConfig<T> {
         Self {
             optimizer_type: "adam".to_string(),
             momentum: None,
-            beta1: Some(T::from(0.9).unwrap()),
-            beta2: Some(T::from(0.999).unwrap()),
-            weight_decay: Some(T::from(1e-4).unwrap()),
-            epsilon: Some(T::from(1e-8).unwrap()),
+            beta1: Some(T::from(0.9).unwrap_or_else(|| T::zero())),
+            beta2: Some(T::from(0.999).unwrap_or_else(|| T::zero())),
+            weight_decay: Some(T::from(1e-4).unwrap_or_else(|| T::zero())),
+            epsilon: Some(T::from(1e-8).unwrap_or_else(|| T::zero())),
             nesterov: false,
         }
     }
@@ -417,7 +417,7 @@ impl ConfigManager {
                     .model
                     .arch_params
                     .insert("num_layers".to_string(), "6".to_string());
-                config.training.learning_rate = T::from(1e-4).unwrap();
+                config.training.learning_rate = T::from(1e-4).unwrap_or_else(|| T::zero());
             }
             "rnn" | "lstm" | "gru" => {
                 config
@@ -644,13 +644,15 @@ mod tests {
         let config = NeuralNetworkConfig::<f32>::default();
 
         // Test JSON serialization
-        let json_str = serde_json::to_string(&config).unwrap();
-        let parsed: NeuralNetworkConfig<f32> = serde_json::from_str(&json_str).unwrap();
+        let json_str = serde_json::to_string(&config).expect("operation should succeed");
+        let parsed: NeuralNetworkConfig<f32> =
+            serde_json::from_str(&json_str).expect("operation should succeed");
         assert_eq!(parsed.model.model_type, config.model.model_type);
 
         // Test YAML serialization
-        let yaml_str = serde_yaml::to_string(&config).unwrap();
-        let parsed: NeuralNetworkConfig<f32> = serde_yaml::from_str(&yaml_str).unwrap();
+        let yaml_str = serde_yaml::to_string(&config).expect("operation should succeed");
+        let parsed: NeuralNetworkConfig<f32> =
+            serde_yaml::from_str(&yaml_str).expect("operation should succeed");
         assert_eq!(parsed.model.model_type, config.model.model_type);
     }
 }

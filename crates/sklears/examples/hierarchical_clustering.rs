@@ -177,9 +177,15 @@ fn main() -> Result<()> {
     ];
 
     // Normalize the data first (important for clustering)
-    let spending_mean = customers.column(0).mean().unwrap();
+    let spending_mean = customers
+        .column(0)
+        .mean()
+        .expect("array should have elements for mean computation");
     let spending_std = customers.column(0).std(0.0);
-    let frequency_mean = customers.column(1).mean().unwrap();
+    let frequency_mean = customers
+        .column(1)
+        .mean()
+        .expect("array should have elements for mean computation");
     let frequency_std = customers.column(1).std(0.0);
 
     let mut normalized = customers.clone();

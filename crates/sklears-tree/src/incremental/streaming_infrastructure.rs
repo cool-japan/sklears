@@ -137,7 +137,7 @@ impl StreamingBuffer {
             return Err(SklearsError::InvalidInput("Buffer is empty".to_string()));
         }
 
-        let latest_timestamp = *self.timestamps.back().unwrap();
+        let latest_timestamp = *self.timestamps.back().expect("operation should succeed");
         let cutoff_timestamp = latest_timestamp.saturating_sub(window_duration);
 
         // Find samples within the window

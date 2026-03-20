@@ -13,8 +13,8 @@ use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -178,7 +178,10 @@ impl AdversarialAutoencoder<Untrained> {
 
         for &hidden_dim in &self.hidden_dims {
             let weight = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
-                rng.sample::<f64, _>(Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).unwrap())
+                rng.sample::<f64, _>(
+                    Normal::new(0.0, (2.0 / prev_dim as f64).sqrt())
+                        .expect("operation should succeed"),
+                )
             });
             let bias = Array1::zeros(hidden_dim);
             encoder_weights.push(weight);
@@ -188,7 +191,9 @@ impl AdversarialAutoencoder<Untrained> {
 
         // Final encoder layer to latent space
         let encoder_final_weight = Array2::from_shape_fn((prev_dim, self.n_components), |_| {
-            rng.sample::<f64, _>(Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).unwrap())
+            rng.sample::<f64, _>(
+                Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).expect("operation should succeed"),
+            )
         });
         let encoder_final_bias = Array1::zeros(self.n_components);
         encoder_weights.push(encoder_final_weight);
@@ -201,7 +206,10 @@ impl AdversarialAutoencoder<Untrained> {
 
         for &hidden_dim in self.hidden_dims.iter().rev() {
             let weight = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
-                rng.sample::<f64, _>(Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).unwrap())
+                rng.sample::<f64, _>(
+                    Normal::new(0.0, (2.0 / prev_dim as f64).sqrt())
+                        .expect("operation should succeed"),
+                )
             });
             let bias = Array1::zeros(hidden_dim);
             decoder_weights.push(weight);
@@ -211,7 +219,9 @@ impl AdversarialAutoencoder<Untrained> {
 
         // Final decoder layer to output space
         let decoder_final_weight = Array2::from_shape_fn((prev_dim, input_dim), |_| {
-            rng.sample::<f64, _>(Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).unwrap())
+            rng.sample::<f64, _>(
+                Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).expect("operation should succeed"),
+            )
         });
         let decoder_final_bias = Array1::zeros(input_dim);
         decoder_weights.push(decoder_final_weight);
@@ -225,7 +235,9 @@ impl AdversarialAutoencoder<Untrained> {
         // Discriminator hidden layer
         let disc_hidden_dim = 64;
         let disc_weight1 = Array2::from_shape_fn((prev_dim, disc_hidden_dim), |_| {
-            rng.sample::<f64, _>(Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).unwrap())
+            rng.sample::<f64, _>(
+                Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).expect("operation should succeed"),
+            )
         });
         let disc_bias1 = Array1::zeros(disc_hidden_dim);
         discriminator_weights.push(disc_weight1);
@@ -233,7 +245,10 @@ impl AdversarialAutoencoder<Untrained> {
 
         // Discriminator output layer
         let disc_weight2 = Array2::from_shape_fn((disc_hidden_dim, 1), |_| {
-            rng.sample::<f64, _>(Normal::new(0.0, (2.0 / disc_hidden_dim as f64).sqrt()).unwrap())
+            rng.sample::<f64, _>(
+                Normal::new(0.0, (2.0 / disc_hidden_dim as f64).sqrt())
+                    .expect("operation should succeed"),
+            )
         });
         let disc_bias2 = Array1::zeros(1);
         discriminator_weights.push(disc_weight2);
@@ -259,9 +274,13 @@ impl AdversarialAutoencoder<Untrained> {
         let mut hidden = x.clone();
 
         for (weight, bias) in weights.iter().zip(biases.iter()) {
-            hidden = hidden.dot(weight) + bias.view().broadcast(hidden.dim()).unwrap();
+            hidden = hidden.dot(weight)
+                + bias
+                    .view()
+                    .broadcast(hidden.dim())
+                    .expect("operation should succeed");
             // ReLU activation for hidden layers
-            if weight != weights.last().unwrap() {
+            if weight != weights.last().expect("operation should succeed") {
                 hidden.mapv_inplace(|x| x.max(0.0));
             }
         }
@@ -279,9 +298,13 @@ impl AdversarialAutoencoder<Untrained> {
         let mut hidden = z.clone();
 
         for (weight, bias) in weights.iter().zip(biases.iter()) {
-            hidden = hidden.dot(weight) + bias.view().broadcast(hidden.dim()).unwrap();
+            hidden = hidden.dot(weight)
+                + bias
+                    .view()
+                    .broadcast(hidden.dim())
+                    .expect("operation should succeed");
             // ReLU activation for hidden layers, sigmoid for output
-            if weight == weights.last().unwrap() {
+            if weight == weights.last().expect("operation should succeed") {
                 // Sigmoid activation for output
                 hidden.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
             } else {
@@ -303,9 +326,13 @@ impl AdversarialAutoencoder<Untrained> {
         let mut hidden = z.clone();
 
         for (weight, bias) in weights.iter().zip(biases.iter()) {
-            hidden = hidden.dot(weight) + bias.view().broadcast(hidden.dim()).unwrap();
+            hidden = hidden.dot(weight)
+                + bias
+                    .view()
+                    .broadcast(hidden.dim())
+                    .expect("operation should succeed");
             // ReLU for hidden, sigmoid for output
-            if weight == weights.last().unwrap() {
+            if weight == weights.last().expect("operation should succeed") {
                 hidden.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
             } else {
                 hidden.mapv_inplace(|x| x.max(0.0));
@@ -323,7 +350,8 @@ impl AdversarialAutoencoder<Untrained> {
         // Simple random noise-based adversarial examples for now
         // In practice, this would use gradient-based methods like FGSM
         for elem in x_adv.iter_mut() {
-            let perturbation = rng.sample::<f64, _>(Normal::new(0.0, epsilon).unwrap());
+            let perturbation =
+                rng.sample::<f64, _>(Normal::new(0.0, epsilon).expect("operation should succeed"));
             *elem += perturbation;
         }
 
@@ -518,9 +546,13 @@ impl AdversarialAutoencoder<AdversarialAETrained> {
         let mut hidden = x.clone();
 
         for (weight, bias) in weights.iter().zip(biases.iter()) {
-            hidden = hidden.dot(weight) + bias.view().broadcast(hidden.dim()).unwrap();
+            hidden = hidden.dot(weight)
+                + bias
+                    .view()
+                    .broadcast(hidden.dim())
+                    .expect("operation should succeed");
             // ReLU activation for hidden layers
-            if weight != weights.last().unwrap() {
+            if weight != weights.last().expect("operation should succeed") {
                 hidden.mapv_inplace(|x| x.max(0.0));
             }
         }
@@ -538,9 +570,13 @@ impl AdversarialAutoencoder<AdversarialAETrained> {
         let mut hidden = z.clone();
 
         for (weight, bias) in weights.iter().zip(biases.iter()) {
-            hidden = hidden.dot(weight) + bias.view().broadcast(hidden.dim()).unwrap();
+            hidden = hidden.dot(weight)
+                + bias
+                    .view()
+                    .broadcast(hidden.dim())
+                    .expect("operation should succeed");
             // ReLU activation for hidden layers, sigmoid for output
-            if weight == weights.last().unwrap() {
+            if weight == weights.last().expect("operation should succeed") {
                 // Sigmoid activation for output
                 hidden.mapv_inplace(|x| 1.0 / (1.0 + (-x).exp()));
             } else {
@@ -648,7 +684,9 @@ impl AdversarialTSNE<Untrained> {
         let mut x_perturbed = x.clone();
 
         for elem in x_perturbed.iter_mut() {
-            let perturbation = rng.sample::<f64, _>(Normal::new(0.0, self.epsilon).unwrap());
+            let perturbation = rng.sample::<f64, _>(
+                Normal::new(0.0, self.epsilon).expect("operation should succeed"),
+            );
             *elem += perturbation;
         }
 
@@ -726,7 +764,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for AdversarialTSNE<Untrained> {
         };
 
         let mut y = Array2::from_shape_fn((n_samples, self.n_components), |_| {
-            rng.sample::<f64, _>(Normal::new(0.0, 1e-4).unwrap())
+            rng.sample::<f64, _>(Normal::new(0.0, 1e-4).expect("operation should succeed"))
         });
 
         // Simplified adversarial t-SNE optimization
@@ -746,7 +784,9 @@ impl Fit<ArrayView2<'_, Float>, ()> for AdversarialTSNE<Untrained> {
             // Simple update with small random steps
             for mut row in y.rows_mut() {
                 for elem in row.iter_mut() {
-                    *elem += rng.sample::<f64, _>(Normal::new(0.0, 0.01).unwrap());
+                    *elem += rng.sample::<f64, _>(
+                        Normal::new(0.0, 0.01).expect("operation should succeed"),
+                    );
                 }
             }
         }

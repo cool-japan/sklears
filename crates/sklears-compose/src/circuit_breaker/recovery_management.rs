@@ -392,13 +392,17 @@ impl CircuitBreakerRecoveryManager {
         };
 
         {
-            let mut sessions = self.coordinator.active_sessions.write().unwrap();
+            let mut sessions = self
+                .coordinator
+                .active_sessions
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.clone(), session);
         }
 
         // Update metrics
         {
-            let mut metrics = self.metrics.lock().unwrap();
+            let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
             metrics.total_attempts += 1;
         }
 
@@ -418,7 +422,11 @@ impl CircuitBreakerRecoveryManager {
 
         // Get session
         let context = {
-            let sessions = self.coordinator.active_sessions.read().unwrap();
+            let sessions = self
+                .coordinator
+                .active_sessions
+                .read()
+                .unwrap_or_else(|e| e.into_inner());
             let session = sessions.get(session_id).ok_or_else(|| {
                 SklearsError::Configuration(format!("Unknown session: {session_id}"))
             })?;
@@ -443,7 +451,11 @@ impl CircuitBreakerRecoveryManager {
 
         // Update session status
         {
-            let mut sessions = self.coordinator.active_sessions.write().unwrap();
+            let mut sessions = self
+                .coordinator
+                .active_sessions
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some(session) = sessions.get_mut(session_id) {
                 session.status = RecoverySessionStatus::InProgress;
                 session.strategy = strategy_name.to_string();
@@ -455,7 +467,11 @@ impl CircuitBreakerRecoveryManager {
 
         // Update session based on result
         {
-            let mut sessions = self.coordinator.active_sessions.write().unwrap();
+            let mut sessions = self
+                .coordinator
+                .active_sessions
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some(session) = sessions.get_mut(session_id) {
                 match &result {
                     RecoveryResult::Success { .. } => {
@@ -475,7 +491,7 @@ impl CircuitBreakerRecoveryManager {
 
         // Update metrics
         {
-            let mut metrics = self.metrics.lock().unwrap();
+            let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
             match &result {
                 RecoveryResult::Success { .. } => {
                     metrics.successful_recoveries += 1;
@@ -502,7 +518,11 @@ impl CircuitBreakerRecoveryManager {
 
         // Update validation metrics
         {
-            let mut metrics = self.validator.metrics.lock().unwrap();
+            let mut metrics = self
+                .validator
+                .metrics
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             metrics.total_validations += 1;
             match &result {
                 ValidationResult::Valid { .. } => {
@@ -520,7 +540,11 @@ impl CircuitBreakerRecoveryManager {
 
     /// Cancel recovery session
     pub fn cancel_recovery(&self, session_id: &str) -> SklResult<()> {
-        let mut sessions = self.coordinator.active_sessions.write().unwrap();
+        let mut sessions = self
+            .coordinator
+            .active_sessions
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.get_mut(session_id) {
             session.status = RecoverySessionStatus::Cancelled;
         }
@@ -530,21 +554,29 @@ impl CircuitBreakerRecoveryManager {
     /// Get recovery status
     #[must_use]
     pub fn get_recovery_status(&self, session_id: &str) -> Option<RecoverySession> {
-        let sessions = self.coordinator.active_sessions.read().unwrap();
+        let sessions = self
+            .coordinator
+            .active_sessions
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         sessions.get(session_id).cloned()
     }
 
     /// Get all active sessions
     #[must_use]
     pub fn get_active_sessions(&self) -> Vec<RecoverySession> {
-        let sessions = self.coordinator.active_sessions.read().unwrap();
+        let sessions = self
+            .coordinator
+            .active_sessions
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         sessions.values().cloned().collect()
     }
 
     /// Get recovery metrics
     #[must_use]
     pub fn get_metrics(&self) -> RecoveryMetrics {
-        let metrics = self.metrics.lock().unwrap();
+        let metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         /// RecoveryMetrics
         RecoveryMetrics {
             total_attempts: metrics.total_attempts,
@@ -557,7 +589,11 @@ impl CircuitBreakerRecoveryManager {
 
     /// Cleanup completed sessions
     pub fn cleanup_sessions(&self) {
-        let mut sessions = self.coordinator.active_sessions.write().unwrap();
+        let mut sessions = self
+            .coordinator
+            .active_sessions
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         sessions.retain(|_, session| {
             match session.status {
                 RecoverySessionStatus::Completed

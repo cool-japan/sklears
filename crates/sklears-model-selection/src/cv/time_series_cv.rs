@@ -289,15 +289,18 @@ impl PurgedGroupTimeSeriesSplit {
     }
 
     fn should_include_group(&self, group: i32, test_groups: &[i32], all_groups: &[i32]) -> bool {
-        let group_pos = all_groups.iter().position(|&g| g == group).unwrap();
+        let group_pos = all_groups
+            .iter()
+            .position(|&g| g == group)
+            .expect("operation should succeed");
         let test_start = all_groups
             .iter()
             .position(|&g| g == test_groups[0])
-            .unwrap();
+            .expect("operation should succeed");
         let test_end = all_groups
             .iter()
             .position(|&g| g == test_groups[test_groups.len() - 1])
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check purge period (before test)
         if group_pos + self.purge_length > test_start && group_pos < test_start {

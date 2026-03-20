@@ -289,7 +289,7 @@ impl Fit<Array2<Float>, ()> for CausalKernel<Untrained> {
 
         // Generate random features for kernel approximation
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let treatment_weights =
             Array2::from_shape_fn((n_covariates, self.config.n_components), |_| {
@@ -314,8 +314,14 @@ impl Fit<Array2<Float>, ()> for CausalKernel<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for CausalKernel<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let treatment_weights = self.treatment_weights.as_ref().unwrap();
-        let outcome_weights = self.outcome_weights.as_ref().unwrap();
+        let treatment_weights = self
+            .treatment_weights
+            .as_ref()
+            .expect("operation should succeed");
+        let outcome_weights = self
+            .outcome_weights
+            .as_ref()
+            .expect("operation should succeed");
 
         // Assume input has same structure as training data
         let n_covariates = treatment_weights.nrows();
@@ -356,19 +362,23 @@ impl Transform<Array2<Float>, Array2<Float>> for CausalKernel<Trained> {
 impl CausalKernel<Trained> {
     /// Get estimated propensity scores
     pub fn propensity_scores(&self) -> &Array1<Float> {
-        self.propensity_scores.as_ref().unwrap()
+        self.propensity_scores
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get estimated treatment effects
     pub fn treatment_effects(&self) -> &HashMap<String, Float> {
-        self.treatment_effects.as_ref().unwrap()
+        self.treatment_effects
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get average treatment effect
     pub fn ate(&self) -> Float {
         self.treatment_effects
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .get("ate")
             .copied()
             .unwrap_or(0.0)
@@ -488,7 +498,7 @@ impl Fit<Array2<Float>, ()> for CounterfactualKernel<Untrained> {
 
         // Generate kernel features for matching
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let random_weights =
             Array2::from_shape_fn((n_covariates, self.config.n_components), |_| {
@@ -516,8 +526,14 @@ impl Fit<Array2<Float>, ()> for CounterfactualKernel<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for CounterfactualKernel<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let training_data = self.training_data.as_ref().unwrap();
-        let kernel_features = self.kernel_features.as_ref().unwrap();
+        let training_data = self
+            .training_data
+            .as_ref()
+            .expect("operation should succeed");
+        let kernel_features = self
+            .kernel_features
+            .as_ref()
+            .expect("operation should succeed");
 
         let n_covariates = training_data.ncols() - 2;
 
@@ -547,7 +563,7 @@ impl Transform<Array2<Float>, Array2<Float>> for CounterfactualKernel<Trained> {
                 distances.push((dist, j));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Compute weighted average of outcomes from nearest neighbors
             let mut treated_outcome = 0.0;
@@ -597,7 +613,9 @@ impl Transform<Array2<Float>, Array2<Float>> for CounterfactualKernel<Trained> {
 impl CounterfactualKernel<Trained> {
     /// Get propensity scores from training data
     pub fn propensity_scores(&self) -> &Array1<Float> {
-        self.propensity_scores.as_ref().unwrap()
+        self.propensity_scores
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Estimate individual treatment effect for a sample
@@ -637,8 +655,8 @@ mod tests {
             [2.5, 3.5, 1.0, 6.0],
         ];
 
-        let fitted = causal.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = causal.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert_eq!(features.ncols(), 40); // 2 * n_components
@@ -656,7 +674,7 @@ mod tests {
             [2.5, 1.0, 6.0],
         ];
 
-        let fitted = causal.fit(&data, &()).unwrap();
+        let fitted = causal.fit(&data, &()).expect("operation should succeed");
         let scores = fitted.propensity_scores();
 
         // Propensity scores should be between 0 and 1
@@ -675,7 +693,7 @@ mod tests {
             [2.5, 1.0, 6.0],
         ];
 
-        let fitted = causal.fit(&data, &()).unwrap();
+        let fitted = causal.fit(&data, &()).expect("operation should succeed");
         let effects = fitted.treatment_effects();
 
         assert!(effects.contains_key("ate"));
@@ -699,9 +717,11 @@ mod tests {
             [2.5, 1.0, 6.0],
         ];
 
-        let fitted = cf.fit(&data, &()).unwrap();
+        let fitted = cf.fit(&data, &()).expect("operation should succeed");
         let test_data = array![[1.2], [2.3]];
-        let counterfactuals = fitted.transform(&test_data).unwrap();
+        let counterfactuals = fitted
+            .transform(&test_data)
+            .expect("operation should succeed");
 
         assert_eq!(counterfactuals.nrows(), 2);
         // First 2 columns are treated and control outcomes, rest are features
@@ -724,9 +744,11 @@ mod tests {
             [2.5, 1.0, 6.0],
         ];
 
-        let fitted = cf.fit(&data, &()).unwrap();
+        let fitted = cf.fit(&data, &()).expect("operation should succeed");
         let test_sample = array![[1.5]];
-        let ite = fitted.estimate_ite(&test_sample).unwrap();
+        let ite = fitted
+            .estimate_ite(&test_sample)
+            .expect("operation should succeed");
 
         assert!(ite.is_finite());
     }
@@ -764,8 +786,8 @@ mod tests {
 
         for method in methods {
             let causal = CausalKernel::with_components(20).method(method);
-            let fitted = causal.fit(&data, &()).unwrap();
-            let features = fitted.transform(&data).unwrap();
+            let fitted = causal.fit(&data, &()).expect("operation should succeed");
+            let features = fitted.transform(&data).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 4);
         }

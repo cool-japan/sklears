@@ -315,8 +315,8 @@ impl SklearnTransformer for SklearnPCA {
 
         self.validate_input(x)?;
 
-        let components = self.components_.as_ref().unwrap();
-        let mean = self.mean_.as_ref().unwrap();
+        let components = self.components_.as_ref().expect("operation should succeed");
+        let mean = self.mean_.as_ref().expect("operation should succeed");
 
         // Center the data
         let mean_broadcast = mean.clone().insert_axis(Axis(0));
@@ -327,7 +327,10 @@ impl SklearnTransformer for SklearnPCA {
 
         // Apply whitening if requested
         if self.whiten {
-            let explained_var = self.explained_variance_.as_ref().unwrap();
+            let explained_var = self
+                .explained_variance_
+                .as_ref()
+                .expect("operation should succeed");
             let sqrt_explained_var = explained_var.mapv(|x| x.sqrt());
 
             // Divide by sqrt of explained variance for whitening
@@ -343,12 +346,15 @@ impl SklearnTransformer for SklearnPCA {
             return Err(SklearsError::InvalidInput("PCA not fitted".to_string()));
         }
 
-        let components = self.components_.as_ref().unwrap();
-        let mean = self.mean_.as_ref().unwrap();
+        let components = self.components_.as_ref().expect("operation should succeed");
+        let mean = self.mean_.as_ref().expect("operation should succeed");
 
         // Reverse whitening if it was applied
         let unwhitened = if self.whiten {
-            let explained_var = self.explained_variance_.as_ref().unwrap();
+            let explained_var = self
+                .explained_variance_
+                .as_ref()
+                .expect("operation should succeed");
             let sqrt_explained_var = explained_var.mapv(|x| x.sqrt());
             x * &sqrt_explained_var.insert_axis(Axis(0))
         } else {
@@ -829,12 +835,12 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = pca.fit_transform(&data, None);
         assert!(result.is_ok());
 
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
         assert!(pca.is_fitted());
     }
@@ -846,7 +852,7 @@ mod tests {
         params.insert("n_components".to_string(), ParameterValue::Int(3));
         params.insert("whiten".to_string(), ParameterValue::Bool(true));
 
-        pca.set_params(&params).unwrap();
+        pca.set_params(&params).expect("operation should succeed");
 
         assert_eq!(pca.n_components, Some(3));
         assert!(pca.whiten);
@@ -886,7 +892,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = pipeline.fit_transform(data, None);
         assert!(result.is_ok());
@@ -900,12 +906,13 @@ mod tests {
     fn test_cross_validation() {
         let pca = SklearnPCA::new().with_n_components(2);
 
-        let data = Array2::from_shape_vec((10, 4), (0..40).map(|x| x as Float).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 4), (0..40).map(|x| x as Float).collect())
+            .expect("shape and data length should match");
 
         let scores = CrossValidation::cross_val_score(pca, &data, None, 3);
         assert!(scores.is_ok());
 
-        let score_values = scores.unwrap();
+        let score_values = scores.expect("operation should succeed");
         assert_eq!(score_values.len(), 3);
     }
 }

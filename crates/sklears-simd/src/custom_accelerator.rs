@@ -337,7 +337,10 @@ impl AcceleratorRuntime {
 
         let context = driver.create_context(device)?;
         self.contexts.push(context);
-        Ok(self.contexts.last().unwrap())
+        Ok(self
+            .contexts
+            .last()
+            .expect("collection should not be empty"))
     }
 
     /// Get best device for operation
@@ -749,7 +752,7 @@ mod tests {
         let optimized = optimization::optimize_kernel(&kernel, &device);
         assert!(optimized.is_ok());
 
-        let opt_kernel = optimized.unwrap();
+        let opt_kernel = optimized.expect("operation should succeed");
         assert_eq!(opt_kernel.work_size.0, 256); // Limited by max_batch_size
     }
 
@@ -803,11 +806,11 @@ mod tests {
         let selected =
             optimization::select_accelerator(AcceleratorOperation::MatrixMultiply, 512, &devices);
         assert!(selected.is_some());
-        assert_eq!(selected.unwrap().id, 0);
+        assert_eq!(selected.expect("operation should succeed").id, 0);
 
         let selected =
             optimization::select_accelerator(AcceleratorOperation::Convolution, 256, &devices);
         assert!(selected.is_some());
-        assert_eq!(selected.unwrap().id, 1);
+        assert_eq!(selected.expect("operation should succeed").id, 1);
     }
 }

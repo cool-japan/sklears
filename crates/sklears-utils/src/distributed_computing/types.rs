@@ -129,9 +129,12 @@ impl MessagePassingSystem {
     }
     /// Send message to another node
     pub fn send_message(&self, message: DistributedMessage) -> Result<(), DistributedError> {
-        let routing_table = self.routing_table.read().unwrap();
+        let routing_table = self.routing_table.read().expect("operation should succeed");
         if let Some(_address) = routing_table.get(&message.destination) {
-            self.message_queue.lock().unwrap().push(message);
+            self.message_queue
+                .lock()
+                .expect("operation should succeed")
+                .push(message);
             Ok(())
         } else {
             Err(DistributedError::NodeUnreachable)
@@ -143,7 +146,7 @@ impl MessagePassingSystem {
         message_type: MessageType,
         data: Vec<u8>,
     ) -> Result<(), DistributedError> {
-        let routing_table = self.routing_table.read().unwrap();
+        let routing_table = self.routing_table.read().expect("operation should succeed");
         for (node_id, _address) in routing_table.iter() {
             if node_id != &self.node_id {
                 let message = DistributedMessage {
@@ -167,7 +170,7 @@ impl MessagePassingSystem {
     /// Process incoming messages
     pub fn process_messages(&self) -> Result<Vec<MessageResponse>, DistributedError> {
         let mut responses = Vec::new();
-        let mut queue = self.message_queue.lock().unwrap();
+        let mut queue = self.message_queue.lock().expect("operation should succeed");
         for message in queue.drain(..) {
             if let Some(handler) = self
                 .message_handlers
@@ -877,13 +880,13 @@ impl DistributedCluster {
     }
     /// Register a node in the cluster
     pub fn register_node(&self, node: ClusterNode) -> Result<(), DistributedError> {
-        let mut nodes = self.nodes.write().unwrap();
+        let mut nodes = self.nodes.write().expect("operation should succeed");
         nodes.insert(node.id.clone(), node);
         Ok(())
     }
     /// Remove a node from the cluster
     pub fn remove_node(&self, node_id: &str) -> Result<(), DistributedError> {
-        let mut nodes = self.nodes.write().unwrap();
+        let mut nodes = self.nodes.write().expect("operation should succeed");
         nodes
             .remove(node_id)
             .ok_or(DistributedError::NodeNotFound)?;
@@ -891,13 +894,18 @@ impl DistributedCluster {
     }
     /// Get all nodes in the cluster
     pub fn get_nodes(&self) -> Vec<ClusterNode> {
-        self.nodes.read().unwrap().values().cloned().collect()
+        self.nodes
+            .read()
+            .expect("operation should succeed")
+            .values()
+            .cloned()
+            .collect()
     }
     /// Get available nodes
     pub fn get_available_nodes(&self) -> Vec<ClusterNode> {
         self.nodes
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .values()
             .filter(|node| node.status == NodeStatus::Available)
             .cloned()
@@ -908,17 +916,20 @@ impl DistributedCluster {
         let job_id = job.id.clone();
         self.jobs
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(job_id.clone(), job.clone());
-        self.job_queue.lock().unwrap().push(job);
+        self.job_queue
+            .lock()
+            .expect("operation should succeed")
+            .push(job);
         self.schedule_jobs()?;
         Ok(job_id)
     }
     /// Schedule jobs in the queue
     pub fn schedule_jobs(&self) -> Result<(), DistributedError> {
-        let scheduler = self.scheduler.lock().unwrap();
-        let mut queue = self.job_queue.lock().unwrap();
-        let nodes = self.nodes.read().unwrap();
+        let scheduler = self.scheduler.lock().expect("operation should succeed");
+        let mut queue = self.job_queue.lock().expect("operation should succeed");
+        let nodes = self.nodes.read().expect("operation should succeed");
         queue.sort_by(|a, b| {
             b.priority
                 .cmp(&a.priority)
@@ -940,7 +951,7 @@ impl DistributedCluster {
                 };
                 self.executions
                     .write()
-                    .unwrap()
+                    .expect("operation should succeed")
                     .insert(job.id.clone(), execution);
                 scheduled_jobs.push(job.id.clone());
             }
@@ -952,17 +963,21 @@ impl DistributedCluster {
     pub fn get_job_status(&self, job_id: &str) -> Option<JobStatus> {
         self.executions
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .get(job_id)
             .map(|exec| exec.status.clone())
     }
     /// Get job execution info
     pub fn get_job_execution(&self, job_id: &str) -> Option<JobExecution> {
-        self.executions.read().unwrap().get(job_id).cloned()
+        self.executions
+            .read()
+            .expect("operation should succeed")
+            .get(job_id)
+            .cloned()
     }
     /// Cancel a job
     pub fn cancel_job(&self, job_id: &str) -> Result<(), DistributedError> {
-        let mut executions = self.executions.write().unwrap();
+        let mut executions = self.executions.write().expect("operation should succeed");
         if let Some(execution) = executions.get_mut(job_id) {
             execution.status = JobStatus::Cancelled;
             execution.end_time = Some(Instant::now());
@@ -977,7 +992,7 @@ impl DistributedCluster {
         node_id: &str,
         load_metrics: LoadMetrics,
     ) -> Result<(), DistributedError> {
-        let mut nodes = self.nodes.write().unwrap();
+        let mut nodes = self.nodes.write().expect("operation should succeed");
         if let Some(node) = nodes.get_mut(node_id) {
             node.last_heartbeat = Instant::now();
             node.load_metrics = load_metrics;
@@ -999,9 +1014,9 @@ impl DistributedCluster {
     }
     /// Get cluster statistics
     pub fn get_cluster_stats(&self) -> ClusterStats {
-        let nodes = self.nodes.read().unwrap();
-        let jobs = self.jobs.read().unwrap();
-        let executions = self.executions.read().unwrap();
+        let nodes = self.nodes.read().expect("operation should succeed");
+        let jobs = self.jobs.read().expect("operation should succeed");
+        let executions = self.executions.read().expect("operation should succeed");
         let total_nodes = nodes.len();
         let available_nodes = nodes
             .values()
@@ -1059,7 +1074,11 @@ impl DistributedCluster {
             running_jobs,
             completed_jobs,
             failed_jobs,
-            queued_jobs: self.job_queue.lock().unwrap().len(),
+            queued_jobs: self
+                .job_queue
+                .lock()
+                .expect("operation should succeed")
+                .len(),
             total_cpu_cores,
             total_memory_gb,
             total_gpu_count,
@@ -1074,13 +1093,13 @@ impl DistributedCluster {
         let config = self.config.clone();
         thread::spawn(move || loop {
             let now = Instant::now();
-            let mut nodes_guard = nodes.write().unwrap();
+            let mut nodes_guard = nodes.write().expect("operation should succeed");
             for node in nodes_guard.values_mut() {
                 if now.duration_since(node.last_heartbeat) > config.node_timeout {
                     node.status = NodeStatus::Unreachable;
                 }
             }
-            let mut executions_guard = executions.write().unwrap();
+            let mut executions_guard = executions.write().expect("operation should succeed");
             for execution in executions_guard.values_mut() {
                 if execution.status == JobStatus::Running
                     && now.duration_since(execution.start_time) > config.job_timeout
@@ -1097,15 +1116,18 @@ impl DistributedCluster {
     }
     /// Rebalance workload across nodes
     pub fn rebalance_workload(&self) -> Result<(), DistributedError> {
-        let load_balancer = self.load_balancer.lock().unwrap();
-        let nodes = self.nodes.read().unwrap();
+        let load_balancer = self.load_balancer.lock().expect("operation should succeed");
+        let nodes = self.nodes.read().expect("operation should succeed");
         load_balancer.rebalance(&nodes)?;
         Ok(())
     }
     /// Handle node failure
     pub fn handle_node_failure(&self, node_id: &str) -> Result<(), DistributedError> {
-        let mut fault_detector = self.fault_detector.lock().unwrap();
-        let mut executions = self.executions.write().unwrap();
+        let mut fault_detector = self
+            .fault_detector
+            .lock()
+            .expect("operation should succeed");
+        let mut executions = self.executions.write().expect("operation should succeed");
         for execution in executions.values_mut() {
             if execution.node_id == node_id && execution.status == JobStatus::Running {
                 execution.status = JobStatus::Failed;

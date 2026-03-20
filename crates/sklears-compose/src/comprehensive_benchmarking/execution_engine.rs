@@ -60,7 +60,7 @@ impl ExecutionEngine {
     /// Submit a task for execution
     pub fn submit_task(&self, task: BenchmarkTask) -> Result<TaskHandle, ExecutionEngineError> {
         // Check resource availability
-        let resource_manager = self.resource_manager.read().unwrap();
+        let resource_manager = self.resource_manager.read().unwrap_or_else(|e| e.into_inner());
         if !resource_manager.can_allocate_resources(&task.resource_requirements) {
             return Err(ExecutionEngineError::InsufficientResources(
                 format!("Not enough resources for task {}", task.task_id)
@@ -69,7 +69,7 @@ impl ExecutionEngine {
         drop(resource_manager);
 
         // Schedule the task
-        let mut scheduler = self.task_scheduler.lock().unwrap();
+        let mut scheduler = self.task_scheduler.lock().unwrap_or_else(|e| e.into_inner());
         let task_handle = scheduler.schedule_task(task)?;
 
         // Try to execute immediately if possible
@@ -80,19 +80,19 @@ impl ExecutionEngine {
 
     /// Get execution engine statistics
     pub fn get_statistics(&self) -> ExecutionEngineStats {
-        self.engine_stats.read().unwrap().clone()
+        self.engine_stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get system information
     pub fn get_system_info(&self) -> SystemInfo {
-        self.system_monitor.read().unwrap().get_system_info()
+        self.system_monitor.read().unwrap_or_else(|e| e.into_inner()).get_system_info()
     }
 
     /// Shutdown the execution engine
     pub fn shutdown(&mut self) -> Result<(), ExecutionEngineError> {
         // Signal all pools to shutdown
         for (_, pool) in &self.execution_pools {
-            pool.lock().unwrap().shutdown()?;
+            pool.lock().unwrap_or_else(|e| e.into_inner()).shutdown()?;
         }
 
         // Wait for all tasks to complete
@@ -109,7 +109,7 @@ impl ExecutionEngine {
     /// Get pool statistics
     pub fn get_pool_statistics(&self, pool_name: &str) -> Option<ExecutionPoolStatistics> {
         self.execution_pools.get(pool_name).map(|pool| {
-            pool.lock().unwrap().get_statistics()
+            pool.lock().unwrap_or_else(|e| e.into_inner()).get_statistics()
         })
     }
 
@@ -136,7 +136,7 @@ impl ExecutionEngine {
         self.add_execution_pool("io_intensive", io_pool_config)?;
 
         // GPU pool (if available)
-        if self.system_monitor.read().unwrap().has_gpu() {
+        if self.system_monitor.read().unwrap_or_else(|e| e.into_inner()).has_gpu() {
             let gpu_pool_config = ExecutionPoolConfig {
                 max_workers: self.engine_config.default_gpu_workers,
                 queue_capacity: 50,
@@ -151,11 +151,11 @@ impl ExecutionEngine {
     }
 
     fn try_execute_next_task(&self) -> Result<(), ExecutionEngineError> {
-        let mut scheduler = self.task_scheduler.lock().unwrap();
+        let mut scheduler = self.task_scheduler.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task) = scheduler.get_next_ready_task() {
             let pool_name = self.determine_best_pool(&task)?;
             if let Some(pool) = self.execution_pools.get(&pool_name) {
-                pool.lock().unwrap().submit_task(task)?;
+                pool.lock().unwrap_or_else(|e| e.into_inner()).submit_task(task)?;
             }
         }
         Ok(())
@@ -187,7 +187,7 @@ impl ExecutionEngine {
         let start = Instant::now();
         while start.elapsed() < timeout {
             let all_idle = self.execution_pools.values()
-                .all(|pool| pool.lock().unwrap().is_idle());
+                .all(|pool| pool.lock().unwrap_or_else(|e| e.into_inner()).is_idle());
 
             if all_idle {
                 return Ok(());
@@ -313,7 +313,7 @@ impl ExecutionPool {
         }
 
         {
-            let mut queue = self.task_queue.lock().unwrap();
+            let mut queue = self.task_queue.lock().unwrap_or_else(|e| e.into_inner());
             if queue.len() >= self.config.queue_capacity {
                 return Err(ExecutionEngineError::QueueFull);
             }
@@ -322,7 +322,7 @@ impl ExecutionPool {
 
         // Notify workers that a new task is available
         let (lock, cvar) = &*self.coordinator;
-        let _started = lock.lock().unwrap();
+        let _started = lock.lock().unwrap_or_else(|e| e.into_inner());
         cvar.notify_one();
 
         Ok(())
@@ -330,13 +330,13 @@ impl ExecutionPool {
 
     /// Get pool statistics
     pub fn get_statistics(&self) -> ExecutionPoolStatistics {
-        self.pool_stats.read().unwrap().clone()
+        self.pool_stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Check if pool is idle
     pub fn is_idle(&self) -> bool {
-        let queue = self.task_queue.lock().unwrap();
-        let active = self.active_tasks.lock().unwrap();
+        let queue = self.task_queue.lock().unwrap_or_else(|e| e.into_inner());
+        let active = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         queue.is_empty() && active.is_empty()
     }
 
@@ -346,7 +346,7 @@ impl ExecutionPool {
 
         // Wake up all workers
         let (lock, cvar) = &*self.coordinator;
-        let _started = lock.lock().unwrap();
+        let _started = lock.lock().unwrap_or_else(|e| e.into_inner());
         cvar.notify_all();
 
         // Wait for workers to finish
@@ -359,12 +359,12 @@ impl ExecutionPool {
 
     /// Get active task count
     pub fn active_task_count(&self) -> usize {
-        self.active_tasks.lock().unwrap().len()
+        self.active_tasks.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 
     /// Get queued task count
     pub fn queued_task_count(&self) -> usize {
-        self.task_queue.lock().unwrap().len()
+        self.task_queue.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 }
 
@@ -484,7 +484,7 @@ impl Worker {
 
             // Try to get a task from the queue
             let task = {
-                let mut queue = task_queue.lock().unwrap();
+                let mut queue = task_queue.lock().unwrap_or_else(|e| e.into_inner());
                 queue.pop_front()
             };
 
@@ -503,9 +503,9 @@ impl Worker {
                     // No tasks available, wait for signal or timeout
                     let (lock, cvar) = &*coordinator;
                     let result = cvar.wait_timeout(
-                        lock.lock().unwrap(),
+                        lock.lock().unwrap_or_else(|e| e.into_inner()),
                         config.worker_timeout,
-                    ).unwrap();
+                    ).unwrap_or_default();
 
                     if result.1.timed_out() {
                         // Consider scaling down if idle for too long
@@ -528,7 +528,7 @@ impl Worker {
 
         // Add to active tasks
         {
-            let mut active = active_tasks.lock().unwrap();
+            let mut active = active_tasks.lock().unwrap_or_else(|e| e.into_inner());
             active.insert(task_id.clone(), TaskExecution {
                 task: task.clone(),
                 worker_id,
@@ -543,13 +543,13 @@ impl Worker {
 
         // Remove from active tasks
         {
-            let mut active = active_tasks.lock().unwrap();
+            let mut active = active_tasks.lock().unwrap_or_else(|e| e.into_inner());
             active.remove(&task_id);
         }
 
         // Update statistics
         {
-            let mut stats = pool_stats.write().unwrap();
+            let mut stats = pool_stats.write().unwrap_or_else(|e| e.into_inner());
             match result {
                 Ok(_) => {
                     stats.total_completed += 1;
@@ -755,12 +755,12 @@ impl TaskHandle {
     }
 
     pub fn get_status(&self) -> TaskExecutionStatus {
-        self.status.read().unwrap().clone()
+        self.status.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     pub fn is_complete(&self) -> bool {
         matches!(
-            *self.status.read().unwrap(),
+            *self.status.read().unwrap_or_else(|e| e.into_inner()),
             TaskExecutionStatus::Completed | TaskExecutionStatus::Failed | TaskExecutionStatus::Cancelled
         )
     }
@@ -835,7 +835,7 @@ impl TaskScheduler {
 
         // Update task handle status
         if let Some(handle) = self.task_handles.get(task_id) {
-            *handle.status.write().unwrap() = TaskExecutionStatus::Completed;
+            *handle.status.write().unwrap_or_else(|e| e.into_inner()) = TaskExecutionStatus::Completed;
         }
     }
 
@@ -845,7 +845,7 @@ impl TaskScheduler {
 
         // Update task handle status
         if let Some(handle) = self.task_handles.get(task_id) {
-            *handle.status.write().unwrap() = TaskExecutionStatus::Failed;
+            *handle.status.write().unwrap_or_else(|e| e.into_inner()) = TaskExecutionStatus::Failed;
         }
     }
 
@@ -1657,7 +1657,7 @@ mod tests {
 
         let next_task = scheduler.get_next_ready_task();
         assert!(next_task.is_some());
-        assert_eq!(next_task.unwrap().task_id, "task1");
+        assert_eq!(next_task.unwrap_or_default().task_id, "task1");
     }
 
     #[test]
@@ -1665,7 +1665,7 @@ mod tests {
         let resources = SystemResources::discover();
         assert!(resources.is_ok());
 
-        let res = resources.unwrap();
+        let res = resources.unwrap_or_default();
         assert!(res.cpu_cores > 0);
         assert!(res.memory_mb > 0);
     }
@@ -1675,7 +1675,7 @@ mod tests {
         let hardware = HardwareInfo::detect();
         assert!(hardware.is_ok());
 
-        let hw = hardware.unwrap();
+        let hw = hardware.unwrap_or_default();
         assert!(hw.cpu_info.cores > 0);
         assert!(hw.memory_info.total_memory > 0);
     }
@@ -1685,7 +1685,7 @@ mod tests {
         let manager = ResourceManager::new();
         assert!(manager.is_ok());
 
-        let mut rm = manager.unwrap();
+        let mut rm = manager.unwrap_or_default();
         let requirements = ResourceRequirements {
             cpu_cores: 1,
             memory_mb: 512,

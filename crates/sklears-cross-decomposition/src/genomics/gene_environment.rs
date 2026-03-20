@@ -78,7 +78,10 @@ impl GeneEnvironmentInteraction {
             .slice_mut(s![.., gene_data.ncols()..])
             .assign(&env_data);
 
-        let phenotype_2d = phenotype.to_shape((phenotype.len(), 1)).unwrap().to_owned();
+        let phenotype_2d = phenotype
+            .to_shape((phenotype.len(), 1))
+            .expect("reshape should succeed")
+            .to_owned();
         let fitted_pls = pls.fit(&combined_data, &phenotype_2d)?;
 
         // Compute interaction effects
@@ -168,7 +171,11 @@ impl GeneEnvironmentInteraction {
         }
 
         // Sort by interaction strength (descending)
-        significant.sort_by(|a, b| b.2.abs().partial_cmp(&a.2.abs()).unwrap());
+        significant.sort_by(|a, b| {
+            b.2.abs()
+                .partial_cmp(&a.2.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(significant)
     }

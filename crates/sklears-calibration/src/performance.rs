@@ -953,16 +953,20 @@ mod tests {
         let predictions = Array1::from(vec![0.1, 0.4, 0.7, 0.9]);
         let targets = Array1::from(vec![0, 0, 1, 1]);
 
-        let score = SIMDCalibrationOps::simd_brier_score(&predictions, &targets).unwrap();
+        let score = SIMDCalibrationOps::simd_brier_score(&predictions, &targets)
+            .expect("operation should succeed");
         assert!(score >= 0.0);
     }
 
     #[test]
     fn test_blocked_matrix_multiply() {
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
+        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
 
-        let result = CacheFriendlyOps::blocked_matrix_multiply(&a, &b, 2).unwrap();
+        let result =
+            CacheFriendlyOps::blocked_matrix_multiply(&a, &b, 2).expect("operation should succeed");
         assert_eq!(result.dim(), (2, 2));
 
         // Check expected values
@@ -976,7 +980,7 @@ mod tests {
     fn test_tiled_element_wise_operation() {
         let input =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
         let result = CacheFriendlyOps::tiled_element_wise_operation(&input, |x| x * 2.0, 2);
 
         assert_eq!(result.dim(), input.dim());

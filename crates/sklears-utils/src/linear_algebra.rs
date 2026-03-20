@@ -640,7 +640,8 @@ mod tests {
     #[test]
     fn test_lu_decomposition() {
         let a = array![[2.0, 1.0], [1.0, 1.0]];
-        let (l, u, _p) = MatrixDecomposition::lu_decomposition(&a).unwrap();
+        let (l, u, _p) =
+            MatrixDecomposition::lu_decomposition(&a).expect("operation should succeed");
 
         // Check that L is lower triangular
         assert_abs_diff_eq!(l[(0, 1)], 0.0, epsilon = 1e-10);
@@ -652,7 +653,7 @@ mod tests {
     #[test]
     fn test_qr_decomposition() {
         let a = array![[1.0, 1.0], [1.0, 0.0], [0.0, 1.0]];
-        let (q, r) = MatrixDecomposition::qr_decomposition(&a).unwrap();
+        let (q, r) = MatrixDecomposition::qr_decomposition(&a).expect("operation should succeed");
 
         // Check that Q has orthonormal columns
         let qtq = q.t().dot(&q);
@@ -667,7 +668,7 @@ mod tests {
     #[test]
     fn test_cholesky_decomposition() {
         let a = array![[4.0, 2.0], [2.0, 2.0]];
-        let l = MatrixDecomposition::cholesky_decomposition(&a).unwrap();
+        let l = MatrixDecomposition::cholesky_decomposition(&a).expect("operation should succeed");
 
         // Check that L * L^T = A
         let reconstructed = l.dot(&l.t());
@@ -696,7 +697,7 @@ mod tests {
         let symmetric = array![[1.0, 2.0], [2.0, 3.0]];
         assert!(MatrixUtils::is_symmetric(&symmetric, 1e-10));
 
-        let trace = MatrixUtils::trace(&symmetric).unwrap();
+        let trace = MatrixUtils::trace(&symmetric).expect("operation should succeed");
         assert_abs_diff_eq!(trace, 4.0, epsilon = 1e-10);
 
         let orthogonal = array![[1.0, 0.0], [0.0, 1.0]];
@@ -707,7 +708,7 @@ mod tests {
     fn test_power_iteration() {
         let a = array![[2.0, 1.0], [1.0, 2.0]];
         let (eigenvalue, _eigenvector) =
-            EigenDecomposition::power_iteration(&a, 100, 1e-10).unwrap();
+            EigenDecomposition::power_iteration(&a, 100, 1e-10).expect("operation should succeed");
 
         // The largest eigenvalue should be 3.0
         assert_abs_diff_eq!(eigenvalue, 3.0, epsilon = 1e-8);
@@ -717,7 +718,7 @@ mod tests {
     fn test_pseudoinverse() {
         // Test with simple matrices to ensure the function doesn't crash
         let a = array![[1.0, 0.0], [0.0, 1.0]];
-        let pinv = Pseudoinverse::pinv(&a, None).unwrap();
+        let pinv = Pseudoinverse::pinv(&a, None).expect("operation should succeed");
 
         // Check dimensions (should be 2x2 for square matrix)
         assert_eq!(pinv.dim(), (2, 2));
@@ -731,7 +732,7 @@ mod tests {
 
         // Test with a non-square matrix
         let b = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let pinv_b = Pseudoinverse::pinv(&b, None).unwrap();
+        let pinv_b = Pseudoinverse::pinv(&b, None).expect("operation should succeed");
         assert_eq!(pinv_b.dim(), (2, 3));
 
         // Check that all values are finite
@@ -745,18 +746,20 @@ mod tests {
     #[test]
     fn test_matrix_rank() {
         let full_rank = array![[1.0, 0.0], [0.0, 1.0]];
-        let rank = MatrixRank::rank(&full_rank, Some(1e-6)).unwrap();
+        let rank = MatrixRank::rank(&full_rank, Some(1e-6)).expect("operation should succeed");
         // Identity matrix should have full rank, but our simplified SVD may not be exact
         assert!((1..=2).contains(&rank));
 
         let singular = array![[1.0, 2.0], [2.0, 4.0]];
-        let rank_singular = MatrixRank::rank(&singular, Some(1e-6)).unwrap();
+        let rank_singular =
+            MatrixRank::rank(&singular, Some(1e-6)).expect("operation should succeed");
         // Singular matrix should have rank less than 2, but our simplified SVD might not be perfect
         assert!((1..=2).contains(&rank_singular));
 
         // Test that the function doesn't crash and returns reasonable values
         let zero_matrix = array![[0.0, 0.0], [0.0, 0.0]];
-        let rank_zero = MatrixRank::rank(&zero_matrix, Some(1e-6)).unwrap();
+        let rank_zero =
+            MatrixRank::rank(&zero_matrix, Some(1e-6)).expect("operation should succeed");
         assert!(rank_zero <= 2);
     }
 }

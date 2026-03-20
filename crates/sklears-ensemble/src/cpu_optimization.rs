@@ -788,7 +788,9 @@ mod tests {
         let a = array![[1.0, 2.0], [3.0, 4.0]];
         let b = array![[5.0, 6.0], [7.0, 8.0]];
 
-        let result = optimizer.optimized_matmul(&a, &b).unwrap();
+        let result = optimizer
+            .optimized_matmul(&a, &b)
+            .expect("operation should succeed");
         let expected = array![[19.0, 22.0], [43.0, 50.0]];
 
         assert_eq!(result, expected);
@@ -799,7 +801,9 @@ mod tests {
         let mut optimizer = CpuOptimizer::auto_detect();
 
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 2.0, 3.0, 3.0];
-        let histogram = optimizer.optimized_histogram(&data, 5, 1.0, 6.0).unwrap();
+        let histogram = optimizer
+            .optimized_histogram(&data, 5, 1.0, 6.0)
+            .expect("operation should succeed");
 
         assert_eq!(histogram.sum(), data.len());
     }
@@ -811,7 +815,9 @@ mod tests {
         let a = array![[1.0, 2.0], [3.0, 4.0]];
         let b = array![[5.0, 6.0], [7.0, 8.0]];
 
-        optimizer.optimized_matmul(&a, &b).unwrap();
+        optimizer
+            .optimized_matmul(&a, &b)
+            .expect("operation should succeed");
 
         let counters = optimizer.performance_counters();
         assert!(counters.vectorized_operations > 0 || counters.scalar_operations > 0);
@@ -837,7 +843,9 @@ mod tests {
         let predictions = vec![pred1, pred2];
         let weights = array![0.6, 0.4];
 
-        let result = ops.vectorized_weighted_sum(&predictions, &weights).unwrap();
+        let result = ops
+            .vectorized_weighted_sum(&predictions, &weights)
+            .expect("operation should succeed");
         let expected = array![1.4, 2.4, 3.4]; // 0.6*1 + 0.4*2, etc.
 
         for (actual, expected) in result.iter().zip(expected.iter()) {

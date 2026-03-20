@@ -316,7 +316,10 @@ impl ImbalanceAnalyzer {
             .insert("imbalance_ratio".to_string(), imbalance_ratio);
         self.analysis_results.insert(
             "n_classes".to_string(),
-            self.class_distribution.as_ref().unwrap().len() as f64,
+            self.class_distribution
+                .as_ref()
+                .expect("operation should succeed")
+                .len() as f64,
         );
         self.analysis_results
             .insert("minority_ratio".to_string(), min_count / total_samples);
@@ -439,7 +442,7 @@ mod tests {
     #[test]
     fn test_smote_resampler() {
         let config = ResamplingConfig::default();
-        let mut resampler = SMOTEResampler::new(config).unwrap();
+        let mut resampler = SMOTEResampler::new(config).expect("operation should succeed");
 
         let x = Array2::from_shape_vec(
             (6, 2),
@@ -447,10 +450,12 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0, 1.0, 1.0]);
 
-        let (new_x, new_y) = resampler.fit_resample(&x.view(), &y.view()).unwrap();
+        let (new_x, new_y) = resampler
+            .fit_resample(&x.view(), &y.view())
+            .expect("operation should succeed");
         assert_eq!(new_x.dim().1, x.dim().1); // Same number of features
     }
 

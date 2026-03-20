@@ -367,7 +367,7 @@ impl ManifoldLearning<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (idx, &(_, neighbor_idx)) in distances.iter().take(k).enumerate() {
                 neighbors[[i, idx]] = neighbor_idx;
@@ -547,9 +547,9 @@ impl ManifoldLearning<Untrained> {
         }
 
         // Double centering
-        let row_means = similarity.mean_axis(Axis(1)).unwrap();
-        let col_means = similarity.mean_axis(Axis(0)).unwrap();
-        let grand_mean = row_means.mean().unwrap();
+        let row_means = similarity.mean_axis(Axis(1)).expect("array should have elements for mean computation");
+        let col_means = similarity.mean_axis(Axis(0)).expect("array should have elements for mean computation");
+        let grand_mean = row_means.mean().expect("array should have elements for mean computation");
 
         for i in 0..n_samples {
             for j in 0..n_samples {
@@ -601,7 +601,7 @@ impl ManifoldLearning<Untrained> {
             }
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_distance = distances[distances.len() / 2];
 
         Ok(median_distance)
@@ -895,7 +895,7 @@ impl ManifoldLearning<Untrained> {
             }
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Use median distance as sigma estimate
         if !distances.is_empty() {
@@ -1112,7 +1112,7 @@ impl ManifoldLearning<TrainedManifoldLearning> {
                 distances.push((distance, j));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Use weighted average of k nearest neighbors
             let k = self.n_neighbors.min(distances.len());
@@ -1209,14 +1209,14 @@ mod tests {
             .n_neighbors(3)
             .random_state(42);
 
-        let trained_ml = ml.fit(&x, &()).unwrap();
+        let trained_ml = ml.fit(&x, &()).expect("model fitting should succeed");
 
         assert_eq!(trained_ml.embedding().dim(), (6, 2));
         assert_eq!(trained_ml.state.algorithm, ManifoldAlgorithm::LLE);
 
         // Test transformation
         let new_point = array![[0.5, 0.5, 0.0]];
-        let transformed = trained_ml.transform(&new_point).unwrap();
+        let transformed = trained_ml.transform(&new_point).expect("transformation should succeed");
         assert_eq!(transformed.dim(), (1, 2));
     }
 
@@ -1236,7 +1236,7 @@ mod tests {
                 .metric(metric)
                 .random_state(42);
 
-            let trained_ml = ml.fit(&x, &()).unwrap();
+            let trained_ml = ml.fit(&x, &()).expect("model fitting should succeed");
             assert_eq!(trained_ml.embedding().dim(), (4, 1));
         }
     }
@@ -1270,7 +1270,7 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
         let ml = ManifoldLearning::new(ManifoldAlgorithm::LLE, 2);
-        let neighbors = ml.find_knn(&x, 2).unwrap();
+        let neighbors = ml.find_knn(&x, 2).expect("operation should succeed");
 
         assert_eq!(neighbors.dim(), (4, 2));
 

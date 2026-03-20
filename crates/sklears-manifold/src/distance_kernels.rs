@@ -96,8 +96,8 @@ pub fn procrustes_distance(x1: &Array2<f64>, x2: &Array2<f64>) -> SklResult<f64>
     let (n, m) = x1.dim();
 
     // Center the configurations
-    let mean1 = x1.mean_axis(Axis(0)).unwrap();
-    let mean2 = x2.mean_axis(Axis(0)).unwrap();
+    let mean1 = x1.mean_axis(Axis(0)).expect("operation should succeed");
+    let mean2 = x2.mean_axis(Axis(0)).expect("operation should succeed");
 
     let x1_centered = x1 - &mean1;
     let x2_centered = x2 - &mean2;
@@ -211,7 +211,7 @@ pub fn local_tangent_space_kernel(
                 distances.push((j, dist));
             }
         }
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         let neighbors: Vec<usize> = distances
             .iter()
@@ -272,7 +272,7 @@ pub fn adaptive_diffusion_kernel(
                 distances.push(dist);
             }
         }
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Use k-th nearest neighbor distance as density measure
         if distances.len() >= k_neighbors {
@@ -344,7 +344,7 @@ pub fn manifold_distance_kernel(
                 distances.push((j, euclidean_dists[(i, j)]));
             }
         }
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         for &(j, dist) in distances.iter().take(k) {
             adjacency[(i, j)] = dist;

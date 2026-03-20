@@ -232,48 +232,48 @@ impl DashboardInterfaceSystem {
     /// Create a new dashboard
     pub fn create_dashboard(&self, dashboard_id: String, dashboard_name: String) -> Result<(), DashboardError> {
         let dashboard = Dashboard::new(dashboard_id, dashboard_name);
-        let mut manager = self.dashboard_manager.write().unwrap();
+        let mut manager = self.dashboard_manager.write().unwrap_or_else(|e| e.into_inner());
         manager.add_dashboard(dashboard);
         Ok(())
     }
 
     /// Get a dashboard by ID
     pub fn get_dashboard(&self, dashboard_id: &str) -> Option<Dashboard> {
-        let manager = self.dashboard_manager.read().unwrap();
+        let manager = self.dashboard_manager.read().unwrap_or_else(|e| e.into_inner());
         manager.get_dashboard(dashboard_id).cloned()
     }
 
     /// Add a template
     pub fn add_template(&self, template: DashboardTemplate) -> Result<(), DashboardError> {
-        let mut manager = self.template_manager.write().unwrap();
+        let mut manager = self.template_manager.write().unwrap_or_else(|e| e.into_inner());
         manager.add_template(template);
         Ok(())
     }
 
     /// Set active theme
     pub fn set_active_theme(&self, theme_id: String) -> Result<(), DashboardError> {
-        let mut style_manager = self.style_manager.write().unwrap();
+        let mut style_manager = self.style_manager.write().unwrap_or_else(|e| e.into_inner());
         style_manager.set_active_theme(theme_id)
             .map_err(|e| DashboardError::ThemeNotFound(e))
     }
 
     /// Schedule distribution
     pub fn schedule_distribution(&self, distribution: ScheduledDistribution) -> Result<(), DashboardError> {
-        let mut manager = self.distribution_manager.write().unwrap();
+        let mut manager = self.distribution_manager.write().unwrap_or_else(|e| e.into_inner());
         manager.schedule_distribution(distribution);
         Ok(())
     }
 
     /// Enable real-time updates
     pub fn enable_realtime_updates(&self) -> Result<(), DashboardError> {
-        let mut updates = self.realtime_updates.write().unwrap();
+        let mut updates = self.realtime_updates.write().unwrap_or_else(|e| e.into_inner());
         updates.enable_push_notifications();
         Ok(())
     }
 
     /// Add API endpoint
     pub fn add_api_endpoint(&self, endpoint: ApiEndpoint) -> Result<(), DashboardError> {
-        let mut web_interface = self.web_interface.write().unwrap();
+        let mut web_interface = self.web_interface.write().unwrap_or_else(|e| e.into_inner());
         web_interface.add_endpoint(endpoint);
         Ok(())
     }
@@ -288,7 +288,7 @@ impl DashboardInterfaceSystem {
             error,
         };
 
-        let handler = self.error_handler.read().unwrap();
+        let handler = self.error_handler.read().unwrap_or_else(|e| e.into_inner());
         handler.handle_error(&error_info)
     }
 }

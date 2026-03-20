@@ -671,12 +671,16 @@ mod tests {
         let solver = CoordinateDescentSolver::default();
 
         // With small alpha, should be close to OLS solution
-        let (coef, intercept) = solver.solve_lasso(&x, &y, 0.01, false).unwrap();
+        let (coef, intercept) = solver
+            .solve_lasso(&x, &y, 0.01, false)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(coef[0], 2.0, epsilon = 0.1);
         assert_eq!(intercept, None);
 
         // With large alpha, coefficient should shrink
-        let (coef, _intercept) = solver.solve_lasso(&x, &y, 1.0, false).unwrap();
+        let (coef, _intercept) = solver
+            .solve_lasso(&x, &y, 1.0, false)
+            .expect("operation should succeed");
         assert!(coef[0] < 2.0);
         assert!(coef[0] > 0.0);
     }
@@ -689,10 +693,14 @@ mod tests {
         let solver = CoordinateDescentSolver::default();
 
         // ElasticNet with l1_ratio=0.5
-        let (coef, _) = solver.solve_elastic_net(&x, &y, 0.1, 0.5, false).unwrap();
+        let (coef, _) = solver
+            .solve_elastic_net(&x, &y, 0.1, 0.5, false)
+            .expect("operation should succeed");
 
         // Should be between Lasso and Ridge solutions
-        let (lasso_coef, _) = solver.solve_lasso(&x, &y, 0.1, false).unwrap();
+        let (lasso_coef, _) = solver
+            .solve_lasso(&x, &y, 0.1, false)
+            .expect("operation should succeed");
 
         // ElasticNet coefficient should be different from pure Lasso
         assert!(coef[0] != lasso_coef[0]);
@@ -731,7 +739,7 @@ mod tests {
         let result = solver.solve_lasso_with_early_stopping(&x, &y, 0.01, true);
         assert!(result.is_ok());
 
-        let (coef, intercept, validation_info) = result.unwrap();
+        let (coef, intercept, validation_info) = result.expect("operation should succeed");
 
         // Check that we have reasonable results
         assert_eq!(coef.len(), n_features);
@@ -778,7 +786,7 @@ mod tests {
         let result = solver.solve_elastic_net_with_early_stopping(&x, &y, 0.1, 0.5, true);
         assert!(result.is_ok());
 
-        let (coef, intercept, validation_info) = result.unwrap();
+        let (coef, intercept, validation_info) = result.expect("operation should succeed");
 
         // Check results
         assert_eq!(coef.len(), n_features);
@@ -816,7 +824,7 @@ mod tests {
             .solve_lasso_with_early_stopping_split(&x_train, &y_train, &x_val, &y_val, 0.001, true);
         assert!(result.is_ok());
 
-        let (coef, intercept, validation_info) = result.unwrap();
+        let (coef, intercept, validation_info) = result.expect("operation should succeed");
 
         assert_eq!(coef.len(), 2);
         assert!(intercept.is_some());
@@ -850,7 +858,7 @@ mod tests {
         let result = solver.solve_lasso_with_early_stopping(&x, &y, 0.01, false);
         assert!(result.is_ok());
 
-        let (_coef, _intercept, validation_info) = result.unwrap();
+        let (_coef, _intercept, validation_info) = result.expect("operation should succeed");
 
         // Validation info should have meaningful structure
         assert!(!validation_info.validation_scores.is_empty());

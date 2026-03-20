@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use rayon::prelude::*;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::Result,
     prelude::SklearsError,
@@ -211,7 +211,9 @@ impl VotingNaiveBayes {
                     let max_idx = row
                         .iter()
                         .enumerate()
-                        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                        .max_by(|(_, a), (_, b)| {
+                            a.partial_cmp(b).expect("operation should succeed")
+                        })
                         .map(|(idx, _)| idx)
                         .unwrap_or(0);
                     classes[max_idx]
@@ -222,7 +224,7 @@ impl VotingNaiveBayes {
 
     /// Hard voting prediction
     fn predict_hard_voting(&self, x: &Array2<f64>) -> Result<Array1<i32>> {
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
         let n_samples = x.nrows();
         let n_classes = classes.len();
 
@@ -249,7 +251,7 @@ impl VotingNaiveBayes {
             // Find class with most votes
             let best_class = class_votes
                 .iter()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(&class, _)| class)
                 .unwrap_or(classes[0]);
 
@@ -360,13 +362,13 @@ impl AveragingNaiveBayes {
     /// Predict using weighted average of probabilities
     pub fn predict(&self, x: &Array2<f64>) -> Result<Array1<i32>> {
         let probabilities = self.predict_proba(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         Ok(probabilities.map_axis(Axis(1), |row| {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             classes[max_idx]
@@ -560,7 +562,7 @@ impl AdaBoostNaiveBayes {
         estimator_errors: &mut Vec<f64>,
     ) -> Result<()> {
         let n_samples = x.nrows();
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         for iteration in 0..self.n_estimators {
             // Create and fit weak learner with weighted samples
@@ -628,7 +630,7 @@ impl AdaBoostNaiveBayes {
         estimator_errors: &mut Vec<f64>,
     ) -> Result<()> {
         let n_samples = x.nrows();
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Convert labels to {-1, +1}
         let y_signed: Array1<f64> = y.mapv(|label| if label == classes[0] { -1.0 } else { 1.0 });
@@ -680,7 +682,7 @@ impl AdaBoostNaiveBayes {
         estimator_errors: &mut Vec<f64>,
     ) -> Result<()> {
         let n_samples = x.nrows();
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Convert labels to {-1, +1}
         let y_signed: Array1<f64> = y.mapv(|label| if label == classes[0] { -1.0 } else { 1.0 });
@@ -751,7 +753,7 @@ impl AdaBoostNaiveBayes {
         // Sample with replacement according to weights
         let mut resampled_indices = Vec::new();
         for _ in 0..n_samples {
-            let rand_val: f64 = rng.gen();
+            let rand_val: f64 = rng.random();
             let selected_idx = cumulative_weights
                 .iter()
                 .position(|&cum_weight| rand_val <= cum_weight)
@@ -773,8 +775,11 @@ impl AdaBoostNaiveBayes {
             .ok_or_else(|| SklearsError::NotFitted {
                 operation: "predict".to_string(),
             })?;
-        let weights = self.estimator_weights_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let weights = self
+            .estimator_weights_
+            .as_ref()
+            .expect("operation should succeed");
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         let n_samples = x.nrows();
         let mut decision_scores: Array1<f64> = Array1::zeros(n_samples);
@@ -816,8 +821,11 @@ impl AdaBoostNaiveBayes {
             .ok_or_else(|| SklearsError::NotFitted {
                 operation: "predict_proba".to_string(),
             })?;
-        let weights = self.estimator_weights_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let weights = self
+            .estimator_weights_
+            .as_ref()
+            .expect("operation should succeed");
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         let n_samples = x.nrows();
         let mut decision_scores: Array1<f64> = Array1::zeros(n_samples);
@@ -907,7 +915,7 @@ impl NaiveBayesEstimator for GaussianNBEstimator {
     }
 
     fn ensemble_classes(&self) -> &Array1<i32> {
-        self.classes.as_ref().unwrap()
+        self.classes.as_ref().expect("operation should succeed")
     }
 }
 
@@ -957,7 +965,7 @@ impl NaiveBayesEstimator for MultinomialNBEstimator {
     }
 
     fn ensemble_classes(&self) -> &Array1<i32> {
-        self.classes.as_ref().unwrap()
+        self.classes.as_ref().expect("operation should succeed")
     }
 }
 
@@ -1007,7 +1015,7 @@ impl NaiveBayesEstimator for BernoulliNBEstimator {
     }
 
     fn ensemble_classes(&self) -> &Array1<i32> {
-        self.classes.as_ref().unwrap()
+        self.classes.as_ref().expect("operation should succeed")
     }
 }
 
@@ -1139,7 +1147,11 @@ impl StackingNaiveBayes {
     #[allow(non_snake_case)]
     fn generate_meta_features(&self, X: &Array2<f64>, y: &Array1<i32>) -> Result<Array2<f64>> {
         let n_samples = X.nrows();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let n_base_estimators = self.base_estimators.len();
 
         // Determine feature dimensions
@@ -1249,8 +1261,8 @@ impl StackingNaiveBayes {
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .unwrap()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed")
                     .0;
                 classes[max_idx]
             })
@@ -1275,7 +1287,11 @@ impl StackingNaiveBayes {
                 })?;
 
         let n_samples = X.nrows();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let n_base_estimators = fitted_base_estimators.len();
 
         // Generate meta-features from base estimator predictions
@@ -1417,7 +1433,7 @@ mod tests {
         let probs = adaboost.predict_proba(&x);
         assert!(probs.is_ok());
 
-        let probs = probs.unwrap();
+        let probs = probs.expect("operation should succeed");
         assert_eq!(probs.nrows(), 8);
         assert_eq!(probs.ncols(), 2);
 

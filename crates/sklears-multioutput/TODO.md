@@ -1,7 +1,7 @@
-# TODO - v0.1.0-beta.1
+# TODO - v0.1.0
 
 ## Current Status
-This crate is part of the sklears v0.1.0-beta.1 initial release.
+This crate is part of the sklears v0.1.0 initial release.
 
 ## Future Enhancements
 - Performance optimizations

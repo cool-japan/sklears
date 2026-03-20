@@ -312,13 +312,14 @@ mod tests {
 
     #[test]
     fn test_version_parsing() {
-        let version = DatasetVersion::from_string("1.2.3").unwrap();
+        let version = DatasetVersion::from_string("1.2.3").expect("operation should succeed");
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 2);
         assert_eq!(version.patch, 3);
         assert_eq!(version.prerelease, None);
 
-        let version_pre = DatasetVersion::from_string("1.2.3-beta").unwrap();
+        let version_pre =
+            DatasetVersion::from_string("1.2.3-beta").expect("operation should succeed");
         assert_eq!(version_pre.prerelease, Some("beta".to_string()));
     }
 
@@ -394,9 +395,11 @@ mod tests {
         .with_description("Test dataset".to_string());
 
         let temp_path = temp_dir().join("test_provenance.json");
-        provenance.save_to_file(&temp_path).unwrap();
+        provenance
+            .save_to_file(&temp_path)
+            .expect("operation should succeed");
 
-        let loaded = ProvenanceInfo::load_from_file(&temp_path).unwrap();
+        let loaded = ProvenanceInfo::load_from_file(&temp_path).expect("operation should succeed");
         assert_eq!(loaded.dataset_id, "test-dataset");
         assert_eq!(loaded.version.major, 1);
 

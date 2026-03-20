@@ -15,7 +15,7 @@ impl Default for MetricsAggregationEngine {
         Self {
             engine_id: format!(
                 "engine_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap().as_millis()
+                .unwrap_or_default().as_millis()
             ),
             aggregation_rules: vec![],
             temporal_aggregators: HashMap::new(),

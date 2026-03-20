@@ -193,7 +193,7 @@ impl Fit<Array1<Float>, Array1<Float>> for SmoothnessRegularizedIsotonicRegressi
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Vec<Float> = indices.iter().map(|&i| x[i]).collect();
         let sorted_y: Vec<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -252,8 +252,8 @@ impl Fit<Array1<Float>, Array1<Float>> for SmoothnessRegularizedIsotonicRegressi
 
 impl Predict<Array1<Float>, Array1<Float>> for SmoothnessRegularizedIsotonicRegression<Trained> {
     fn predict(&self, x: &Array1<Float>) -> Result<Array1<Float>> {
-        let fitted_x = self.x_.as_ref().unwrap();
-        let fitted_y = self.y_.as_ref().unwrap();
+        let fitted_x = self.x_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let fitted_y = self.y_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         let mut predictions = Array1::zeros(x.len());
         for (i, &x_val) in x.iter().enumerate() {
@@ -267,12 +267,12 @@ impl Predict<Array1<Float>, Array1<Float>> for SmoothnessRegularizedIsotonicRegr
 impl SmoothnessRegularizedIsotonicRegression<Trained> {
     /// Get the fitted x values
     pub fn fitted_x(&self) -> &Array1<Float> {
-        self.x_.as_ref().unwrap()
+        self.x_.as_ref().expect("value should be present")
     }
 
     /// Get the fitted y values
     pub fn fitted_y(&self) -> &Array1<Float> {
-        self.y_.as_ref().unwrap()
+        self.y_.as_ref().expect("value should be present")
     }
 }
 
@@ -922,7 +922,7 @@ mod tests {
             .smoothness(0.1)
             .increasing(true);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
         let fitted_y = fitted_model.fitted_y();
 
         // Check monotonicity
@@ -941,7 +941,7 @@ mod tests {
         let x = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0]);
 
-        let (fitted_x, fitted_y) = total_variation_isotonic_regression(&x, &y, 0.1, true).unwrap();
+        let (fitted_x, fitted_y) = total_variation_isotonic_regression(&x, &y, 0.1, true).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -955,7 +955,7 @@ mod tests {
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0]);
 
         let (fitted_x, fitted_y) =
-            combined_regularized_isotonic_regression(&x, &y, 0.05, 0.05, true).unwrap();
+            combined_regularized_isotonic_regression(&x, &y, 0.05, 0.05, true).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -970,8 +970,8 @@ mod tests {
         let y = Array1::from(vec![1.0, 1.5, 2.3, 2.1, 3.2, 3.9, 4.1, 5.0]);
 
         // Fit with different smoothness levels
-        let (_, fitted_y_0) = smoothness_isotonic_regression(&x, &y, 0.0, true).unwrap();
-        let (_, fitted_y_high) = smoothness_isotonic_regression(&x, &y, 1.0, true).unwrap();
+        let (_, fitted_y_0) = smoothness_isotonic_regression(&x, &y, 0.0, true).expect("operation should succeed");
+        let (_, fitted_y_high) = smoothness_isotonic_regression(&x, &y, 1.0, true).expect("operation should succeed");
 
         // Higher smoothness should produce less variation in second derivatives
         let smoothness_0 = compute_second_derivative_variation(&fitted_y_0);
@@ -1008,7 +1008,7 @@ mod tests {
         let x = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0]);
 
-        let (fitted_x, fitted_y) = l1_isotonic_regression(&x, &y, 0.1, true).unwrap();
+        let (fitted_x, fitted_y) = l1_isotonic_regression(&x, &y, 0.1, true).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -1025,7 +1025,7 @@ mod tests {
         let x = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0]);
 
-        let (fitted_x, fitted_y) = l2_isotonic_regression(&x, &y, 0.1, true).unwrap();
+        let (fitted_x, fitted_y) = l2_isotonic_regression(&x, &y, 0.1, true).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -1041,7 +1041,7 @@ mod tests {
         let x = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0]);
 
-        let (fitted_x, fitted_y) = elastic_net_isotonic_regression(&x, &y, 0.5, 0.1, true).unwrap();
+        let (fitted_x, fitted_y) = elastic_net_isotonic_regression(&x, &y, 0.5, 0.1, true).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -1058,14 +1058,14 @@ mod tests {
         let y = Array1::from(vec![1.0, 2.0, 1.5, 3.0, 2.5, 4.0]);
 
         // Pure L2 (Ridge)
-        let (_, fitted_y_l2) = elastic_net_isotonic_regression(&x, &y, 0.0, 0.1, true).unwrap();
+        let (_, fitted_y_l2) = elastic_net_isotonic_regression(&x, &y, 0.0, 0.1, true).expect("operation should succeed");
 
         // Pure L1 (Lasso)
-        let (_, fitted_y_l1) = elastic_net_isotonic_regression(&x, &y, 1.0, 0.1, true).unwrap();
+        let (_, fitted_y_l1) = elastic_net_isotonic_regression(&x, &y, 1.0, 0.1, true).expect("operation should succeed");
 
         // Balanced Elastic Net
         let (_, fitted_y_balanced) =
-            elastic_net_isotonic_regression(&x, &y, 0.5, 0.1, true).unwrap();
+            elastic_net_isotonic_regression(&x, &y, 0.5, 0.1, true).expect("operation should succeed");
 
         // All should be monotonic
         for fitted_y in &[&fitted_y_l2, &fitted_y_l1, &fitted_y_balanced] {

@@ -1458,7 +1458,7 @@ mod tests {
             },
         };
 
-        let converged = monitor.check_basic_convergence(&session).unwrap();
+        let converged = monitor.check_basic_convergence(&session).unwrap_or_default();
         assert!(converged);
     }
 
@@ -1514,7 +1514,7 @@ mod tests {
             },
         };
 
-        let rate = monitor.calculate_convergence_rate(&session).unwrap();
+        let rate = monitor.calculate_convergence_rate(&session).unwrap_or_default();
         assert!(rate > 0.0);
     }
 

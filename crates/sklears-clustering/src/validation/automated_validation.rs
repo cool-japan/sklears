@@ -237,7 +237,7 @@ impl AutomatedValidationResult {
     pub fn best_metric(&self) -> (&'static str, f64) {
         self.metric_scores()
             .into_iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
             .unwrap_or(("None", 0.0))
     }
 
@@ -245,7 +245,7 @@ impl AutomatedValidationResult {
     pub fn worst_metric(&self) -> (&'static str, f64) {
         self.metric_scores()
             .into_iter()
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .min_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
             .unwrap_or(("None", 0.0))
     }
 
@@ -706,7 +706,7 @@ mod tests {
 
         let result = validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.internal_quality_score >= 0.0 && result.internal_quality_score <= 1.0);
         assert!(result.stability_score >= 0.0 && result.stability_score <= 1.0);
@@ -879,13 +879,13 @@ mod tests {
 
         let euc_result = euclidean_validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
         let man_result = manhattan_validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
         let cos_result = cosine_validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
 
         // All should produce valid results
         assert!(euc_result.internal_quality_score >= 0.0);

@@ -541,12 +541,12 @@ mod tests {
                 9.0, 10.0, 10.0, 11.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]);
 
         let characteristics = constructor
             .analyze_data_characteristics(&X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(characteristics.n_dimensions, 2);
         assert_eq!(characteristics.n_samples, 10);
@@ -561,10 +561,13 @@ mod tests {
             .use_cross_validation(false);
 
         // Create simple test data
-        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
+        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 4.0, 9.0, 16.0, 25.0]);
 
-        let result = constructor.construct_kernel(X.view(), y.view()).unwrap();
+        let result = constructor
+            .construct_kernel(X.view(), y.view())
+            .expect("operation should succeed");
 
         assert!(result.best_score.is_finite());
         assert!(result.kernel_scores.len() > 0);
@@ -578,7 +581,7 @@ mod tests {
 
         let correlation = constructor
             .compute_correlation(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!((correlation - 1.0).abs() < 1e-10);
     }
 
@@ -586,9 +589,12 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_length_scale_estimation() {
         let constructor = AutomaticKernelConstructor::new();
-        let X = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 5.0, 10.0, 10.0, 20.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 5.0, 10.0, 10.0, 20.0])
+            .expect("shape and data length should match");
 
-        let length_scales = constructor.estimate_length_scales(&X.view()).unwrap();
+        let length_scales = constructor
+            .estimate_length_scales(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(length_scales.len(), 2);
         assert!(length_scales[0] > 0.0);

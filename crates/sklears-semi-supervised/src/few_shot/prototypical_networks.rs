@@ -493,8 +493,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = self.state.classes[max_idx];
         }

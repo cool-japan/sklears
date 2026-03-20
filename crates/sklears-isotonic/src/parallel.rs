@@ -1196,8 +1196,8 @@ mod tests {
         let y = array![[1.0, 5.0], [3.0, 1.0], [2.0, 3.0], [4.0, 4.0], [5.0, 6.0]];
 
         let model = ParallelIsotonicRegression::new();
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (5, 2));
 
@@ -1238,7 +1238,7 @@ mod tests {
             LossFunction::SquaredLoss,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..result.len() - 1 {
@@ -1263,7 +1263,7 @@ mod tests {
             LossFunction::SquaredLoss,
             Some(2),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(results.len(), 2);
 
@@ -1282,8 +1282,8 @@ mod tests {
         let y = array![[1.0, 5.0], [3.0, 1.0], [2.0, 3.0], [4.0, 4.0], [5.0, 6.0]];
 
         let model = ParallelIsotonicRegression::new().n_threads(2);
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (5, 2));
     }
@@ -1295,8 +1295,8 @@ mod tests {
 
         let model = ParallelIsotonicRegression::new()
             .constraint(MonotonicityConstraint::Global { increasing: false });
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (5, 2));
 
@@ -1319,8 +1319,8 @@ mod tests {
         let y = array![[1.0, 2.0], [3.0, 1.0], [2.0, 4.0], [4.0, 3.0], [5.0, 5.0]];
 
         let model = ParallelIsotonicRegression::new().y_min(1.5).y_max(4.5);
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are within bounds
         for val in predictions.iter() {
@@ -1334,8 +1334,8 @@ mod tests {
         let y = array![[1.0, 1.0], [10.0, 2.0], [2.0, 3.0], [4.0, 4.0], [5.0, 5.0]]; // outlier in first column
 
         let model = ParallelIsotonicRegression::new().loss(LossFunction::AbsoluteLoss);
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (5, 2));
 
@@ -1360,7 +1360,7 @@ mod tests {
     fn test_parallel_constraint_checking_monotonic() {
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let (is_monotonic, violations) =
-            parallel_constraint_checking(&y, true, None, None).unwrap();
+            parallel_constraint_checking(&y, true, None, None).expect("operation should succeed");
 
         assert!(is_monotonic);
         assert!(violations.is_empty());
@@ -1370,7 +1370,7 @@ mod tests {
     fn test_parallel_constraint_checking_non_monotonic() {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
         let (is_monotonic, violations) =
-            parallel_constraint_checking(&y, true, None, None).unwrap();
+            parallel_constraint_checking(&y, true, None, None).expect("operation should succeed");
 
         assert!(!is_monotonic);
         assert_eq!(violations, vec![1]); // violation at index 1 (3.0 > 2.0)
@@ -1380,7 +1380,7 @@ mod tests {
     fn test_parallel_constraint_checking_decreasing() {
         let y = array![5.0, 4.0, 3.0, 2.0, 1.0];
         let (is_monotonic, violations) =
-            parallel_constraint_checking(&y, false, None, None).unwrap();
+            parallel_constraint_checking(&y, false, None, None).expect("operation should succeed");
 
         assert!(is_monotonic);
         assert!(violations.is_empty());
@@ -1391,7 +1391,7 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
         let constraint = MonotonicityConstraint::Global { increasing: true };
 
-        let result = parallel_constraint_validation(&y, constraint, None, None, None).unwrap();
+        let result = parallel_constraint_validation(&y, constraint, None, None, None).expect("operation should succeed");
 
         assert!(!result.is_valid);
         assert_eq!(result.total_violations, 1);
@@ -1410,7 +1410,7 @@ mod tests {
         let y = Array1::from_vec(y_data);
 
         let (is_monotonic, violations) =
-            parallel_constraint_checking(&y, true, Some(100), Some(2)).unwrap();
+            parallel_constraint_checking(&y, true, Some(100), Some(2)).expect("operation should succeed");
 
         assert!(is_monotonic);
         assert!(violations.is_empty());
@@ -1420,7 +1420,7 @@ mod tests {
     fn test_parallel_constraint_checking_custom_chunk_size() {
         let y = array![1.0, 2.0, 1.5, 3.0, 4.0];
         let (is_monotonic, violations) =
-            parallel_constraint_checking(&y, true, Some(2), None).unwrap();
+            parallel_constraint_checking(&y, true, Some(2), None).expect("operation should succeed");
 
         assert!(!is_monotonic);
         assert_eq!(violations, vec![1]); // violation at index 1 (2.0 > 1.5)
@@ -1437,7 +1437,7 @@ mod tests {
             true,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.is_satisfied);
         assert!(result.violations.is_empty());
@@ -1460,7 +1460,7 @@ mod tests {
             true,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(!result.is_satisfied);
         assert_eq!(result.violations, vec![1]);
@@ -1480,7 +1480,7 @@ mod tests {
             false,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.is_satisfied);
         assert!(result.violations.is_empty());
@@ -1498,7 +1498,7 @@ mod tests {
             false,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Note: This test might pass or fail depending on the exact curvature
         // The important thing is that it runs without errors
@@ -1521,7 +1521,7 @@ mod tests {
             true, // Enable performance profiling
             Some(2),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.is_satisfied);
         assert!(result.violations.is_empty());
@@ -1548,7 +1548,7 @@ mod tests {
             false,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Should detect the peak transition from increasing to decreasing
         // This implementation might detect violations, which is expected behavior
@@ -1568,7 +1568,7 @@ mod tests {
             false,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // With very strict tolerance, this might fail
         let result2 = advanced_parallel_constraint_checking(
@@ -1579,7 +1579,7 @@ mod tests {
             false,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Both should run without errors, tolerance affects results
         assert!(result1.constraint_strength >= 0.0 && result1.constraint_strength <= 1.0);
@@ -1597,7 +1597,7 @@ mod tests {
             true,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.is_satisfied);
         assert!(result.violations.is_empty());
@@ -1616,7 +1616,7 @@ mod tests {
             true,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.is_satisfied);
         assert!(result.violations.is_empty());
@@ -1665,7 +1665,7 @@ mod tests {
             true,
             Some(2),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Test all fields are properly set
         assert!(!result.is_satisfied); // Has violations

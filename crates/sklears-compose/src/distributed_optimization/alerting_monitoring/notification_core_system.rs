@@ -1062,7 +1062,7 @@ impl NotificationSystem {
     pub fn get_status(&self) -> SystemStatus {
         SystemStatus {
             state: SystemState::Running,
-            uptime: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap(),
+            uptime: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default(),
             active_channels: 0, // Placeholder
             pending_messages: 0, // Placeholder
             total_sent: 0, // Placeholder

@@ -4,7 +4,7 @@
 //! numerical instabilities and ill-conditioned problems.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::Rng;
+use scirs2_core::RngExt;
 use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -199,7 +199,12 @@ impl ConditionMonitor {
                     analyses.push(analysis);
 
                     // Check for critical condition numbers
-                    if analyses.last().unwrap().warning_level == ConditionWarningLevel::Critical {
+                    if analyses
+                        .last()
+                        .expect("operation should succeed")
+                        .warning_level
+                        == ConditionWarningLevel::Critical
+                    {
                         eprintln!(
                             "Warning: Critical condition number detected at iteration {}",
                             iteration
@@ -298,7 +303,7 @@ impl ConditionMonitor {
                 })?;
 
         let max_sv = singular_values[0]; // SVD returns sorted values
-        let min_sv = *singular_values.last().unwrap();
+        let min_sv = *singular_values.last().expect("operation should succeed");
 
         let condition_number = if min_sv > 1e-15 {
             max_sv / min_sv
@@ -667,7 +672,9 @@ mod tests {
         let matrix = array![[2.0, 1.0], [1.0, 2.0]]; // Well-conditioned
         let mut monitor = ConditionMonitor::default();
 
-        let analysis = monitor.analyze_matrix(matrix.view()).unwrap();
+        let analysis = monitor
+            .analyze_matrix(matrix.view())
+            .expect("operation should succeed");
 
         assert_eq!(analysis.warning_level, ConditionWarningLevel::Good);
         assert!(analysis.condition_number < 100.0); // Should be well-conditioned
@@ -683,7 +690,9 @@ mod tests {
         config.critical_threshold = 1e10;
         let mut monitor = ConditionMonitor::new(config);
 
-        let analysis = monitor.analyze_matrix(matrix.view()).unwrap();
+        let analysis = monitor
+            .analyze_matrix(matrix.view())
+            .expect("operation should succeed");
 
         // The exact computation should detect the ill-conditioning
         // Relaxed threshold for numerical stability across different BLAS backends
@@ -709,7 +718,9 @@ mod tests {
         config.exact_computation = true; // Use exact SVD computation
         let mut monitor = ConditionMonitor::new(config);
 
-        let analysis = monitor.analyze_matrix(matrix.view()).unwrap();
+        let analysis = monitor
+            .analyze_matrix(matrix.view())
+            .expect("operation should succeed");
 
         assert!(matches!(
             analysis.warning_level,
@@ -734,8 +745,12 @@ mod tests {
         };
         let mut monitor_approx = ConditionMonitor::new(config_approx);
 
-        let analysis_exact = monitor_exact.analyze_matrix(matrix.view()).unwrap();
-        let analysis_approx = monitor_approx.analyze_matrix(matrix.view()).unwrap();
+        let analysis_exact = monitor_exact
+            .analyze_matrix(matrix.view())
+            .expect("operation should succeed");
+        let analysis_approx = monitor_approx
+            .analyze_matrix(matrix.view())
+            .expect("operation should succeed");
 
         // Both should detect that this is a reasonably conditioned matrix
         assert_eq!(analysis_exact.warning_level, ConditionWarningLevel::Good);
@@ -758,11 +773,19 @@ mod tests {
         let well_conditioned = array![[2.0, 1.0], [1.0, 2.0]];
         let ill_conditioned = array![[1.0, 1.0], [1.0, 1.00001]];
 
-        monitor.analyze_matrix(well_conditioned.view()).unwrap();
-        monitor.analyze_matrix(ill_conditioned.view()).unwrap();
-        monitor.analyze_matrix(well_conditioned.view()).unwrap();
+        monitor
+            .analyze_matrix(well_conditioned.view())
+            .expect("operation should succeed");
+        monitor
+            .analyze_matrix(ill_conditioned.view())
+            .expect("operation should succeed");
+        monitor
+            .analyze_matrix(well_conditioned.view())
+            .expect("operation should succeed");
 
-        let stats = monitor.compute_statistics().unwrap();
+        let stats = monitor
+            .compute_statistics()
+            .expect("operation should succeed");
 
         assert_eq!(stats.total_samples, 3);
         assert!(stats.good_count >= 1); // At least one well-conditioned matrix
@@ -785,11 +808,11 @@ mod tests {
 
         let cond1 = monitor_exact
             .analyze_matrix(well_conditioned.view())
-            .unwrap()
+            .expect("operation should succeed")
             .condition_number;
         let cond2 = monitor_exact
             .analyze_matrix(ill_conditioned.view())
-            .unwrap()
+            .expect("operation should succeed")
             .condition_number;
 
         assert!(cond1 < cond2);
@@ -830,7 +853,7 @@ mod tests {
 
         let analysis = monitor
             .analyze_eigenvalue_problem(symmetric_matrix.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(analysis.metadata.contains_key("eigenvalue_analysis"));
         assert!(!analysis.recommendations.is_empty());
@@ -841,7 +864,9 @@ mod tests {
         let a_matrix = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]; // 3x2 matrix
         let mut monitor = ConditionMonitor::default();
 
-        let analysis = monitor.analyze_least_squares(a_matrix.view()).unwrap();
+        let analysis = monitor
+            .analyze_least_squares(a_matrix.view())
+            .expect("operation should succeed");
 
         assert!(analysis.metadata.contains_key("least_squares_analysis"));
         assert!(!analysis.recommendations.is_empty());

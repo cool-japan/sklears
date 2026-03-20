@@ -213,7 +213,7 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
         for (task_name, y_task) in y {
             let n_outputs = y_task.ncols();
             let mut coef = Array2::<Float>::zeros((n_features, n_outputs));
-            let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+            let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
             for i in 0..n_features {
                 for j in 0..n_outputs {
                     coef[[i, j]] = rng_gen.sample(normal_dist);
@@ -269,7 +269,10 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
                 let mut reg_grad_coef = grad_coef.clone();
 
                 // Find current task index
-                let task_idx = task_names.iter().position(|t| t == task_name).unwrap();
+                let task_idx = task_names
+                    .iter()
+                    .position(|t| t == task_name)
+                    .expect("operation should succeed");
 
                 // Add relationship penalties
                 for (other_idx, other_task) in task_names.iter().enumerate() {

@@ -617,15 +617,33 @@ impl ExternalLibraryRegistry {
         #[cfg(not(feature = "no-std"))]
         {
             for (name, library) in &self.blas_libraries {
-                availability.insert(name.clone(), library.lock().unwrap().is_available());
+                availability.insert(
+                    name.clone(),
+                    library
+                        .lock()
+                        .expect("lock should not be poisoned")
+                        .is_available(),
+                );
             }
 
             for (name, library) in &self.lapack_libraries {
-                availability.insert(name.clone(), library.lock().unwrap().is_available());
+                availability.insert(
+                    name.clone(),
+                    library
+                        .lock()
+                        .expect("lock should not be poisoned")
+                        .is_available(),
+                );
             }
 
             for (name, library) in &self.fft_libraries {
-                availability.insert(name.clone(), library.lock().unwrap().is_available());
+                availability.insert(
+                    name.clone(),
+                    library
+                        .lock()
+                        .expect("lock should not be poisoned")
+                        .is_available(),
+                );
             }
         }
 
@@ -683,9 +701,17 @@ pub fn get_registry() -> &'static spin::Mutex<ExternalLibraryRegistry> {
 pub fn external_dot(x: &[f32], y: &[f32]) -> ExternalResult<f32> {
     #[cfg(not(feature = "no-std"))]
     {
-        if let Some(blas) = get_registry().lock().unwrap().get_blas() {
+        if let Some(blas) = get_registry()
+            .lock()
+            .expect("lock should not be poisoned")
+            .get_blas()
+        {
             // Try to use external BLAS, but fallback to internal if it fails
-            match blas.lock().unwrap().dot(x, y) {
+            match blas
+                .lock()
+                .expect("matrix dimensions should be compatible for dot product")
+                .dot(x, y)
+            {
                 Ok(result) => Ok(result),
                 Err(_) => {
                     // Fall back to internal implementation if external library fails
@@ -725,9 +751,17 @@ pub fn external_gemv(
 ) -> ExternalResult<()> {
     #[cfg(not(feature = "no-std"))]
     {
-        if let Some(blas) = get_registry().lock().unwrap().get_blas() {
+        if let Some(blas) = get_registry()
+            .lock()
+            .expect("lock should not be poisoned")
+            .get_blas()
+        {
             // Try to use external BLAS, but fallback to internal if it fails
-            match blas.lock().unwrap().gemv(alpha, a, m, n, x, beta, y) {
+            match blas
+                .lock()
+                .expect("lock should not be poisoned")
+                .gemv(alpha, a, m, n, x, beta, y)
+            {
                 Ok(()) => Ok(()),
                 Err(_) => {
                     // Fall back to internal implementation if external library fails
@@ -832,11 +866,13 @@ mod tests {
     #[test]
     fn test_openblas_dot_product() {
         let mut adapter = OpenBlasAdapter::new();
-        adapter.initialize().unwrap();
+        adapter.initialize().expect("operation should succeed");
 
         let x = vec![1.0, 2.0, 3.0];
         let y = vec![4.0, 5.0, 6.0];
-        let result = adapter.dot(&x, &y).unwrap();
+        let result = adapter
+            .dot(&x, &y)
+            .expect("matrix dimensions should be compatible for dot product");
 
         assert_eq!(result, 32.0); // 1*4 + 2*5 + 3*6
     }
@@ -844,10 +880,10 @@ mod tests {
     #[test]
     fn test_openblas_scal() {
         let mut adapter = OpenBlasAdapter::new();
-        adapter.initialize().unwrap();
+        adapter.initialize().expect("operation should succeed");
 
         let mut x = vec![1.0, 2.0, 3.0];
-        adapter.scal(2.0, &mut x).unwrap();
+        adapter.scal(2.0, &mut x).expect("operation should succeed");
 
         assert_eq!(x, vec![2.0, 4.0, 6.0]);
     }
@@ -873,7 +909,9 @@ mod tests {
         registry.register_blas(adapter2);
 
         // Set preference to MKL
-        registry.set_preference("blas", "Intel MKL").unwrap();
+        registry
+            .set_preference("blas", "Intel MKL")
+            .expect("operation should succeed");
 
         // Should fail for unknown library
         assert!(registry.set_preference("blas", "Unknown").is_err());
@@ -894,7 +932,7 @@ mod tests {
         // This should fallback to internal implementation
         let x = vec![1.0, 2.0, 3.0];
         let y = vec![4.0, 5.0, 6.0];
-        let result = external_dot(&x, &y).unwrap();
+        let result = external_dot(&x, &y).expect("operation should succeed");
 
         assert_eq!(result, 32.0);
     }
@@ -902,7 +940,7 @@ mod tests {
     #[test]
     fn test_invalid_dimensions() {
         let mut adapter = OpenBlasAdapter::new();
-        adapter.initialize().unwrap();
+        adapter.initialize().expect("operation should succeed");
 
         let x = vec![1.0, 2.0];
         let y = vec![3.0, 4.0, 5.0];

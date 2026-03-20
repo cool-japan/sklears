@@ -567,7 +567,7 @@ fn compute_householder_vector(x: &Array1<f32>) -> (Array1<f32>, f32) {
     }
 
     let mut v = x.clone();
-    let norm_x = crate::vector::norm_l2(x.as_slice().unwrap());
+    let norm_x = crate::vector::norm_l2(x.as_slice().expect("slice operation should succeed"));
 
     if norm_x < 1e-10 {
         return (v, 0.0);
@@ -576,7 +576,7 @@ fn compute_householder_vector(x: &Array1<f32>) -> (Array1<f32>, f32) {
     let sigma = if x[0] >= 0.0 { norm_x } else { -norm_x };
     v[0] += sigma;
 
-    let norm_v = crate::vector::norm_l2(v.as_slice().unwrap());
+    let norm_v = crate::vector::norm_l2(v.as_slice().expect("slice operation should succeed"));
     if norm_v < 1e-10 {
         return (v, 0.0);
     }
@@ -600,8 +600,12 @@ fn apply_householder_left(v: &Array1<f32>, tau: f32, a: &mut ArrayViewMut2<f32>)
 
     for j in 0..n {
         let mut col = a.column_mut(j);
-        let dot_product =
-            crate::vector::dot_product(v.as_slice().unwrap(), col.to_owned().as_slice().unwrap());
+        let dot_product = crate::vector::dot_product(
+            v.as_slice().expect("slice operation should succeed"),
+            col.to_owned()
+                .as_slice()
+                .expect("slice operation should succeed"),
+        );
         let factor = tau * dot_product;
 
         for i in 0..m {
@@ -620,8 +624,12 @@ fn apply_householder_right(v: &Array1<f32>, tau: f32, a: &mut ArrayViewMut2<f32>
 
     for i in 0..m {
         let mut row = a.row_mut(i);
-        let dot_product =
-            crate::vector::dot_product(row.to_owned().as_slice().unwrap(), v.as_slice().unwrap());
+        let dot_product = crate::vector::dot_product(
+            row.to_owned()
+                .as_slice()
+                .expect("matrix indexing should be valid"),
+            v.as_slice().expect("matrix indexing should be valid"),
+        );
         let factor = tau * dot_product;
 
         for j in 0..n {
@@ -654,7 +662,11 @@ pub fn svd_simd(matrix: &Array2<f32>) -> (Array2<f32>, Array1<f32>, Array2<f32>)
 
     // Sort singular values in descending order
     let mut indices: Vec<usize> = (0..min_dim).collect();
-    indices.sort_by(|&a, &b| singular_values[b].partial_cmp(&singular_values[a]).unwrap());
+    indices.sort_by(|&a, &b| {
+        singular_values[b]
+            .partial_cmp(&singular_values[a])
+            .expect("operation should succeed")
+    });
 
     let mut sorted_values = Array1::zeros(min_dim);
     for (i, &idx) in indices.iter().enumerate() {
@@ -687,11 +699,14 @@ pub fn power_iteration_simd(
         let v_new = matrix_vector_multiply_f32(matrix, &v);
 
         // Compute eigenvalue estimate
-        let new_eigenvalue =
-            crate::vector::dot_product(v.as_slice().unwrap(), v_new.as_slice().unwrap());
+        let new_eigenvalue = crate::vector::dot_product(
+            v.as_slice().expect("slice operation should succeed"),
+            v_new.as_slice().expect("slice operation should succeed"),
+        );
 
         // Normalize v_new
-        let norm = crate::vector::norm_l2(v_new.as_slice().unwrap());
+        let norm =
+            crate::vector::norm_l2(v_new.as_slice().expect("slice operation should succeed"));
         if norm < 1e-10 {
             break;
         }
@@ -829,8 +844,10 @@ mod tests {
 
     #[test]
     fn test_matrix_multiply_simd() {
-        let a = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f32).collect()).unwrap();
-        let b = Array2::from_shape_vec((4, 2), (0..8).map(|x| x as f32 + 1.0).collect()).unwrap();
+        let a = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f32).collect())
+            .expect("shape and data length should match");
+        let b = Array2::from_shape_vec((4, 2), (0..8).map(|x| x as f32 + 1.0).collect())
+            .expect("shape and data length should match");
 
         let result = matrix_multiply_f32_simd(&a, &b);
 
@@ -846,7 +863,8 @@ mod tests {
 
     #[test]
     fn test_matrix_vector_multiply() {
-        let matrix = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f32).collect()).unwrap();
+        let matrix = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f32).collect())
+            .expect("shape and data length should match");
         let vector = Array1::from_vec((0..4).map(|x| x as f32 + 1.0).collect());
 
         let result = matrix_vector_multiply_f32(&matrix, &vector);
@@ -859,8 +877,10 @@ mod tests {
 
     #[test]
     fn test_elementwise_add_simd() {
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 3), vec![10.0, 20.0, 30.0, 40.0, 50.0, 60.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let b = Array2::from_shape_vec((2, 3), vec![10.0, 20.0, 30.0, 40.0, 50.0, 60.0])
+            .expect("shape and data length should match");
 
         let result = elementwise_add_simd(&a, &b);
         let expected = &a + &b;
@@ -874,7 +894,8 @@ mod tests {
 
     #[test]
     fn test_transpose_simd() {
-        let matrix = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f32).collect()).unwrap();
+        let matrix = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f32).collect())
+            .expect("shape and data length should match");
 
         let result = transpose_simd(&matrix);
         let expected = matrix.t();
@@ -889,14 +910,17 @@ mod tests {
 
     #[test]
     fn test_matrix_reductions() {
-        let matrix = Array2::from_shape_vec((3, 4), (1..13).map(|x| x as f32).collect()).unwrap();
+        let matrix = Array2::from_shape_vec((3, 4), (1..13).map(|x| x as f32).collect())
+            .expect("shape and data length should match");
 
         let sum = matrix_sum_simd(&matrix);
         let expected_sum = matrix.sum();
         assert_relative_eq!(sum, expected_sum, epsilon = 1e-5);
 
         let mean = matrix_mean_simd(&matrix);
-        let expected_mean = matrix.mean().unwrap();
+        let expected_mean = matrix
+            .mean()
+            .expect("array should have elements for mean computation");
         assert_relative_eq!(mean, expected_mean, epsilon = 1e-5);
 
         let variance = matrix_variance_simd(&matrix);
@@ -906,7 +930,8 @@ mod tests {
     #[test]
     fn test_qr_decomposition() {
         // Use a simple well-conditioned matrix
-        let matrix = Array2::from_shape_vec((3, 2), vec![1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
+        let matrix = Array2::from_shape_vec((3, 2), vec![1.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            .expect("shape and data length should match");
         let (q, r) = qr_decomposition_simd(&matrix);
 
         // Check dimensions
@@ -924,7 +949,7 @@ mod tests {
         // Test with a simple symmetric matrix
         let matrix =
             Array2::from_shape_vec((3, 3), vec![4.0, 1.0, 1.0, 1.0, 3.0, 2.0, 1.0, 2.0, 3.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let (eigenvalue, eigenvector) = power_iteration_simd(&matrix, 1000, 1e-6);
 
@@ -933,7 +958,11 @@ mod tests {
         assert!(eigenvalue < 10.0); // Should be bounded for this matrix
 
         // Check eigenvector is normalized
-        let norm = crate::vector::norm_l2(eigenvector.as_slice().unwrap());
+        let norm = crate::vector::norm_l2(
+            eigenvector
+                .as_slice()
+                .expect("slice operation should succeed"),
+        );
         assert_relative_eq!(norm, 1.0, epsilon = 1e-5);
     }
 
@@ -955,7 +984,8 @@ mod tests {
 
     #[test]
     fn test_svd_basic() {
-        let matrix = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let matrix = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let (u, s, vt) = svd_simd(&matrix);
 
         // Check dimensions

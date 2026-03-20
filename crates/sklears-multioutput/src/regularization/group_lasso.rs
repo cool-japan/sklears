@@ -219,8 +219,12 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>> for GroupLasso<U
             let mut max_change: Float = 0.0;
 
             for (task_name, task_targets) in y {
-                let task_coefs = coefficients.get_mut(task_name).unwrap();
-                let task_intercepts = intercepts.get_mut(task_name).unwrap();
+                let task_coefs = coefficients
+                    .get_mut(task_name)
+                    .expect("operation should succeed");
+                let task_intercepts = intercepts
+                    .get_mut(task_name)
+                    .expect("operation should succeed");
 
                 // Compute predictions
                 let mut predictions = x.dot(task_coefs);
@@ -234,7 +238,9 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>> for GroupLasso<U
 
                 // Compute gradients
                 let grad_coefs = x.t().dot(&residuals) / (n_samples as Float);
-                let grad_intercepts = residuals.mean_axis(Axis(0)).unwrap();
+                let grad_intercepts = residuals
+                    .mean_axis(Axis(0))
+                    .expect("array should have elements for mean computation");
 
                 // Standard gradient update
                 let old_coefs = task_coefs.clone();
@@ -285,7 +291,9 @@ impl GroupLasso<Untrained> {
             for &feature_idx in group {
                 if feature_idx < coefficients.nrows() {
                     let mut feature_coefs = coefficients.row_mut(feature_idx);
-                    let coef_slice = feature_coefs.as_slice().unwrap();
+                    let coef_slice = feature_coefs
+                        .as_slice()
+                        .expect("slice operation should succeed");
                     let group_norm = simd_ops::simd_l2_norm(coef_slice);
 
                     if group_norm > 0.0 {

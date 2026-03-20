@@ -208,25 +208,45 @@ impl IncrementalLinearRegression {
         let mut offset = 0;
 
         // Read n_features
-        let n_features = usize::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+        let n_features = usize::from_le_bytes(
+            data[offset..offset + 8]
+                .try_into()
+                .expect("type conversion should succeed"),
+        );
         offset += 8;
 
         // Read learning_rate
-        let learning_rate = Float::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+        let learning_rate = Float::from_le_bytes(
+            data[offset..offset + 8]
+                .try_into()
+                .expect("type conversion should succeed"),
+        );
         offset += 8;
 
         // Read l2_reg
-        let l2_reg = Float::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+        let l2_reg = Float::from_le_bytes(
+            data[offset..offset + 8]
+                .try_into()
+                .expect("type conversion should succeed"),
+        );
         offset += 8;
 
         // Read bias
-        let bias = Float::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+        let bias = Float::from_le_bytes(
+            data[offset..offset + 8]
+                .try_into()
+                .expect("type conversion should succeed"),
+        );
         offset += 8;
 
         // Read weights
         let mut weights = Array1::zeros(n_features);
         for i in 0..n_features {
-            weights[i] = Float::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+            weights[i] = Float::from_le_bytes(
+                data[offset..offset + 8]
+                    .try_into()
+                    .expect("type conversion should succeed"),
+            );
             offset += 8;
         }
 
@@ -445,7 +465,7 @@ impl MemoryEfficientEnsemble<Trained> {
             self.data_buffer_ = Some(VecDeque::new());
             self.data_buffer_
                 .as_mut()
-                .unwrap()
+                .expect("operation should succeed")
                 .push_back((x.clone(), y));
         }
 
@@ -655,7 +675,12 @@ impl Fit<Array2<Float>, Array1<Float>> for MemoryEfficientEnsemble<Untrained> {
                 let y_sample = y[i];
 
                 // Add first model if needed
-                if ensemble.active_models_.as_ref().unwrap().is_empty() {
+                if ensemble
+                    .active_models_
+                    .as_ref()
+                    .expect("operation should succeed")
+                    .is_empty()
+                {
                     ensemble.add_new_model(n_features)?;
                 }
 
@@ -711,7 +736,7 @@ mod tests {
                 9.0, 10.0, 10.0, 11.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = array![3.0, 5.0, 7.0, 9.0, 11.0, 13.0, 15.0, 17.0, 19.0, 21.0];
 
@@ -719,12 +744,12 @@ mod tests {
             .max_estimators_in_memory(5)
             .batch_size(3);
 
-        let trained = ensemble.fit(&x, &y).unwrap();
+        let trained = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         assert!(trained.active_model_count() > 0);
         assert!(trained.memory_usage() > 0);
 
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.nrows());
     }
 
@@ -735,21 +760,24 @@ mod tests {
             .batch_size(2);
 
         // Initial training
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = array![3.0, 5.0, 7.0, 9.0];
 
-        let mut trained = ensemble.fit(&x, &y).unwrap();
+        let mut trained = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         // Incremental updates
         let x_new = array![5.0, 6.0];
-        trained.partial_fit(&x_new, 11.0).unwrap();
+        trained
+            .partial_fit(&x_new, 11.0)
+            .expect("operation should succeed");
 
         assert!(trained.active_model_count() > 0);
 
         // Test prediction
-        let test_x = Array2::from_shape_vec((1, 2), vec![3.0, 4.0]).unwrap();
-        let predictions = trained.predict(&test_x).unwrap();
+        let test_x = Array2::from_shape_vec((1, 2), vec![3.0, 4.0])
+            .expect("shape and data length should match");
+        let predictions = trained.predict(&test_x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 1);
     }
 
@@ -759,10 +787,12 @@ mod tests {
             .max_estimators_in_memory(2)
             .memory_threshold_mb(1); // Very low threshold
 
-        let x = Array2::from_shape_vec((20, 5), (0..100).map(|i| i as Float).collect()).unwrap();
-        let y = Array1::from_shape_vec(20, (0..20).map(|i| i as Float).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 5), (0..100).map(|i| i as Float).collect())
+            .expect("shape and data length should match");
+        let y = Array1::from_shape_vec(20, (0..20).map(|i| i as Float).collect())
+            .expect("shape and data length should match");
 
-        let trained = ensemble.fit(&x, &y).unwrap();
+        let trained = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         // Should have limited number of models due to memory constraints
         assert!(trained.active_model_count() <= 2);
@@ -779,17 +809,17 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![3.0, 5.0, 7.0, 9.0, 11.0, 13.0];
 
-        let trained = ensemble.fit(&x, &y).unwrap();
+        let trained = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         // Test lazy prediction
-        let predictions = trained.predict_lazy(&x).unwrap();
+        let predictions = trained.predict_lazy(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), x.nrows());
 
         // Test regular prediction for comparison
-        let regular_predictions = trained.predict(&x).unwrap();
+        let regular_predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(regular_predictions.len(), x.nrows());
     }
 }

@@ -57,7 +57,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ResidualBlock<T> {
     /// * `adaptive` - Whether to automatically handle dimension mismatches
     pub fn new(residual_type: ResidualType, adaptive: bool) -> Self {
         let gate = if matches!(residual_type, ResidualType::Gated) {
-            Some(T::from(0.5).unwrap_or_else(|| T::one() / T::from(2).unwrap()))
+            Some(T::from(0.5).unwrap_or_else(|| T::one() / T::from(2).unwrap_or_else(|| T::zero())))
         } else {
             None
         };
@@ -119,8 +119,11 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ResidualBlock<T> {
                                 Some(LinearProjection::new(input_shape.1, layer_shape.1)?);
                         }
 
-                        let projected_input =
-                            self.projection.as_mut().unwrap().forward(input, false)?;
+                        let projected_input = self
+                            .projection
+                            .as_mut()
+                            .expect("projection not available")
+                            .forward(input, false)?;
                         Ok(&projected_input + layer_output)
                     } else {
                         Err(SklearsError::InvalidInput(format!(
@@ -150,7 +153,8 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ResidualBlock<T> {
             }
             ResidualType::Gated => {
                 let gate = self.gate.unwrap_or_else(|| {
-                    T::from(0.5).unwrap_or_else(|| T::one() / T::from(2).unwrap())
+                    T::from(0.5)
+                        .unwrap_or_else(|| T::one() / T::from(2).unwrap_or_else(|| T::zero()))
                 });
 
                 if input_shape != layer_shape {
@@ -160,8 +164,11 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> ResidualBlock<T> {
                                 Some(LinearProjection::new(input_shape.1, layer_shape.1)?);
                         }
 
-                        let projected_input =
-                            self.projection.as_mut().unwrap().forward(input, false)?;
+                        let projected_input = self
+                            .projection
+                            .as_mut()
+                            .expect("projection not available")
+                            .forward(input, false)?;
                         Ok(&projected_input * gate + layer_output * (T::one() - gate))
                     } else {
                         Err(SklearsError::InvalidInput(format!(
@@ -212,7 +219,8 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> Layer<T> for Residual
             }
             ResidualType::Gated => {
                 let gate = self.gate.unwrap_or_else(|| {
-                    T::from(0.5).unwrap_or_else(|| T::one() / T::from(2).unwrap())
+                    T::from(0.5)
+                        .unwrap_or_else(|| T::one() / T::from(2).unwrap_or_else(|| T::zero()))
                 });
 
                 if input.dim() == layer_output.dim() {
@@ -262,7 +270,8 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> LinearProjection<T> {
         let mut weights = Array2::zeros((input_size, output_size));
         for elem in weights.iter_mut() {
             // Simple initialization - in practice would use proper random number generation
-            *elem = bound * (T::from(0.1).unwrap_or(T::one() / T::from(10).unwrap()));
+            *elem = bound
+                * (T::from(0.1).unwrap_or(T::one() / T::from(10).unwrap_or_else(|| T::zero())));
         }
 
         Ok(Self {
@@ -344,7 +353,9 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0]];
         let layer_output = array![[0.1, 0.2], [0.3, 0.4]];
 
-        let result = residual.apply_residual(&input, &layer_output).unwrap();
+        let result = residual
+            .apply_residual(&input, &layer_output)
+            .expect("operation should succeed");
         let expected = array![[1.1, 2.2], [3.3, 4.4]];
 
         assert_arrays_close(&result, &expected, 1e-10);
@@ -358,7 +369,9 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0]];
         let layer_output = array![[0.1], [0.3]];
 
-        let result = residual.apply_residual(&input, &layer_output).unwrap();
+        let result = residual
+            .apply_residual(&input, &layer_output)
+            .expect("operation should succeed");
         let expected = array![[1.0, 2.0, 0.1], [3.0, 4.0, 0.3]];
 
         assert_arrays_close(&result, &expected, 1e-10);
@@ -368,12 +381,14 @@ mod tests {
     #[ignore]
     fn test_residual_gated() {
         let mut residual = ResidualBlock::<f64>::new(ResidualType::Gated, false);
-        residual.set_gate(0.3).unwrap();
+        residual.set_gate(0.3).expect("operation should succeed");
 
         let input = array![[1.0, 2.0], [3.0, 4.0]];
         let layer_output = array![[0.1, 0.2], [0.3, 0.4]];
 
-        let result = residual.apply_residual(&input, &layer_output).unwrap();
+        let result = residual
+            .apply_residual(&input, &layer_output)
+            .expect("operation should succeed");
 
         // Expected: 0.3 * input + 0.7 * layer_output
         let expected = &input * 0.3 + &layer_output * 0.7;
@@ -384,17 +399,22 @@ mod tests {
     #[test]
     #[ignore]
     fn test_linear_projection() {
-        let mut projection = LinearProjection::<f64>::new(2, 3).unwrap();
+        let mut projection =
+            LinearProjection::<f64>::new(2, 3).expect("construction should succeed");
         let input = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let output = projection.forward(&input, false).unwrap();
+        let output = projection
+            .forward(&input, false)
+            .expect("forward pass should succeed");
 
         // Check output shape
         assert_eq!(output.dim(), (2, 3));
 
         // Test backward pass
         let grad_output = array![[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]];
-        let grad_input = projection.backward(&grad_output).unwrap();
+        let grad_input = projection
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Check gradient shape
         assert_eq!(grad_input.dim(), (2, 2));
@@ -408,7 +428,9 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0]]; // 2x2
         let layer_output = array![[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]; // 2x3
 
-        let result = residual.apply_residual(&input, &layer_output).unwrap();
+        let result = residual
+            .apply_residual(&input, &layer_output)
+            .expect("operation should succeed");
 
         // Should automatically project input to match layer_output dimensions
         assert_eq!(result.dim(), (2, 3));
@@ -423,11 +445,15 @@ mod tests {
         let layer_output = array![[0.1, 0.2], [0.3, 0.4]];
 
         // Forward pass
-        let _result = residual.apply_residual(&input, &layer_output).unwrap();
+        let _result = residual
+            .apply_residual(&input, &layer_output)
+            .expect("operation should succeed");
 
         // Backward pass
         let grad_output = array![[1.0, 1.0], [1.0, 1.0]];
-        let grad_input = residual.backward(&grad_output).unwrap();
+        let grad_input = residual
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // For addition, gradient should flow unchanged
         assert_arrays_close(&grad_input, &grad_output, 1e-10);
@@ -444,6 +470,10 @@ mod tests {
         // Gated residual should allow gate setting
         let mut gated_residual = ResidualBlock::<f64>::new(ResidualType::Gated, false);
         assert!(gated_residual.set_gate(0.3).is_ok());
-        assert_abs_diff_eq!(gated_residual.get_gate().unwrap(), 0.3, epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            gated_residual.get_gate().expect("operation should succeed"),
+            0.3,
+            epsilon = 1e-10
+        );
     }
 }

@@ -226,7 +226,7 @@ impl ConformalClassifier {
         let trained_model = self
             .model
             .take()
-            .unwrap()
+            .expect("value should be present")
             .fit(&X_train, &y_train)
             .map_err(|_| ConformalError::NotTrained)?;
 
@@ -264,8 +264,8 @@ impl ConformalClassifier {
 
             // Train model
             let mut temp_model = SVC::new(
-                self.model.as_ref().unwrap().kernel.clone(),
-                self.model.as_ref().unwrap().C,
+                self.model.as_ref().expect("model not available - model not fitted").kernel.clone(),
+                self.model.as_ref().expect("model not available - model not fitted").C,
             );
             temp_model
                 .fit(&X_loo, &y_loo)
@@ -293,7 +293,7 @@ impl ConformalClassifier {
         // Finally train on full dataset for predictions
         self.model
             .as_mut()
-            .unwrap()
+            .expect("value should be present")
             .fit(x, y)
             .map_err(|_| ConformalError::NotTrained)?;
 
@@ -336,8 +336,8 @@ impl ConformalClassifier {
             let (X_test, y_test) = Self::extract_subset(x, y, test_indices);
 
             let mut fold_model = SVC::new(
-                self.model.as_ref().unwrap().kernel.clone(),
-                self.model.as_ref().unwrap().C,
+                self.model.as_ref().expect("model not available - model not fitted").kernel.clone(),
+                self.model.as_ref().expect("model not available - model not fitted").C,
             );
             fold_model
                 .fit(&X_train, &y_train)
@@ -365,7 +365,7 @@ impl ConformalClassifier {
         // Train final model on all data
         self.model
             .as_mut()
-            .unwrap()
+            .expect("value should be present")
             .fit(x, y)
             .map_err(|_| ConformalError::NotTrained)?;
 
@@ -395,7 +395,7 @@ impl ConformalClassifier {
         // Train model
         self.model
             .as_mut()
-            .unwrap()
+            .expect("value should be present")
             .fit(&X_train, &y_train)
             .map_err(|_| ConformalError::NotTrained)?;
 
@@ -412,7 +412,7 @@ impl ConformalClassifier {
 
             self.class_calibration_scores
                 .get_mut(&y_true)
-                .unwrap()
+                .expect("value should be present")
                 .push(score);
         }
 
@@ -466,7 +466,7 @@ impl ConformalClassifier {
             let pred = self
                 .model
                 .as_ref()
-                .unwrap()
+                .expect("value should be present")
                 .predict(&x.insert_axis(Axis(0)).to_owned())
                 .map_err(|_| ConformalError::EmptyPredictionSet)?;
             prediction_set.push(pred[0]);
@@ -526,7 +526,7 @@ impl ConformalClassifier {
                 let decision = self
                     .model
                     .as_ref()
-                    .unwrap()
+                    .expect("value should be present")
                     .decision_function(&X_single)
                     .map_err(|_| ConformalError::NotTrained)?;
 
@@ -540,7 +540,7 @@ impl ConformalClassifier {
                 let decision = self
                     .model
                     .as_ref()
-                    .unwrap()
+                    .expect("value should be present")
                     .decision_function(&X_single)
                     .map_err(|_| ConformalError::NotTrained)?;
 
@@ -555,7 +555,7 @@ impl ConformalClassifier {
                 let decision = self
                     .model
                     .as_ref()
-                    .unwrap()
+                    .expect("value should be present")
                     .decision_function(&X_single)
                     .map_err(|_| ConformalError::NotTrained)?;
 
@@ -570,7 +570,7 @@ impl ConformalClassifier {
                 let decision = self
                     .model
                     .as_ref()
-                    .unwrap()
+                    .expect("value should be present")
                     .decision_function(&X_single)
                     .map_err(|_| ConformalError::NotTrained)?;
 
@@ -623,7 +623,7 @@ impl ConformalClassifier {
         };
 
         // Fisher-Yates shuffle
-        let uniform = Uniform::new(0.0, 1.0).unwrap();
+        let uniform = Uniform::new(0.0, 1.0).expect("valid distribution params");
         for i in (1..n).rev() {
             let j = (rng.sample(&uniform) * (i + 1) as f64) as usize;
             indices.swap(i, j);
@@ -740,7 +740,7 @@ impl ConformalRegressor {
         // Train model
         self.model
             .as_mut()
-            .unwrap()
+            .expect("value should be present")
             .fit(&X_train, &y_train)
             .map_err(|_| ConformalError::NotTrained)?;
 
@@ -750,7 +750,7 @@ impl ConformalRegressor {
         let predictions = self
             .model
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .predict(&X_calib)
             .map_err(|_| ConformalError::NotTrained)?;
 
@@ -775,7 +775,7 @@ impl ConformalRegressor {
 
         // Sort residuals for quantile computation
         self.calibration_residuals
-            .sort_by(|a, b| a.partial_cmp(b).unwrap());
+            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         self.is_trained = true;
         Ok(())
@@ -793,7 +793,7 @@ impl ConformalRegressor {
         let predictions = self
             .model
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .predict(X)
             .map_err(|_| ConformalError::NotTrained)?;
 
@@ -845,7 +845,7 @@ impl ConformalRegressor {
             seeded_rng(42)
         };
 
-        let uniform = Uniform::new(0.0, 1.0).unwrap();
+        let uniform = Uniform::new(0.0, 1.0).expect("valid distribution params");
         for i in (1..n).rev() {
             let j = (rng.sample(&uniform) * (i + 1) as f64) as usize;
             indices.swap(i, j);
@@ -910,16 +910,16 @@ mod tests {
                 1.0, 1.0, -1.0, 0.5, 0.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![-1, -1, -1, -1, -1, 1, 1, 1, 1, 1]);
 
         // Fit
-        classifier.fit(&x, &y).unwrap();
+        classifier.fit(&x, &y).expect("model fitting should succeed");
         assert!(classifier.is_trained);
 
         // Predict
-        let pred_sets = classifier.predict(&x).unwrap();
+        let pred_sets = classifier.predict(&x).expect("prediction should succeed");
         assert_eq!(pred_sets.len(), 10);
 
         // Check that true labels are in prediction sets (high coverage)
@@ -946,17 +946,17 @@ mod tests {
         );
 
         // Simple linear relationship: y = 2x + 1
-        let X = Array2::from_shape_vec((20, 1), (0..20).map(|i| i as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((20, 1), (0..20).map(|i| i as f64).collect()).expect("array shape mismatch");
 
         let y = Array1::from_vec((0..20).map(|i| 2.0 * i as f64 + 1.0).collect());
 
         // Fit
-        regressor.fit(&x, &y).unwrap();
+        regressor.fit(&x, &y).expect("model fitting should succeed");
         assert!(regressor.is_trained);
 
         // Predict with intervals
-        let X_test = Array2::from_shape_vec((5, 1), vec![0.0, 5.0, 10.0, 15.0, 20.0]).unwrap();
-        let (_predictions, _lower, _upper) = regressor.predict_interval(&X_test).unwrap();
+        let X_test = Array2::from_shape_vec((5, 1), vec![0.0, 5.0, 10.0, 15.0, 20.0]).expect("array shape mismatch");
+        let (_predictions, _lower, _upper) = regressor.predict_interval(&X_test).expect("operation should succeed");
 
         // Check that intervals are reasonable (not empty)
         for i in 0..5 {

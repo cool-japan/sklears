@@ -158,7 +158,7 @@ impl MixedTypeFeatureExtractor {
             }
             (MissingValueStrategy::Median, FeatureType::Numerical) => {
                 let mut sorted = valid_values.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let mid = sorted.len() / 2;
                 if sorted.len() % 2 == 0 {
                     (sorted[mid - 1] + sorted[mid]) / 2.0

@@ -859,7 +859,7 @@ mod tests {
         let layer = IsotonicNeuralLayer::new(3, IsotonicActivation::ReLU);
         let input = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let output = layer.forward(&input).unwrap();
+        let output = layer.forward(&input).expect("operation should succeed");
         assert!(output.is_finite());
     }
 
@@ -890,7 +890,7 @@ mod tests {
         let result = model.fit(&X, &y);
         assert!(result.is_ok());
 
-        let predictions = model.predict(&X).unwrap();
+        let predictions = model.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), X.len());
     }
 
@@ -900,9 +900,9 @@ mod tests {
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0]);
 
         let mut ensemble = IsotonicEnsemble::new(EnsembleMethod::RandomForest, 10);
-        ensemble.fit(&X, &y).unwrap();
+        ensemble.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = ensemble.predict(&X).unwrap();
+        let predictions = ensemble.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), X.len());
 
         // Check monotonicity of predictions
@@ -918,9 +918,9 @@ mod tests {
 
         let mut ensemble =
             IsotonicEnsemble::new(EnsembleMethod::GradientBoosting, 5).learning_rate(0.1);
-        ensemble.fit(&X, &y).unwrap();
+        ensemble.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = ensemble.predict(&X).unwrap();
+        let predictions = ensemble.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), X.len());
     }
 
@@ -937,12 +937,14 @@ mod tests {
         let mut model = IsotonicTransferLearning::new();
         model
             .load_pretrained(X_pretrain.clone(), y_pretrain.clone())
-            .unwrap();
-        model.finetune(&X_finetune, &y_finetune).unwrap();
+            .expect("operation should succeed");
+        model
+            .finetune(&X_finetune, &y_finetune)
+            .expect("operation should succeed");
 
         // Predict on new data
         let X_test = Array1::from_vec(vec![2.5, 4.5]);
-        let predictions = model.predict(&X_test).unwrap();
+        let predictions = model.predict(&X_test).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), X_test.len());
     }
@@ -953,7 +955,7 @@ mod tests {
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
 
         let mut ensemble = IsotonicEnsemble::new(EnsembleMethod::RandomForest, 5);
-        ensemble.fit(&X, &y).unwrap();
+        ensemble.fit(&X, &y).expect("model fitting should succeed");
 
         let importance = ensemble.feature_importance();
         assert_eq!(importance.len(), 5);
@@ -980,7 +982,7 @@ mod tests {
             let result = ensemble.fit(&X, &y);
             assert!(result.is_ok(), "Failed for method: {:?}", method);
 
-            let predictions = ensemble.predict(&X).unwrap();
+            let predictions = ensemble.predict(&X).expect("prediction should succeed");
             assert_eq!(predictions.len(), X.len());
         }
     }

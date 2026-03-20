@@ -210,7 +210,7 @@ pub fn array_resize<T: Clone + Zero>(array: &Array1<T>, new_size: usize) -> Arra
     let mut result = vec![T::zero(); new_size];
     let copy_len = array.len().min(new_size);
 
-    result[..copy_len].clone_from_slice(&array.as_slice().unwrap()[..copy_len]);
+    result[..copy_len].clone_from_slice(&array.as_slice().expect("operation should succeed")[..copy_len]);
 
     Array1::from_vec(result)
 }
@@ -230,7 +230,7 @@ pub fn array_argsort<T: Clone + PartialOrd>(array: &Array1<T>) -> Vec<usize> {
 }
 
 pub fn array_shuffle<T>(array: &mut Array1<T>, rng: &mut impl rand::Rng) {
-    let slice = array.as_slice_mut().unwrap();
+    let slice = array.as_slice_mut().expect("operation should succeed");
     for i in (1..slice.len()).rev() {
         let j = rng.gen_range(0..i + 1);
         slice.swap(i, j);
@@ -239,7 +239,7 @@ pub fn array_shuffle<T>(array: &mut Array1<T>, rng: &mut impl rand::Rng) {
 
 pub fn array_reverse<T: Clone>(array: &Array1<T>) -> Array1<T> {
     let mut result = array.to_owned();
-    result.as_slice_mut().unwrap().reverse();
+    result.as_slice_mut().expect("operation should succeed").reverse();
     result
 }
 
@@ -353,7 +353,7 @@ where
     } else {
         let mid1 = sorted[len / 2 - 1];
         let mid2 = sorted[len / 2];
-        let two = T::from(2.0).unwrap();
+        let two = T::from(2.0).expect("operation should succeed");
         Ok((mid1 + mid2) / two)
     }
 }
@@ -381,8 +381,8 @@ where
     if lower_index == upper_index {
         Ok(sorted[lower_index])
     } else {
-        let weight = T::from(index - lower_index as f64).unwrap();
-        let one_minus_weight = T::from(1.0).unwrap() - weight;
+        let weight = T::from(index - lower_index as f64).expect("operation should succeed");
+        let one_minus_weight = T::from(1.0).expect("operation should succeed") - weight;
         Ok(sorted[lower_index] * one_minus_weight + sorted[upper_index] * weight)
     }
 }

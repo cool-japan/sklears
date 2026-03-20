@@ -342,7 +342,7 @@ use scirs2_core::ndarray::array;
             ScoreFunction::R2,
             3,
             Some(42),
-        ).unwrap();
+        ).expect("operation should succeed");
 
         assert_eq!(result.importances_mean.len(), 3);
         assert_eq!(result.importances_std.len(), 3);
@@ -398,7 +398,7 @@ use scirs2_core::ndarray::array;
             ScoreFunction::R2,
             5,
             Some(42),
-        ).unwrap();
+        ).expect("operation should succeed");
 
         // First feature should have higher importance than others
         assert!(result.importances_mean[0] > result.importances_mean[1]);
@@ -434,7 +434,7 @@ use scirs2_core::ndarray::array;
             Some(&feature_groups),
             3,
             Some(42),
-        ).unwrap();
+        ).expect("operation should succeed");
 
         assert_eq!(result.importances_mean.len(), 2); // Two groups
     }

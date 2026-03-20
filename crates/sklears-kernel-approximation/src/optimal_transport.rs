@@ -7,7 +7,7 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::rand_prelude::IteratorRandom;
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -164,13 +164,15 @@ impl WassersteinKernelSampler {
         // For each projection, compute cumulative distribution features
         for (j, proj_col) in projected.axis_iter(Axis(1)).enumerate() {
             let mut sorted_proj: Vec<f64> = proj_col.to_vec();
-            sorted_proj.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_proj.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             // Use quantile-based features
             for (i, &val) in proj_col.iter().enumerate() {
                 // Find quantile of this value in the sorted distribution
                 let quantile = sorted_proj
-                    .binary_search_by(|&probe| probe.partial_cmp(&val).unwrap())
+                    .binary_search_by(|&probe| {
+                        probe.partial_cmp(&val).expect("operation should succeed")
+                    })
                     .unwrap_or_else(|e| e) as f64
                     / sorted_proj.len() as f64;
 
@@ -190,7 +192,7 @@ impl WassersteinKernelSampler {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         for j in 0..self.n_components {
@@ -262,10 +264,10 @@ impl Fit<Array2<f64>, ()> for WassersteinKernelSampler {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
-        let uniform = RandUniform::new(-1.0, 1.0).unwrap();
+        let uniform = RandUniform::new(-1.0, 1.0).expect("operation should succeed");
         let mut projections = Array2::zeros((n_features, self.n_components));
 
         for mut col in projections.axis_iter_mut(Axis(1)) {
@@ -368,10 +370,10 @@ impl Fit<Array2<f64>, ()> for EMDKernelSampler {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
-        let uniform = RandUniform::new(-1.0, 1.0).unwrap();
+        let uniform = RandUniform::new(-1.0, 1.0).expect("operation should succeed");
         let mut projections = Array2::zeros((n_features, self.n_components));
 
         for mut col in projections.axis_iter_mut(Axis(1)) {
@@ -532,10 +534,10 @@ impl Fit<Array2<f64>, ()> for GromovWassersteinSampler {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
-        let uniform = RandUniform::new(-1.0, 1.0).unwrap();
+        let uniform = RandUniform::new(-1.0, 1.0).expect("operation should succeed");
         let mut projections = Array2::zeros((n_features, self.n_components));
 
         for mut col in projections.axis_iter_mut(Axis(1)) {
@@ -608,8 +610,8 @@ mod tests {
             .random_state(42)
             .transport_method(TransportMethod::SlicedWasserstein);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[4, 10]);
 
@@ -623,8 +625,8 @@ mod tests {
 
         let sampler = EMDKernelSampler::new(15).bandwidth(0.5).random_state(123);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 15]);
 
@@ -638,8 +640,8 @@ mod tests {
 
         let sampler = GromovWassersteinSampler::new(8).random_state(456);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[4, 8]);
 
@@ -662,8 +664,8 @@ mod tests {
                 .transport_method(method)
                 .random_state(42);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.shape(), &[3, 5]);
         }
@@ -685,8 +687,8 @@ mod tests {
                 .ground_metric(metric)
                 .random_state(42);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.shape(), &[2, 3]);
         }
@@ -699,11 +701,11 @@ mod tests {
         let sampler1 = WassersteinKernelSampler::new(5).random_state(42);
         let sampler2 = WassersteinKernelSampler::new(5).random_state(42);
 
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
 
-        let features1 = fitted1.transform(&x).unwrap();
-        let features2 = fitted2.transform(&x).unwrap();
+        let features1 = fitted1.transform(&x).expect("operation should succeed");
+        let features2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be identical with same random state
         assert!((features1 - features2).mapv(|v| v.abs()).sum() < 1e-10);

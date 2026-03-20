@@ -672,7 +672,7 @@ mod tests {
 
     #[test]
     fn test_aligned_matrix_creation() {
-        let matrix = AlignedMatrix::<f64>::new(10, 10, 64).unwrap();
+        let matrix = AlignedMatrix::<f64>::new(10, 10, 64).expect("operation should succeed");
         assert_eq!(matrix.shape(), (10, 10));
         assert!(matrix.is_aligned());
         assert_eq!(matrix.alignment(), 64);
@@ -680,10 +680,10 @@ mod tests {
 
     #[test]
     fn test_aligned_matrix_get_set() {
-        let mut matrix = AlignedMatrix::<f64>::new(3, 3, 32).unwrap();
+        let mut matrix = AlignedMatrix::<f64>::new(3, 3, 32).expect("operation should succeed");
 
-        matrix.set(1, 2, 42.0).unwrap();
-        let value = matrix.get(1, 2).unwrap();
+        matrix.set(1, 2, 42.0).expect("operation should succeed");
+        let value = matrix.get(1, 2).expect("index should be valid");
         assert_eq!(value, 42.0);
 
         // Test bounds checking
@@ -705,12 +705,14 @@ mod tests {
         let tiled_ops = TiledMatrixOps::new();
 
         let a = Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let b = Array2::from_shape_vec((3, 3), vec![9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0])
-            .unwrap();
+            .expect("operation should succeed");
 
-        let result = tiled_ops.tiled_matrix_multiply(&a, &b).unwrap();
+        let result = tiled_ops
+            .tiled_matrix_multiply(&a, &b)
+            .expect("operation should succeed");
         assert_eq!(result.shape(), &[3, 3]);
     }
 
@@ -718,9 +720,12 @@ mod tests {
     fn test_cache_friendly_transpose() {
         let tiled_ops = TiledMatrixOps::new();
 
-        let matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
 
-        let transposed = tiled_ops.cache_friendly_transpose(&matrix).unwrap();
+        let transposed = tiled_ops
+            .cache_friendly_transpose(&matrix)
+            .expect("operation should succeed");
         assert_eq!(transposed.shape(), &[3, 2]);
         assert_eq!(transposed[[0, 0]], 1.0);
         assert_eq!(transposed[[1, 0]], 2.0);
@@ -733,14 +738,14 @@ mod tests {
         let mut pool = MatrixMemoryPool::new(32);
 
         // Get a matrix from the pool
-        let matrix1 = pool.get_matrix(5, 5).unwrap();
+        let matrix1 = pool.get_matrix(5, 5).expect("operation should succeed");
         assert_eq!(matrix1.shape(), (5, 5));
 
         // Return it to the pool
         pool.return_matrix(matrix1);
 
         // Get another matrix of the same size (should reuse)
-        let matrix2 = pool.get_matrix(5, 5).unwrap();
+        let matrix2 = pool.get_matrix(5, 5).expect("operation should succeed");
         assert_eq!(matrix2.shape(), (5, 5));
 
         let stats = pool.get_statistics();
@@ -775,13 +780,13 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let vector = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
         let result = tiled_ops
             .bandwidth_efficient_matvec(&matrix, &vector)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(result.len(), 3);
 
         // Verify result: [1*1+2*2+3*3+4*4, 5*1+6*2+7*3+8*4, 9*1+10*2+11*3+12*4]

@@ -22,7 +22,7 @@ fn test_random_forest_oob_score() {
         .bootstrap(true)
         .random_state(42)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Check that we can access basic properties
     assert_eq!(model.n_features(), 2);
@@ -35,7 +35,7 @@ fn test_random_forest_oob_score() {
         "OOB score should be computed when oob_score=true"
     );
 
-    let score_value = oob_score.unwrap();
+    let score_value = oob_score.expect("operation should succeed");
     assert!(
         (0.0..=1.0).contains(&score_value),
         "OOB score should be between 0 and 1, got {}",
@@ -49,11 +49,11 @@ fn test_random_forest_oob_score() {
         "OOB decision function should be computed when oob_score=true"
     );
 
-    let decision_values = oob_decision.unwrap();
+    let decision_values = oob_decision.expect("operation should succeed");
     assert_eq!(decision_values.shape(), &[6, 3]); // 6 samples, 3 classes
 
     // Test predictions work
-    let predictions = model.predict(&x).unwrap();
+    let predictions = model.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions.len(), 6);
 }
 
@@ -66,7 +66,7 @@ fn test_random_forest_without_oob_score() {
     let model = RandomForestClassifier::new()
         .n_estimators(5)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Check that OOB score was not computed
     assert!(
@@ -79,7 +79,7 @@ fn test_random_forest_without_oob_score() {
     );
 
     // Test predictions still work
-    let predictions = model.predict(&x).unwrap();
+    let predictions = model.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions.len(), 4);
 }
 
@@ -95,7 +95,7 @@ fn test_random_forest_oob_without_bootstrap() {
         .oob_score(true)
         .bootstrap(false)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Check that OOB score was not computed
     assert!(

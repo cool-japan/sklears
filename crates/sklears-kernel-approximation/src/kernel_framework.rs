@@ -236,7 +236,7 @@ impl SamplingStrategy for UniformSampling {
         // Reservoir sampling for unbiased selection
         let mut indices: Vec<usize> = (0..n_samples).collect();
         for i in n_samples..n_rows {
-            let j = rng.gen_range(0..=i);
+            let j = rng.random_range(0..=i);
             if j < n_samples {
                 indices[j] = i;
             }
@@ -290,7 +290,7 @@ impl SamplingStrategy for KMeansSampling {
         let mut centers = Array2::zeros((n_samples, n_features));
         let mut initial_indices: Vec<usize> = (0..n_rows).collect();
         for i in 0..n_samples {
-            let idx = rng.gen_range(0..initial_indices.len());
+            let idx = rng.random_range(0..initial_indices.len());
             let sample_idx = initial_indices.swap_remove(idx);
             centers.row_mut(i).assign(&data.row(sample_idx));
         }
@@ -582,7 +582,7 @@ mod tests {
         let strategy = UniformSampling::new(Some(42));
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
-        let indices = strategy.sample(&data, 2).unwrap();
+        let indices = strategy.sample(&data, 2).expect("operation should succeed");
         assert_eq!(indices.len(), 2);
         assert!(indices[0] < 4);
         assert!(indices[1] < 4);
@@ -600,7 +600,7 @@ mod tests {
             [9.1, 9.1]
         ];
 
-        let indices = strategy.sample(&data, 3).unwrap();
+        let indices = strategy.sample(&data, 3).expect("operation should succeed");
         assert_eq!(indices.len(), 3);
     }
 
@@ -610,7 +610,9 @@ mod tests {
         let exact = array![[1.0, 0.5], [0.5, 1.0]];
         let approx = array![[1.0, 0.6], [0.6, 1.0]];
 
-        let alignment = metric.compute(&exact, &approx).unwrap();
+        let alignment = metric
+            .compute(&exact, &approx)
+            .expect("operation should succeed");
         assert!(alignment > 0.9 && alignment <= 1.0);
         assert!(metric.higher_is_better());
     }

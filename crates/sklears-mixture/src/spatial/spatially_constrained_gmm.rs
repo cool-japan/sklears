@@ -12,7 +12,6 @@ use crate::common::CovarianceType;
 use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -227,7 +226,7 @@ impl SpatiallyConstrainedGMM<Untrained> {
         let mut rng = thread_rng();
 
         // Choose first center randomly
-        let first_idx = rng.gen_range(0..n_samples);
+        let first_idx = rng.random_range(0..n_samples);
         for j in 0..n_features {
             means[[0, j]] = X[[first_idx, j]];
         }
@@ -262,7 +261,7 @@ impl SpatiallyConstrainedGMM<Untrained> {
 
             // Choose next center with probability proportional to squared distance
             let total_dist: f64 = distances.iter().map(|d| d * d).sum();
-            let threshold = rng.gen::<f64>() * total_dist;
+            let threshold = rng.random::<f64>() * total_dist;
             let mut cumulative = 0.0;
             let mut chosen_idx = 0;
 
@@ -325,7 +324,8 @@ impl SpatiallyConstrainedGMM<Untrained> {
                         })
                         .collect();
 
-                    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                    distances
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
                     // Set adjacency for k nearest neighbors
                     for (_, j) in distances.iter().take(k) {
@@ -749,7 +749,9 @@ mod tests {
             .build();
 
         let coords = array![[0.0, 0.0], [1.0, 0.0], [3.0, 0.0]];
-        let smoothness = gmm.compute_spatial_smoothness(&coords).unwrap();
+        let smoothness = gmm
+            .compute_spatial_smoothness(&coords)
+            .expect("operation should succeed");
 
         // Points 0 and 1 should be connected (distance = 1.0 < 1.5)
         assert!(smoothness[[0, 1]] > 0.0);
@@ -767,7 +769,9 @@ mod tests {
             .build();
 
         let coords = array![[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]];
-        let smoothness = gmm.compute_spatial_smoothness(&coords).unwrap();
+        let smoothness = gmm
+            .compute_spatial_smoothness(&coords)
+            .expect("operation should succeed");
 
         // Grid adjacencies should be present
         assert_eq!(smoothness[[0, 1]], 1.0); // (0,0) -> (0,1)
@@ -782,7 +786,9 @@ mod tests {
         let X = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]];
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]];
 
-        let (weights, means, covariances) = gmm.initialize_spatial_parameters(&X, &coords).unwrap();
+        let (weights, means, covariances) = gmm
+            .initialize_spatial_parameters(&X, &coords)
+            .expect("operation should succeed");
 
         assert_eq!(weights.len(), 2);
         assert_eq!(means.dim(), (2, 2));

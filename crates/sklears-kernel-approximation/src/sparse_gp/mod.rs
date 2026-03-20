@@ -237,7 +237,7 @@ impl<K: SparseKernel> FittedSparseGP<K> {
         for i in 0..num_samples {
             for j in 0..n_test {
                 let std_dev = var[j].sqrt();
-                let normal = RandNormal::new(mean[j], std_dev).unwrap();
+                let normal = RandNormal::new(mean[j], std_dev).expect("operation should succeed");
                 samples[(i, j)] = rng.sample(normal);
             }
         }

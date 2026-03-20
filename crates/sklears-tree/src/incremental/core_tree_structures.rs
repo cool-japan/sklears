@@ -274,7 +274,7 @@ impl IncrementalDecisionTree<Untrained> {
         let timestamp = timestamp.unwrap_or_else(|| {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs()
         });
 

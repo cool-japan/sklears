@@ -4,7 +4,6 @@ use super::bregman_divergence::BregmanDivergenceType;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::f64::consts::{E, PI};
@@ -130,7 +129,7 @@ pub fn compute_bregman_centroids(
     let mut centroids = Array2::zeros((n_centroids, n_features));
 
     for i in 0..n_centroids {
-        let idx = rng.gen_range(0..n_samples);
+        let idx = rng.random_range(0..n_samples);
         centroids.row_mut(i).assign(&x.row(idx));
     }
 
@@ -274,9 +273,13 @@ pub fn bregman_mds(divergence_matrix: &Array2<f64>, n_components: usize) -> SklR
     let n_samples = divergence_matrix.nrows();
 
     // Double centering (classical MDS)
-    let row_means = divergence_matrix.mean_axis(Axis(1)).unwrap();
-    let col_means = divergence_matrix.mean_axis(Axis(0)).unwrap();
-    let total_mean = divergence_matrix.mean().unwrap();
+    let row_means = divergence_matrix
+        .mean_axis(Axis(1))
+        .expect("operation should succeed");
+    let col_means = divergence_matrix
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
+    let total_mean = divergence_matrix.mean().expect("operation should succeed");
 
     let mut centered_matrix = Array2::zeros((n_samples, n_samples));
     for i in 0..n_samples {
@@ -293,7 +296,7 @@ pub fn bregman_mds(divergence_matrix: &Array2<f64>, n_components: usize) -> SklR
 
     // Sort eigenvalues and eigenvectors in descending order
     let mut eigen_pairs: Vec<_> = eigenvalues.iter().zip(eigenvectors.columns()).collect();
-    eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).unwrap());
+    eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).expect("operation should succeed"));
 
     // Take the top n_components eigenvectors and scale by sqrt(eigenvalue)
     let mut embedding = Array2::zeros((n_samples, n_components));
@@ -347,7 +350,7 @@ pub fn compute_fisher_information_matrix(embedding: &Array2<f64>) -> SklResult<A
     let total_params = n_samples * n_components;
 
     // Flatten embedding for Fisher computation
-    let params = embedding.as_slice().unwrap();
+    let params = embedding.as_slice().expect("operation should succeed");
     let mut fisher_matrix = Array2::zeros((total_params, total_params));
 
     // Compute Fisher information as second moment of score function
@@ -387,7 +390,7 @@ pub fn compute_natural_gradient(
     let (n_samples, n_components) = gradient.dim();
 
     // Flatten gradient
-    let grad_flat = gradient.as_slice().unwrap();
+    let grad_flat = gradient.as_slice().expect("operation should succeed");
     let grad_vec = Array1::from_vec(grad_flat.to_vec());
 
     // Add regularization to Fisher matrix
@@ -604,7 +607,7 @@ pub fn estimate_entropy_knn(x: &Array2<f64>, k: usize) -> SklResult<f64> {
             }
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         if k <= distances.len() {
             let rho_k = distances[k - 1];
@@ -734,7 +737,7 @@ pub fn compute_local_fisher_information(
             }
         }
 
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         distances.truncate(n_neighbors);
 
         // Compute local Fisher information
@@ -760,7 +763,7 @@ pub fn compute_global_fisher_information(x: &Array2<f64>, sigma: f64) -> SklResu
     let mut fisher_matrix = Array2::zeros((n_features, n_features));
 
     // Compute covariance matrix as approximation to Fisher information
-    let mean = x.mean_axis(Axis(0)).unwrap();
+    let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
     let x_centered = x - &mean.insert_axis(Axis(0));
 
     for i in 0..n_samples {

@@ -66,7 +66,7 @@ pub fn k_nearest_neighbors(coords: &Array2<f64>, k: usize) -> Vec<Vec<usize>> {
                 .map(|j| (distances[[i, j]], j))
                 .collect();
 
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             neighbors.iter().take(k).map(|(_, idx)| *idx).collect()
         })
         .collect()

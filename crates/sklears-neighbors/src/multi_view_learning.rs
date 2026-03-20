@@ -277,7 +277,7 @@ impl MultiViewKNeighborsClassifier<Trained> {
         let class_idx = proba
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
         Ok(self.state.classes[class_idx])
@@ -336,7 +336,9 @@ impl MultiViewKNeighborsClassifier<Trained> {
                     let class_idx = proba
                         .iter()
                         .enumerate()
-                        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                        .max_by(|(_, a), (_, b)| {
+                            a.partial_cmp(b).expect("operation should succeed")
+                        })
                         .map(|(idx, _)| idx)
                         .unwrap_or(0);
                     votes[class_idx] += 1.0;
@@ -384,7 +386,7 @@ impl MultiViewKNeighborsClassifier<Trained> {
             .map(|(i, row)| (distance.calculate(query, &row), i))
             .collect();
 
-        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbor_indices: Vec<usize> = distances_indices
             .into_iter()
             .take(self.k)
@@ -497,7 +499,7 @@ impl MultiViewKNeighborsClassifier<Trained> {
             .map(|(i, row)| (distance.calculate(query, &row), i))
             .collect();
 
-        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         Ok(distances_indices
             .into_iter()
             .take(self.k)
@@ -681,7 +683,7 @@ impl MultiViewKNeighborsRegressor<RegressorTrained> {
                     let pred = self.predict_for_view(view_idx, &query)?;
                     predictions.push(pred);
                 }
-                predictions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                predictions.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 Ok(predictions[predictions.len() / 2])
             }
             RegressionFusionStrategy::Stacking => {
@@ -712,7 +714,7 @@ impl MultiViewKNeighborsRegressor<RegressorTrained> {
             .map(|(i, row)| (distance.calculate(query, &row), i))
             .collect();
 
-        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbor_values: Vec<Float> = distances_indices
             .into_iter()
             .take(self.k)
@@ -737,14 +739,14 @@ mod tests {
                 -1.0, -1.0, -0.5, -1.0, 0.0, 0.0, 1.0, 1.0, 0.5, 1.0, 1.5, 1.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let view2 = Array2::from_shape_vec(
             (6, 2),
             vec![
                 1.0, 1.0, 1.5, 1.0, 0.0, 0.0, -1.0, -1.0, -0.5, -1.0, -1.5, -1.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let views = vec![view1, view2];
         let y = array![0, 0, 1, 1, 1, 1];
 
@@ -754,22 +756,28 @@ mod tests {
         ];
 
         let classifier = MultiViewKNeighborsClassifier::new(3, configs);
-        let fitted = classifier.fit(&views, &y).unwrap();
+        let fitted = classifier
+            .fit(&views, &y)
+            .expect("operation should succeed");
 
-        let test_view1 = Array2::from_shape_vec((2, 2), vec![-0.8, -0.8, 0.8, 0.8]).unwrap();
-        let test_view2 = Array2::from_shape_vec((2, 2), vec![0.8, 0.8, -0.8, -0.8]).unwrap();
+        let test_view1 = Array2::from_shape_vec((2, 2), vec![-0.8, -0.8, 0.8, 0.8])
+            .expect("operation should succeed");
+        let test_view2 = Array2::from_shape_vec((2, 2), vec![0.8, 0.8, -0.8, -0.8])
+            .expect("operation should succeed");
         let test_views = vec![test_view1, test_view2];
 
-        let predictions = fitted.predict(&test_views).unwrap();
+        let predictions = fitted
+            .predict(&test_views)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
     #[test]
     fn test_multi_view_regressor() {
-        let view1 =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0]).unwrap();
-        let view2 =
-            Array2::from_shape_vec((4, 2), vec![5.0, 5.0, 6.0, 5.0, 5.0, 6.0, 6.0, 6.0]).unwrap();
+        let view1 = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0])
+            .expect("operation should succeed");
+        let view2 = Array2::from_shape_vec((4, 2), vec![5.0, 5.0, 6.0, 5.0, 5.0, 6.0, 6.0, 6.0])
+            .expect("operation should succeed");
         let views = vec![view1, view2];
         let y = array![2.0, 3.0, 3.0, 4.0];
 
@@ -779,23 +787,27 @@ mod tests {
         ];
 
         let regressor = MultiViewKNeighborsRegressor::new(2, configs);
-        let fitted = regressor.fit(&views, &y).unwrap();
+        let fitted = regressor.fit(&views, &y).expect("operation should succeed");
 
-        let test_view1 = Array2::from_shape_vec((1, 2), vec![1.5, 1.5]).unwrap();
-        let test_view2 = Array2::from_shape_vec((1, 2), vec![5.5, 5.5]).unwrap();
+        let test_view1 =
+            Array2::from_shape_vec((1, 2), vec![1.5, 1.5]).expect("operation should succeed");
+        let test_view2 =
+            Array2::from_shape_vec((1, 2), vec![5.5, 5.5]).expect("operation should succeed");
         let test_views = vec![test_view1, test_view2];
 
-        let predictions = fitted.predict(&test_views).unwrap();
+        let predictions = fitted
+            .predict(&test_views)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 1);
         assert!(predictions[0] > 2.0 && predictions[0] < 4.0);
     }
 
     #[test]
     fn test_consensus_analysis() {
-        let view1 =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0]).unwrap();
-        let view2 =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0]).unwrap();
+        let view1 = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0])
+            .expect("operation should succeed");
+        let view2 = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let views_train = vec![view1, view2];
         let y = array![0, 0, 1, 1];
 
@@ -805,9 +817,13 @@ mod tests {
         ];
 
         let classifier = MultiViewKNeighborsClassifier::new(2, configs);
-        let fitted = classifier.fit(&views_train, &y).unwrap();
+        let fitted = classifier
+            .fit(&views_train, &y)
+            .expect("operation should succeed");
 
-        let consensus = fitted.analyze_consensus(&views_train).unwrap();
+        let consensus = fitted
+            .analyze_consensus(&views_train)
+            .expect("operation should succeed");
         assert_eq!(consensus.sample_consensus_scores.len(), 4);
         assert!(consensus.mean_consensus >= 0.0 && consensus.mean_consensus <= 1.0);
     }
@@ -820,14 +836,14 @@ mod tests {
                 -1.0, -1.0, -0.5, -1.0, 0.0, 0.0, 1.0, 1.0, 0.5, 1.0, 1.5, 1.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let view2 = Array2::from_shape_vec(
             (6, 2),
             vec![
                 1.0, 1.0, 1.5, 1.0, 0.0, 0.0, -1.0, -1.0, -0.5, -1.0, -1.5, -1.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let views = vec![view1, view2];
         let y = array![0, 0, 1, 1, 1, 1];
 
@@ -845,13 +861,19 @@ mod tests {
             ];
             let classifier =
                 MultiViewKNeighborsClassifier::new(3, configs).with_fusion_strategy(strategy);
-            let fitted = classifier.fit(&views, &y).unwrap();
+            let fitted = classifier
+                .fit(&views, &y)
+                .expect("operation should succeed");
 
-            let test_view1 = Array2::from_shape_vec((1, 2), vec![-0.8, -0.8]).unwrap();
-            let test_view2 = Array2::from_shape_vec((1, 2), vec![0.8, 0.8]).unwrap();
+            let test_view1 =
+                Array2::from_shape_vec((1, 2), vec![-0.8, -0.8]).expect("operation should succeed");
+            let test_view2 =
+                Array2::from_shape_vec((1, 2), vec![0.8, 0.8]).expect("operation should succeed");
             let test_views = vec![test_view1, test_view2];
 
-            let predictions = fitted.predict(&test_views).unwrap();
+            let predictions = fitted
+                .predict(&test_views)
+                .expect("operation should succeed");
             assert_eq!(predictions.len(), 1);
         }
     }
@@ -866,7 +888,7 @@ mod tests {
     #[test]
     fn test_error_handling() {
         // Mismatched number of views
-        let view1 = Array2::from_shape_vec((4, 2), vec![1.0; 8]).unwrap();
+        let view1 = Array2::from_shape_vec((4, 2), vec![1.0; 8]).expect("operation should succeed");
         let views = vec![view1];
         let y = array![0, 0, 1, 1];
         let configs = vec![

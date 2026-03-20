@@ -90,7 +90,7 @@ impl DataFormatConverter {
 
         // Record performance metrics
         {
-            let mut monitor = self.performance_monitor.write().unwrap();
+            let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             monitor.record_conversion_operation(
                 format!("{}_{}", conversion_config.source_format, conversion_config.target_format),
                 result.conversion_metadata.processing_duration,
@@ -523,7 +523,7 @@ impl DataFormatConverter {
             AggregationFunction::Max => values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b)),
             AggregationFunction::Median => {
                 let mut sorted = values.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 if sorted.len() % 2 == 0 {
                     (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                 } else {

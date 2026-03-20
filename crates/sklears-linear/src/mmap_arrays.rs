@@ -644,7 +644,7 @@ mod tests {
 
     #[test]
     fn test_mmap_matrix_creation() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_matrix.dat");
 
         // Create test data
@@ -653,19 +653,23 @@ mod tests {
         let data: Vec<f64> = (0..rows * cols).map(|i| i as f64).collect();
 
         // Write to file
-        MmapUtils::array_to_mmap_file(&data, &file_path).unwrap();
+        MmapUtils::array_to_mmap_file(&data, &file_path).expect("operation should succeed");
 
         // Create memory-mapped matrix
         let config = MmapConfig::default();
-        let mmap_matrix = MmapMatrix::from_file(&file_path, rows, cols, config).unwrap();
+        let mmap_matrix = MmapMatrix::from_file(&file_path, rows, cols, config)
+            .expect("operation should succeed");
 
         // Test access
         assert_eq!(mmap_matrix.shape(), (rows, cols));
-        assert_eq!(mmap_matrix.get(0, 0).unwrap(), 0.0);
-        assert_eq!(mmap_matrix.get(1, 0).unwrap(), cols as f64);
+        assert_eq!(mmap_matrix.get(0, 0).expect("index should be valid"), 0.0);
+        assert_eq!(
+            mmap_matrix.get(1, 0).expect("index should be valid"),
+            cols as f64
+        );
 
         // Test row access
-        let row = mmap_matrix.get_row(0).unwrap();
+        let row = mmap_matrix.get_row(0).expect("operation should succeed");
         assert_eq!(row.len(), cols);
         assert_eq!(row[0], 0.0);
         assert_eq!(row[1], 1.0);
@@ -673,25 +677,26 @@ mod tests {
 
     #[test]
     fn test_mmap_matrix_chunked_processing() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_matrix_chunks.dat");
 
         let rows = 1000;
         let cols = 10;
         let data: Vec<f64> = (0..rows * cols).map(|i| i as f64).collect();
 
-        MmapUtils::array_to_mmap_file(&data, &file_path).unwrap();
+        MmapUtils::array_to_mmap_file(&data, &file_path).expect("operation should succeed");
 
         let config = MmapConfig {
             chunk_size: 500, // Process 50 rows at a time (500 elements / 10 cols)
             ..MmapConfig::default()
         };
 
-        let mmap_matrix = MmapMatrix::from_file(&file_path, rows, cols, config).unwrap();
+        let mmap_matrix = MmapMatrix::from_file(&file_path, rows, cols, config)
+            .expect("operation should succeed");
 
         let results = mmap_matrix
             .process_chunks(|chunk, start_row, num_rows| Ok((chunk.len(), start_row, num_rows)))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should have 20 chunks (1000 rows / 50 rows per chunk)
         assert_eq!(results.len(), 20);
@@ -701,25 +706,26 @@ mod tests {
 
     #[test]
     fn test_mmap_vector() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_vector.dat");
 
         let len = 10000;
         let data: Vec<f64> = (0..len).map(|i| i as f64).collect();
 
-        MmapUtils::array_to_mmap_file(&data, &file_path).unwrap();
+        MmapUtils::array_to_mmap_file(&data, &file_path).expect("operation should succeed");
 
         let config = MmapConfig::default();
-        let mmap_vec = MmapVector::from_file(&file_path, len, config).unwrap();
+        let mmap_vec =
+            MmapVector::from_file(&file_path, len, config).expect("operation should succeed");
 
         assert_eq!(mmap_vec.len(), len);
-        assert_eq!(mmap_vec.get(0).unwrap(), 0.0);
-        assert_eq!(mmap_vec.get(9999).unwrap(), 9999.0);
+        assert_eq!(mmap_vec.get(0).expect("index should be valid"), 0.0);
+        assert_eq!(mmap_vec.get(9999).expect("index should be valid"), 9999.0);
 
         // Test chunked processing
         let results = mmap_vec
             .process_chunks(|chunk, start_idx| Ok((chunk.len(), start_idx, chunk[0])))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!results.is_empty());
         assert_eq!(results[0].1, 0); // First chunk starts at index 0
@@ -728,25 +734,30 @@ mod tests {
 
     #[test]
     fn test_mmap_matrix_mut() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_matrix_mut.dat");
 
         let rows = 10;
         let cols = 5;
         let config = MmapConfig::default();
 
-        let mut mmap_matrix = MmapMatrixMut::create_file(&file_path, rows, cols, config).unwrap();
+        let mut mmap_matrix = MmapMatrixMut::create_file(&file_path, rows, cols, config)
+            .expect("operation should succeed");
 
         // Test setting values
-        mmap_matrix.set(0, 0, 42.0).unwrap();
-        mmap_matrix.set(1, 2, 3.15).unwrap();
+        mmap_matrix
+            .set(0, 0, 42.0)
+            .expect("operation should succeed");
+        mmap_matrix
+            .set(1, 2, 3.15)
+            .expect("operation should succeed");
 
         // Test getting values
-        assert_eq!(mmap_matrix.get(0, 0).unwrap(), 42.0);
-        assert_eq!(mmap_matrix.get(1, 2).unwrap(), 3.15);
+        assert_eq!(mmap_matrix.get(0, 0).expect("index should be valid"), 42.0);
+        assert_eq!(mmap_matrix.get(1, 2).expect("index should be valid"), 3.15);
 
         // Test flushing
-        mmap_matrix.flush().unwrap();
+        mmap_matrix.flush().expect("operation should succeed");
     }
 
     #[test]

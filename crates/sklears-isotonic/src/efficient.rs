@@ -41,7 +41,7 @@ pub fn efficient_isotonic_regression(
 
     // Sort by x values
     let mut indices: Vec<usize> = (0..n).collect();
-    indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+    indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
     let sorted_x: Vec<Float> = indices.iter().map(|&i| x[i]).collect();
     let sorted_y: Vec<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -117,7 +117,7 @@ fn efficient_pava_l2_increasing(y: &[Float], weights: &[Float]) -> Result<Vec<Fl
                 break;
             }
 
-            let prev = stack.pop().unwrap();
+            let prev = stack.pop().ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
             current_segment = merge_segments(prev, current_segment);
         }
 
@@ -187,7 +187,7 @@ fn efficient_pava_l1_increasing(y: &[Float], weights: &[Float]) -> Result<Vec<Fl
                 break;
             }
 
-            let prev = stack.pop().unwrap();
+            let prev = stack.pop().ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
             current_segment = merge_weighted_median_segments(prev, current_segment);
         }
 
@@ -264,7 +264,7 @@ fn efficient_pava_huber_increasing(
                 break;
             }
 
-            let prev = stack.pop().unwrap();
+            let prev = stack.pop().ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
             current_segment = merge_huber_segments(prev, current_segment);
         }
 
@@ -341,7 +341,7 @@ fn efficient_pava_quantile_increasing(
                 break;
             }
 
-            let prev = stack.pop().unwrap();
+            let prev = stack.pop().ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
             current_segment = merge_quantile_segments(prev, current_segment);
         }
 
@@ -513,7 +513,7 @@ fn weighted_median(values: &[Float], weights: &[Float]) -> Float {
         .zip(weights.iter())
         .map(|(&v, &w)| (v, w))
         .collect();
-    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     let total_weight: Float = weights.iter().sum();
     let half_weight = total_weight / 2.0;
@@ -594,7 +594,7 @@ fn weighted_quantile(values: &[Float], weights: &[Float], quantile: Float) -> Fl
         .zip(weights.iter())
         .map(|(&v, &w)| (v, w))
         .collect();
-    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     let total_weight: Float = weights.iter().sum();
     let target_weight = total_weight * quantile;
@@ -623,7 +623,7 @@ mod tests {
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0]);
 
         let (fitted_x, fitted_y) =
-            efficient_isotonic_regression(&x, &y, None, true, LossFunction::SquaredLoss).unwrap();
+            efficient_isotonic_regression(&x, &y, None, true, LossFunction::SquaredLoss).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -642,7 +642,7 @@ mod tests {
         let y = Array1::from(vec![5.0, 3.0, 4.0, 2.0, 1.0]);
 
         let (fitted_x, fitted_y) =
-            efficient_isotonic_regression(&x, &y, None, false, LossFunction::SquaredLoss).unwrap();
+            efficient_isotonic_regression(&x, &y, None, false, LossFunction::SquaredLoss).expect("operation should succeed");
 
         // Check decreasing monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -661,7 +661,7 @@ mod tests {
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 5.0]);
 
         let (fitted_x, fitted_y) =
-            efficient_isotonic_regression(&x, &y, None, true, LossFunction::AbsoluteLoss).unwrap();
+            efficient_isotonic_regression(&x, &y, None, true, LossFunction::AbsoluteLoss).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -677,7 +677,7 @@ mod tests {
 
         let (fitted_x, fitted_y) =
             efficient_isotonic_regression(&x, &y, Some(&weights), true, LossFunction::SquaredLoss)
-                .unwrap();
+                .expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {

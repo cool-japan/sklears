@@ -6,8 +6,8 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::error::Result;
 use std::collections::HashMap;
 
@@ -552,7 +552,8 @@ impl KernelApproximationValidator {
         condition_numbers: &[f64],
     ) -> Result<StabilityAnalysis> {
         let mut rng = RealStdRng::seed_from_u64(self.config.random_state.unwrap_or(42));
-        let normal = RandNormal::new(0.0, self.config.stability_tolerance).unwrap();
+        let normal = RandNormal::new(0.0, self.config.stability_tolerance)
+            .expect("operation should succeed");
 
         // Test perturbation sensitivity
         let mut perturbation_errors = Vec::new();
@@ -629,7 +630,13 @@ impl KernelApproximationValidator {
             .zip(sample_errors.iter())
             .find(|(_, &error)| error <= target_error)
             .map(|(&samples, _)| samples)
-            .unwrap_or(*self.config.sample_sizes.last().unwrap());
+            .unwrap_or(
+                *self
+                    .config
+                    .sample_sizes
+                    .last()
+                    .expect("operation should succeed"),
+            );
 
         // Estimate convergence rate with respect to sample size
         let convergence_rate = if sample_errors.len() >= 2 {
@@ -697,7 +704,7 @@ impl KernelApproximationValidator {
             .iter()
             .zip(computational_cost_vs_dimension.iter())
             .map(|((dim, quality), (_, cost))| (*dim, quality / cost))
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
             .map(|(dim, _)| dim)
             .unwrap_or(100);
 
@@ -905,7 +912,9 @@ mod tests {
         let data = Array2::from_shape_fn((50, 5), |(i, j)| (i + j) as f64 * 0.1);
         let method = MockValidatableRBF { gamma: 1.0 };
 
-        let result = validator.validate_method(&method, &data, None).unwrap();
+        let result = validator
+            .validate_method(&method, &data, None)
+            .expect("operation should succeed");
 
         assert_eq!(result.method_name, "MockRBF");
         assert_eq!(result.empirical_errors.len(), 2);
@@ -931,7 +940,7 @@ mod tests {
 
         let result = validator
             .cross_validate(&method, &data, None, parameter_grid)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.method_name, "MockRBF");
         assert!(!result.cv_scores.is_empty());
@@ -943,10 +952,13 @@ mod tests {
         let config = ValidationConfig::default();
         let validator = KernelApproximationValidator::new(config);
 
-        let bound = validator.theoretical_bounds.get("RBF").unwrap();
+        let bound = validator
+            .theoretical_bounds
+            .get("RBF")
+            .expect("operation should succeed");
         let theoretical_bound = validator
             .compute_theoretical_bound(bound, 100, 10, 50)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(theoretical_bound > 0.0);
         assert!(theoretical_bound.is_finite());

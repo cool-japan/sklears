@@ -496,7 +496,7 @@ impl TimeSeriesEnsembleRegressor {
             TemporalAggregationMethod::MedianAggregation => {
                 for i in 0..n_samples {
                     let mut values: Vec<f64> = predictions.iter().map(|p| p[i]).collect();
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     result[i] = if values.len() % 2 == 0 {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                     } else {
@@ -735,7 +735,7 @@ mod tests {
         // Create simple time series data
         let data = vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0];
 
-        let X = Array2::from_shape_vec((5, 2), data).unwrap();
+        let X = Array2::from_shape_vec((5, 2), data).expect("shape and data length should match");
         let y: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
         // Test basic functionality without full fit/predict for now
@@ -758,10 +758,14 @@ mod tests {
             .map(|i| (i as f64 / 7.0 * 2.0 * std::f64::consts::PI).sin())
             .collect();
 
-        ensemble.extract_seasonal_components(&y).unwrap();
+        ensemble
+            .extract_seasonal_components(&y)
+            .expect("operation should succeed");
         assert!(ensemble.seasonal_components.is_some());
 
-        let components = ensemble.seasonal_components.unwrap();
+        let components = ensemble
+            .seasonal_components
+            .expect("operation should succeed");
         assert_eq!(components.trend.len(), 28);
         assert_eq!(components.seasonal.len(), 1);
         assert_eq!(components.seasonal[0].len(), 7);

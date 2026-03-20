@@ -99,6 +99,11 @@ pub fn generate_meshgrid(
 }
 
 /// Export visualization to different formats
+///
+/// # Note
+///
+/// Only [`HTML`](ExportFormat::HTML) and [`JSON`](ExportFormat::JSON) are currently implemented.
+/// Other formats return `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub enum ExportFormat {
     /// HTML
@@ -106,10 +111,22 @@ pub enum ExportFormat {
     /// JSON
     JSON,
     /// CSV
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     CSV,
     /// PNG
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     PNG,
     /// SVG
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(NotImplemented)` in v0.1.0. Planned for v0.2.0.
     SVG,
 }
 
@@ -142,6 +159,13 @@ impl ExportConfig {
 }
 
 /// Export visualization data
+///
+/// # Note
+///
+/// Only [`HTML`](ExportFormat::HTML) and [`JSON`](ExportFormat::JSON) formats are currently
+/// supported. [`CSV`](ExportFormat::CSV), [`PNG`](ExportFormat::PNG), and
+/// [`SVG`](ExportFormat::SVG) return `Err(NotImplemented)` in v0.1.0.
+/// Planned for v0.2.0.
 pub fn export_visualization<T: Serialize>(data: &T, config: &ExportConfig) -> SklResult<()> {
     match config.format {
         ExportFormat::HTML => {
@@ -159,8 +183,8 @@ pub fn export_visualization<T: Serialize>(data: &T, config: &ExportConfig) -> Sk
             })?;
         }
         _ => {
-            return Err(crate::SklearsError::InvalidInput(format!(
-                "Export format {:?} not implemented yet",
+            return Err(crate::SklearsError::NotImplemented(format!(
+                "Export format {:?} not yet implemented. Planned for v0.2.0.",
                 config.format
             )));
         }
@@ -176,7 +200,8 @@ mod tests {
 
     #[test]
     fn test_generate_meshgrid() {
-        let (x_grid, y_grid) = generate_meshgrid((0.0, 2.0, 3), (0.0, 1.0, 2)).unwrap();
+        let (x_grid, y_grid) =
+            generate_meshgrid((0.0, 2.0, 3), (0.0, 1.0, 2)).expect("operation should succeed");
 
         assert_eq!(x_grid.dim(), (2, 3));
         assert_eq!(y_grid.dim(), (2, 3));
@@ -216,7 +241,7 @@ mod tests {
         let result = generate_html_output(&test_data, "Test Title", None);
 
         assert!(result.is_ok());
-        let html = result.unwrap();
+        let html = result.expect("operation should succeed");
         assert!(html.contains("Test Title"));
         assert!(html.contains("test"));
         assert!(html.contains("data"));

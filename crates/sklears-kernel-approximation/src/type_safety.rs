@@ -7,7 +7,8 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::RngExt;
+use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use std::marker::PhantomData;
 
@@ -352,19 +353,21 @@ where
     ) -> Result<TransformationParameters<N_COMPONENTS>> {
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let (_, n_features) = data.dim();
 
         let weights = match Kernel::NAME {
             "RBF" => {
-                let normal = RandNormal::new(0.0, self.parameters.bandwidth).unwrap();
+                let normal = RandNormal::new(0.0, self.parameters.bandwidth)
+                    .expect("operation should succeed");
                 Array2::from_shape_fn((N_COMPONENTS, n_features), |_| rng.sample(normal))
             }
             "Laplacian" => {
                 // Laplacian kernel uses Cauchy distribution
-                let uniform = RandUniform::new(0.0, std::f64::consts::PI).unwrap();
+                let uniform =
+                    RandUniform::new(0.0, std::f64::consts::PI).expect("operation should succeed");
                 Array2::from_shape_fn((N_COMPONENTS, n_features), |_| {
                     let u = rng.sample(uniform);
                     (u - std::f64::consts::PI / 2.0).tan() / self.parameters.bandwidth
@@ -378,7 +381,8 @@ where
             }
         };
 
-        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+        let uniform =
+            RandUniform::new(0.0, 2.0 * std::f64::consts::PI).expect("operation should succeed");
         let biases = Some(Array1::from_shape_fn(N_COMPONENTS, |_| rng.sample(uniform)));
 
         Ok(TransformationParameters::RandomFeatures { weights, biases })
@@ -391,7 +395,7 @@ where
         // Sample inducing points
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let mut indices: Vec<usize> = (0..n_samples).collect();
@@ -417,7 +421,7 @@ where
     fn fit_fastfood(&self, data: &Array2<f64>) -> Result<TransformationParameters<N_COMPONENTS>> {
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let (_, n_features) = data.dim();
@@ -428,7 +432,7 @@ where
         // Binary matrix
         let binary_matrix = Array2::from_shape_fn((n_features, n_features), |(i, j)| {
             if i == j {
-                if rng.gen::<bool>() {
+                if rng.random::<bool>() {
                     1.0
                 } else {
                     -1.0
@@ -442,7 +446,7 @@ where
         // Gaussian scaling
         let scaling = Array1::from_shape_fn(N_COMPONENTS, |_| {
             use scirs2_core::random::RandNormal;
-            let normal = RandNormal::new(0.0, 1.0).unwrap();
+            let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
             rng.sample(normal)
         });
 
@@ -729,8 +733,8 @@ mod tests {
             .random_state(42);
 
         // Fit and transform
-        let fitted = approximation.fit(&data).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = approximation.fit(&data).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[4, 20]); // 10 components * 2 (cos, sin)
         assert_eq!(FittedRBFRandomFourierFeatures::<10>::n_components(), 10);
@@ -751,8 +755,8 @@ mod tests {
             .bandwidth(2.0)
             .random_state(42);
 
-        let fitted = approximation.fit(&data).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = approximation.fit(&data).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.shape()[0], 4); // n_samples
         assert_eq!(fitted.kernel_name(), "RBF");
@@ -767,8 +771,8 @@ mod tests {
             .degree(3)
             .random_state(42);
 
-        let fitted = approximation.fit(&data).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = approximation.fit(&data).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(fitted.kernel_name(), "Polynomial");
         assert!(features.nrows() == 3);
@@ -1085,7 +1089,8 @@ mod advanced_type_safety_tests {
     #[test]
     fn test_bounded_quality_metrics() {
         // High quality metrics
-        let high_quality = HighQualityMetrics::new(0.95, 0.03, 50.0).unwrap();
+        let high_quality =
+            HighQualityMetrics::new(0.95, 0.03, 50.0).expect("operation should succeed");
         assert!(high_quality.meets_standards());
 
         // Low quality metrics should fail bounds check
@@ -1728,8 +1733,11 @@ pub trait SerializableKernelApproximation {
             "sklears_version": env!("CARGO_PKG_VERSION"),
         });
 
-        std::fs::write(path, serde_json::to_string_pretty(&model_data).unwrap())
-            .map_err(SklearsError::from)?;
+        std::fs::write(
+            path,
+            serde_json::to_string_pretty(&model_data).expect("operation should succeed"),
+        )
+        .map_err(SklearsError::from)?;
 
         Ok(())
     }
@@ -1825,12 +1833,13 @@ mod preset_tests {
         };
 
         // Test serialization
-        let serialized = serde_json::to_string(&config).unwrap();
+        let serialized = serde_json::to_string(&config).expect("operation should succeed");
         assert!(serialized.contains("RBF"));
         assert!(serialized.contains("RandomFourierFeatures"));
 
         // Test deserialization
-        let deserialized: SerializableKernelConfig = serde_json::from_str(&serialized).unwrap();
+        let deserialized: SerializableKernelConfig =
+            serde_json::from_str(&serialized).expect("operation should succeed");
         assert_eq!(deserialized.kernel_type, "RBF");
         assert_eq!(deserialized.n_components, 256);
         assert_eq!(deserialized.bandwidth, 1.5);

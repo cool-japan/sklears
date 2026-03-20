@@ -1204,7 +1204,9 @@ mod tests {
         let a = array![1.0, 2.0, 3.0, 4.0];
         let b = array![5.0, 6.0, 7.0, 8.0];
 
-        let result = simd_ops.simd_dot_product(&a.view(), b.view()).unwrap();
+        let result = simd_ops
+            .simd_dot_product(&a.view(), b.view())
+            .expect("operation should succeed");
         let expected = 1.0 * 5.0 + 2.0 * 6.0 + 3.0 * 7.0 + 4.0 * 8.0; // = 70.0
 
         assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
@@ -1216,7 +1218,9 @@ mod tests {
         let matrix = array![[1.0, 2.0], [3.0, 4.0]];
         let vector = array![5.0, 6.0];
 
-        let result = simd_ops.simd_matvec(&matrix, &vector).unwrap();
+        let result = simd_ops
+            .simd_matvec(&matrix, &vector)
+            .expect("operation should succeed");
         let expected = array![1.0 * 5.0 + 2.0 * 6.0, 3.0 * 5.0 + 4.0 * 6.0]; // = [17.0, 39.0]
 
         assert_abs_diff_eq!(result[0], expected[0], epsilon = 1e-10);
@@ -1229,7 +1233,9 @@ mod tests {
         let a = array![[1.0, 2.0], [3.0, 4.0]];
         let b = array![[5.0, 6.0], [7.0, 8.0]];
 
-        let result = simd_ops.simd_matmul(&a, &b).unwrap();
+        let result = simd_ops
+            .simd_matmul(&a, &b)
+            .expect("operation should succeed");
         // Expected: [[19.0, 22.0], [43.0, 50.0]]
 
         assert_abs_diff_eq!(result[[0, 0]], 19.0, epsilon = 1e-10);
@@ -1244,14 +1250,18 @@ mod tests {
         let a = array![1.0, 2.0, 3.0, 4.0];
         let b = array![5.0, 6.0, 7.0, 8.0];
 
-        let add_result = simd_ops.simd_element_wise_add(&a, &b).unwrap();
+        let add_result = simd_ops
+            .simd_element_wise_add(&a, &b)
+            .expect("operation should succeed");
         let expected_add = array![6.0, 8.0, 10.0, 12.0];
 
         for (r, e) in add_result.iter().zip(expected_add.iter()) {
             assert_abs_diff_eq!(*r, *e, epsilon = 1e-10);
         }
 
-        let sub_result = simd_ops.simd_element_wise_subtract(&a, &b).unwrap();
+        let sub_result = simd_ops
+            .simd_element_wise_subtract(&a, &b)
+            .expect("operation should succeed");
         let expected_sub = array![-4.0, -4.0, -4.0, -4.0];
 
         for (r, e) in sub_result.iter().zip(expected_sub.iter()) {
@@ -1264,7 +1274,9 @@ mod tests {
         let simd_ops = SimdMatrixOps::new();
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let cov = simd_ops.simd_covariance(&data).unwrap();
+        let cov = simd_ops
+            .simd_covariance(&data)
+            .expect("operation should succeed");
 
         // Expected covariance matrix for this simple case
         assert!(cov.nrows() == 2 && cov.ncols() == 2);
@@ -1287,11 +1299,11 @@ mod tests {
         let a = array![1.0, 2.0, 3.0, 4.0];
         let b = array![5.0, 6.0, 7.0, 8.0];
 
-        let dot_result = a.simd_dot(&b).unwrap();
+        let dot_result = a.simd_dot(&b).expect("operation should succeed");
         let expected = 70.0;
         assert_abs_diff_eq!(dot_result, expected, epsilon = 1e-10);
 
-        let add_result = a.simd_add(&b).unwrap();
+        let add_result = a.simd_add(&b).expect("operation should succeed");
         let expected_add = array![6.0, 8.0, 10.0, 12.0];
 
         for (r, e) in add_result.iter().zip(expected_add.iter()) {

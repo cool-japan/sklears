@@ -355,7 +355,7 @@ impl FeatureBinner {
 
     fn quantile_binning(&self, x: &Array1<f64>) -> UtilsResult<Array1<usize>> {
         let mut sorted: Vec<f64> = x.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Compute quantile edges
         let mut edges = Vec::with_capacity(self.n_bins + 1);
@@ -393,12 +393,12 @@ mod tests {
 
     #[test]
     fn test_polynomial_features_degree_2() {
-        let poly = PolynomialFeatures::new(2, true, false).unwrap();
+        let poly = PolynomialFeatures::new(2, true, false).expect("operation should succeed");
 
         // Input: [a, b]
         // The recursive generation produces: [1, b, ab, b², a, a², ...]
         let x = array![[2.0, 3.0]];
-        let result = poly.transform(&x).unwrap();
+        let result = poly.transform(&x).expect("operation should succeed");
 
         assert_eq!(result.ncols(), 6);
 
@@ -418,12 +418,12 @@ mod tests {
 
     #[test]
     fn test_polynomial_features_interaction_only() {
-        let poly = PolynomialFeatures::new(2, false, true).unwrap();
+        let poly = PolynomialFeatures::new(2, false, true).expect("operation should succeed");
 
         // Input: [a, b]
         // Expected output: [a, b, ab] (no a², b²)
         let x = array![[2.0, 3.0]];
-        let result = poly.transform(&x).unwrap();
+        let result = poly.transform(&x).expect("operation should succeed");
 
         assert_eq!(result.ncols(), 3);
         assert_abs_diff_eq!(result[[0, 0]], 2.0, epsilon = 1e-10); // a
@@ -433,10 +433,10 @@ mod tests {
 
     #[test]
     fn test_polynomial_n_output_features() {
-        let poly = PolynomialFeatures::new(2, true, false).unwrap();
+        let poly = PolynomialFeatures::new(2, true, false).expect("operation should succeed");
         assert_eq!(poly.n_output_features(2), 6); // [1, a, b, a², ab, b²]
 
-        let poly = PolynomialFeatures::new(3, false, false).unwrap();
+        let poly = PolynomialFeatures::new(3, false, false).expect("operation should succeed");
         assert_eq!(poly.n_output_features(2), 9); // [a, b, a², ab, b², a³, a²b, ab², b³]
     }
 
@@ -448,7 +448,7 @@ mod tests {
         // Interactions (without self): [ab, ac, bc]
         let x = array![[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]];
 
-        let result = interaction.transform(&x).unwrap();
+        let result = interaction.transform(&x).expect("operation should succeed");
 
         assert_eq!(result.ncols(), 6); // 3 original + 3 interactions
 
@@ -466,7 +466,7 @@ mod tests {
         let interaction = InteractionFeatures::new(true);
 
         let x = array![[2.0, 3.0]];
-        let result = interaction.transform(&x).unwrap();
+        let result = interaction.transform(&x).expect("operation should succeed");
 
         assert_eq!(result.ncols(), 5); // 2 original + 3 interactions (a², ab, b²)
 
@@ -477,10 +477,11 @@ mod tests {
 
     #[test]
     fn test_uniform_binning() {
-        let binner = FeatureBinner::new(3, BinningStrategy::Uniform).unwrap();
+        let binner =
+            FeatureBinner::new(3, BinningStrategy::Uniform).expect("operation should succeed");
 
         let x = array![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
-        let bins = binner.fit_transform(&x).unwrap();
+        let bins = binner.fit_transform(&x).expect("operation should succeed");
 
         // Should be divided into 3 bins: [0-3), [3-6), [6-9]
         assert_eq!(bins[0], 0); // 0.0
@@ -490,10 +491,11 @@ mod tests {
 
     #[test]
     fn test_quantile_binning() {
-        let binner = FeatureBinner::new(4, BinningStrategy::Quantile).unwrap();
+        let binner =
+            FeatureBinner::new(4, BinningStrategy::Quantile).expect("operation should succeed");
 
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let bins = binner.fit_transform(&x).unwrap();
+        let bins = binner.fit_transform(&x).expect("operation should succeed");
 
         // Each bin should have approximately equal number of samples
         let mut bin_counts = vec![0; 4];
@@ -509,10 +511,11 @@ mod tests {
 
     #[test]
     fn test_binning_constant_values() {
-        let binner = FeatureBinner::new(3, BinningStrategy::Uniform).unwrap();
+        let binner =
+            FeatureBinner::new(3, BinningStrategy::Uniform).expect("operation should succeed");
 
         let x = array![5.0, 5.0, 5.0, 5.0];
-        let bins = binner.fit_transform(&x).unwrap();
+        let bins = binner.fit_transform(&x).expect("operation should succeed");
 
         // All values should be in the same bin
         assert!(bins.iter().all(|&b| b == 0));

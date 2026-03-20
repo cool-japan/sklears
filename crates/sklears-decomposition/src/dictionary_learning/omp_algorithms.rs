@@ -292,7 +292,8 @@ mod tests {
         // Dictionary: [[1, 0], [0, 1]] (identity)
         // Signal: [3, 4]
         // Expected: coefficients = [3, 4]
-        let dictionary = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
+        let dictionary = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0])
+            .expect("shape and data length should match");
         let signal = Array1::from_vec(vec![3.0, 4.0]);
 
         let config = OMPConfig {
@@ -301,7 +302,9 @@ mod tests {
         };
 
         let encoder = OMPEncoder::new(config);
-        let result = encoder.encode(&dictionary, &signal).unwrap();
+        let result = encoder
+            .encode(&dictionary, &signal)
+            .expect("serialization should succeed");
 
         // Should find both atoms
         assert!((result.coefficients[0] - 3.0).abs() < 1e-6);
@@ -322,7 +325,7 @@ mod tests {
                 0.0, 0.0, 1.0, 0.2, 0.4, // Feature 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Signal is a linear combination of atoms 0 and 2: signal = 2*atom0 + 3*atom2
         let signal = Array1::from_vec(vec![
@@ -337,7 +340,9 @@ mod tests {
         };
 
         let encoder = OMPEncoder::new(config);
-        let result = encoder.encode(&dictionary, &signal).unwrap();
+        let result = encoder
+            .encode(&dictionary, &signal)
+            .expect("serialization should succeed");
 
         // Should identify atoms 0 and 2
         assert!(result.coefficients[0].abs() > 1.0); // Atom 0 selected
@@ -350,7 +355,7 @@ mod tests {
         // Test that OMP stops when residual falls below tolerance
         let dictionary =
             Array2::from_shape_vec((3, 3), vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
-                .unwrap();
+                .expect("operation should succeed");
         let signal = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
         let config = OMPConfig {
@@ -359,7 +364,9 @@ mod tests {
         };
 
         let encoder = OMPEncoder::new(config);
-        let result = encoder.encode(&dictionary, &signal).unwrap();
+        let result = encoder
+            .encode(&dictionary, &signal)
+            .expect("serialization should succeed");
 
         // Should stop when residual is small
         assert!(result.residual_norm < 1e-5);
@@ -375,7 +382,7 @@ mod tests {
                 1.0, 0.5, 0.2, 0.8, 0.3, 0.0, 1.0, 0.3, 0.1, 0.7, 0.0, 0.0, 1.0, 0.2, 0.4,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let signal = Array1::from_vec(vec![2.5, 1.5, 2.0]);
 
         let config = OMPConfig {
@@ -384,7 +391,9 @@ mod tests {
         };
 
         let encoder = OMPEncoder::new(config);
-        let result = encoder.encode(&dictionary, &signal).unwrap();
+        let result = encoder
+            .encode(&dictionary, &signal)
+            .expect("serialization should succeed");
 
         // Count non-zero coefficients
         let nnz = result
@@ -402,7 +411,7 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 0.5, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Signal = 2*atom0 + 3*atom1
         let signal = Array1::from_vec(vec![2.0, 3.0, 0.0, 0.0]);
@@ -413,7 +422,9 @@ mod tests {
         };
 
         let encoder = OMPEncoder::new(config);
-        let result = encoder.encode(&dictionary, &signal).unwrap();
+        let result = encoder
+            .encode(&dictionary, &signal)
+            .expect("serialization should succeed");
 
         // Reconstruct signal
         let mut reconstructed = Array1::zeros(4);
@@ -437,8 +448,8 @@ mod tests {
     #[test]
     fn test_omp_dimension_validation() {
         // Test error handling for mismatched dimensions
-        let dictionary =
-            Array2::from_shape_vec((3, 2), vec![1.0, 0.0, 0.0, 1.0, 0.0, 0.0]).unwrap();
+        let dictionary = Array2::from_shape_vec((3, 2), vec![1.0, 0.0, 0.0, 1.0, 0.0, 0.0])
+            .expect("shape and data length should match");
         let signal = Array1::from_vec(vec![1.0, 2.0]); // Wrong size (should be 3)
 
         let config = OMPConfig::default();
@@ -454,10 +465,11 @@ mod tests {
         // [2 1] [x1]   [5]
         // [1 3] [x2] = [6]
         // Solution: x1 = 9/5, x2 = 7/5
-        let a = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 3.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 3.0])
+            .expect("shape and data length should match");
         let b = Array1::from_vec(vec![5.0, 6.0]);
 
-        let x = solve_linear_system(&a, &b).unwrap();
+        let x = solve_linear_system(&a, &b).expect("operation should succeed");
 
         assert!((x[0] - 9.0 / 5.0).abs() < 1e-6);
         assert!((x[1] - 7.0 / 5.0).abs() < 1e-6);
@@ -467,10 +479,10 @@ mod tests {
     fn test_solve_linear_system_identity() {
         // Test with identity matrix
         let a = Array2::from_shape_vec((3, 3), vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
-            .unwrap();
+            .expect("operation should succeed");
         let b = Array1::from_vec(vec![4.0, 5.0, 6.0]);
 
-        let x = solve_linear_system(&a, &b).unwrap();
+        let x = solve_linear_system(&a, &b).expect("operation should succeed");
 
         assert!((x[0] - 4.0).abs() < 1e-10);
         assert!((x[1] - 5.0).abs() < 1e-10);
@@ -483,10 +495,11 @@ mod tests {
         // [0 1] [x1]   [2]
         // [1 1] [x2] = [3]
         // Solution: x1 = 1, x2 = 2
-        let a = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 1.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 1.0])
+            .expect("shape and data length should match");
         let b = Array1::from_vec(vec![2.0, 3.0]);
 
-        let x = solve_linear_system(&a, &b).unwrap();
+        let x = solve_linear_system(&a, &b).expect("operation should succeed");
 
         assert!((x[0] - 1.0).abs() < 1e-6);
         assert!((x[1] - 2.0).abs() < 1e-6);

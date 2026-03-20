@@ -178,7 +178,11 @@ impl UncertaintyQuantifier {
         }
 
         // Compute predictive statistics
-        let pred_mean = predictions.mean_axis(Axis(0)).unwrap();
+        let pred_mean = predictions.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let pred_var = predictions.var_axis(Axis(0), 0.0);
 
         // Decompose uncertainty
@@ -256,7 +260,11 @@ impl UncertaintyQuantifier {
         &self,
         ensemble_predictions: &Array2<Float>,
     ) -> Result<UncertaintyResult> {
-        let pred_mean = ensemble_predictions.mean_axis(Axis(0)).unwrap();
+        let pred_mean = ensemble_predictions.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let pred_var = ensemble_predictions.var_axis(Axis(0), 0.0);
         let pred_std = pred_var.mapv(|v| v.sqrt());
 
@@ -293,7 +301,7 @@ impl UncertaintyQuantifier {
     /// Generate bootstrap sample indices
     fn bootstrap_sample(&self, n_samples: usize, rng: &mut impl Rng) -> Vec<usize> {
         (0..n_samples)
-            .map(|_| rng.gen_range(0..n_samples))
+            .map(|_| rng.random_range(0..n_samples))
             .collect()
     }
 
@@ -323,7 +331,11 @@ impl UncertaintyQuantifier {
         &self,
         predictions: &Array2<Float>,
     ) -> Result<UncertaintyResult> {
-        let pred_mean = predictions.mean_axis(Axis(0)).unwrap();
+        let pred_mean = predictions.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let pred_std = predictions.std_axis(Axis(0), 0.0);
 
         // Compute empirical quantiles for prediction intervals
@@ -338,7 +350,7 @@ impl UncertaintyQuantifier {
         for i in 0..n_test {
             let col = predictions.column(i);
             let mut sorted_col: Vec<Float> = col.to_vec();
-            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             lower_bound[i] =
                 self.compute_empirical_quantile_from_sorted(&sorted_col, lower_quantile)?;
@@ -368,7 +380,7 @@ impl UncertaintyQuantifier {
         }
 
         let mut sorted_data: Vec<Float> = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         self.compute_empirical_quantile_from_sorted(&sorted_data, quantile)
     }
@@ -567,7 +579,7 @@ mod tests {
 
         // Test coverage
         let y_true = Array::from_vec(vec![1.2, 2.1, 2.8]);
-        let coverage = result.coverage(&y_true).unwrap();
+        let coverage = result.coverage(&y_true).expect("operation should succeed");
         assert_eq!(coverage, 1.0); // All points within intervals
     }
 
@@ -576,13 +588,19 @@ mod tests {
         let quantifier = UncertaintyQuantifier::default();
         let data = Array::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 
-        let median = quantifier.compute_empirical_quantile(&data, 0.5).unwrap();
+        let median = quantifier
+            .compute_empirical_quantile(&data, 0.5)
+            .expect("operation should succeed");
         assert_eq!(median, 3.0);
 
-        let q25 = quantifier.compute_empirical_quantile(&data, 0.25).unwrap();
+        let q25 = quantifier
+            .compute_empirical_quantile(&data, 0.25)
+            .expect("operation should succeed");
         assert_eq!(q25, 2.0);
 
-        let q75 = quantifier.compute_empirical_quantile(&data, 0.75).unwrap();
+        let q75 = quantifier
+            .compute_empirical_quantile(&data, 0.75)
+            .expect("operation should succeed");
         assert_eq!(q75, 4.0);
     }
 
@@ -591,11 +609,15 @@ mod tests {
         let quantifier = UncertaintyQuantifier::default();
 
         // Test median (should be approximately 0)
-        let median = quantifier.compute_normal_quantile(0.5).unwrap();
+        let median = quantifier
+            .compute_normal_quantile(0.5)
+            .expect("operation should succeed");
         assert!(median.abs() < 1e-10);
 
         // Test 97.5% quantile (should be approximately 1.96)
-        let q975 = quantifier.compute_normal_quantile(0.975).unwrap();
+        let q975 = quantifier
+            .compute_normal_quantile(0.975)
+            .expect("operation should succeed");
         // More relaxed tolerance for numerical approximation algorithms
         assert!((q975 - 1.96).abs() < 0.2, "Expected ~1.96, got {}", q975);
     }
@@ -619,17 +641,18 @@ mod tests {
         let quantifier = UncertaintyQuantifier::default();
 
         // Mock posterior samples (3 samples, 2 features)
-        let posterior_samples =
-            Array::from_shape_vec((3, 2), vec![1.0, 0.5, 1.1, 0.4, 0.9, 0.6]).unwrap();
+        let posterior_samples = Array::from_shape_vec((3, 2), vec![1.0, 0.5, 1.1, 0.4, 0.9, 0.6])
+            .expect("valid array shape");
 
         // Test data (2 samples, 2 features)
-        let X_test = Array::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let X_test =
+            Array::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).expect("valid array shape");
 
         let noise_precision = 1.0;
 
         let result = quantifier
             .bayesian_uncertainty(&posterior_samples, &X_test, noise_precision)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.predictions.len(), 2);
         assert_eq!(result.total_uncertainty.len(), 2);
@@ -649,11 +672,11 @@ mod tests {
                 1.0, 2.0, 3.0, 1.1, 1.9, 3.1, 0.9, 2.1, 2.9, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = quantifier
             .ensemble_uncertainty(&ensemble_predictions)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.predictions.len(), 3);
         assert_eq!(result.total_uncertainty.len(), 3);
@@ -676,7 +699,8 @@ mod tests {
 
         let y_true = Array::from_vec(vec![1.1, 2.1, 3.1]);
 
-        let metrics = CalibrationMetrics::compute(&uncertainty_result, &y_true, 10).unwrap();
+        let metrics = CalibrationMetrics::compute(&uncertainty_result, &y_true, 10)
+            .expect("operation should succeed");
 
         assert_eq!(metrics.coverage, 1.0);
         assert!((metrics.mean_interval_width - 0.4).abs() < 1e-10);

@@ -202,8 +202,14 @@ pub fn analyze_classification_dataset(x: &Array2<f64>, y: &Array1<i32>) -> Datas
     // Perfect balance = 1.0, completely imbalanced = 0.0
     let class_balance = if class_counts.len() > 1 {
         let counts: Vec<usize> = class_counts.values().copied().collect();
-        let min_count = *counts.iter().min().unwrap() as f64;
-        let max_count = *counts.iter().max().unwrap() as f64;
+        let min_count = *counts
+            .iter()
+            .min()
+            .expect("collection should not be empty for min/max") as f64;
+        let max_count = *counts
+            .iter()
+            .max()
+            .expect("collection should not be empty for min/max") as f64;
         Some(min_count / max_count)
     } else {
         None // Single class

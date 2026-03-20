@@ -6,7 +6,6 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::prelude::{Result, SklearsError};
 
 /// Numerical stability monitor for kernel approximation methods
@@ -588,7 +587,7 @@ impl NumericalStabilityMonitor {
 
     fn power_iteration(&self, matrix: &Array2<f64>) -> Result<(f64, Array1<f64>)> {
         let n = matrix.nrows();
-        let mut vector = Array1::from_shape_fn(n, |_| thread_rng().gen::<f64>() - 0.5);
+        let mut vector = Array1::from_shape_fn(n, |_| thread_rng().random::<f64>() - 0.5);
 
         // Normalize initial vector
         let norm = vector.mapv(|x| x * x).sum().sqrt();
@@ -786,7 +785,7 @@ mod tests {
 
         monitor
             .monitor_matrix(&well_conditioned, "test_well_conditioned")
-            .unwrap();
+            .expect("operation should succeed");
         assert!(monitor.get_warnings().is_empty());
 
         // Ill-conditioned matrix
@@ -794,7 +793,7 @@ mod tests {
 
         monitor
             .monitor_matrix(&ill_conditioned, "test_ill_conditioned")
-            .unwrap();
+            .expect("operation should succeed");
         // Should detect high condition number or near-singularity
     }
 
@@ -804,7 +803,9 @@ mod tests {
 
         let matrix = array![[4.0, 2.0], [2.0, 3.0],];
 
-        let (eigenvalues, eigenvectors) = monitor.stable_eigendecomposition(&matrix).unwrap();
+        let (eigenvalues, eigenvectors) = monitor
+            .stable_eigendecomposition(&matrix)
+            .expect("operation should succeed");
 
         assert!(eigenvalues.len() <= matrix.nrows());
         assert_eq!(eigenvectors.nrows(), matrix.nrows());
@@ -817,7 +818,9 @@ mod tests {
 
         let matrix = array![[4.0, 2.0], [2.0, 3.0],];
 
-        let inverse = monitor.stable_matrix_inverse(&matrix).unwrap();
+        let inverse = monitor
+            .stable_matrix_inverse(&matrix)
+            .expect("operation should succeed");
 
         // Check that A_regularized * A^(-1) ≈ I (where A^(-1) is inverse of regularized matrix)
         let mut regularized_matrix = matrix.clone();
@@ -838,7 +841,9 @@ mod tests {
         // Positive definite matrix
         let matrix = array![[4.0, 2.0], [2.0, 3.0],];
 
-        let cholesky = monitor.stable_cholesky(&matrix).unwrap();
+        let cholesky = monitor
+            .stable_cholesky(&matrix)
+            .expect("operation should succeed");
 
         // Check that L * L^T = A_regularized (regularized matrix)
         let reconstructed = cholesky.dot(&cholesky.t());
@@ -862,7 +867,8 @@ mod tests {
 
         let data = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0],];
 
-        let kernel = stable_kernel_matrix(&data, None, "RBF", 1.0, &mut monitor).unwrap();
+        let kernel = stable_kernel_matrix(&data, None, "RBF", 1.0, &mut monitor)
+            .expect("operation should succeed");
 
         assert_eq!(kernel.shape(), &[3, 3]);
         assert!(kernel.iter().all(|&x| x.is_finite() && x >= 0.0));
@@ -886,7 +892,9 @@ mod tests {
 
         let matrix = array![[1.0, 2.0], [3.0, 4.0],];
 
-        monitor.monitor_matrix(&matrix, "test_matrix").unwrap();
+        monitor
+            .monitor_matrix(&matrix, "test_matrix")
+            .expect("operation should succeed");
 
         let report = monitor.generate_report();
         assert!(report.contains("Numerical Stability Report"));

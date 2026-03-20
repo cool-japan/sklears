@@ -604,7 +604,7 @@ where
     fn update_memory_buffer(&mut self, X: &DMatrix<T>, y: &[i32], task_id: usize) -> Result<()> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("operation should succeed")
             .as_secs();
 
         // Select samples to add to memory
@@ -824,7 +824,7 @@ where
             class_distribution,
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs(),
         }
     }
@@ -1117,23 +1117,23 @@ mod tests {
 
         // Task 1: Simple binary classification
         let X1 = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 10.0, 11.0, 11.0, 12.0])
-            .unwrap();
+            .expect("operation should succeed");
         let y1 = vec![0, 0, 1, 1];
         assert!(model.fit_task(&X1, &y1, 1).is_ok());
         assert_eq!(model.num_tasks(), 1);
 
         // Task 2: Another binary classification
         let X2 = Array2::from_shape_vec((4, 2), vec![5.0, 6.0, 6.0, 7.0, 15.0, 16.0, 16.0, 17.0])
-            .unwrap();
+            .expect("operation should succeed");
         let y2 = vec![0, 0, 1, 1];
         assert!(model.fit_task(&X2, &y2, 2).is_ok());
         assert_eq!(model.num_tasks(), 2);
 
         // Test prediction
-        let predictions = model.predict(&X1).unwrap();
+        let predictions = model.predict(&X1).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probabilities = model.predict_proba(&X1).unwrap();
+        let probabilities = model.predict_proba(&X1).expect("operation should succeed");
         assert_eq!(probabilities.dim(), (4, 2));
     }
 
@@ -1151,10 +1151,10 @@ mod tests {
                 9.0, 10.0, 10.0, 11.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
 
-        model.fit_task(&X, &y, 1).unwrap();
+        model.fit_task(&X, &y, 1).expect("operation should succeed");
 
         // Memory buffer should not exceed the limit
         assert!(model.memory_buffer_size() <= 5);
@@ -1168,17 +1168,21 @@ mod tests {
             .build();
 
         // Initial task
-        let X1 =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let X1 = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("operation should succeed");
         let y1 = vec![0, 0, 1, 1];
-        model.fit_task(&X1, &y1, 1).unwrap();
+        model
+            .fit_task(&X1, &y1, 1)
+            .expect("operation should succeed");
 
         // Test drift detection (may or may not detect drift)
         let X2 =
             Array2::from_shape_vec((4, 2), vec![10.0, 11.0, 11.0, 12.0, 12.0, 13.0, 13.0, 14.0])
-                .unwrap();
+                .expect("operation should succeed");
         let y2 = vec![0, 0, 1, 1];
-        let _drift_detected = model.detect_drift(&X2, &y2).unwrap();
+        let _drift_detected = model
+            .detect_drift(&X2, &y2)
+            .expect("operation should succeed");
     }
 
     #[test]
@@ -1197,7 +1201,7 @@ mod tests {
 
             let X =
                 Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 10.0, 11.0, 11.0, 12.0])
-                    .unwrap();
+                    .expect("operation should succeed");
             let y = vec![0, 0, 1, 1];
 
             assert!(model.fit_task(&X, &y, 1).is_ok());
@@ -1215,12 +1219,16 @@ mod tests {
                 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 10.0, 11.0, 11.0, 12.0, 12.0, 13.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = vec![0, 0, 0, 1, 1, 1];
 
-        model.fit_task(&X, &y, 42).unwrap();
+        model
+            .fit_task(&X, &y, 42)
+            .expect("operation should succeed");
 
-        let metadata = model.get_task_metadata(42).unwrap();
+        let metadata = model
+            .get_task_metadata(42)
+            .expect("operation should succeed");
         assert_eq!(metadata.task_id, 42);
         assert_eq!(metadata.num_samples, 6);
         assert_eq!(metadata.num_classes, 2);
@@ -1232,19 +1240,24 @@ mod tests {
         let mut model = ContinualLearningNBBuilder::<f64>::new().build();
 
         // Test prediction before fitting
-        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         assert!(model.predict(&X).is_err());
 
         // Test dimension mismatch
-        let X_fit = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let X_fit = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let y = vec![0, 1];
-        model.fit_task(&X_fit, &y, 1).unwrap();
+        model
+            .fit_task(&X_fit, &y, 1)
+            .expect("operation should succeed");
 
-        let X_wrong = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let X_wrong = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         assert!(model.predict(&X_wrong).is_err());
 
         // Test insufficient data
-        let X_empty = Array2::from_shape_vec((0, 2), vec![]).unwrap();
+        let X_empty = Array2::from_shape_vec((0, 2), vec![]).expect("operation should succeed");
         let y_empty = vec![];
         assert!(model.fit_task(&X_empty, &y_empty, 2).is_err());
     }

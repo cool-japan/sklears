@@ -899,8 +899,8 @@ mod tests {
         let graph3 = create_test_graph(vec![(0, 1), (0, 2), (1, 2)], 3);
 
         let graphs = vec![graph1, graph2, graph3];
-        let fitted = kernel.fit(&graphs, &()).unwrap();
-        let kernel_matrix = fitted.transform(&graphs).unwrap();
+        let fitted = kernel.fit(&graphs, &()).expect("operation should succeed");
+        let kernel_matrix = fitted.transform(&graphs).expect("operation should succeed");
 
         assert_eq!(kernel_matrix.shape(), &[3, 3]);
 
@@ -925,8 +925,8 @@ mod tests {
         let graph2 = create_test_graph(vec![(0, 1), (1, 2), (0, 2)], 3);
 
         let graphs = vec![graph1, graph2];
-        let fitted = kernel.fit(&graphs, &()).unwrap();
-        let kernel_matrix = fitted.transform(&graphs).unwrap();
+        let fitted = kernel.fit(&graphs, &()).expect("operation should succeed");
+        let kernel_matrix = fitted.transform(&graphs).expect("operation should succeed");
 
         assert_eq!(kernel_matrix.shape(), &[2, 2]);
         // Kernel values should be non-negative and finite
@@ -956,8 +956,8 @@ mod tests {
         let graph3 = create_test_graph(vec![(0, 1), (0, 2), (1, 2)], 3);
 
         let graphs = vec![graph1, graph2, graph3];
-        let fitted = kernel.fit(&graphs, &()).unwrap();
-        let kernel_matrix = fitted.transform(&graphs).unwrap();
+        let fitted = kernel.fit(&graphs, &()).expect("operation should succeed");
+        let kernel_matrix = fitted.transform(&graphs).expect("operation should succeed");
 
         assert_eq!(kernel_matrix.shape(), &[3, 3]);
         assert!(kernel_matrix
@@ -976,8 +976,8 @@ mod tests {
         let graph2 = create_test_graph(vec![(0, 1), (1, 2)], 3);
 
         let graphs = vec![graph1, graph2];
-        let fitted = kernel.fit(&graphs, &()).unwrap();
-        let kernel_matrix = fitted.transform(&graphs).unwrap();
+        let fitted = kernel.fit(&graphs, &()).expect("operation should succeed");
+        let kernel_matrix = fitted.transform(&graphs).expect("operation should succeed");
 
         assert_eq!(kernel_matrix.shape(), &[2, 2]);
         assert!(kernel_matrix.iter().all(|&x| x >= 0.0 && x.is_finite()));
@@ -997,8 +997,8 @@ mod tests {
 
         let kernel = WeisfeilerLehmanKernel::new(1).use_node_labels(true);
         let graphs = vec![graph];
-        let fitted = kernel.fit(&graphs, &()).unwrap();
-        let kernel_matrix = fitted.transform(&graphs).unwrap();
+        let fitted = kernel.fit(&graphs, &()).expect("operation should succeed");
+        let kernel_matrix = fitted.transform(&graphs).expect("operation should succeed");
 
         assert_eq!(kernel_matrix.shape(), &[1, 1]);
         assert_abs_diff_eq!(kernel_matrix[(0, 0)], 1.0, epsilon = 1e-10);

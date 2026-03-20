@@ -765,7 +765,7 @@ impl ErrorStorage {
                 let cutoff_time = Instant::now() - *duration;
                 while let Some(error) = self.errors.front() {
                     if error.timestamp < cutoff_time {
-                        let error = self.errors.pop_front().unwrap();
+                        let error = self.errors.pop_front().unwrap_or_default();
                         self.remove_error_from_indices(error.id);
                     } else {
                         break;

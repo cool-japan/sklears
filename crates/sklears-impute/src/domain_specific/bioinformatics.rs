@@ -5,7 +5,7 @@
 
 use crate::core::{ImputationError, ImputationResult};
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 use std::collections::HashMap;
 
 /// Single-cell RNA sequencing imputation using zero-inflated models
@@ -209,7 +209,7 @@ impl SingleCellRNASeqImputer {
                     if X[[i, j]] == 0.0 {
                         // Impute based on zero-inflated model
                         let prob_non_zero = 1.0 - self.zero_inflation_rate;
-                        if Random::default().gen::<f64>() < prob_non_zero {
+                        if Random::default().random::<f64>() < prob_non_zero {
                             imputed[[i, j]] = Random::default().gen_range(0.0..gene_mean * 0.1);
                         }
                     }
@@ -228,7 +228,11 @@ impl SingleCellRNASeqImputer {
         for i in 0..n_cells {
             let distances = self.compute_cell_distances(X.row(i), X)?;
             let mut indices: Vec<usize> = (0..n_cells).collect();
-            indices.sort_by(|&a, &b| distances[a].partial_cmp(&distances[b]).unwrap());
+            indices.sort_by(|&a, &b| {
+                distances[a]
+                    .partial_cmp(&distances[b])
+                    .expect("operation should succeed")
+            });
 
             // Keep only k nearest neighbors
             for &idx in indices.iter().take(self.n_neighbors) {
@@ -319,7 +323,7 @@ impl SingleCellRNASeqImputer {
             similarities.push((i, correlation));
         }
 
-        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         Ok(similarities.iter().take(k).map(|(idx, _)| *idx).collect())
     }
 
@@ -382,7 +386,7 @@ impl SingleCellRNASeqImputer {
             library_sizes.push(size);
         }
 
-        library_sizes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        library_sizes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = library_sizes.len();
         if n % 2 == 0 {
@@ -747,7 +751,7 @@ impl ProteinExpressionImputer {
             }
         }
 
-        all_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        all_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Create quantile mapping
         for i in 0..n_samples {
@@ -898,7 +902,8 @@ impl ProteinExpressionImputer {
         }
 
         // Weight by similarity
-        protein_similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        protein_similarities
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         let top_similarities: Vec<_> = protein_similarities.into_iter().take(5).collect();
 
         let total_weight: f64 = top_similarities.iter().map(|(_, weight, _)| weight).sum();
@@ -1114,7 +1119,7 @@ impl MetabolomicsImputer {
 
             // Estimate lower quantiles for censored imputation
             let mut sorted_values = valid_values.clone();
-            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let q10 = self.quantile(&sorted_values, 0.10);
             let _q25 = self.quantile(&sorted_values, 0.25);
@@ -1324,7 +1329,7 @@ impl MetabolomicsImputer {
             }
         }
 
-        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         Ok(similarities
             .into_iter()
             .take(k)
@@ -1558,7 +1563,7 @@ impl PhylogeneticImputer {
         }
 
         // Sort by phylogenetic closeness (higher weight = closer)
-        related_species.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        related_species.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Use top related species for imputation
         let top_related: Vec<_> = related_species.into_iter().take(10).collect();

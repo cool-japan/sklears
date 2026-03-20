@@ -389,7 +389,9 @@ mod tests {
         let cv = TemporalCrossValidator::new(config);
 
         let time_index: Vec<usize> = (0..100).collect();
-        let splits = cv.split(100, &time_index).unwrap();
+        let splits = cv
+            .split(100, &time_index)
+            .expect("operation should succeed");
 
         assert!(!splits.is_empty(), "Should generate at least one split");
 
@@ -419,7 +421,9 @@ mod tests {
         let cv = SeasonalCrossValidator::new(config, 12); // Monthly seasonality
 
         let time_index: Vec<usize> = (0..120).collect(); // 10 years of monthly data
-        let splits = cv.split(120, &time_index).unwrap();
+        let splits = cv
+            .split(120, &time_index)
+            .expect("operation should succeed");
 
         assert!(!splits.is_empty(), "Should generate at least one split");
     }
@@ -430,7 +434,9 @@ mod tests {
         let cv = BlockedTemporalCV::new(config, 10);
 
         let time_index: Vec<usize> = (0..100).collect();
-        let splits = cv.split(100, &time_index).unwrap();
+        let splits = cv
+            .split(100, &time_index)
+            .expect("operation should succeed");
 
         assert!(!splits.is_empty(), "Should generate at least one split");
     }

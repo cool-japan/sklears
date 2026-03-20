@@ -485,11 +485,15 @@ mod tests {
 
     #[test]
     fn test_array_subtraction() {
-        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![0.5, 1.0, 1.5, 2.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let b = Array2::from_shape_vec((2, 2), vec![0.5, 1.0, 1.5, 2.0])
+            .expect("operation should succeed");
 
-        let result = simd_array_subtraction(&a.view(), &b.view()).unwrap();
-        let expected = Array2::from_shape_vec((2, 2), vec![0.5, 1.0, 1.5, 2.0]).unwrap();
+        let result =
+            simd_array_subtraction(&a.view(), &b.view()).expect("operation should succeed");
+        let expected = Array2::from_shape_vec((2, 2), vec![0.5, 1.0, 1.5, 2.0])
+            .expect("operation should succeed");
 
         assert!((result - expected)
             .map(|x| x.abs())
@@ -501,7 +505,7 @@ mod tests {
     fn test_integral_image() {
         let image =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let integral = simd_compute_integral_image(&image.view());
 
@@ -515,7 +519,7 @@ mod tests {
     fn test_extrema_detection() {
         let below =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 1.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let center = Array2::from_shape_vec(
             (3, 3),
@@ -524,11 +528,11 @@ mod tests {
                 2.0, 3.0, 2.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let above =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 1.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let extrema = simd_detect_extrema(&below.view(), &center.view(), &above.view(), 1.0);
 

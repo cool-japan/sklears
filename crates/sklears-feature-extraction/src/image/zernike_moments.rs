@@ -630,7 +630,8 @@ mod tests {
 
     #[test]
     fn test_extract_moments_small_image() {
-        let image = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0]).unwrap();
+        let image = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0])
+            .expect("operation should succeed");
         let extractor = ZernikeMomentsExtractor::new();
         let result = extractor.extract_moments(&image.view());
 
@@ -639,10 +640,12 @@ mod tests {
 
     #[test]
     fn test_extract_moments_valid_image() {
-        let image =
-            Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64 / 100.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64 / 100.0).collect())
+            .expect("operation should succeed");
         let extractor = ZernikeMomentsExtractor::new();
-        let moments = extractor.extract_moments(&image.view()).unwrap();
+        let moments = extractor
+            .extract_moments(&image.view())
+            .expect("operation should succeed");
 
         assert!(moments.len() > 0);
         assert!(moments.iter().all(|&x| x.is_finite()));
@@ -653,7 +656,7 @@ mod tests {
         let extractor = ZernikeMomentsExtractor::new().binary_threshold(0.5);
         let image =
             Array2::from_shape_vec((3, 3), vec![0.0, 0.3, 0.7, 0.2, 0.6, 0.9, 0.1, 0.4, 0.8])
-                .unwrap();
+                .expect("operation should succeed");
 
         let binary = extractor.to_binary(&image.view());
 
@@ -670,7 +673,7 @@ mod tests {
             (3, 3),
             vec![true, false, true, false, true, false, true, false, true],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let area = extractor.compute_area(&binary);
         assert_eq!(area, 5.0); // Five true pixels
@@ -686,7 +689,7 @@ mod tests {
                 true, true, false, true, true, true, false, false, false, true, false, false,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let (cx, cy, radius) = extractor.compute_normalization_parameters(&binary);
 
@@ -735,7 +738,7 @@ mod tests {
                 true, true, false, true, true, true, false, false, false, true, false, false,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let moment = extractor.compute_single_zernike_moment(&binary, 0, 0, 2.0, 2.0, 2.0);
 
@@ -746,7 +749,8 @@ mod tests {
     #[test]
     fn test_empty_image() {
         let extractor = ZernikeMomentsExtractor::new();
-        let binary = Array2::from_shape_vec((5, 5), vec![false; 25]).unwrap();
+        let binary =
+            Array2::from_shape_vec((5, 5), vec![false; 25]).expect("operation should succeed");
 
         let area = extractor.compute_area(&binary);
         assert_eq!(area, 0.0);
@@ -777,10 +781,12 @@ mod tests {
 
     #[test]
     fn test_extract_features() {
-        let image =
-            Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect())
+            .expect("operation should succeed");
         let extractor = ZernikeMomentsExtractor::new().max_order(3);
-        let features = extractor.extract_features(&image.view()).unwrap();
+        let features = extractor
+            .extract_features(&image.view())
+            .expect("operation should succeed");
 
         assert!(features.len() > 5); // Should have moments plus derived features
         assert!(features.iter().all(|&x| x.is_finite()));
@@ -791,7 +797,8 @@ mod tests {
         let extractor = ZernikeMomentsExtractor::new();
 
         // Create a roughly circular pattern
-        let mut binary = Array2::from_shape_vec((9, 9), vec![false; 81]).unwrap();
+        let mut binary =
+            Array2::from_shape_vec((9, 9), vec![false; 81]).expect("operation should succeed");
         let center = 4;
         for y in 0..9 {
             for x in 0..9 {

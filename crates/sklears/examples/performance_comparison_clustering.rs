@@ -16,7 +16,7 @@ use std::time::Instant;
 #[allow(non_snake_case)]
 fn generate_clustering_data(n_samples: usize, n_features: usize, n_clusters: usize) -> Array2<f64> {
     let mut rng = StdRng::seed_from_u64(42);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     let mut X = Array2::zeros((n_samples, n_features));
     let samples_per_cluster = n_samples / n_clusters;

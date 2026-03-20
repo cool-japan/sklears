@@ -346,10 +346,16 @@ impl HomogeneousPolynomialFeatures<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for HomogeneousPolynomialFeatures<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
-        let n_input_features = self.n_input_features_.unwrap();
-        let n_output_features = self.n_output_features_.unwrap();
-        let combinations = self.power_combinations_.as_ref().unwrap();
-        let coefficients = self.coefficients_.as_ref().unwrap();
+        let n_input_features = self.n_input_features_.expect("operation should succeed");
+        let n_output_features = self.n_output_features_.expect("operation should succeed");
+        let combinations = self
+            .power_combinations_
+            .as_ref()
+            .expect("operation should succeed");
+        let coefficients = self
+            .coefficients_
+            .as_ref()
+            .expect("operation should succeed");
 
         if n_features != n_input_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -420,22 +426,26 @@ impl Transform<Array2<Float>, Array2<Float>> for HomogeneousPolynomialFeatures<T
 impl HomogeneousPolynomialFeatures<Trained> {
     /// Get the number of input features
     pub fn n_input_features(&self) -> usize {
-        self.n_input_features_.unwrap()
+        self.n_input_features_.expect("operation should succeed")
     }
 
     /// Get the number of output features
     pub fn n_output_features(&self) -> usize {
-        self.n_output_features_.unwrap()
+        self.n_output_features_.expect("operation should succeed")
     }
 
     /// Get the power combinations
     pub fn power_combinations(&self) -> &[Vec<u32>] {
-        self.power_combinations_.as_ref().unwrap()
+        self.power_combinations_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the coefficients
     pub fn coefficients(&self) -> &[Float] {
-        self.coefficients_.as_ref().unwrap()
+        self.coefficients_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get normalization parameters (if standard normalization is used)
@@ -498,8 +508,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let homo_poly = HomogeneousPolynomialFeatures::new(2);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
 
@@ -518,8 +528,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         let homo_poly = HomogeneousPolynomialFeatures::new(2).interaction_only(true);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
 
@@ -538,8 +548,8 @@ mod tests {
         let x = array![[1.0, 2.0]];
 
         let homo_poly = HomogeneousPolynomialFeatures::new(3);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // For degree 3 with 2 features: x1^3, x1^2*x2, x1*x2^2, x2^3 = 4 terms
         assert_eq!(x_transformed.ncols(), 4);
@@ -558,8 +568,8 @@ mod tests {
 
         let homo_poly = HomogeneousPolynomialFeatures::new(2)
             .coefficient_method(CoefficientMethod::Multinomial);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Multinomial coefficients for degree 2:
         // x1^2: 2!/(2!*0!) = 1
@@ -576,8 +586,8 @@ mod tests {
 
         let homo_poly =
             HomogeneousPolynomialFeatures::new(2).normalization(NormalizationMethod::L2);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Check that the row has unit L2 norm
         let row_norm = (x_transformed.row(0).dot(&x_transformed.row(0))).sqrt();
@@ -590,8 +600,8 @@ mod tests {
 
         let homo_poly =
             HomogeneousPolynomialFeatures::new(2).normalization(NormalizationMethod::L1);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Check that the row has unit L1 norm
         let row_norm = x_transformed.row(0).mapv(|v| v.abs()).sum();
@@ -604,8 +614,8 @@ mod tests {
 
         let homo_poly =
             HomogeneousPolynomialFeatures::new(2).normalization(NormalizationMethod::Standard);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Check that each column has approximately zero mean and unit variance
         for j in 0..x_transformed.ncols() {
@@ -659,7 +669,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Different number of features
 
         let homo_poly = HomogeneousPolynomialFeatures::new(2);
-        let fitted = homo_poly.fit(&x_train, &()).unwrap();
+        let fitted = homo_poly
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
         assert!(result.is_err());
     }
@@ -669,8 +681,8 @@ mod tests {
         let x = array![[2.0], [3.0]];
 
         let homo_poly = HomogeneousPolynomialFeatures::new(3);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // For degree 3 with 1 feature: only x1^3
         assert_eq!(x_transformed.shape(), &[2, 1]);
@@ -683,8 +695,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0]];
 
         let homo_poly = HomogeneousPolynomialFeatures::new(1);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // For degree 1: features in order [0,0,1], [0,1,0], [1,0,0]
         assert_eq!(x_transformed.shape(), &[1, 3]);
@@ -699,8 +711,8 @@ mod tests {
 
         // Degree 3 interaction only with 2 features is impossible
         let homo_poly = HomogeneousPolynomialFeatures::new(3).interaction_only(true);
-        let fitted = homo_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = homo_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Should have 0 features since we can't have 3 different features interacting
         assert_eq!(x_transformed.ncols(), 0);

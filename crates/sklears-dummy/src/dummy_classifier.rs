@@ -2,7 +2,7 @@
 
 use crate::validation::{analyze_classification_dataset, get_adaptive_classification_strategy};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{prelude::*, Rng};
+use scirs2_core::random::{prelude::*, RngExt};
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict, PredictProba};
 use sklears_core::types::{Features, Float, Int};
@@ -323,7 +323,7 @@ impl Predict<Features, Array1<Int>> for DummyClassifier<sklears_core::traits::Tr
                 };
 
                 for i in 0..n_samples {
-                    let rand_val: Float = rng.gen();
+                    let rand_val: Float = rng.random();
                     let mut cumsum = 0.0;
 
                     for (j, &prior) in class_prior.iter().enumerate() {
@@ -344,7 +344,7 @@ impl Predict<Features, Array1<Int>> for DummyClassifier<sklears_core::traits::Tr
                 };
 
                 for i in 0..n_samples {
-                    let rand_idx = rng.gen_range(0..classes.len());
+                    let rand_idx = rng.random_range(0..classes.len());
                     predictions[i] = classes[rand_idx];
                 }
             }
@@ -363,7 +363,7 @@ impl Predict<Features, Array1<Int>> for DummyClassifier<sklears_core::traits::Tr
                 };
 
                 for i in 0..n_samples {
-                    let rand_idx = rng.gen_range(0..empirical_labels.len());
+                    let rand_idx = rng.random_range(0..empirical_labels.len());
                     predictions[i] = empirical_labels[rand_idx];
                 }
             }
@@ -390,7 +390,7 @@ impl Predict<Features, Array1<Int>> for DummyClassifier<sklears_core::traits::Tr
                 }
 
                 for i in 0..n_samples {
-                    let rand_val: Float = rng.gen();
+                    let rand_val: Float = rng.random();
                     let class_idx = cumulative_probs
                         .iter()
                         .position(|&cum_prob| rand_val <= cum_prob)
@@ -560,13 +560,15 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 2]; // Class 0 is most frequent
 
         let classifier = DummyClassifier::new(Strategy::MostFrequent);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // All predictions should be class 0 (most frequent)
         for &pred in predictions.iter() {
@@ -576,14 +578,16 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_constant() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 2, 3];
 
         let classifier = DummyClassifier::new(Strategy::Constant).with_constant(5);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // All predictions should be the constant value (5)
         for &pred in predictions.iter() {
@@ -593,14 +597,16 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_uniform() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 2, 3];
 
         let classifier = DummyClassifier::new(Strategy::Uniform).with_random_state(42);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are within the valid class range
         for &pred in predictions.iter() {
@@ -615,13 +621,16 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_predict_proba() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1]; // 2/3 class 0, 1/3 class 1
 
         let classifier = DummyClassifier::new(Strategy::Prior);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let probabilities = fitted.predict_proba(&x).unwrap();
+        let probabilities = fitted.predict_proba(&x).expect("operation should succeed");
 
         assert_eq!(probabilities.shape(), &[3, 2]);
 
@@ -638,7 +647,8 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_constant_error() {
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![0, 1];
 
         // Should fail when constant strategy used without setting constant
@@ -659,7 +669,8 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_shape_mismatch() {
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 2]; // Wrong length
 
         let classifier = DummyClassifier::new(Strategy::MostFrequent);
@@ -669,16 +680,24 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_auto_imbalanced() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 0, 0, 0, 0, 0, 1, 1]; // 80% class 0, 20% class 1
 
         let classifier = DummyClassifier::new(Strategy::Auto);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Should select MostFrequent for heavily imbalanced data
-        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::MostFrequent);
+        assert_eq!(
+            fitted
+                .selected_strategy()
+                .expect("operation should succeed"),
+            &Strategy::MostFrequent
+        );
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         // All predictions should be class 0 (most frequent)
         for &pred in predictions.iter() {
             assert_eq!(pred, 0);
@@ -687,40 +706,64 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_auto_balanced_binary() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]; // 50% each class
 
         let classifier = DummyClassifier::new(Strategy::Auto).with_random_state(42);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Should select Stratified for balanced binary data
-        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Stratified);
+        assert_eq!(
+            fitted
+                .selected_strategy()
+                .expect("operation should succeed"),
+            &Strategy::Stratified
+        );
     }
 
     #[test]
     fn test_dummy_classifier_auto_multiclass() {
-        let x = Array2::from_shape_vec((15, 2), (0..30).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((15, 2), (0..30).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2]; // 33% each class
 
         let classifier = DummyClassifier::new(Strategy::Auto);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Should select Prior for relatively balanced multiclass data
-        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Prior);
+        assert_eq!(
+            fitted
+                .selected_strategy()
+                .expect("operation should succeed"),
+            &Strategy::Prior
+        );
     }
 
     #[test]
     fn test_dummy_classifier_adaptive_imbalanced() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 0, 0, 0, 0, 0, 1, 1]; // 80% class 0, 20% class 1
 
         let classifier = DummyClassifier::new(Strategy::Adaptive);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Should select MostFrequent for imbalanced data
-        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::MostFrequent);
+        assert_eq!(
+            fitted
+                .selected_strategy()
+                .expect("operation should succeed"),
+            &Strategy::MostFrequent
+        );
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         // All predictions should be class 0 (most frequent)
         for &pred in predictions.iter() {
             assert_eq!(pred, 0);
@@ -729,16 +772,24 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_adaptive_balanced() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]; // 50% each class
 
         let classifier = DummyClassifier::new(Strategy::Adaptive).with_random_state(42);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Should select Stratified for balanced binary data
-        assert_eq!(fitted.selected_strategy().unwrap(), &Strategy::Stratified);
+        assert_eq!(
+            fitted
+                .selected_strategy()
+                .expect("operation should succeed"),
+            &Strategy::Stratified
+        );
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         // Check that predictions are within the valid class range
         for &pred in predictions.iter() {
             assert!(y.iter().any(|&class| class == pred));
@@ -747,33 +798,38 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_adaptive_small_dataset() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 1]; // Small balanced dataset
 
         let classifier = DummyClassifier::new(Strategy::Adaptive);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Should handle small datasets appropriately
         let selected_strategy = fitted.selected_strategy();
         assert!(matches!(
-            selected_strategy.unwrap(),
+            selected_strategy.expect("operation should succeed"),
             &Strategy::MostFrequent | &Strategy::Stratified
         ));
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_dummy_classifier_empirical() {
-        let x = Array2::from_shape_vec((6, 2), (0..12).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((6, 2), (0..12).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 1, 1, 2]; // 3 class 0, 2 class 1, 1 class 2
 
         let classifier = DummyClassifier::new(Strategy::Empirical).with_random_state(42);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // All predictions should be from the original training set
         for &pred in predictions.iter() {
@@ -795,14 +851,16 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_empirical_probabilities() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 1]; // Balanced binary
 
         let classifier = DummyClassifier::new(Strategy::Empirical);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let probabilities = fitted.predict_proba(&x).unwrap();
+        let probabilities = fitted.predict_proba(&x).expect("operation should succeed");
 
         assert_eq!(probabilities.shape(), &[4, 2]);
 
@@ -819,16 +877,21 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_empirical_reproducibility() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = Array1::from_vec((0..10).map(|x| x % 3).collect()); // Classes 0, 1, 2
 
         let classifier1 = DummyClassifier::new(Strategy::Empirical).with_random_state(123);
-        let fitted1 = classifier1.fit(&x, &y).unwrap();
-        let predictions1 = fitted1.predict(&x).unwrap();
+        let fitted1 = classifier1
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions1 = fitted1.predict(&x).expect("prediction should succeed");
 
         let classifier2 = DummyClassifier::new(Strategy::Empirical).with_random_state(123);
-        let fitted2 = classifier2.fit(&x, &y).unwrap();
-        let predictions2 = fitted2.predict(&x).unwrap();
+        let fitted2 = classifier2
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions2 = fitted2.predict(&x).expect("prediction should succeed");
 
         // Predictions should be identical with same random state
         for (p1, p2) in predictions1.iter().zip(predictions2.iter()) {
@@ -857,7 +920,7 @@ mod tests {
                 if n_features == 0 { return Ok(()); }
 
                 let x = Array2::from_shape_vec((n_samples, n_features),
-                    data_flat.into_iter().take(n_samples * n_features).collect()).unwrap();
+                    data_flat.into_iter().take(n_samples * n_features).collect()).expect("sampling should succeed");
                 let y = Array1::from_vec(labels.into_iter().take(n_samples).collect());
 
                 for strategy in [Strategy::MostFrequent, Strategy::Stratified, Strategy::Uniform, Strategy::Prior] {
@@ -879,7 +942,7 @@ mod tests {
                 let n_features = data_flat.len() / n_samples;
 
                 let x = Array2::from_shape_vec((n_samples, n_features),
-                    data_flat.into_iter().take(n_samples * n_features).collect()).unwrap();
+                    data_flat.into_iter().take(n_samples * n_features).collect()).expect("sampling should succeed");
                 let y = Array1::from_vec(labels.into_iter().take(n_samples).collect());
 
                 let classifier = DummyClassifier::new(Strategy::MostFrequent);
@@ -892,7 +955,7 @@ mod tests {
 
                     // Predicted class should be one that exists in training data
                     let unique_labels: HashSet<i32> = y.iter().copied().collect();
-                    prop_assert!(unique_labels.contains(predictions.iter().next().unwrap()));
+                    prop_assert!(unique_labels.contains(predictions.iter().next().expect("operation should succeed")));
                 }
             }
 
@@ -907,7 +970,7 @@ mod tests {
                 let n_features = data_flat.len() / n_samples;
 
                 let x = Array2::from_shape_vec((n_samples, n_features),
-                    data_flat.into_iter().take(n_samples * n_features).collect()).unwrap();
+                    data_flat.into_iter().take(n_samples * n_features).collect()).expect("sampling should succeed");
                 let y = Array1::from_vec(labels.into_iter().take(n_samples).collect());
 
                 let classifier = DummyClassifier::new(Strategy::Constant).with_constant(constant);
@@ -962,7 +1025,7 @@ mod tests {
                 let n_features = data_flat.len() / n_samples;
 
                 let x = Array2::from_shape_vec((n_samples, n_features),
-                    data_flat.into_iter().take(n_samples * n_features).collect()).unwrap();
+                    data_flat.into_iter().take(n_samples * n_features).collect()).expect("sampling should succeed");
                 let y = Array1::from_vec(labels.into_iter().take(n_samples).collect());
 
                 for strategy in [Strategy::MostFrequent, Strategy::Stratified, Strategy::Uniform, Strategy::Prior] {
@@ -989,19 +1052,24 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_bayesian() {
-        let x = Array2::from_shape_vec((6, 2), (0..12).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((6, 2), (0..12).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 1, 1, 2]; // 3 class 0, 2 class 1, 1 class 2
 
         // Test with default uniform priors
         let classifier = DummyClassifier::new(Strategy::Bayesian).with_random_state(42);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Check that Bayesian parameters are computed
         assert!(fitted.bayesian_alpha().is_some());
         assert!(fitted.bayesian_posterior().is_some());
         assert!(fitted.bayesian_uncertainty().is_some());
 
-        let posterior = fitted.bayesian_posterior().unwrap();
+        let posterior = fitted
+            .bayesian_posterior()
+            .expect("operation should succeed");
         assert_eq!(posterior.len(), 3);
 
         // Posterior should sum to 1
@@ -1012,16 +1080,16 @@ mod tests {
         let max_prob_idx = posterior
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-            .unwrap()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+            .expect("operation should succeed")
             .0;
         assert_eq!(max_prob_idx, 0);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test probabilities
-        let probabilities = fitted.predict_proba(&x).unwrap();
+        let probabilities = fitted.predict_proba(&x).expect("operation should succeed");
         assert_eq!(probabilities.shape(), &[6, 3]);
 
         for i in 0..6 {
@@ -1032,7 +1100,8 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_bayesian_custom_prior() {
-        let x = Array2::from_shape_vec((4, 2), (0..8).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((4, 2), (0..8).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 1]; // Balanced binary
 
         // Test with custom prior favoring class 1
@@ -1040,17 +1109,23 @@ mod tests {
         let classifier = DummyClassifier::new(Strategy::Bayesian)
             .with_bayesian_prior(custom_prior.clone())
             .with_random_state(42);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let alpha = fitted.bayesian_alpha().unwrap();
+        let alpha = fitted.bayesian_alpha().expect("operation should succeed");
         assert_abs_diff_eq!(alpha[0], 1.0, epsilon = 1e-10);
         assert_abs_diff_eq!(alpha[1], 5.0, epsilon = 1e-10);
 
-        let posterior = fitted.bayesian_posterior().unwrap();
+        let posterior = fitted
+            .bayesian_posterior()
+            .expect("operation should succeed");
         // Despite equal observations, class 1 should have higher posterior due to prior
         assert!(posterior[1] > posterior[0]);
 
-        let uncertainty = fitted.bayesian_uncertainty().unwrap();
+        let uncertainty = fitted
+            .bayesian_uncertainty()
+            .expect("operation should succeed");
         assert_eq!(uncertainty.len(), 2);
         // All uncertainties should be non-negative
         for &unc in uncertainty.iter() {
@@ -1060,16 +1135,21 @@ mod tests {
 
     #[test]
     fn test_dummy_classifier_bayesian_reproducibility() {
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![0, 0, 1, 1, 2, 2, 0, 1]); // Multiple classes
 
         let classifier1 = DummyClassifier::new(Strategy::Bayesian).with_random_state(123);
-        let fitted1 = classifier1.fit(&x, &y).unwrap();
-        let predictions1 = fitted1.predict(&x).unwrap();
+        let fitted1 = classifier1
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions1 = fitted1.predict(&x).expect("prediction should succeed");
 
         let classifier2 = DummyClassifier::new(Strategy::Bayesian).with_random_state(123);
-        let fitted2 = classifier2.fit(&x, &y).unwrap();
-        let predictions2 = fitted2.predict(&x).unwrap();
+        let fitted2 = classifier2
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions2 = fitted2.predict(&x).expect("prediction should succeed");
 
         // Predictions should be identical with same random state
         for (p1, p2) in predictions1.iter().zip(predictions2.iter()) {
@@ -1077,8 +1157,12 @@ mod tests {
         }
 
         // Bayesian parameters should be identical
-        let post1 = fitted1.bayesian_posterior().unwrap();
-        let post2 = fitted2.bayesian_posterior().unwrap();
+        let post1 = fitted1
+            .bayesian_posterior()
+            .expect("operation should succeed");
+        let post2 = fitted2
+            .bayesian_posterior()
+            .expect("operation should succeed");
         for (p1, p2) in post1.iter().zip(post2.iter()) {
             assert_abs_diff_eq!(p1, p2, epsilon = 1e-10);
         }

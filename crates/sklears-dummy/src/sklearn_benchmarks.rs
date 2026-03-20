@@ -9,7 +9,7 @@
 
 use crate::{ClassifierStrategy, DummyClassifier, DummyRegressor, RegressorStrategy};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit, traits::Predict};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -563,7 +563,7 @@ impl SklearnBenchmarkFramework {
         let mut X = Array2::<f64>::zeros((n_samples, n_features));
         for i in 0..n_samples {
             for j in 0..n_features {
-                X[[i, j]] = rng.gen_range(-1.0..1.0);
+                X[[i, j]] = rng.random_range(-1.0..1.0);
             }
         }
 
@@ -571,8 +571,9 @@ impl SklearnBenchmarkFramework {
         if config.properties.noise_level > 0.0 {
             for i in 0..n_samples {
                 for j in 0..n_features {
-                    let noise = rng
-                        .gen_range(-config.properties.noise_level..config.properties.noise_level);
+                    let noise = rng.random_range(
+                        -config.properties.noise_level..config.properties.noise_level,
+                    );
                     X[[i, j]] += noise;
                 }
             }
@@ -588,7 +589,7 @@ impl SklearnBenchmarkFramework {
                 }
                 // Shuffle labels
                 for i in 0..n_samples {
-                    let j = rng.gen_range(0..n_samples);
+                    let j = rng.random_range(0..n_samples);
                     let temp = y[i];
                     y[i] = y[j];
                     y[j] = temp;
@@ -596,7 +597,7 @@ impl SklearnBenchmarkFramework {
             }
             _ => {
                 for i in 0..n_samples {
-                    y[i] = rng.gen_range(0..n_classes as i32);
+                    y[i] = rng.random_range(0..n_classes as i32);
                 }
             }
         }
@@ -622,7 +623,7 @@ impl SklearnBenchmarkFramework {
         let mut X = Array2::<f64>::zeros((n_samples, n_features));
         for i in 0..n_samples {
             for j in 0..n_features {
-                X[[i, j]] = rng.gen_range(-2.0..2.0);
+                X[[i, j]] = rng.random_range(-2.0..2.0);
             }
         }
 
@@ -638,7 +639,7 @@ impl SklearnBenchmarkFramework {
             // Add noise
             if config.properties.noise_level > 0.0 {
                 let noise =
-                    rng.gen_range(-config.properties.noise_level..config.properties.noise_level);
+                    rng.random_range(-config.properties.noise_level..config.properties.noise_level);
                 target += noise;
             }
 
@@ -649,8 +650,8 @@ impl SklearnBenchmarkFramework {
         if config.properties.outlier_fraction > 0.0 {
             let n_outliers = (n_samples as f64 * config.properties.outlier_fraction) as usize;
             for _ in 0..n_outliers {
-                let idx = rng.gen_range(0..n_samples);
-                y[idx] *= rng.gen_range(3.0..10.0); // Make it an outlier
+                let idx = rng.random_range(0..n_samples);
+                y[idx] *= rng.random_range(3.0..10.0); // Make it an outlier
             }
         }
 
@@ -677,7 +678,7 @@ impl SklearnBenchmarkFramework {
                 let most_frequent = *class_counts
                     .iter()
                     .max_by_key(|(_, &count)| count)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .0;
                 predictions.fill(most_frequent);
             }
@@ -711,7 +712,7 @@ impl SklearnBenchmarkFramework {
             }
             RegressorStrategy::Median => {
                 let mut sorted_y = y.to_vec();
-                sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let median = if sorted_y.len() % 2 == 0 {
                     (sorted_y[sorted_y.len() / 2 - 1] + sorted_y[sorted_y.len() / 2]) / 2.0
                 } else {
@@ -724,7 +725,7 @@ impl SklearnBenchmarkFramework {
             }
             RegressorStrategy::Quantile(q) => {
                 let mut sorted_y = y.to_vec();
-                sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let index = (*q * (sorted_y.len() - 1) as f64) as usize;
                 let quantile = sorted_y[index.min(sorted_y.len() - 1)];
                 predictions.fill(quantile);
@@ -1114,7 +1115,9 @@ mod tests {
             },
         };
 
-        let (X, y) = framework.generate_classification_dataset(&config).unwrap();
+        let (X, y) = framework
+            .generate_classification_dataset(&config)
+            .expect("operation should succeed");
         assert_eq!(X.nrows(), 100);
         assert_eq!(X.ncols(), 4);
         assert_eq!(y.len(), 100);
@@ -1146,7 +1149,9 @@ mod tests {
     #[test]
     fn test_benchmark_classifier() {
         let framework = SklearnBenchmarkFramework::new();
-        let results = framework.benchmark_dummy_classifier().unwrap();
+        let results = framework
+            .benchmark_dummy_classifier()
+            .expect("operation should succeed");
 
         // Should have results for classification datasets
         assert!(!results.is_empty());
@@ -1162,7 +1167,9 @@ mod tests {
     #[test]
     fn test_benchmark_regressor() {
         let framework = SklearnBenchmarkFramework::new();
-        let results = framework.benchmark_dummy_regressor().unwrap();
+        let results = framework
+            .benchmark_dummy_regressor()
+            .expect("operation should succeed");
 
         // Should have results for regression datasets
         assert!(!results.is_empty());
@@ -1178,7 +1185,9 @@ mod tests {
     #[test]
     fn test_report_generation() {
         let framework = SklearnBenchmarkFramework::new();
-        let results = framework.benchmark_dummy_classifier().unwrap();
+        let results = framework
+            .benchmark_dummy_classifier()
+            .expect("operation should succeed");
 
         let report = framework.generate_report(&results);
         assert!(report.contains("Sklearn Benchmark Report"));

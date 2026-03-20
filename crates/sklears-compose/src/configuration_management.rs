@@ -1069,11 +1069,11 @@ impl ConfigurationManager {
         self.validate_configuration(&new_config)?;
 
         // Get old configuration for change notification
-        let old_config = self.current_config.read().unwrap().clone();
+        let old_config = self.current_config.read().unwrap_or_else(|e| e.into_inner()).clone();
 
         // Update configuration
         {
-            let mut config = self.current_config.write().unwrap();
+            let mut config = self.current_config.write().unwrap_or_else(|e| e.into_inner());
             *config = new_config.clone();
         }
 
@@ -1093,12 +1093,12 @@ impl ConfigurationManager {
 
     /// Get current configuration
     pub fn get_configuration(&self) -> MonitoringConfiguration {
-        self.current_config.read().unwrap().clone()
+        self.current_config.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Add configuration change listener
     pub fn add_listener(&self, listener: Box<dyn ConfigurationChangeListener + Send + Sync>) {
-        self.listeners.lock().unwrap().push(listener);
+        self.listeners.lock().unwrap_or_else(|e| e.into_inner()).push(listener);
     }
 
     /// Save configuration to file
@@ -1407,7 +1407,7 @@ impl ConfigurationManager {
     }
 
     fn cache_configuration(&self, config: &MonitoringConfiguration) {
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
         let cache_key = format!("{:?}", config.metadata.source);
 
         cache.configs.insert(cache_key, CachedConfiguration {
@@ -1419,7 +1419,7 @@ impl ConfigurationManager {
     }
 
     fn notify_configuration_changed(&self, old_config: &MonitoringConfiguration, new_config: &MonitoringConfiguration) {
-        let listeners = self.listeners.lock().unwrap();
+        let listeners = self.listeners.lock().unwrap_or_else(|e| e.into_inner());
         for listener in listeners.iter() {
             listener.on_configuration_changed(old_config, new_config);
         }

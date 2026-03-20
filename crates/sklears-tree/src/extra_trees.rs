@@ -128,7 +128,7 @@ fn add_gaussian_noise<R: scirs2_core::random::Random + ?Sized>(arr: &mut Array2<
         return;
     }
 
-    let normal = Normal::new(0.0, std_dev).unwrap();
+    let normal = Normal::new(0.0, std_dev).expect("operation should succeed");
 
     for element in arr.iter_mut() {
         *element += normal.sample(rng);
@@ -158,7 +158,7 @@ fn add_gaussian_noise_1d<R: scirs2_core::random::Random + ?Sized>(arr: &mut Arra
         return;
     }
 
-    let normal = Normal::new(0.0, std_dev).unwrap();
+    let normal = Normal::new(0.0, std_dev).expect("operation should succeed");
 
     for element in arr.iter_mut() {
         *element += normal.sample(rng);
@@ -605,7 +605,7 @@ mod tests {
             .n_estimators(5)
             .random_state(Some(42))
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check fitted parameters
         assert_eq!(classifier.n_features_in(), 2);
@@ -613,7 +613,7 @@ mod tests {
         assert_eq!(classifier.classes(), &vec![0, 1]);
 
         // Make predictions
-        let predictions = classifier.predict(&x).unwrap();
+        let predictions = classifier.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.nrows());
 
         // Predictions should be within valid class range
@@ -631,13 +631,13 @@ mod tests {
             .n_estimators(10)
             .random_state(Some(42))
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check fitted parameters
         assert_eq!(regressor.n_features_in(), 1);
 
         // Make predictions
-        let predictions = regressor.predict(&x).unwrap();
+        let predictions = regressor.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.nrows());
 
         // Check that predictions are reasonable (not exact due to randomness)

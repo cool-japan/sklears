@@ -1094,8 +1094,12 @@ mod tests {
         multi_modal.add_modal_calibrator(Box::new(SigmoidCalibrator::new()));
         multi_modal.add_modal_calibrator(Box::new(SigmoidCalibrator::new()));
 
-        multi_modal.fit(&probabilities, &targets).unwrap();
-        let predictions = multi_modal.predict_proba(&probabilities).unwrap();
+        multi_modal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = multi_modal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len() / 2);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1109,8 +1113,12 @@ mod tests {
         cross_modal.set_source_calibrator(Box::new(SigmoidCalibrator::new()));
         cross_modal.set_target_calibrator(Box::new(SigmoidCalibrator::new()));
 
-        cross_modal.fit(&probabilities, &targets).unwrap();
-        let predictions = cross_modal.predict_proba(&probabilities).unwrap();
+        cross_modal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = cross_modal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1125,8 +1133,12 @@ mod tests {
         ensemble.add_calibrator(Box::new(SigmoidCalibrator::new()));
         ensemble.add_calibrator(Box::new(SigmoidCalibrator::new()));
 
-        ensemble.fit(&probabilities, &targets).unwrap();
-        let predictions = ensemble.predict_proba(&probabilities).unwrap();
+        ensemble
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = ensemble
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1140,8 +1152,12 @@ mod tests {
         domain_adapt.set_source_calibrator(Box::new(SigmoidCalibrator::new()));
         domain_adapt.set_target_calibrator(Box::new(SigmoidCalibrator::new()));
 
-        domain_adapt.fit(&probabilities, &targets).unwrap();
-        let predictions = domain_adapt.predict_proba(&probabilities).unwrap();
+        domain_adapt
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = domain_adapt
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1154,8 +1170,12 @@ mod tests {
         let mut transfer = TransferLearningCalibrator::new(TransferStrategy::FullTransfer);
         transfer.set_pretrained_calibrator(Box::new(SigmoidCalibrator::new()));
 
-        transfer.fit(&probabilities, &targets).unwrap();
-        let predictions = transfer.predict_proba(&probabilities).unwrap();
+        transfer
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = transfer
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1177,8 +1197,12 @@ mod tests {
             multi_modal.add_modal_calibrator(Box::new(SigmoidCalibrator::new()));
             multi_modal.add_modal_calibrator(Box::new(SigmoidCalibrator::new()));
 
-            multi_modal.fit(&probabilities, &targets).unwrap();
-            let predictions = multi_modal.predict_proba(&probabilities).unwrap();
+            multi_modal
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
+            let predictions = multi_modal
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len() / 2);
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1201,8 +1225,12 @@ mod tests {
             ensemble.add_calibrator(Box::new(SigmoidCalibrator::new()));
             ensemble.add_calibrator(Box::new(SigmoidCalibrator::new()));
 
-            ensemble.fit(&probabilities, &targets).unwrap();
-            let predictions = ensemble.predict_proba(&probabilities).unwrap();
+            ensemble
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
+            let predictions = ensemble
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));

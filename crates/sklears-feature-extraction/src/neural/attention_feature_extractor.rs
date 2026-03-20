@@ -379,13 +379,13 @@ impl Transform<Array2<f64>, Array2<f64>> for FittedAttentionFeatureExtractor {
                 self.extractor.scaled_dot_product_attention(&q_with_pos, &k_with_pos, &v)
             },
             AttentionType::Additive => {
-                let w_a = self.w_a.as_ref().unwrap();
-                let w_b = self.w_b.as_ref().unwrap();
-                let w_v_add = self.w_v_add.as_ref().unwrap();
+                let w_a = self.w_a.as_ref().expect("operation should succeed");
+                let w_b = self.w_b.as_ref().expect("operation should succeed");
+                let w_v_add = self.w_v_add.as_ref().expect("operation should succeed");
                 self.extractor.additive_attention(&q_with_pos, &k_with_pos, &v, w_a, w_b, w_v_add)
             },
             AttentionType::Multiplicative => {
-                let w_mult = self.w_mult.as_ref().unwrap();
+                let w_mult = self.w_mult.as_ref().expect("operation should succeed");
                 self.extractor.multiplicative_attention(&q_with_pos, &k_with_pos, &v, w_mult)
             },
             AttentionType::MultiHead => {

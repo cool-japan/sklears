@@ -120,8 +120,8 @@ impl OptimizedDistanceComputer {
         metric: DistanceMetric,
     ) -> Float {
         // Convert to slices for SIMD processing
-        let a = point1.as_slice().unwrap();
-        let b = point2.as_slice().unwrap();
+        let a = point1.as_slice().expect("operation should succeed");
+        let b = point2.as_slice().expect("operation should succeed");
 
         match metric {
             DistanceMetric::Euclidean => self.euclidean_simd(a, b),
@@ -140,8 +140,8 @@ impl OptimizedDistanceComputer {
         point2: &ArrayView1<Float>,
         metric: DistanceMetric,
     ) -> Float {
-        let a = point1.as_slice().unwrap();
-        let b = point2.as_slice().unwrap();
+        let a = point1.as_slice().expect("operation should succeed");
+        let b = point2.as_slice().expect("operation should succeed");
 
         match metric {
             DistanceMetric::Euclidean => fallback_distance::euclidean_distance(a, b),
@@ -375,8 +375,8 @@ pub fn simd_distance(
     metric: SimdDistanceMetric,
 ) -> Result<Float, Box<dyn std::error::Error>> {
     // Use Float directly for consistency
-    let a = point1.as_slice().unwrap();
-    let b = point2.as_slice().unwrap();
+    let a = point1.as_slice().expect("operation should succeed");
+    let b = point2.as_slice().expect("operation should succeed");
 
     let result = match metric {
         SimdDistanceMetric::Euclidean => fallback_distance::euclidean_distance(a, b),
@@ -408,8 +408,8 @@ pub fn simd_squared_euclidean_distance(
     point1: &ArrayView1<Float>,
     point2: &ArrayView1<Float>,
 ) -> Result<Float, Box<dyn std::error::Error>> {
-    let a = point1.as_slice().unwrap();
-    let b = point2.as_slice().unwrap();
+    let a = point1.as_slice().expect("operation should succeed");
+    let b = point2.as_slice().expect("operation should succeed");
 
     let euclidean = fallback_distance::euclidean_distance(a, b);
     Ok(euclidean * euclidean)
@@ -428,8 +428,8 @@ pub fn simd_distance_batch(
     let mut results = Vec::with_capacity(points.len());
 
     for (point, query) in points.iter().zip(queries.iter()) {
-        let point_slice = point.as_slice().unwrap();
-        let query_slice = query.as_slice().unwrap();
+        let point_slice = point.as_slice().expect("operation should succeed");
+        let query_slice = query.as_slice().expect("operation should succeed");
 
         let distance = match metric {
             SimdDistanceMetric::Euclidean => {
@@ -479,12 +479,12 @@ pub fn simd_distance_batch_query(
     query: &ArrayView1<Float>,
     metric: SimdDistanceMetric,
 ) -> Result<Vec<Float>, Box<dyn std::error::Error>> {
-    let query_slice = query.as_slice().unwrap();
+    let query_slice = query.as_slice().expect("operation should succeed");
     let mut results = Vec::with_capacity(points.nrows());
 
     for i in 0..points.nrows() {
         let point = points.row(i);
-        let point_slice = point.as_slice().unwrap();
+        let point_slice = point.as_slice().expect("operation should succeed");
 
         let distance = match metric {
             SimdDistanceMetric::Euclidean => {
@@ -628,7 +628,7 @@ pub fn simd_k_nearest_neighbors(
     let mut indexed_distances: Vec<(usize, Float)> = distances.into_iter().enumerate().collect();
 
     // Sort by distance and take the k nearest
-    indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
     indexed_distances.truncate(k);
 
     Ok(indexed_distances)
@@ -683,7 +683,8 @@ pub fn benchmark_simd_vs_scalar(
 
     // SIMD version
     let start = Instant::now();
-    let _simd_result = simd_distance_batch_query(points, query, metric).unwrap();
+    let _simd_result =
+        simd_distance_batch_query(points, query, metric).expect("operation should succeed");
     let simd_time = start.elapsed().as_secs_f64();
 
     // Scalar version (simple fallback)
@@ -858,8 +859,8 @@ fn scalar_distance_batch(
                 // Simple 1D Wasserstein distance (Earth Mover's Distance)
                 let mut sorted_a: Vec<Float> = point.iter().cloned().collect();
                 let mut sorted_b: Vec<Float> = query.iter().cloned().collect();
-                sorted_a.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                sorted_b.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_a.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+                sorted_b.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                 let mut sum = 0.0;
                 for (a, b) in sorted_a.iter().zip(sorted_b.iter()) {
@@ -1069,8 +1070,8 @@ fn correlation_distance_simd(a: &[Float], b: &[Float]) -> Float {
 fn wasserstein_distance_simd(a: &[Float], b: &[Float]) -> Float {
     let mut sorted_a = a.to_vec();
     let mut sorted_b = b.to_vec();
-    sorted_a.sort_by(|x, y| x.partial_cmp(y).unwrap());
-    sorted_b.sort_by(|x, y| x.partial_cmp(y).unwrap());
+    sorted_a.sort_by(|x, y| x.partial_cmp(y).expect("operation should succeed"));
+    sorted_b.sort_by(|x, y| x.partial_cmp(y).expect("operation should succeed"));
 
     let mut sum = 0.0;
     for (x, y) in sorted_a.iter().zip(sorted_b.iter()) {
@@ -1088,12 +1089,13 @@ mod tests {
 
     #[test]
     fn test_simd_euclidean_distance() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let query = array![0.0, 0.0];
 
         let distances =
             simd_distance_batch_query(&data.view(), &query.view(), SimdDistanceMetric::Euclidean)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(distances.len(), 3);
         assert_abs_diff_eq!(distances[0], (5.0_f64).sqrt(), epsilon = 1e-6);
@@ -1103,12 +1105,13 @@ mod tests {
 
     #[test]
     fn test_simd_manhattan_distance() {
-        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let query = array![0.0, 0.0, 0.0];
 
         let distances =
             simd_distance_batch_query(&data.view(), &query.view(), SimdDistanceMetric::Manhattan)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         assert_abs_diff_eq!(distances[0], 6.0, epsilon = 1e-6); // |1| + |2| + |3|
@@ -1123,12 +1126,12 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let query = array![0.0, 0.0, 0.0];
 
         let simd_distances =
             simd_distance_batch_query(&data.view(), &query.view(), SimdDistanceMetric::Euclidean)
-                .unwrap();
+                .expect("operation should succeed");
         let scalar_distances =
             scalar_distance_batch(&data.view(), &query.view(), SimdDistanceMetric::Euclidean);
 
@@ -1150,7 +1153,7 @@ mod tests {
                 0.5, 0.5, // Distance: sqrt(0.5) ≈ 0.707
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let query = array![0.0, 0.0];
 
         let neighbors = simd_k_nearest_neighbors(
@@ -1159,7 +1162,7 @@ mod tests {
             3,
             SimdDistanceMetric::Euclidean,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(neighbors.len(), 3);
         assert_eq!(neighbors[0].0, 2); // Nearest is (0,0)
@@ -1178,7 +1181,7 @@ mod tests {
                 0.0, 2.0, // Distance: 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let query = array![0.0, 0.0];
 
         let neighbors = simd_radius_neighbors(
@@ -1187,7 +1190,7 @@ mod tests {
             1.5,
             SimdDistanceMetric::Euclidean,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(neighbors.len(), 2);
         assert!(neighbors.contains(&0));
@@ -1196,9 +1199,11 @@ mod tests {
 
     #[test]
     fn test_simd_distance_matrix() {
-        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
 
-        let matrix = simd_distance_matrix(&data.view(), SimdDistanceMetric::Euclidean).unwrap();
+        let matrix = simd_distance_matrix(&data.view(), SimdDistanceMetric::Euclidean)
+            .expect("operation should succeed");
 
         assert_eq!(matrix.shape(), &[3, 3]);
 
@@ -1222,9 +1227,10 @@ mod tests {
 
     #[test]
     fn test_adaptive_distance_batch() {
-        let small_data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let large_data =
-            Array2::from_shape_vec((10, 4), (0..40).map(|x| x as f64).collect()).unwrap();
+        let small_data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let large_data = Array2::from_shape_vec((10, 4), (0..40).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let query = array![0.0, 0.0, 0.0, 0.0];
 
         // Small data should use scalar
@@ -1234,7 +1240,7 @@ mod tests {
             SimdDistanceMetric::Euclidean,
             5,
         )
-        .unwrap();
+        .expect("operation should succeed");
         assert_eq!(small_result.len(), 2);
 
         // Large data should use SIMD
@@ -1244,14 +1250,15 @@ mod tests {
             SimdDistanceMetric::Euclidean,
             5,
         )
-        .unwrap();
+        .expect("operation should succeed");
         assert_eq!(large_result.len(), 10);
     }
 
     #[cfg(feature = "parallel")]
     #[test]
     fn test_parallel_simd_distance_batch() {
-        let data = Array2::from_shape_vec((6, 3), (0..18).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((6, 3), (0..18).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let query = array![0.0, 0.0, 0.0];
 
         let parallel_result = simd_distance_batch_parallel(
@@ -1259,10 +1266,10 @@ mod tests {
             &query.view(),
             SimdDistanceMetric::Euclidean,
         )
-        .unwrap();
+        .expect("operation should succeed");
         let sequential_result =
             simd_distance_batch_query(&data.view(), &query.view(), SimdDistanceMetric::Euclidean)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(parallel_result.len(), sequential_result.len());
         for (par, seq) in parallel_result.iter().zip(sequential_result.iter()) {

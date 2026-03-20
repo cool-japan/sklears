@@ -120,7 +120,7 @@ proptest! {
 
         if actual_size > 0 {
             let trimmed_values: Vec<f64> = values.into_iter().take(actual_size).collect();
-            let array = Array2::from_shape_vec((rows, cols), trimmed_values).unwrap();
+            let array = Array2::from_shape_vec((rows, cols), trimmed_values).expect("operation should succeed");
 
             // All finite values should pass
             prop_assert!(check_finite(&array).is_ok());
@@ -735,7 +735,7 @@ pub mod testing_framework {
             let results = tester.stress_test(|| Ok(42));
             assert!(results.is_ok());
 
-            let values = results.unwrap();
+            let values = results.expect("operation should succeed");
             assert_eq!(values.len(), 100);
             assert!(values.iter().all(|&x| x == 42));
         }
@@ -750,7 +750,8 @@ mod tests {
     #[test]
     fn test_property_test_setup() {
         // Simple test to ensure property test framework is working
-        let (x, y) = make_classification(20, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+        let (x, y) = make_classification(20, 3, 2, None, None, 0.0, 1.0, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(x.shape(), &[20, 3]);
         assert_eq!(y.len(), 20);

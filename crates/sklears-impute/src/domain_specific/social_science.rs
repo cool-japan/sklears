@@ -5,7 +5,7 @@
 
 use crate::core::{ImputationError, ImputationResult};
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 use std::collections::{HashMap, VecDeque};
 
 /// Survey data imputation with response pattern analysis
@@ -314,7 +314,7 @@ impl SurveyDataImputer {
             }
         }
 
-        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         Ok(similarities
             .into_iter()
             .take(k)
@@ -373,7 +373,7 @@ impl SurveyDataImputer {
 
         // Check number of unique values
         let mut unique_values: Vec<f64> = values;
-        unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         unique_values.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
 
         // Categorical if mostly integers and limited unique values
@@ -590,7 +590,7 @@ impl SurveyDataImputer {
 
             // Check for ceiling/floor effects
             let mut sorted_values = values.clone();
-            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let min_val = sorted_values[0];
             let max_val = sorted_values[sorted_values.len() - 1];
@@ -640,7 +640,7 @@ impl SurveyDataImputer {
 
         for i in 0..X.nrows() {
             if !X[[i, question_idx]].is_nan() {
-                let noise = (Random::default().gen::<f64>() - 0.5) * noise_scale;
+                let noise = (Random::default().random::<f64>() - 0.5) * noise_scale;
                 adjusted[[i, question_idx]] = X[[i, question_idx]] + noise;
             }
         }
@@ -1031,7 +1031,7 @@ impl LongitudinalStudyImputer {
         }
 
         // Sort by time and return most recent
-        candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         candidates.last().map(|(_, value)| *value)
     }
 

@@ -80,9 +80,12 @@ impl GlobalComponentRegistry {
         version: &str,
         factory: Arc<dyn ComponentFactory>,
     ) -> SklResult<()> {
-        let mut factories = self.factories.write().unwrap();
-        let mut metadata_cache = self.metadata_cache.write().unwrap();
-        let mut stats = self.stats.lock().unwrap();
+        let mut factories = self.factories.write().unwrap_or_else(|e| e.into_inner());
+        let mut metadata_cache = self
+            .metadata_cache
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
 
         // Validate version format
         self.validate_version(version)?;
@@ -97,7 +100,7 @@ impl GlobalComponentRegistry {
         }
 
         // Execute pre-registration hooks
-        let hooks = self.hooks.read().unwrap();
+        let hooks = self.hooks.read().unwrap_or_else(|e| e.into_inner());
         for hook in &hooks.pre_registration {
             hook(component_type, version, &factory)?;
         }
@@ -153,8 +156,8 @@ impl GlobalComponentRegistry {
         version: &str,
         config: &ComponentConfig,
     ) -> SklResult<Box<dyn PluggableComponent>> {
-        let factories = self.factories.read().unwrap();
-        let mut stats = self.stats.lock().unwrap();
+        let factories = self.factories.read().unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
 
         let factory = factories
             .get(component_type)
@@ -184,7 +187,7 @@ impl GlobalComponentRegistry {
         component_type: &str,
         config: &ComponentConfig,
     ) -> SklResult<Box<dyn PluggableComponent>> {
-        let factories = self.factories.read().unwrap();
+        let factories = self.factories.read().unwrap_or_else(|e| e.into_inner());
 
         let latest_version = factories
             .get(component_type)
@@ -206,8 +209,11 @@ impl GlobalComponentRegistry {
         component_id: &str,
         component: Box<dyn PluggableComponent>,
     ) -> SklResult<()> {
-        let mut active_components = self.active_components.write().unwrap();
-        let mut stats = self.stats.lock().unwrap();
+        let mut active_components = self
+            .active_components
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
 
         if active_components.contains_key(component_id) && !self.config.allow_instance_overrides {
             return Err(SklearsError::InvalidInput(format!(
@@ -227,14 +233,20 @@ impl GlobalComponentRegistry {
         &self,
         component_id: &str,
     ) -> Option<Arc<RwLock<Box<dyn PluggableComponent>>>> {
-        let active_components = self.active_components.read().unwrap();
+        let active_components = self
+            .active_components
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         active_components.get(component_id).cloned()
     }
 
     /// Unregister active component instance
     pub fn unregister_active_component(&self, component_id: &str) -> SklResult<()> {
-        let mut active_components = self.active_components.write().unwrap();
-        let mut stats = self.stats.lock().unwrap();
+        let mut active_components = self
+            .active_components
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
 
         if active_components.remove(component_id).is_some() {
             stats.total_active_components -= 1;
@@ -249,8 +261,11 @@ impl GlobalComponentRegistry {
     /// Discover available component types
     #[must_use]
     pub fn discover_component_types(&self) -> Vec<ComponentTypeInfo> {
-        let factories = self.factories.read().unwrap();
-        let metadata_cache = self.metadata_cache.read().unwrap();
+        let factories = self.factories.read().unwrap_or_else(|e| e.into_inner());
+        let metadata_cache = self
+            .metadata_cache
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
 
         let mut types = Vec::new();
         for (component_type, versions) in factories.iter() {
@@ -279,7 +294,10 @@ impl GlobalComponentRegistry {
     /// Query components by capability
     #[must_use]
     pub fn query_components_by_capability(&self, capability: &str) -> Vec<ComponentQuery> {
-        let metadata_cache = self.metadata_cache.read().unwrap();
+        let metadata_cache = self
+            .metadata_cache
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let mut results = Vec::new();
 
         for (key, metadata) in metadata_cache.iter() {
@@ -310,7 +328,10 @@ impl GlobalComponentRegistry {
     /// Query components by dependency
     #[must_use]
     pub fn query_components_by_dependency(&self, dependency_type: &str) -> Vec<ComponentQuery> {
-        let metadata_cache = self.metadata_cache.read().unwrap();
+        let metadata_cache = self
+            .metadata_cache
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let mut results = Vec::new();
 
         for (key, metadata) in metadata_cache.iter() {
@@ -335,7 +356,10 @@ impl GlobalComponentRegistry {
 
     /// Add plugin directory for dynamic loading
     pub fn add_plugin_directory(&self, path: PathBuf) -> SklResult<()> {
-        let mut plugin_directories = self.plugin_directories.write().unwrap();
+        let mut plugin_directories = self
+            .plugin_directories
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
 
         if !path.exists() {
             return Err(SklearsError::InvalidInput(format!(
@@ -352,7 +376,10 @@ impl GlobalComponentRegistry {
 
     /// Load plugins from registered directories
     pub fn load_plugins(&self) -> SklResult<Vec<PluginLoadResult>> {
-        let plugin_directories = self.plugin_directories.read().unwrap();
+        let plugin_directories = self
+            .plugin_directories
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let mut results = Vec::new();
 
         for directory in plugin_directories.iter() {
@@ -373,13 +400,13 @@ impl GlobalComponentRegistry {
     /// Get registry statistics
     #[must_use]
     pub fn get_statistics(&self) -> RegistryStatistics {
-        let stats = self.stats.lock().unwrap();
+        let stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 
     /// Configure registry hooks
     pub fn configure_hooks(&self, hooks: RegistryHooks) {
-        let mut current_hooks = self.hooks.write().unwrap();
+        let mut current_hooks = self.hooks.write().unwrap_or_else(|e| e.into_inner());
         *current_hooks = hooks;
     }
 
@@ -865,7 +892,7 @@ mod tests {
 
         registry
             .register_factory_versioned("test_component", "1.0.0", factory)
-            .unwrap();
+            .unwrap_or_default();
 
         let config = ComponentConfig::new("test_instance", "test_component");
         let component = registry.create_component_versioned("test_component", "1.0.0", &config);
@@ -882,7 +909,7 @@ mod tests {
 
         registry
             .register_factory_versioned("test_component", "1.0.0", factory)
-            .unwrap();
+            .unwrap_or_default();
 
         let types = registry.discover_component_types();
         assert_eq!(types.len(), 1);

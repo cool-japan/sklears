@@ -77,7 +77,8 @@ impl NonparametricBayesianIsotonic {
         }
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, self.base_scale).unwrap();
+        let normal = Normal::new(0.0, self.base_scale)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
         // Initialize with simple isotonic fit
         let mut current_y = self.isotonic_fit(X, y)?;
@@ -205,7 +206,7 @@ impl NonparametricBayesianIsotonic {
                 predictions.push(self.interpolate(x, sample_x, sample_y)?);
             }
 
-            predictions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            predictions.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             let lower_idx =
                 ((predictions.len() as f64 * lower_quantile) as usize).min(predictions.len() - 1);
@@ -394,7 +395,10 @@ impl GaussianProcessMonotonic {
         let mut uncertainty = Array1::zeros(X.len());
         for (i, &x) in X.iter().enumerate() {
             // Prior variance minus reduction from observations
-            let X_train = self.X_train.as_ref().unwrap();
+            let X_train = self
+                .X_train
+                .as_ref()
+                .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
             let mut k_star_sum = 0.0;
 
             for &x_train in X_train.iter() {
@@ -705,7 +709,8 @@ impl MCMCIsotonicSampler {
         y: &Array1<f64>,
     ) -> Result<(), SklearsError> {
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, self.proposal_scale).unwrap();
+        let normal = Normal::new(0.0, self.proposal_scale)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
         // Initialize chain
         let mut current = y.clone();
@@ -762,7 +767,8 @@ impl MCMCIsotonicSampler {
     /// Gibbs sampling
     fn gibbs_sampling(&mut self, _X: &Array1<f64>, y: &Array1<f64>) -> Result<(), SklearsError> {
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, self.proposal_scale).unwrap();
+        let normal = Normal::new(0.0, self.proposal_scale)
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
 
         let mut current = y.clone();
 
@@ -923,7 +929,7 @@ mod tests {
         let result = model.fit(&X, &y);
         assert!(result.is_ok());
 
-        let predictions = model.predict(&X).unwrap();
+        let predictions = model.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), X.len());
 
         // Check monotonicity
@@ -941,9 +947,9 @@ mod tests {
             .kernel(GPKernel::RBF)
             .length_scale(1.0);
 
-        gp.fit(&X, &y).unwrap();
+        gp.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = gp.predict(&X).unwrap();
+        let predictions = gp.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), X.len());
 
         // Check monotonicity
@@ -958,9 +964,11 @@ mod tests {
         let y = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
 
         let mut gp = GaussianProcessMonotonic::new();
-        gp.fit(&X, &y).unwrap();
+        gp.fit(&X, &y).expect("model fitting should succeed");
 
-        let (predictions, uncertainty) = gp.predict_with_uncertainty(&X).unwrap();
+        let (predictions, uncertainty) = gp
+            .predict_with_uncertainty(&X)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), X.len());
         assert_eq!(uncertainty.len(), X.len());
@@ -980,13 +988,13 @@ mod tests {
             .n_inducing(5)
             .max_iterations(100);
 
-        vi.fit(&X, &y).unwrap();
+        vi.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = vi.predict(&X).unwrap();
+        let predictions = vi.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), X.len());
 
         // Compute ELBO
-        let elbo = vi.compute_elbo(&X, &y).unwrap();
+        let elbo = vi.compute_elbo(&X, &y).expect("operation should succeed");
         assert!(elbo.is_finite());
     }
 
@@ -1000,9 +1008,9 @@ mod tests {
             .n_samples(50)
             .burn_in(10);
 
-        sampler.sample(&X, &y).unwrap();
+        sampler.sample(&X, &y).expect("operation should succeed");
 
-        let mean = sampler.posterior_mean().unwrap();
+        let mean = sampler.posterior_mean().expect("operation should succeed");
         assert_eq!(mean.len(), y.len());
 
         // Check effective sample size
@@ -1020,7 +1028,7 @@ mod tests {
             .n_samples(50)
             .burn_in(10);
 
-        sampler.sample(&X, &y).unwrap();
+        sampler.sample(&X, &y).expect("operation should succeed");
 
         let samples = sampler.get_samples();
         assert!(!samples.is_empty());
@@ -1042,9 +1050,11 @@ mod tests {
             .n_samples(100)
             .burn_in(10);
 
-        model.fit(&X, &y).unwrap();
+        model.fit(&X, &y).expect("model fitting should succeed");
 
-        let (lower, upper) = model.credible_interval(&X, 0.05).unwrap();
+        let (lower, upper) = model
+            .credible_interval(&X, 0.05)
+            .expect("operation should succeed");
 
         assert_eq!(lower.len(), X.len());
         assert_eq!(upper.len(), X.len());

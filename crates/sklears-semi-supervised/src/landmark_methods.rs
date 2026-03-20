@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray_ext::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rand_prelude::*;
-use scirs2_core::random::Random;
+use scirs2_core::random::{Random, RngExt};
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
@@ -344,7 +344,7 @@ impl LandmarkGraphConstruction {
 
         if total_density > 0.0 {
             for iteration in 0..n_landmarks {
-                let threshold = rng.gen::<f64>() * total_density;
+                let threshold = rng.random::<f64>() * total_density;
                 let mut cumulative = 0.0;
                 let previous_len = landmark_indices.len();
 
@@ -404,7 +404,7 @@ impl LandmarkGraphConstruction {
             return Ok(1.0);
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Use median distance as radius
         let median_idx = distances.len() / 2;
@@ -449,7 +449,8 @@ impl LandmarkGraphConstruction {
                 landmark_distances.push((dist, j));
             }
 
-            landmark_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            landmark_distances
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             let k_landmarks = self.k_neighbors.min(n_landmarks);
             let mut weights = Vec::new();
@@ -479,7 +480,8 @@ impl LandmarkGraphConstruction {
                     let dist = self.euclidean_distance(&X.row(j), &landmarks.row(l));
                     j_landmark_distances.push((dist, l));
                 }
-                j_landmark_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                j_landmark_distances
+                    .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
                 let mut j_weights = Vec::new();
                 let mut j_total_weight = 0.0;
@@ -599,7 +601,8 @@ impl LandmarkGraphConstruction {
                 landmark_distances.push((dist, landmark_idx));
             }
 
-            landmark_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            landmark_distances
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             let k_connect = self.k_neighbors.min(landmark_distances.len());
 
@@ -891,7 +894,7 @@ mod tests {
         let result = lgc.fit(&X.view());
         assert!(result.is_ok());
 
-        let graph_result = result.unwrap();
+        let graph_result = result.expect("operation should succeed");
         assert_eq!(graph_result.adjacency_matrix.dim(), (6, 6));
         assert_eq!(graph_result.n_landmarks(), 3);
         assert_eq!(graph_result.landmark_indices.len(), 3);
@@ -917,7 +920,7 @@ mod tests {
         let result = lgc.fit(&X.view());
         assert!(result.is_ok());
 
-        let graph_result = result.unwrap();
+        let graph_result = result.expect("operation should succeed");
         assert_eq!(graph_result.adjacency_matrix.dim(), (6, 6));
         assert_eq!(graph_result.n_landmarks(), 2);
     }
@@ -935,7 +938,7 @@ mod tests {
         let result = lgc.fit(&X.view());
         assert!(result.is_ok());
 
-        let graph_result = result.unwrap();
+        let graph_result = result.expect("operation should succeed");
         assert_eq!(graph_result.adjacency_matrix.dim(), (4, 4));
         assert_eq!(graph_result.n_landmarks(), 2);
     }
@@ -953,7 +956,7 @@ mod tests {
         let result = lgc.fit(&X.view());
         assert!(result.is_ok());
 
-        let graph_result = result.unwrap();
+        let graph_result = result.expect("operation should succeed");
         assert_eq!(graph_result.adjacency_matrix.dim(), (4, 4));
         assert_eq!(graph_result.n_landmarks(), 2);
     }
@@ -974,7 +977,7 @@ mod tests {
             let result = lgc.fit(&X.view());
             assert!(result.is_ok());
 
-            let graph_result = result.unwrap();
+            let graph_result = result.expect("operation should succeed");
             assert_eq!(graph_result.adjacency_matrix.dim(), (4, 4));
         }
     }
@@ -1002,7 +1005,7 @@ mod tests {
         let result = llp.fit_predict(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let labels = result.unwrap();
+        let labels = result.expect("operation should succeed");
         assert_eq!(labels.len(), 6);
 
         // Check that labeled samples keep their labels

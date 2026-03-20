@@ -706,8 +706,8 @@ mod tests {
 
     #[test]
     fn test_detect_keypoints_small_image() {
-        let image =
-            Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect())
+            .expect("operation should succeed");
         let surf = SURFExtractor::new();
         let result = surf.detect_keypoints(&image.view());
 
@@ -718,9 +718,11 @@ mod tests {
     fn test_detect_keypoints_valid_image() {
         let image =
             Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect())
-                .unwrap();
+                .expect("operation should succeed");
         let surf = SURFExtractor::new();
-        let keypoints = surf.detect_keypoints(&image.view()).unwrap();
+        let keypoints = surf
+            .detect_keypoints(&image.view())
+            .expect("operation should succeed");
 
         // Should not crash and return reasonable number of keypoints
         assert!(keypoints.len() <= 500); // Reasonable upper bound
@@ -731,7 +733,9 @@ mod tests {
         let image = Array2::zeros((32, 32));
         let surf = SURFExtractor::new();
         let keypoints = Vec::new();
-        let descriptors = surf.extract_descriptors(&image.view(), &keypoints).unwrap();
+        let descriptors = surf
+            .extract_descriptors(&image.view(), &keypoints)
+            .expect("operation should succeed");
 
         assert_eq!(descriptors.dim(), (0, 64)); // Standard descriptors
     }
@@ -741,7 +745,9 @@ mod tests {
         let image = Array2::zeros((32, 32));
         let surf = SURFExtractor::new().extended_descriptors(true);
         let keypoints = Vec::new();
-        let descriptors = surf.extract_descriptors(&image.view(), &keypoints).unwrap();
+        let descriptors = surf
+            .extract_descriptors(&image.view(), &keypoints)
+            .expect("operation should succeed");
 
         assert_eq!(descriptors.dim(), (0, 128)); // Extended descriptors
     }
@@ -751,9 +757,11 @@ mod tests {
         let surf = SURFExtractor::new();
         let image =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
-        let integral = surf.compute_integral_image(&image.view()).unwrap();
+        let integral = surf
+            .compute_integral_image(&image.view())
+            .expect("operation should succeed");
 
         // Check basic properties
         assert_eq!(integral.dim(), (3, 3));
@@ -764,8 +772,8 @@ mod tests {
     #[test]
     fn test_box_filter_sum() {
         let surf = SURFExtractor::new();
-        let integral =
-            Array2::from_shape_vec((4, 4), (1..=16).map(|x| x as f64).collect()).unwrap();
+        let integral = Array2::from_shape_vec((4, 4), (1..=16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let sum = surf.box_filter_sum(&integral, 1, 1, 2, 2);
         // Should compute sum of 2x2 region
@@ -791,10 +799,12 @@ mod tests {
     #[test]
     fn test_hessian_response_computation() {
         let surf = SURFExtractor::new();
-        let integral =
-            Array2::from_shape_vec((20, 20), (0..400).map(|x| x as f64).collect()).unwrap();
+        let integral = Array2::from_shape_vec((20, 20), (0..400).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
-        let response = surf.compute_hessian_response(&integral, 9).unwrap();
+        let response = surf
+            .compute_hessian_response(&integral, 9)
+            .expect("operation should succeed");
 
         // Should produce a response map
         assert!(response.nrows() > 0 && response.ncols() > 0);

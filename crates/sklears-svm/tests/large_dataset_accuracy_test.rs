@@ -25,7 +25,7 @@ fn generate_linearly_separable_data(
     let mut x = Array2::zeros((n_samples, n_features));
     let mut y = Array1::zeros(n_samples);
 
-    let dist = Uniform::new(-1.0, 1.0).unwrap();
+    let dist = Uniform::new(-1.0, 1.0).expect("operation should succeed");
 
     // Class 0 (label 0.0) - centered at negative values
     for i in 0..samples_per_class {

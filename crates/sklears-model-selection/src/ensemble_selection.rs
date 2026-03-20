@@ -395,9 +395,13 @@ impl EnsembleSelector {
         let best_idx = individual_performances
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.cv_score.partial_cmp(&b.cv_score).unwrap())
+            .max_by(|(_, a), (_, b)| {
+                a.cv_score
+                    .partial_cmp(&b.cv_score)
+                    .expect("operation should succeed")
+            })
             .map(|(idx, _)| idx)
-            .unwrap();
+            .expect("operation should succeed");
 
         selected_indices.push(best_idx);
         remaining_indices.retain(|&x| x != best_idx);
@@ -457,7 +461,7 @@ impl EnsembleSelector {
             .collect();
 
         // Sort by performance
-        candidates.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
+        candidates.sort_by(|(_, a), (_, b)| b.partial_cmp(a).expect("operation should succeed"));
 
         let mut selected_indices = Vec::new();
         for (idx, _) in candidates {
@@ -959,7 +963,7 @@ mod tests {
         let result = selector.select_ensemble(&models, &x, &y, &cv, &scoring);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.selected_models.len() >= 2);
         assert!(result.selected_models.len() <= 3);
         assert_eq!(result.model_weights.len(), result.selected_models.len());
@@ -998,7 +1002,7 @@ mod tests {
         let result = selector.select_ensemble(&models, &x, &y, &cv, &scoring);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.selected_models.len(), 2);
     }
 
@@ -1033,7 +1037,7 @@ mod tests {
         let result = select_ensemble(&models, &x, &y, &cv, &scoring, Some(2));
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.selected_models.len() <= 2);
         assert!(result.ensemble_performance.ensemble_size <= 2);
     }

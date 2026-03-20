@@ -396,8 +396,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = self.state.classes[max_idx];
         }
@@ -528,12 +528,16 @@ mod tests {
             .alpha(1.0)
             .max_iter(50)
             .class_weight(1.0);
-        let fitted = nb.fit(&X.view(), &y.view()).unwrap();
+        let fitted = nb
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
 
         // Check that probabilities sum to 1
@@ -566,9 +570,11 @@ mod tests {
         let y = array![0, 1]; // All labeled
 
         let nb = SemiSupervisedNaiveBayes::new().max_iter(10);
-        let fitted = nb.fit(&X.view(), &y.view()).unwrap();
+        let fitted = nb
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
     }

@@ -375,7 +375,11 @@ impl MemoryEfficientOps {
 
         if center {
             // Compute means
-            let means = x.mean_axis(Axis(0)).unwrap();
+            let means = x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
 
             // Compute covariance with centering
             for i in 0..n_features {
@@ -626,7 +630,8 @@ mod tests {
         let x = array![1.0, 2.0];
         let mut y = array![0.0, 0.0];
 
-        ops.matvec_inplace(&a, &x, &mut y).unwrap();
+        ops.matvec_inplace(&a, &x, &mut y)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(y[0], 5.0, epsilon = 1e-10);
         assert_abs_diff_eq!(y[1], 11.0, epsilon = 1e-10);
@@ -639,7 +644,8 @@ mod tests {
         let b = array![[2.0, 0.0], [1.0, 2.0]];
         let mut c = array![[0.0, 0.0], [0.0, 0.0]];
 
-        ops.matmul_inplace(&a, &b, &mut c).unwrap();
+        ops.matmul_inplace(&a, &b, &mut c)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(c[[0, 0]], 4.0, epsilon = 1e-10);
         assert_abs_diff_eq!(c[[0, 1]], 4.0, epsilon = 1e-10);
@@ -652,7 +658,8 @@ mod tests {
         let ops = MemoryEfficientOps::default();
         let mut a = array![[1.0, 2.0], [3.0, 4.0]];
 
-        ops.transpose_inplace(&mut a).unwrap();
+        ops.transpose_inplace(&mut a)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(a[[0, 0]], 1.0, epsilon = 1e-10);
         assert_abs_diff_eq!(a[[0, 1]], 3.0, epsilon = 1e-10);
@@ -666,7 +673,8 @@ mod tests {
         let mut a = array![[1.0, 2.0], [3.0, 4.0]];
         let b = array![[1.0, 1.0], [1.0, 1.0]];
 
-        ops.add_inplace(&mut a, &b).unwrap();
+        ops.add_inplace(&mut a, &b)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(a[[0, 0]], 2.0, epsilon = 1e-10);
         assert_abs_diff_eq!(a[[0, 1]], 3.0, epsilon = 1e-10);
@@ -679,7 +687,8 @@ mod tests {
         let ops = MemoryEfficientOps::default();
         let mut a = array![[1.0, 2.0], [3.0, 4.0]];
 
-        ops.scale_inplace(&mut a, 2.0).unwrap();
+        ops.scale_inplace(&mut a, 2.0)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(a[[0, 0]], 2.0, epsilon = 1e-10);
         assert_abs_diff_eq!(a[[0, 1]], 4.0, epsilon = 1e-10);
@@ -693,7 +702,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let mut g = array![[0.0, 0.0], [0.0, 0.0]];
 
-        ops.gram_inplace(&x, &mut g).unwrap();
+        ops.gram_inplace(&x, &mut g)
+            .expect("operation should succeed");
 
         // X^T * X = [[1,3,5],[2,4,6]] * [[1,2],[3,4],[5,6]] = [[35,44],[44,56]]
         assert_abs_diff_eq!(g[[0, 0]], 35.0, epsilon = 1e-10);
@@ -708,7 +718,7 @@ mod tests {
         let mut a = array![[3.0, 4.0], [1.0, 0.0]];
 
         ops.normalize_inplace(&mut a, Axis(1), NormType::L2)
-            .unwrap();
+            .expect("operation should succeed");
 
         // First row: [3,4] -> [3/5, 4/5] = [0.6, 0.8]
         assert_abs_diff_eq!(a[[0, 0]], 0.6, epsilon = 1e-10);

@@ -499,7 +499,7 @@ impl NoiseInjector {
         T: FloatBounds + From<f64>,
     {
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, std_dev).unwrap();
+        let normal = Normal::new(0.0, std_dev).expect("valid distribution params");
 
         input.mapv(|x| {
             let noise = NumCast::from(normal.sample(&mut rng)).unwrap_or(T::zero());
@@ -513,7 +513,7 @@ impl NoiseInjector {
         T: FloatBounds + From<f64>,
     {
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, std_dev).unwrap();
+        let normal = Normal::new(0.0, std_dev).expect("valid distribution params");
 
         input.mapv(|x| {
             let noise = NumCast::from(normal.sample(&mut rng)).unwrap_or(T::zero());
@@ -527,7 +527,7 @@ impl NoiseInjector {
         T: FloatBounds + From<f64>,
     {
         let mut rng = thread_rng();
-        let uniform = Uniform::new(-magnitude, magnitude).unwrap();
+        let uniform = Uniform::new(-magnitude, magnitude).expect("valid distribution params");
 
         input.mapv(|x| {
             let noise = NumCast::from(uniform.sample(&mut rng)).unwrap_or(T::zero());
@@ -541,7 +541,7 @@ impl NoiseInjector {
         T: FloatBounds + From<f64>,
     {
         let mut rng = thread_rng();
-        let uniform = Uniform::new(-magnitude, magnitude).unwrap();
+        let uniform = Uniform::new(-magnitude, magnitude).expect("valid distribution params");
 
         input.mapv(|x| {
             let noise = NumCast::from(uniform.sample(&mut rng)).unwrap_or(T::zero());
@@ -563,8 +563,8 @@ impl NoiseInjector {
         let mut rng = thread_rng();
 
         input.mapv(|x| {
-            if rng.gen::<f64>() < probability {
-                if rng.gen::<bool>() {
+            if rng.random::<f64>() < probability {
+                if rng.random::<bool>() {
                     NumCast::from(min_value).unwrap_or(T::zero())
                 } else {
                     NumCast::from(max_value).unwrap_or(T::zero())
@@ -589,8 +589,8 @@ impl NoiseInjector {
         let mut rng = thread_rng();
 
         input.mapv(|x| {
-            if rng.gen::<f64>() < probability {
-                if rng.gen::<bool>() {
+            if rng.random::<f64>() < probability {
+                if rng.random::<bool>() {
                     NumCast::from(min_value).unwrap_or(T::zero())
                 } else {
                     NumCast::from(max_value).unwrap_or(T::zero())
@@ -609,7 +609,7 @@ impl NoiseInjector {
         let mut rng = thread_rng();
 
         input.mapv(|x| {
-            if rng.gen::<f64>() < probability {
+            if rng.random::<f64>() < probability {
                 T::zero()
             } else {
                 // Scale up remaining values to maintain expected value
@@ -626,7 +626,7 @@ impl NoiseInjector {
         let mut rng = thread_rng();
 
         input.mapv(|x| {
-            if rng.gen::<f64>() < probability {
+            if rng.random::<f64>() < probability {
                 T::zero()
             } else {
                 // Scale up remaining values to maintain expected value
@@ -704,7 +704,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormalization
 
         // Initialize u vector (left singular vector)
         let u_data: Vec<T> = (0..m)
-            .map(|_| T::from(rng.gen::<f64>() * 2.0 - 1.0).unwrap_or(T::zero()))
+            .map(|_| T::from(rng.random::<f64>() * 2.0 - 1.0).unwrap_or(T::zero()))
             .collect();
         let mut u = Array1::from_vec(u_data);
         self.normalize_vector(&mut u);
@@ -712,7 +712,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormalization
 
         // Initialize v vector (right singular vector)
         let v_data: Vec<T> = (0..n)
-            .map(|_| T::from(rng.gen::<f64>() * 2.0 - 1.0).unwrap_or(T::zero()))
+            .map(|_| T::from(rng.random::<f64>() * 2.0 - 1.0).unwrap_or(T::zero()))
             .collect();
         let mut v = Array1::from_vec(v_data);
         self.normalize_vector(&mut v);
@@ -729,24 +729,24 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> SpectralNormalization
         for _ in 0..self.power_iterations {
             // v = W^T @ u / ||W^T @ u||
             let wt_u = {
-                let u = self.u.as_ref().unwrap();
+                let u = self.u.as_ref().expect("u not available - model not fitted");
                 weights.t().dot(u)
             };
-            *self.v.as_mut().unwrap() = wt_u;
-            Self::normalize_vector_static(&mut self.v.as_mut().unwrap(), self.eps);
+            *self.v.as_mut().expect("v not available") = wt_u;
+            Self::normalize_vector_static(&mut self.v.as_mut().expect("v not available"), self.eps);
 
             // u = W @ v / ||W @ v||
             let w_v = {
-                let v = self.v.as_ref().unwrap();
+                let v = self.v.as_ref().expect("v not available - model not fitted");
                 weights.dot(v)
             };
-            *self.u.as_mut().unwrap() = w_v;
-            Self::normalize_vector_static(&mut self.u.as_mut().unwrap(), self.eps);
+            *self.u.as_mut().expect("u not available") = w_v;
+            Self::normalize_vector_static(&mut self.u.as_mut().expect("u not available"), self.eps);
         }
 
         // Compute spectral norm: σ = u^T @ W @ v
-        let u = self.u.as_ref().unwrap();
-        let v = self.v.as_ref().unwrap();
+        let u = self.u.as_ref().expect("u not available - model not fitted");
+        let v = self.v.as_ref().expect("v not available - model not fitted");
         let w_v = weights.dot(v);
         u.dot(&w_v)
     }
@@ -974,7 +974,13 @@ mod tests {
         assert!(!early_stopping.update(0.32)); // wait = 2
         assert!(early_stopping.update(0.33)); // wait = 3, should stop
 
-        assert_abs_diff_eq!(early_stopping.best_value().unwrap(), 0.3, epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            early_stopping
+                .best_value()
+                .expect("operation should succeed"),
+            0.3,
+            epsilon = 1e-10
+        );
     }
 
     #[test]
@@ -990,7 +996,13 @@ mod tests {
         assert!(!early_stopping.update(0.89)); // wait = 1
         assert!(early_stopping.update(0.88)); // wait = 2, should stop
 
-        assert_abs_diff_eq!(early_stopping.best_value().unwrap(), 0.9, epsilon = 1e-10);
+        assert_abs_diff_eq!(
+            early_stopping
+                .best_value()
+                .expect("operation should succeed"),
+            0.9,
+            epsilon = 1e-10
+        );
     }
 
     #[test]

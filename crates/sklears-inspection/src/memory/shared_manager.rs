@@ -131,7 +131,7 @@ impl SharedExplanationManager {
     ) -> SklResult<SharedExplanation> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("operation should succeed")
             .as_secs();
 
         let explanation_data = Arc::new(ExplanationData {
@@ -146,13 +146,13 @@ impl SharedExplanationManager {
 
         // Store in active explanations
         {
-            let mut active = self.active.lock().unwrap();
+            let mut active = self.active.lock().expect("operation should succeed");
             active.insert(id.clone(), explanation_data.clone());
         }
 
         // Update statistics
         {
-            let mut stats = self.stats.lock().unwrap();
+            let mut stats = self.stats.lock().expect("operation should succeed");
             stats.total_created += 1;
             stats.active_count += 1;
             stats.estimated_memory_usage += self.estimate_explanation_size(&explanation_data);
@@ -160,7 +160,7 @@ impl SharedExplanationManager {
 
         // Create weak reference for tracking
         {
-            let mut weak_refs = self.weak_refs.lock().unwrap();
+            let mut weak_refs = self.weak_refs.lock().expect("operation should succeed");
             weak_refs.insert(id.clone(), Arc::downgrade(&explanation_data));
         }
 
@@ -173,22 +173,28 @@ impl SharedExplanationManager {
 
     /// Get an existing shared explanation
     pub fn get_explanation(&self, id: &str) -> Option<SharedExplanation> {
-        let active = self.active.lock().unwrap();
+        let active = self.active.lock().expect("operation should succeed");
         if let Some(explanation_data) = active.get(id) {
             // Update access statistics
             if self.config.track_access {
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs();
 
-                *explanation_data.last_accessed.lock().unwrap() = now;
-                *explanation_data.access_count.lock().unwrap() += 1;
+                *explanation_data
+                    .last_accessed
+                    .lock()
+                    .expect("operation should succeed") = now;
+                *explanation_data
+                    .access_count
+                    .lock()
+                    .expect("operation should succeed") += 1;
             }
 
             // Update cache hits
             {
-                let mut stats = self.stats.lock().unwrap();
+                let mut stats = self.stats.lock().expect("operation should succeed");
                 stats.cache_hits += 1;
             }
 
@@ -200,7 +206,7 @@ impl SharedExplanationManager {
         } else {
             // Update cache misses
             {
-                let mut stats = self.stats.lock().unwrap();
+                let mut stats = self.stats.lock().expect("operation should succeed");
                 stats.cache_misses += 1;
             }
             None
@@ -210,15 +216,15 @@ impl SharedExplanationManager {
     /// Remove an explanation from the manager
     pub fn remove_explanation(&self, id: &str) -> bool {
         let removed = {
-            let mut active = self.active.lock().unwrap();
+            let mut active = self.active.lock().expect("operation should succeed");
             active.remove(id).is_some()
         };
 
         if removed {
-            let mut weak_refs = self.weak_refs.lock().unwrap();
+            let mut weak_refs = self.weak_refs.lock().expect("operation should succeed");
             weak_refs.remove(id);
 
-            let mut stats = self.stats.lock().unwrap();
+            let mut stats = self.stats.lock().expect("operation should succeed");
             stats.active_count = stats.active_count.saturating_sub(1);
         }
 
@@ -229,7 +235,7 @@ impl SharedExplanationManager {
     pub fn cleanup_unused(&self) -> usize {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("operation should succeed")
             .as_secs();
 
         let mut removed_count = 0;
@@ -237,9 +243,12 @@ impl SharedExplanationManager {
 
         // Find explanations to remove
         {
-            let active = self.active.lock().unwrap();
+            let active = self.active.lock().expect("operation should succeed");
             for (id, explanation) in active.iter() {
-                let last_accessed = *explanation.last_accessed.lock().unwrap();
+                let last_accessed = *explanation
+                    .last_accessed
+                    .lock()
+                    .expect("operation should succeed");
                 let age = now.saturating_sub(last_accessed);
 
                 if age > self.config.max_age {
@@ -257,7 +266,7 @@ impl SharedExplanationManager {
 
         // Also check weak references and clean up dead ones
         {
-            let mut weak_refs = self.weak_refs.lock().unwrap();
+            let mut weak_refs = self.weak_refs.lock().expect("operation should succeed");
             weak_refs.retain(|_, weak_ref| weak_ref.strong_count() > 0);
         }
 
@@ -266,11 +275,11 @@ impl SharedExplanationManager {
 
     /// Get manager statistics
     pub fn get_stats(&self) -> ManagerStats {
-        let stats = self.stats.lock().unwrap();
+        let stats = self.stats.lock().expect("operation should succeed");
 
         // Update active count from actual data
         let active_count = {
-            let active = self.active.lock().unwrap();
+            let active = self.active.lock().expect("operation should succeed");
             active.len()
         };
 
@@ -346,12 +355,20 @@ impl SharedExplanation {
 
     /// Get last access timestamp
     pub fn last_accessed(&self) -> u64 {
-        *self.inner.last_accessed.lock().unwrap()
+        *self
+            .inner
+            .last_accessed
+            .lock()
+            .expect("operation should succeed")
     }
 
     /// Get access count
     pub fn access_count(&self) -> usize {
-        *self.inner.access_count.lock().unwrap()
+        *self
+            .inner
+            .access_count
+            .lock()
+            .expect("operation should succeed")
     }
 
     /// Get unique identifier
@@ -377,8 +394,20 @@ impl SharedExplanation {
             partial_dependence: self.inner.partial_dependence.clone(),
             metadata: self.inner.metadata.clone(),
             created_at: self.inner.created_at,
-            last_accessed: Arc::new(Mutex::new(*self.inner.last_accessed.lock().unwrap())),
-            access_count: Arc::new(Mutex::new(*self.inner.access_count.lock().unwrap())),
+            last_accessed: Arc::new(Mutex::new(
+                *self
+                    .inner
+                    .last_accessed
+                    .lock()
+                    .expect("operation should succeed"),
+            )),
+            access_count: Arc::new(Mutex::new(
+                *self
+                    .inner
+                    .access_count
+                    .lock()
+                    .expect("operation should succeed"),
+            )),
         });
 
         Ok(SharedExplanation {
@@ -394,11 +423,19 @@ impl SharedExplanation {
             if manager.config.track_access {
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs();
 
-                *self.inner.last_accessed.lock().unwrap() = now;
-                *self.inner.access_count.lock().unwrap() += 1;
+                *self
+                    .inner
+                    .last_accessed
+                    .lock()
+                    .expect("operation should succeed") = now;
+                *self
+                    .inner
+                    .access_count
+                    .lock()
+                    .expect("operation should succeed") += 1;
             }
         }
     }
@@ -461,12 +498,18 @@ mod tests {
                 Some(shap_values.clone()),
                 metadata.clone(),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check data access
         assert_eq!(explanation.feature_importance().len(), 5);
         assert!(explanation.shap_values().is_some());
-        assert_eq!(explanation.shap_values().unwrap().nrows(), 2);
+        assert_eq!(
+            explanation
+                .shap_values()
+                .expect("operation should succeed")
+                .nrows(),
+            2
+        );
         assert_eq!(explanation.metadata().model_type, "RandomForest");
         assert_eq!(explanation.id(), "test_explanation");
 
@@ -497,7 +540,7 @@ mod tests {
                 None,
                 metadata,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         // Get explanation (should hit cache)
         let retrieved = manager.get_explanation("cached_explanation");
@@ -540,7 +583,7 @@ mod tests {
                 None,
                 metadata,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         let initial_access_count = explanation.access_count();
 
@@ -575,13 +618,13 @@ mod tests {
                 None,
                 metadata,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         // Original should not be unique (shared with manager)
         assert!(!explanation.is_unique());
 
         // Create unique copy
-        let unique_explanation = explanation.make_unique().unwrap();
+        let unique_explanation = explanation.make_unique().expect("operation should succeed");
 
         // Unique copy should be unique
         assert!(unique_explanation.is_unique());
@@ -620,7 +663,7 @@ mod tests {
                 None,
                 metadata,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check it exists
         assert!(manager.get_explanation("to_be_removed").is_some());
@@ -663,7 +706,7 @@ mod tests {
                 None,
                 metadata,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         // Initially should exist
         assert!(manager.get_explanation("short_lived").is_some());
@@ -702,7 +745,7 @@ mod tests {
                     None,
                     metadata,
                 )
-                .unwrap();
+                .expect("operation should succeed");
         }
 
         let stats = manager.get_stats();

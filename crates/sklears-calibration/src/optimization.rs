@@ -319,12 +319,16 @@ impl GradientBasedCalibrator {
         let mut stats = HashMap::new();
 
         if !self.loss_history.is_empty() {
-            stats.insert("final_loss".to_string(), *self.loss_history.last().unwrap());
+            stats.insert(
+                "final_loss".to_string(),
+                self.loss_history.last().copied().unwrap_or(0.0),
+            );
             stats.insert("initial_loss".to_string(), self.loss_history[0]);
             stats.insert("n_iterations".to_string(), self.loss_history.len() as Float);
 
             if self.loss_history.len() > 1 {
-                let improvement = self.loss_history[0] - self.loss_history.last().unwrap();
+                let improvement =
+                    self.loss_history[0] - self.loss_history.last().copied().unwrap_or(0.0);
                 stats.insert("loss_improvement".to_string(), improvement);
             }
         }
@@ -836,9 +840,13 @@ mod tests {
         };
 
         let mut calibrator = GradientBasedCalibrator::new(config);
-        calibrator.fit(&probabilities, &targets).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
@@ -861,9 +869,13 @@ mod tests {
             });
 
         let mut calibrator = GradientBasedCalibrator::new(config);
-        calibrator.fit(&probabilities, &targets).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
@@ -879,9 +891,13 @@ mod tests {
         };
 
         let mut calibrator = GradientBasedCalibrator::new(config);
-        calibrator.fit(&probabilities, &targets).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
 
@@ -898,7 +914,9 @@ mod tests {
             .insert("discrimination".to_string(), 0.5);
 
         let mut calibrator = MultiObjectiveCalibrator::new(config);
-        calibrator.fit(&probabilities, &targets).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
         let stats = calibrator.get_pareto_stats();
         assert!(stats.contains_key("n_pareto_solutions"));
@@ -919,9 +937,13 @@ mod tests {
 
         for loss_type in loss_types {
             let mut calibrator = RobustCalibrator::new(loss_type);
-            calibrator.fit(&probabilities, &targets).unwrap();
+            calibrator
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
 
-            let predictions = calibrator.predict_proba(&probabilities).unwrap();
+            let predictions = calibrator
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
@@ -951,9 +973,13 @@ mod tests {
             config.max_iterations = 50; // Reduce for testing
 
             let mut calibrator = GradientBasedCalibrator::new(config);
-            calibrator.fit(&probabilities, &targets).unwrap();
+            calibrator
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
 
-            let predictions = calibrator.predict_proba(&probabilities).unwrap();
+            let predictions = calibrator
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }
     }

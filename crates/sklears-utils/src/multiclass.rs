@@ -213,22 +213,31 @@ mod tests {
     #[test]
     fn test_type_of_target() {
         let binary = array![0, 1, 0, 1];
-        assert_eq!(type_of_target(&binary).unwrap(), "binary");
+        assert_eq!(
+            type_of_target(&binary).expect("operation should succeed"),
+            "binary"
+        );
 
         let multiclass = array![0, 1, 2, 0, 1, 2];
-        assert_eq!(type_of_target(&multiclass).unwrap(), "multiclass");
+        assert_eq!(
+            type_of_target(&multiclass).expect("operation should succeed"),
+            "multiclass"
+        );
 
         let constant = array![1, 1, 1, 1];
-        assert_eq!(type_of_target(&constant).unwrap(), "unknown");
+        assert_eq!(
+            type_of_target(&constant).expect("operation should succeed"),
+            "unknown"
+        );
     }
 
     #[test]
     fn test_check_multi_class() {
         let binary = array![0, 1, 0, 1];
-        assert!(!check_multi_class(&binary).unwrap());
+        assert!(!check_multi_class(&binary).expect("operation should succeed"));
 
         let multiclass = array![0, 1, 2, 0, 1, 2];
-        assert!(check_multi_class(&multiclass).unwrap());
+        assert!(check_multi_class(&multiclass).expect("operation should succeed"));
     }
 
     #[test]
@@ -257,9 +266,10 @@ mod tests {
     fn test_multilabel_to_indicator() {
         let y = array![0, 1, 2];
         let classes = vec![0, 1, 2];
-        let indicator = multilabel_to_indicator(&y, &classes).unwrap();
+        let indicator = multilabel_to_indicator(&y, &classes).expect("operation should succeed");
 
-        let expected = Array2::from_shape_vec((3, 3), vec![1, 0, 0, 0, 1, 0, 0, 0, 1]).unwrap();
+        let expected = Array2::from_shape_vec((3, 3), vec![1, 0, 0, 0, 1, 0, 0, 0, 1])
+            .expect("operation should succeed");
         assert_eq!(indicator, expected);
     }
 

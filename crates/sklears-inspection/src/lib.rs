@@ -379,7 +379,7 @@ pub fn compute_feature_statistics(X: &ArrayView2<Float>) -> Vec<(Float, Float, F
         let mean = column.mean().unwrap_or(0.0);
 
         let mut sorted_values: Vec<Float> = column.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let min_val = sorted_values.first().copied().unwrap_or(0.0);
         let max_val = sorted_values.last().copied().unwrap_or(0.0);

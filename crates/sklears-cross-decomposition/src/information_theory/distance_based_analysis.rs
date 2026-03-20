@@ -269,13 +269,17 @@ impl DistanceCovariance {
         let n = mat.nrows();
 
         // Compute row means
-        let row_means = mat.mean_axis(Axis(1)).unwrap();
+        let row_means = mat
+            .mean_axis(Axis(1))
+            .expect("mean_axis requires non-empty array");
 
         // Compute column means
-        let col_means = mat.mean_axis(Axis(0)).unwrap();
+        let col_means = mat
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
 
         // Compute grand mean
-        let grand_mean = mat.mean().unwrap();
+        let grand_mean = mat.mean().expect("operation should succeed");
 
         // Double-center
         let mut centered = Array2::zeros((n, n));
@@ -493,7 +497,9 @@ mod tests {
         let centered = DistanceCovariance::double_center(&mat);
 
         // Row means of centered matrix should be close to zero
-        let row_means = centered.mean_axis(Axis(1)).unwrap();
+        let row_means = centered
+            .mean_axis(Axis(1))
+            .expect("mean_axis should succeed for non-empty array");
         for &mean in row_means.iter() {
             assert!(mean.abs() < 1e-10);
         }

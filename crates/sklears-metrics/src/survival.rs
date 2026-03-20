@@ -95,11 +95,12 @@ where
     }
 
     if total_pairs == 0 {
-        return Ok(T::from(0.5).unwrap()); // No comparable pairs, return 0.5
+        return Ok(T::from(0.5).expect("operation should succeed")); // No comparable pairs, return 0.5
     }
 
     // Divide by 2 because we counted each concordant pair as 2
-    Ok(T::from(concordant_pairs).unwrap() / (T::from(2 * total_pairs).unwrap()))
+    Ok(T::from(concordant_pairs).expect("operation should succeed")
+        / (T::from(2 * total_pairs).expect("operation should succeed")))
 }
 
 /// Time-dependent AUC for survival analysis
@@ -192,10 +193,11 @@ where
     }
 
     if total_pairs == 0 {
-        return Ok(T::from(0.5).unwrap()); // No comparable pairs
+        return Ok(T::from(0.5).expect("operation should succeed")); // No comparable pairs
     }
 
-    Ok(T::from(concordant_pairs).unwrap() / T::from(total_pairs).unwrap())
+    Ok(T::from(concordant_pairs).expect("operation should succeed")
+        / T::from(total_pairs).expect("operation should succeed"))
 }
 
 /// Brier Score for survival analysis
@@ -262,7 +264,7 @@ where
         ));
     }
 
-    Ok(brier_sum / T::from(valid_count).unwrap())
+    Ok(brier_sum / T::from(valid_count).expect("operation should succeed"))
 }
 
 /// Integrated Brier Score for survival analysis
@@ -334,7 +336,8 @@ where
 
     for i in 0..(brier_scores.len() - 1) {
         let dt = evaluation_times[i + 1] - evaluation_times[i];
-        let avg_brier = (brier_scores[i] + brier_scores[i + 1]) / T::from(2.0).unwrap();
+        let avg_brier = (brier_scores[i] + brier_scores[i + 1])
+            / T::from(2.0).expect("operation should succeed");
         integrated_score = integrated_score + avg_brier * dt;
         total_time = total_time + dt;
     }
@@ -381,7 +384,7 @@ where
         .map(|(&time, &event)| (time, event))
         .collect();
 
-    time_event_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    time_event_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     // Group by unique times
     let mut unique_times = Vec::new();
@@ -426,7 +429,9 @@ where
         let at_risk = at_risk_counts[i];
 
         if at_risk > 0 {
-            let survival_rate = T::one() - T::from(events).unwrap() / T::from(at_risk).unwrap();
+            let survival_rate = T::one()
+                - T::from(events).expect("operation should succeed")
+                    / T::from(at_risk).expect("operation should succeed");
             current_survival = current_survival * survival_rate;
         }
 
@@ -491,7 +496,7 @@ where
     for &time in event_times_2.iter() {
         all_times.push(time);
     }
-    all_times.sort_by(|a: &T, b| a.partial_cmp(b).unwrap());
+    all_times.sort_by(|a: &T, b| a.partial_cmp(b).expect("operation should succeed"));
     all_times.dedup();
 
     let mut observed_minus_expected = T::zero();
@@ -518,17 +523,21 @@ where
         let total_at_risk = at_risk_1 + at_risk_2;
 
         if total_at_risk > 0 && total_events > 0 {
-            let expected_1 =
-                T::from(at_risk_1 * total_events).unwrap() / T::from(total_at_risk).unwrap();
-            let observed_1 = T::from(events_1).unwrap();
+            let expected_1 = T::from(at_risk_1 * total_events).expect("operation should succeed")
+                / T::from(total_at_risk).expect("operation should succeed");
+            let observed_1 = T::from(events_1).expect("operation should succeed");
 
             observed_minus_expected = observed_minus_expected + (observed_1 - expected_1);
 
             // Calculate variance component
             if total_at_risk > 1 {
                 let variance_component = expected_1
-                    * (T::one() - T::from(at_risk_1).unwrap() / T::from(total_at_risk).unwrap())
-                    * (T::one() - T::from(total_events).unwrap() / T::from(total_at_risk).unwrap());
+                    * (T::one()
+                        - T::from(at_risk_1).expect("operation should succeed")
+                            / T::from(total_at_risk).expect("operation should succeed"))
+                    * (T::one()
+                        - T::from(total_events).expect("operation should succeed")
+                            / T::from(total_at_risk).expect("operation should succeed"));
                 variance = variance + variance_component;
             }
         }
@@ -562,8 +571,8 @@ mod tests {
         let predicted_times = array![10.0, 20.0, 30.0, 40.0, 50.0];
         let event_observed = array![true, true, true, true, true];
 
-        let c_index: f64 =
-            concordance_index(&event_times, &predicted_times, &event_observed).unwrap();
+        let c_index: f64 = concordance_index(&event_times, &predicted_times, &event_observed)
+            .expect("operation should succeed");
         assert_relative_eq!(c_index, 1.0, epsilon = 1e-6);
     }
 
@@ -573,8 +582,8 @@ mod tests {
         let predicted_times = array![50.0, 40.0, 30.0, 20.0, 10.0]; // Reverse order
         let event_observed = array![true, true, true, true, true];
 
-        let c_index: f64 =
-            concordance_index(&event_times, &predicted_times, &event_observed).unwrap();
+        let c_index: f64 = concordance_index(&event_times, &predicted_times, &event_observed)
+            .expect("operation should succeed");
         assert_relative_eq!(c_index, 0.0, epsilon = 1e-6);
     }
 
@@ -585,8 +594,8 @@ mod tests {
         let risk_scores = array![0.8, 0.6, 0.4, 0.7, 0.3];
         let time_point = 12.0;
 
-        let auc: f64 =
-            time_dependent_auc(&event_times, &event_observed, &risk_scores, time_point).unwrap();
+        let auc: f64 = time_dependent_auc(&event_times, &event_observed, &risk_scores, time_point)
+            .expect("operation should succeed");
         assert!((0.0..=1.0).contains(&auc));
     }
 
@@ -599,7 +608,7 @@ mod tests {
 
         let brier: f64 =
             brier_score_survival(&event_times, &event_observed, &survival_probs, time_point)
-                .unwrap();
+                .expect("operation should succeed");
         assert!(brier >= 0.0);
     }
 
@@ -608,7 +617,8 @@ mod tests {
         let event_times = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let event_observed = array![true, false, true, true, false];
 
-        let (times, survival_probs) = kaplan_meier_survival(&event_times, &event_observed).unwrap();
+        let (times, survival_probs) =
+            kaplan_meier_survival(&event_times, &event_observed).expect("operation should succeed");
         assert!(!times.is_empty());
         assert_eq!(times.len(), survival_probs.len());
 
@@ -631,7 +641,7 @@ mod tests {
             &event_times_2,
             &event_observed_2,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(test_stat >= 0.0);
     }

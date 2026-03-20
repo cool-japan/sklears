@@ -36,7 +36,6 @@
 use scirs2_core::essentials::{Normal, Uniform};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -225,7 +224,7 @@ impl QuantumDimensionalityReduction<Untrained> {
             for i in 0..self.n_layers {
                 for j in 0..self.n_qubits * 2 {
                     params[[i, j]] =
-                        best_params[[i, j]] + (rng.gen::<Float>() - 0.5) * self.learning_rate;
+                        best_params[[i, j]] + (rng.random::<Float>() - 0.5) * self.learning_rate;
                 }
             }
         }
@@ -384,8 +383,8 @@ impl QAOAManifoldLearning<Untrained> {
         let mut beta: Array1<Float> = Array1::zeros(self.p_layers);
 
         for i in 0..self.p_layers {
-            gamma[i] = (rng.gen::<Float>() * PI) as Float;
-            beta[i] = (rng.gen::<Float>() * PI) as Float;
+            gamma[i] = (rng.random::<Float>() * PI) as Float;
+            beta[i] = (rng.random::<Float>() * PI) as Float;
         }
 
         // Simple optimization (placeholder for actual QAOA optimization)
@@ -557,7 +556,7 @@ impl VQEManifoldLearning<Untrained> {
             for i in 0..self.n_layers {
                 for j in 0..self.n_qubits * 2 {
                     params[[i, j]] =
-                        best_params[[i, j]] + (rng.gen::<Float>() - 0.5) * self.learning_rate;
+                        best_params[[i, j]] + (rng.random::<Float>() - 0.5) * self.learning_rate;
                 }
             }
         }
@@ -665,7 +664,8 @@ mod tests {
 
     #[test]
     fn test_quantum_dr_fit() {
-        let data = Array2::from_shape_vec((10, 5), vec![0.1; 50]).unwrap();
+        let data =
+            Array2::from_shape_vec((10, 5), vec![0.1; 50]).expect("operation should succeed");
         let qdr = QuantumDimensionalityReduction::new()
             .n_qubits(2)
             .n_epochs(2);

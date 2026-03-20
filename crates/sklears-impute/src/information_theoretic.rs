@@ -4,7 +4,7 @@
 //! including mutual information, entropy, minimum description length, and maximum entropy methods.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, Rng, RngExt};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -284,7 +284,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for MutualInformationImputer<Untrained> {
             }
 
             // Sort by MI score (descending)
-            mi_scores.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+            mi_scores.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
             // Take top k features
             let top_features: Vec<usize> = mi_scores
@@ -408,7 +408,7 @@ impl MutualInformationImputer<MutualInformationImputerTrained> {
         }
 
         // Sort by distance and take k nearest
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k_nearest = distances.into_iter().take(k);
 
         // Weighted average of k nearest neighbors
@@ -776,7 +776,7 @@ fn compute_bin_edges(
             // Default bin edges
             bin_edges.push(Array1::linspace(0.0, 1.0, n_bins + 1));
         } else {
-            valid_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            valid_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let min_val = valid_values[0];
             let max_val = valid_values[valid_values.len() - 1];
 
@@ -997,7 +997,7 @@ fn sample_from_distribution(
         })
         .collect();
 
-    let random_val = rng.gen();
+    let random_val = rng.random();
 
     let bin_idx = cumsum
         .iter()
@@ -1010,7 +1010,7 @@ fn sample_from_distribution(
     let bin_center = mean - 3.0 * std + (bin_idx as f64 + 0.5) * bin_width;
 
     // Add some noise within the bin
-    let noise = rng.gen_range(-bin_width / 2.0..bin_width / 2.0);
+    let noise = rng.random_range(-bin_width / 2.0..bin_width / 2.0);
 
     Ok(bin_center + noise)
 }
@@ -1214,7 +1214,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for InformationGainImputer<Untrained> {
                 }
 
                 // Sort by information gain (descending)
-                ig_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                ig_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                 // Take top k features
                 let top_features: Vec<(usize, f64)> =
@@ -1556,7 +1556,7 @@ fn build_tree_recursive(
             .map(|(features, _)| features[feat_idx])
             .collect();
         let mut unique_values = feature_values.clone();
-        unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         unique_values.dedup();
 
         for i in 0..unique_values.len().saturating_sub(1) {
@@ -1765,7 +1765,7 @@ fn impute_with_knn(
     }
 
     // Sort by distance and take k nearest
-    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
     let k_neighbors = distances.into_iter().take(k).collect::<Vec<_>>();
 
     // Return weighted average

@@ -147,7 +147,8 @@ impl<T> TypedArray<Array1<T>, D1> {
         T: Clone,
     {
         let shape = (1, self.data.len());
-        let data = Array2::from_shape_vec(shape, self.data.to_vec()).unwrap();
+        let data =
+            Array2::from_shape_vec(shape, self.data.to_vec()).expect("operation should succeed");
         TypedArray {
             data,
             _dimension: PhantomData,
@@ -566,7 +567,7 @@ mod tests {
                     ))
                 }
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         // Can access validated data
         let validated_data = validated.as_validated();
@@ -606,7 +607,7 @@ mod tests {
     #[test]
     fn test_normalized_values() {
         // Valid normalized value
-        let norm1 = Normalized::new(0.5).unwrap();
+        let norm1 = Normalized::new(0.5).expect("operation should succeed");
         assert_eq!(norm1.get(), 0.5);
 
         // Invalid normalized value
@@ -619,7 +620,7 @@ mod tests {
 
     #[test]
     fn test_positive_values() {
-        let pos = Positive::new(5.0).unwrap();
+        let pos = Positive::new(5.0).expect("operation should succeed");
         assert_eq!(pos.get(), 5.0);
 
         assert!(Positive::new(-1.0).is_err());
@@ -645,14 +646,18 @@ mod tests {
 
     #[test]
     fn test_matrix_multiplication_validation() {
-        let left = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let right = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
+        let left = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        let right = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+            .expect("operation should succeed");
 
-        let result = MatrixMul::<Two, Three, Two>::multiply(&left, &right).unwrap();
+        let result = MatrixMul::<Two, Three, Two>::multiply(&left, &right)
+            .expect("operation should succeed");
         assert_eq!(result.shape(), &[2, 2]);
 
         // Should fail with incompatible shapes
-        let wrong_right = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let wrong_right = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         assert!(MatrixMul::<Two, Three, Two>::multiply(&left, &wrong_right).is_err());
     }
 }

@@ -22,7 +22,7 @@ pub fn knn_graph(X: &Array2<Float>, n_neighbors: usize, mode: &str) -> SklResult
             }
         }
 
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         match mode {
             "connectivity" => {
@@ -169,7 +169,7 @@ pub fn shared_nn_graph(
             }
         }
 
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         let point_neighbors: Vec<usize> = distances
             .iter()
             .take(n_neighbors)
@@ -274,7 +274,7 @@ pub fn adaptive_knn_graph(X: &Array2<Float>, mode: &str) -> SklResult<Array2<Flo
             }
         }
 
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Adaptive k selection based on distance gaps
         let mut k = 3; // minimum k
@@ -342,7 +342,7 @@ pub fn sparsify_graph(
     }
 
     // Sort edges by weight (keep stronger connections)
-    edges.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+    edges.sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
 
     let keep_count = ((edges.len() as Float) * sparsity_ratio) as usize;
 

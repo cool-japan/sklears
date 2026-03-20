@@ -166,7 +166,7 @@ impl GradientOptimizationCoordinator {
     pub async fn start(&self) -> SklResult<()> {
         // Update coordination state
         {
-            let mut state = self.coordination_state.write().unwrap();
+            let mut state = self.coordination_state.write().unwrap_or_else(|e| e.into_inner());
             state.system_state = SystemState::Starting;
             state.start_time = Some(Instant::now());
         }
@@ -185,7 +185,7 @@ impl GradientOptimizationCoordinator {
 
         // Update state to active
         {
-            let mut state = self.coordination_state.write().unwrap();
+            let mut state = self.coordination_state.write().unwrap_or_else(|e| e.into_inner());
             state.system_state = SystemState::Active;
         }
 
@@ -201,7 +201,7 @@ impl GradientOptimizationCoordinator {
     pub async fn stop(&self) -> SklResult<()> {
         // Update coordination state
         {
-            let mut state = self.coordination_state.write().unwrap();
+            let mut state = self.coordination_state.write().unwrap_or_else(|e| e.into_inner());
             state.system_state = SystemState::Stopping;
         }
 
@@ -219,7 +219,7 @@ impl GradientOptimizationCoordinator {
 
         // Update state to stopped
         {
-            let mut state = self.coordination_state.write().unwrap();
+            let mut state = self.coordination_state.write().unwrap_or_else(|e| e.into_inner());
             state.system_state = SystemState::Stopped;
             state.stop_time = Some(Instant::now());
         }
@@ -286,7 +286,7 @@ impl GradientOptimizationCoordinator {
 
     /// Get comprehensive system status
     pub async fn get_system_status(&self) -> SklResult<SystemStatus> {
-        let coordination_state = self.coordination_state.read().unwrap().clone();
+        let coordination_state = self.coordination_state.read().unwrap_or_else(|e| e.into_inner()).clone();
         let health_summary = self.health_monitor.get_health_summary().await?;
         let subsystem_status = self.subsystem_coordinator.get_status();
         let session_summaries = self.session_manager.get_all_session_summaries().await?;
@@ -717,7 +717,7 @@ impl SessionManager {
 
     pub async fn stop(&self) -> SklResult<()> {
         // Stop all active sessions
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         for session in sessions.values() {
             // Stop session
         }
@@ -731,7 +731,7 @@ impl SessionManager {
         constraints: SafetyConstraints,
     ) -> SklResult<String> {
         // Check session limits
-        let session_count = self.sessions.read().unwrap().len();
+        let session_count = self.sessions.read().unwrap_or_else(|e| e.into_inner()).len();
         if session_count >= self.config.max_concurrent_sessions {
             return Err(CoreError::InvalidOperation(
                 "Maximum concurrent sessions reached".to_string()
@@ -746,21 +746,21 @@ impl SessionManager {
             .build()?;
 
         // Store session
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = self.sessions.write().unwrap_or_else(|e| e.into_inner());
         sessions.insert(session_id.clone(), Arc::new(session));
 
         Ok(session_id)
     }
 
     pub async fn get_session(&self, session_id: &str) -> SklResult<Arc<OptimizationSession>> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         sessions.get(session_id)
             .cloned()
             .ok_or_else(|| CoreError::InvalidOperation(format!("Session {} not found", session_id)))
     }
 
     pub async fn start_session(&self, session_id: &str) -> SklResult<()> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.get(session_id) {
             // Start session - this would need to be implemented with interior mutability
             Ok(())
@@ -770,7 +770,7 @@ impl SessionManager {
     }
 
     pub async fn stop_session(&self, session_id: &str) -> SklResult<()> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(session) = sessions.get(session_id) {
             // Stop session - this would need to be implemented with interior mutability
             Ok(())
@@ -780,7 +780,7 @@ impl SessionManager {
     }
 
     pub async fn get_all_session_summaries(&self) -> SklResult<Vec<SessionSummary>> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read().unwrap_or_else(|e| e.into_inner());
         let summaries = sessions.values()
             .map(|session| session.get_summary())
             .collect();
@@ -823,7 +823,7 @@ impl CoordinationEventBus {
     pub async fn emit_event(&self, event: CoordinationEvent) -> SklResult<()> {
         // Store in history
         {
-            let mut history = self.event_history.write().unwrap();
+            let mut history = self.event_history.write().unwrap_or_else(|e| e.into_inner());
             history.push_back(event.clone());
             if history.len() > 1000 {
                 history.pop_front();
@@ -832,7 +832,7 @@ impl CoordinationEventBus {
 
         // Notify subscribers
         let event_type = event.event_type();
-        let subscribers = self.subscribers.read().unwrap();
+        let subscribers = self.subscribers.read().unwrap_or_else(|e| e.into_inner());
         if let Some(subs) = subscribers.get(&event_type) {
             for subscriber in subs {
                 subscriber.notify(&event);
@@ -843,7 +843,7 @@ impl CoordinationEventBus {
     }
 
     pub fn subscribe(&self, event_type: String, subscriber: EventSubscriber) {
-        let mut subscribers = self.subscribers.write().unwrap();
+        let mut subscribers = self.subscribers.write().unwrap_or_else(|e| e.into_inner());
         subscribers.entry(event_type).or_insert_with(Vec::new).push(subscriber);
     }
 }
@@ -942,7 +942,7 @@ impl IntegrationLayer {
     }
 
     pub fn register_adapter(&self, name: String, adapter: Box<dyn ExternalAdapter>) {
-        let mut adapters = self.external_adapters.write().unwrap();
+        let mut adapters = self.external_adapters.write().unwrap_or_else(|e| e.into_inner());
         adapters.insert(name, adapter);
     }
 }

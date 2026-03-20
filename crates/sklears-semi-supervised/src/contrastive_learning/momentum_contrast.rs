@@ -1,7 +1,7 @@
 //! Momentum Contrast (MoCo) implementation for semi-supervised learning
 
 use super::{ContrastiveLearningError, *};
-use scirs2_core::random::{rand_prelude::SliceRandom, Rng};
+use scirs2_core::random::{rand_prelude::SliceRandom, Rng, RngExt};
 
 /// Momentum Contrast (MoCo) adaptation for semi-supervised learning
 ///
@@ -148,7 +148,7 @@ impl MomentumContrast {
 
         // Feature scaling perturbation
         for mut row in augmented.axis_iter_mut(Axis(0)) {
-            let scale_factor = 1.0 + self.augmentation_strength * (rng.gen::<f64>() - 0.5);
+            let scale_factor = 1.0 + self.augmentation_strength * (rng.random::<f64>() - 0.5);
             row *= scale_factor;
         }
 
@@ -547,15 +547,19 @@ mod tests {
             .batch_size(3)
             .random_state(42);
 
-        let fitted = moco.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = moco
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 6);
         for &pred in predictions.iter() {
             assert!(pred >= 0 && pred < 2);
         }
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -622,8 +626,10 @@ mod tests {
             .max_epochs(2)
             .batch_size(2);
 
-        let fitted = moco.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = moco
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         // All predictions should be 0 when no labeled classes exist

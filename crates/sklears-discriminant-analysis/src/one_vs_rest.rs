@@ -327,17 +327,22 @@ impl Fit<Array2<Float>, Array1<i32>> for OneVsRestDiscriminantAnalysis<Untrained
 impl OneVsRestDiscriminantAnalysis<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the trained classifiers
     pub fn classifiers(&self) -> &Vec<BinaryClassifier<Trained>> {
-        self.classifiers_.as_ref().unwrap()
+        self.classifiers_
+            .as_ref()
+            .expect("classifiers_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features(&self) -> usize {
-        self.n_features_.unwrap()
+        self.n_features_
+            .expect("n_features_ not available - model not fitted")
     }
 }
 

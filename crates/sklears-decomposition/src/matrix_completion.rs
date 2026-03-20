@@ -429,7 +429,7 @@ impl MatrixCompletion<Untrained> {
                     if mask[[i, j]] {
                         let rating = matrix[[i, j]] - global_bias;
                         let rating = if self.use_bias {
-                            rating - item_bias.as_ref().unwrap()[j]
+                            rating - item_bias.as_ref().expect("operation should succeed")[j]
                         } else {
                             rating
                         };
@@ -458,7 +458,7 @@ impl MatrixCompletion<Untrained> {
                     if mask[[i, j]] {
                         let rating = matrix[[i, j]] - global_bias;
                         let rating = if self.use_bias {
-                            rating - user_bias.as_ref().unwrap()[i]
+                            rating - user_bias.as_ref().expect("operation should succeed")[i]
                         } else {
                             rating
                         };
@@ -488,7 +488,7 @@ impl MatrixCompletion<Untrained> {
                         for j in 0..n_items {
                             if mask[[i, j]] {
                                 let predicted = global_bias + u.row(i).dot(&v.row(j));
-                                let predicted = predicted + item_bias.as_ref().unwrap()[j];
+                                let predicted = predicted + item_bias.as_ref().expect("operation should succeed")[j];
                                 sum += matrix[[i, j]] - predicted;
                                 count += 1;
                             }
@@ -507,7 +507,7 @@ impl MatrixCompletion<Untrained> {
                         for i in 0..n_users {
                             if mask[[i, j]] {
                                 let predicted = global_bias + u.row(i).dot(&v.row(j));
-                                let predicted = predicted + user_bias.as_ref().unwrap()[i];
+                                let predicted = predicted + user_bias.as_ref().expect("operation should succeed")[i];
                                 sum += matrix[[i, j]] - predicted;
                                 count += 1;
                             }
@@ -528,8 +528,8 @@ impl MatrixCompletion<Untrained> {
                         let predicted = global_bias + u.row(i).dot(&v.row(j));
                         let predicted = if self.use_bias {
                             predicted
-                                + user_bias.as_ref().unwrap()[i]
-                                + item_bias.as_ref().unwrap()[j]
+                                + user_bias.as_ref().expect("operation should succeed")[i]
+                                + item_bias.as_ref().expect("operation should succeed")[j]
                         } else {
                             predicted
                         };
@@ -1439,16 +1439,16 @@ mod tests {
         let result = mc.fit(&matrix, &mask);
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         assert_eq!(trained.state.rank, 2);
         assert!(trained.state.reconstruction_error.is_finite());
 
         // Test completion
-        let completed = trained.complete(&matrix, &mask).unwrap();
+        let completed = trained.complete(&matrix, &mask).expect("operation should succeed");
         assert_eq!(completed.dim(), matrix.dim());
 
         // Test prediction
-        let prediction = trained.predict(0, 2).unwrap();
+        let prediction = trained.predict(0, 2).expect("prediction should succeed");
         assert!(prediction.is_finite());
     }
 
@@ -1475,7 +1475,7 @@ mod tests {
         let result = mc.fit(&matrix, &mask);
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         assert_eq!(trained.state.rank, 2);
         assert!(trained.state.n_iter > 0);
     }
@@ -1496,7 +1496,7 @@ mod tests {
         let result = mc.fit(&matrix, &mask);
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         assert!(trained.state.reconstruction_error.is_finite());
     }
 
@@ -1555,7 +1555,7 @@ mod tests {
             .mu(0.1)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&corrupted, &()).unwrap();
+        let trained_lrmr = lrmr.fit(&corrupted, &()).expect("model fitting should succeed");
 
         assert_eq!(trained_lrmr.low_rank_component().dim(), (3, 3));
         assert_eq!(trained_lrmr.sparse_component().dim(), (3, 3));
@@ -1585,13 +1585,13 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&matrix, &()).unwrap();
+        let trained_lrmr = lrmr.fit(&matrix, &()).expect("model fitting should succeed");
 
         assert_eq!(trained_lrmr.estimated_rank(), 1);
         assert!(trained_lrmr.state.n_iter <= 50);
 
         // Test transform
-        let recovered = trained_lrmr.transform(&matrix).unwrap();
+        let recovered = trained_lrmr.transform(&matrix).expect("transformation should succeed");
         assert_eq!(recovered.dim(), (2, 2));
 
         // All values should be finite
@@ -1616,7 +1616,7 @@ mod tests {
             .lambda(0.01)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&matrix, &()).unwrap();
+        let trained_lrmr = lrmr.fit(&matrix, &()).expect("model fitting should succeed");
 
         assert!(trained_lrmr.estimated_rank() >= 1 && trained_lrmr.estimated_rank() <= 3);
         assert!(trained_lrmr.state.n_iter <= 20);
@@ -1624,7 +1624,7 @@ mod tests {
         // Check that factors are available
         assert!(trained_lrmr.factors().is_some());
 
-        let (u, s, vt) = trained_lrmr.factors().as_ref().unwrap();
+        let (u, s, vt) = trained_lrmr.factors().as_ref().expect("operation should succeed");
         assert_eq!(u.ncols(), 2);
         assert_eq!(vt.nrows(), 2);
         assert_eq!(s.len(), 3); // min(m, n)
@@ -1672,7 +1672,7 @@ mod tests {
             .mu(0.1)
             .random_state(42);
 
-        let trained_lrmr = lrmr.fit(&matrix, &()).unwrap();
+        let trained_lrmr = lrmr.fit(&matrix, &()).expect("model fitting should succeed");
 
         // Should converge quickly for a simple case
         assert!(trained_lrmr.state.n_iter <= 100);

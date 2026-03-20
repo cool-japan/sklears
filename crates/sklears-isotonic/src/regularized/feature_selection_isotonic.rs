@@ -36,7 +36,7 @@
 //!     3.0, 1.0, 2.0,
 //!     4.0, 4.0, 4.0,
 //!     5.0, 5.0, 5.0,
-//! ]).unwrap();
+//! ]).expect("operation should succeed");
 //! let y = Array1::from(vec![1.0, 2.0, 2.5, 4.0, 5.0]);
 //!
 //! // Create feature selection model
@@ -45,8 +45,8 @@
 //!     .n_features_to_select(2)
 //!     .selection_threshold(0.1);
 //!
-//! let fitted = model.fit(&x, &y).unwrap();
-//! let predictions = fitted.predict(&x).unwrap();
+//! let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+//! let predictions = fitted.predict(&x).expect("prediction should succeed");
 //! ```
 
 use scirs2_core::ndarray::{Array1, Array2};
@@ -389,7 +389,11 @@ impl FeatureSelectionIsotonicRegression<Untrained> {
         if let Some(n_select) = self.n_features_to_select {
             // Select top n features
             let mut indices: Vec<usize> = (0..n_features).collect();
-            indices.sort_by(|&a, &b| abs_scores[b].partial_cmp(&abs_scores[a]).unwrap());
+            indices.sort_by(|&a, &b| {
+                abs_scores[b]
+                    .partial_cmp(&abs_scores[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             selected_features = indices.into_iter().take(n_select).collect();
         } else {
             // Select features above threshold
@@ -569,7 +573,8 @@ impl FeatureSelectionIsotonicRegression<Untrained> {
             }
 
             // Remove the least important feature
-            feature_importance.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            feature_importance
+                .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             if let Some((worst_feature, importance)) = feature_importance.first() {
                 feature_mask[*worst_feature] = false;
                 scores[*worst_feature] = *importance;
@@ -623,7 +628,11 @@ impl FeatureSelectionIsotonicRegression<Untrained> {
             // Select top n features by absolute score
             let abs_scores = scores.mapv(|x| x.abs());
             let mut indices: Vec<usize> = (0..n_features).collect();
-            indices.sort_by(|&a, &b| abs_scores[b].partial_cmp(&abs_scores[a]).unwrap());
+            indices.sort_by(|&a, &b| {
+                abs_scores[b]
+                    .partial_cmp(&abs_scores[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             selected_features = indices.into_iter().take(n_select).collect();
         } else {
             // Select features above threshold
@@ -668,7 +677,11 @@ impl FeatureSelectionIsotonicRegression<Untrained> {
         if let Some(n_select) = self.n_features_to_select {
             // Select top n features
             let mut indices: Vec<usize> = (0..n_features).collect();
-            indices.sort_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap());
+            indices.sort_by(|&a, &b| {
+                scores[b]
+                    .partial_cmp(&scores[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             selected_features = indices.into_iter().take(n_select).collect();
         } else {
             // Select features above threshold
@@ -745,14 +758,28 @@ impl FeatureSelectionIsotonicRegression<Untrained> {
 
                 let fitted = isotonic.fit(&x_train.column(0).to_owned(), &y_train)?;
                 let predictions = fitted.predict(&x_test.column(0).to_owned())?;
-                let score = -simd_mse(predictions.as_slice().unwrap(), y_test.as_slice().unwrap());
+                let score = -simd_mse(
+                    predictions.as_slice().ok_or_else(|| {
+                        SklearsError::NumericalError("array should be contiguous".into())
+                    })?,
+                    y_test.as_slice().ok_or_else(|| {
+                        SklearsError::NumericalError("array should be contiguous".into())
+                    })?,
+                );
                 scores.push(score);
             } else {
                 let additive = AdditiveIsotonicRegression::new(features.len()).loss(self.loss);
 
                 let fitted = additive.fit(&x_train, &y_train)?;
                 let predictions = fitted.predict(&x_test)?;
-                let score = -simd_mse(predictions.as_slice().unwrap(), y_test.as_slice().unwrap());
+                let score = -simd_mse(
+                    predictions.as_slice().ok_or_else(|| {
+                        SklearsError::NumericalError("array should be contiguous".into())
+                    })?,
+                    y_test.as_slice().ok_or_else(|| {
+                        SklearsError::NumericalError("array should be contiguous".into())
+                    })?,
+                );
                 scores.push(score);
             }
         }
@@ -767,8 +794,14 @@ impl FeatureSelectionIsotonicRegression<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for FeatureSelectionIsotonicRegression<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let isotonic_models = self.isotonic_models_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let isotonic_models = self
+            .isotonic_models_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.ncols() < *selected_features.iter().max().unwrap_or(&0) + 1 {
             return Err(SklearsError::InvalidInput(
@@ -858,8 +891,8 @@ mod tests {
             .selection_method(FeatureSelectionMethod::UnivariateMonotonic)
             .n_features_to_select(2);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert_eq!(fitted.n_selected_features(), 2);
@@ -880,12 +913,14 @@ mod tests {
             .selection_method(FeatureSelectionMethod::UnivariateMonotonic)
             .selection_threshold(0.5);
 
-        let fitted = model.fit(&x, &y).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Feature 0 should have high positive correlation
         // Feature 1 should have high negative correlation
         // Feature 2 should have moderate positive correlation
-        let selected = fitted.selected_features().unwrap();
+        let selected = fitted
+            .selected_features()
+            .expect("operation should succeed");
         assert!(selected.contains(&0)); // Should be selected (perfect correlation)
     }
 
@@ -904,7 +939,7 @@ mod tests {
             .selection_method(FeatureSelectionMethod::ForwardSelection)
             .n_features_to_select(2);
 
-        let fitted = model.fit(&x, &y).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
         assert!(fitted.n_selected_features() <= 2);
     }
 
@@ -923,7 +958,7 @@ mod tests {
             .selection_method(FeatureSelectionMethod::L1Regularization { alpha: 0.5 })
             .selection_threshold(0.1);
 
-        let fitted = model.fit(&x, &y).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
         assert!(fitted.n_selected_features() >= 1);
     }
 
@@ -942,7 +977,7 @@ mod tests {
             .selection_method(FeatureSelectionMethod::MutualInformation)
             .n_features_to_select(2);
 
-        let fitted = model.fit(&x, &y).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
         assert_eq!(fitted.n_selected_features(), 2);
     }
 
@@ -966,7 +1001,7 @@ mod tests {
                 .selection_method(method)
                 .n_features_to_select(1);
 
-            let fitted = model.fit(&x, &y).unwrap();
+            let fitted = model.fit(&x, &y).expect("model fitting should succeed");
             assert_eq!(fitted.n_selected_features(), 1);
         }
     }
@@ -1000,7 +1035,7 @@ mod tests {
             .selection_method(FeatureSelectionMethod::UnivariateMonotonic)
             .n_features_to_select(2);
 
-        let fitted = model.fit(&x, &y).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that some features are selected and some are not
         let mut n_selected = 0;

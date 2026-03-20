@@ -147,8 +147,8 @@ impl<T: FloatBounds> NoiseScheduler<T> {
 
         // Log variance (clipped for numerical stability)
         let posterior_log_variance_clipped = posterior_variance.mapv(|v| {
-            let v_f64 = v.to_f64().unwrap();
-            T::from(v_f64.max(1e-20).ln()).unwrap()
+            let v_f64 = v.to_f64().unwrap_or(0.0);
+            T::from(v_f64.max(1e-20).ln()).unwrap_or_else(|| T::zero())
         });
 
         Self {
@@ -169,41 +169,48 @@ impl<T: FloatBounds> NoiseScheduler<T> {
     /// Compute beta schedule based on configuration
     fn compute_beta_schedule(config: &DiffusionConfig) -> Array1<T> {
         let num_timesteps = config.num_timesteps;
-        let beta_start = T::from(config.beta_start).unwrap();
-        let beta_end = T::from(config.beta_end).unwrap();
+        let beta_start = T::from(config.beta_start).unwrap_or_else(|| T::zero());
+        let beta_end = T::from(config.beta_end).unwrap_or_else(|| T::zero());
 
         match config.schedule {
             NoiseSchedule::Linear => {
                 // Linear schedule: β_t = β_start + (β_end - β_start) * t / T
                 Array1::from_shape_fn(num_timesteps, |t| {
-                    let progress = T::from(t as f64 / num_timesteps as f64).unwrap();
+                    let progress =
+                        T::from(t as f64 / num_timesteps as f64).unwrap_or_else(|| T::zero());
                     beta_start + (beta_end - beta_start) * progress
                 })
             }
             NoiseSchedule::Cosine => {
                 // Cosine schedule (improved)
-                let s = T::from(0.008).unwrap();
+                let s = T::from(0.008).unwrap_or_else(|| T::zero());
                 Array1::from_shape_fn(num_timesteps, |t| {
                     let t_f64 = (t as f64 + 1.0) / num_timesteps as f64;
-                    let alpha_t =
-                        ((t_f64 + s.to_f64().unwrap()) / (1.0 + s.to_f64().unwrap()) * PI / 2.0)
-                            .cos()
-                            .powi(2);
+                    let alpha_t = ((t_f64 + s.to_f64().unwrap_or(0.0))
+                        / (1.0 + s.to_f64().unwrap_or(0.0))
+                        * PI
+                        / 2.0)
+                        .cos()
+                        .powi(2);
                     let alpha_t_minus_1 = if t == 0 {
                         1.0
                     } else {
                         let t_prev = t as f64 / num_timesteps as f64;
-                        ((t_prev + s.to_f64().unwrap()) / (1.0 + s.to_f64().unwrap()) * PI / 2.0)
+                        ((t_prev + s.to_f64().unwrap_or(0.0)) / (1.0 + s.to_f64().unwrap_or(0.0))
+                            * PI
+                            / 2.0)
                             .cos()
                             .powi(2)
                     };
-                    T::from((1.0 - alpha_t / alpha_t_minus_1).min(0.999)).unwrap()
+                    T::from((1.0 - alpha_t / alpha_t_minus_1).min(0.999))
+                        .unwrap_or_else(|| T::zero())
                 })
             }
             NoiseSchedule::Quadratic => {
                 // Quadratic schedule
                 Array1::from_shape_fn(num_timesteps, |t| {
-                    let progress = T::from(t as f64 / num_timesteps as f64).unwrap();
+                    let progress =
+                        T::from(t as f64 / num_timesteps as f64).unwrap_or_else(|| T::zero());
                     beta_start + (beta_end - beta_start) * progress * progress
                 })
             }
@@ -213,10 +220,12 @@ impl<T: FloatBounds> NoiseScheduler<T> {
                     let progress = t as f64 / num_timesteps as f64;
                     let sig = 1.0 / (1.0 + (-12.0 * (progress - 0.5)).exp());
                     T::from(
-                        beta_start.to_f64().unwrap()
-                            + (beta_end.to_f64().unwrap() - beta_start.to_f64().unwrap()) * sig,
+                        beta_start.to_f64().unwrap_or(0.0)
+                            + (beta_end.to_f64().unwrap_or(0.0)
+                                - beta_start.to_f64().unwrap_or(0.0))
+                                * sig,
                     )
-                    .unwrap()
+                    .expect("value should be present")
                 })
             }
         }
@@ -320,7 +329,11 @@ impl<T: FloatBounds + ScalarOperand> MLPDenoiser<T> {
         for &hidden_dim in &hidden_dims {
             let std = (2.0 / prev_dim as f64).sqrt();
             let w = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
-                T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+                T::from(
+                    rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                        * std,
+                )
+                .unwrap_or_else(|| T::zero())
             });
             let b = Array1::zeros(hidden_dim);
             weights.push(w);
@@ -330,7 +343,11 @@ impl<T: FloatBounds + ScalarOperand> MLPDenoiser<T> {
 
         // Output layer
         let w = Array2::from_shape_fn((prev_dim, input_dim), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * 0.01).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * 0.01,
+            )
+            .unwrap_or_else(|| T::zero())
         });
         let b = Array1::zeros(input_dim);
         weights.push(w);
@@ -356,10 +373,10 @@ impl<T: FloatBounds + ScalarOperand> MLPDenoiser<T> {
         Array2::from_shape_fn((batch_size, embed_dim), |(_, j)| {
             if j < half_dim {
                 let freq = (j as f64 / half_dim as f64 * 10.0).exp();
-                T::from((t_norm * freq).sin()).unwrap()
+                T::from((t_norm * freq).sin()).unwrap_or_else(|| T::zero())
             } else {
                 let freq = ((j - half_dim) as f64 / half_dim as f64 * 10.0).exp();
-                T::from((t_norm * freq).cos()).unwrap()
+                T::from((t_norm * freq).cos()).unwrap_or_else(|| T::zero())
             }
         })
     }
@@ -451,7 +468,8 @@ impl<T: FloatBounds + ScalarOperand, N: DenoisingNetwork<T>> DDPM<T, N> {
 
         // Sample noise
         let noise = Array2::from_shape_fn(x0.dim(), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap())).unwrap()
+            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params")))
+                .unwrap_or_else(|| T::zero())
         });
 
         // Add noise to data
@@ -462,7 +480,10 @@ impl<T: FloatBounds + ScalarOperand, N: DenoisingNetwork<T>> DDPM<T, N> {
 
         // Compute MSE loss
         let diff = &noise_pred - &noise;
-        let loss = diff.mapv(|x| x * x).mean().unwrap();
+        let loss = diff
+            .mapv(|x| x * x)
+            .mean()
+            .expect("mean should not fail on non-empty array");
 
         Ok(loss)
     }
@@ -473,7 +494,8 @@ impl<T: FloatBounds + ScalarOperand, N: DenoisingNetwork<T>> DDPM<T, N> {
 
         // Start from pure noise
         let mut x = Array2::from_shape_fn((n_samples, input_dim), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap())).unwrap()
+            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params")))
+                .unwrap_or_else(|| T::zero())
         });
 
         // Reverse diffusion process
@@ -491,8 +513,8 @@ impl<T: FloatBounds + ScalarOperand, N: DenoisingNetwork<T>> DDPM<T, N> {
             // Clip if configured
             let x0_pred = if self.config.clip_denoised {
                 x0_pred.mapv(|xi| {
-                    let xi_f64 = xi.to_f64().unwrap();
-                    T::from(xi_f64.clamp(-1.0, 1.0)).unwrap()
+                    let xi_f64 = xi.to_f64().unwrap_or(0.0);
+                    T::from(xi_f64.clamp(-1.0, 1.0)).unwrap_or_else(|| T::zero())
                 })
             } else {
                 x0_pred
@@ -504,7 +526,10 @@ impl<T: FloatBounds + ScalarOperand, N: DenoisingNetwork<T>> DDPM<T, N> {
             // Add noise (except for last step)
             if t > 0 {
                 let z = Array2::from_shape_fn(x.dim(), |_| {
-                    T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap())).unwrap()
+                    T::from(rng.sample::<f64, _>(
+                        Normal::new(0.0, 1.0).expect("valid distribution params"),
+                    ))
+                    .unwrap_or_else(|| T::zero())
                 });
                 x = mean + z.mapv(|zi| zi * variance.sqrt());
             } else {
@@ -584,10 +609,14 @@ mod tests {
         };
         let scheduler: NoiseScheduler<f64> = NoiseScheduler::new(&config);
 
-        let x0 = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let noise = Array2::from_shape_vec((2, 3), vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6]).unwrap();
+        let x0 = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array shape mismatch");
+        let noise = Array2::from_shape_vec((2, 3), vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+            .expect("array shape mismatch");
 
-        let x_t = scheduler.add_noise(&x0, &noise, 5).unwrap();
+        let x_t = scheduler
+            .add_noise(&x0, &noise, 5)
+            .expect("operation should succeed");
 
         assert_eq!(x_t.dim(), x0.dim());
         // Noisy data should be different from original
@@ -602,10 +631,14 @@ mod tests {
         };
         let scheduler: NoiseScheduler<f64> = NoiseScheduler::new(&config);
 
-        let x_t = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let x0_pred = Array2::from_shape_vec((2, 3), vec![0.9, 1.9, 2.9, 3.9, 4.9, 5.9]).unwrap();
+        let x_t = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array shape mismatch");
+        let x0_pred = Array2::from_shape_vec((2, 3), vec![0.9, 1.9, 2.9, 3.9, 4.9, 5.9])
+            .expect("array shape mismatch");
 
-        let (mean, variance) = scheduler.get_posterior(&x_t, &x0_pred, 5).unwrap();
+        let (mean, variance) = scheduler
+            .get_posterior(&x_t, &x0_pred, 5)
+            .expect("operation should succeed");
 
         assert_eq!(mean.dim(), x_t.dim());
         assert!(variance.is_finite());
@@ -625,7 +658,9 @@ mod tests {
         let mut denoiser: MLPDenoiser<f64> = MLPDenoiser::new(8, vec![32], 1000);
 
         let x_t = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
-        let noise_pred = denoiser.predict(&x_t, 500).unwrap();
+        let noise_pred = denoiser
+            .predict(&x_t, 500)
+            .expect("prediction should succeed");
 
         assert_eq!(noise_pred.dim(), x_t.dim());
     }
@@ -653,7 +688,7 @@ mod tests {
         let mut ddpm = DDPM::new(config, network);
 
         let x0 = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
-        let loss = ddpm.train_step(&x0).unwrap();
+        let loss = ddpm.train_step(&x0).expect("operation should succeed");
 
         assert!(loss.is_finite());
         assert!(loss >= 0.0);
@@ -668,7 +703,7 @@ mod tests {
         let network = MLPDenoiser::<f64>::new(6, vec![16], config.num_timesteps);
         let mut ddpm = DDPM::new(config, network);
 
-        let samples = ddpm.sample(2, 6).unwrap();
+        let samples = ddpm.sample(2, 6).expect("sampling should succeed");
 
         assert_eq!(samples.nrows(), 2);
         assert_eq!(samples.ncols(), 6);

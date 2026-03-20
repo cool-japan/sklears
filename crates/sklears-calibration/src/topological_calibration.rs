@@ -543,7 +543,7 @@ impl TopologicalCalibrationAnalyzer {
                 .iter()
                 .map(|&idx| complex.simplices[idx].birth_time)
                 .collect();
-            birth_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            birth_times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             // Create intervals with heuristic death times
             for &birth in &birth_times {
@@ -567,7 +567,7 @@ impl TopologicalCalibrationAnalyzer {
         // Sample filtration parameter values
         let mut filtration_values: Vec<Float> =
             complex.simplices.iter().map(|s| s.birth_time).collect();
-        filtration_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        filtration_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         filtration_values.dedup();
 
         for &t in &filtration_values {
@@ -657,7 +657,8 @@ impl TopologicalCalibrationAnalyzer {
         if !persistences.is_empty() {
             // Landscape function values at different levels
             let mut sorted_persistences = persistences.to_vec();
-            sorted_persistences.sort_by(|a, b| b.partial_cmp(a).unwrap()); // Descending order
+            sorted_persistences
+                .sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal)); // Descending order
 
             // Top-k persistence values
             for k in 1..=5.min(sorted_persistences.len()) {
@@ -1087,10 +1088,12 @@ mod tests {
                 0.5, 1.0, // vertex 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut complex = SimplicialComplex::new(vertex_positions);
-        complex.construct_vietoris_rips(1.5).unwrap();
+        complex
+            .construct_vietoris_rips(1.5)
+            .expect("operation should succeed");
 
         assert!(!complex.simplices.is_empty());
         assert!(complex.simplices_by_dimension.contains_key(&0)); // vertices
@@ -1100,12 +1103,17 @@ mod tests {
     #[test]
     fn test_betti_numbers_computation() {
         let vertex_positions =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0])
+                .expect("shape should match data length");
 
         let mut complex = SimplicialComplex::new(vertex_positions);
-        complex.construct_vietoris_rips(1.5).unwrap();
+        complex
+            .construct_vietoris_rips(1.5)
+            .expect("operation should succeed");
 
-        let betti_numbers = complex.compute_betti_numbers(2).unwrap();
+        let betti_numbers = complex
+            .compute_betti_numbers(2)
+            .expect("operation should succeed");
 
         assert_eq!(betti_numbers.len(), 3);
         assert!(betti_numbers[0] >= 1); // At least one connected component
@@ -1119,7 +1127,7 @@ mod tests {
 
         let result = analyzer
             .analyze_calibration_topology(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!result.topological_features.betti_numbers.is_empty());
         assert!(result.calibration_metrics.topological_calibration_error >= 0.0);
@@ -1144,7 +1152,7 @@ mod tests {
 
         let mapper_graph = analyzer
             .construct_mapper_graph(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!mapper_graph.nodes.is_empty());
         assert_eq!(mapper_graph.filter_function, "calibration_error");
@@ -1152,14 +1160,18 @@ mod tests {
 
     #[test]
     fn test_topological_features_extraction() {
-        let vertex_positions =
-            Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.5, 0.5]).unwrap();
+        let vertex_positions = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.5, 0.5])
+            .expect("shape should match data length");
 
         let mut complex = SimplicialComplex::new(vertex_positions);
-        complex.construct_vietoris_rips(1.0).unwrap();
+        complex
+            .construct_vietoris_rips(1.0)
+            .expect("operation should succeed");
 
         let analyzer = TopologicalCalibrationAnalyzer::default();
-        let features = analyzer.extract_topological_features(&complex).unwrap();
+        let features = analyzer
+            .extract_topological_features(&complex)
+            .expect("operation should succeed");
 
         assert!(!features.betti_numbers.is_empty());
         assert!(features.simplicial_volume >= 0.0);
@@ -1169,13 +1181,18 @@ mod tests {
     #[test]
     fn test_persistent_homology_computation() {
         let vertex_positions =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+                .expect("shape should match data length");
 
         let mut complex = SimplicialComplex::new(vertex_positions);
-        complex.construct_vietoris_rips(2.0).unwrap();
+        complex
+            .construct_vietoris_rips(2.0)
+            .expect("operation should succeed");
 
         let analyzer = TopologicalCalibrationAnalyzer::default();
-        let ph = analyzer.compute_persistent_homology(&complex).unwrap();
+        let ph = analyzer
+            .compute_persistent_homology(&complex)
+            .expect("operation should succeed");
 
         assert!(!ph.persistence_diagram.is_empty());
         assert!(!ph.persistence_intervals.is_empty());
@@ -1187,7 +1204,9 @@ mod tests {
         let analyzer = TopologicalCalibrationAnalyzer::default();
         let persistences = vec![0.1, 0.2, 0.3, 0.4];
 
-        let entropy = analyzer.compute_topological_entropy(&persistences).unwrap();
+        let entropy = analyzer
+            .compute_topological_entropy(&persistences)
+            .expect("operation should succeed");
         assert!(entropy > 0.0);
     }
 }

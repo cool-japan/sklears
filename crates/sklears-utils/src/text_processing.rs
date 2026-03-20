@@ -511,8 +511,8 @@ mod tests {
         assert_eq!(numbers, vec![12.99, 5.0, -2.5]);
 
         let freq = TextParser::word_frequency("hello world hello");
-        assert_eq!(*freq.get("hello").unwrap(), 2);
-        assert_eq!(*freq.get("world").unwrap(), 1);
+        assert_eq!(*freq.get("hello").expect("operation should succeed"), 2);
+        assert_eq!(*freq.get("world").expect("operation should succeed"), 1);
     }
 
     #[test]

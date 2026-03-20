@@ -643,9 +643,9 @@ impl Predict<Array2<f64>, Array1<i32>> for TrainedPrimalDualSVM {
                 let best_class_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("value should be present");
                 predictions[i] = self.classes_[best_class_idx];
             }
             Ok(predictions)
@@ -737,13 +737,17 @@ mod tests {
             .with_c(1.0)
             .with_max_iter(500)
             .with_verbose(true);
-        let trained_model = model.fit(&X_var, &y).unwrap();
+        let trained_model = model.fit(&X_var, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X_var).unwrap();
+        let predictions = trained_model
+            .predict(&X_var)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test decision function
-        let scores = trained_model.decision_function(&X_var).unwrap();
+        let scores = trained_model
+            .decision_function(&X_var)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (4, 1));
 
         // Test dual coefficients
@@ -763,13 +767,17 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let model = PrimalDualSVM::new().with_c(1.0).with_max_iter(500);
-        let trained_model = model.fit(&X_var, &y).unwrap();
+        let trained_model = model.fit(&X_var, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X_var).unwrap();
+        let predictions = trained_model
+            .predict(&X_var)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test decision function for multiclass
-        let scores = trained_model.decision_function(&X_var).unwrap();
+        let scores = trained_model
+            .decision_function(&X_var)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (6, 3)); // 6 samples, 3 classes
     }
 
@@ -808,8 +816,8 @@ mod tests {
             .with_tol(1e-6)
             .with_adaptive_step_size(true);
 
-        let trained = model.fit(&X_var, &y).unwrap();
-        let predictions = trained.predict(&X_var).unwrap();
+        let trained = model.fit(&X_var, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X_var).expect("prediction should succeed");
 
         // Check that we have reasonable accuracy
         let accuracy = predictions

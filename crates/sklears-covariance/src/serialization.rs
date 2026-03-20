@@ -726,11 +726,11 @@ mod tests {
         let registry = ModelRegistry::new();
         
         // Test serialization to bytes
-        let bytes = registry.serialize_to_bytes(&model, None, None).unwrap();
+        let bytes = registry.serialize_to_bytes(&model, None, None).expect("serialization should succeed");
         assert!(!bytes.is_empty());
 
         // Test deserialization from bytes
-        let deserialized = registry.deserialize_from_bytes(&bytes, None, None).unwrap();
+        let deserialized = registry.deserialize_from_bytes(&bytes, None, None).expect("serialization should succeed");
         assert_eq!(deserialized.get_covariance().dim(), (2, 2));
     }
 
@@ -777,10 +777,10 @@ mod tests {
 
         // Test different formats
         for format in [SerializationFormat::Json, SerializationFormat::Bincode, SerializationFormat::Custom] {
-            let bytes = registry.serialize_to_bytes(&model, Some(format.clone()), None).unwrap();
+            let bytes = registry.serialize_to_bytes(&model, Some(format.clone()), None).expect("serialization should succeed");
             assert!(!bytes.is_empty());
 
-            let deserialized = registry.deserialize_from_bytes(&bytes, Some(format), None).unwrap();
+            let deserialized = registry.deserialize_from_bytes(&bytes, Some(format), None).expect("serialization should succeed");
             assert_eq!(deserialized.get_covariance().dim(), (2, 2));
         }
     }
@@ -804,15 +804,15 @@ mod tests {
         let registry = ModelRegistry::new();
 
         // Test with compression
-        let bytes_uncompressed = registry.serialize_to_bytes(&model, None, Some(CompressionMethod::None)).unwrap();
-        let bytes_compressed = registry.serialize_to_bytes(&model, None, Some(CompressionMethod::Gzip)).unwrap();
+        let bytes_uncompressed = registry.serialize_to_bytes(&model, None, Some(CompressionMethod::None)).expect("serialization should succeed");
+        let bytes_compressed = registry.serialize_to_bytes(&model, None, Some(CompressionMethod::Gzip)).expect("serialization should succeed");
 
         // Compressed should generally be smaller for larger data
         // For small test data, it might actually be larger due to overhead
         assert!(!bytes_compressed.is_empty());
 
         // Test decompression
-        let deserialized = registry.deserialize_from_bytes(&bytes_compressed, None, Some(CompressionMethod::Gzip)).unwrap();
+        let deserialized = registry.deserialize_from_bytes(&bytes_compressed, None, Some(CompressionMethod::Gzip)).expect("serialization should succeed");
         assert_eq!(deserialized.get_covariance().dim(), (2, 2));
     }
 }

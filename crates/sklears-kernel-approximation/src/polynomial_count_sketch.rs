@@ -3,7 +3,7 @@ use oxifft::{Complex, Direction, Flags, Plan};
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -131,7 +131,7 @@ impl Fit<Array2<Float>, ()> for PolynomialCountSketch<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Generate hash functions for Count Sketch
@@ -150,7 +150,7 @@ impl Fit<Array2<Float>, ()> for PolynomialCountSketch<Untrained> {
                 index_hash[[d, j, 0]] = rng.sample(index_uniform);
 
                 // Bit hash: random ±1
-                bit_hash[[d, j, 0]] = if rng.gen::<bool>() { 1.0 } else { -1.0 };
+                bit_hash[[d, j, 0]] = if rng.random::<bool>() { 1.0 } else { -1.0 };
             }
         }
 
@@ -300,8 +300,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let poly_sketch = PolynomialCountSketch::new(32); // Power of 2 for FFT
-        let fitted = poly_sketch.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly_sketch.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[2, 32]);
     }
@@ -311,8 +311,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let poly_sketch = PolynomialCountSketch::new(16).coef0(1.0).degree(3);
-        let fitted = poly_sketch.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly_sketch.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[2, 16]);
     }
@@ -322,12 +322,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let poly1 = PolynomialCountSketch::new(16).random_state(42);
-        let fitted1 = poly1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = poly1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let poly2 = PolynomialCountSketch::new(16).random_state(42);
-        let fitted2 = poly2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = poly2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be identical with same random state
         for (a, b) in result1.iter().zip(result2.iter()) {

@@ -1,11 +1,29 @@
-//! ONNX Export Support
+//! ONNX Export Support (Stub)
 //!
-//! Provides functionality to export multiclass models to ONNX format.
+//! Provides data structures and graph-building utilities for representing
+//! multiclass models in the ONNX format.
+//!
+//! # Note
+//!
+//! Full ONNX serialization (protobuf generation and file I/O) is **not**
+//! implemented in v0.1.0. The types in this module let you construct an
+//! in-memory ONNX graph representation and inspect it via
+//! [`ONNXModel::summary`], but [`ONNXModel::to_proto`] and
+//! [`ONNXModel::save`] currently return
+//! `Err(SklearsError::NotImplemented(...))`.
+//!
+//! Full ONNX export is planned for **v0.2.0**.
 
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::path::Path;
 
-/// ONNX export configuration
+/// ONNX export configuration.
+///
+/// # Note
+///
+/// This configuration is accepted by the graph builder but is not yet used
+/// for actual protobuf serialization. Full ONNX export support is planned
+/// for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct ONNXConfig {
     /// ONNX opset version
@@ -42,7 +60,16 @@ pub enum OptimizationLevel {
     All,
 }
 
-/// ONNX graph builder for multiclass models
+/// ONNX graph builder for multiclass models.
+///
+/// Builds an in-memory [`ONNXModel`] representation of a multiclass
+/// classification graph (MatMul, Add, Softmax, ArgMax nodes).
+///
+/// # Note
+///
+/// The resulting [`ONNXModel`] can be inspected via [`ONNXModel::summary`],
+/// but serialization to the ONNX protobuf wire format is not implemented
+/// in v0.1.0. Planned for v0.2.0.
 pub struct ONNXGraphBuilder {
     config: ONNXConfig,
     nodes: Vec<ONNXNode>,
@@ -157,7 +184,14 @@ pub enum DataType {
     Int64,
 }
 
-/// ONNX model representation
+/// ONNX model representation (in-memory only).
+///
+/// # Note
+///
+/// This struct holds the graph topology and metadata but does **not** yet
+/// support serialization to the ONNX protobuf format. [`to_proto`](Self::to_proto)
+/// and [`save`](Self::save) return `Err(SklearsError::NotImplemented(...))`
+/// in v0.1.0. Full ONNX export is planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct ONNXModel {
     pub opset_version: i64,
@@ -169,20 +203,38 @@ pub struct ONNXModel {
 }
 
 impl ONNXModel {
-    /// Serialize to ONNX protobuf format (placeholder)
+    /// Serialize to ONNX protobuf format.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Will produce actual ONNX protobuf bytes
+    /// once a pure-Rust protobuf encoder is integrated. Planned for v0.2.0.
+    ///
+    /// # Errors
+    ///
+    /// Always returns `Err(SklearsError::NotImplemented(...))` in the
+    /// current version.
     pub fn to_proto(&self) -> SklResult<Vec<u8>> {
-        // This is a placeholder - real implementation would use prost or similar
-        // to generate actual ONNX protobuf
-        Err(SklearsError::InvalidInput(
-            "ONNX serialization not yet fully implemented. Add prost dependency for production use."
+        Err(SklearsError::NotImplemented(
+            "ONNX protobuf serialization is not implemented in v0.1.0. Planned for v0.2.0."
                 .to_string(),
         ))
     }
 
-    /// Save to file (placeholder)
+    /// Save the model to an `.onnx` file at the given path.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Depends on [`to_proto`](Self::to_proto)
+    /// which is also unimplemented. Planned for v0.2.0.
+    ///
+    /// # Errors
+    ///
+    /// Always returns `Err(SklearsError::NotImplemented(...))` in the
+    /// current version.
     pub fn save(&self, _path: &Path) -> SklResult<()> {
-        Err(SklearsError::InvalidInput(
-            "ONNX save not yet fully implemented".to_string(),
+        Err(SklearsError::NotImplemented(
+            "ONNX file export is not implemented in v0.1.0. Planned for v0.2.0.".to_string(),
         ))
     }
 
@@ -199,7 +251,17 @@ impl ONNXModel {
     }
 }
 
-/// Create ONNX graph for linear multiclass model
+/// Create an in-memory ONNX graph for a linear multiclass model.
+///
+/// Builds a graph with the following node sequence:
+/// `input -> MatMul(weights) -> Add(bias) -> Softmax -> ArgMax`
+///
+/// # Note
+///
+/// The returned [`ONNXModel`] is an in-memory representation only.
+/// Serialization to the ONNX protobuf wire format is not implemented in
+/// v0.1.0 and is planned for v0.2.0. Use [`ONNXModel::summary`] to
+/// inspect the graph structure.
 pub fn create_linear_multiclass_graph(
     n_features: usize,
     n_classes: usize,

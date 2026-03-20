@@ -291,8 +291,16 @@ impl AlternatingProjections<Untrained> {
                             // Compute empirical covariance for this entry
                             let col_i = x.column(i);
                             let col_j = x.column(j);
-                            let mean_i = col_i.mean().unwrap();
-                            let mean_j = col_j.mean().unwrap();
+                            let mean_i = col_i.mean().ok_or_else(|| {
+                                SklearsError::NumericalError(
+                                    "mean computation should succeed for non-empty array".into(),
+                                )
+                            })?;
+                            let mean_j = col_j.mean().ok_or_else(|| {
+                                SklearsError::NumericalError(
+                                    "mean computation should succeed for non-empty array".into(),
+                                )
+                            })?;
 
                             let mut cov_ij = 0.0;
                             for k in 0..n_samples {
@@ -310,7 +318,11 @@ impl AlternatingProjections<Untrained> {
         }
 
         // Default: compute empirical covariance matrix
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean;
         let cov_matrix = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
@@ -529,7 +541,7 @@ impl AlternatingProjections<Untrained> {
 
         // Simplified rank reduction by zeroing out smaller entries
         let mut sorted_values: Vec<f64> = matrix.iter().map(|&x| x.abs()).collect();
-        sorted_values.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_values.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
 
         let threshold_idx = (rank * rank).min(sorted_values.len() - 1);
         let threshold = sorted_values[threshold_idx];
@@ -553,11 +565,15 @@ impl AlternatingProjections<Untrained> {
             .map(|(i, &val)| (i, val.abs()))
             .collect();
 
-        indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut result = Array2::zeros(matrix.dim());
-        let flat_matrix = matrix.as_slice().unwrap();
-        let flat_result = result.as_slice_mut().unwrap();
+        let flat_matrix = matrix
+            .as_slice()
+            .ok_or_else(|| SklearsError::NumericalError("array should be contiguous".into()))?;
+        let flat_result = result
+            .as_slice_mut()
+            .ok_or_else(|| SklearsError::NumericalError("as_slice_mut failed".into()))?;
 
         for i in 0..keep_elements.min(indexed_values.len()) {
             let idx = indexed_values[i].0;
@@ -758,7 +774,7 @@ impl AlternatingProjections<Untrained> {
         // Simplified rank estimation
         let eps = 1e-10;
         let mut sorted_values: Vec<f64> = matrix.iter().map(|&x| x.abs()).collect();
-        sorted_values.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_values.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
 
         sorted_values.iter().take_while(|&&x| x > eps).count()
     }
@@ -935,13 +951,13 @@ mod tests {
         // Test individual projections
         let non_neg = estimator
             .project_onto_constraint(matrix.clone(), &ProjectionConstraint::NonNegativity)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(non_neg.iter().all(|&x| x >= 0.0));
 
         let symmetric = estimator
             .project_onto_constraint(matrix.clone(), &ProjectionConstraint::Symmetry)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check if symmetric (approximately)
         let diff = &symmetric - &symmetric.t();

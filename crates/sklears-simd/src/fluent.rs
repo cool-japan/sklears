@@ -687,10 +687,12 @@ mod tests {
         // B = [[2, 0], [1, 2]]
         // A × B = [[1*2+2*1, 1*0+2*2], [3*2+4*1, 3*0+4*2]]
         //       = [[4, 4], [10, 8]]
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
-        let b = MatrixBuilder::from_data(vec![2.0, 0.0, 1.0, 2.0], 2, 2).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2)
+            .expect("operation should succeed");
+        let b = MatrixBuilder::from_data(vec![2.0, 0.0, 1.0, 2.0], 2, 2)
+            .expect("operation should succeed");
 
-        let result = a.multiply(&b).unwrap().build();
+        let result = a.multiply(&b).expect("operation should succeed").build();
         assert_eq!(result.0, [4.0, 4.0, 10.0, 8.0]);
         assert_eq!(result.1, 2); // rows
         assert_eq!(result.2, 2); // cols
@@ -702,10 +704,12 @@ mod tests {
         // A = [[1, 2, 3]] (1x3)
         // B = [[4], [5], [6]] (3x1)
         // A × B = [[1*4 + 2*5 + 3*6]] = [[32]] (1x1)
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0], 1, 3).unwrap();
-        let b = MatrixBuilder::from_data(vec![4.0, 5.0, 6.0], 3, 1).unwrap();
+        let a =
+            MatrixBuilder::from_data(vec![1.0, 2.0, 3.0], 1, 3).expect("operation should succeed");
+        let b =
+            MatrixBuilder::from_data(vec![4.0, 5.0, 6.0], 3, 1).expect("operation should succeed");
 
-        let result = a.multiply(&b).unwrap().build();
+        let result = a.multiply(&b).expect("operation should succeed").build();
         assert_eq!(result.0, [32.0]);
         assert_eq!(result.1, 1);
         assert_eq!(result.2, 1);
@@ -714,10 +718,14 @@ mod tests {
     #[test]
     fn test_matrix_multiplication_identity() {
         // Test multiplication by identity matrix
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2)
+            .expect("operation should succeed");
         let identity = MatrixBuilder::identity(2);
 
-        let result = a.multiply(&identity).unwrap().build();
+        let result = a
+            .multiply(&identity)
+            .expect("operation should succeed")
+            .build();
         assert_eq!(result.0, [1.0, 2.0, 3.0, 4.0]);
     }
 
@@ -726,7 +734,8 @@ mod tests {
         // Test basic transpose
         // A = [[1, 2, 3], [4, 5, 6]] (2x3)
         // A^T = [[1, 4], [2, 5], [3, 6]] (3x2)
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3)
+            .expect("operation should succeed");
 
         let transposed = a.transpose().build();
         assert_eq!(transposed.0, [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
@@ -739,7 +748,8 @@ mod tests {
         // Test square matrix transpose
         // A = [[1, 2], [3, 4]] (2x2)
         // A^T = [[1, 3], [2, 4]] (2x2)
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2)
+            .expect("operation should succeed");
 
         let transposed = a.transpose().build();
         assert_eq!(transposed.0, [1.0, 3.0, 2.0, 4.0]);
@@ -750,7 +760,8 @@ mod tests {
     #[test]
     fn test_matrix_transpose_double() {
         // Test that (A^T)^T = A
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3)
+            .expect("operation should succeed");
         let original_data = a.data.clone();
 
         let double_transposed = a.transpose().transpose().build();
@@ -765,10 +776,11 @@ mod tests {
         // A = [[1, 2], [3, 4]] (2x2)
         // x = [5, 6]
         // A × x = [1*5+2*6, 3*5+4*6] = [17, 39]
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2)
+            .expect("operation should succeed");
         let x = vec![5.0, 6.0];
 
-        let result = a.multiply_vector(&x).unwrap();
+        let result = a.multiply_vector(&x).expect("operation should succeed");
         assert_eq!(result, [17.0, 39.0]);
     }
 
@@ -778,10 +790,11 @@ mod tests {
         // A = [[1, 2, 3], [4, 5, 6]] (2x3)
         // x = [1, 2, 3]
         // A × x = [1*1+2*2+3*3, 4*1+5*2+6*3] = [14, 32]
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], 2, 3)
+            .expect("operation should succeed");
         let x = vec![1.0, 2.0, 3.0];
 
-        let result = a.multiply_vector(&x).unwrap();
+        let result = a.multiply_vector(&x).expect("operation should succeed");
         assert_eq!(result, [14.0, 32.0]);
     }
 
@@ -791,15 +804,19 @@ mod tests {
         let identity = MatrixBuilder::identity(3);
         let x = vec![5.0, 6.0, 7.0];
 
-        let result = identity.multiply_vector(&x).unwrap();
+        let result = identity
+            .multiply_vector(&x)
+            .expect("operation should succeed");
         assert_eq!(result, x);
     }
 
     #[test]
     fn test_matrix_operations_dimension_checks() {
         // Test dimension validation
-        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2).unwrap();
-        let b = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0], 1, 3).unwrap();
+        let a = MatrixBuilder::from_data(vec![1.0, 2.0, 3.0, 4.0], 2, 2)
+            .expect("operation should succeed");
+        let b =
+            MatrixBuilder::from_data(vec![1.0, 2.0, 3.0], 1, 3).expect("operation should succeed");
 
         // Should fail: 2x2 × 1x3 (incompatible dimensions)
         assert!(a.multiply(&b).is_err());

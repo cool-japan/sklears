@@ -306,7 +306,7 @@ mod tests {
                 Some(&feature_names),
                 FeatureImportanceType::Bar,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(plot.feature_names.len(), 4);
         assert_eq!(plot.importance_values.len(), 4);
@@ -327,7 +327,7 @@ mod tests {
                 &z.view(),
                 ("X".to_string(), "Y".to_string(), "Z".to_string()),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(plot.x_values.len(), 3);
         assert_eq!(plot.y_values.len(), 3);
@@ -340,15 +340,15 @@ mod tests {
         let importance = array![0.5, 0.3, 0.2];
         let feature_names = vec!["A".to_string(), "B".to_string(), "C".to_string()];
 
-        let plot =
-            convenience::quick_feature_importance(&importance.view(), &feature_names).unwrap();
+        let plot = convenience::quick_feature_importance(&importance.view(), &feature_names)
+            .expect("operation should succeed");
         assert_eq!(plot.feature_names.len(), 3);
         assert_eq!(plot.config.title, "Feature Importance");
 
         let x = array![1.0, 2.0];
         let y = array![1.0, 2.0];
         let z = array![1.0, 2.0];
-        let plot_3d = convenience::quick_scatter_3d(x, y, z).unwrap();
+        let plot_3d = convenience::quick_scatter_3d(x, y, z).expect("operation should succeed");
         assert_eq!(plot_3d.x_values.len(), 2);
     }
 

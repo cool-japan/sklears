@@ -3,17 +3,17 @@
 //! This module provides stub implementations for statistical testing methods.
 //! Full implementations are planned for future releases.
 
-use scirs2_core::error::CoreError;
-type Result<T> = std::result::Result<T, CoreError>;
+use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Statistical testing framework (stub implementation)
 #[derive(Debug, Clone)]
 pub struct StatisticalTesting;
 
 impl StatisticalTesting {
-    pub fn test_significance(_features: &[usize]) -> Result<f64> {
-        // Stub implementation
-        Ok(0.05) // p-value
+    pub fn test_significance(_features: &[usize]) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "StatisticalTesting::test_significance is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -22,8 +22,10 @@ impl StatisticalTesting {
 pub struct PermutationTests;
 
 impl PermutationTests {
-    pub fn permutation_test(_features: &[usize], _n_permutations: usize) -> Result<f64> {
-        Ok(0.05)
+    pub fn permutation_test(_features: &[usize], _n_permutations: usize) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "PermutationTests::permutation_test is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -32,8 +34,10 @@ impl PermutationTests {
 pub struct SignificanceAnalysis;
 
 impl SignificanceAnalysis {
-    pub fn analyze_significance(_features: &[usize]) -> Result<Vec<f64>> {
-        Ok(vec![0.05; _features.len()])
+    pub fn analyze_significance(_features: &[usize]) -> SklResult<Vec<f64>> {
+        Err(SklearsError::NotImplemented(
+            "SignificanceAnalysis::analyze_significance is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -42,12 +46,17 @@ impl SignificanceAnalysis {
 pub struct MultipleComparisonsCorrection;
 
 impl MultipleComparisonsCorrection {
-    pub fn bonferroni_correction(_p_values: &[f64]) -> Result<Vec<f64>> {
-        Ok(_p_values.to_vec())
+    pub fn bonferroni_correction(_p_values: &[f64]) -> SklResult<Vec<f64>> {
+        Err(SklearsError::NotImplemented(
+            "MultipleComparisonsCorrection::bonferroni_correction is not yet implemented"
+                .to_string(),
+        ))
     }
 
-    pub fn fdr_correction(_p_values: &[f64]) -> Result<Vec<f64>> {
-        Ok(_p_values.to_vec())
+    pub fn fdr_correction(_p_values: &[f64]) -> SklResult<Vec<f64>> {
+        Err(SklearsError::NotImplemented(
+            "MultipleComparisonsCorrection::fdr_correction is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -56,7 +65,9 @@ impl MultipleComparisonsCorrection {
 pub struct PowerAnalysis;
 
 impl PowerAnalysis {
-    pub fn compute_power(_effect_size: f64, _sample_size: usize) -> Result<f64> {
-        Ok(0.8)
+    pub fn compute_power(_effect_size: f64, _sample_size: usize) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "PowerAnalysis::compute_power is not yet implemented".to_string(),
+        ))
     }
 }

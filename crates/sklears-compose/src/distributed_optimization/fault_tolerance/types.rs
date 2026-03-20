@@ -418,7 +418,7 @@ impl RecoveryMonitor {
     ) -> Result<String, FaultToleranceError> {
         let event_id = format!(
             "recovery_{}_{}", node_id, failure_time
-            .duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+            .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()
         );
         let recovery_event = RecoveryEvent {
             event_id: event_id.clone(),
@@ -500,10 +500,10 @@ impl TimeoutScheduler {
     }
     pub fn start(&mut self) {
         let running = self.running.clone();
-        *running.write().unwrap() = true;
+        *running.write().unwrap_or_else(|e| e.into_inner()) = true;
     }
     pub fn stop(&mut self) {
-        *self.running.write().unwrap() = false;
+        *self.running.write().unwrap_or_else(|e| e.into_inner()) = false;
         if let Some(handle) = self.scheduler_thread.take() {
             let _ = handle.join();
         }
@@ -617,7 +617,7 @@ impl RetryManager {
         let attempt = RetryAttempt {
             attempt_id: format!(
                 "{}_{}", operation_id, SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+                .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()
             ),
             operation_id: operation_id.to_string(),
             attempt_number: self
@@ -1362,7 +1362,7 @@ impl TransactionManager {
         let event = TransactionEvent {
             event_id: format!(
                 "{}_{}", transaction_id, SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+                .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()
             ),
             transaction_id,
             event_type: TransactionEventType::Started,
@@ -1388,7 +1388,7 @@ impl TransactionManager {
         let event = TransactionEvent {
             event_id: format!(
                 "{}_{}", transaction_id, SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+                .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()
             ),
             transaction_id: transaction_id.to_string(),
             event_type: TransactionEventType::Committed,
@@ -1413,7 +1413,7 @@ impl TransactionManager {
         let event = TransactionEvent {
             event_id: format!(
                 "{}_{}", transaction_id, SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+                .duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()
             ),
             transaction_id: transaction_id.to_string(),
             event_type: TransactionEventType::Aborted,
@@ -1664,10 +1664,10 @@ impl CacheCleanupScheduler {
     }
     pub fn start(&mut self) {
         let running = self.running.clone();
-        *running.write().unwrap() = true;
+        *running.write().unwrap_or_else(|e| e.into_inner()) = true;
     }
     pub fn stop(&mut self) {
-        *self.running.write().unwrap() = false;
+        *self.running.write().unwrap_or_else(|e| e.into_inner()) = false;
         if let Some(handle) = self.scheduler_thread.take() {
             let _ = handle.join();
         }

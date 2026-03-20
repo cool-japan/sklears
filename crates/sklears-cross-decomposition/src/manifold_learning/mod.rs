@@ -436,7 +436,7 @@ mod tests {
         let result = manifold.fit_transform(data.view());
 
         assert!(result.is_ok());
-        let manifold_result = result.unwrap();
+        let manifold_result = result.expect("operation should succeed");
         assert_eq!(manifold_result.embedding.nrows(), 5);
         assert_eq!(manifold_result.embedding.ncols(), 2);
         assert!(manifold_result.reconstruction_error >= 0.0);
@@ -477,7 +477,7 @@ mod tests {
         let result = cca.fit(x.view(), y.view());
 
         assert!(result.is_ok());
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.canonical_correlations().len(), 2);
         assert_eq!(fitted.x_embedding.nrows(), 4);
         assert_eq!(fitted.y_embedding.nrows(), 4);
@@ -510,7 +510,7 @@ mod tests {
         let y = array![[2.0, 3.0], [4.0, 5.0], [6.0, 7.0]];
 
         let cca = ManifoldAwareCCA::new(2);
-        let fitted = cca.fit(x.view(), y.view()).unwrap();
+        let fitted = cca.fit(x.view(), y.view()).expect("fit should succeed");
 
         let new_x = array![[7.0, 8.0], [9.0, 10.0]];
         let new_y = array![[8.0, 9.0], [10.0, 11.0]];
@@ -518,7 +518,7 @@ mod tests {
         let result = fitted.transform(new_x.view(), new_y.view());
         assert!(result.is_ok());
 
-        let (x_transformed, y_transformed) = result.unwrap();
+        let (x_transformed, y_transformed) = result.expect("operation should succeed");
         assert_eq!(x_transformed.nrows(), 2);
         assert_eq!(y_transformed.nrows(), 2);
     }
@@ -528,11 +528,11 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let cca = ManifoldAwareCCA::new(2);
-        let centered = cca.center_data(&data).unwrap();
+        let centered = cca.center_data(&data).expect("operation should succeed");
 
         // Check that columns have zero mean (approximately)
-        let col1_mean = centered.column(0).mean().unwrap();
-        let col2_mean = centered.column(1).mean().unwrap();
+        let col1_mean = centered.column(0).mean().expect("operation should succeed");
+        let col2_mean = centered.column(1).mean().expect("operation should succeed");
 
         assert!((col1_mean).abs() < 1e-10);
         assert!((col2_mean).abs() < 1e-10);
@@ -543,7 +543,9 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let cca = ManifoldAwareCCA::new(2).regularization(0.1);
-        let cov = cca.compute_regularized_covariance(&data).unwrap();
+        let cov = cca
+            .compute_regularized_covariance(&data)
+            .expect("operation should succeed");
 
         // Check that regularization was added to diagonal
         assert!(cov[[0, 0]] >= 0.1);

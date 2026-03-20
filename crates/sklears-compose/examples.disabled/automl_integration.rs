@@ -247,7 +247,7 @@ fn demo_automated_feature_engineering() -> SklResult<()> {
     if let Some(importance_scores) = feature_info.importance_scores() {
         println!("🔍 Top 5 Most Important Features:");
         let mut scored_features: Vec<_> = importance_scores.iter().enumerate().collect();
-        scored_features.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+        scored_features.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         for (i, (feature_idx, score)) in scored_features.iter().take(5).enumerate() {
             println!("   {}. Feature {}: {:.4}", i + 1, feature_idx, score);

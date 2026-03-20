@@ -15,7 +15,7 @@ fn generate_linearly_separable_data(
     seed: u64,
 ) -> (Array2<Float>, Array1<Float>) {
     let mut rng = seeded_rng(seed);
-    let uniform = Uniform::new(-10.0, 10.0).unwrap();
+    let uniform = Uniform::new(-10.0, 10.0).expect("operation should succeed");
 
     // Generate two clusters with clear separation
     let mut x_data = Vec::with_capacity(n_samples * n_features);
@@ -39,7 +39,8 @@ fn generate_linearly_separable_data(
         y_data.push(1.0);
     }
 
-    let x = Array2::from_shape_vec((n_samples, n_features), x_data).unwrap();
+    let x =
+        Array2::from_shape_vec((n_samples, n_features), x_data).expect("operation should succeed");
     let y = Array1::from_vec(y_data);
 
     (x, y)
@@ -48,7 +49,7 @@ fn generate_linearly_separable_data(
 /// Generate synthetic nonlinearly separable dataset (XOR-like pattern)
 fn generate_nonlinear_data(n_samples: usize, seed: u64) -> (Array2<Float>, Array1<Float>) {
     let mut rng = seeded_rng(seed);
-    let uniform = Uniform::new(-1.0, 1.0).unwrap();
+    let uniform = Uniform::new(-1.0, 1.0).expect("operation should succeed");
 
     let mut x_data = Vec::with_capacity(n_samples * 2);
     let mut y_data = Vec::with_capacity(n_samples);
@@ -65,7 +66,7 @@ fn generate_nonlinear_data(n_samples: usize, seed: u64) -> (Array2<Float>, Array
         y_data.push(label);
     }
 
-    let x = Array2::from_shape_vec((n_samples, 2), x_data).unwrap();
+    let x = Array2::from_shape_vec((n_samples, 2), x_data).expect("operation should succeed");
     let y = Array1::from_vec(y_data);
 
     (x, y)
@@ -83,7 +84,7 @@ fn bench_svc_linear_small(c: &mut Criterion) {
             |b, (_n, x, y)| {
                 b.iter(|| {
                     let model = SVC::new();
-                    black_box(model.fit(x, y).unwrap())
+                    black_box(model.fit(x, y).expect("operation should succeed"))
                 })
             },
         );
@@ -104,7 +105,7 @@ fn bench_svc_linear_medium(c: &mut Criterion) {
             |b, (_n, x, y)| {
                 b.iter(|| {
                     let model = SVC::new();
-                    black_box(model.fit(x, y).unwrap())
+                    black_box(model.fit(x, y).expect("operation should succeed"))
                 })
             },
         );
@@ -125,7 +126,7 @@ fn bench_svc_rbf_small(c: &mut Criterion) {
             |b, (_n, x, y)| {
                 b.iter(|| {
                     let model = SVC::new().rbf(Some(0.5));
-                    black_box(model.fit(x, y).unwrap())
+                    black_box(model.fit(x, y).expect("operation should succeed"))
                 })
             },
         );
@@ -143,10 +144,18 @@ fn bench_svc_predict(c: &mut Criterion) {
     let (x_test, _) = generate_linearly_separable_data(100, 2, 43);
 
     let model = SVC::new();
-    let trained_model = model.fit(&x_train, &y_train).unwrap();
+    let trained_model = model
+        .fit(&x_train, &y_train)
+        .expect("operation should succeed");
 
     group.bench_function("predict_100_samples", |b| {
-        b.iter(|| black_box(trained_model.predict(&x_test).unwrap()))
+        b.iter(|| {
+            black_box(
+                trained_model
+                    .predict(&x_test)
+                    .expect("operation should succeed"),
+            )
+        })
     });
 
     group.finish();

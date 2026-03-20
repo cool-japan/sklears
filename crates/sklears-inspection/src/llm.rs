@@ -538,7 +538,7 @@ impl LLMExplainer {
                 })
                 .collect();
 
-            neuron_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            neuron_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             let top_k = 10.min(hidden_size);
             top_neurons.push(neuron_scores.into_iter().take(top_k).collect());
@@ -712,7 +712,8 @@ mod tests {
 
     #[test]
     fn test_explain_simple_input() {
-        let explainer = LLMExplainer::new(LLMTask::TextClassification).unwrap();
+        let explainer =
+            LLMExplainer::new(LLMTask::TextClassification).expect("operation should succeed");
 
         let tokens = vec!["The".to_string(), "cat".to_string(), "sat".to_string()];
         let token_ids = vec![1, 2, 3];
@@ -721,13 +722,14 @@ mod tests {
         let result = explainer.explain(&input);
         assert!(result.is_ok());
 
-        let explanation = result.unwrap();
+        let explanation = result.expect("operation should succeed");
         assert_eq!(explanation.token_importance.len(), 3);
     }
 
     #[test]
     fn test_explain_empty_input_fails() {
-        let explainer = LLMExplainer::new(LLMTask::TextClassification).unwrap();
+        let explainer =
+            LLMExplainer::new(LLMTask::TextClassification).expect("operation should succeed");
 
         let input = TokenizedInput::new(vec![], vec![]);
 
@@ -751,7 +753,7 @@ mod tests {
         let avg = attn.get_layer_avg_attention(0);
 
         assert!(avg.is_some());
-        let avg_matrix = avg.unwrap();
+        let avg_matrix = avg.expect("operation should succeed");
         assert_eq!(avg_matrix.shape(), &[3, 3]);
     }
 

@@ -85,11 +85,17 @@ pub fn mcnemar_test<F: FloatTrait + FromPrimitive>(
     if exact || n_discordant < 25 {
         // Use exact binomial test
         let p_value = binomial_test(n_01, n_discordant, 0.5);
-        Ok((F::from(n_01).unwrap(), F::from(p_value).unwrap()))
+        Ok((
+            F::from(n_01).expect("operation should succeed"),
+            F::from(p_value).expect("operation should succeed"),
+        ))
     } else {
         // Use chi-square approximation with continuity correction
-        let numerator = (F::from(n_01).unwrap() - F::from(n_10).unwrap()).abs() - F::one();
-        let denominator = F::from(n_01 + n_10).unwrap();
+        let numerator = (F::from(n_01).expect("operation should succeed")
+            - F::from(n_10).expect("operation should succeed"))
+        .abs()
+            - F::one();
+        let denominator = F::from(n_01 + n_10).expect("operation should succeed");
         let chi_square = numerator * numerator / denominator;
 
         // Approximate p-value using chi-square distribution with 1 df
@@ -151,15 +157,16 @@ pub fn friedman_test<F: FloatTrait + FromPrimitive>(
 
         // Assign ranks (1 = best, n_algorithms = worst)
         for (rank, (_, alg_idx)) in row_with_indices.iter().enumerate() {
-            rank_sums[*alg_idx] = rank_sums[*alg_idx] + F::from(rank + 1).unwrap();
+            rank_sums[*alg_idx] =
+                rank_sums[*alg_idx] + F::from(rank + 1).expect("operation should succeed");
         }
     }
 
     // Friedman statistic
-    let n_datasets_f = F::from(n_datasets).unwrap();
-    let n_algorithms_f = F::from(n_algorithms).unwrap();
+    let n_datasets_f = F::from(n_datasets).expect("operation should succeed");
+    let n_algorithms_f = F::from(n_algorithms).expect("operation should succeed");
 
-    let mean_rank = (n_algorithms_f + F::one()) / F::from(2).unwrap();
+    let mean_rank = (n_algorithms_f + F::one()) / F::from(2).expect("operation should succeed");
     let sum_squared_deviations = rank_sums
         .iter()
         .map(|&rank_sum| {
@@ -169,16 +176,18 @@ pub fn friedman_test<F: FloatTrait + FromPrimitive>(
         })
         .fold(F::zero(), |acc, x| acc + x);
 
-    let friedman_stat = F::from(12).unwrap() * n_datasets_f * sum_squared_deviations
-        / (n_algorithms_f * (n_algorithms_f + F::one()));
+    let friedman_stat =
+        F::from(12).expect("operation should succeed") * n_datasets_f * sum_squared_deviations
+            / (n_algorithms_f * (n_algorithms_f + F::one()));
 
     // For large samples, Friedman statistic follows chi-square with (k-1) df
     let p_value = chi_square_p_value_df(friedman_stat, n_algorithms as i32 - 1);
 
     // Critical difference for Nemenyi post-hoc test
-    let q_alpha = F::from(2.576).unwrap(); // Critical value for alpha=0.01 (approximation)
+    let q_alpha = F::from(2.576).expect("operation should succeed"); // Critical value for alpha=0.01 (approximation)
     let critical_difference = q_alpha
-        * (n_algorithms_f * (n_algorithms_f + F::one()) / (F::from(6).unwrap() * n_datasets_f))
+        * (n_algorithms_f * (n_algorithms_f + F::one())
+            / (F::from(6).expect("operation should succeed") * n_datasets_f))
             .sqrt();
 
     Ok((friedman_stat, p_value, critical_difference))
@@ -267,9 +276,10 @@ pub fn wilcoxon_signed_rank_test<F: FloatTrait + FromPrimitive>(
 
         // Average rank for tied values
         let end_idx = i;
-        let avg_rank = (current_rank + F::from(end_idx - start_idx - 1).unwrap())
-            / F::from(2).unwrap()
-            + current_rank / F::from(2).unwrap();
+        let avg_rank = (current_rank
+            + F::from(end_idx - start_idx - 1).expect("operation should succeed"))
+            / F::from(2).expect("operation should succeed")
+            + current_rank / F::from(2).expect("operation should succeed");
 
         // Assign average rank to all tied values
         for item in abs_diffs_with_indices.iter().take(end_idx).skip(start_idx) {
@@ -279,25 +289,30 @@ pub fn wilcoxon_signed_rank_test<F: FloatTrait + FromPrimitive>(
             }
         }
 
-        current_rank = current_rank + F::from(end_idx - start_idx).unwrap();
+        current_rank =
+            current_rank + F::from(end_idx - start_idx).expect("operation should succeed");
     }
 
     // For large n, use normal approximation
-    let n_f = F::from(n).unwrap();
-    let mean_w = n_f * (n_f + F::one()) / F::from(4).unwrap();
+    let n_f = F::from(n).expect("operation should succeed");
+    let mean_w = n_f * (n_f + F::one()) / F::from(4).expect("operation should succeed");
     let var_w =
-        n_f * (n_f + F::one()) * (F::from(2).unwrap() * n_f + F::one()) / F::from(24).unwrap();
+        n_f * (n_f + F::one()) * (F::from(2).expect("operation should succeed") * n_f + F::one())
+            / F::from(24).expect("operation should succeed");
     let std_w = var_w.sqrt();
 
     // Continuity correction
     let z = if w_plus > mean_w {
-        (w_plus - mean_w - F::from(0.5).unwrap()) / std_w
+        (w_plus - mean_w - F::from(0.5).expect("operation should succeed")) / std_w
     } else {
-        (w_plus - mean_w + F::from(0.5).unwrap()) / std_w
+        (w_plus - mean_w + F::from(0.5).expect("operation should succeed")) / std_w
     };
 
     let p_value = match alternative {
-        "two-sided" => F::from(2).unwrap() * (F::one() - standard_normal_cdf(z.abs())),
+        "two-sided" => {
+            F::from(2).expect("operation should succeed")
+                * (F::one() - standard_normal_cdf(z.abs()))
+        }
         "greater" => F::one() - standard_normal_cdf(z),
         "less" => standard_normal_cdf(z),
         _ => {
@@ -370,7 +385,8 @@ pub fn permutation_test<F: FloatTrait + FromPrimitive>(
         }
     }
 
-    let p_value = F::from(extreme_count).unwrap() / F::from(n_permutations).unwrap();
+    let p_value = F::from(extreme_count).expect("operation should succeed")
+        / F::from(n_permutations).expect("operation should succeed");
 
     Ok((observed_stat, p_value))
 }
@@ -410,7 +426,7 @@ fn chi_square_p_value<F: FloatTrait + FromPrimitive>(x: F) -> F {
     // Approximate using complementary error function
     // For 1 df: P(X > x) ≈ 2 * (1 - Φ(√x))
     let sqrt_x = x.sqrt();
-    F::from(2).unwrap() * (F::one() - standard_normal_cdf(sqrt_x))
+    F::from(2).expect("operation should succeed") * (F::one() - standard_normal_cdf(sqrt_x))
 }
 
 /// Chi-square p-value approximation for arbitrary degrees of freedom
@@ -422,12 +438,15 @@ fn chi_square_p_value_df<F: FloatTrait + FromPrimitive>(x: F, df: i32) -> F {
     // Simplified approximation for common cases
     match df {
         1 => chi_square_p_value(x),
-        2 => (-x / F::from(2).unwrap()).exp(),
+        2 => (-x / F::from(2).expect("operation should succeed")).exp(),
         _ => {
             // Wilson-Hilferty transformation for large df
-            let df_f = F::from(df).unwrap();
-            let h = F::from(2).unwrap() / (F::from(9).unwrap() * df_f);
-            let z = (F::one() - h + (x / df_f).powf(F::one() / F::from(3).unwrap())) / h.sqrt();
+            let df_f = F::from(df).expect("operation should succeed");
+            let h = F::from(2).expect("operation should succeed")
+                / (F::from(9).expect("operation should succeed") * df_f);
+            let z = (F::one() - h
+                + (x / df_f).powf(F::one() / F::from(3).expect("operation should succeed")))
+                / h.sqrt();
             F::one() - standard_normal_cdf(z)
         }
     }
@@ -435,8 +454,8 @@ fn chi_square_p_value_df<F: FloatTrait + FromPrimitive>(x: F, df: i32) -> F {
 
 /// Standard normal CDF approximation
 fn standard_normal_cdf<F: FloatTrait + FromPrimitive>(x: F) -> F {
-    let half = F::from(0.5).unwrap();
-    let sqrt2 = F::from(std::f64::consts::SQRT_2).unwrap();
+    let half = F::from(0.5).expect("operation should succeed");
+    let sqrt2 = F::from(std::f64::consts::SQRT_2).expect("operation should succeed");
 
     // Use error function approximation: Φ(x) = 0.5 * (1 + erf(x/√2))
     half * (F::one() + erf_approximation(x / sqrt2))
@@ -444,12 +463,12 @@ fn standard_normal_cdf<F: FloatTrait + FromPrimitive>(x: F) -> F {
 
 /// Error function approximation using Abramowitz and Stegun
 fn erf_approximation<F: FloatTrait + FromPrimitive>(x: F) -> F {
-    let a1 = F::from(0.254829592).unwrap();
-    let a2 = F::from(-0.284496736).unwrap();
-    let a3 = F::from(1.421413741).unwrap();
-    let a4 = F::from(-1.453152027).unwrap();
-    let a5 = F::from(1.061405429).unwrap();
-    let p = F::from(0.3275911).unwrap();
+    let a1 = F::from(0.254829592).expect("operation should succeed");
+    let a2 = F::from(-0.284496736).expect("operation should succeed");
+    let a3 = F::from(1.421413741).expect("operation should succeed");
+    let a4 = F::from(-1.453152027).expect("operation should succeed");
+    let a5 = F::from(1.061405429).expect("operation should succeed");
+    let p = F::from(0.3275911).expect("operation should succeed");
 
     let sign = if x >= F::zero() { F::one() } else { -F::one() };
     let x_abs = x.abs();
@@ -609,7 +628,7 @@ pub fn multi_lag_transfer_entropy<F: FloatTrait + FromPrimitive + PartialOrd>(
         ));
     }
 
-    let mut max_te = F::from(-f64::INFINITY).unwrap();
+    let mut max_te = F::from(-f64::INFINITY).expect("operation should succeed");
     let mut optimal_lag = 1;
 
     for lag in 1..=max_lag {
@@ -626,7 +645,7 @@ pub fn multi_lag_transfer_entropy<F: FloatTrait + FromPrimitive + PartialOrd>(
         }
     }
 
-    if max_te == F::from(-f64::INFINITY).unwrap() {
+    if max_te == F::from(-f64::INFINITY).expect("operation should succeed") {
         return Err(MetricsError::InvalidInput(
             "Could not compute transfer entropy for any lag".to_string(),
         ));
@@ -722,7 +741,7 @@ fn discretize_time_series<F: FloatTrait + FromPrimitive + PartialOrd>(
     }
 
     let range = max_val - min_val;
-    let bin_width = range / F::from(bins).unwrap();
+    let bin_width = range / F::from(bins).expect("operation should succeed");
 
     let discretized: Vec<usize> = series
         .iter()
@@ -761,13 +780,14 @@ fn conditional_entropy_discrete<F: FloatTrait + FromPrimitive>(
     }
 
     let mut entropy = F::zero();
-    let n_f = F::from(n).unwrap();
+    let n_f = F::from(n).expect("operation should succeed");
 
     for ((x_val, _y_val), joint_count) in joint_counts.iter() {
         let x_count = x_counts[x_val];
-        let p_xy = F::from(*joint_count).unwrap() / n_f;
-        let _p_x = F::from(x_count).unwrap() / n_f;
-        let p_y_given_x = F::from(*joint_count).unwrap() / F::from(x_count).unwrap();
+        let p_xy = F::from(*joint_count).expect("operation should succeed") / n_f;
+        let _p_x = F::from(x_count).expect("operation should succeed") / n_f;
+        let p_y_given_x = F::from(*joint_count).expect("operation should succeed")
+            / F::from(x_count).expect("operation should succeed");
 
         if p_y_given_x > F::zero() {
             entropy = entropy - p_xy * p_y_given_x.ln();
@@ -798,12 +818,13 @@ fn conditional_entropy_discrete_joint<F: FloatTrait + FromPrimitive>(
     }
 
     let mut entropy = F::zero();
-    let n_f = F::from(n).unwrap();
+    let n_f = F::from(n).expect("operation should succeed");
 
     for ((x_val, _y_val), joint_count) in joint_counts.iter() {
         let x_count = x_counts[x_val];
-        let p_xy = F::from(*joint_count).unwrap() / n_f;
-        let p_y_given_x = F::from(*joint_count).unwrap() / F::from(x_count).unwrap();
+        let p_xy = F::from(*joint_count).expect("operation should succeed") / n_f;
+        let p_y_given_x = F::from(*joint_count).expect("operation should succeed")
+            / F::from(x_count).expect("operation should succeed");
 
         if p_y_given_x > F::zero() {
             entropy = entropy - p_xy * p_y_given_x.ln();
@@ -834,12 +855,13 @@ fn conditional_entropy_discrete_triple<F: FloatTrait + FromPrimitive>(
     }
 
     let mut entropy = F::zero();
-    let n_f = F::from(n).unwrap();
+    let n_f = F::from(n).expect("operation should succeed");
 
     for ((x_val, _y_val), joint_count) in joint_counts.iter() {
         let x_count = x_counts[x_val];
-        let p_xy = F::from(*joint_count).unwrap() / n_f;
-        let p_y_given_x = F::from(*joint_count).unwrap() / F::from(x_count).unwrap();
+        let p_xy = F::from(*joint_count).expect("operation should succeed") / n_f;
+        let p_y_given_x = F::from(*joint_count).expect("operation should succeed")
+            / F::from(x_count).expect("operation should succeed");
 
         if p_y_given_x > F::zero() {
             entropy = entropy - p_xy * p_y_given_x.ln();
@@ -861,7 +883,8 @@ mod tests {
         let y_pred1 = Array1::from(vec![1, 0, 1, 0, 0, 1, 1, 0, 1, 0]);
         let y_pred2 = Array1::from(vec![1, 1, 1, 1, 0, 0, 0, 0, 1, 1]);
 
-        let (statistic, p_value) = mcnemar_test::<f64>(&y_true, &y_pred1, &y_pred2, false).unwrap();
+        let (statistic, p_value) = mcnemar_test::<f64>(&y_true, &y_pred1, &y_pred2, false)
+            .expect("operation should succeed");
 
         assert!(statistic >= 0.0);
         assert!((0.0..=1.0).contains(&p_value));
@@ -876,9 +899,9 @@ mod tests {
                 0.85, 0.82, 0.88, 0.84, 0.92, 0.89, 0.91, 0.87, 0.78, 0.75, 0.80, 0.76,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let (statistic, p_value, cd) = friedman_test(&scores).unwrap();
+        let (statistic, p_value, cd) = friedman_test(&scores).expect("operation should succeed");
 
         assert!(statistic >= 0.0);
         assert!((0.0..=1.0).contains(&p_value));
@@ -890,7 +913,8 @@ mod tests {
         let x = Array1::from(vec![1.2, 2.4, 1.8, 2.1, 1.7, 2.0]);
         let y = Array1::from(vec![1.0, 2.0, 1.5, 1.8, 1.4, 1.8]);
 
-        let (statistic, p_value) = wilcoxon_signed_rank_test(&x, &y, "two-sided").unwrap();
+        let (statistic, p_value) =
+            wilcoxon_signed_rank_test(&x, &y, "two-sided").expect("operation should succeed");
 
         assert!(statistic >= 0.0);
         assert!((0.0..=1.0).contains(&p_value));
@@ -908,8 +932,8 @@ mod tests {
             mean_x - mean_y
         }
 
-        let (statistic, p_value) =
-            permutation_test(&sample1, &sample2, mean_difference, 1000).unwrap();
+        let (statistic, p_value) = permutation_test(&sample1, &sample2, mean_difference, 1000)
+            .expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&p_value));
         assert_abs_diff_eq!(statistic, -1.0, epsilon = 1e-10);
@@ -920,7 +944,8 @@ mod tests {
         let y_true = Array1::from(vec![1, 0, 1, 1, 0]);
         let y_pred = Array1::from(vec![1, 0, 1, 0, 0]);
 
-        let (statistic, p_value) = mcnemar_test::<f64>(&y_true, &y_pred, &y_pred, false).unwrap();
+        let (statistic, p_value) = mcnemar_test::<f64>(&y_true, &y_pred, &y_pred, false)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(statistic, 0.0, epsilon = 1e-10);
         assert_abs_diff_eq!(p_value, 1.0, epsilon = 1e-10);

@@ -350,24 +350,25 @@ mod tests {
         let matrix = CacheFriendlyMatrix::<f64>::new(10, 20);
         assert!(matrix.is_ok());
 
-        let matrix = matrix.unwrap();
+        let matrix = matrix.expect("operation should succeed");
         assert_eq!(matrix.rows(), 10);
         assert_eq!(matrix.cols(), 20);
     }
 
     #[test]
     fn test_cache_friendly_matrix_access() {
-        let mut matrix = CacheFriendlyMatrix::<f64>::new(5, 5).unwrap();
+        let mut matrix = CacheFriendlyMatrix::<f64>::new(5, 5).expect("operation should succeed");
 
-        matrix.set(2, 3, 42.0).unwrap();
-        let value = matrix.get(2, 3).unwrap();
+        matrix.set(2, 3, 42.0).expect("operation should succeed");
+        let value = matrix.get(2, 3).expect("operation should succeed");
         assert_eq!(*value, 42.0);
     }
 
     #[test]
     fn test_cache_friendly_matrix_conversion() {
-        let ndarray = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let matrix = CacheFriendlyMatrix::from_ndarray(&ndarray).unwrap();
+        let ndarray = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        let matrix = CacheFriendlyMatrix::from_ndarray(&ndarray).expect("operation should succeed");
         let converted_back = matrix.to_ndarray();
 
         assert_eq!(ndarray, converted_back);
@@ -376,7 +377,8 @@ mod tests {
     #[test]
     fn test_unsafe_distance_computer() {
         let computer = UnsafeDistanceComputer::new();
-        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
 
         let distances = computer.fast_pairwise_distances(&data);
 
@@ -388,10 +390,14 @@ mod tests {
     #[test]
     fn test_blocked_matrix_multiply() {
         let multiplier = BlockedMatrixMultiply::new(2);
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
-        let result = multiplier.multiply(&a, &b).unwrap();
+        let result = multiplier
+            .multiply(&a, &b)
+            .expect("operation should succeed");
 
         assert_eq!(result.shape(), &[2, 2]);
         assert_eq!(result[[0, 0]], 22.0);
@@ -408,7 +414,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = PrefetchOptimizedOperations::optimized_vector_sum(&data);
 
@@ -422,10 +428,14 @@ mod tests {
     #[test]
     fn test_fast_matrix_multiply() {
         let computer = UnsafeDistanceComputer::new();
-        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let b = Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
-        let result = computer.fast_matrix_multiply(&a, &b).unwrap();
+        let result = computer
+            .fast_matrix_multiply(&a, &b)
+            .expect("operation should succeed");
 
         assert_eq!(result.shape(), &[2, 2]);
         assert_eq!(result[[0, 0]], 19.0); // 1*5 + 2*7

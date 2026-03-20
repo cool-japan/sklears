@@ -611,7 +611,7 @@ mod tests {
                 &strategy,
                 CalibrationMethod::Sigmoid,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.ece_scores.len(), 3);
         assert_eq!(results.mce_scores.len(), 3);
@@ -640,7 +640,7 @@ mod tests {
                 &strategy,
                 CalibrationMethod::Sigmoid,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.ece_scores.len(), 3);
         assert!(results.summary.overall_score >= 0.0);
@@ -665,7 +665,7 @@ mod tests {
                 &strategy,
                 CalibrationMethod::Sigmoid,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.ece_scores.len(), 1);
         assert!(results.summary.mean_training_time >= 0.0);
@@ -691,7 +691,7 @@ mod tests {
                 &strategy,
                 CalibrationMethod::Sigmoid,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.ece_scores.len(), 5);
         assert!(results.summary.std_ece >= 0.0);
@@ -716,7 +716,7 @@ mod tests {
                 &strategy,
                 CalibrationMethod::Sigmoid,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!results.ece_scores.is_empty());
         assert!(results.summary.overall_score >= 0.0);
@@ -745,7 +745,7 @@ mod tests {
 
         let results = validator
             .compare_methods(calibrators, &probabilities, &targets, &strategy)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 2);
         // Results should be sorted by overall score
@@ -775,7 +775,7 @@ mod tests {
                 &strategy,
                 CalibrationMethod::Sigmoid,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!results.ece_scores.is_empty());
         assert!(results.ece_scores.len() <= 3);
@@ -786,7 +786,8 @@ mod tests {
         let predictions = Array1::from(vec![0.1, 0.3, 0.7, 0.9]);
         let targets = Array1::from(vec![0, 0, 1, 1]);
 
-        let coverage = compute_coverage_probability(&predictions, &targets, 0.95).unwrap();
+        let coverage = compute_coverage_probability(&predictions, &targets, 0.95)
+            .expect("operation should succeed");
         assert!((0.0..=1.0).contains(&coverage));
     }
 

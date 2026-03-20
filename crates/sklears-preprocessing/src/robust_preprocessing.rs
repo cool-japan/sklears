@@ -369,7 +369,8 @@ impl Fit<Array2<Float>, ()> for RobustPreprocessor<Untrained> {
                 let mut column: Vec<Float> = current_data.column(j).to_vec();
                 column.retain(|x| !x.is_nan()); // Remove NaN values
                 if !column.is_empty() {
-                    column.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    column
+                        .sort_by(|a, b| a.partial_cmp(b).expect("matrix indexing should be valid"));
                     let median = column[column.len() / 2];
 
                     // Replace NaN values with median
@@ -496,7 +497,7 @@ impl RobustPreprocessor<Untrained> {
 
         // Compute robust statistics
         let mut sorted_values = valid_values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let median = if sorted_values.len() % 2 == 0 {
             let mid = sorted_values.len() / 2;
@@ -508,7 +509,7 @@ impl RobustPreprocessor<Untrained> {
         // Compute MAD
         let deviations: Vec<Float> = valid_values.iter().map(|x| (x - median).abs()).collect();
         let mut sorted_deviations = deviations;
-        sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let _mad = if sorted_deviations.len() % 2 == 0 {
             let mid = sorted_deviations.len() / 2;
@@ -617,9 +618,9 @@ impl Transform<Array2<Float>, Array2<Float>> for RobustPreprocessor<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
 
-        if n_features != self.n_features_in().unwrap() {
+        if n_features != self.n_features_in().expect("operation should succeed") {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in().unwrap(),
+                expected: self.n_features_in().expect("operation should succeed"),
                 actual: n_features,
             });
         }
@@ -894,17 +895,26 @@ mod tests {
                 9.0, 90.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let preprocessor = RobustPreprocessor::moderate();
-        let fitted = preprocessor.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = preprocessor
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
         // Check that preprocessing was effective
         assert!(
-            fitted.is_effective() || fitted.preprocessing_stats().unwrap().robustness_score > 0.3
+            fitted.is_effective()
+                || fitted
+                    .preprocessing_stats()
+                    .expect("operation should succeed")
+                    .robustness_score
+                    > 0.3
         );
     }
 
@@ -931,14 +941,18 @@ mod tests {
                 80.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let preprocessor = RobustPreprocessor::moderate()
             .outlier_imputation(false) // Disable imputation for now since implementation is incomplete
             .outlier_transformation(false); // Disable transformation that's causing NaN values
 
-        let fitted = preprocessor.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = preprocessor
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
@@ -947,7 +961,9 @@ mod tests {
         let missing_after = result.iter().filter(|x| x.is_nan()).count();
         assert_eq!(missing_after, missing_before); // Should have same number of missing values
 
-        let stats = fitted.preprocessing_stats().unwrap();
+        let stats = fitted
+            .preprocessing_stats()
+            .expect("operation should succeed");
         // Since imputation is disabled, success rate should be 0 or imputation shouldn't be counted
         // Just check that stats exist
         assert!(stats.robustness_score >= 0.0);
@@ -969,10 +985,13 @@ mod tests {
 
     #[test]
     fn test_adaptive_threshold_computation() {
-        let data = Array2::from_shape_vec((6, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0]).unwrap();
+        let data = Array2::from_shape_vec((6, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0])
+            .expect("shape and data length should match");
 
         let preprocessor = RobustPreprocessor::new();
-        let threshold = preprocessor.get_adaptive_threshold(&data, 0.1).unwrap();
+        let threshold = preprocessor
+            .get_adaptive_threshold(&data, 0.1)
+            .expect("operation should succeed");
 
         assert!(threshold >= 1.5 && threshold <= 4.0);
     }
@@ -986,12 +1005,16 @@ mod tests {
                 1000.0, // Outliers
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let preprocessor = RobustPreprocessor::moderate();
-        let fitted = preprocessor.fit(&data, &()).unwrap();
+        let fitted = preprocessor
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
-        let report = fitted.preprocessing_report().unwrap();
+        let report = fitted
+            .preprocessing_report()
+            .expect("operation should succeed");
         assert!(report.contains("Robust Preprocessing Report"));
         assert!(report.contains("Robustness Score"));
         assert!(report.contains("Quality Improvement"));
@@ -999,10 +1022,13 @@ mod tests {
 
     #[test]
     fn test_recommendations() {
-        let data = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
 
         let preprocessor = RobustPreprocessor::conservative();
-        let fitted = preprocessor.fit(&data, &()).unwrap();
+        let fitted = preprocessor
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         let recommendations = fitted.get_recommendations();
         assert!(!recommendations.is_empty());
@@ -1013,24 +1039,27 @@ mod tests {
         let preprocessor = RobustPreprocessor::new();
 
         // Test empty input
-        let empty_data = Array2::from_shape_vec((0, 0), vec![]).unwrap();
+        let empty_data =
+            Array2::from_shape_vec((0, 0), vec![]).expect("shape and data length should match");
         assert!(preprocessor.fit(&empty_data, &()).is_err());
     }
 
     #[test]
     fn test_feature_mismatch() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let wrong_data = Array2::from_shape_vec(
             (4, 3),
             vec![
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let preprocessor = RobustPreprocessor::moderate();
-        let fitted = preprocessor.fit(&data, &()).unwrap();
+        let fitted = preprocessor
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert!(fitted.transform(&wrong_data).is_err());
     }

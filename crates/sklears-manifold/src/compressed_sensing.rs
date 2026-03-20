@@ -8,7 +8,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
@@ -152,7 +152,7 @@ impl Fit<Array2<Float>, ()> for ManifoldCompressedSensing {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         // Step 1: Learn manifold structure using PCA
@@ -378,7 +378,7 @@ impl ManifoldCompressedSensing {
         let n_samples = data.nrows();
 
         // Center the data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).expect("operation should succeed");
         let centered_data = data - &mean.insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -399,7 +399,7 @@ impl ManifoldCompressedSensing {
             .map(|(&val, vec)| (val, vec.to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Take top n_components
         let selected_eigenvalues: Array1<Float> = eigen_pairs
@@ -785,13 +785,15 @@ mod tests {
         ];
 
         let cs = ManifoldCompressedSensing::new(2, 2);
-        let fitted = cs.fit(&data, &()).unwrap();
-        let measurements = fitted.transform(&data).unwrap();
+        let fitted = cs.fit(&data, &()).expect("operation should succeed");
+        let measurements = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(measurements.shape(), &[4, 2]);
         assert!(measurements.iter().all(|&x| x.is_finite()));
 
-        let reconstructed = fitted.reconstruct(&measurements).unwrap();
+        let reconstructed = fitted
+            .reconstruct(&measurements)
+            .expect("operation should succeed");
         assert_eq!(reconstructed.shape(), &[4, 4]);
         assert!(reconstructed.iter().all(|&x| x.is_finite()));
     }
@@ -803,9 +805,11 @@ mod tests {
         let cs = ManifoldCompressedSensing::new(2, 2)
             .sparsity_level(2)
             .random_state(42);
-        let fitted = cs.fit(&data, &()).unwrap();
-        let measurements = fitted.transform(&data).unwrap();
-        let reconstructed = fitted.reconstruct(&measurements).unwrap();
+        let fitted = cs.fit(&data, &()).expect("operation should succeed");
+        let measurements = fitted.transform(&data).expect("operation should succeed");
+        let reconstructed = fitted
+            .reconstruct(&measurements)
+            .expect("operation should succeed");
 
         assert_eq!(reconstructed.shape(), &[3, 3]);
         assert!(reconstructed.iter().all(|&x| x.is_finite()));
@@ -828,7 +832,9 @@ mod tests {
         let signal = array![1.0, 2.0, 3.0];
 
         let omp = OrthogonalMatchingPursuit::new(3);
-        let coefficients = omp.solve(&dictionary, &signal).unwrap();
+        let coefficients = omp
+            .solve(&dictionary, &signal)
+            .expect("operation should succeed");
 
         assert_eq!(coefficients.len(), 3);
         assert!(coefficients.iter().all(|&x| x.is_finite()));
@@ -845,7 +851,9 @@ mod tests {
         let signal = array![1.0, 2.0, 0.1]; // Sparse signal
 
         let omp = OrthogonalMatchingPursuit::new(2);
-        let coefficients = omp.solve(&dictionary, &signal).unwrap();
+        let coefficients = omp
+            .solve(&dictionary, &signal)
+            .expect("operation should succeed");
 
         assert_eq!(coefficients.len(), 3);
         assert!(coefficients.iter().all(|&x| x.is_finite()));
@@ -881,7 +889,7 @@ mod tests {
         let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
         let cs = ManifoldCompressedSensing::new(2, 2).random_state(42);
-        let fitted = cs.fit(&data, &()).unwrap();
+        let fitted = cs.fit(&data, &()).expect("operation should succeed");
 
         // Test measurement matrix properties
         let measurement_matrix = fitted.measurement_matrix();

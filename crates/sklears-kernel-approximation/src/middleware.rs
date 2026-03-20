@@ -616,9 +616,9 @@ mod tests {
         pipeline.add_stage(Box::new(DummyStage::new("stage1")));
 
         let x = array![[1.0, 2.0], [3.0, 4.0]];
-        pipeline.fit(&x).unwrap();
+        pipeline.fit(&x).expect("operation should succeed");
 
-        let result = pipeline.transform(&x).unwrap();
+        let result = pipeline.transform(&x).expect("operation should succeed");
         assert_eq!(result[[0, 0]], 2.0);
         assert_eq!(result[[1, 1]], 8.0);
     }
@@ -640,7 +640,8 @@ mod tests {
         let x = array![[1.0, 2.0]];
         let mut context = HookContext::new("fit", 0, "test_stage");
 
-        hook.before_fit(&x, &mut context).unwrap();
+        hook.before_fit(&x, &mut context)
+            .expect("operation should succeed");
         assert_eq!(hook.logs().len(), 1);
     }
 
@@ -667,7 +668,8 @@ mod tests {
         let mut context = HookContext::new("transform", 0, "test");
         context.elapsed_ms = 10.0;
 
-        hook.after_transform(&x, &output, &mut context).unwrap();
+        hook.after_transform(&x, &output, &mut context)
+            .expect("operation should succeed");
         assert_eq!(hook.timings().len(), 1);
         assert_eq!(hook.total_time(), 10.0);
     }

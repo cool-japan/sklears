@@ -720,13 +720,16 @@ impl TaskScheduler {
 
         // Add to dependency graph
         {
-            let mut graph = self.dependency_graph.write().unwrap();
+            let mut graph = self
+                .dependency_graph
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             graph.insert(task_id.clone(), task.dependencies.iter().cloned().collect());
         }
 
         // Set initial state
         {
-            let mut states = self.task_states.write().unwrap();
+            let mut states = self.task_states.write().unwrap_or_else(|e| e.into_inner());
             states.insert(task_id, TaskState::Pending);
         }
 
@@ -735,7 +738,7 @@ impl TaskScheduler {
 
         // Add to queue
         {
-            let mut queue = self.task_queue.lock().unwrap();
+            let mut queue = self.task_queue.lock().unwrap_or_else(|e| e.into_inner());
             queue.push(PriorityTask {
                 task,
                 priority_score,
@@ -779,7 +782,7 @@ impl TaskScheduler {
     /// Start the scheduler
     pub fn start(&mut self) -> SklResult<()> {
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock().unwrap_or_else(|e| e.into_inner());
             *running = true;
         }
 
@@ -812,7 +815,7 @@ impl TaskScheduler {
     /// Stop the scheduler
     pub fn stop(&mut self) -> SklResult<()> {
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock().unwrap_or_else(|e| e.into_inner());
             *running = false;
         }
 
@@ -838,9 +841,9 @@ impl TaskScheduler {
         config: SchedulerConfig,
         strategy: SchedulingStrategy,
     ) {
-        let mut lock = task_queue.lock().unwrap();
+        let mut lock = task_queue.lock().unwrap_or_else(|e| e.into_inner());
 
-        while *is_running.lock().unwrap() {
+        while *is_running.lock().unwrap_or_else(|e| e.into_inner()) {
             // Check for ready tasks
             let ready_tasks = Self::find_ready_tasks(&task_queue, &task_states, &dependency_graph);
 
@@ -864,7 +867,7 @@ impl TaskScheduler {
             // Wait for notification or timeout
             let _guard = task_notification
                 .wait_timeout(lock, config.scheduling_interval)
-                .unwrap();
+                .unwrap_or_else(|e| e.into_inner());
             lock = _guard.0;
         }
     }
@@ -876,8 +879,8 @@ impl TaskScheduler {
         dependency_graph: &Arc<RwLock<HashMap<TaskId, HashSet<TaskId>>>>,
     ) -> Vec<TaskId> {
         let mut ready_tasks = Vec::new();
-        let states = task_states.read().unwrap();
-        let graph = dependency_graph.read().unwrap();
+        let states = task_states.read().unwrap_or_else(|e| e.into_inner());
+        let graph = dependency_graph.read().unwrap_or_else(|e| e.into_inner());
 
         for (task_id, state) in states.iter() {
             if *state == TaskState::Pending {
@@ -902,7 +905,7 @@ impl TaskScheduler {
 
     /// Count currently running tasks
     fn count_running_tasks(task_states: &Arc<RwLock<HashMap<TaskId, TaskState>>>) -> usize {
-        let states = task_states.read().unwrap();
+        let states = task_states.read().unwrap_or_else(|e| e.into_inner());
         states
             .values()
             .filter(|state| matches!(state, TaskState::Running { .. }))
@@ -916,7 +919,7 @@ impl TaskScheduler {
         resource_pool: &Arc<RwLock<ResourcePool>>,
     ) -> bool {
         // Simplified resource check
-        let pool = resource_pool.read().unwrap();
+        let pool = resource_pool.read().unwrap_or_else(|e| e.into_inner());
         pool.available_cpu > 0 && pool.available_memory > 100
     }
 
@@ -926,7 +929,7 @@ impl TaskScheduler {
         task_states: &Arc<RwLock<HashMap<TaskId, TaskState>>>,
         resource_pool: &Arc<RwLock<ResourcePool>>,
     ) {
-        let mut states = task_states.write().unwrap();
+        let mut states = task_states.write().unwrap_or_else(|e| e.into_inner());
         states.insert(
             task_id.clone(),
             TaskState::Running {
@@ -936,7 +939,7 @@ impl TaskScheduler {
         );
 
         // Allocate resources (simplified)
-        let mut pool = resource_pool.write().unwrap();
+        let mut pool = resource_pool.write().unwrap_or_else(|e| e.into_inner());
         pool.available_cpu = pool.available_cpu.saturating_sub(1);
         pool.available_memory = pool.available_memory.saturating_sub(100);
     }
@@ -946,7 +949,7 @@ impl TaskScheduler {
         task_states: &Arc<RwLock<HashMap<TaskId, TaskState>>>,
         config: &SchedulerConfig,
     ) {
-        let mut states = task_states.write().unwrap();
+        let mut states = task_states.write().unwrap_or_else(|e| e.into_inner());
 
         let cutoff_time = SystemTime::now() - config.cleanup_interval;
         let mut to_remove = Vec::new();
@@ -982,7 +985,7 @@ impl TaskScheduler {
 
     /// Update resource monitoring
     fn update_resource_monitoring(resource_pool: &Arc<RwLock<ResourcePool>>) {
-        let mut pool = resource_pool.write().unwrap();
+        let mut pool = resource_pool.write().unwrap_or_else(|e| e.into_inner());
 
         let utilization = ResourceUtilization {
             timestamp: SystemTime::now(),
@@ -1003,16 +1006,16 @@ impl TaskScheduler {
     /// Get task state
     #[must_use]
     pub fn get_task_state(&self, task_id: &TaskId) -> Option<TaskState> {
-        let states = self.task_states.read().unwrap();
+        let states = self.task_states.read().unwrap_or_else(|e| e.into_inner());
         states.get(task_id).cloned()
     }
 
     /// Get scheduler statistics
     #[must_use]
     pub fn get_statistics(&self) -> SchedulerStatistics {
-        let states = self.task_states.read().unwrap();
-        let queue = self.task_queue.lock().unwrap();
-        let pool = self.resource_pool.read().unwrap();
+        let states = self.task_states.read().unwrap_or_else(|e| e.into_inner());
+        let queue = self.task_queue.lock().unwrap_or_else(|e| e.into_inner());
+        let pool = self.resource_pool.read().unwrap_or_else(|e| e.into_inner());
 
         let pending_count = states
             .values()
@@ -1045,7 +1048,7 @@ impl TaskScheduler {
 
     /// Cancel a task
     pub fn cancel_task(&self, task_id: &TaskId) -> SklResult<()> {
-        let mut states = self.task_states.write().unwrap();
+        let mut states = self.task_states.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(current_state) = states.get(task_id) {
             match current_state {
@@ -1082,14 +1085,14 @@ impl TaskScheduler {
     /// List all tasks with their states
     #[must_use]
     pub fn list_tasks(&self) -> HashMap<TaskId, TaskState> {
-        let states = self.task_states.read().unwrap();
+        let states = self.task_states.read().unwrap_or_else(|e| e.into_inner());
         states.clone()
     }
 
     /// Get current resource utilization
     #[must_use]
     pub fn get_resource_utilization(&self) -> ResourceUtilization {
-        let pool = self.resource_pool.read().unwrap();
+        let pool = self.resource_pool.read().unwrap_or_else(|e| e.into_inner());
         pool.utilization_history
             .last()
             .cloned()
@@ -1247,7 +1250,7 @@ impl WorkflowManager {
 
     /// Register a workflow definition
     pub fn register_workflow(&self, workflow: Workflow) -> SklResult<()> {
-        let mut workflows = self.workflows.write().unwrap();
+        let mut workflows = self.workflows.write().unwrap_or_else(|e| e.into_inner());
         workflows.insert(workflow.id.clone(), workflow);
         Ok(())
     }
@@ -1258,7 +1261,7 @@ impl WorkflowManager {
         workflow_id: &str,
         context: HashMap<String, String>,
     ) -> SklResult<String> {
-        let workflows = self.workflows.read().unwrap();
+        let workflows = self.workflows.read().unwrap_or_else(|e| e.into_inner());
         let workflow = workflows.get(workflow_id).ok_or_else(|| {
             SklearsError::InvalidInput(format!("Workflow {workflow_id} not found"))
         })?;
@@ -1268,7 +1271,7 @@ impl WorkflowManager {
             workflow_id,
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_millis()
         );
 
@@ -1283,7 +1286,10 @@ impl WorkflowManager {
         };
 
         {
-            let mut instances = self.workflow_instances.write().unwrap();
+            let mut instances = self
+                .workflow_instances
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             instances.insert(instance_id.clone(), instance);
         }
 
@@ -1339,13 +1345,19 @@ impl WorkflowManager {
     /// Get workflow instance status
     #[must_use]
     pub fn get_workflow_status(&self, instance_id: &str) -> Option<WorkflowInstance> {
-        let instances = self.workflow_instances.read().unwrap();
+        let instances = self
+            .workflow_instances
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         instances.get(instance_id).cloned()
     }
 
     /// Cancel a workflow instance
     pub fn cancel_workflow(&self, instance_id: &str) -> SklResult<()> {
-        let mut instances = self.workflow_instances.write().unwrap();
+        let mut instances = self
+            .workflow_instances
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
 
         if let Some(instance) = instances.get_mut(instance_id) {
             instance.state = WorkflowState::Cancelled;
@@ -1367,7 +1379,10 @@ impl WorkflowManager {
     /// List all workflow instances
     #[must_use]
     pub fn list_workflow_instances(&self) -> HashMap<String, WorkflowInstance> {
-        let instances = self.workflow_instances.read().unwrap();
+        let instances = self
+            .workflow_instances
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         instances.clone()
     }
 }

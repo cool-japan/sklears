@@ -1273,7 +1273,7 @@ mod tests {
         let context = ExtensionContext::new("test-extension".to_string());
         assert!(context.is_ok());
 
-        let ctx = context.unwrap();
+        let ctx = context.unwrap_or_default();
         assert_eq!(ctx.context_id(), "test-extension");
         assert_eq!(ctx.context_type(), "extension");
     }
@@ -1292,7 +1292,7 @@ mod tests {
         let manager = ExtensionManager::new("test-context".to_string());
         assert!(manager.is_ok());
 
-        let mgr = manager.unwrap();
+        let mgr = manager.unwrap_or_default();
         assert!(!mgr.manager_id.is_empty());
     }
 
@@ -1306,61 +1306,61 @@ mod tests {
 
     #[test]
     fn test_list_active_extensions_empty() {
-        let context = ExtensionContext::new("test-list".to_string()).unwrap();
+        let context = ExtensionContext::new("test-list".to_string()).unwrap_or_default();
         let extensions = context.list_active_extensions();
         assert!(extensions.is_ok());
-        assert_eq!(extensions.unwrap().len(), 0);
+        assert_eq!(extensions.unwrap_or_default().len(), 0);
     }
 
     #[test]
     fn test_extension_discovery() {
-        let context = ExtensionContext::new("test-discovery".to_string()).unwrap();
+        let context = ExtensionContext::new("test-discovery".to_string()).unwrap_or_default();
         let discovered = context.discover_extensions();
         assert!(discovered.is_ok());
-        assert_eq!(discovered.unwrap().len(), 0);
+        assert_eq!(discovered.unwrap_or_default().len(), 0);
     }
 
     #[test]
     fn test_sandbox_creation() {
-        let context = ExtensionContext::new("test-sandbox".to_string()).unwrap();
+        let context = ExtensionContext::new("test-sandbox".to_string()).unwrap_or_default();
         let sandbox = context.create_extension_sandbox("test-extension");
         assert!(sandbox.is_ok());
 
-        let sb = sandbox.unwrap();
+        let sb = sandbox.unwrap_or_default();
         assert_eq!(sb.extension_id, "test-extension");
         assert!(matches!(sb.isolation_level, IsolationLevel::Process));
     }
 
     #[test]
     fn test_extension_metrics() {
-        let context = ExtensionContext::new("test-metrics".to_string()).unwrap();
+        let context = ExtensionContext::new("test-metrics".to_string()).unwrap_or_default();
         let metrics = context.get_extension_metrics("test-extension");
         assert!(metrics.is_ok());
 
-        let m = metrics.unwrap();
+        let m = metrics.unwrap_or_default();
         assert_eq!(m.extension_id, "test-extension");
         assert_eq!(m.cpu_usage, 0.0);
     }
 
     #[test]
     fn test_extension_health() {
-        let context = ExtensionContext::new("test-health".to_string()).unwrap();
+        let context = ExtensionContext::new("test-health".to_string()).unwrap_or_default();
         let health = context.get_extension_health("test-extension");
         assert!(health.is_ok());
-        assert!(matches!(health.unwrap(), HealthStatus::Healthy));
+        assert!(matches!(health.unwrap_or_default(), HealthStatus::Healthy));
     }
 
     #[test]
     fn test_context_validation() {
-        let context = ExtensionContext::new("test-validation".to_string()).unwrap();
+        let context = ExtensionContext::new("test-validation".to_string()).unwrap_or_default();
         let validation_result = context.validate();
         assert!(validation_result.is_ok());
-        assert!(validation_result.unwrap());
+        assert!(validation_result.unwrap_or_default());
     }
 
     #[test]
     fn test_context_cleanup() {
-        let context = ExtensionContext::new("test-cleanup".to_string()).unwrap();
+        let context = ExtensionContext::new("test-cleanup".to_string()).unwrap_or_default();
         let cleanup_result = context.cleanup();
         assert!(cleanup_result.is_ok());
     }

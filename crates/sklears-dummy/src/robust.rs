@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::{
-    essentials::Normal, prelude::*, rngs::StdRng, Distribution, Rng, SeedableRng,
+    essentials::Normal, prelude::*, rngs::StdRng, Distribution, RngExt, SeedableRng,
 };
 use sklears_core::error::Result;
 use sklears_core::traits::{Estimator, Fit, Predict};
@@ -289,7 +289,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
         }
 
         let mut sorted_y = y.to_vec();
-        sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_y.len();
         let trim_count = (n as Float * trim_proportion).floor() as usize;
@@ -442,7 +442,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
         match method {
             OutlierDetectionMethod::IQR { multiplier } => {
                 let mut sorted_y = y.to_vec();
-                sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                 let n = sorted_y.len();
                 let q1_idx = n / 4;
@@ -494,7 +494,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
     /// Compute median
     fn compute_median(&self, data: &Array1<Float>) -> Float {
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_data.len();
         if n % 2 == 0 {
@@ -520,7 +520,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
             LocationEstimator::Median => Ok(self.compute_median(y)),
             LocationEstimator::TrimmedMean { trim_proportion } => {
                 let mut sorted_y = y.to_vec();
-                sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                 let n = sorted_y.len();
                 let trim_count = (n as Float * trim_proportion).floor() as usize;
@@ -608,7 +608,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
             ScaleEstimator::MAD => Ok(self.compute_mad(y, location)),
             ScaleEstimator::IQR => {
                 let mut sorted_y = y.to_vec();
-                sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                 let n = sorted_y.len();
                 let q1_idx = n / 4;
@@ -631,7 +631,8 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
                     return Ok(0.0);
                 }
 
-                pairwise_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                pairwise_distances
+                    .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let q1_idx = pairwise_distances.len() / 4;
                 Ok(pairwise_distances[q1_idx] * 2.2219) // Consistency factor
             }
@@ -648,7 +649,8 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
                         .collect();
 
                     if !distances.is_empty() {
-                        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        distances
+                            .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let median_dist = if distances.len() % 2 == 0 {
                             (distances[distances.len() / 2 - 1] + distances[distances.len() / 2])
                                 / 2.0
@@ -663,7 +665,7 @@ impl RobustDummyRegressor<sklears_core::traits::Trained> {
                     return Ok(0.0);
                 }
 
-                medians.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                medians.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let result = if medians.len() % 2 == 0 {
                     (medians[medians.len() / 2 - 1] + medians[medians.len() / 2]) / 2.0
                 } else {
@@ -707,7 +709,8 @@ impl Predict<Features, Array1<Float>> for RobustDummyRegressor<sklears_core::tra
                 // For influence-resistant methods, we can add some controlled noise
                 // based on the robust scale estimate
                 if scale > 0.0 {
-                    let normal = Normal::new(location, scale * 0.1).unwrap();
+                    let normal =
+                        Normal::new(location, scale * 0.1).expect("operation should succeed");
                     for i in 0..n_samples {
                         predictions[i] = normal.sample(&mut rng);
                     }
@@ -827,7 +830,8 @@ impl Fit<Features, Array1<i32>> for RobustDummyClassifier {
         let mut outlier_mask = Array1::from_elem(y.len(), false);
 
         for (i, &class) in y.iter().enumerate() {
-            let class_freq = *class_counts.get(&class).unwrap() as f64 / total_samples;
+            let class_freq =
+                *class_counts.get(&class).expect("sampling should succeed") as f64 / total_samples;
             if class_freq < min_frequency {
                 outlier_mask[i] = true;
             }
@@ -879,8 +883,11 @@ impl Predict<Features, Array1<i32>> for RobustDummyClassifier<sklears_core::trai
         let n_samples = x.nrows();
         let mut predictions = Array1::zeros(n_samples);
 
-        let classes = self.classes_.as_ref().unwrap();
-        let class_probs = self.robust_class_probs_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
+        let class_probs = self
+            .robust_class_probs_
+            .as_ref()
+            .expect("operation should succeed");
 
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
@@ -890,7 +897,7 @@ impl Predict<Features, Array1<i32>> for RobustDummyClassifier<sklears_core::trai
 
         // Sample from robust class distribution
         for i in 0..n_samples {
-            let rand_val: Float = rng.gen();
+            let rand_val: Float = rng.random();
             let mut cumulative_prob = 0.0;
             let mut selected_class = classes[0];
 
@@ -924,7 +931,7 @@ mod tests {
                 100.0, 101.0, 102.0, 103.0, // Last two rows are outliers
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 100.0, 101.0]; // Last two are outliers
 
         let regressor = RobustDummyRegressor::new(RobustStrategy::OutlierResistant {
@@ -932,40 +939,44 @@ mod tests {
             detection_method: OutlierDetectionMethod::IQR { multiplier: 1.5 },
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 10);
 
         // Check that some outliers were detected
-        let outlier_mask = fitted.outlier_mask().unwrap();
+        let outlier_mask = fitted.outlier_mask().expect("operation should succeed");
         let n_outliers = outlier_mask.iter().filter(|&&x| x).count();
         assert!(n_outliers > 0);
     }
 
     #[test]
     fn test_trimmed_mean_regressor() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 100.0, 101.0];
 
         let regressor = RobustDummyRegressor::new(RobustStrategy::TrimmedMean {
             trim_proportion: 0.2,
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 10);
 
         // Trimmed mean should be more robust than regular mean
         let robust_mean = predictions[0];
-        let regular_mean = y.mean().unwrap();
+        let regular_mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
         assert!(robust_mean < regular_mean); // Should be less affected by outliers
     }
 
     #[test]
     fn test_robust_scale_regressor() {
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 100.0]; // Last value is outlier
 
         let regressor = RobustDummyRegressor::new(RobustStrategy::RobustScale {
@@ -973,37 +984,42 @@ mod tests {
             location_estimator: LocationEstimator::Median,
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
 
         // Should predict median value
         let mut sorted_y = y.to_vec();
-        sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let expected_median = (sorted_y[3] + sorted_y[4]) / 2.0; // 4.5
         assert_abs_diff_eq!(predictions[0], expected_median, epsilon = 0.1);
     }
 
     #[test]
     fn test_breakdown_point_regressor() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
 
         let regressor = RobustDummyRegressor::new(RobustStrategy::BreakdownPoint {
             breakdown_point: 0.3,
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 10);
-        assert_eq!(fitted.breakdown_point().unwrap(), 0.3);
+        assert_eq!(
+            fitted.breakdown_point().expect("operation should succeed"),
+            0.3
+        );
     }
 
     #[test]
     fn test_influence_resistant_regressor() {
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 100.0]; // Last value is outlier
 
         let regressor = RobustDummyRegressor::new(RobustStrategy::InfluenceResistant {
@@ -1012,13 +1028,13 @@ mod tests {
             tolerance: 1e-6,
         });
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
 
         // Should have M-estimator weights
-        let weights = fitted.m_weights().unwrap();
+        let weights = fitted.m_weights().expect("operation should succeed");
         assert_eq!(weights.len(), 8);
 
         // Outlier should have lower weight
@@ -1027,7 +1043,8 @@ mod tests {
 
     #[test]
     fn test_robust_classifier() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![0, 0, 0, 1, 1, 1, 2, 2, 3, 3]; // Class 3 is less frequent
 
         let classifier = RobustDummyClassifier::new(RobustStrategy::OutlierResistant {
@@ -1036,13 +1053,15 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 10);
 
         // Check that predictions are valid classes
-        let classes = fitted.classes_.as_ref().unwrap();
+        let classes = fitted.classes_.as_ref().expect("operation should succeed");
         for &pred in predictions.iter() {
             assert!(classes.iter().any(|&c| c == pred));
         }

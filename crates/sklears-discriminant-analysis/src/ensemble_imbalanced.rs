@@ -506,7 +506,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedEnsembleImbalancedDiscrimina
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -608,8 +608,8 @@ mod tests {
             })
             .use_class_weights(true);
 
-        let fitted = ensemble.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert_eq!(fitted.classes().len(), 2);
@@ -622,7 +622,9 @@ mod tests {
         let y = array![0, 0, 0, 1]; // 3:1 imbalance
 
         let ensemble = EnsembleImbalancedDiscriminantAnalysis::new();
-        let weights = ensemble.compute_class_weights(&y).unwrap();
+        let weights = ensemble
+            .compute_class_weights(&y)
+            .expect("operation should succeed");
 
         assert!(weights.contains_key(&0));
         assert!(weights.contains_key(&1));
@@ -636,7 +638,9 @@ mod tests {
         let y = array![0, 0, 1]; // 2:1 imbalance
 
         let ensemble = EnsembleImbalancedDiscriminantAnalysis::new();
-        let (smote_x, smote_y) = ensemble.apply_smote(&x, &y, 1).unwrap();
+        let (smote_x, smote_y) = ensemble
+            .apply_smote(&x, &y, 1)
+            .expect("operation should succeed");
 
         // Should have balanced the classes
         let class_0_count = smote_y.iter().filter(|&&label| label == 0).count();

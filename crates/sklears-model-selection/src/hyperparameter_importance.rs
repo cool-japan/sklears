@@ -11,7 +11,7 @@
 //! interact, enabling better hyperparameter optimization strategies.
 
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -174,7 +174,7 @@ impl SHAPAnalyzer {
 
         for _ in 0..self.config.n_samples {
             // Sample a coalition
-            let coalition_size = self.rng.gen_range(0..=n_params);
+            let coalition_size = self.rng.random_range(0..=n_params);
             let coalition = self.sample_coalition_of_size(n_params, coalition_size);
 
             // Create perturbed configuration
@@ -184,7 +184,7 @@ impl SHAPAnalyzer {
                     // Replace with random value from parameter space
                     let param_name = &param_names[idx];
                     if let Some(&(min, max)) = parameter_space.get(param_name) {
-                        let random_value = self.rng.gen_range(min..max);
+                        let random_value = self.rng.random_range(min..max);
                         perturbed.insert(param_name.clone(), random_value);
                     }
                 }
@@ -223,7 +223,7 @@ impl SHAPAnalyzer {
 
     fn sample_coalition(&mut self, n_params: usize, exclude_idx: usize) -> Vec<bool> {
         (0..n_params)
-            .map(|i| i != exclude_idx && self.rng.gen_bool(0.5))
+            .map(|i| i != exclude_idx && self.rng.random_bool(0.5))
             .collect()
     }
 
@@ -233,7 +233,7 @@ impl SHAPAnalyzer {
 
         // Fisher-Yates shuffle
         for i in (1..n_params).rev() {
-            let j = self.rng.gen_range(0..=i);
+            let j = self.rng.random_range(0..=i);
             indices.swap(i, j);
         }
 
@@ -260,7 +260,7 @@ impl SHAPAnalyzer {
             if !should_include {
                 // Use random value
                 if let Some(&(min, max)) = parameter_space.get(param_name) {
-                    let random_value = self.rng.gen_range(min..max);
+                    let random_value = self.rng.random_range(min..max);
                     config.insert(param_name.clone(), random_value);
                 }
             }
@@ -318,7 +318,7 @@ impl SHAPAnalyzer {
             .iter()
             .map(|(name, &value)| (name.clone(), value.abs()))
             .collect();
-        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         ranked
     }
 }
@@ -489,7 +489,7 @@ impl FANOVAAnalyzer {
 
     fn rank_by_importance(&self, effects: &HashMap<String, Float>) -> Vec<(String, Float)> {
         let mut ranked: Vec<_> = effects.iter().map(|(k, &v)| (k.clone(), v)).collect();
-        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         ranked
     }
 }
@@ -687,7 +687,7 @@ impl SensitivityAnalyzer {
             .iter()
             .map(|(name, sens)| (name.clone(), sens.mu_star))
             .collect();
-        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         ranked
     }
 }
@@ -817,7 +817,7 @@ impl AblationAnalyzer {
 
     fn rank_ablation_effects(&self, effects: &HashMap<String, Float>) -> Vec<(String, Float)> {
         let mut ranked: Vec<_> = effects.iter().map(|(k, &v)| (k.clone(), v.abs())).collect();
-        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         ranked
     }
 }
@@ -934,7 +934,7 @@ impl HyperparameterImportanceAnalyzer {
             })
             .collect();
 
-        aggregated.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        aggregated.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         aggregated
     }
 }

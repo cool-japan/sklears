@@ -267,7 +267,7 @@ impl CoverTree {
 
         // Sort candidates by distance and take k nearest
         let mut all_candidates: Vec<(Float, usize)> = visited;
-        all_candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        all_candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let k = k.min(all_candidates.len());
         let distances = all_candidates.iter().take(k).map(|(d, _)| *d).collect();
@@ -385,10 +385,10 @@ mod tests {
 
     #[test]
     fn test_cover_tree_construction() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
-        let tree = CoverTree::new(data, Distance::Euclidean).unwrap();
+        let tree = CoverTree::new(data, Distance::Euclidean).expect("operation should succeed");
         assert_eq!(tree.len(), 4);
         assert!(!tree.is_empty());
     }
@@ -405,13 +405,15 @@ mod tests {
                 0.1, 0.1, // Point 4 (close to 0)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let tree = CoverTree::new(data, Distance::Euclidean).unwrap();
+        let tree = CoverTree::new(data, Distance::Euclidean).expect("operation should succeed");
 
         // Query point close to origin
         let query = array![0.05, 0.05];
-        let (distances, indices) = tree.kneighbors(&query.view(), 3).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 3)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 3);
         assert_eq!(indices.len(), 3);
@@ -423,11 +425,14 @@ mod tests {
 
     #[test]
     fn test_cover_tree_single_point() {
-        let data = Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).unwrap();
-        let tree = CoverTree::new(data, Distance::Euclidean).unwrap();
+        let data =
+            Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).expect("operation should succeed");
+        let tree = CoverTree::new(data, Distance::Euclidean).expect("operation should succeed");
 
         let query = array![1.1, 2.1];
-        let (distances, indices) = tree.kneighbors(&query.view(), 1).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 1)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 1);
         assert_eq!(indices, vec![0]);
@@ -446,9 +451,9 @@ mod tests {
             (6, 2),
             vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let tree = CoverTree::new(data, Distance::Euclidean).unwrap();
+        let tree = CoverTree::new(data, Distance::Euclidean).expect("operation should succeed");
         let stats = tree.stats();
 
         assert_eq!(stats.n_points, 6);
@@ -459,28 +464,36 @@ mod tests {
 
     #[test]
     fn test_cover_tree_different_metrics() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         // Test with Manhattan distance
-        let tree_manhattan = CoverTree::new(data.clone(), Distance::Manhattan).unwrap();
+        let tree_manhattan =
+            CoverTree::new(data.clone(), Distance::Manhattan).expect("operation should succeed");
         let query = array![0.5, 0.5];
-        let (_, _) = tree_manhattan.kneighbors(&query.view(), 2).unwrap();
+        let (_, _) = tree_manhattan
+            .kneighbors(&query.view(), 2)
+            .expect("operation should succeed");
 
         // Test with Cosine distance
-        let tree_cosine = CoverTree::new(data, Distance::Cosine).unwrap();
-        let (_, _) = tree_cosine.kneighbors(&query.view(), 2).unwrap();
+        let tree_cosine = CoverTree::new(data, Distance::Cosine).expect("operation should succeed");
+        let (_, _) = tree_cosine
+            .kneighbors(&query.view(), 2)
+            .expect("operation should succeed");
     }
 
     #[test]
     fn test_cover_tree_large_k() {
-        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
 
-        let tree = CoverTree::new(data, Distance::Euclidean).unwrap();
+        let tree = CoverTree::new(data, Distance::Euclidean).expect("operation should succeed");
         let query = array![0.0, 0.0];
 
         // Request more neighbors than available points
-        let (distances, indices) = tree.kneighbors(&query.view(), 10).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 10)
+            .expect("operation should succeed");
 
         // Should return all available points
         assert_eq!(distances.len(), 3);

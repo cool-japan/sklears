@@ -45,7 +45,7 @@ pub struct RaoBlackwellLedoitWolfConfig {
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let rb_lw = RaoBlackwellLedoitWolf::new();
-/// let fitted = rb_lw.fit(&X.view(), &()).unwrap();
+/// let fitted = rb_lw.fit(&X.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// let shrinkage = fitted.get_shrinkage();
 /// ```
@@ -354,7 +354,9 @@ mod tests {
         ];
 
         let estimator = RaoBlackwellLedoitWolf::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -380,7 +382,9 @@ mod tests {
         ];
 
         let rb_estimator = RaoBlackwellLedoitWolf::new();
-        let rb_fitted = rb_estimator.fit(&x.view(), &()).unwrap();
+        let rb_fitted = rb_estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         // Test that the estimator produces reasonable results
         assert_eq!(rb_fitted.get_covariance().dim(), (3, 3));
@@ -402,7 +406,9 @@ mod tests {
         let x = array![[1.0, 0.5], [2.0, 1.5], [3.0, 2.8]]; // n_samples <= n_features case
 
         let estimator = RaoBlackwellLedoitWolf::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
 

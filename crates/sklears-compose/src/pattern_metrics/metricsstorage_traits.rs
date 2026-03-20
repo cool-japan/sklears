@@ -15,7 +15,7 @@ impl Default for MetricsStorage {
         Self {
             storage_id: format!(
                 "storage_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap().as_millis()
+                .unwrap_or_default().as_millis()
             ),
             raw_metrics: VecDeque::new(),
             aggregated_metrics: BTreeMap::new(),

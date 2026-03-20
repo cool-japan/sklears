@@ -6,8 +6,8 @@
 
 use scirs2_core::rand_prelude::IndexedRandom;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -122,7 +122,7 @@ pub struct NASResult {
 }
 
 /// Neural Architecture Search optimizer
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NASOptimizer {
     config: NASConfig,
     rng: StdRng,
@@ -653,7 +653,7 @@ impl NASOptimizer {
     fn generate_random_architecture(
         &mut self,
     ) -> Result<NeuralArchitecture, Box<dyn std::error::Error>> {
-        let num_layers = self.rng.gen_range(
+        let num_layers = self.rng.random_range(
             self.config.search_space.layer_count_range.0
                 ..=self.config.search_space.layer_count_range.1,
         );
@@ -664,7 +664,7 @@ impl NASOptimizer {
         let mut batch_norm = Vec::new();
 
         for _ in 0..num_layers {
-            let size = self.rng.gen_range(
+            let size = self.rng.random_range(
                 self.config.search_space.neuron_count_range.0
                     ..=self.config.search_space.neuron_count_range.1,
             );
@@ -675,28 +675,28 @@ impl NASOptimizer {
                 .search_space
                 .activation_options
                 .choose(&mut self.rng)
-                .unwrap()
+                .expect("operation should succeed")
                 .clone();
             activations.push(activation);
 
-            let dropout = self.rng.gen_range(
+            let dropout = self.rng.random_range(
                 self.config.search_space.dropout_range.0..=self.config.search_space.dropout_range.1,
             );
             dropout_rates.push(dropout);
 
-            batch_norm.push(self.config.search_space.use_batch_norm && self.rng.gen_bool(0.5));
+            batch_norm.push(self.config.search_space.use_batch_norm && self.rng.random_bool(0.5));
         }
 
         // Generate skip connections
         let mut skip_connections = Vec::new();
         if num_layers > 2 {
-            let n_skip = self.rng.gen_range(0..num_layers / 2 + 1);
+            let n_skip = self.rng.random_range(0..num_layers / 2 + 1);
             for _ in 0..n_skip {
-                let from = self.rng.gen_range(0..num_layers - 1);
+                let from = self.rng.random_range(0..num_layers - 1);
                 let max_to =
                     (from + self.config.search_space.max_skip_distance).min(num_layers - 1);
                 if max_to > from {
-                    let to = self.rng.gen_range(from + 1..max_to + 1);
+                    let to = self.rng.random_range(from + 1..max_to + 1);
                     skip_connections.push((from, to));
                 }
             }
@@ -744,7 +744,7 @@ impl NASOptimizer {
             evaluations[b]
                 .validation_score
                 .partial_cmp(&evaluations[a].validation_score)
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         let elite_count = population_size / 4;
@@ -787,7 +787,7 @@ impl NASOptimizer {
         let mut best_score = Float::NEG_INFINITY;
 
         for _ in 0..tournament_size {
-            let idx = self.rng.gen_range(0..population.len());
+            let idx = self.rng.random_range(0..population.len());
             if evaluations[idx].validation_score > best_score {
                 best_score = evaluations[idx].validation_score;
                 best_idx = idx;
@@ -823,7 +823,7 @@ impl NASOptimizer {
         let mut best_score = Float::NEG_INFINITY;
 
         for _ in 0..tournament_size {
-            let idx = self.rng.gen_range(0..population.len());
+            let idx = self.rng.random_range(0..population.len());
             if evaluations[idx].validation_score > best_score {
                 best_score = evaluations[idx].validation_score;
                 best_idx = idx;
@@ -839,7 +839,7 @@ impl NASOptimizer {
         parent1: &NeuralArchitecture,
         parent2: &NeuralArchitecture,
     ) -> Result<NeuralArchitecture, Box<dyn std::error::Error>> {
-        let num_layers = if self.rng.gen_bool(0.5) {
+        let num_layers = if self.rng.random_bool(0.5) {
             parent1.num_layers
         } else {
             parent2.num_layers
@@ -854,25 +854,25 @@ impl NASOptimizer {
             let parent1_idx = i.min(parent1.num_layers - 1);
             let parent2_idx = i.min(parent2.num_layers - 1);
 
-            layer_sizes.push(if self.rng.gen_bool(0.5) {
+            layer_sizes.push(if self.rng.random_bool(0.5) {
                 parent1.layer_sizes[parent1_idx]
             } else {
                 parent2.layer_sizes[parent2_idx]
             });
 
-            activations.push(if self.rng.gen_bool(0.5) {
+            activations.push(if self.rng.random_bool(0.5) {
                 parent1.activations[parent1_idx].clone()
             } else {
                 parent2.activations[parent2_idx].clone()
             });
 
-            dropout_rates.push(if self.rng.gen_bool(0.5) {
+            dropout_rates.push(if self.rng.random_bool(0.5) {
                 parent1.dropout_rates[parent1_idx]
             } else {
                 parent2.dropout_rates[parent2_idx]
             });
 
-            batch_norm.push(if self.rng.gen_bool(0.5) {
+            batch_norm.push(if self.rng.random_bool(0.5) {
                 parent1.batch_norm[parent1_idx]
             } else {
                 parent2.batch_norm[parent2_idx]
@@ -913,8 +913,8 @@ impl NASOptimizer {
         let mut mutated = architecture.clone();
 
         // Mutate number of layers
-        if self.rng.gen_bool(0.1) {
-            let change = if self.rng.gen_bool(0.5) { 1 } else { -1 };
+        if self.rng.random_bool(0.1) {
+            let change = if self.rng.random_bool(0.5) { 1 } else { -1 };
             mutated.num_layers = ((mutated.num_layers as i32 + change) as usize)
                 .max(self.config.search_space.layer_count_range.0)
                 .min(self.config.search_space.layer_count_range.1);
@@ -922,7 +922,7 @@ impl NASOptimizer {
 
         // Adjust vectors to match new layer count
         while mutated.layer_sizes.len() < mutated.num_layers {
-            mutated.layer_sizes.push(self.rng.gen_range(
+            mutated.layer_sizes.push(self.rng.random_range(
                 self.config.search_space.neuron_count_range.0
                     ..=self.config.search_space.neuron_count_range.1,
             ));
@@ -931,15 +931,15 @@ impl NASOptimizer {
                     .search_space
                     .activation_options
                     .choose(&mut self.rng)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .clone(),
             );
-            mutated.dropout_rates.push(self.rng.gen_range(
+            mutated.dropout_rates.push(self.rng.random_range(
                 self.config.search_space.dropout_range.0..=self.config.search_space.dropout_range.1,
             ));
             mutated
                 .batch_norm
-                .push(self.config.search_space.use_batch_norm && self.rng.gen_bool(0.5));
+                .push(self.config.search_space.use_batch_norm && self.rng.random_bool(0.5));
         }
         mutated.layer_sizes.truncate(mutated.num_layers);
         mutated.activations.truncate(mutated.num_layers);
@@ -948,8 +948,8 @@ impl NASOptimizer {
 
         // Mutate layer sizes
         for size in &mut mutated.layer_sizes {
-            if self.rng.gen_bool(0.2) {
-                let change = self.rng.gen_range(-50..50 + 1);
+            if self.rng.random_bool(0.2) {
+                let change = self.rng.random_range(-50..50 + 1);
                 *size = ((*size as i32 + change) as usize)
                     .max(self.config.search_space.neuron_count_range.0)
                     .min(self.config.search_space.neuron_count_range.1);
@@ -958,21 +958,21 @@ impl NASOptimizer {
 
         // Mutate activations
         for activation in &mut mutated.activations {
-            if self.rng.gen_bool(0.1) {
+            if self.rng.random_bool(0.1) {
                 *activation = self
                     .config
                     .search_space
                     .activation_options
                     .choose(&mut self.rng)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .clone();
             }
         }
 
         // Mutate dropout rates
         for dropout in &mut mutated.dropout_rates {
-            if self.rng.gen_bool(0.2) {
-                let change = self.rng.gen_range(-0.1..1.1);
+            if self.rng.random_bool(0.2) {
+                let change = self.rng.random_range(-0.1..1.1);
                 *dropout = (*dropout + change)
                     .max(self.config.search_space.dropout_range.0)
                     .min(self.config.search_space.dropout_range.1);
@@ -981,24 +981,24 @@ impl NASOptimizer {
 
         // Mutate batch normalization
         for bn in &mut mutated.batch_norm {
-            if self.rng.gen_bool(0.1) {
+            if self.rng.random_bool(0.1) {
                 *bn = !*bn;
             }
         }
 
         // Mutate skip connections
-        if self.rng.gen_bool(0.1) {
-            if self.rng.gen_bool(0.5) && !mutated.skip_connections.is_empty() {
+        if self.rng.random_bool(0.1) {
+            if self.rng.random_bool(0.5) && !mutated.skip_connections.is_empty() {
                 // Remove a connection
-                let idx = self.rng.gen_range(0..mutated.skip_connections.len());
+                let idx = self.rng.random_range(0..mutated.skip_connections.len());
                 mutated.skip_connections.remove(idx);
             } else if mutated.num_layers > 2 {
                 // Add a connection
-                let from = self.rng.gen_range(0..mutated.num_layers - 1);
+                let from = self.rng.random_range(0..mutated.num_layers - 1);
                 let max_to =
                     (from + self.config.search_space.max_skip_distance).min(mutated.num_layers - 1);
                 if max_to > from {
-                    let to = self.rng.gen_range(from + 1..max_to + 1);
+                    let to = self.rng.random_range(from + 1..max_to + 1);
                     let connection = (from, to);
                     if !mutated.skip_connections.contains(&connection) {
                         mutated.skip_connections.push(connection);
@@ -1032,7 +1032,8 @@ impl NASOptimizer {
 
         let recent_scores =
             &convergence_curve[convergence_curve.len() - self.config.early_stopping_patience..];
-        let improvement = recent_scores.last().unwrap() - recent_scores.first().unwrap();
+        let improvement = recent_scores.last().expect("operation should succeed")
+            - recent_scores.first().expect("operation should succeed");
         improvement < 1e-6
     }
 
@@ -1144,7 +1145,7 @@ impl NASOptimizer {
             for (arch, score) in evaluated_architectures {
                 if *score > best_score * 0.9 {
                     // Slightly bias towards similar architectures
-                    if self.rng.gen_bool(0.3) {
+                    if self.rng.random_bool(0.3) {
                         architecture.num_layers = arch.num_layers;
                     }
                     break;
@@ -1203,7 +1204,9 @@ mod tests {
         let config = NASConfig::default();
         let mut optimizer = NASOptimizer::new(config);
 
-        let architecture = optimizer.generate_random_architecture().unwrap();
+        let architecture = optimizer
+            .generate_random_architecture()
+            .expect("operation should succeed");
         assert!(architecture.num_layers > 0);
         assert!(architecture.layer_sizes.len() == architecture.num_layers);
         assert!(architecture.activations.len() == architecture.num_layers);
@@ -1263,7 +1266,9 @@ mod tests {
             })
         };
 
-        let result = optimizer.search(evaluation_fn).unwrap();
+        let result = optimizer
+            .search(evaluation_fn)
+            .expect("operation should succeed");
         assert!(result.best_score > 0.0);
         assert_eq!(result.architectures_evaluated, 5);
     }

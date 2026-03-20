@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::Estimator,
@@ -601,12 +601,12 @@ impl RobustOptimizer {
         let mut rng = if let Some(seed) = self.config.random_seed {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         for elem in gradient.iter_mut() {
             if !elem.is_finite() {
-                *elem = rng.gen_range(-1e-6..1e-6);
+                *elem = rng.random_range(-1e-6..1e-6);
             }
         }
 
@@ -815,12 +815,14 @@ impl RobustObjective for RobustMDSObjective {
         if embedding.is_err() {
             return Vec::new();
         }
-        let embedding = embedding.unwrap();
+        let embedding = embedding.expect("operation should succeed");
 
         let mut outliers = Vec::new();
 
         // Simple outlier detection based on distance from centroid
-        let centroid = embedding.mean_axis(Axis(0)).unwrap();
+        let centroid = embedding
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
 
         for i in 0..n_samples {
             let mut dist_sq = 0.0;
@@ -862,7 +864,9 @@ mod tests {
         };
 
         let optimizer = RobustOptimizer::new(config);
-        let result = optimizer.robust_adam(&objective, initial_params).unwrap();
+        let result = optimizer
+            .robust_adam(&objective, initial_params)
+            .expect("operation should succeed");
 
         assert!(result.iterations > 0);
         assert!(result.final_gradient_norm >= 0.0);
@@ -883,7 +887,9 @@ mod tests {
         };
 
         let optimizer = RobustOptimizer::new(config);
-        let result = optimizer.trust_region(&objective, initial_params).unwrap();
+        let result = optimizer
+            .trust_region(&objective, initial_params)
+            .expect("operation should succeed");
 
         assert!(result.iterations > 0);
         assert!(result.diagnostics.trust_region_stats.is_some());
@@ -905,7 +911,9 @@ mod tests {
         };
 
         let optimizer = RobustOptimizer::new(config);
-        let result = optimizer.robust_lbfgs(&objective, initial_params).unwrap();
+        let result = optimizer
+            .robust_lbfgs(&objective, initial_params)
+            .expect("operation should succeed");
 
         assert!(result.iterations > 0);
         assert!(result.final_gradient_norm >= 0.0);
@@ -940,7 +948,9 @@ mod tests {
         };
 
         let optimizer = RobustOptimizer::new(config);
-        let result = optimizer.robust_adam(&objective, initial_params).unwrap();
+        let result = optimizer
+            .robust_adam(&objective, initial_params)
+            .expect("operation should succeed");
 
         // Check that diagnostics are populated
         assert!(!result.objective_history.is_empty());

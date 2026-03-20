@@ -82,11 +82,11 @@ fn create_contingency_table(
 ) -> CoreResult<Array2<f64>> {
     // Find unique values in feature and target
     let mut feature_values: Vec<f64> = feature.to_vec();
-    feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     feature_values.dedup();
 
     let mut target_values: Vec<f64> = y.to_vec();
-    target_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    target_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     target_values.dedup();
 
     let n_feature_vals = feature_values.len();
@@ -121,7 +121,8 @@ mod tests {
     fn test_chi2_contingency() {
         // Simple 2x2 contingency table
         let contingency = array![[10.0, 5.0], [3.0, 12.0]];
-        let (chi2_stat, p_value) = chi2_contingency(&contingency.view()).unwrap();
+        let (chi2_stat, p_value) =
+            chi2_contingency(&contingency.view()).expect("operation should succeed");
 
         assert!(chi2_stat > 0.0);
         assert!(p_value >= 0.0 && p_value <= 1.0);
@@ -134,7 +135,7 @@ mod tests {
         let X = array![[1.0, 0.0], [1.0, 1.0], [0.0, 0.0], [0.0, 1.0]];
         let y = array![1.0, 1.0, 0.0, 0.0];
 
-        let (chi2_stats, p_values) = chi2(&X.view(), &y.view()).unwrap();
+        let (chi2_stats, p_values) = chi2(&X.view(), &y.view()).expect("operation should succeed");
 
         assert_eq!(chi2_stats.len(), 2);
         assert_eq!(p_values.len(), 2);

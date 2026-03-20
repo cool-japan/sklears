@@ -17,7 +17,9 @@ fn test_graph_spectral_features() {
         .n_eigenvalues(3)
         .include_eigenvector_centrality(true);
 
-    let features = extractor.extract_features(n_nodes, &edges).unwrap();
+    let features = extractor
+        .extract_features(n_nodes, &edges)
+        .expect("operation should succeed");
 
     // Should have eigenvalues + eigenvector centrality values
     // n_eigenvalues + n_nodes = 3 + 4 = 7
@@ -47,7 +49,7 @@ fn test_graph_centrality_features() {
 
     let features = extractor
         .extract_features_from_edges(n_nodes, &edges)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should have features for each node
     assert!(features.len() >= n_nodes);
@@ -69,7 +71,9 @@ fn test_graph_clustering_features() {
         .include_clustering_coefficient(true)
         .include_transitivity(true);
 
-    let features = extractor.extract_features(n_nodes, &edges).unwrap();
+    let features = extractor
+        .extract_features(n_nodes, &edges)
+        .expect("operation should succeed");
 
     // Should have clustering coefficient for each node + global transitivity
     // n_nodes + 1 = 3 + 1 = 4
@@ -97,7 +101,9 @@ fn test_graph_motif_features() {
         .motif_size(3)
         .count_connected_motifs(true);
 
-    let features = extractor.extract_features(n_nodes, &edges).unwrap();
+    let features = extractor
+        .extract_features(n_nodes, &edges)
+        .expect("operation should succeed");
 
     // Should count various 3-node motifs
     assert!(features.len() > 0);
@@ -121,7 +127,9 @@ fn test_graph_path_features() {
         .include_shortest_paths(true)
         .include_path_distribution(true);
 
-    let features = extractor.extract_features(n_nodes, &edges).unwrap();
+    let features = extractor
+        .extract_features(n_nodes, &edges)
+        .expect("operation should succeed");
 
     // Should include shortest path statistics and path length distribution
     assert!(features.len() > 0);
@@ -145,7 +153,9 @@ fn test_graph_community_features() {
         .include_modularity(true)
         .include_community_sizes(true);
 
-    let features = extractor.extract_features(n_nodes, &edges).unwrap();
+    let features = extractor
+        .extract_features(n_nodes, &edges)
+        .expect("operation should succeed");
 
     // Should include modularity score and community size statistics
     assert!(features.len() > 0);
@@ -186,13 +196,16 @@ fn test_manifold_isomap() {
         })
         .collect();
 
-    let X = Array2::from_shape_vec((n_points, 2), data.into_iter().flatten().collect()).unwrap();
+    let X = Array2::from_shape_vec((n_points, 2), data.into_iter().flatten().collect())
+        .expect("operation should succeed");
 
     let isomap = manifold::Isomap::new()
         .n_components(1) // Circle is 1D manifold
         .n_neighbors(5);
 
-    let embedded = isomap.fit_transform(&X.view()).unwrap();
+    let embedded = isomap
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (n_points, 1));
 
@@ -218,7 +231,9 @@ fn test_manifold_lle() {
         .n_components(2)
         .n_neighbors(3);
 
-    let embedded = lle.fit_transform(&X.view()).unwrap();
+    let embedded = lle
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (6, 2));
 
@@ -244,7 +259,9 @@ fn test_manifold_tsne() {
         .perplexity(2.0)
         .max_iter(100); // Reduced for testing
 
-    let embedded = tsne.fit_transform(&X.view()).unwrap();
+    let embedded = tsne
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (6, 2));
 
@@ -274,7 +291,9 @@ fn test_manifold_umap() {
         .min_dist(0.1)
         .n_epochs(50); // Reduced for testing
 
-    let embedded = umap.fit_transform(&X.view()).unwrap();
+    let embedded = umap
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (9, 2));
 
@@ -290,7 +309,9 @@ fn test_manifold_mds() {
 
     let mds = manifold::MDS::new().n_components(2).max_iter(100);
 
-    let embedded = mds.fit_transform(&X.view()).unwrap();
+    let embedded = mds
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (4, 2));
 
@@ -315,7 +336,9 @@ fn test_manifold_spectral_embedding() {
         .n_components(2)
         .gamma(1.0);
 
-    let embedded = spectral.fit_transform(&X.view()).unwrap();
+    let embedded = spectral
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (6, 2));
 
@@ -360,8 +383,12 @@ fn test_manifold_consistency() {
     // Test MDS consistency (deterministic)
     let mds = manifold::MDS::new().n_components(2).max_iter(50);
 
-    let embedded1 = mds.fit_transform(&X.view()).unwrap();
-    let embedded2 = mds.fit_transform(&X.view()).unwrap();
+    let embedded1 = mds
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
+    let embedded2 = mds
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded1.dim(), embedded2.dim());
 
@@ -389,15 +416,18 @@ fn test_graph_and_manifold_integration() {
 
     let graph_features = graph_extractor
         .extract_features_from_edges(n_nodes, &edges)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Reshape features for manifold learning (each node as a sample)
     let feature_dim = graph_features.len() / n_nodes;
-    let X = Array2::from_shape_vec((n_nodes, feature_dim), graph_features.to_vec()).unwrap();
+    let X = Array2::from_shape_vec((n_nodes, feature_dim), graph_features.to_vec())
+        .expect("operation should succeed");
 
     // Apply manifold learning
     let mds = manifold::MDS::new().n_components(2);
-    let embedded = mds.fit_transform(&X.view()).unwrap();
+    let embedded = mds
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (n_nodes, 2));
 
@@ -428,7 +458,9 @@ fn test_large_graph_scalability() {
         .include_eigenvector_centrality(false); // Skip expensive computation
 
     let start = std::time::Instant::now();
-    let features = extractor.extract_features(n_nodes, &edges).unwrap();
+    let features = extractor
+        .extract_features(n_nodes, &edges)
+        .expect("operation should succeed");
     let duration = start.elapsed();
 
     // Should complete in reasonable time
@@ -449,7 +481,9 @@ fn test_manifold_different_input_sizes() {
     // 2D -> 1D
     let X_2d = array![[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0]];
     let mds_2d = manifold::MDS::new().n_components(1);
-    let embedded_2d = mds_2d.fit_transform(&X_2d.view()).unwrap();
+    let embedded_2d = mds_2d
+        .fit_transform(&X_2d.view())
+        .expect("operation should succeed");
     assert_eq!(embedded_2d.dim(), (4, 1));
 
     // 3D -> 2D
@@ -460,13 +494,17 @@ fn test_manifold_different_input_sizes() {
         [4.0, 4.0, 4.0]
     ];
     let mds_3d = manifold::MDS::new().n_components(2);
-    let embedded_3d = mds_3d.fit_transform(&X_3d.view()).unwrap();
+    let embedded_3d = mds_3d
+        .fit_transform(&X_3d.view())
+        .expect("operation should succeed");
     assert_eq!(embedded_3d.dim(), (4, 2));
 
     // High-dimensional -> 2D
     let X_high = Array2::from_shape_fn((10, 20), |(i, j)| i as f64 + j as f64 * 0.1);
     let mds_high = manifold::MDS::new().n_components(2).max_iter(50);
-    let embedded_high = mds_high.fit_transform(&X_high.view()).unwrap();
+    let embedded_high = mds_high
+        .fit_transform(&X_high.view())
+        .expect("operation should succeed");
     assert_eq!(embedded_high.dim(), (10, 2));
 
     // All results should be finite

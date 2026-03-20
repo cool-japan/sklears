@@ -462,7 +462,8 @@ mod tests {
     fn test_simd_pairwise_distances_euclidean() {
         let X = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
-        let distances = simd_pairwise_distances(&X.view(), DistanceMetric::Euclidean).unwrap();
+        let distances = simd_pairwise_distances(&X.view(), DistanceMetric::Euclidean)
+            .expect("operation should succeed");
 
         assert_eq!(distances.dim(), (4, 4));
 
@@ -489,7 +490,7 @@ mod tests {
     fn test_simd_knn_graph() {
         let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
 
-        let graph = simd_knn_graph(&X.view(), 2, 1.0).unwrap();
+        let graph = simd_knn_graph(&X.view(), 2, 1.0).expect("operation should succeed");
 
         assert_eq!(graph.dim(), (4, 4));
 
@@ -535,10 +536,11 @@ mod tests {
     fn test_simd_pairwise_distances_serial_vs_parallel() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let serial = simd_pairwise_distances_serial(&X.view(), DistanceMetric::Euclidean).unwrap();
+        let serial = simd_pairwise_distances_serial(&X.view(), DistanceMetric::Euclidean)
+            .expect("operation should succeed");
 
-        let parallel =
-            simd_pairwise_distances_parallel(&X.view(), DistanceMetric::Euclidean).unwrap();
+        let parallel = simd_pairwise_distances_parallel(&X.view(), DistanceMetric::Euclidean)
+            .expect("operation should succeed");
 
         // Results should be identical (within floating point precision)
         for i in 0..3 {
@@ -554,10 +556,14 @@ mod tests {
         let X = array![[1.0, 2.0], [4.0, 5.0]];
 
         // Test all metrics
-        let euc = simd_pairwise_distances(&X.view(), DistanceMetric::Euclidean).unwrap();
-        let man = simd_pairwise_distances(&X.view(), DistanceMetric::Manhattan).unwrap();
-        let cos = simd_pairwise_distances(&X.view(), DistanceMetric::Cosine).unwrap();
-        let sq_euc = simd_pairwise_distances(&X.view(), DistanceMetric::SquaredEuclidean).unwrap();
+        let euc = simd_pairwise_distances(&X.view(), DistanceMetric::Euclidean)
+            .expect("operation should succeed");
+        let man = simd_pairwise_distances(&X.view(), DistanceMetric::Manhattan)
+            .expect("operation should succeed");
+        let cos = simd_pairwise_distances(&X.view(), DistanceMetric::Cosine)
+            .expect("operation should succeed");
+        let sq_euc = simd_pairwise_distances(&X.view(), DistanceMetric::SquaredEuclidean)
+            .expect("operation should succeed");
 
         // All should have the same shape
         assert_eq!(euc.dim(), (2, 2));

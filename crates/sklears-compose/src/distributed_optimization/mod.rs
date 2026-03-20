@@ -570,13 +570,13 @@ impl DistributedOptimizer {
     }
 
     fn setup_node_communication(&mut self, node_id: &NodeId) -> Result<(), OptimizationError> {
-        let mut comm_layer = self.communication_layer.lock().unwrap();
+        let mut comm_layer = self.communication_layer.lock().unwrap_or_else(|e| e.into_inner());
         comm_layer.setup_node_connection(node_id)?;
         Ok(())
     }
 
     fn cleanup_node_communication(&mut self, node_id: &NodeId) -> Result<(), OptimizationError> {
-        let mut comm_layer = self.communication_layer.lock().unwrap();
+        let mut comm_layer = self.communication_layer.lock().unwrap_or_else(|e| e.into_inner());
         comm_layer.cleanup_node_connection(node_id)?;
         Ok(())
     }
@@ -615,7 +615,7 @@ impl DistributedOptimizer {
     }
 
     fn get_communication_health(&self) -> Result<CommunicationHealth, OptimizationError> {
-        let comm_layer = self.communication_layer.lock().unwrap();
+        let comm_layer = self.communication_layer.lock().unwrap_or_else(|e| e.into_inner());
         Ok(comm_layer.get_health_status()?)
     }
 

@@ -1270,7 +1270,9 @@ mod tests {
         let optimizer = RiemannianOptimizer::new(manifold);
 
         let point = array![[1.0, 2.0, 3.0]];
-        let projected = optimizer.project_to_manifold(&point).unwrap();
+        let projected = optimizer
+            .project_to_manifold(&point)
+            .expect("operation should succeed");
 
         // Check that it's on the unit sphere
         let norm = projected.mapv(|x| x * x).sum().sqrt();
@@ -1287,7 +1289,7 @@ mod tests {
 
         let tangent = optimizer
             .project_to_tangent_space(&point, &gradient)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that it's orthogonal to the point
         let dot_product = point
@@ -1326,7 +1328,7 @@ mod tests {
         let initial_point = array![[0.0, 0.0]];
         let result = optimizer
             .optimize(objective, gradient, initial_point)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that we converged to the minimum (1, 2)
         assert!((result.optimal_point[[0, 0]] - 1.0).abs() < 1e-3);
@@ -1357,7 +1359,7 @@ mod tests {
         let initial_point = array![[0.0, 1.0, 0.0]]; // Start at (0, 1, 0)
         let result = optimizer
             .optimize(objective, gradient, initial_point)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that the optimal point is approximately (1, 0, 0)
         assert!(result.optimal_point[[0, 0]] > 0.8); // Should be close to 1
@@ -1376,7 +1378,9 @@ mod tests {
 
         let point = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
-        let projected = optimizer.project_to_manifold(&point).unwrap();
+        let projected = optimizer
+            .project_to_manifold(&point)
+            .expect("operation should succeed");
 
         // Check that columns are orthonormal (X^T * X = I)
         let mut gram = Array2::zeros((2, 2));
@@ -1406,7 +1410,9 @@ mod tests {
 
         let point = array![[2.0, 3.0], [1.0, 4.0], [5.0, 1.0]];
 
-        let projected = optimizer.project_to_manifold(&point).unwrap();
+        let projected = optimizer
+            .project_to_manifold(&point)
+            .expect("operation should succeed");
 
         // Check that each row has unit norm
         for i in 0..3 {
@@ -1477,7 +1483,9 @@ mod tests {
         let point1 = array![[0.0, 0.0]];
         let point2 = array![[3.0, 4.0]];
 
-        let distance = optimizer.compute_distance(&point1, &point2).unwrap();
+        let distance = optimizer
+            .compute_distance(&point1, &point2)
+            .expect("operation should succeed");
         assert!((distance - 5.0).abs() < 1e-10);
 
         // Test sphere distance
@@ -1487,7 +1495,9 @@ mod tests {
         let point1 = array![[1.0, 0.0, 0.0]];
         let point2 = array![[0.0, 1.0, 0.0]];
 
-        let distance = sphere_optimizer.compute_distance(&point1, &point2).unwrap();
+        let distance = sphere_optimizer
+            .compute_distance(&point1, &point2)
+            .expect("operation should succeed");
         assert!((distance - PI / 2.0).abs() < 1e-10);
     }
 
@@ -1499,7 +1509,9 @@ mod tests {
         let point = array![[1.0, 0.0]];
         let tangent = array![[3.0, 4.0]];
 
-        let norm = optimizer.compute_norm(&point, &tangent).unwrap();
+        let norm = optimizer
+            .compute_norm(&point, &tangent)
+            .expect("operation should succeed");
         assert!((norm - 5.0).abs() < 1e-10);
     }
 
@@ -1512,7 +1524,9 @@ mod tests {
         let point = array![[1.0, 2.0]];
         let tangent = array![[0.1, 0.2]];
 
-        let retracted = optimizer.retract(&point, &tangent).unwrap();
+        let retracted = optimizer
+            .retract(&point, &tangent)
+            .expect("operation should succeed");
         assert!((retracted[[0, 0]] - 1.1).abs() < 1e-10);
         assert!((retracted[[0, 1]] - 2.2).abs() < 1e-10);
 
@@ -1523,7 +1537,9 @@ mod tests {
         let point = array![[1.0, 0.0, 0.0]];
         let tangent = array![[0.0, 0.1, 0.0]];
 
-        let retracted = sphere_optimizer.retract(&point, &tangent).unwrap();
+        let retracted = sphere_optimizer
+            .retract(&point, &tangent)
+            .expect("operation should succeed");
 
         // Should still be on the unit sphere
         let norm = retracted.mapv(|x| x * x).sum().sqrt();

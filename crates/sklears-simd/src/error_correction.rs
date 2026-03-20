@@ -343,7 +343,9 @@ mod tests {
 
         for data in 0..16u8 {
             let encoded = hamming.encode(data);
-            let decoded = hamming.decode(encoded).unwrap();
+            let decoded = hamming
+                .decode(encoded)
+                .expect("serialization should succeed");
             assert_eq!(decoded, data, "Failed for data: {}", data);
         }
     }
@@ -357,7 +359,9 @@ mod tests {
         // Introduce single-bit errors at each position
         for error_pos in 0..7 {
             let corrupted = encoded ^ (1 << error_pos);
-            let decoded = hamming.decode(corrupted).unwrap();
+            let decoded = hamming
+                .decode(corrupted)
+                .expect("deserialization should succeed");
             assert_eq!(
                 decoded, data,
                 "Failed to correct error at position {}",
@@ -372,7 +376,9 @@ mod tests {
         let data = b"Hello, World!";
 
         let encoded = hamming.encode_bytes(data);
-        let decoded = hamming.decode_bytes(&encoded).unwrap();
+        let decoded = hamming
+            .decode_bytes(&encoded)
+            .expect("serialization should succeed");
 
         assert_eq!(decoded, data);
     }
@@ -416,7 +422,7 @@ mod tests {
         let decoded = rs.decode(&encoded);
         // Note: our simplified implementation doesn't actually correct errors
         // In a real implementation, this would work
-        assert!(decoded.is_err() || decoded.unwrap() == data);
+        assert!(decoded.is_err() || decoded.expect("deserialization should succeed") == data);
     }
 
     #[test]
@@ -463,7 +469,9 @@ mod tests {
         let data = [0x42]; // Single byte
 
         let encoded = hamming.encode_bytes(&data);
-        let decoded = hamming.decode_bytes(&encoded).unwrap();
+        let decoded = hamming
+            .decode_bytes(&encoded)
+            .expect("serialization should succeed");
         assert_eq!(decoded, data);
     }
 

@@ -93,14 +93,14 @@ impl CrossValidationResult {
         let best_fold = fold_scores
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
         let worst_fold = fold_scores
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -514,8 +514,12 @@ impl GridSearchCV {
         // Find best k
         let best = results
             .iter()
-            .max_by(|(_, a), (_, b)| a.mean_score.partial_cmp(&b.mean_score).unwrap())
-            .unwrap();
+            .max_by(|(_, a), (_, b)| {
+                a.mean_score
+                    .partial_cmp(&b.mean_score)
+                    .expect("operation should succeed")
+            })
+            .expect("operation should succeed");
 
         Ok(GridSearchResult {
             best_params: vec![("k".to_string(), best.0 as Float)],
@@ -557,12 +561,20 @@ impl GridSearchCV {
         let best = match metric {
             RegressionMetric::R2 => results
                 .iter()
-                .max_by(|(_, a), (_, b)| a.mean_score.partial_cmp(&b.mean_score).unwrap())
-                .unwrap(),
+                .max_by(|(_, a), (_, b)| {
+                    a.mean_score
+                        .partial_cmp(&b.mean_score)
+                        .expect("operation should succeed")
+                })
+                .expect("operation should succeed"),
             _ => results
                 .iter()
-                .min_by(|(_, a), (_, b)| a.mean_score.partial_cmp(&b.mean_score).unwrap())
-                .unwrap(),
+                .min_by(|(_, a), (_, b)| {
+                    a.mean_score
+                        .partial_cmp(&b.mean_score)
+                        .expect("operation should succeed")
+                })
+                .expect("operation should succeed"),
         };
 
         Ok(GridSearchResult {
@@ -710,7 +722,7 @@ impl BootstrapResult {
         let std_error = (variance / scores.len() as Float).sqrt();
 
         // Compute 95% confidence interval using percentile method
-        scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let lower_idx = (scores.len() as Float * 0.025) as usize;
         let upper_idx = (scores.len() as Float * 0.975) as usize;
         let confidence_interval = (scores[lower_idx], scores[upper_idx]);
@@ -738,7 +750,7 @@ mod tests {
                 1.0, 0.9, 0.8, 0.8, 0.7, 0.9,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
 
         let validator = KFoldValidator::new(5);
@@ -750,7 +762,7 @@ mod tests {
                 Distance::Euclidean,
                 ClassificationMetric::Accuracy,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 5);
         assert!(result.mean_score >= 0.0 && result.mean_score <= 1.0);
@@ -766,13 +778,13 @@ mod tests {
                 5.0, 5.0, 6.0, 6.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0]);
 
         let validator = KFoldValidator::new(5);
         let result = validator
             .validate_knn_regressor(&x, &y, 3, Distance::Euclidean, RegressionMetric::MSE)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 5);
         assert!(result.mean_score >= 0.0);
@@ -788,7 +800,7 @@ mod tests {
                 1.0, 0.8, -0.5, -0.5, 0.5, 0.5, -0.4, -0.4, 0.4, 0.4,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![
             0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2,
         ]);
@@ -802,7 +814,7 @@ mod tests {
                 Distance::Euclidean,
                 ClassificationMetric::Accuracy,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 4);
     }
@@ -817,7 +829,7 @@ mod tests {
                 1.0, 0.8, -0.5, -0.5, 0.5, 0.5, -0.4, -0.4, 0.4, 0.4,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![
             0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1,
         ]);
@@ -831,7 +843,7 @@ mod tests {
                 Distance::Euclidean,
                 ClassificationMetric::Accuracy,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.best_score >= 0.0 && result.best_score <= 1.0);
         assert_eq!(result.all_results.len(), 3);
@@ -847,7 +859,7 @@ mod tests {
                 1.0, 0.8, -0.5, -0.5, 0.5, 0.5, -0.4, -0.4, 0.4, 0.4,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![
             0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1,
         ]);
@@ -861,7 +873,7 @@ mod tests {
                 Distance::Euclidean,
                 ClassificationMetric::Accuracy,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.scores.len() > 0);
         assert!(result.mean_score >= 0.0 && result.mean_score <= 1.0);

@@ -888,8 +888,8 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut calibrator = OptimalTransportCalibrator::new();
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -900,8 +900,8 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut calibrator = InformationTheoreticCalibrator::new();
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -912,8 +912,8 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut calibrator = GeometricCalibrator::new();
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -924,8 +924,8 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut calibrator = TopologicalCalibrator::new();
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -936,8 +936,8 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut calibrator = QuantumInspiredCalibrator::new();
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -951,8 +951,8 @@ mod tests {
             .with_regularization(0.05)
             .with_sinkhorn_iterations(50);
         
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -963,8 +963,8 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut calibrator = QuantumInspiredCalibrator::new().with_qubits(4);
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));

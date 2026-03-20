@@ -246,8 +246,14 @@ impl RegularizationPathSolver {
             // Early stopping check
             if self.config.early_stopping && i > 10 {
                 let recent_improvement = if i >= 5 {
-                    let recent_avg = cv_scores.slice(s![i - 4..=i]).mean().unwrap();
-                    let prev_avg = cv_scores.slice(s![i - 9..=i - 5]).mean().unwrap();
+                    let recent_avg = cv_scores
+                        .slice(s![i - 4..=i])
+                        .mean()
+                        .expect("mean should not fail on non-empty array");
+                    let prev_avg = cv_scores
+                        .slice(s![i - 9..=i - 5])
+                        .mean()
+                        .expect("mean should not fail on non-empty array");
                     recent_avg - prev_avg
                 } else {
                     Float::INFINITY
@@ -1037,7 +1043,9 @@ mod tests {
         let config = RegularizationPathConfig::default();
         let solver = RegularizationPathSolver::new(config);
 
-        let lambdas = solver.compute_lambda_sequence(&x, &y).unwrap();
+        let lambdas = solver
+            .compute_lambda_sequence(&x, &y)
+            .expect("operation should succeed");
 
         assert_eq!(lambdas.len(), 100);
         assert!(lambdas[0] > lambdas[lambdas.len() - 1]); // Decreasing sequence
@@ -1068,7 +1076,7 @@ mod tests {
         };
 
         let solver = RegularizationPathSolver::new(config);
-        let result = solver.fit_path(&x, &y).unwrap();
+        let result = solver.fit_path(&x, &y).expect("operation should succeed");
 
         assert_eq!(result.lambdas.len(), 20);
         assert_eq!(result.coef_path.nrows(), 20);
@@ -1125,11 +1133,13 @@ mod tests {
         let config = RegularizationPathConfig::default();
         let solver = RegularizationPathSolver::new(config);
 
-        let (x_std, means, _stds) = solver.standardize_features(&x).unwrap();
+        let (x_std, means, _stds) = solver
+            .standardize_features(&x)
+            .expect("operation should succeed");
 
         // Check means are approximately zero after standardization
         for j in 0..x_std.ncols() {
-            let col_mean = x_std.column(j).mean().unwrap();
+            let col_mean = x_std.column(j).mean().expect("operation should succeed");
             assert!((col_mean).abs() < 1e-10);
         }
 

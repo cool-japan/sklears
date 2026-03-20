@@ -135,9 +135,9 @@ impl IncrementalPCA<Untrained> {
             self.n_features_in_ = Some(n_features);
             self.sum_ = Some(Array1::zeros(n_features));
             self.sum_squared_ = Some(Array1::zeros(n_features));
-        } else if self.n_features_in_.unwrap() != n_features {
+        } else if self.n_features_in_.expect("operation should succeed") != n_features {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.unwrap(),
+                expected: self.n_features_in_.expect("operation should succeed"),
                 actual: n_features,
             });
         }
@@ -163,8 +163,8 @@ impl IncrementalPCA<Untrained> {
 
     /// Compute mean and variance from running statistics
     fn compute_mean_and_variance(&self) -> (Array1<Float>, Array1<Float>) {
-        let sum = self.sum_.as_ref().unwrap();
-        let sum_squared = self.sum_squared_.as_ref().unwrap();
+        let sum = self.sum_.as_ref().expect("operation should succeed");
+        let sum_squared = self.sum_squared_.as_ref().expect("operation should succeed");
         let n_samples = self.n_samples_seen_ as Float;
 
         // Mean = sum / n_samples
@@ -711,7 +711,7 @@ mod tests {
     fn test_incremental_pca_basic() {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
 
-        let pca = IncrementalPCA::new().n_components(2).fit(&x, &()).unwrap();
+        let pca = IncrementalPCA::new().n_components(2).fit(&x, &()).expect("model fitting should succeed");
 
         // Check fitted parameters
         assert_eq!(pca.n_components(), 2);
@@ -720,7 +720,7 @@ mod tests {
         assert_eq!(pca.components().dim(), (2, 3));
 
         // Transform data
-        let x_transformed = pca.transform(&x).unwrap();
+        let x_transformed = pca.transform(&x).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (3, 2));
     }
 
@@ -733,19 +733,19 @@ mod tests {
         let mut pca = IncrementalPCA::new().n_components(1);
 
         // Fit incrementally
-        pca = pca.partial_fit(&x1, &()).unwrap();
+        pca = pca.partial_fit(&x1, &()).expect("operation should succeed");
         assert_eq!(pca.n_samples_seen_, 2);
 
-        pca = pca.partial_fit(&x2, &()).unwrap();
+        pca = pca.partial_fit(&x2, &()).expect("operation should succeed");
         assert_eq!(pca.n_samples_seen_, 4);
 
-        let trained_pca = pca.into_trained().unwrap();
+        let trained_pca = pca.into_trained().expect("operation should succeed");
         assert_eq!(trained_pca.n_samples_seen(), 4);
 
         // Transform combined data
         let x_all = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0], [4.0, 8.0],];
 
-        let x_transformed = trained_pca.transform(&x_all).unwrap();
+        let x_transformed = trained_pca.transform(&x_all).expect("transformation should succeed");
         assert_eq!(x_transformed.dim(), (4, 1));
     }
 
@@ -753,7 +753,7 @@ mod tests {
     fn test_incremental_pca_statistics() {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
-        let pca = IncrementalPCA::new().fit(&x, &()).unwrap();
+        let pca = IncrementalPCA::new().fit(&x, &()).expect("model fitting should succeed");
 
         // Check mean calculation
         let expected_mean = array![3.0, 4.0];
@@ -769,10 +769,10 @@ mod tests {
     fn test_incremental_pca_inverse_transform() {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
 
-        let pca = IncrementalPCA::new().n_components(2).fit(&x, &()).unwrap();
+        let pca = IncrementalPCA::new().n_components(2).fit(&x, &()).expect("model fitting should succeed");
 
-        let x_transformed = pca.transform(&x).unwrap();
-        let x_reconstructed = pca.inverse_transform(&x_transformed).unwrap();
+        let x_transformed = pca.transform(&x).expect("transformation should succeed");
+        let x_reconstructed = pca.inverse_transform(&x_transformed).expect("operation should succeed");
 
         assert_eq!(x_reconstructed.dim(), (3, 3));
         // Note: Reconstruction won't be perfect with fewer components
@@ -790,7 +790,7 @@ mod tests {
         let x1 = array![[1.0, 2.0, 3.0]];
         let x2 = array![[4.0, 5.0]]; // Different number of features
 
-        let pca = IncrementalPCA::new().partial_fit(&x1, &()).unwrap();
+        let pca = IncrementalPCA::new().partial_fit(&x1, &()).expect("operation should succeed");
         let result = pca.partial_fit(&x2, &());
         assert!(result.is_err());
     }
@@ -801,11 +801,11 @@ mod tests {
 
         let x2 = array![[3.0, 6.0],];
 
-        let pca = IncrementalPCA::new().fit(&x1, &()).unwrap();
+        let pca = IncrementalPCA::new().fit(&x1, &()).expect("model fitting should succeed");
 
         assert_eq!(pca.n_samples_seen(), 2);
 
-        let updated_pca = pca.partial_fit_more(&x2, &()).unwrap();
+        let updated_pca = pca.partial_fit_more(&x2, &()).expect("operation should succeed");
         assert_eq!(updated_pca.n_samples_seen(), 3);
     }
 }

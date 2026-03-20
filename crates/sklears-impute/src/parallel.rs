@@ -240,16 +240,28 @@ impl ParallelKNNImputer<ParallelKNNImputerTrained> {
             .map(|(train_idx, train_row)| {
                 let distance = match self.metric.as_str() {
                     "euclidean" => SimdDistanceCalculator::euclidean_distance_simd(
-                        query_row.as_slice().unwrap(),
-                        train_row.as_slice().unwrap(),
+                        query_row
+                            .as_slice()
+                            .expect("matrix indexing should be valid"),
+                        train_row
+                            .as_slice()
+                            .expect("matrix indexing should be valid"),
                     ),
                     "manhattan" => SimdDistanceCalculator::manhattan_distance_simd(
-                        query_row.as_slice().unwrap(),
-                        train_row.as_slice().unwrap(),
+                        query_row
+                            .as_slice()
+                            .expect("matrix indexing should be valid"),
+                        train_row
+                            .as_slice()
+                            .expect("matrix indexing should be valid"),
                     ),
                     _ => SimdDistanceCalculator::euclidean_distance_simd(
-                        query_row.as_slice().unwrap(),
-                        train_row.as_slice().unwrap(),
+                        query_row
+                            .as_slice()
+                            .expect("matrix indexing should be valid"),
+                        train_row
+                            .as_slice()
+                            .expect("matrix indexing should be valid"),
                     ),
                 };
                 (distance, train_idx)
@@ -595,7 +607,7 @@ impl ParallelIterativeImputer<ParallelIterativeImputerTrained> {
             })
             .collect();
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Use top k neighbors
         let k = 5.min(distances.len());
@@ -995,7 +1007,7 @@ mod tests {
                 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = ParallelConfig {
             max_threads: Some(2),
@@ -1006,8 +1018,12 @@ mod tests {
             .n_neighbors(2)
             .parallel_config(config);
 
-        let fitted = imputer.fit(&data.view(), &()).unwrap();
-        let result = fitted.transform(&data.view()).unwrap();
+        let fitted = imputer
+            .fit(&data.view(), &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data.view())
+            .expect("transformation should succeed");
 
         // Should have no missing values
         assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -1040,7 +1056,7 @@ mod tests {
                 f64::NAN,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = ParallelConfig {
             max_threads: Some(2),
@@ -1052,8 +1068,12 @@ mod tests {
             .tol(1e-3)
             .parallel_config(config);
 
-        let fitted = imputer.fit(&data.view(), &()).unwrap();
-        let result = fitted.transform(&data.view()).unwrap();
+        let fitted = imputer
+            .fit(&data.view(), &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data.view())
+            .expect("transformation should succeed");
 
         // Should have no missing values
         assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -1101,7 +1121,7 @@ mod tests {
                 30.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let simple_impute_fn = |chunk: &Array2<f64>| -> SklResult<Array2<f64>> {
             let mut result = chunk.clone();
@@ -1126,7 +1146,8 @@ mod tests {
             Ok(result)
         };
 
-        let result = MemoryEfficientImputer::impute_chunked(&data, 3, simple_impute_fn).unwrap();
+        let result = MemoryEfficientImputer::impute_chunked(&data, 3, simple_impute_fn)
+            .expect("operation should succeed");
 
         // Should have no missing values
         assert!(!result.iter().any(|&x| x.is_nan()));
@@ -1154,7 +1175,9 @@ mod tests {
             .buffer_size(3)
             .strategy("mean".to_string());
 
-        let results = imputer.fit_transform_stream(data_stream).unwrap();
+        let results = imputer
+            .fit_transform_stream(data_stream)
+            .expect("operation should succeed");
 
         // Should have same number of rows
         assert_eq!(results.len(), 5);
@@ -1187,7 +1210,9 @@ mod tests {
         let mut results = Vec::new();
 
         for row in &rows {
-            let result = imputer.fit_transform_single(row).unwrap();
+            let result = imputer
+                .fit_transform_single(row)
+                .expect("matrix indexing should be valid");
             results.push(result);
         }
 
@@ -1254,7 +1279,7 @@ mod tests {
         let processed_stream: Vec<_> =
             MemoryEfficientImputer::stream_impute(data_stream, impute_fn)
                 .collect::<SklResult<Vec<_>>>()
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(processed_stream.len(), 100);
 
@@ -1478,7 +1503,7 @@ impl<T> SharedDataRef<T> {
 
     /// Get the current reference count
     pub fn ref_count(&self) -> usize {
-        *self.refs.lock().unwrap()
+        *self.refs.lock().expect("lock should not be poisoned")
     }
 
     /// Check if this is the only reference
@@ -1493,7 +1518,7 @@ impl<T: Clone> SharedDataRef<T> {
         if Arc::strong_count(&self.data) > 1 {
             self.data = Arc::new((*self.data).clone());
         }
-        Arc::get_mut(&mut self.data).unwrap()
+        Arc::get_mut(&mut self.data).expect("operation should succeed")
     }
 }
 

@@ -7,7 +7,7 @@
 
 Efficient nearest neighbor algorithms for Rust with advanced indexing structures, GPU acceleration, and production-ready tooling.
 
-> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -22,7 +22,7 @@ Efficient nearest neighbor algorithms for Rust with advanced indexing structures
 ## Status ✅
 
 - **Implementation**: Fully featured KNN, radius, and approximate search APIs aligned with scikit-learn 1.5.
-- **Validation**: Covered by the 11,292 passing workspace tests (69 skipped) from the 0.1.0-beta.1 release.
+- **Validation**: Covered by the 11,292 passing workspace tests (69 skipped) from the 0.1.0 release.
 - **Performance**: SIMD-accelerated distance kernels, multi-threaded queries, and optional GPU offload.
 
 ## Quick Start
@@ -193,7 +193,7 @@ sklears-neighbors/
 
 ## Roadmap
 
-### Toward 0.1.0-beta
+### Toward 0.2.0
 - [ ] Extend ANN benchmarks to cover billion-scale datasets
 - [ ] Document distributed query patterns with end-to-end examples
 - [ ] Stabilize the custom metric plugin API

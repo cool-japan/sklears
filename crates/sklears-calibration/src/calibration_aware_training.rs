@@ -334,7 +334,7 @@ impl CalibrationAwareTrainer {
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -397,7 +397,9 @@ impl CalibrationAwareTrainer {
                         .row(i)
                         .iter()
                         .enumerate()
-                        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                        .max_by(|(_, a), (_, b)| {
+                            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                        })
                         .map(|(idx, _)| idx)
                         .unwrap_or(0);
 
@@ -432,7 +434,7 @@ impl CalibrationAwareTrainer {
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -602,7 +604,9 @@ mod tests {
         let predictions = array![[0.9, 0.1], [0.3, 0.7], [0.8, 0.2]];
         let y_true = array![0, 1, 0];
 
-        let loss = trainer.cross_entropy_loss(&predictions, &y_true).unwrap();
+        let loss = trainer
+            .cross_entropy_loss(&predictions, &y_true)
+            .expect("operation should succeed");
         assert!(loss > 0.0);
         assert!(loss.is_finite());
     }
@@ -613,7 +617,9 @@ mod tests {
         let predictions = array![[0.9, 0.1], [0.3, 0.7], [0.8, 0.2], [0.1, 0.9]];
         let y_true = array![0, 1, 0, 1];
 
-        let ece = trainer.compute_ece(&predictions, &y_true, 10).unwrap();
+        let ece = trainer
+            .compute_ece(&predictions, &y_true, 10)
+            .expect("operation should succeed");
         assert!(ece >= 0.0);
         assert!(ece <= 1.0);
     }
@@ -634,7 +640,9 @@ mod tests {
         let predictions = array![[0.9, 0.1], [0.3, 0.7]];
         let y_true = array![0, 1];
 
-        let brier_loss = trainer.brier_score_loss(&predictions, &y_true).unwrap();
+        let brier_loss = trainer
+            .brier_score_loss(&predictions, &y_true)
+            .expect("operation should succeed");
         assert!(brier_loss >= 0.0);
         assert!(brier_loss.is_finite());
     }
@@ -644,7 +652,7 @@ mod tests {
         let trainer = CalibrationAwareTrainer::new(CalibrationAwareTrainingConfig::default());
         let logits = array![[1.0, 2.0], [3.0, 1.0]];
 
-        let probabilities = trainer.softmax(&logits).unwrap();
+        let probabilities = trainer.softmax(&logits).expect("operation should succeed");
 
         // Check that probabilities sum to 1
         for row in probabilities.rows() {
@@ -667,7 +675,7 @@ mod tests {
 
         let focal_loss = trainer
             .focal_loss_with_temperature(&predictions, &y_true, 2.0, 1.0)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(focal_loss >= 0.0);
         assert!(focal_loss.is_finite());
     }
@@ -688,8 +696,12 @@ mod tests {
         let predictions = array![[0.9, 0.1], [0.3, 0.7]];
         let y_true = array![0, 1];
 
-        let loss1 = trainer1.compute_loss(&predictions, &y_true).unwrap();
-        let loss2 = trainer2.compute_loss(&predictions, &y_true).unwrap();
+        let loss1 = trainer1
+            .compute_loss(&predictions, &y_true)
+            .expect("operation should succeed");
+        let loss2 = trainer2
+            .compute_loss(&predictions, &y_true)
+            .expect("operation should succeed");
 
         assert!(loss1.is_finite());
         assert!(loss2.is_finite());

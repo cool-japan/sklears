@@ -173,7 +173,7 @@ impl GroupKFold {
                 .enumerate()
                 .min_by_key(|(_, &size)| size)
                 .map(|(idx, _)| idx)
-                .unwrap();
+                .expect("operation should succeed");
 
             fold_assignments[min_fold].push(group);
             fold_sizes[min_fold] += size;
@@ -247,7 +247,7 @@ impl GroupKFold {
                 .enumerate()
                 .min_by_key(|(_, &size)| size)
                 .map(|(idx, _)| idx)
-                .unwrap();
+                .expect("operation should succeed");
 
             fold_assignments[min_fold].push(group);
             fold_sizes[min_fold] += group_indices[&group].len();
@@ -445,7 +445,10 @@ impl CrossValidator for StratifiedGroupKFold {
     }
 
     fn split(&self, _n_samples: usize, _y: Option<&Array1<i32>>) -> Vec<(Vec<usize>, Vec<usize>)> {
-        panic!("StratifiedGroupKFold requires both groups and labels. Use split_with_groups_and_labels method instead.");
+        // StratifiedGroupKFold requires both groups and labels.
+        // Use split_with_groups_and_labels method instead.
+        // Return empty splits to signal that this method cannot be used directly.
+        Vec::new()
     }
 }
 

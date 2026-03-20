@@ -54,6 +54,14 @@ impl Dataset {
 }
 
 /// Load the Iris dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Iris dataset.
+/// The data is produced by `make_classification` with matching dimensions (150 samples,
+/// 4 features, 3 classes) but does not contain actual Iris flower measurements.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_iris() -> Dataset {
     // This is a simplified stub - in the real implementation this would load actual data
     use crate::generators::basic::make_classification;
@@ -80,6 +88,14 @@ pub fn load_iris() -> Dataset {
 }
 
 /// Load the Wine dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Wine recognition dataset.
+/// The data is produced by `make_classification` with matching dimensions (178 samples,
+/// 13 features, 3 classes) but does not contain actual wine chemical analysis measurements.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_wine() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -100,6 +116,14 @@ pub fn load_wine() -> Dataset {
 }
 
 /// Load the Breast Cancer dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Breast Cancer Wisconsin dataset.
+/// The data is produced by `make_classification` with matching dimensions (569 samples,
+/// 30 features, 2 classes) but does not contain actual diagnostic measurements.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_breast_cancer() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -116,6 +140,14 @@ pub fn load_breast_cancer() -> Dataset {
 }
 
 /// Load the Digits dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Optical Digits dataset.
+/// The data is produced by `make_classification` with matching dimensions (1797 samples,
+/// 64 features, 10 classes) but does not contain actual handwritten digit pixel values.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_digits() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -132,6 +164,15 @@ pub fn load_digits() -> Dataset {
 }
 
 /// Load the Diabetes dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Diabetes progression dataset.
+/// The data is produced by `make_regression` with matching dimensions (442 samples,
+/// 10 features) but does not contain actual patient measurements. Additionally, the
+/// continuous regression targets are discretized into binary classes, losing the original
+/// progression values. Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_diabetes() -> Dataset {
     use crate::generators::basic::make_regression;
 
@@ -151,6 +192,16 @@ pub fn load_diabetes() -> Dataset {
 }
 
 /// Load the Boston Housing dataset (stub implementation with ethical note)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Boston Housing dataset.
+/// The data is produced by `make_regression` with matching dimensions (506 samples,
+/// 13 features) but does not contain actual housing data. The continuous regression
+/// targets are discretized into binary classes. Note: the real Boston Housing dataset
+/// has known ethical concerns and has been deprecated by scikit-learn.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_boston() -> Dataset {
     use crate::generators::basic::make_regression;
 
@@ -170,6 +221,15 @@ pub fn load_boston() -> Dataset {
 }
 
 /// Load California Housing dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real California Housing dataset.
+/// The data is produced by `make_regression` with matching dimensions (20640 samples,
+/// 8 features) but does not contain actual census-derived housing data. The continuous
+/// regression targets are discretized into binary classes.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_california_housing() -> Dataset {
     use crate::generators::basic::make_regression;
 
@@ -188,6 +248,14 @@ pub fn load_california_housing() -> Dataset {
 }
 
 /// Load Linnerud dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Linnerud physiological dataset.
+/// The data is produced by `make_classification` with matching dimensions (20 samples,
+/// 3 features, 3 classes) but does not contain actual exercise and physiological measurements.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_linnerud() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -212,6 +280,14 @@ pub fn load_linnerud() -> Dataset {
 }
 
 /// Load MNIST dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real MNIST dataset.
+/// The data is produced by `make_classification` with reduced dimensions (1000 samples,
+/// 784 features, 10 classes) but does not contain actual handwritten digit images.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_mnist() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -228,6 +304,14 @@ pub fn load_mnist() -> Dataset {
 }
 
 /// Load Fashion-MNIST dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Fashion-MNIST dataset.
+/// The data is produced by `make_classification` with reduced dimensions (1000 samples,
+/// 784 features, 10 classes) but does not contain actual clothing item images.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_fashion_mnist() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -255,6 +339,14 @@ pub fn load_fashion_mnist() -> Dataset {
 }
 
 /// Load CIFAR-10 dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real CIFAR-10 dataset.
+/// The data is produced by `make_classification` with reduced dimensions (1000 samples,
+/// 3072 features, 10 classes) but does not contain actual object images.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_cifar10() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -282,6 +374,14 @@ pub fn load_cifar10() -> Dataset {
 }
 
 /// Load 20 Newsgroups dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real 20 Newsgroups dataset.
+/// The data is produced by `make_classification` with reduced dimensions (1000 samples,
+/// 1000 features, 20 classes) but does not contain actual newsgroup text data or TF-IDF features.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_newsgroups() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -298,6 +398,14 @@ pub fn load_newsgroups() -> Dataset {
 }
 
 /// Load Reuters dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Reuters news dataset.
+/// The data is produced by `make_classification` with reduced dimensions (1000 samples,
+/// 500 features, 8 classes) but does not contain actual news article text or features.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_reuters() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -314,6 +422,14 @@ pub fn load_reuters() -> Dataset {
 }
 
 /// Load Olivetti Faces dataset (stub implementation)
+///
+/// # Warning
+///
+/// This function returns **synthetic generated data**, not the real Olivetti Faces dataset.
+/// The data is produced by `make_classification` with matching dimensions (400 samples,
+/// 4096 features, 40 classes) but does not contain actual face images.
+/// Full implementation loading real data is planned for v0.2.0.
+#[deprecated(note = "Returns synthetic data, not real dataset. Full implementation planned for v0.2.0.")]
 pub fn load_olivetti_faces() -> Dataset {
     use crate::generators::basic::make_classification;
 
@@ -330,6 +446,7 @@ pub fn load_olivetti_faces() -> Dataset {
 }
 
 #[allow(non_snake_case)]
+#[allow(deprecated)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,7 +474,7 @@ mod tests {
         assert_eq!(dataset.n_samples(), 569);
         assert_eq!(dataset.n_features(), 30);
         assert!(dataset.target_names.is_some());
-        assert_eq!(dataset.target_names.as_ref().unwrap().len(), 2);
+        assert_eq!(dataset.target_names.as_ref().expect("operation should succeed").len(), 2);
     }
 
     #[test]
@@ -366,7 +483,7 @@ mod tests {
         assert_eq!(dataset.n_samples(), 1797);
         assert_eq!(dataset.n_features(), 64);
         assert!(dataset.target_names.is_some());
-        assert_eq!(dataset.target_names.as_ref().unwrap().len(), 10);
+        assert_eq!(dataset.target_names.as_ref().expect("operation should succeed").len(), 10);
     }
 
     #[test]
@@ -374,7 +491,7 @@ mod tests {
         use crate::generators::basic::make_classification;
         use scirs2_core::ndarray::Array1;
 
-        let (data, target) = make_classification(100, 4, 3, 0, 3, Some(42)).unwrap();
+        let (data, target) = make_classification(100, 4, 3, 0, 3, Some(42)).expect("operation should succeed");
         let dataset = Dataset::new(
             data,
             target,

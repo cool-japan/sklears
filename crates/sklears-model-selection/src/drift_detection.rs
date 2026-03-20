@@ -138,7 +138,10 @@ impl DriftDetector {
             });
         }
 
-        let reference = self.reference_data.as_ref().unwrap();
+        let reference = self
+            .reference_data
+            .as_ref()
+            .expect("operation should succeed");
 
         if reference.ncols() != current_data.ncols() {
             return Err(SklearsError::InvalidInput(
@@ -925,7 +928,9 @@ mod tests {
             current[[i, 1]] = (idx as f64 / 100.0).sin();
         }
 
-        let result = detector.detect_drift(&current).unwrap();
+        let result = detector
+            .detect_drift(&current)
+            .expect("operation should succeed");
         assert!(
             !result.drift_detected,
             "Should not detect drift in similar data"
@@ -953,7 +958,9 @@ mod tests {
             current[[i, 0]] = (i as f64 / 50.0) + 0.5; // Shifted distribution
         }
 
-        let result = detector.detect_drift(&current).unwrap();
+        let result = detector
+            .detect_drift(&current)
+            .expect("operation should succeed");
         // PSI should detect this shift
         assert!(result.drift_score > 0.1, "Should detect distribution shift");
     }

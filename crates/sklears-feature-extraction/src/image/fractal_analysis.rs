@@ -741,8 +741,8 @@ mod tests {
 
     #[test]
     fn test_compute_fractal_dimension_small_image() {
-        let image =
-            Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64 / 16.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64 / 16.0).collect())
+            .expect("operation should succeed");
         let extractor = FractalDimensionExtractor::new();
         let result = extractor.compute_fractal_dimension(&image.view());
 
@@ -753,9 +753,11 @@ mod tests {
     fn test_compute_fractal_dimension_valid_image() {
         let image =
             Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect())
-                .unwrap();
+                .expect("operation should succeed");
         let extractor = FractalDimensionExtractor::new();
-        let dimension = extractor.compute_fractal_dimension(&image.view()).unwrap();
+        let dimension = extractor
+            .compute_fractal_dimension(&image.view())
+            .expect("operation should succeed");
 
         assert!(dimension > 0.5 && dimension < 3.0); // Reasonable fractal dimension range
     }
@@ -769,7 +771,7 @@ mod tests {
                 0.0, 0.1, 0.9, 1.0, 0.2, 0.3, 0.8, 0.7, 0.1, 0.4, 0.6, 0.9, 0.0, 0.2, 0.7, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let threshold = extractor.otsu_threshold(&image.view());
         assert!(threshold >= 0.0 && threshold <= 1.0);
@@ -780,7 +782,7 @@ mod tests {
         let extractor = FractalDimensionExtractor::new();
         let image =
             Array2::from_shape_vec((3, 3), vec![0.0, 0.3, 0.7, 0.2, 0.6, 0.9, 0.1, 0.4, 0.8])
-                .unwrap();
+                .expect("operation should succeed");
 
         let binary = extractor.to_binary_threshold(&image.view(), 0.5);
 
@@ -804,7 +806,7 @@ mod tests {
                 true, false, true,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let count = extractor.count_boxes(&binary, 2);
         assert!(count > 0); // Should count some boxes
@@ -813,8 +815,8 @@ mod tests {
     #[test]
     fn test_differential_box_counting() {
         let extractor = FractalDimensionExtractor::new();
-        let image =
-            Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect())
+            .expect("operation should succeed");
 
         let count = extractor.differential_count_boxes(&image.view(), 2);
         assert!(count > 0); // Should count some differential boxes
@@ -833,7 +835,8 @@ mod tests {
     #[test]
     fn test_semivariance() {
         let extractor = FractalDimensionExtractor::new();
-        let image = Array2::from_shape_vec((5, 5), (0..25).map(|x| x as f64).collect()).unwrap();
+        let image = Array2::from_shape_vec((5, 5), (0..25).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let semivar = extractor.compute_semivariance(&image.view(), 1);
         assert!(semivar >= 0.0); // Semivariance should be non-negative
@@ -849,7 +852,7 @@ mod tests {
                 0.3, 0.5, 0.3, 0.1, 0.0, 0.1, 0.2, 0.1, 0.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let area = extractor.blanket_area(&image.view(), 0.1);
         assert!(area > 0.0); // Should have some surface area
@@ -857,10 +860,12 @@ mod tests {
 
     #[test]
     fn test_extract_fractal_features() {
-        let image =
-            Array2::from_shape_vec((16, 16), (0..256).map(|x| x as f64 / 256.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((16, 16), (0..256).map(|x| x as f64 / 256.0).collect())
+            .expect("operation should succeed");
         let extractor = FractalDimensionExtractor::new();
-        let features = extractor.extract_fractal_features(&image.view()).unwrap();
+        let features = extractor
+            .extract_fractal_features(&image.view())
+            .expect("operation should succeed");
 
         assert!(features.len() >= 1); // Should extract at least primary dimension
         assert!(features.iter().all(|&x| x.is_finite())); // All features should be finite
@@ -872,14 +877,14 @@ mod tests {
         let uniform_image = Array2::ones((10, 10));
         let random_image =
             Array2::from_shape_vec((10, 10), (0..100).map(|x| (x % 7) as f64 / 7.0).collect())
-                .unwrap();
+                .expect("operation should succeed");
 
         let uniform_complexity = extractor
             .compute_texture_complexity(&uniform_image.view())
-            .unwrap();
+            .expect("operation should succeed");
         let random_complexity = extractor
             .compute_texture_complexity(&random_image.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Random image should have higher complexity than uniform image
         assert!(random_complexity >= uniform_complexity);

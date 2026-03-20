@@ -786,7 +786,7 @@ mod tests {
 
         let alpha = line_search
             .search(f, grad_f, &x.view(), &direction.view(), f_x, &grad_x.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(alpha > 0.0);
         assert!(alpha <= 1.0);
@@ -820,7 +820,9 @@ mod tests {
         let f = |x: &ArrayView1<f64>| x[0] * x[0] + x[1] * x[1];
         let x = array![2.0, 3.0];
 
-        let gradient = grad_computer.compute_gradient(f, &x.view()).unwrap();
+        let gradient = grad_computer
+            .compute_gradient(f, &x.view())
+            .expect("operation should succeed");
 
         // Analytical gradient should be [2*x₁, 2*x₂] = [4.0, 6.0]
         assert!((gradient[0] - 4.0).abs() < 1e-6);
@@ -880,7 +882,9 @@ mod tests {
         let f = |x: &ArrayView1<f64>| array![x[0] * x[0], x[0] * x[1]];
         let x = array![2.0, 3.0];
 
-        let jacobian = grad_computer.compute_jacobian(f, &x.view(), 2).unwrap();
+        let jacobian = grad_computer
+            .compute_jacobian(f, &x.view(), 2)
+            .expect("operation should succeed");
 
         // Analytical Jacobian should be:
         // [[2*x₁, 0  ],     [[4, 0],

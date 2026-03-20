@@ -67,7 +67,7 @@ impl GraphBuilder for KNNGraphBuilder {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(j, dist) in distances.iter().take(self.n_neighbors) {
                 if self.weighted {
@@ -376,7 +376,7 @@ mod tests {
         let X = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]];
         let builder = KNNGraphBuilder::new(2).weighted(true).sigma(1.0);
 
-        let graph = builder.build(&X.view()).unwrap();
+        let graph = builder.build(&X.view()).expect("operation should succeed");
 
         assert_eq!(graph.dim(), (4, 4));
         // Each node should be connected to 2 neighbors
@@ -392,7 +392,7 @@ mod tests {
         let X = array![[0.0, 0.0], [1.0, 0.0], [10.0, 0.0]];
         let builder = EpsilonGraphBuilder::new(2.0).weighted(false);
 
-        let graph = builder.build(&X.view()).unwrap();
+        let graph = builder.build(&X.view()).expect("operation should succeed");
 
         assert_eq!(graph.dim(), (3, 3));
         // Nodes 0 and 1 should be connected (distance 1.0 < 2.0)
@@ -411,7 +411,9 @@ mod tests {
         graph[[2, 1]] = 4.0;
 
         let transform = SymmetrizeTransform::new("max".to_string());
-        let symmetric = transform.transform(&graph).unwrap();
+        let symmetric = transform
+            .transform(&graph)
+            .expect("operation should succeed");
 
         assert_eq!(symmetric[[0, 1]], 2.0);
         assert_eq!(symmetric[[1, 0]], 2.0);
@@ -427,7 +429,9 @@ mod tests {
         graph[[1, 0]] = 1.0;
 
         let transform = NormalizeTransform::new("row".to_string());
-        let normalized = transform.transform(&graph).unwrap();
+        let normalized = transform
+            .transform(&graph)
+            .expect("operation should succeed");
 
         // Row 0 should sum to 1.0
         let row_sum: f64 = normalized.row(0).sum();
@@ -442,7 +446,9 @@ mod tests {
         graph[[1, 2]] = 0.3;
 
         let transform = SparsifyTransform::new(0.2);
-        let sparse = transform.transform(&graph).unwrap();
+        let sparse = transform
+            .transform(&graph)
+            .expect("operation should succeed");
 
         assert_eq!(sparse[[0, 1]], 0.0); // Below threshold
         assert_eq!(sparse[[0, 2]], 0.5); // Above threshold
@@ -458,7 +464,7 @@ mod tests {
             .add_transform(SymmetrizeTransform::new("average".to_string()))
             .add_transform(NormalizeTransform::new("row".to_string()));
 
-        let graph = pipeline.build(&X.view()).unwrap();
+        let graph = pipeline.build(&X.view()).expect("operation should succeed");
 
         assert_eq!(graph.dim(), (4, 4));
 
@@ -482,7 +488,7 @@ mod tests {
         let pipeline = GraphPipeline::new(KNNGraphBuilder::new(1).weighted(true))
             .add_transform(SymmetrizeTransform::new("max".to_string()));
 
-        let graph = pipeline.build(&X.view()).unwrap();
+        let graph = pipeline.build(&X.view()).expect("operation should succeed");
 
         assert_eq!(graph.dim(), (3, 3));
 

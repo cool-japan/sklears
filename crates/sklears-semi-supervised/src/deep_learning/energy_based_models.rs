@@ -506,8 +506,8 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for EnergyBasedModel {
             let predicted_class = class_probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .unwrap()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = predicted_class as i32;
         }
@@ -585,9 +585,15 @@ mod tests {
             .learning_rate(0.01)
             .n_negative_samples(3);
 
-        let fitted_model = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted_model.predict(&X.view()).unwrap();
-        let probabilities = fitted_model.predict_proba(&X.view()).unwrap();
+        let fitted_model = model
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted_model
+            .predict(&X.view())
+            .expect("operation should succeed");
+        let probabilities = fitted_model
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(probabilities.dim(), (4, 2));
@@ -627,10 +633,14 @@ mod tests {
         let model = EnergyBasedModel::new().input_dim(3).hidden_dims(vec![4, 2]);
 
         let mut model = model.clone();
-        model.initialize_parameters().unwrap();
+        model
+            .initialize_parameters()
+            .expect("operation should succeed");
 
         let input = array![1.0, 2.0, 3.0];
-        let energy = model.compute_energy(&input.view()).unwrap();
+        let energy = model
+            .compute_energy(&input.view())
+            .expect("operation should succeed");
 
         assert!(energy.is_finite());
     }
@@ -653,7 +663,9 @@ mod tests {
 
         let model = EnergyBasedModel::new().input_dim(3).n_negative_samples(5);
 
-        let negative_samples = model.generate_negative_samples(&X.view()).unwrap();
+        let negative_samples = model
+            .generate_negative_samples(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(negative_samples.dim(), (5, 3));
     }
@@ -745,9 +757,15 @@ mod tests {
             .classification_weight(0.5)
             .margin(0.5);
 
-        let fitted_model = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted_model.predict(&X.view()).unwrap();
-        let probabilities = fitted_model.predict_proba(&X.view()).unwrap();
+        let fitted_model = model
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted_model
+            .predict(&X.view())
+            .expect("operation should succeed");
+        let probabilities = fitted_model
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(probabilities.dim(), (3, 3));
@@ -758,10 +776,14 @@ mod tests {
         let model = EnergyBasedModel::new().input_dim(3).hidden_dims(vec![4, 2]);
 
         let mut model = model.clone();
-        model.initialize_parameters().unwrap();
+        model
+            .initialize_parameters()
+            .expect("operation should succeed");
 
         let input = array![1.0, 2.0, 3.0];
-        let features = model.get_hidden_features(&input.view()).unwrap();
+        let features = model
+            .get_hidden_features(&input.view())
+            .expect("operation should succeed");
 
         assert_eq!(features.len(), 2); // Last hidden layer dimension
         assert!(features.iter().all(|&x| x.is_finite()));
@@ -775,10 +797,14 @@ mod tests {
             .hidden_dims(vec![4]);
 
         let mut model = model.clone();
-        model.initialize_parameters().unwrap();
+        model
+            .initialize_parameters()
+            .expect("operation should succeed");
 
         let input = array![1.0, 2.0, 3.0];
-        let probs = model.compute_classification_probs(&input.view()).unwrap();
+        let probs = model
+            .compute_classification_probs(&input.view())
+            .expect("operation should succeed");
 
         assert_eq!(probs.len(), 2);
         let sum: f64 = probs.sum();
@@ -793,11 +819,13 @@ mod tests {
 
         let model = EnergyBasedModel::new().n_classes(2).input_dim(3).epochs(5);
 
-        let fitted_model = model.fit(&X.view(), &y.view()).unwrap();
+        let fitted_model = model
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
         let initial_sample = array![1.0, 2.0, 3.0];
         let sample = fitted_model
             .langevin_sample(&initial_sample.view(), 5, 0.01)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(sample.len(), 3);
         assert!(sample.iter().all(|&x| x.is_finite()));

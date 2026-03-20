@@ -325,8 +325,12 @@ impl BayesianVariableSelector<Untrained> {
         }
 
         // Compute posterior inclusion probabilities and coefficient estimates
-        let inclusion_probs = gamma_samples.mean_axis(Axis(0)).unwrap();
-        let coeff_estimates = coeff_samples.mean_axis(Axis(0)).unwrap();
+        let inclusion_probs = gamma_samples
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
+        let coeff_estimates = coeff_samples
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
         let evidence = 0.0; // Would compute marginal likelihood from samples
 
         Ok((inclusion_probs, coeff_estimates, evidence))
@@ -577,9 +581,12 @@ impl Fit<Array2<Float>, Array1<Float>> for BayesianVariableSelector<Untrained> {
 
 impl Transform<Array2<Float>> for BayesianVariableSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -594,8 +601,11 @@ impl Transform<Array2<Float>> for BayesianVariableSelector<Trained> {
 
 impl SelectorMixin for BayesianVariableSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -606,7 +616,10 @@ impl SelectorMixin for BayesianVariableSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -616,36 +629,45 @@ impl SelectorMixin for BayesianVariableSelector<Trained> {
 
 impl FeatureSelector for BayesianVariableSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl BayesianVariableSelector<Trained> {
     /// Get posterior inclusion probabilities
     pub fn inclusion_probabilities(&self) -> &Array1<Float> {
-        self.posterior_inclusion_probs_.as_ref().unwrap()
+        self.posterior_inclusion_probs_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get feature coefficients
     pub fn coefficients(&self) -> &Array1<Float> {
-        self.feature_coefficients_.as_ref().unwrap()
+        self.feature_coefficients_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get model evidence (log marginal likelihood)
     pub fn evidence(&self) -> Float {
-        self.evidence_.unwrap()
+        self.evidence_.expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 
     /// Check if a feature was selected
     pub fn is_feature_selected(&self, feature_idx: usize) -> bool {
         self.selected_features_
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .contains(&feature_idx)
     }
 }
@@ -953,9 +975,12 @@ impl Fit<Array2<Float>, Array1<Float>> for BayesianModelAveraging<Untrained> {
 
 impl Transform<Array2<Float>> for BayesianModelAveraging<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -970,8 +995,11 @@ impl Transform<Array2<Float>> for BayesianModelAveraging<Trained> {
 
 impl SelectorMixin for BayesianModelAveraging<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -982,7 +1010,10 @@ impl SelectorMixin for BayesianModelAveraging<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -992,29 +1023,40 @@ impl SelectorMixin for BayesianModelAveraging<Trained> {
 
 impl FeatureSelector for BayesianModelAveraging<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl BayesianModelAveraging<Trained> {
     /// Get model probabilities
     pub fn model_probabilities(&self) -> &[Float] {
-        self.model_probabilities_.as_ref().unwrap()
+        self.model_probabilities_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get features for each model
     pub fn model_features(&self) -> &[Vec<usize>] {
-        self.model_features_.as_ref().unwrap()
+        self.model_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get averaged inclusion probabilities
     pub fn inclusion_probabilities(&self) -> &Array1<Float> {
-        self.averaged_inclusion_probs_.as_ref().unwrap()
+        self.averaged_inclusion_probs_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -1060,7 +1102,9 @@ mod tests {
             })
             .n_features_select(3);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 3);
         assert!(trained.inclusion_probabilities().len() == features.ncols());
     }
@@ -1076,7 +1120,9 @@ mod tests {
             })
             .inclusion_threshold(0.3);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert!(trained.n_features_out() > 0);
     }
 
@@ -1088,7 +1134,9 @@ mod tests {
             .max_models(50)
             .prior_inclusion_prob(0.3);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert!(trained.n_features_out() > 0);
         assert!(trained.model_probabilities().len() > 0);
     }
@@ -1099,8 +1147,12 @@ mod tests {
 
         let selector = BayesianVariableSelector::new().n_features_select(4);
 
-        let trained = selector.fit(&features, &target).unwrap();
-        let transformed = trained.transform(&features).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 4);
         assert_eq!(transformed.nrows(), features.nrows());
@@ -1114,7 +1166,9 @@ mod tests {
             .prior(PriorType::Horseshoe { tau: 0.1 })
             .n_features_select(3);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 3);
     }
 
@@ -1124,8 +1178,10 @@ mod tests {
 
         let selector = BayesianVariableSelector::new().n_features_select(5);
 
-        let trained = selector.fit(&features, &target).unwrap();
-        let support = trained.get_support().unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
+        let support = trained.get_support().expect("operation should succeed");
 
         assert_eq!(support.len(), features.ncols());
         assert_eq!(support.iter().filter(|&&x| x).count(), 5);
@@ -1138,7 +1194,8 @@ mod tests {
         fn valid_features() -> impl Strategy<Value = Array2<Float>> {
             (3usize..10, 20usize..50).prop_flat_map(|(n_cols, n_rows)| {
                 prop::collection::vec(-5.0..5.0f64, n_rows * n_cols).prop_map(move |values| {
-                    Array2::from_shape_vec((n_rows, n_cols), values).unwrap()
+                    Array2::from_shape_vec((n_rows, n_cols), values)
+                        .expect("operation should succeed")
                 })
             })
         }

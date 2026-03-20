@@ -229,8 +229,12 @@ impl PolynomialFeatures {
             return Ok(vec![]);
         }
 
-        let n_input_features = self.n_input_features.unwrap();
-        let n_output_features = self.n_output_features.unwrap();
+        let n_input_features = self
+            .n_input_features
+            .ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
+        let n_output_features = self
+            .n_output_features
+            .ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
 
         // Validate input dimensions
         for (i, row) in x.iter().enumerate() {
@@ -640,7 +644,7 @@ mod tests {
         let data = vec![vec![2.0, 3.0], vec![4.0, 5.0]];
 
         let mut poly = PolynomialFeatures::with_degree(2);
-        let transformed = poly.fit_transform(&data).unwrap();
+        let transformed = poly.fit_transform(&data).expect("operation should succeed");
 
         // Features should be: [1, x0, x1, x0^2, x0*x1, x1^2]
         assert_eq!(transformed[0].len(), 6);
@@ -667,7 +671,7 @@ mod tests {
         let data = vec![vec![2.0, 3.0]];
 
         let mut poly = PolynomialFeatures::interactions_only(2);
-        let transformed = poly.fit_transform(&data).unwrap();
+        let transformed = poly.fit_transform(&data).expect("operation should succeed");
 
         // Should only have interaction term x0*x1, no bias or linear terms
         assert_eq!(transformed[0].len(), 1);
@@ -685,7 +689,7 @@ mod tests {
             ..Default::default()
         };
         let mut poly = PolynomialFeatures::new(config);
-        let transformed = poly.fit_transform(&data).unwrap();
+        let transformed = poly.fit_transform(&data).expect("operation should succeed");
 
         // Features should be: [1, x0, x1, x0^2, x1^2] (no x0*x1)
         assert_eq!(transformed[0].len(), 5);
@@ -706,7 +710,7 @@ mod tests {
             ..Default::default()
         };
         let mut poly = PolynomialFeatures::new(config);
-        let transformed = poly.fit_transform(&data).unwrap();
+        let transformed = poly.fit_transform(&data).expect("operation should succeed");
 
         // Should have features: [1, x0, x2, x0^2, x0*x2, x2^2]
         // Feature x1 and its combinations should be excluded
@@ -721,7 +725,7 @@ mod tests {
         let data = vec![vec![1.0, 2.0]];
 
         let mut poly = PolynomialFeatures::with_degree(2);
-        poly.fit_transform(&data).unwrap();
+        poly.fit_transform(&data).expect("operation should succeed");
 
         let names = poly.get_feature_names();
         assert_eq!(names.len(), 6);
@@ -753,9 +757,9 @@ mod tests {
         let data = vec![vec![1.0, 2.0]];
 
         let mut poly = PolynomialFeatures::with_degree(2);
-        poly.fit_transform(&data).unwrap();
+        poly.fit_transform(&data).expect("operation should succeed");
 
-        let info = poly.get_feature_info(4).unwrap(); // x0*x1 term
+        let info = poly.get_feature_info(4).expect("operation should succeed"); // x0*x1 term
         assert_eq!(info.feature_indices, vec![0, 1]);
         assert_eq!(info.powers, vec![1, 1, 0]); // Note: powers vector has length = n_input_features
         assert_eq!(info.degree, 2);
@@ -797,7 +801,7 @@ mod tests {
         let data = vec![vec![3.0], vec![4.0]];
 
         let mut poly = PolynomialFeatures::with_degree(3);
-        let transformed = poly.fit_transform(&data).unwrap();
+        let transformed = poly.fit_transform(&data).expect("operation should succeed");
 
         // Features should be: [1, x0, x0^2, x0^3]
         assert_eq!(transformed[0].len(), 4);

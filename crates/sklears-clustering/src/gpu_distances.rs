@@ -124,23 +124,20 @@ pub mod gpu {
                     compatible_surface: None,
                 })
                 .await
-                .ok_or_else(|| {
-                    SklearsError::InvalidInput(
-                        "Failed to request GPU adapter: no compatible device found".to_string(),
-                    )
+                .map_err(|e| {
+                    SklearsError::InvalidInput(format!("Failed to request GPU adapter: {}", e))
                 })?;
 
             // Request device
             let (device, queue) = adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        label: None,
-                        required_features: wgpu::Features::empty(),
-                        required_limits: wgpu::Limits::default(),
-                        memory_hints: wgpu::MemoryHints::Performance,
-                    },
-                    None,
-                )
+                .request_device(&wgpu::DeviceDescriptor {
+                    label: None,
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
+                    memory_hints: wgpu::MemoryHints::Performance,
+                    experimental_features: Default::default(),
+                    trace: Default::default(),
+                })
                 .await
                 .map_err(|e| {
                     SklearsError::InvalidInput(format!("Failed to create device: {}", e))
@@ -225,7 +222,7 @@ pub mod gpu {
                     .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                         label: Some("Distance Compute Pipeline Layout"),
                         bind_group_layouts: &[&self.bind_group_layout],
-                        push_constant_ranges: &[],
+                        immediate_size: 0,
                     });
 
             let compute_pipeline =
@@ -479,7 +476,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     timestamp_writes: None,
                 });
 
-                compute_pass.set_pipeline(self.compute_pipeline.as_ref().unwrap());
+                compute_pass.set_pipeline(
+                    self.compute_pipeline
+                        .as_ref()
+                        .expect("operation should succeed"),
+                );
                 compute_pass.set_bind_group(0, &bind_group, &[]);
 
                 let workgroups = ((n_points_a * n_points_b) + self.config.workgroup_size - 1)
@@ -504,7 +505,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             let buffer_slice = staging_buffer.slice(..);
             let (tx, rx) = std::sync::mpsc::channel();
             buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-                tx.send(result).unwrap();
+                tx.send(result).expect("operation should succeed");
             });
 
             // Wait for the operation to complete
@@ -564,7 +565,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     .collect();
 
                 // Sort by distance and take k closest
-                point_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                point_distances
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
                 point_distances.truncate(k);
 
                 let (point_indices, point_dists): (Vec<_>, Vec<_>) =
@@ -619,13 +621,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     }
                 };
 
-                let data_a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-                let data_b = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 5.0, 6.0]).unwrap();
+                let data_a = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+                    .expect("operation should succeed");
+                let data_b = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 5.0, 6.0])
+                    .expect("operation should succeed");
 
                 let distances = gpu_computer
                     .compute_pairwise_distances(&data_a, &data_b, GpuDistanceMetric::Euclidean)
                     .await
-                    .unwrap();
+                    .expect("operation should succeed");
 
                 assert_eq!(distances.nrows(), 2);
                 assert_eq!(distances.ncols(), 2);
@@ -653,13 +657,15 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                     Err(_) => return,
                 };
 
-                let data_a = Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).unwrap();
-                let data_b = Array2::from_shape_vec((1, 2), vec![3.0, 4.0]).unwrap();
+                let data_a = Array2::from_shape_vec((1, 2), vec![1.0, 2.0])
+                    .expect("operation should succeed");
+                let data_b = Array2::from_shape_vec((1, 2), vec![3.0, 4.0])
+                    .expect("operation should succeed");
 
                 let distances = gpu_computer
                     .compute_pairwise_distances(&data_a, &data_b, GpuDistanceMetric::Manhattan)
                     .await
-                    .unwrap();
+                    .expect("operation should succeed");
 
                 // Manhattan distance should be |1-3| + |2-4| = 2 + 2 = 4
                 assert_abs_diff_eq!(distances[[0, 0]], 4.0, epsilon = 1e-6);

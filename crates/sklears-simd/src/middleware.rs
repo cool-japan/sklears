@@ -486,7 +486,9 @@ mod tests {
         let mut context = PipelineContext::new(vec![3.0, 4.0, 0.0]);
         let middleware = NormalizationMiddleware::new(NormType::L2);
 
-        middleware.process(&mut context).unwrap();
+        middleware
+            .process(&mut context)
+            .expect("operation should succeed");
 
         // L2 norm of [3, 4, 0] is 5, so normalized should be [0.6, 0.8, 0.0]
         assert!((context.data[0] - 0.6).abs() < 1e-6);
@@ -499,7 +501,9 @@ mod tests {
         let mut context = PipelineContext::new(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let middleware = FilteringMiddleware::new(2.0, 4.0);
 
-        middleware.process(&mut context).unwrap();
+        middleware
+            .process(&mut context)
+            .expect("operation should succeed");
 
         assert_eq!(context.data, vec![2.0, 3.0, 4.0]);
         assert_eq!(
@@ -513,7 +517,9 @@ mod tests {
         let mut context = PipelineContext::new(vec![1.0, 4.0, 9.0, 16.0]);
         let middleware = TransformationMiddleware::new(TransformType::Sqrt);
 
-        middleware.process(&mut context).unwrap();
+        middleware
+            .process(&mut context)
+            .expect("operation should succeed");
 
         assert_eq!(context.data, vec![1.0, 2.0, 3.0, 4.0]);
     }
@@ -523,7 +529,9 @@ mod tests {
         let mut context = PipelineContext::new(vec![1.0, 2.0, 3.0, 4.0]);
         let middleware = AggregationMiddleware::new(AggregationType::Mean);
 
-        middleware.process(&mut context).unwrap();
+        middleware
+            .process(&mut context)
+            .expect("operation should succeed");
 
         assert_eq!(
             context.get_metadata("aggregation_result"),
@@ -554,7 +562,7 @@ mod tests {
             .add_middleware(TransformationMiddleware::new(TransformType::Square));
 
         let context = PipelineContext::new(vec![3.0, 4.0, 0.0]);
-        let result = pipeline.execute(context).unwrap();
+        let result = pipeline.execute(context).expect("operation should succeed");
 
         // After L2 normalization: [0.6, 0.8, 0.0]
         // After squaring: [0.36, 0.64, 0.0]
@@ -571,13 +579,17 @@ mod tests {
 
         // Test with data length > 2 (should execute)
         let mut context = PipelineContext::new(vec![3.0, 4.0, 0.0]);
-        middleware.process(&mut context).unwrap();
+        middleware
+            .process(&mut context)
+            .expect("operation should succeed");
         assert!((context.data[0] - 0.6).abs() < 1e-6);
 
         // Test with data length <= 2 (should not execute)
         let mut context = PipelineContext::new(vec![3.0, 4.0]);
         let original_data = context.data.clone();
-        middleware.process(&mut context).unwrap();
+        middleware
+            .process(&mut context)
+            .expect("operation should succeed");
         assert_eq!(context.data, original_data); // Should be unchanged
     }
 
@@ -596,7 +608,7 @@ mod tests {
             .add_middleware(NormalizationMiddleware::new(NormType::L2));
 
         let context = PipelineContext::new(vec![1.0, 2.0, 3.0]);
-        let result = pipeline.execute(context).unwrap();
+        let result = pipeline.execute(context).expect("operation should succeed");
 
         assert_eq!(
             result.get_metadata("pipeline_name"),

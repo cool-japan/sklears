@@ -6,7 +6,7 @@
 use super::functions::{ArrayDeterminant, ArrayInverse};
 pub use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 pub use scirs2_core::random::thread_rng;
-pub use scirs2_core::random::{RandNormal, Rng};
+pub use scirs2_core::random::{RandNormal, Rng, RngExt};
 pub use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -203,7 +203,9 @@ impl GaussianProcessMultiOutput<Untrained> {
         let X_train = X.to_owned();
         let mut y_train = y.to_owned();
         let (y_mean, y_std) = if self.normalize_y {
-            let mean = y.mean_axis(Axis(0)).unwrap();
+            let mean = y
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             let std = y.std_axis(Axis(0), 0.0);
             for i in 0..n_samples {
                 for j in 0..n_outputs {
@@ -538,7 +540,7 @@ impl BayesianMultiOutputModel<Untrained> {
     )> {
         let (n_samples, n_features) = X.dim();
         let n_outputs = y.ncols();
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         let mut weight_mean = Array2::<Float>::zeros((n_features, n_outputs));
         for i in 0..n_features {
             for j in 0..n_outputs {
@@ -577,7 +579,7 @@ impl BayesianMultiOutputModel<Untrained> {
         let weight_covariance_flat = weight_log_var
             .mapv(|x| x.exp())
             .into_shape((n_features * n_outputs,))
-            .unwrap();
+            .expect("operation should succeed");
         let weight_covariance = Array2::from_diag(&weight_covariance_flat);
         let bias_covariance = Array2::from_diag(&bias_log_var.mapv(|x| x.exp()));
         let noise_covariance = Array2::from_diag(&noise_log_var.mapv(|x| x.exp()));
@@ -587,7 +589,9 @@ impl BayesianMultiOutputModel<Untrained> {
             samples: None,
         };
         let bias_posterior = PosteriorDistribution {
-            mean: bias_mean.into_shape((n_outputs, 1)).unwrap(),
+            mean: bias_mean
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
             covariance: bias_covariance,
             samples: None,
         };
@@ -595,7 +599,7 @@ impl BayesianMultiOutputModel<Untrained> {
             mean: noise_log_var
                 .mapv(|x| x.exp())
                 .into_shape((n_outputs, 1))
-                .unwrap(),
+                .expect("operation should succeed"),
             covariance: noise_covariance,
             samples: None,
         };
@@ -627,7 +631,7 @@ impl BayesianMultiOutputModel<Untrained> {
             Array3::<Float>::zeros((self.config.n_samples, n_features, n_outputs));
         let mut bias_samples = Array2::<Float>::zeros((self.config.n_samples, n_outputs));
         let mut noise_samples = Array2::<Float>::zeros((self.config.n_samples, n_outputs));
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         let mut current_weights = Array2::<Float>::zeros((n_features, n_outputs));
         for i in 0..n_features {
             for j in 0..n_outputs {
@@ -667,9 +671,15 @@ impl BayesianMultiOutputModel<Untrained> {
                 self.compute_log_likelihood(X, y, &current_weights, &current_bias, &current_noise)?;
             log_likelihood_history.push(log_likelihood);
         }
-        let weight_mean = weight_samples.mean_axis(Axis(0)).unwrap();
-        let bias_mean = bias_samples.mean_axis(Axis(0)).unwrap();
-        let noise_mean = noise_samples.mean_axis(Axis(0)).unwrap();
+        let weight_mean = weight_samples
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
+        let bias_mean = bias_samples
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
+        let noise_mean = noise_samples
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let weight_covariance = Array2::<Float>::eye(n_features * n_outputs);
         let bias_covariance = Array2::<Float>::eye(n_outputs);
         let noise_covariance = Array2::<Float>::eye(n_outputs);
@@ -679,21 +689,25 @@ impl BayesianMultiOutputModel<Untrained> {
             samples: Some(weight_samples),
         };
         let bias_posterior = PosteriorDistribution {
-            mean: bias_mean.into_shape((n_outputs, 1)).unwrap(),
+            mean: bias_mean
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
             covariance: bias_covariance,
             samples: Some(
                 bias_samples
                     .into_shape((self.config.n_samples, n_outputs, 1))
-                    .unwrap(),
+                    .expect("operation should succeed"),
             ),
         };
         let noise_posterior = PosteriorDistribution {
-            mean: noise_mean.into_shape((n_outputs, 1)).unwrap(),
+            mean: noise_mean
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
             covariance: noise_covariance,
             samples: Some(
                 noise_samples
                     .into_shape((self.config.n_samples, n_outputs, 1))
-                    .unwrap(),
+                    .expect("operation should succeed"),
             ),
         };
         let log_marginal_likelihood =
@@ -721,7 +735,7 @@ impl BayesianMultiOutputModel<Untrained> {
     )> {
         let (n_samples, n_features) = X.dim();
         let n_outputs = y.ncols();
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         let mut weights = Array2::<Float>::zeros((n_features, n_outputs));
         for i in 0..n_features {
             for j in 0..n_outputs {
@@ -737,12 +751,23 @@ impl BayesianMultiOutputModel<Untrained> {
             let xTx = X.t().dot(X);
             let xTy = X.t().dot(y);
             let regularization: Array2<Float> = Array2::eye(n_features) * 0.01;
-            let weights_new = (xTx + regularization).inv().unwrap().dot(&xTy);
+            let weights_new = (xTx + regularization)
+                .inv()
+                .expect("matrix should be invertible")
+                .dot(&xTy);
             weights = weights_new;
-            bias = y.mean_axis(Axis(0)).unwrap() - X.mean_axis(Axis(0)).unwrap().dot(&weights);
+            bias = y
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation")
+                - X.mean_axis(Axis(0))
+                    .expect("array should have elements for mean computation")
+                    .dot(&weights);
             for output_idx in 0..n_outputs {
                 let residual_col = residuals.column(output_idx);
-                noise_variance[output_idx] = residual_col.mapv(|x| x * x).mean().unwrap();
+                noise_variance[output_idx] = residual_col
+                    .mapv(|x| x * x)
+                    .mean()
+                    .expect("array should have elements for mean computation");
             }
             let log_likelihood =
                 self.compute_log_likelihood(X, y, &weights, &bias, &noise_variance)?;
@@ -762,12 +787,16 @@ impl BayesianMultiOutputModel<Untrained> {
             samples: None,
         };
         let bias_posterior = PosteriorDistribution {
-            mean: bias.into_shape((n_outputs, 1)).unwrap(),
+            mean: bias
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
             covariance: bias_covariance,
             samples: None,
         };
         let noise_posterior = PosteriorDistribution {
-            mean: noise_variance.into_shape((n_outputs, 1)).unwrap(),
+            mean: noise_variance
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
             covariance: noise_covariance,
             samples: None,
         };
@@ -795,7 +824,7 @@ impl BayesianMultiOutputModel<Untrained> {
     )> {
         let (map_weights, map_bias, map_noise) = self.find_map_estimate(X, y, rng)?;
         let hessian = self.compute_hessian(X, y, &map_weights, &map_bias, &map_noise)?;
-        let posterior_covariance = hessian.inv().unwrap();
+        let posterior_covariance = hessian.inv().expect("matrix should be invertible");
         let (n_features, n_outputs) = map_weights.dim();
         let weight_posterior = PosteriorDistribution {
             mean: map_weights.clone(),
@@ -803,12 +832,18 @@ impl BayesianMultiOutputModel<Untrained> {
             samples: None,
         };
         let bias_posterior = PosteriorDistribution {
-            mean: map_bias.clone().into_shape((n_outputs, 1)).unwrap(),
+            mean: map_bias
+                .clone()
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
             covariance: Array2::<Float>::eye(n_outputs) * 0.01,
             samples: None,
         };
         let noise_posterior = PosteriorDistribution {
-            mean: map_noise.clone().into_shape((n_outputs, 1)).unwrap(),
+            mean: map_noise
+                .clone()
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
             covariance: Array2::<Float>::eye(n_outputs) * 0.01,
             samples: None,
         };
@@ -843,9 +878,11 @@ impl BayesianMultiOutputModel<Untrained> {
             X.t().to_owned().dot(X) + Array2::<Float>::eye(n_features) * prior_precision;
         let posterior_mean = posterior_precision
             .inv()
-            .unwrap()
+            .expect("operation should succeed")
             .dot(&(X.t().dot(y) + &prior_mean * prior_precision));
-        let posterior_covariance = posterior_precision.inv().unwrap();
+        let posterior_covariance = posterior_precision
+            .inv()
+            .expect("matrix should be invertible");
         let weight_posterior = PosteriorDistribution {
             mean: posterior_mean,
             covariance: posterior_covariance,
@@ -894,8 +931,14 @@ impl BayesianMultiOutputModel<Untrained> {
                 .sum::<Float>();
         let weight_kl = self.compute_kl_divergence_normal(weight_mean, weight_log_var)?;
         let bias_kl = self.compute_kl_divergence_normal(
-            &bias_mean.clone().into_shape((n_outputs, 1)).unwrap(),
-            &bias_log_var.clone().into_shape((n_outputs, 1)).unwrap(),
+            &bias_mean
+                .clone()
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
+            &bias_log_var
+                .clone()
+                .into_shape((n_outputs, 1))
+                .expect("reshape dimensions should be compatible"),
         )?;
         let noise_kl = self.compute_kl_divergence_gamma(noise_log_var)?;
         let elbo = likelihood_term - weight_kl - bias_kl - noise_kl;
@@ -917,10 +960,16 @@ impl BayesianMultiOutputModel<Untrained> {
         let residuals = y - &predictions;
         let weight_gradient = X.t().dot(&residuals);
         *weight_mean = weight_mean.clone() + learning_rate * weight_gradient;
-        let bias_gradient = residuals.mean_axis(Axis(0)).unwrap();
+        let bias_gradient = residuals
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         *bias_mean = bias_mean.clone() + learning_rate * bias_gradient;
         for i in 0..noise_log_var.len() {
-            let residual_variance = residuals.column(i).mapv(|x| x * x).mean().unwrap();
+            let residual_variance = residuals
+                .column(i)
+                .mapv(|x| x * x)
+                .mean()
+                .expect("array should have elements for mean computation");
             noise_log_var[i] = residual_variance.ln();
         }
         Ok(())
@@ -951,7 +1000,7 @@ impl BayesianMultiOutputModel<Untrained> {
     ) -> SklResult<(Array2<Float>, Array1<Float>, Array1<Float>, bool)> {
         let step_size = 0.01;
         let n_leapfrog_steps = 10;
-        let normal_dist = RandNormal::new(0.0, 1.0).unwrap();
+        let normal_dist = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let mut momentum_weights = Array2::<Float>::zeros(current_weights.raw_dim());
         for i in 0..current_weights.nrows() {
             for j in 0..current_weights.ncols() {
@@ -1008,7 +1057,7 @@ impl BayesianMultiOutputModel<Untrained> {
             &new_momentum_noise,
         )?;
         let acceptance_prob = (-new_energy + current_energy).exp().min(1.0);
-        let accepted = rng.gen::<Float>() < acceptance_prob;
+        let accepted = rng.random::<Float>() < acceptance_prob;
         if accepted {
             Ok((new_weights, new_bias, new_noise, true))
         } else {
@@ -1052,7 +1101,9 @@ impl BayesianMultiOutputModel<Untrained> {
         let predictions = X.dot(weights) + bias;
         let residuals = y - &predictions;
         let weight_grad = X.t().dot(&residuals);
-        let bias_grad = residuals.mean_axis(Axis(0)).unwrap();
+        let bias_grad = residuals
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let noise_grad = Array1::<Float>::zeros(noise.len());
         let weight_prior_grad = -weights.clone();
         let bias_prior_grad = -bias.clone();
@@ -1119,7 +1170,7 @@ impl BayesianMultiOutputModel<Untrained> {
     ) -> SklResult<(Array2<Float>, Array1<Float>, Array1<Float>)> {
         let (n_samples, n_features) = X.dim();
         let n_outputs = y.ncols();
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         let mut weights = Array2::<Float>::zeros((n_features, n_outputs));
         for i in 0..n_features {
             for j in 0..n_outputs {
@@ -1173,7 +1224,10 @@ impl BayesianMultiOutputModel<Untrained> {
         let prior_precision: Float = 1.0;
         let posterior_precision = X.t().dot(X) + Array2::<Float>::eye(n_features) * prior_precision;
         let log_det_prior = n_features as Float * prior_precision.ln();
-        let log_det_posterior = posterior_precision.det().unwrap().ln();
+        let log_det_posterior = posterior_precision
+            .det()
+            .expect("operation should succeed")
+            .ln();
         let log_marginal_likelihood = 0.5 * (log_det_prior - log_det_posterior);
         Ok(log_marginal_likelihood)
     }
@@ -1198,7 +1252,7 @@ impl BayesianMultiOutputModel<BayesianMultiOutputModelTrained> {
             let weight_diag = self.state.weight_posterior.covariance.diag().to_owned();
             let weight_diag_reshaped = weight_diag
                 .into_shape((self.state.n_features, self.state.n_outputs))
-                .unwrap();
+                .expect("operation should succeed");
             for j in 0..self.state.n_outputs {
                 let weight_var_j = weight_diag_reshaped.column(j);
                 let pred_var = x_i.dot(&weight_var_j)
@@ -1501,7 +1555,7 @@ impl EnsembleBayesianModel<EnsembleBayesianModelTrained> {
     }
     /// Sample a model index based on model weights
     fn sample_model_index(&self, rng: &mut impl Rng) -> usize {
-        let r: Float = rng.gen();
+        let r: Float = rng.random();
         let mut cumsum = 0.0;
         for (i, &weight) in self.state.model_weights.iter().enumerate() {
             cumsum += weight;

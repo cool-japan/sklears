@@ -117,7 +117,10 @@ pub mod advanced_pooling {
 
         /// Get pool statistics
         pub fn statistics(&self) -> PoolStatistics {
-            self.stats.lock().unwrap().clone()
+            self.stats
+                .lock()
+                .expect("lock should not be poisoned")
+                .clone()
         }
 
         /// Get pool efficiency (hit rate)
@@ -165,22 +168,34 @@ pub mod advanced_pooling {
 
         /// Get a vector from the pool
         pub fn get(&self, size: usize) -> Vec<T> {
-            self.inner.lock().unwrap().get(size)
+            self.inner
+                .lock()
+                .expect("lock should not be poisoned")
+                .get(size)
         }
 
         /// Return a vector to the pool
         pub fn return_vec(&self, vec: Vec<T>) {
-            self.inner.lock().unwrap().return_vec(vec);
+            self.inner
+                .lock()
+                .expect("lock should not be poisoned")
+                .return_vec(vec);
         }
 
         /// Get pool statistics
         pub fn statistics(&self) -> PoolStatistics {
-            self.inner.lock().unwrap().statistics()
+            self.inner
+                .lock()
+                .expect("lock should not be poisoned")
+                .statistics()
         }
 
         /// Get pool efficiency
         pub fn efficiency(&self) -> f64 {
-            self.inner.lock().unwrap().efficiency()
+            self.inner
+                .lock()
+                .expect("lock should not be poisoned")
+                .efficiency()
         }
     }
 
@@ -331,7 +346,7 @@ pub mod reference_counting {
 
         /// Get cache statistics
         pub fn stats(&self) -> CacheStats {
-            self.stats.read().unwrap().clone()
+            self.stats.read().expect("operation should succeed").clone()
         }
 
         /// Get cache hit rate
@@ -443,7 +458,7 @@ pub mod reference_counting {
         pub fn access_count(&self, name: &str) -> usize {
             self.access_count
                 .read()
-                .unwrap()
+                .expect("operation should succeed")
                 .get(name)
                 .copied()
                 .unwrap_or(0)
@@ -529,7 +544,7 @@ pub mod streaming_algorithms {
                 self.marker_heights[self.count - 1] = value;
                 if self.count == 5 {
                     self.marker_heights
-                        .sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     for i in 0..5 {
                         self.marker_positions[i] = i as f64 + 1.0;
                     }
@@ -590,7 +605,7 @@ pub mod streaming_algorithms {
         pub fn quantile(&self) -> f64 {
             if self.count < 5 {
                 let mut sorted = self.marker_heights[..self.count].to_vec();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let index = (self.quantile * (self.count - 1) as f64) as usize;
                 sorted[index]
             } else {
@@ -846,8 +861,8 @@ mod tests {
             advanced_pooling::MemoryMappedStorage::new(std::mem::size_of::<f64>(), 10);
 
         // Store some values
-        let idx1 = storage.push(&3.14f64).unwrap();
-        let idx2 = storage.push(&2.71f64).unwrap();
+        let idx1 = storage.push(&3.14f64).expect("operation should succeed");
+        let idx2 = storage.push(&2.71f64).expect("operation should succeed");
 
         assert_eq!(storage.len(), 2);
         assert_eq!(storage.get::<f64>(idx1), Some(3.14));

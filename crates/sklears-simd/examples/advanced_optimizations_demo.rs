@@ -181,7 +181,7 @@ fn demo_cache_aware_sorting() -> Result<(), Box<dyn std::error::Error>> {
 
     // Standard library sort
     let start = Instant::now();
-    data_std.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    data_std.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let std_time = start.elapsed();
 
     println!("  Cache-aware sort time: {:.2?}", cache_aware_time);

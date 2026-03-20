@@ -260,7 +260,8 @@ mod tests {
     fn test_typed_classification() {
         let config = classification_builder().random_state(42).build::<100, 10>();
 
-        let dataset = make_typed_classification::<100, 10, 3>(config).unwrap();
+        let dataset =
+            make_typed_classification::<100, 10, 3>(config).expect("operation should succeed");
 
         assert_eq!(dataset.features().shape(), &[100, 10]);
         assert_eq!(TypeSafeDataset::<Classification, 100, 10>::n_samples(), 100);
@@ -278,7 +279,8 @@ mod tests {
     fn test_typed_regression() {
         let config = regression_builder().random_state(42).build::<50, 5>();
 
-        let dataset = make_typed_regression::<50, 5>(config, 0.1).unwrap();
+        let dataset =
+            make_typed_regression::<50, 5>(config, 0.1).expect("operation should succeed");
 
         assert_eq!(dataset.features().shape(), &[50, 5]);
         assert_eq!(TypeSafeDataset::<Regression, 50, 5>::n_samples(), 50);
@@ -296,7 +298,7 @@ mod tests {
     fn test_typed_blobs() {
         let config = clustering_builder().random_state(42).build::<80, 4>();
 
-        let dataset = make_typed_blobs::<80, 4, 3>(config, 1.0).unwrap();
+        let dataset = make_typed_blobs::<80, 4, 3>(config, 1.0).expect("operation should succeed");
 
         assert_eq!(dataset.features().shape(), &[80, 4]);
         assert_eq!(TypeSafeDataset::<Clustering, 80, 4>::n_samples(), 80);

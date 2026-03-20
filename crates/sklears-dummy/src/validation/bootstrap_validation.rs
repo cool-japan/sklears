@@ -2,7 +2,7 @@ use super::validation_core::*;
 use super::validation_metrics::*;
 
 use scirs2_core::ndarray::{Array1, Axis};
-use scirs2_core::random::{Rng, RngCore};
+use scirs2_core::random::{RngCore, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::{Features, Float, Int};
@@ -219,7 +219,7 @@ pub fn bootstrap_validate_regressor(
 /// Create a bootstrap sample of indices
 fn create_bootstrap_sample(n_samples: usize, rng: &mut dyn RngCore) -> Vec<usize> {
     (0..n_samples)
-        .map(|_| rng.gen_range(0..n_samples))
+        .map(|_| rng.random_range(0..n_samples))
         .collect()
 }
 

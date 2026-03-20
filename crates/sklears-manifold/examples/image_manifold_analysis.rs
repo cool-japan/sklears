@@ -8,8 +8,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::traits::{Fit, Transform};
 use sklears_manifold::{benchmark_datasets::BenchmarkDatasets, Isomap, TSNE, UMAP};
 use std::f64::consts::PI;
@@ -180,7 +180,7 @@ fn evaluate_embedding_quality(embedding: &Array2<f64>, true_labels: &Array1<usiz
         }
 
         // Sort by distance and check k nearest neighbors
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         for neighbor_idx in 0..k.min(distances.len()) {
             let neighbor_label = true_labels[distances[neighbor_idx].1];
@@ -217,18 +217,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let embedding = match *method {
             "tsne" => {
                 let tsne = TSNE::new().n_components(2).perplexity(30.0).n_iter(300);
-                let fitted = tsne.fit(&image_patches.view(), &()).unwrap();
-                fitted.transform(&image_patches.view()).unwrap()
+                let fitted = tsne
+                    .fit(&image_patches.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&image_patches.view())
+                    .expect("operation should succeed")
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(15).min_dist(0.1);
-                let fitted = umap.fit(&image_patches.view(), &()).unwrap();
-                fitted.transform(&image_patches.view()).unwrap()
+                let fitted = umap
+                    .fit(&image_patches.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&image_patches.view())
+                    .expect("operation should succeed")
             }
             "isomap" => {
                 let isomap = Isomap::new().n_components(2).n_neighbors(10);
-                let fitted = isomap.fit(&image_patches.view(), &()).unwrap();
-                fitted.transform(&image_patches.view()).unwrap()
+                let fitted = isomap
+                    .fit(&image_patches.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&image_patches.view())
+                    .expect("operation should succeed")
             }
             _ => unreachable!(),
         };
@@ -258,18 +270,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let embedding = match *method {
             "tsne" => {
                 let tsne = TSNE::new().n_components(2).perplexity(20.0).n_iter(500);
-                let fitted = tsne.fit(&time_series.view(), &()).unwrap();
-                fitted.transform(&time_series.view()).unwrap()
+                let fitted = tsne
+                    .fit(&time_series.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&time_series.view())
+                    .expect("operation should succeed")
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(10).min_dist(0.05);
-                let fitted = umap.fit(&time_series.view(), &()).unwrap();
-                fitted.transform(&time_series.view()).unwrap()
+                let fitted = umap
+                    .fit(&time_series.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&time_series.view())
+                    .expect("operation should succeed")
             }
             "isomap" => {
                 let isomap = Isomap::new().n_components(2).n_neighbors(8);
-                let fitted = isomap.fit(&time_series.view(), &()).unwrap();
-                fitted.transform(&time_series.view()).unwrap()
+                let fitted = isomap
+                    .fit(&time_series.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&time_series.view())
+                    .expect("operation should succeed")
             }
             _ => unreachable!(),
         };
@@ -304,18 +328,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let embedding = match *method {
             "tsne_fast" => {
                 let tsne = TSNE::new().n_components(2).perplexity(20.0).n_iter(250);
-                let fitted = tsne.fit(&swiss_data.view(), &()).unwrap();
-                fitted.transform(&swiss_data.view()).unwrap()
+                let fitted = tsne
+                    .fit(&swiss_data.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&swiss_data.view())
+                    .expect("operation should succeed")
             }
             "tsne_quality" => {
                 let tsne = TSNE::new().n_components(2).perplexity(50.0).n_iter(1000);
-                let fitted = tsne.fit(&swiss_data.view(), &()).unwrap();
-                fitted.transform(&swiss_data.view()).unwrap()
+                let fitted = tsne
+                    .fit(&swiss_data.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&swiss_data.view())
+                    .expect("operation should succeed")
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(15).min_dist(0.1);
-                let fitted = umap.fit(&swiss_data.view(), &()).unwrap();
-                fitted.transform(&swiss_data.view()).unwrap()
+                let fitted = umap
+                    .fit(&swiss_data.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&swiss_data.view())
+                    .expect("operation should succeed")
             }
             _ => unreachable!(),
         };
@@ -373,7 +409,7 @@ mod tests {
                 1.1, 1.1, // label 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let quality = evaluate_embedding_quality(&embedding, &labels);

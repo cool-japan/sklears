@@ -182,7 +182,10 @@ impl VAE<Untrained> {
         }
 
         // Initialize mean and logvar layers
-        let last_encoder_size = layer_sizes.last().copied().unwrap();
+        let last_encoder_size = layer_sizes
+            .last()
+            .copied()
+            .expect("value should be present");
         self.mean_weights = Some(initialize_weights(
             self.config.latent_dim,
             last_encoder_size,
@@ -245,7 +248,10 @@ impl VAE<Untrained> {
             .encoder_weights
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model not initialized".to_string()))?;
-        let encoder_biases = self.encoder_biases.as_ref().unwrap();
+        let encoder_biases = self
+            .encoder_biases
+            .as_ref()
+            .expect("encoder_biases not available - model not fitted");
 
         let mut activations = x.clone();
 
@@ -256,12 +262,24 @@ impl VAE<Untrained> {
         }
 
         // Compute mean and logvar
-        let mean_weights = self.mean_weights.as_ref().unwrap();
-        let mean_bias = self.mean_bias.as_ref().unwrap();
+        let mean_weights = self
+            .mean_weights
+            .as_ref()
+            .expect("mean_weights not available - model not fitted");
+        let mean_bias = self
+            .mean_bias
+            .as_ref()
+            .expect("mean_bias not available - model not fitted");
         let mean = activations.dot(&mean_weights.t()) + mean_bias;
 
-        let logvar_weights = self.logvar_weights.as_ref().unwrap();
-        let logvar_bias = self.logvar_bias.as_ref().unwrap();
+        let logvar_weights = self
+            .logvar_weights
+            .as_ref()
+            .expect("logvar_weights not available - model not fitted");
+        let logvar_bias = self
+            .logvar_bias
+            .as_ref()
+            .expect("logvar_bias not available - model not fitted");
         let logvar = activations.dot(&logvar_weights.t()) + logvar_bias;
 
         Ok((mean, logvar))
@@ -282,7 +300,10 @@ impl VAE<Untrained> {
             .decoder_weights
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model not initialized".to_string()))?;
-        let decoder_biases = self.decoder_biases.as_ref().unwrap();
+        let decoder_biases = self
+            .decoder_biases
+            .as_ref()
+            .expect("decoder_biases not available - model not fitted");
 
         let mut activations = z.clone();
 
@@ -297,8 +318,8 @@ impl VAE<Untrained> {
         }
 
         // Last layer (reconstruction) - typically no activation or sigmoid
-        let last_weights = decoder_weights.last().unwrap();
-        let last_bias = decoder_biases.last().unwrap();
+        let last_weights = decoder_weights.last().expect("empty collection");
+        let last_bias = decoder_biases.last().expect("empty collection");
         activations = activations.dot(&last_weights.t()) + last_bias;
 
         // Apply sigmoid for bounded outputs (0-1)
@@ -316,13 +337,16 @@ impl VAE<Untrained> {
         logvar: &Array2<Float>,
     ) -> Float {
         // Reconstruction loss (MSE)
-        let recon_loss = (x - x_recon).mapv(|x| x.powi(2)).mean().unwrap();
+        let recon_loss = (x - x_recon)
+            .mapv(|x| x.powi(2))
+            .mean()
+            .expect("mean should not fail on non-empty array");
 
         // KL divergence: -0.5 * sum(1 + log(σ²) - μ² - σ²)
         let kl_div = -0.5
             * (1.0 + logvar - mean.mapv(|x| x.powi(2)) - logvar.mapv(|x| x.exp()))
                 .mean()
-                .unwrap();
+                .expect("value should be present");
 
         recon_loss + self.config.beta * kl_div
     }
@@ -338,10 +362,16 @@ impl Estimator for VAE<Untrained> {
     }
 }
 
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+/// VAE training requires gradient-based optimization of the ELBO (evidence lower
+/// bound), including backpropagation through the reparameterization trick. The
+/// current implementation does not perform weight updates.
 impl Fit<Array2<Float>, ()> for VAE<Untrained> {
     type Fitted = VAE<Trained>;
 
-    fn fit(mut self, x: &Array2<Float>, _y: &()) -> NeuralResult<Self::Fitted> {
+    fn fit(self, x: &Array2<Float>, _y: &()) -> NeuralResult<Self::Fitted> {
         let (n_samples, n_features) = x.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -350,39 +380,13 @@ impl Fit<Array2<Float>, ()> for VAE<Untrained> {
             ));
         }
 
-        // Initialize random number generator
-        let mut rng = match self.config.random_state {
-            Some(seed) => ChaCha8Rng::seed_from_u64(seed),
-            None => ChaCha8Rng::seed_from_u64(42),
-        };
+        let _ = (n_samples, n_features);
 
-        self.initialize_weights(n_features, &mut rng)?;
-
-        // Simple training loop (in practice, you'd want proper gradient computation)
-        for epoch in 0..self.config.n_epochs {
-            let (mean, logvar) = self.encode(x)?;
-            let z = self.reparameterize(&mean, &logvar);
-            let x_recon = self.decode(&z)?;
-            let loss = self.compute_loss(x, &x_recon, &mean, &logvar);
-
-            if epoch % 10 == 0 {
-                println!("Epoch {}: Loss = {:.6}", epoch, loss);
-            }
-        }
-
-        Ok(VAE {
-            config: self.config,
-            state: PhantomData,
-            encoder_weights: self.encoder_weights,
-            encoder_biases: self.encoder_biases,
-            mean_weights: self.mean_weights,
-            mean_bias: self.mean_bias,
-            logvar_weights: self.logvar_weights,
-            logvar_bias: self.logvar_bias,
-            decoder_weights: self.decoder_weights,
-            decoder_biases: self.decoder_biases,
-            n_features_in: self.n_features_in,
-        })
+        Err(SklearsError::NotImplemented(
+            "VAE training not yet implemented: gradient-based ELBO optimization \
+             with reparameterization trick is planned for v0.2.0"
+                .to_string(),
+        ))
     }
 }
 
@@ -423,7 +427,10 @@ impl VAE<Trained> {
             .encoder_weights
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model not trained".to_string()))?;
-        let encoder_biases = self.encoder_biases.as_ref().unwrap();
+        let encoder_biases = self
+            .encoder_biases
+            .as_ref()
+            .expect("encoder_biases not available - model not fitted");
 
         let mut activations = x.clone();
 
@@ -434,12 +441,24 @@ impl VAE<Trained> {
         }
 
         // Compute mean and logvar
-        let mean_weights = self.mean_weights.as_ref().unwrap();
-        let mean_bias = self.mean_bias.as_ref().unwrap();
+        let mean_weights = self
+            .mean_weights
+            .as_ref()
+            .expect("mean_weights not available - model not fitted");
+        let mean_bias = self
+            .mean_bias
+            .as_ref()
+            .expect("mean_bias not available - model not fitted");
         let mean = activations.dot(&mean_weights.t()) + mean_bias;
 
-        let logvar_weights = self.logvar_weights.as_ref().unwrap();
-        let logvar_bias = self.logvar_bias.as_ref().unwrap();
+        let logvar_weights = self
+            .logvar_weights
+            .as_ref()
+            .expect("logvar_weights not available - model not fitted");
+        let logvar_bias = self
+            .logvar_bias
+            .as_ref()
+            .expect("logvar_bias not available - model not fitted");
         let logvar = activations.dot(&logvar_weights.t()) + logvar_bias;
 
         Ok((mean, logvar))
@@ -467,7 +486,10 @@ impl VAE<Trained> {
             .decoder_weights
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model not trained".to_string()))?;
-        let decoder_biases = self.decoder_biases.as_ref().unwrap();
+        let decoder_biases = self
+            .decoder_biases
+            .as_ref()
+            .expect("decoder_biases not available - model not fitted");
 
         let mut activations = z.clone();
 
@@ -482,8 +504,8 @@ impl VAE<Trained> {
         }
 
         // Last layer (reconstruction)
-        let last_weights = decoder_weights.last().unwrap();
-        let last_bias = decoder_biases.last().unwrap();
+        let last_weights = decoder_weights.last().expect("empty collection");
+        let last_bias = decoder_biases.last().expect("empty collection");
         activations = activations.dot(&last_weights.t()) + last_bias;
 
         // Apply sigmoid for bounded outputs (0-1)
@@ -521,10 +543,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vae_fit_and_generate() {
+    fn test_vae_fit_returns_not_implemented() {
         use scirs2_core::random::essentials::Uniform;
         let mut rng = thread_rng();
-        let dist = Uniform::new(0.0, 1.0).unwrap();
+        let dist = Uniform::new(0.0, 1.0).expect("construction should succeed");
 
         // Create simple test data
         let x = Array2::from_shape_simple_fn((10, 4), || rng.sample(dist));
@@ -533,38 +555,29 @@ mod tests {
             .latent_dim(2)
             .encoder_layers(vec![8])
             .decoder_layers(vec![8])
-            .n_epochs(2); // Few epochs for fast test
+            .n_epochs(2);
 
         let vae = VAE::new(config);
-        let trained_vae = vae.fit(&x, &()).unwrap();
-
-        // Test generation
-        let generated = trained_vae.generate(5).unwrap();
-        assert_eq!(generated.dim(), (5, 4));
-
-        // Test reconstruction
-        let reconstructed = trained_vae.reconstruct(&x).unwrap();
-        assert_eq!(reconstructed.dim(), x.dim());
-
-        // Test encoding to latent
-        let latent = trained_vae.encode_to_latent(&x).unwrap();
-        assert_eq!(latent.dim(), (10, 2));
+        let result = vae.fit(&x, &());
+        assert!(
+            result.is_err(),
+            "VAE fit should return NotImplemented error"
+        );
+        let err = result.unwrap_err();
+        let err_msg = format!("{}", err);
+        assert!(
+            err_msg.contains("not yet implemented") || err_msg.contains("NotImplemented"),
+            "Error should indicate not implemented, got: {}",
+            err_msg
+        );
     }
 
     #[test]
-    fn test_vae_transform() {
-        use scirs2_core::random::essentials::Uniform;
-        let mut rng = thread_rng();
-        let dist = Uniform::new(0.0, 1.0).unwrap();
-
-        let x = Array2::from_shape_simple_fn((5, 3), || rng.sample(dist));
-
+    fn test_vae_fit_rejects_empty_input() {
+        let x = Array2::<Float>::zeros((0, 3));
         let config = VAEConfig::default().latent_dim(2).n_epochs(1);
-
         let vae = VAE::new(config);
-        let trained_vae = vae.fit(&x, &()).unwrap();
-
-        let transformed = trained_vae.transform(&x).unwrap();
-        assert_eq!(transformed.dim(), (5, 2));
+        let result = vae.fit(&x, &());
+        assert!(result.is_err(), "VAE fit should reject empty input");
     }
 }

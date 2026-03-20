@@ -569,27 +569,36 @@ impl Fit<Array2<Float>, Array1<i32>> for DiscriminantFeatureRanking<Untrained> {
 impl DiscriminantFeatureRanking<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the feature scores
     pub fn feature_scores(&self) -> &Array1<Float> {
-        self.feature_scores_.as_ref().unwrap()
+        self.feature_scores_
+            .as_ref()
+            .expect("feature_scores_ not available - model not fitted")
     }
 
     /// Get the feature rankings
     pub fn feature_ranks(&self) -> &Vec<FeatureRank> {
-        self.feature_ranks_.as_ref().unwrap()
+        self.feature_ranks_
+            .as_ref()
+            .expect("feature_ranks_ not available - model not fitted")
     }
 
     /// Get the selected feature indices
     pub fn selected_features(&self) -> &Array1<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("selected_features_ not available - model not fitted")
     }
 
     /// Get the number of original features
     pub fn n_features(&self) -> usize {
-        self.n_features_.unwrap()
+        self.n_features_
+            .expect("n_features_ not available - model not fitted")
     }
 
     /// Get top k features

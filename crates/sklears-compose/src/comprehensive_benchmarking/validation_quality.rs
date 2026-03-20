@@ -1206,7 +1206,7 @@ impl RealtimeValidator {
 
         // Update validation buffer
         {
-            let mut buffer = self.validation_buffer.lock().unwrap();
+            let mut buffer = self.validation_buffer.lock().unwrap_or_else(|e| e.into_inner());
             buffer.add_validation_result(result.clone());
         }
 
@@ -1378,7 +1378,7 @@ impl ValidationCache {
                 (Utc::now().signed_duration_since(a.1.cached_at).num_seconds() as f64 / 3600.0);
             let b_score = b.1.access_count as f64 +
                 (Utc::now().signed_duration_since(b.1.cached_at).num_seconds() as f64 / 3600.0);
-            a_score.partial_cmp(&b_score).unwrap()
+            a_score.partial_cmp(&b_score).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         for (key, _) in entries.into_iter().take(evict_count) {

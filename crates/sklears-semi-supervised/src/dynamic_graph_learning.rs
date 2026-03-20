@@ -137,7 +137,7 @@ impl DynamicGraphLearning {
             }
 
             // Sort by distance and connect to k nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             for &(neighbor, dist) in distances.iter().take(self.k_neighbors) {
                 let weight = (-dist).exp(); // Gaussian similarity
                 adjacency[[i, neighbor]] = weight;
@@ -161,7 +161,11 @@ impl DynamicGraphLearning {
 
         // Check max nodes constraint and prune if necessary
         if let Some(max_nodes) = self.max_nodes {
-            let current_n_nodes = self.node_features.as_ref().unwrap().nrows();
+            let current_n_nodes = self
+                .node_features
+                .as_ref()
+                .expect("operation should succeed")
+                .nrows();
             let total_nodes = current_n_nodes + new_n_nodes;
             if total_nodes > max_nodes {
                 self.prune_old_nodes(max_nodes - new_n_nodes)?;
@@ -169,8 +173,14 @@ impl DynamicGraphLearning {
         }
 
         // Get references after potential pruning
-        let current_features = self.node_features.as_ref().unwrap();
-        let current_adjacency = self.adjacency_matrix.as_ref().unwrap();
+        let current_features = self
+            .node_features
+            .as_ref()
+            .expect("operation should succeed");
+        let current_adjacency = self
+            .adjacency_matrix
+            .as_ref()
+            .expect("operation should succeed");
 
         let old_n_nodes = current_features.nrows();
         let total_nodes = old_n_nodes + new_n_nodes;
@@ -201,7 +211,7 @@ impl DynamicGraphLearning {
             }
 
             // Connect to k nearest existing neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             for &(neighbor, dist) in distances.iter().take(self.k_neighbors) {
                 let weight = (-dist).exp();
                 extended_adjacency[[i, neighbor]] = weight;
@@ -249,7 +259,10 @@ impl DynamicGraphLearning {
             ));
         }
 
-        let features = self.node_features.as_mut().unwrap();
+        let features = self
+            .node_features
+            .as_mut()
+            .expect("operation should succeed");
 
         if node_idx >= features.nrows() {
             return Err(SklearsError::InvalidInput(
@@ -286,13 +299,20 @@ impl DynamicGraphLearning {
         }
 
         // Create a copy of features to avoid borrowing conflicts
-        let features = self.node_features.as_ref().unwrap().clone();
+        let features = self
+            .node_features
+            .as_ref()
+            .expect("operation should succeed")
+            .clone();
         let n_nodes = features.nrows();
         let forgetting_factor = self.forgetting_factor;
         let edge_threshold = self.edge_threshold;
 
         // Get mutable reference to adjacency matrix
-        let adjacency = self.adjacency_matrix.as_mut().unwrap();
+        let adjacency = self
+            .adjacency_matrix
+            .as_mut()
+            .expect("operation should succeed");
 
         // Recompute edges for this node
         for other_idx in 0..n_nodes {
@@ -327,7 +347,11 @@ impl DynamicGraphLearning {
             return Ok(());
         }
 
-        let current_nodes = self.node_features.as_ref().unwrap().nrows();
+        let current_nodes = self
+            .node_features
+            .as_ref()
+            .expect("operation should succeed")
+            .nrows();
         if current_nodes <= target_nodes {
             return Ok(());
         }
@@ -338,8 +362,14 @@ impl DynamicGraphLearning {
         // In practice, you might want more sophisticated strategies based on
         // node importance, connectivity, or recency of updates
 
-        let features = self.node_features.as_ref().unwrap();
-        let adjacency = self.adjacency_matrix.as_ref().unwrap();
+        let features = self
+            .node_features
+            .as_ref()
+            .expect("operation should succeed");
+        let adjacency = self
+            .adjacency_matrix
+            .as_ref()
+            .expect("operation should succeed");
 
         // Create new matrices without the pruned nodes
         let new_features = features.slice(s![nodes_to_remove.., ..]).to_owned();
@@ -458,7 +488,9 @@ mod tests {
         let result = dgl.initialize(initial_data.view());
         assert!(result.is_ok());
 
-        let adjacency = dgl.get_adjacency_matrix().unwrap();
+        let adjacency = dgl
+            .get_adjacency_matrix()
+            .expect("operation should succeed");
         assert_eq!(adjacency.dim(), (3, 3));
 
         // Check that diagonal is zero
@@ -473,17 +505,20 @@ mod tests {
 
         let initial_data = array![[1.0, 2.0], [2.0, 3.0]];
 
-        dgl.initialize(initial_data.view()).unwrap();
+        dgl.initialize(initial_data.view())
+            .expect("operation should succeed");
 
         let new_data = array![[3.0, 4.0], [4.0, 5.0]];
 
         let result = dgl.add_nodes(new_data.view());
         assert!(result.is_ok());
 
-        let adjacency = dgl.get_adjacency_matrix().unwrap();
+        let adjacency = dgl
+            .get_adjacency_matrix()
+            .expect("operation should succeed");
         assert_eq!(adjacency.dim(), (4, 4));
 
-        let features = dgl.get_node_features().unwrap();
+        let features = dgl.get_node_features().expect("operation should succeed");
         assert_eq!(features.dim(), (4, 2));
     }
 
@@ -495,13 +530,14 @@ mod tests {
 
         let initial_data = array![[1.0, 2.0], [2.0, 3.0]];
 
-        dgl.initialize(initial_data.view()).unwrap();
+        dgl.initialize(initial_data.view())
+            .expect("operation should succeed");
 
         let new_features = array![5.0, 6.0];
         let result = dgl.update_node_features(0, new_features.view());
         assert!(result.is_ok());
 
-        let features = dgl.get_node_features().unwrap();
+        let features = dgl.get_node_features().expect("operation should succeed");
         // Features should be updated with learning rate
         assert!(features[[0, 0]] > 1.0);
         assert!(features[[0, 1]] > 2.0);
@@ -516,13 +552,20 @@ mod tests {
 
         let initial_data = array![[1.0, 2.0], [2.0, 3.0]];
 
-        dgl.initialize(initial_data.view()).unwrap();
+        dgl.initialize(initial_data.view())
+            .expect("operation should succeed");
 
-        let original_adjacency = dgl.get_adjacency_matrix().unwrap().clone();
+        let original_adjacency = dgl
+            .get_adjacency_matrix()
+            .expect("operation should succeed")
+            .clone();
 
-        dgl.apply_temporal_decay().unwrap();
+        dgl.apply_temporal_decay()
+            .expect("operation should succeed");
 
-        let decayed_adjacency = dgl.get_adjacency_matrix().unwrap();
+        let decayed_adjacency = dgl
+            .get_adjacency_matrix()
+            .expect("operation should succeed");
 
         // Check that edges have been decayed
         for i in 0..2 {
@@ -540,14 +583,17 @@ mod tests {
 
         let initial_data = array![[1.0, 2.0], [2.0, 3.0]];
 
-        dgl.initialize(initial_data.view()).unwrap();
+        dgl.initialize(initial_data.view())
+            .expect("operation should succeed");
 
         let new_data = array![[3.0, 4.0], [4.0, 5.0], [5.0, 6.0]];
 
         let result = dgl.add_nodes(new_data.view());
         assert!(result.is_ok());
 
-        let adjacency = dgl.get_adjacency_matrix().unwrap();
+        let adjacency = dgl
+            .get_adjacency_matrix()
+            .expect("operation should succeed");
         assert_eq!(adjacency.nrows(), 3); // Should be pruned to max_nodes
     }
 
@@ -557,7 +603,8 @@ mod tests {
 
         let initial_data = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]];
 
-        dgl.initialize(initial_data.view()).unwrap();
+        dgl.initialize(initial_data.view())
+            .expect("operation should succeed");
 
         let stats = dgl.get_statistics();
 
@@ -576,12 +623,16 @@ mod tests {
 
         let initial_data = array![[1.0, 2.0], [2.0, 3.0]];
 
-        dgl.initialize(initial_data.view()).unwrap();
+        dgl.initialize(initial_data.view())
+            .expect("operation should succeed");
 
         let new_features = array![5.0, 6.0];
-        dgl.update_node_features(0, new_features.view()).unwrap();
-        dgl.update_node_features(1, new_features.view()).unwrap();
-        dgl.update_node_features(0, new_features.view()).unwrap();
+        dgl.update_node_features(0, new_features.view())
+            .expect("operation should succeed");
+        dgl.update_node_features(1, new_features.view())
+            .expect("operation should succeed");
+        dgl.update_node_features(0, new_features.view())
+            .expect("operation should succeed");
 
         let recent_updates = dgl.get_recent_updates(5);
         assert!(recent_updates.len() <= 2); // Buffer size constraint
@@ -604,7 +655,8 @@ mod tests {
 
         // Test feature update with invalid index
         let initial_data = array![[1.0, 2.0]];
-        dgl.initialize(initial_data.view()).unwrap();
+        dgl.initialize(initial_data.view())
+            .expect("operation should succeed");
         assert!(dgl.update_node_features(10, new_features.view()).is_err());
     }
 }

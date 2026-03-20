@@ -367,7 +367,7 @@ mod tests {
 
         let result =
             simd_generate_meta_features(&x.view(), &base_weights.view(), &base_intercepts.view())
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(result.dim(), (3, 2));
         // Check first prediction: [1,2] @ [0.5,0.5] + 0.1 = 1.6
@@ -382,7 +382,7 @@ mod tests {
 
         let result =
             simd_aggregate_predictions(&meta_features.view(), &meta_weights.view(), meta_intercept)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(result.len(), 2);
         // Check first prediction: [1,2] @ [0.6,0.4] + 0.5 = 1.9
@@ -394,7 +394,8 @@ mod tests {
         let predictions = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
         let weights = array![0.5, 0.3, 0.2];
 
-        let result = simd_weighted_average(&predictions.view(), &weights.view()).unwrap();
+        let result = simd_weighted_average(&predictions.view(), &weights.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 2);
         // Check first average: [1,2,3] @ [0.5,0.3,0.2] = 1.7
@@ -416,7 +417,7 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0];
         let y = array![2.0, 4.0, 6.0, 8.0]; // Perfect positive correlation
 
-        let result = simd_correlation(&x.view(), &y.view()).unwrap();
+        let result = simd_correlation(&x.view(), &y.view()).expect("operation should succeed");
         assert!((result - 1.0).abs() < 1e-10);
     }
 
@@ -439,10 +440,22 @@ mod tests {
     fn test_simd_reduce() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        assert_eq!(simd_reduce(&data.view(), "sum").unwrap(), 15.0);
-        assert_eq!(simd_reduce(&data.view(), "mean").unwrap(), 3.0);
-        assert_eq!(simd_reduce(&data.view(), "max").unwrap(), 5.0);
-        assert_eq!(simd_reduce(&data.view(), "min").unwrap(), 1.0);
+        assert_eq!(
+            simd_reduce(&data.view(), "sum").expect("operation should succeed"),
+            15.0
+        );
+        assert_eq!(
+            simd_reduce(&data.view(), "mean").expect("operation should succeed"),
+            3.0
+        );
+        assert_eq!(
+            simd_reduce(&data.view(), "max").expect("operation should succeed"),
+            5.0
+        );
+        assert_eq!(
+            simd_reduce(&data.view(), "min").expect("operation should succeed"),
+            1.0
+        );
 
         let result = simd_reduce(&data.view(), "invalid");
         assert!(result.is_err());

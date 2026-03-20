@@ -286,7 +286,7 @@ mod tests {
 
         let (epistemic, aleatoric) = quantifier
             .compute_uncertainty_decomposition(&probabilities)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(epistemic.len(), 3);
         assert_eq!(aleatoric.len(), 3);

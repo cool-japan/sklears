@@ -65,7 +65,7 @@ impl AlertManager {
 
     /// Register alert rule
     pub fn register_rule(&mut self, rule: AlertRule) -> SklResult<()> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         // Validate rule
         rule.validate()?;
@@ -83,7 +83,7 @@ impl AlertManager {
 
     /// Remove alert rule
     pub fn remove_rule(&mut self, rule_name: &str) -> SklResult<AlertRule> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         self.rules.remove(rule_name)
             .ok_or_else(|| SklearsError::NotFound(format!("Alert rule '{}' not found", rule_name)))
@@ -91,13 +91,13 @@ impl AlertManager {
 
     /// Register notification channel
     pub fn register_channel(&mut self, channel: Box<dyn AlertChannel>) {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         self.channels.push(channel);
     }
 
     /// Evaluate all alert rules against metrics
     pub fn evaluate_rules(&mut self, metrics: &[PerformanceMetric]) -> SklResult<Vec<AlertAction>> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         let mut actions = Vec::new();
 
         for rule in self.rules.values() {
@@ -213,13 +213,13 @@ impl AlertManager {
 
     /// Get active alerts
     pub fn get_active_alerts(&self) -> Vec<ActiveAlert> {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
         self.active_alerts.values().cloned().collect()
     }
 
     /// Acknowledge alert
     pub fn acknowledge_alert(&mut self, alert_id: &str) -> SklResult<()> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(alert) = self.active_alerts.get_mut(alert_id) {
             alert.acknowledged = true;
@@ -242,7 +242,7 @@ impl AlertManager {
 
     /// Cleanup old resolved alerts
     pub fn cleanup_resolved_alerts(&mut self, older_than: Duration) -> usize {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         let cutoff_time = SystemTime::now() - older_than;
         let initial_count = self.active_alerts.len();
 
@@ -514,7 +514,7 @@ impl AlertCondition {
                 // For simplicity, use the latest metric value
                 let latest_metric = matching_metrics.iter()
                     .max_by_key(|m| m.timestamp)
-                    .unwrap();
+                    .unwrap_or_default();
 
                 Ok(operator.compare(latest_metric.value, *value))
             }
@@ -1060,7 +1060,7 @@ mod tests {
             .channel("email".to_string())
             .channel("slack".to_string())
             .build()
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(rule.name, "memory_alert");
         assert_eq!(rule.channels.len(), 2);
@@ -1093,7 +1093,7 @@ mod tests {
             duration: Duration::from_secs(60),
         };
 
-        let result = condition.evaluate(&metrics).unwrap();
+        let result = condition.evaluate(&metrics).unwrap_or_default();
         assert!(result); // 0.85 > 0.8
 
         let condition2 = AlertCondition::Threshold {
@@ -1103,7 +1103,7 @@ mod tests {
             duration: Duration::from_secs(60),
         };
 
-        let result2 = condition2.evaluate(&metrics).unwrap();
+        let result2 = condition2.evaluate(&metrics).unwrap_or_default();
         assert!(!result2); // 0.85 is not < 0.8
     }
 

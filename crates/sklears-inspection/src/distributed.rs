@@ -690,29 +690,33 @@ mod tests {
     #[test]
     fn test_register_worker() {
         let config = ClusterConfig::default();
-        let coordinator = DistributedCoordinator::new(config).unwrap();
+        let coordinator = DistributedCoordinator::new(config).expect("operation should succeed");
 
         let result =
             coordinator.register_worker("worker1".to_string(), "192.168.1.10:8080".to_string());
         assert!(result.is_ok());
 
-        let stats = coordinator.get_statistics().unwrap();
+        let stats = coordinator
+            .get_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.active_workers, 1);
     }
 
     #[test]
     fn test_register_multiple_workers() {
         let config = ClusterConfig::default();
-        let coordinator = DistributedCoordinator::new(config).unwrap();
+        let coordinator = DistributedCoordinator::new(config).expect("operation should succeed");
 
         coordinator
             .register_worker("worker1".to_string(), "192.168.1.10:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
         coordinator
             .register_worker("worker2".to_string(), "192.168.1.11:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let stats = coordinator.get_statistics().unwrap();
+        let stats = coordinator
+            .get_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.active_workers, 2);
     }
 
@@ -722,14 +726,14 @@ mod tests {
             max_workers: 2,
             ..Default::default()
         };
-        let coordinator = DistributedCoordinator::new(config).unwrap();
+        let coordinator = DistributedCoordinator::new(config).expect("operation should succeed");
 
         coordinator
             .register_worker("worker1".to_string(), "192.168.1.10:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
         coordinator
             .register_worker("worker2".to_string(), "192.168.1.11:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
 
         let result =
             coordinator.register_worker("worker3".to_string(), "192.168.1.12:8080".to_string());
@@ -739,23 +743,25 @@ mod tests {
     #[test]
     fn test_unregister_worker() {
         let config = ClusterConfig::default();
-        let coordinator = DistributedCoordinator::new(config).unwrap();
+        let coordinator = DistributedCoordinator::new(config).expect("operation should succeed");
 
         coordinator
             .register_worker("worker1".to_string(), "192.168.1.10:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
 
         let result = coordinator.unregister_worker("worker1");
         assert!(result.is_ok());
 
-        let stats = coordinator.get_statistics().unwrap();
+        let stats = coordinator
+            .get_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.active_workers, 0);
     }
 
     #[test]
     fn test_submit_task() {
         let config = ClusterConfig::default();
-        let coordinator = DistributedCoordinator::new(config).unwrap();
+        let coordinator = DistributedCoordinator::new(config).expect("operation should succeed");
 
         let task = DistributedTask {
             task_id: "task1".to_string(),
@@ -768,9 +774,11 @@ mod tests {
 
         let result = coordinator.submit_task(task);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "task1");
+        assert_eq!(result.expect("operation should succeed"), "task1");
 
-        let stats = coordinator.get_statistics().unwrap();
+        let stats = coordinator
+            .get_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.total_tasks_submitted, 1);
         assert_eq!(stats.pending_tasks, 1);
     }
@@ -778,12 +786,12 @@ mod tests {
     #[test]
     fn test_schedule_tasks() {
         let config = ClusterConfig::default();
-        let coordinator = DistributedCoordinator::new(config).unwrap();
+        let coordinator = DistributedCoordinator::new(config).expect("operation should succeed");
 
         // Register a worker
         coordinator
             .register_worker("worker1".to_string(), "192.168.1.10:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Submit a task
         let task = DistributedTask {
@@ -794,10 +802,14 @@ mod tests {
             metadata: HashMap::new(),
             created_at: Instant::now(),
         };
-        coordinator.submit_task(task).unwrap();
+        coordinator
+            .submit_task(task)
+            .expect("operation should succeed");
 
         // Schedule tasks
-        let scheduled = coordinator.schedule_tasks().unwrap();
+        let scheduled = coordinator
+            .schedule_tasks()
+            .expect("operation should succeed");
         assert_eq!(scheduled, 1);
     }
 
@@ -838,16 +850,18 @@ mod tests {
     #[test]
     fn test_cluster_health_check() {
         let config = ClusterConfig::default();
-        let coordinator = DistributedCoordinator::new(config).unwrap();
+        let coordinator = DistributedCoordinator::new(config).expect("operation should succeed");
 
         coordinator
             .register_worker("worker1".to_string(), "192.168.1.10:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
         coordinator
             .register_worker("worker2".to_string(), "192.168.1.11:8080".to_string())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let health = coordinator.health_check().unwrap();
+        let health = coordinator
+            .health_check()
+            .expect("operation should succeed");
         assert_eq!(health.status, HealthStatus::Healthy);
         assert_eq!(health.total_workers, 2);
         assert_eq!(health.healthy_workers, 2);
@@ -1210,7 +1224,8 @@ mod cluster_tests {
     #[test]
     fn test_register_workers_from_config() {
         let config = ClusterConfig::default();
-        let orchestrator = ClusterExplanationOrchestrator::new(config).unwrap();
+        let orchestrator =
+            ClusterExplanationOrchestrator::new(config).expect("operation should succeed");
 
         let worker_configs = vec![
             WorkerConfig {
@@ -1228,17 +1243,23 @@ mod cluster_tests {
         let result = orchestrator.register_workers_from_config(worker_configs);
         assert!(result.is_ok());
 
-        let stats = orchestrator.get_cluster_statistics().unwrap();
+        let stats = orchestrator
+            .get_cluster_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.active_workers, 2);
     }
 
     #[test]
     fn test_split_into_batches() {
         let config = ClusterConfig::default();
-        let orchestrator = ClusterExplanationOrchestrator::new(config).unwrap();
+        let orchestrator =
+            ClusterExplanationOrchestrator::new(config).expect("operation should succeed");
 
-        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect()).unwrap();
-        let batches = orchestrator.split_into_batches(&data, 3).unwrap();
+        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect())
+            .expect("operation should succeed");
+        let batches = orchestrator
+            .split_into_batches(&data, 3)
+            .expect("operation should succeed");
 
         assert_eq!(batches.len(), 4); // 10 samples / 3 per batch = 4 batches
         assert_eq!(batches[0].nrows(), 3);
@@ -1250,10 +1271,13 @@ mod cluster_tests {
     #[test]
     fn test_split_predictions() {
         let config = ClusterConfig::default();
-        let orchestrator = ClusterExplanationOrchestrator::new(config).unwrap();
+        let orchestrator =
+            ClusterExplanationOrchestrator::new(config).expect("operation should succeed");
 
         let predictions = Array1::from_vec((0..10).map(|x| x as Float).collect());
-        let batches = orchestrator.split_predictions(&predictions, 4).unwrap();
+        let batches = orchestrator
+            .split_predictions(&predictions, 4)
+            .expect("operation should succeed");
 
         assert_eq!(batches.len(), 3); // 10 samples / 4 per batch = 3 batches
         assert_eq!(batches[0].len(), 4);
@@ -1264,7 +1288,8 @@ mod cluster_tests {
     #[test]
     fn test_cluster_health() {
         let config = ClusterConfig::default();
-        let orchestrator = ClusterExplanationOrchestrator::new(config).unwrap();
+        let orchestrator =
+            ClusterExplanationOrchestrator::new(config).expect("operation should succeed");
 
         // Register workers
         let worker_configs = vec![WorkerConfig {
@@ -1274,9 +1299,11 @@ mod cluster_tests {
         }];
         orchestrator
             .register_workers_from_config(worker_configs)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let health = orchestrator.get_cluster_health().unwrap();
+        let health = orchestrator
+            .get_cluster_health()
+            .expect("operation should succeed");
         assert_eq!(health.status, HealthStatus::Healthy);
         assert_eq!(health.total_workers, 1);
         assert_eq!(health.healthy_workers, 1);
@@ -1285,7 +1312,8 @@ mod cluster_tests {
     #[test]
     fn test_scale_up() {
         let config = ClusterConfig::default();
-        let orchestrator = ClusterExplanationOrchestrator::new(config).unwrap();
+        let orchestrator =
+            ClusterExplanationOrchestrator::new(config).expect("operation should succeed");
 
         // Start with one worker
         let initial_workers = vec![WorkerConfig {
@@ -1295,7 +1323,7 @@ mod cluster_tests {
         }];
         orchestrator
             .register_workers_from_config(initial_workers)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Scale up
         let new_workers = vec![
@@ -1313,14 +1341,17 @@ mod cluster_tests {
         let result = orchestrator.scale_up(new_workers);
         assert!(result.is_ok());
 
-        let stats = orchestrator.get_cluster_statistics().unwrap();
+        let stats = orchestrator
+            .get_cluster_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.active_workers, 3);
     }
 
     #[test]
     fn test_scale_down() {
         let config = ClusterConfig::default();
-        let orchestrator = ClusterExplanationOrchestrator::new(config).unwrap();
+        let orchestrator =
+            ClusterExplanationOrchestrator::new(config).expect("operation should succeed");
 
         // Register workers
         let worker_configs = vec![
@@ -1342,13 +1373,15 @@ mod cluster_tests {
         ];
         orchestrator
             .register_workers_from_config(worker_configs)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Scale down
         let result = orchestrator.scale_down(vec!["worker3".to_string()]);
         assert!(result.is_ok());
 
-        let stats = orchestrator.get_cluster_statistics().unwrap();
+        let stats = orchestrator
+            .get_cluster_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.active_workers, 2);
     }
 

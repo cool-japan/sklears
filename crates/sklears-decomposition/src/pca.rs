@@ -5,7 +5,7 @@
 //! TODO: Implement advanced PCA variants and modular architecture.
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -106,7 +106,9 @@ impl Fit<Array2<Float>, ()> for PCA<Untrained> {
         }
 
         // Compute mean
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         // Center data
         let _x_centered = x - &mean.clone().insert_axis(Axis(0));
@@ -118,7 +120,7 @@ impl Fit<Array2<Float>, ()> for PCA<Untrained> {
         // Initialize components randomly (placeholder)
         for i in 0..n_components {
             for j in 0..n_features {
-                components[[i, j]] = rng.gen::<Float>() - 0.5;
+                components[[i, j]] = rng.random::<Float>() - 0.5;
             }
         }
 

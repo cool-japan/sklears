@@ -12,7 +12,7 @@ use sklears_core::{
     types::{Array1, Array2, Float},
 };
 
-use scirs2_core::random::{thread_rng, CoreRandom, Rng};
+use scirs2_core::random::{thread_rng, CoreRandom, Rng, RngExt};
 
 /// LSH family type
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -330,7 +330,8 @@ impl LSHIndex {
         }
 
         // Sort by distance and return top k
-        neighbor_candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbor_candidates
+            .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         neighbor_candidates.truncate(k);
 
         Ok(neighbor_candidates)
@@ -376,7 +377,7 @@ impl LSHIndex {
         }
 
         // Sort by distance
-        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         Ok(neighbors)
     }
@@ -667,13 +668,17 @@ mod tests {
         };
 
         let mut index = LSHIndex::new(config);
-        index.build_from_data(&data).unwrap();
+        index
+            .build_from_data(&data)
+            .expect("operation should succeed");
 
         assert_eq!(index.vectors.len(), 4);
 
         // Query for neighbors of first point
         let query = array![1.05, 2.05, 3.05];
-        let neighbors = index.query_k_nearest(&query, 2).unwrap();
+        let neighbors = index
+            .query_k_nearest(&query, 2)
+            .expect("operation should succeed");
 
         // Should find some neighbors
         assert!(!neighbors.is_empty());
@@ -699,10 +704,14 @@ mod tests {
         };
 
         let mut index = LSHIndex::new(config);
-        index.build_from_data(&data).unwrap();
+        index
+            .build_from_data(&data)
+            .expect("operation should succeed");
 
         let query = array![0.05, 0.05];
-        let neighbors = index.query_radius(&query, 0.5).unwrap();
+        let neighbors = index
+            .query_radius(&query, 0.5)
+            .expect("operation should succeed");
 
         // Should find close neighbors but not the far one
         assert!(!neighbors.is_empty());
@@ -743,7 +752,9 @@ mod tests {
         };
 
         let mut index = LSHIndex::new(config);
-        index.build_from_data(&data).unwrap();
+        index
+            .build_from_data(&data)
+            .expect("operation should succeed");
 
         let stats = index.stats();
 
@@ -766,7 +777,9 @@ mod tests {
         };
 
         let mut index = LSHIndex::new(config);
-        index.build_from_data(&data).unwrap();
+        index
+            .build_from_data(&data)
+            .expect("operation should succeed");
 
         let memory = index.memory_usage();
 

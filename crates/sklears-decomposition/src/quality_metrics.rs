@@ -8,7 +8,7 @@
 //! - Stability and reproducibility metrics
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -392,7 +392,7 @@ impl QualityAssessment {
             (0..n_components)
                 .map(|_| {
                     let mut rng = thread_rng();
-                    0.8 + 0.2 * (rng.gen::<Float>())
+                    0.8 + 0.2 * (rng.random::<Float>())
                 })
                 .collect(),
         );
@@ -811,7 +811,7 @@ mod tests {
         let explained_variance = array![2.5, 1.5];
 
         let qa = QualityAssessment::new(original, reconstructed, components, explained_variance);
-        let gof = qa.goodness_of_fit().unwrap();
+        let gof = qa.goodness_of_fit().expect("operation should succeed");
 
         assert!(gof.r_squared >= 0.0);
         assert!(gof.r_squared <= 1.0);
@@ -827,7 +827,7 @@ mod tests {
         let explained_variance = array![4.0];
 
         let qa = QualityAssessment::new(original, reconstructed, components, explained_variance);
-        let comparison = qa.model_comparison(2).unwrap();
+        let comparison = qa.model_comparison(2).expect("operation should succeed");
 
         assert_eq!(comparison.n_parameters, 2);
         assert!(comparison.aic.is_finite());
@@ -842,7 +842,9 @@ mod tests {
         let explained_variance = array![2.5, 1.5];
 
         let qa = QualityAssessment::new(original, reconstructed, components, explained_variance);
-        let quality = qa.reconstruction_quality().unwrap();
+        let quality = qa
+            .reconstruction_quality()
+            .expect("operation should succeed");
 
         assert_eq!(quality.component_errors.len(), 2);
         assert!(quality.global_error >= 0.0);
@@ -859,7 +861,9 @@ mod tests {
         let explained_variance = array![3.0, 2.0];
 
         let qa = QualityAssessment::new(original, reconstructed, components, explained_variance);
-        let interpretability = qa.component_interpretability().unwrap();
+        let interpretability = qa
+            .component_interpretability()
+            .expect("operation should succeed");
 
         assert_eq!(interpretability.loading_magnitudes.len(), 2);
         assert_eq!(interpretability.sparsity.len(), 2);
@@ -878,7 +882,9 @@ mod tests {
         let explained_variance = array![4.0];
 
         let qa = QualityAssessment::new(original, reconstructed, components, explained_variance);
-        let score = qa.overall_quality_score().unwrap();
+        let score = qa
+            .overall_quality_score()
+            .expect("operation should succeed");
 
         assert!(score >= 0.0);
         assert!(score <= 1.0);
@@ -892,7 +898,7 @@ mod tests {
         analysis.add_method("ICA".to_string(), 0.8, 0.15, 0.9, 0.3);
         analysis.add_method("NMF".to_string(), 0.85, 0.12, 0.85, 0.25);
 
-        let (_best_method, best_score) = analysis.best_method().unwrap();
+        let (_best_method, best_score) = analysis.best_method().expect("operation should succeed");
         assert!(best_score > 0.0);
 
         let ranking = analysis.method_ranking();
@@ -912,7 +918,7 @@ mod tests {
         let explained_variance = array![1.0];
 
         let qa = QualityAssessment::new(original, reconstructed, components, explained_variance);
-        let ssim = qa.compute_ssim().unwrap();
+        let ssim = qa.compute_ssim().expect("operation should succeed");
 
         assert!(ssim >= 0.0);
         assert!(ssim <= 1.0);
@@ -928,7 +934,9 @@ mod tests {
         let explained_variance = array![1.0];
 
         let qa = QualityAssessment::new(original, reconstructed, components, explained_variance);
-        let ncc = qa.compute_normalized_cross_correlation().unwrap();
+        let ncc = qa
+            .compute_normalized_cross_correlation()
+            .expect("operation should succeed");
 
         assert!(ncc >= -1.0);
         assert!(ncc <= 1.0);

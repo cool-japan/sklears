@@ -663,7 +663,7 @@ mod tests {
             .temperature(2.0)
             .cooling_rate(0.9)
             .build()
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(params.step_size, 1.0);
         assert_eq!(params.temperature, 2.0);

@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
@@ -943,8 +943,8 @@ impl Fit<Array2<f64>, ()> for ConvolutionalKernelFeatures {
     type Fitted = FittedConvolutionalKernelFeatures;
 
     fn fit(self, _x: &Array2<f64>, _y: &()) -> Result<Self::Fitted> {
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
 
         // Generate random convolution kernels
         let kernel_elements = self.kernel_size * self.kernel_size;
@@ -1053,12 +1053,12 @@ mod tests {
     fn test_spatial_pyramid_features() {
         let x: Array2<f64> = Array::from_shape_fn((10, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let pyramid = SpatialPyramidFeatures::new(3, 64);
 
-        let fitted = pyramid.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = pyramid.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 10);
         assert!(transformed.shape()[1] > 0);
@@ -1068,12 +1068,12 @@ mod tests {
     fn test_texture_kernel_approximation() {
         let x: Array2<f64> = Array::from_shape_fn((5, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let texture = TextureKernelApproximation::new(50);
 
-        let fitted = texture.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = texture.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 5);
         assert!(transformed.shape()[1] > 0);
@@ -1083,12 +1083,12 @@ mod tests {
     fn test_scale_invariant_features() {
         let x: Array2<f64> = Array::from_shape_fn((8, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let sift = ScaleInvariantFeatures::new(10);
 
-        let fitted = sift.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = sift.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 8);
         assert_eq!(transformed.shape()[1], 10 * 32);
@@ -1098,12 +1098,12 @@ mod tests {
     fn test_convolutional_kernel_features() {
         let x: Array2<f64> = Array::from_shape_fn((6, 64), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let conv = ConvolutionalKernelFeatures::new(16, 3);
 
-        let fitted = conv.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = conv.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 6);
         assert!(transformed.shape()[1] > 0);

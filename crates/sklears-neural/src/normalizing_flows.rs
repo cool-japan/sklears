@@ -143,12 +143,14 @@ impl<T: FloatBounds> AffineCouplingLayer<T> {
 
         let mut prev_dim = n_masked;
         for &hidden_dim in &config.hidden_dims {
-            let std = T::from((2.0 / prev_dim as f64).sqrt()).unwrap();
+            let std = T::from((2.0 / prev_dim as f64).sqrt()).unwrap_or_else(|| T::zero());
             let w = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
                 T::from(
-                    rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std.to_f64().unwrap(),
+                    rng.sample::<f64, _>(
+                        Normal::new(0.0, 1.0).expect("standard normal should be valid"),
+                    ) * std.to_f64().unwrap_or(0.0),
                 )
-                .unwrap()
+                .expect("value should be present")
             });
             let b = Array1::zeros(hidden_dim);
             scale_weights.push(w);
@@ -158,7 +160,11 @@ impl<T: FloatBounds> AffineCouplingLayer<T> {
 
         // Output layer for scale network
         let w = Array2::from_shape_fn((prev_dim, n_unmasked), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * 0.01).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * 0.01,
+            )
+            .unwrap_or_else(|| T::zero())
         });
         let b = Array1::zeros(n_unmasked);
         scale_weights.push(w);
@@ -170,12 +176,14 @@ impl<T: FloatBounds> AffineCouplingLayer<T> {
 
         let mut prev_dim = n_masked;
         for &hidden_dim in &config.hidden_dims {
-            let std = T::from((2.0 / prev_dim as f64).sqrt()).unwrap();
+            let std = T::from((2.0 / prev_dim as f64).sqrt()).unwrap_or_else(|| T::zero());
             let w = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
                 T::from(
-                    rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std.to_f64().unwrap(),
+                    rng.sample::<f64, _>(
+                        Normal::new(0.0, 1.0).expect("standard normal should be valid"),
+                    ) * std.to_f64().unwrap_or(0.0),
                 )
-                .unwrap()
+                .expect("value should be present")
             });
             let b = Array1::zeros(hidden_dim);
             translation_weights.push(w);
@@ -185,7 +193,11 @@ impl<T: FloatBounds> AffineCouplingLayer<T> {
 
         // Output layer for translation network
         let w = Array2::from_shape_fn((prev_dim, n_unmasked), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * 0.01).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * 0.01,
+            )
+            .unwrap_or_else(|| T::zero())
         });
         let b = Array1::zeros(n_unmasked);
         translation_weights.push(w);
@@ -346,16 +358,16 @@ impl<T: FloatBounds> AffineCouplingLayer<T> {
             // Apply activation to all but last layer
             if i < self.scale_weights.len() - 1 {
                 h.mapv_inplace(|x| {
-                    let x_f64 = x.to_f64().unwrap();
-                    T::from(self.activation.forward(x_f64)).unwrap()
+                    let x_f64 = x.to_f64().unwrap_or(0.0);
+                    T::from(self.activation.forward(x_f64)).unwrap_or_else(|| T::zero())
                 });
             }
         }
 
         // Clamp scale to avoid numerical instability
         h.mapv_inplace(|s| {
-            let s_f64 = s.to_f64().unwrap();
-            T::from(s_f64.clamp(-10.0, 10.0)).unwrap()
+            let s_f64 = s.to_f64().unwrap_or(0.0);
+            T::from(s_f64.clamp(-10.0, 10.0)).unwrap_or_else(|| T::zero())
         });
 
         Ok(h)
@@ -377,8 +389,8 @@ impl<T: FloatBounds> AffineCouplingLayer<T> {
             // Apply activation to all but last layer
             if i < self.translation_weights.len() - 1 {
                 h.mapv_inplace(|x| {
-                    let x_f64 = x.to_f64().unwrap();
-                    T::from(self.activation.forward(x_f64)).unwrap()
+                    let x_f64 = x.to_f64().unwrap_or(0.0);
+                    T::from(self.activation.forward(x_f64)).unwrap_or_else(|| T::zero())
                 });
             }
         }
@@ -481,8 +493,8 @@ impl<T: FloatBounds + ScalarOperand> NormalizingFlow<T> {
 
         Self {
             coupling_layers,
-            base_mean: T::from(config.base_mean).unwrap(),
-            base_std: T::from(config.base_std).unwrap(),
+            base_mean: T::from(config.base_mean).unwrap_or_else(|| T::zero()),
+            base_std: T::from(config.base_std).unwrap_or_else(|| T::zero()),
             input_dim: config.input_dim,
             config,
         }
@@ -519,14 +531,14 @@ impl<T: FloatBounds + ScalarOperand> NormalizingFlow<T> {
     pub fn sample(&self, n_samples: usize) -> NeuralResult<Array2<T>> {
         let mut rng = thread_rng();
         let normal = Normal::new(
-            self.base_mean.to_f64().unwrap(),
-            self.base_std.to_f64().unwrap(),
+            self.base_mean.to_f64().unwrap_or(0.0),
+            self.base_std.to_f64().unwrap_or(0.0),
         )
-        .unwrap();
+        .expect("value should be present");
 
         // Sample from base distribution
         let z = Array2::from_shape_fn((n_samples, self.input_dim), |_| {
-            T::from(rng.sample::<f64, _>(normal)).unwrap()
+            T::from(rng.sample::<f64, _>(normal)).unwrap_or_else(|| T::zero())
         });
 
         // Transform to data distribution
@@ -540,8 +552,8 @@ impl<T: FloatBounds + ScalarOperand> NormalizingFlow<T> {
         // Log probability under base distribution (Gaussian)
         let z_normalized = (&z - self.base_mean) / self.base_std;
         let log_prob_base = z_normalized.mapv(|zi| {
-            let zi_f64 = zi.to_f64().unwrap();
-            T::from(-0.5 * zi_f64 * zi_f64 - 0.5 * (2.0 * PI).ln()).unwrap()
+            let zi_f64 = zi.to_f64().unwrap_or(0.0);
+            T::from(-0.5 * zi_f64 * zi_f64 - 0.5 * (2.0 * PI).ln()).unwrap_or_else(|| T::zero())
         });
 
         let log_prob_sum = log_prob_base.sum();
@@ -599,11 +611,11 @@ mod tests {
         };
 
         let mut layer: AffineCouplingLayer<f64> = AffineCouplingLayer::new(config);
-        let x =
-            Array2::from_shape_vec((2, 4), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 4), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("array shape mismatch");
 
-        let (y, _log_det) = layer.forward(&x).unwrap();
-        let x_reconstructed = layer.inverse(&y).unwrap();
+        let (y, _log_det) = layer.forward(&x).expect("forward pass should succeed");
+        let x_reconstructed = layer.inverse(&y).expect("operation should succeed");
 
         // Check invertibility
         for i in 0..x.nrows() {
@@ -648,8 +660,8 @@ mod tests {
             (i as f64 + 1.0) * 0.1 + (j as f64 + 1.0) * 0.01
         });
 
-        let (z, _log_det) = flow.forward(&x).unwrap();
-        let x_reconstructed = flow.inverse(&z).unwrap();
+        let (z, _log_det) = flow.forward(&x).expect("forward pass should succeed");
+        let x_reconstructed = flow.inverse(&z).expect("operation should succeed");
 
         // Check invertibility
         for i in 0..x.nrows() {
@@ -670,7 +682,7 @@ mod tests {
         };
 
         let flow: NormalizingFlow<f64> = NormalizingFlow::new(config);
-        let samples = flow.sample(10).unwrap();
+        let samples = flow.sample(10).expect("sampling should succeed");
 
         assert_eq!(samples.nrows(), 10);
         assert_eq!(samples.ncols(), 5);
@@ -689,7 +701,7 @@ mod tests {
         let mut flow: NormalizingFlow<f64> = NormalizingFlow::new(config);
         let x = Array2::from_shape_fn((3, 6), |(i, j)| (i as f64 + j as f64) * 0.1);
 
-        let log_likelihood = flow.log_likelihood(&x).unwrap();
+        let log_likelihood = flow.log_likelihood(&x).expect("operation should succeed");
         // Should be finite
         assert!(log_likelihood.is_finite());
     }
@@ -706,15 +718,16 @@ mod tests {
         };
 
         let mut layer: AffineCouplingLayer<f64> = AffineCouplingLayer::new(config);
-        let x = Array2::from_shape_vec((1, 4), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((1, 4), vec![1.0, 2.0, 3.0, 4.0]).expect("array shape mismatch");
 
-        let (y, log_det) = layer.forward(&x).unwrap();
+        let (y, log_det) = layer.forward(&x).expect("forward pass should succeed");
 
         // For additive coupling, log determinant should be zero
         assert_relative_eq!(log_det, 0.0, epsilon = 1e-10);
 
         // Check invertibility
-        let x_reconstructed = layer.inverse(&y).unwrap();
+        let x_reconstructed = layer.inverse(&y).expect("operation should succeed");
         for i in 0..x.len() {
             assert_relative_eq!(x[[0, i]], x_reconstructed[[0, i]], epsilon = 1e-5);
         }

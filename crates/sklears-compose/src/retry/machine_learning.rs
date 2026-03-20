@@ -898,7 +898,7 @@ impl ModelPerformanceTracking {
     }
 
     pub fn track_performance(&self, record: PerformanceRecord) {
-        let mut history = self.history.lock().unwrap();
+        let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
         history.push(record);
 
         // Limit history size

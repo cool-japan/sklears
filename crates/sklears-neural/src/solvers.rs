@@ -90,6 +90,10 @@ impl GradientClipper {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Solver {
     /// Limited-memory BFGS algorithm
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     Lbfgs,
     /// Stochastic Gradient Descent
     Sgd,
@@ -97,10 +101,22 @@ pub enum Solver {
     #[default]
     Adam,
     /// AdamW optimizer (Adam with decoupled weight decay)
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     AdamW,
     /// RMSprop optimizer
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     RMSprop,
     /// Nadam optimizer (Nesterov-accelerated Adam)
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     Nadam,
     /// LARS optimizer (Layer-wise Adaptive Rate Scaling)
     Lars,
@@ -944,7 +960,7 @@ mod tests {
         solver.initialize(&weights, &biases);
         solver
             .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that weights and biases have changed (compare element by element)
         let weights_changed = weights[0]
@@ -1030,7 +1046,7 @@ mod tests {
         solver.initialize(&weights, &biases);
         solver
             .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
-            .unwrap();
+            .expect("operation should succeed");
 
         let new_weight_magnitude = weights[0].iter().map(|x| x.abs()).sum::<f64>();
 
@@ -1053,7 +1069,7 @@ mod tests {
         solver.initialize(&weights, &biases);
         solver
             .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that parameters have changed (compare element by element)
         let weights_changed = weights[0]
@@ -1083,7 +1099,7 @@ mod tests {
         solver.initialize(&weights, &biases);
         solver
             .update_params(&mut weights, &mut biases, &weight_grads, &bias_grads)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that parameters have changed (compare element by element)
         let weights_changed = weights[0]

@@ -126,7 +126,7 @@ impl Fit<Array2<Float>, Array1<Float>> for LogisticRegression<Untrained> {
 
         // Get unique classes (for now, assume binary: 0 and 1)
         let mut classes = y.to_vec();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup();
 
         if classes.len() != 2 {
@@ -480,7 +480,7 @@ impl Predict<Array2<Float>, Array1<Float>> for LogisticRegression<Trained> {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             classes[max_idx]
@@ -554,14 +554,14 @@ mod tests {
             .solver(Solver::Lbfgs)
             .penalty(Penalty::L2(0.1))
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should achieve perfect classification on training data
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("scoring should succeed");
         assert!(score > 0.99);
 
         // Check predictions
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions, y);
     }
 
@@ -582,9 +582,9 @@ mod tests {
             .penalty(Penalty::L2(0.1))
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("scoring should succeed");
         assert!(score > 0.95);
     }
 
@@ -606,7 +606,7 @@ mod tests {
             .penalty(Penalty::L1(1.0))
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         let coef = model.coef();
 

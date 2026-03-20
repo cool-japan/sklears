@@ -109,7 +109,10 @@ impl PredictProba<Vec<Array2<Float>>, Array2<Float>> for MultiViewDiscriminantAn
 
         for view_data in x.iter() {
             // Get current view index by iterating again
-            let view_idx = x.iter().position(|v| std::ptr::eq(v, view_data)).unwrap();
+            let view_idx = x
+                .iter()
+                .position(|v| std::ptr::eq(v, view_data))
+                .expect("element not found");
             let view_means = &self.view_means_[view_idx];
             let fusion_weight = self.views_[view_idx].weight;
 

@@ -23,7 +23,7 @@ pub fn d2_absolute_error_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Me
 
     let y_median = {
         let mut y_sorted = y_true.to_vec();
-        y_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        y_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = y_sorted.len();
         if n % 2 == 0 {
             (y_sorted[n / 2 - 1] + y_sorted[n / 2]) / 2.0
@@ -73,7 +73,7 @@ pub fn d2_pinball_score(
     // Calculate quantile of y_true
     let y_quantile = {
         let mut y_sorted = y_true.to_vec();
-        y_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        y_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = y_sorted.len();
         let index = (alpha * (n - 1) as f64) as usize;
         let fraction = alpha * (n - 1) as f64 - index as f64;
@@ -134,7 +134,7 @@ pub fn d2_tweedie_score(
         ));
     }
 
-    let y_mean = y_true.mean().unwrap();
+    let y_mean = y_true.mean().expect("operation should succeed");
 
     let tweedie_deviance = |y: f64, y_hat: f64, power: f64| -> f64 {
         if power == 0.0 {
@@ -223,7 +223,7 @@ mod tests {
     fn test_d2_absolute_error_score_perfect() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let d2 = d2_absolute_error_score(&y_true, &y_pred).unwrap();
+        let d2 = d2_absolute_error_score(&y_true, &y_pred).expect("operation should succeed");
         assert!((d2 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -231,7 +231,7 @@ mod tests {
     fn test_d2_pinball_score_median() {
         let y_true = array![1.0, 2.0, 3.0, 4.0];
         let y_pred = array![1.0, 2.0, 3.0, 4.0];
-        let d2 = d2_pinball_score(&y_true, &y_pred, 0.5).unwrap();
+        let d2 = d2_pinball_score(&y_true, &y_pred, 0.5).expect("operation should succeed");
         assert!((d2 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -239,7 +239,7 @@ mod tests {
     fn test_d2_tweedie_score_power_0() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let d2 = d2_tweedie_score(&y_true, &y_pred, 0.0).unwrap();
+        let d2 = d2_tweedie_score(&y_true, &y_pred, 0.0).expect("operation should succeed");
         assert!((d2 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -247,7 +247,7 @@ mod tests {
     fn test_d2_tweedie_score_power_1() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let d2 = d2_tweedie_score(&y_true, &y_pred, 1.0).unwrap();
+        let d2 = d2_tweedie_score(&y_true, &y_pred, 1.0).expect("operation should succeed");
         assert!((d2 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -255,7 +255,7 @@ mod tests {
     fn test_d2_tweedie_score_power_2() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let d2 = d2_tweedie_score(&y_true, &y_pred, 2.0).unwrap();
+        let d2 = d2_tweedie_score(&y_true, &y_pred, 2.0).expect("operation should succeed");
         assert!((d2 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -263,7 +263,7 @@ mod tests {
     fn test_d2_gamma_score() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let d2 = d2_gamma_score(&y_true, &y_pred).unwrap();
+        let d2 = d2_gamma_score(&y_true, &y_pred).expect("operation should succeed");
         assert!((d2 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -271,7 +271,7 @@ mod tests {
     fn test_d2_poisson_score() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let d2 = d2_poisson_score(&y_true, &y_pred).unwrap();
+        let d2 = d2_poisson_score(&y_true, &y_pred).expect("operation should succeed");
         assert!((d2 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -280,10 +280,10 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0];
         let y_pred = array![1.1, 1.9, 3.1, 3.9];
 
-        let d2_abs = d2_absolute_error_score(&y_true, &y_pred).unwrap();
-        let d2_pinball = d2_pinball_score(&y_true, &y_pred, 0.5).unwrap();
-        let d2_gamma = d2_gamma_score(&y_true, &y_pred).unwrap();
-        let d2_poisson = d2_poisson_score(&y_true, &y_pred).unwrap();
+        let d2_abs = d2_absolute_error_score(&y_true, &y_pred).expect("operation should succeed");
+        let d2_pinball = d2_pinball_score(&y_true, &y_pred, 0.5).expect("operation should succeed");
+        let d2_gamma = d2_gamma_score(&y_true, &y_pred).expect("operation should succeed");
+        let d2_poisson = d2_poisson_score(&y_true, &y_pred).expect("operation should succeed");
 
         // All should be less than 1 but greater than 0 for good predictions
         assert!(0.0 < d2_abs && d2_abs < 1.0);

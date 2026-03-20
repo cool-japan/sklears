@@ -230,8 +230,10 @@ impl MultiOutputClassifier<Untrained> {
 
                 // Merge results back to shared data structures
                 {
-                    let mut classes_guard = classes_thread.lock().unwrap();
-                    let mut models_guard = models_thread.lock().unwrap();
+                    let mut classes_guard =
+                        classes_thread.lock().expect("lock should not be poisoned");
+                    let mut models_guard =
+                        models_thread.lock().expect("lock should not be poisoned");
 
                     // Ensure proper ordering by sorting local results
                     local_classes.sort_by_key(|(idx, _)| *idx);
@@ -265,12 +267,12 @@ impl MultiOutputClassifier<Untrained> {
         let final_classes = Arc::try_unwrap(classes_per_target)
             .map_err(|_| SklearsError::InvalidInput("Failed to extract classes".to_string()))?
             .into_inner()
-            .unwrap();
+            .expect("operation should succeed");
 
         let final_models = Arc::try_unwrap(target_models)
             .map_err(|_| SklearsError::InvalidInput("Failed to extract models".to_string()))?
             .into_inner()
-            .unwrap();
+            .expect("operation should succeed");
 
         Ok(MultiOutputClassifier {
             state: MultiOutputClassifierTrained {
@@ -431,7 +433,9 @@ impl Fit<ArrayView2<'_, Float>, Array2<f64>> for MultiOutputRegressor<Untrained>
             let mut bias = 0.0;
 
             // Compute mean of targets
-            let y_mean = y_target.mean().unwrap();
+            let y_mean = y_target
+                .mean()
+                .expect("array should have elements for mean computation");
             bias = y_mean;
 
             // Simple approach: set weights proportional to feature correlations with target
@@ -528,7 +532,9 @@ impl MultiOutputRegressor<Untrained> {
                     let mut weights = Array1::<f64>::zeros(n_features);
 
                     // Compute mean of targets
-                    let y_mean = y_target.mean().unwrap();
+                    let y_mean = y_target
+                        .mean()
+                        .expect("array should have elements for mean computation");
                     let bias: f64 = y_mean;
 
                     // Simple approach: set weights proportional to feature correlations with target
@@ -567,7 +573,8 @@ impl MultiOutputRegressor<Untrained> {
 
                 // Merge results back to shared data structure
                 {
-                    let mut models_guard = models_thread.lock().unwrap();
+                    let mut models_guard =
+                        models_thread.lock().expect("lock should not be poisoned");
                     for (target_idx, model) in local_models {
                         models_guard.insert(target_idx, model);
                     }
@@ -590,7 +597,7 @@ impl MultiOutputRegressor<Untrained> {
         let final_models = Arc::try_unwrap(target_models)
             .map_err(|_| SklearsError::InvalidInput("Failed to extract models".to_string()))?
             .into_inner()
-            .unwrap();
+            .expect("operation should succeed");
 
         Ok(MultiOutputRegressor {
             state: MultiOutputRegressorTrained {
@@ -702,11 +709,15 @@ mod tests {
 
         // Test with parallel training
         let classifier_parallel = MultiOutputClassifier::new().n_jobs(Some(2));
-        let trained_parallel = classifier_parallel.fit(&X.view(), &y).unwrap();
+        let trained_parallel = classifier_parallel
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
         // Test with sequential training
         let classifier_sequential = MultiOutputClassifier::new().n_jobs(Some(1));
-        let trained_sequential = classifier_sequential.fit(&X.view(), &y).unwrap();
+        let trained_sequential = classifier_sequential
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
         // Results should be the same
         assert_eq!(trained_parallel.n_targets(), trained_sequential.n_targets());
@@ -716,8 +727,12 @@ mod tests {
         );
 
         // Test predictions
-        let pred_parallel = trained_parallel.predict(&X.view()).unwrap();
-        let pred_sequential = trained_sequential.predict(&X.view()).unwrap();
+        let pred_parallel = trained_parallel
+            .predict(&X.view())
+            .expect("prediction should succeed");
+        let pred_sequential = trained_sequential
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(pred_parallel.shape(), pred_sequential.shape());
         assert_eq!(pred_parallel.shape(), &[6, 3]);
@@ -745,18 +760,26 @@ mod tests {
 
         // Test with parallel training
         let regressor_parallel = MultiOutputRegressor::new().n_jobs(Some(2));
-        let trained_parallel = regressor_parallel.fit(&X.view(), &y).unwrap();
+        let trained_parallel = regressor_parallel
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
         // Test with sequential training
         let regressor_sequential = MultiOutputRegressor::new().n_jobs(Some(1));
-        let trained_sequential = regressor_sequential.fit(&X.view(), &y).unwrap();
+        let trained_sequential = regressor_sequential
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
 
         // Results should be the same
         assert_eq!(trained_parallel.n_targets(), trained_sequential.n_targets());
 
         // Test predictions
-        let pred_parallel = trained_parallel.predict(&X.view()).unwrap();
-        let pred_sequential = trained_sequential.predict(&X.view()).unwrap();
+        let pred_parallel = trained_parallel
+            .predict(&X.view())
+            .expect("prediction should succeed");
+        let pred_sequential = trained_sequential
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(pred_parallel.shape(), pred_sequential.shape());
         assert_eq!(pred_parallel.shape(), &[6, 3]);
@@ -796,13 +819,17 @@ mod tests {
         // Time sequential training
         let start_sequential = Instant::now();
         let classifier_sequential = MultiOutputClassifier::new().n_jobs(Some(1));
-        let trained_sequential = classifier_sequential.fit(&X.view(), &y).unwrap();
+        let trained_sequential = classifier_sequential
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
         let sequential_time = start_sequential.elapsed();
 
         // Time parallel training
         let start_parallel = Instant::now();
         let classifier_parallel = MultiOutputClassifier::new().n_jobs(Some(4));
-        let trained_parallel = classifier_parallel.fit(&X.view(), &y).unwrap();
+        let trained_parallel = classifier_parallel
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
         let parallel_time = start_parallel.elapsed();
 
         // Ensure both produce valid results
@@ -810,8 +837,12 @@ mod tests {
         assert_eq!(trained_sequential.n_targets(), n_targets);
 
         // Test predictions are consistent
-        let pred_parallel = trained_parallel.predict(&X.view()).unwrap();
-        let pred_sequential = trained_sequential.predict(&X.view()).unwrap();
+        let pred_parallel = trained_parallel
+            .predict(&X.view())
+            .expect("prediction should succeed");
+        let pred_sequential = trained_sequential
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(pred_parallel.shape(), pred_sequential.shape());
 
         println!(
@@ -843,13 +874,17 @@ mod tests {
         // Time sequential training
         let start_sequential = Instant::now();
         let regressor_sequential = MultiOutputRegressor::new().n_jobs(Some(1));
-        let trained_sequential = regressor_sequential.fit(&X.view(), &y).unwrap();
+        let trained_sequential = regressor_sequential
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
         let sequential_time = start_sequential.elapsed();
 
         // Time parallel training
         let start_parallel = Instant::now();
         let regressor_parallel = MultiOutputRegressor::new().n_jobs(Some(4));
-        let trained_parallel = regressor_parallel.fit(&X.view(), &y).unwrap();
+        let trained_parallel = regressor_parallel
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
         let parallel_time = start_parallel.elapsed();
 
         // Ensure both produce valid results
@@ -857,8 +892,12 @@ mod tests {
         assert_eq!(trained_sequential.n_targets(), n_targets);
 
         // Test predictions are consistent
-        let pred_parallel = trained_parallel.predict(&X.view()).unwrap();
-        let pred_sequential = trained_sequential.predict(&X.view()).unwrap();
+        let pred_parallel = trained_parallel
+            .predict(&X.view())
+            .expect("prediction should succeed");
+        let pred_sequential = trained_sequential
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(pred_parallel.shape(), pred_sequential.shape());
 
         println!(
@@ -877,13 +916,21 @@ mod tests {
         // Test multiple parallel runs to check for race conditions
         for _ in 0..10 {
             let classifier = MultiOutputClassifier::new().n_jobs(Some(2));
-            let trained = classifier.fit(&X.view(), &y_class).unwrap();
-            let predictions = trained.predict(&X.view()).unwrap();
+            let trained = classifier
+                .fit(&X.view(), &y_class)
+                .expect("model fitting should succeed");
+            let predictions = trained
+                .predict(&X.view())
+                .expect("prediction should succeed");
             assert_eq!(predictions.shape(), &[4, 2]);
 
             let regressor = MultiOutputRegressor::new().n_jobs(Some(2));
-            let trained = regressor.fit(&X.view(), &y_reg).unwrap();
-            let predictions = trained.predict(&X.view()).unwrap();
+            let trained = regressor
+                .fit(&X.view(), &y_reg)
+                .expect("model fitting should succeed");
+            let predictions = trained
+                .predict(&X.view())
+                .expect("prediction should succeed");
             assert_eq!(predictions.shape(), &[4, 2]);
         }
     }
@@ -897,17 +944,23 @@ mod tests {
 
         // Test with more threads than targets (should handle gracefully)
         let classifier = MultiOutputClassifier::new().n_jobs(Some(10));
-        let trained = classifier.fit(&X.view(), &y_class).unwrap();
+        let trained = classifier
+            .fit(&X.view(), &y_class)
+            .expect("model fitting should succeed");
         assert_eq!(trained.n_targets(), 2);
 
         let regressor = MultiOutputRegressor::new().n_jobs(Some(10));
-        let trained = regressor.fit(&X.view(), &y_reg).unwrap();
+        let trained = regressor
+            .fit(&X.view(), &y_reg)
+            .expect("model fitting should succeed");
         assert_eq!(trained.n_targets(), 2);
 
         // Test with single target (should fall back to sequential)
         let y_single = array![[0], [1]];
         let classifier_single = MultiOutputClassifier::new().n_jobs(Some(4));
-        let trained_single = classifier_single.fit(&X.view(), &y_single).unwrap();
+        let trained_single = classifier_single
+            .fit(&X.view(), &y_single)
+            .expect("model fitting should succeed");
         assert_eq!(trained_single.n_targets(), 1);
     }
 

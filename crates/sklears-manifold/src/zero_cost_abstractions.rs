@@ -120,7 +120,9 @@ impl ManifoldOperation<0> for PCAOperation {
         }
 
         // Center the data
-        let mean = input.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = input
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("operation should succeed");
         let mut centered = input.to_owned();
         for mut row in centered.rows_mut() {
             row -= &mean;
@@ -251,8 +253,10 @@ impl<M: DistanceMetric<METRIC_ID>, const METRIC_ID: usize>
 
         // Classical MDS: double centering
         let mut gram = distances.mapv(|x| -0.5 * x * x);
-        let row_means = gram.mean_axis(scirs2_core::ndarray::Axis(1)).unwrap();
-        let total_mean = row_means.mean().unwrap();
+        let row_means = gram
+            .mean_axis(scirs2_core::ndarray::Axis(1))
+            .expect("operation should succeed");
+        let total_mean = row_means.mean().expect("operation should succeed");
 
         for i in 0..n_samples {
             for j in 0..n_samples {
@@ -327,7 +331,7 @@ impl<M: DistanceMetric<METRIC_ID>, const METRIC_ID: usize>
                 }
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, neighbor) in distances.iter().take(config.n_neighbors) {
                 adjacency[[i, *neighbor]] = *dist;
@@ -410,7 +414,7 @@ impl NeighborSearch<0> for BruteForceSearch {
             distances.push((dist, i));
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let (dists, indices): (Vec<Float>, Vec<usize>) = distances.into_iter().take(k).unzip();
 
@@ -583,7 +587,7 @@ mod tests {
         let data = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
         let config = MDSConfig::default();
 
-        let embedding = EuclideanMDS::run(data.view(), config).unwrap();
+        let embedding = EuclideanMDS::run(data.view(), config).expect("operation should succeed");
         assert_eq!(embedding.shape(), &[3, 2]);
 
         let (algo_name, metric_name, preserves_dist, is_linear) = EuclideanMDS::info();
@@ -599,7 +603,8 @@ mod tests {
         let query = array![0.5, 0.5];
 
         let (distances, indices) =
-            BruteForceSearch::knn::<EuclideanDistance, 0>(data.view(), query.view(), 2).unwrap();
+            BruteForceSearch::knn::<EuclideanDistance, 0>(data.view(), query.view(), 2)
+                .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         assert_eq!(indices.len(), 2);

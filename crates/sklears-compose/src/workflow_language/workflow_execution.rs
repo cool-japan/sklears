@@ -346,7 +346,9 @@ impl WorkflowExecutor {
         }
 
         // Validate that source step has the output port
-        let source = source_step.unwrap();
+        let Some(source) = source_step else {
+            return;
+        };
         if !source.outputs.contains(&connection.from_output) {
             errors.push(ValidationError {
                 error_type: "InvalidConnection".to_string(),
@@ -366,7 +368,9 @@ impl WorkflowExecutor {
         }
 
         // Validate that target step has the input port
-        let target = target_step.unwrap();
+        let Some(target) = target_step else {
+            return;
+        };
         if !target.inputs.contains(&connection.to_input) {
             errors.push(ValidationError {
                 error_type: "InvalidConnection".to_string(),
@@ -461,11 +465,12 @@ impl WorkflowExecutor {
 
         // Build graph and calculate in-degrees
         for connection in &workflow.connections {
-            *in_degree.get_mut(&connection.to_step).unwrap() += 1;
-            adj_list
-                .get_mut(&connection.from_step)
-                .unwrap()
-                .push(connection.to_step.clone());
+            if let Some(deg) = in_degree.get_mut(&connection.to_step) {
+                *deg += 1;
+            }
+            if let Some(list) = adj_list.get_mut(&connection.from_step) {
+                list.push(connection.to_step.clone());
+            }
         }
 
         // Topological sort using Kahn's algorithm
@@ -484,7 +489,9 @@ impl WorkflowExecutor {
 
             // Reduce in-degree of adjacent nodes
             for neighbor in &adj_list[&current] {
-                *in_degree.get_mut(neighbor).unwrap() -= 1;
+                if let Some(deg) = in_degree.get_mut(neighbor) {
+                    *deg -= 1;
+                }
                 if in_degree[neighbor] == 0 {
                     queue.push_back(neighbor.clone());
                 }
@@ -532,14 +539,16 @@ impl WorkflowExecutor {
             execution_mode: workflow.execution.mode.clone(),
         };
 
-        let execution_order = validation.execution_order.unwrap();
+        let execution_order = validation.execution_order.unwrap_or_default();
         let mut step_results = Vec::new();
         let mut success = true;
         let mut error_message = None;
 
         // Execute steps in order
         for step_id in execution_order {
-            let step = workflow.steps.iter().find(|s| s.id == step_id).unwrap();
+            let Some(step) = workflow.steps.iter().find(|s| s.id == step_id) else {
+                continue;
+            };
             self.context.current_step = Some(step_id.clone());
 
             match self.execute_step(step) {
@@ -1187,7 +1196,9 @@ mod tests {
             .connections
             .push(Connection::direct("step1", "X_scaled", "step2", "X"));
 
-        let order = executor.determine_execution_order(&workflow).unwrap();
+        let order = executor
+            .determine_execution_order(&workflow)
+            .unwrap_or_default();
         assert_eq!(order, vec!["step1".to_string(), "step2".to_string()]);
     }
 

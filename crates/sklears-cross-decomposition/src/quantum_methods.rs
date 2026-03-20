@@ -292,7 +292,9 @@ impl QuantumPCA {
         }
 
         // Center the data
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).ok_or(QuantumError::DimensionError(
+            "empty array for mean computation".to_string(),
+        ))?;
         let centered_data = &data - &mean.insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -307,7 +309,11 @@ impl QuantumPCA {
 
         // Sort eigenvalues in descending order
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let selected_eigenvalues: Vec<f64> = indices
             .iter()
@@ -748,7 +754,7 @@ mod tests {
                 1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0, 6.0, 5.0, 6.0, 7.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let results = qpca.fit(data.view())?;
 
@@ -774,10 +780,10 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0, 6.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let y =
-            Array2::from_shape_vec((4, 2), vec![1.5, 2.5, 2.5, 3.5, 3.5, 4.5, 4.5, 5.5]).unwrap();
+        let y = Array2::from_shape_vec((4, 2), vec![1.5, 2.5, 2.5, 3.5, 3.5, 4.5, 4.5, 5.5])
+            .expect("shape should match data length");
 
         let results = qcca.fit(x.view(), y.view())?;
 
@@ -799,7 +805,7 @@ mod tests {
                 5.0, 6.0, 7.0, 8.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let selected = qfs.select_features(data.view())?;
 
@@ -859,7 +865,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 2.0, 3.0, 4.0, 5.0, 6.0, 3.0, 4.0, 5.0, 6.0, 7.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = qpca.fit(large_data.view());
         assert!(result.is_err());

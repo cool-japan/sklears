@@ -441,14 +441,15 @@ mod tests {
             .learning_rate(0.1);
 
         // Create simple test data
-        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
+        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 4.0, 9.0, 16.0, 25.0]);
 
         let mut kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
         let result = optimizer
             .optimize_kernel(&mut kernel, X.view(), y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.final_objective.is_finite());
         assert_eq!(result.n_iterations, 10); // Should run full iterations for this test
@@ -475,12 +476,13 @@ mod tests {
         let optimizer = KernelOptimizer::new();
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
-        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
         let gradient = optimizer
             .compute_gradient(&kernel, &X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(gradient.len(), 1); // RBF has one parameter
         assert!(gradient[0].is_finite());
@@ -493,13 +495,13 @@ mod tests {
 
         let params1 = optimizer
             .random_initialize_params(&kernel, Some(42))
-            .unwrap();
+            .expect("operation should succeed");
         let params2 = optimizer
             .random_initialize_params(&kernel, Some(42))
-            .unwrap();
+            .expect("operation should succeed");
         let params3 = optimizer
             .random_initialize_params(&kernel, Some(43))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Same seed should give same result
         assert_eq!(params1[0], params2[0]);

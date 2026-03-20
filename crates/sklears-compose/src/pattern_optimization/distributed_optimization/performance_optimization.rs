@@ -542,7 +542,7 @@ impl DistributedBenchmarkSuite {
     }
 
     pub fn run_benchmark(&mut self, benchmark_name: &str, parameters: HashMap<String, f64>) -> SklResult<String> {
-        let execution_id = format!("{}_{}", benchmark_name, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        let execution_id = format!("{}_{}", benchmark_name, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis());
 
         let execution = BenchmarkExecution {
             start_time: Instant::now(),

@@ -116,7 +116,11 @@ impl Fit<Array2<Float>, Array1<Float>> for Lars<Untrained> {
         let n_features = x.ncols();
 
         // Center X and y
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let mut x_centered = x - &x_mean;
 
         let y_mean = if self.config.fit_intercept {
@@ -356,14 +360,14 @@ mod tests {
             .fit_intercept(false)
             .normalize(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should select one of the perfectly correlated features
         let coef = model.coef();
         assert!(coef[0].abs() > 0.0 || coef[1].abs() > 0.0);
 
         // Predictions should be accurate
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         for i in 0..4 {
             assert_abs_diff_eq!(predictions[i], y[i], epsilon = 1e-5);
         }
@@ -386,11 +390,11 @@ mod tests {
             .fit_intercept(false)
             .normalize(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Just check that we get reasonable predictions
-        let _predictions = model.predict(&x).unwrap();
-        let r2 = model.score(&x, &y).unwrap();
+        let _predictions = model.predict(&x).expect("prediction should succeed");
+        let r2 = model.score(&x, &y).expect("scoring should succeed");
         assert!(
             r2 > 0.99,
             "R² score should be very high for perfect linear relationship"
@@ -415,7 +419,7 @@ mod tests {
             .n_nonzero_coefs(1)
             .normalize(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         let coef = model.coef();
         let n_nonzero = coef.iter().filter(|&&c| c.abs() > 1e-10).count();
@@ -434,9 +438,16 @@ mod tests {
         let x = array![[1.0], [2.0], [3.0], [4.0]];
         let y = array![3.0, 5.0, 7.0, 9.0]; // y = 2x + 1
 
-        let model = Lars::new().fit_intercept(true).fit(&x, &y).unwrap();
+        let model = Lars::new()
+            .fit_intercept(true)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 1e-5);
-        assert_abs_diff_eq!(model.intercept().unwrap(), 1.0, epsilon = 1e-5);
+        assert_abs_diff_eq!(
+            model.intercept().expect("intercept should be available"),
+            1.0,
+            epsilon = 1e-5
+        );
     }
 }

@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use sklears_core::prelude::Result;
 use std::collections::HashMap;
@@ -126,8 +126,8 @@ impl BenchmarkDataset {
 
         // Helper function to generate normal distribution samples using Box-Muller
         let normal_sample = |rng: &mut RealStdRng, mean: f64, std_dev: f64| -> f64 {
-            let u1: f64 = rng.gen();
-            let u2: f64 = rng.gen();
+            let u1: f64 = rng.random();
+            let u2: f64 = rng.random();
             let z = (-2.0_f64 * u1.ln()).sqrt() * (2.0_f64 * std::f64::consts::PI * u2).cos();
             mean + z * std_dev
         };
@@ -163,7 +163,7 @@ impl BenchmarkDataset {
     /// Create a polynomial dataset
     pub fn polynomial(n_samples: usize, n_features: usize, degree: usize, seed: u64) -> Self {
         let mut rng = RealStdRng::seed_from_u64(seed);
-        let uniform = RandUniform::new(-1.0, 1.0).unwrap();
+        let uniform = RandUniform::new(-1.0, 1.0).expect("operation should succeed");
 
         let mut data = Array2::zeros((n_samples, n_features));
         for i in 0..n_samples {
@@ -206,8 +206,8 @@ impl BenchmarkDataset {
 
         // Helper function to generate normal distribution samples using Box-Muller
         let normal_sample = |rng: &mut RealStdRng, mean: f64, std_dev: f64| -> f64 {
-            let u1: f64 = rng.gen();
-            let u2: f64 = rng.gen();
+            let u1: f64 = rng.random();
+            let u2: f64 = rng.random();
             let z = (-2.0_f64 * u1.ln()).sqrt() * (2.0_f64 * std::f64::consts::PI * u2).cos();
             mean + z * std_dev
         };
@@ -476,8 +476,12 @@ impl KernelApproximationBenchmark {
 
         let memory_usage = fitted_method.memory_usage_mb();
         let total_time = fit_time + transform_time;
-        let throughput_time =
-            Duration::from_secs_f64(dataset.data.nrows() as f64 / transform_time.as_secs_f64());
+        let transform_secs = transform_time.as_secs_f64();
+        let throughput_time = if transform_secs > 0.0 {
+            Duration::from_secs_f64(dataset.data.nrows() as f64 / transform_secs)
+        } else {
+            Duration::from_secs(0)
+        };
 
         // Compute quality metrics
         let mut quality_scores = HashMap::new();
@@ -637,10 +641,10 @@ impl KernelApproximationBenchmark {
         let n = k1.nrows();
 
         // Center the kernels
-        let row_means_k1 = k1.mean_axis(Axis(1)).unwrap();
-        let row_means_k2 = k2.mean_axis(Axis(1)).unwrap();
-        let total_mean_k1 = row_means_k1.mean().unwrap();
-        let total_mean_k2 = row_means_k2.mean().unwrap();
+        let row_means_k1 = k1.mean_axis(Axis(1)).expect("operation should succeed");
+        let row_means_k2 = k2.mean_axis(Axis(1)).expect("operation should succeed");
+        let total_mean_k1 = row_means_k1.mean().expect("operation should succeed");
+        let total_mean_k2 = row_means_k2.mean().expect("operation should succeed");
 
         let mut k1_centered = k1.clone();
         let mut k2_centered = k2.clone();
@@ -688,7 +692,7 @@ impl KernelApproximationBenchmark {
 
         // Sort in descending order
         let mut eigenvalues_vec: Vec<f64> = eigenvalues.to_vec();
-        eigenvalues_vec.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        eigenvalues_vec.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         Ok(Array1::from_vec(eigenvalues_vec))
     }
@@ -948,7 +952,14 @@ mod tests {
         let dataset = BenchmarkDataset::gaussian(100, 10, 0.1, 42);
         assert_eq!(dataset.data.shape(), &[100, 10]);
         assert!(dataset.target.is_some());
-        assert_eq!(dataset.target.as_ref().unwrap().len(), 100);
+        assert_eq!(
+            dataset
+                .target
+                .as_ref()
+                .expect("operation should succeed")
+                .len(),
+            100
+        );
     }
 
     #[test]
@@ -963,7 +974,9 @@ mod tests {
         benchmark.add_dataset(dataset);
 
         let method = MockRBFMethod { n_components: 10 };
-        let results = benchmark.benchmark_method(&method).unwrap();
+        let results = benchmark
+            .benchmark_method(&method)
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 4); // 1 dataset * 2 dimensions * 2 repetitions
         assert!(results.iter().all(|r| r.success));
@@ -981,7 +994,9 @@ mod tests {
         benchmark.add_dataset(dataset);
 
         let method = MockRBFMethod { n_components: 10 };
-        benchmark.benchmark_method(&method).unwrap();
+        benchmark
+            .benchmark_method(&method)
+            .expect("operation should succeed");
 
         let summaries = benchmark.summarize_results();
         assert_eq!(summaries.len(), 1);
@@ -1000,7 +1015,9 @@ mod tests {
         benchmark.add_dataset(dataset);
 
         let method = MockRBFMethod { n_components: 5 };
-        benchmark.benchmark_method(&method).unwrap();
+        benchmark
+            .benchmark_method(&method)
+            .expect("operation should succeed");
 
         let csv = benchmark.export_results_csv();
         assert!(csv.contains("method,dataset"));

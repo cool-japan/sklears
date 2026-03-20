@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Float as FloatTrait;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::error::Result;
 use sklears_core::traits::{Fit, Transform};
 use sklears_core::types::{Features, Float};
@@ -98,7 +98,11 @@ impl LargeMarginNearestNeighbor {
 
             // Sort by distance and take k nearest
             let mut sorted_indices: Vec<usize> = (0..same_class_indices.len()).collect();
-            sorted_indices.sort_by(|&a, &b| distances[a].partial_cmp(&distances[b]).unwrap());
+            sorted_indices.sort_by(|&a, &b| {
+                distances[a]
+                    .partial_cmp(&distances[b])
+                    .expect("operation should succeed")
+            });
 
             let k_actual = std::cmp::min(self.k, sorted_indices.len());
             for (idx, &sorted_idx) in sorted_indices.iter().take(k_actual).enumerate() {
@@ -262,7 +266,7 @@ impl Fit<Features, Array1<i32>> for LargeMarginNearestNeighbor {
         // Initialize random state
         let rng_seed = self
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let _rng = StdRng::seed_from_u64(rng_seed);
 
         // Find target neighbors for each sample
@@ -547,13 +551,13 @@ impl Fit<Features, Array1<i32>> for NeighborhoodComponentsAnalysis {
         // Initialize transformation matrix randomly
         let rng_seed = self
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         let mut transformation = Array2::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
-                transformation[[i, j]] = rng.gen_range(-0.1..0.1);
+                transformation[[i, j]] = rng.random_range(-0.1..0.1);
             }
         }
 
@@ -689,8 +693,8 @@ impl InformationTheoreticMetricLearning {
         let mut dissimilar_pairs = Vec::new();
 
         for _ in 0..self.n_constraints {
-            let i = rng.gen_range(0..n_samples);
-            let j = rng.gen_range(0..n_samples);
+            let i = rng.random_range(0..n_samples);
+            let j = rng.random_range(0..n_samples);
 
             if i != j {
                 if y[i] == y[j] {
@@ -724,7 +728,7 @@ impl InformationTheoreticMetricLearning {
 
             // Discretize continuous feature values into bins
             let mut sorted_values: Vec<Float> = feature_values.to_vec();
-            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let n_bins = 10;
             let mut bin_edges = Vec::new();
             for i in 0..=n_bins {
@@ -880,7 +884,7 @@ impl Fit<Features, Array1<i32>> for InformationTheoreticMetricLearning {
         // Initialize random state
         let rng_seed = self
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         // Generate constraints
@@ -1123,37 +1127,38 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 5.0, 5.0, 5.1, 5.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 2, 2];
 
         let lmnn = LargeMarginNearestNeighbor::new(1)
             .with_max_iter(50)
             .with_random_state(42);
 
-        let fitted = lmnn.fit(&X, &y).unwrap();
+        let fitted = lmnn.fit(&X, &y).expect("operation should succeed");
         assert!(fitted.transformation.is_some());
 
         // Test transformation
-        let X_test = Array2::from_shape_vec((1, 2), vec![1.5, 1.5]).unwrap();
-        let transformed = fitted.transform(&X_test).unwrap();
+        let X_test =
+            Array2::from_shape_vec((1, 2), vec![1.5, 1.5]).expect("operation should succeed");
+        let transformed = fitted.transform(&X_test).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[1, 2]);
     }
 
     #[test]
     fn test_nca_basic() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let nca = NeighborhoodComponentsAnalysis::new()
             .with_max_iter(50)
             .with_random_state(42);
 
-        let fitted = nca.fit(&X, &y).unwrap();
+        let fitted = nca.fit(&X, &y).expect("operation should succeed");
         assert!(fitted.transformation.is_some());
 
         // Test transformation
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
@@ -1163,7 +1168,7 @@ mod tests {
             (4, 3),
             vec![1.0, 1.0, 0.0, 1.1, 1.1, 0.1, 2.0, 2.0, 1.0, 2.1, 2.1, 1.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let nca = NeighborhoodComponentsAnalysis::new()
@@ -1171,8 +1176,8 @@ mod tests {
             .with_max_iter(20)
             .with_random_state(42);
 
-        let fitted = nca.fit(&X, &y).unwrap();
-        let transformed = fitted.transform(&X).unwrap();
+        let fitted = nca.fit(&X, &y).expect("operation should succeed");
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
@@ -1184,7 +1189,7 @@ mod tests {
                 1.0, 1.0, 1.1, 1.1, 1.05, 1.05, 5.0, 5.0, 5.1, 5.1, 5.05, 5.05,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let itml = InformationTheoreticMetricLearning::new(10)
@@ -1192,11 +1197,11 @@ mod tests {
             .with_gamma(0.1)
             .with_random_state(42);
 
-        let fitted = itml.fit(&X, &y).unwrap();
+        let fitted = itml.fit(&X, &y).expect("operation should succeed");
         assert!(fitted.transformation.is_some());
 
         // Test transformation
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[6, 2]);
     }
 
@@ -1206,7 +1211,7 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 5.0, 5.0, 5.1, 5.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 2, 2];
 
         let enhanced_lmnn = EnhancedLMNN::new(1)
@@ -1219,37 +1224,38 @@ mod tests {
             .with_random_state(42);
 
         let enhanced = enhanced_lmnn.with_base_config(base_lmnn);
-        let fitted = enhanced.fit(&X, &y).unwrap();
+        let fitted = enhanced.fit(&X, &y).expect("operation should succeed");
 
         assert!(fitted.base_lmnn.transformation.is_some());
 
         // Test transformation
-        let transformed = fitted.transform(&X).unwrap();
+        let transformed = fitted.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), &[6, 2]);
     }
 
     #[test]
     fn test_itml_with_prior_covariance() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         // Custom prior covariance
-        let prior = Array2::from_shape_vec((2, 2), vec![2.0, 0.5, 0.5, 2.0]).unwrap();
+        let prior = Array2::from_shape_vec((2, 2), vec![2.0, 0.5, 0.5, 2.0])
+            .expect("operation should succeed");
 
         let itml = InformationTheoreticMetricLearning::new(8)
             .with_prior_covariance(prior)
             .with_max_iter(20)
             .with_random_state(42);
 
-        let fitted = itml.fit(&X, &y).unwrap();
+        let fitted = itml.fit(&X, &y).expect("operation should succeed");
         assert!(fitted.transformation.is_some());
     }
 
     #[test]
     fn test_enhanced_lmnn_configurations() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         // Test with different configurations
@@ -1270,7 +1276,7 @@ mod tests {
                 .with_random_state(42);
 
             let enhanced = enhanced_lmnn.with_base_config(base_lmnn);
-            let fitted = enhanced.fit(&X, &y).unwrap();
+            let fitted = enhanced.fit(&X, &y).expect("operation should succeed");
 
             assert!(fitted.base_lmnn.transformation.is_some());
         }
@@ -1290,7 +1296,8 @@ mod tests {
         assert!(enhanced_lmnn.fit(&empty_X, &empty_y).is_err());
 
         // Test shape mismatch
-        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let y_wrong = array![0]; // Wrong size
 
         let itml = InformationTheoreticMetricLearning::new(5);
@@ -1453,7 +1460,10 @@ impl OnlineMetricLearning {
         // Initialize transformation matrix if needed
         self.initialize_transformation(n_features);
 
-        let transform = self.transformation.as_ref().unwrap();
+        let transform = self
+            .transformation
+            .as_ref()
+            .expect("operation should succeed");
         let mut gradient = Array2::<Float>::zeros((n_features, n_features));
 
         // Process each sample in the mini-batch
@@ -1470,7 +1480,7 @@ impl OnlineMetricLearning {
                 }
             }
 
-            neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             let k_neighbors = neighbors.iter().take(self.k).collect::<Vec<_>>();
 
             // Compute gradient based on neighbor correctness
@@ -1510,11 +1520,14 @@ impl OnlineMetricLearning {
         gradient = gradient + &transform_clone * self.regularization;
 
         // Update velocity with momentum
-        let velocity = self.velocity.as_mut().unwrap();
+        let velocity = self.velocity.as_mut().expect("operation should succeed");
         *velocity = velocity.clone() * self.momentum + &gradient * (1.0 - self.momentum);
 
         // Update transformation matrix using velocity
-        let transform_mut = self.transformation.as_mut().unwrap();
+        let transform_mut = self
+            .transformation
+            .as_mut()
+            .expect("operation should succeed");
         *transform_mut = &*transform_mut - &*velocity * self.current_learning_rate;
 
         // Apply learning rate decay
@@ -1623,7 +1636,7 @@ mod online_tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0, 5.0, 5.0, 5.1, 5.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 2, 2];
 
         let mut online = OnlineMetricLearning::new(1)
@@ -1631,7 +1644,9 @@ mod online_tests {
             .with_momentum(0.9);
 
         // Partial fit with mini-batches
-        online.partial_fit(&X.view(), &y.view()).unwrap();
+        online
+            .partial_fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         assert!(online.transformation.is_some());
         assert!(online.n_samples_seen() > 0);
@@ -1641,25 +1656,34 @@ mod online_tests {
     #[test]
     fn test_online_metric_learning_streaming() {
         // Simulate streaming data
-        let X1 = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.1, 1.0]).unwrap();
+        let X1 = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.1, 1.0])
+            .expect("operation should succeed");
         let y1 = array![0, 0];
 
-        let X2 = Array2::from_shape_vec((2, 2), vec![2.0, 2.0, 2.1, 2.0]).unwrap();
+        let X2 = Array2::from_shape_vec((2, 2), vec![2.0, 2.0, 2.1, 2.0])
+            .expect("operation should succeed");
         let y2 = array![1, 1];
 
-        let X3 = Array2::from_shape_vec((2, 2), vec![5.0, 5.0, 5.1, 5.0]).unwrap();
+        let X3 = Array2::from_shape_vec((2, 2), vec![5.0, 5.0, 5.1, 5.0])
+            .expect("operation should succeed");
         let y3 = array![2, 2];
 
         let mut online = OnlineMetricLearning::new(1).with_learning_rate(0.05);
 
         // Process data in batches
-        online.partial_fit(&X1.view(), &y1.view()).unwrap();
+        online
+            .partial_fit(&X1.view(), &y1.view())
+            .expect("operation should succeed");
         assert_eq!(online.n_samples_seen(), 2);
 
-        online.partial_fit(&X2.view(), &y2.view()).unwrap();
+        online
+            .partial_fit(&X2.view(), &y2.view())
+            .expect("operation should succeed");
         assert_eq!(online.n_samples_seen(), 4);
 
-        online.partial_fit(&X3.view(), &y3.view()).unwrap();
+        online
+            .partial_fit(&X3.view(), &y3.view())
+            .expect("operation should succeed");
         assert_eq!(online.n_samples_seen(), 6);
 
         // Verify transformation was learned
@@ -1668,23 +1692,25 @@ mod online_tests {
 
     #[test]
     fn test_online_metric_learning_transform() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let mut online = OnlineMetricLearning::new(1).with_learning_rate(0.1);
 
-        online.partial_fit(&X.view(), &y.view()).unwrap();
+        online
+            .partial_fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         // Transform data using learned metric
-        let transformed = online.transform(&X).unwrap();
+        let transformed = online.transform(&X).expect("operation should succeed");
         assert_eq!(transformed.shape(), X.shape());
     }
 
     #[test]
     fn test_online_metric_learning_learning_rate_decay() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let mut online = OnlineMetricLearning::new(1)
@@ -1696,7 +1722,9 @@ mod online_tests {
 
         // Multiple partial fits should decay learning rate
         for _ in 0..10 {
-            online.partial_fit(&X.view(), &y.view()).unwrap();
+            online
+                .partial_fit(&X.view(), &y.view())
+                .expect("operation should succeed");
         }
 
         assert!(online.current_learning_rate() < initial_lr);
@@ -1705,13 +1733,15 @@ mod online_tests {
 
     #[test]
     fn test_online_metric_learning_reset() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let mut online = OnlineMetricLearning::new(1).with_learning_rate(0.1);
 
-        online.partial_fit(&X.view(), &y.view()).unwrap();
+        online
+            .partial_fit(&X.view(), &y.view())
+            .expect("operation should succeed");
         assert!(online.n_samples_seen() > 0);
 
         online.reset();
@@ -1721,13 +1751,13 @@ mod online_tests {
 
     #[test]
     fn test_online_metric_learning_fit_trait() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let online = OnlineMetricLearning::new(1).with_learning_rate(0.1);
 
-        let fitted = online.fit(&X, &y).unwrap();
+        let fitted = online.fit(&X, &y).expect("operation should succeed");
         assert!(fitted.transformation.is_some());
         assert!(fitted.n_samples_seen() > 0);
     }
@@ -1738,14 +1768,16 @@ mod online_tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.0, 2.0, 2.0, 2.1, 2.0, 5.0, 5.0, 5.1, 5.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 2, 2];
 
         let mut online = OnlineMetricLearning::new(1)
             .with_learning_rate(0.1)
             .with_window_size(10);
 
-        online.partial_fit(&X.view(), &y.view()).unwrap();
+        online
+            .partial_fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         // Recent accuracy should be between 0 and 1
         let accuracy = online.recent_accuracy();
@@ -1764,7 +1796,8 @@ mod online_tests {
             .is_err());
 
         // Shape mismatch
-        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let y_wrong = array![0]; // Wrong size
         assert!(online.partial_fit(&X.view(), &y_wrong.view()).is_err());
     }

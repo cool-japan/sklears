@@ -135,7 +135,7 @@ where
     let mut result_indices = Vec::new();
 
     for (idx, value) in result_map {
-        if value.abs() > T::from(1e-12).unwrap() {
+        if value.abs() > T::from(1e-12).expect("operation should succeed") {
             // Filter near-zero values
             result_values.push(value);
             result_indices.push(*idx);

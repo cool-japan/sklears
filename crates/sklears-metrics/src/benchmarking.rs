@@ -51,6 +51,7 @@ use crate::{MetricsError, MetricsResult};
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Distribution;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -594,7 +595,6 @@ impl BenchmarkSuite {
         &self,
         dataset: Dataset,
     ) -> MetricsResult<(Array1<i32>, Array1<i32>)> {
-        use scirs2_core::random::Rng;
         let mut rng = StdRng::seed_from_u64(self.config.seed.unwrap_or(42));
 
         match dataset {
@@ -605,10 +605,10 @@ impl BenchmarkSuite {
                 let y_pred: Array1<i32> = y_true
                     .iter()
                     .map(|&label| {
-                        if rng.gen::<f64>() < 0.9 {
+                        if rng.random::<f64>() < 0.9 {
                             label
                         } else {
-                            rng.gen_range(0..n_classes)
+                            rng.random_range(0..n_classes)
                         }
                     })
                     .collect();
@@ -621,10 +621,10 @@ impl BenchmarkSuite {
                 let y_pred: Array1<i32> = y_true
                     .iter()
                     .map(|&label| {
-                        if rng.gen::<f64>() < 0.85 {
+                        if rng.random::<f64>() < 0.85 {
                             label
                         } else {
-                            rng.gen_range(0..n_classes)
+                            rng.random_range(0..n_classes)
                         }
                     })
                     .collect();
@@ -634,12 +634,12 @@ impl BenchmarkSuite {
                 let n_samples = 569;
                 let n_classes = 2;
                 let y_true: Array1<i32> = (0..n_samples)
-                    .map(|_| rng.gen_range(0..n_classes))
+                    .map(|_| rng.random_range(0..n_classes))
                     .collect();
                 let y_pred: Array1<i32> = y_true
                     .iter()
                     .map(|&label| {
-                        if rng.gen::<f64>() < 0.92 {
+                        if rng.random::<f64>() < 0.92 {
                             label
                         } else {
                             1 - label
@@ -650,15 +650,15 @@ impl BenchmarkSuite {
             }
             Dataset::SyntheticClassification(n_samples, _n_features, n_classes) => {
                 let y_true: Array1<i32> = (0..n_samples)
-                    .map(|_| rng.gen_range(0..n_classes as i32))
+                    .map(|_| rng.random_range(0..n_classes as i32))
                     .collect();
                 let y_pred: Array1<i32> = y_true
                     .iter()
                     .map(|&label| {
-                        if rng.gen::<f64>() < 0.8 {
+                        if rng.random::<f64>() < 0.8 {
                             label
                         } else {
-                            rng.gen_range(0..n_classes as i32)
+                            rng.random_range(0..n_classes as i32)
                         }
                     })
                     .collect();
@@ -676,15 +676,16 @@ impl BenchmarkSuite {
         dataset: Dataset,
     ) -> MetricsResult<(Array1<f64>, Array1<f64>)> {
         // Normal distribution via RandNormal per SciRS2 policy
-        use scirs2_core::random::Rng;
         let mut rng = StdRng::seed_from_u64(self.config.seed.unwrap_or(42));
 
         match dataset {
             Dataset::BostonHousing => {
                 let n_samples = 506;
-                let y_true: Array1<f64> =
-                    (0..n_samples).map(|_| rng.gen_range(5.0..50.0)).collect();
-                let noise_dist = scirs2_core::random::RandNormal::new(0.0, 2.0).unwrap();
+                let y_true: Array1<f64> = (0..n_samples)
+                    .map(|_| rng.random_range(5.0..50.0))
+                    .collect();
+                let noise_dist = scirs2_core::random::RandNormal::new(0.0, 2.0)
+                    .expect("operation should succeed");
                 let y_pred: Array1<f64> = y_true
                     .iter()
                     .map(|&val| val + noise_dist.sample(&mut rng))
@@ -693,8 +694,10 @@ impl BenchmarkSuite {
             }
             Dataset::CaliforniaHousing => {
                 let n_samples = 20640;
-                let y_true: Array1<f64> = (0..n_samples).map(|_| rng.gen_range(0.5..5.0)).collect();
-                let noise_dist = scirs2_core::random::RandNormal::new(0.0, 0.3).unwrap();
+                let y_true: Array1<f64> =
+                    (0..n_samples).map(|_| rng.random_range(0.5..5.0)).collect();
+                let noise_dist = scirs2_core::random::RandNormal::new(0.0, 0.3)
+                    .expect("operation should succeed");
                 let y_pred: Array1<f64> = y_true
                     .iter()
                     .map(|&val| val + noise_dist.sample(&mut rng))
@@ -702,9 +705,11 @@ impl BenchmarkSuite {
                 Ok((y_true, y_pred))
             }
             Dataset::SyntheticRegression(n_samples, _n_features) => {
-                let y_true: Array1<f64> =
-                    (0..n_samples).map(|_| rng.gen_range(-10.0..10.0)).collect();
-                let noise_dist = scirs2_core::random::RandNormal::new(0.0, 1.0).unwrap();
+                let y_true: Array1<f64> = (0..n_samples)
+                    .map(|_| rng.random_range(-10.0..10.0))
+                    .collect();
+                let noise_dist = scirs2_core::random::RandNormal::new(0.0, 1.0)
+                    .expect("operation should succeed");
                 let y_pred: Array1<f64> = y_true
                     .iter()
                     .map(|&val| val + noise_dist.sample(&mut rng))
@@ -722,7 +727,6 @@ impl BenchmarkSuite {
         &self,
         dataset: Dataset,
     ) -> MetricsResult<(Array1<i32>, Array1<i32>)> {
-        use scirs2_core::random::Rng;
         let mut rng = StdRng::seed_from_u64(self.config.seed.unwrap_or(42));
 
         match dataset {
@@ -733,10 +737,10 @@ impl BenchmarkSuite {
                 let y_pred: Array1<i32> = y_true
                     .iter()
                     .map(|&cluster| {
-                        if rng.gen::<f64>() < 0.85 {
+                        if rng.random::<f64>() < 0.85 {
                             cluster
                         } else {
-                            rng.gen_range(0..n_clusters)
+                            rng.random_range(0..n_clusters)
                         }
                     })
                     .collect();
@@ -744,15 +748,15 @@ impl BenchmarkSuite {
             }
             Dataset::SyntheticClassification(n_samples, _n_features, n_clusters) => {
                 let y_true: Array1<i32> = (0..n_samples)
-                    .map(|_| rng.gen_range(0..n_clusters as i32))
+                    .map(|_| rng.random_range(0..n_clusters as i32))
                     .collect();
                 let y_pred: Array1<i32> = y_true
                     .iter()
                     .map(|&cluster| {
-                        if rng.gen::<f64>() < 0.8 {
+                        if rng.random::<f64>() < 0.8 {
                             cluster
                         } else {
-                            rng.gen_range(0..n_clusters as i32)
+                            rng.random_range(0..n_clusters as i32)
                         }
                     })
                     .collect();
@@ -1250,14 +1254,16 @@ mod tests {
         let suite = BenchmarkSuite::new(config);
 
         // Test classification data generation
-        let (y_true, y_pred) = suite.generate_classification_data(Dataset::Iris).unwrap();
+        let (y_true, y_pred) = suite
+            .generate_classification_data(Dataset::Iris)
+            .expect("operation should succeed");
         assert_eq!(y_true.len(), 150);
         assert_eq!(y_pred.len(), 150);
 
         // Test regression data generation
         let (y_true_reg, y_pred_reg) = suite
             .generate_regression_data(Dataset::BostonHousing)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(y_true_reg.len(), 506);
         assert_eq!(y_pred_reg.len(), 506);
     }
@@ -1330,14 +1336,17 @@ mod tests {
             },
         ];
 
-        let report = BenchmarkReport::generate(&results).unwrap();
+        let report = BenchmarkReport::generate(&results).expect("operation should succeed");
 
         assert_eq!(report.summary.total_tests, 2);
         assert_eq!(report.summary.passed_tests, 2);
         assert_eq!(report.summary.failed_tests, 0);
         assert_abs_diff_eq!(report.summary.avg_execution_time_ms, 1.5, epsilon = 1e-10);
         assert_abs_diff_eq!(
-            report.summary.avg_accuracy_score.unwrap(),
+            report
+                .summary
+                .avg_accuracy_score
+                .expect("operation should succeed"),
             0.85,
             epsilon = 1e-10
         );
@@ -1350,7 +1359,7 @@ mod tests {
 
         let (y_true, y_pred) = suite
             .generate_classification_data(Dataset::SyntheticClassification(1000, 50, 5))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(y_true.len(), 1000);
         assert_eq!(y_pred.len(), 1000);

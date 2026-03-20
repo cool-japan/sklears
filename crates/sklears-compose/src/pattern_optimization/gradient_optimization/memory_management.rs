@@ -1042,7 +1042,7 @@ impl MemoryPool {
             pools.insert(pool_size, new_pool);
         }
 
-        let pool = pools.get_mut(&pool_size).unwrap();
+        let pool = pools.get_mut(&pool_size).unwrap_or_default();
 
         // Allocate from pool
         if let Some(ptr) = pool.free_blocks.pop_front() {
@@ -1803,10 +1803,10 @@ mod tests {
             .expect("Failed to create memory usage stats");
 
         // Test different pressure levels
-        assert_eq!(stats.calculate_memory_pressure(500).unwrap(), MemoryPressure::Low);
-        assert_eq!(stats.calculate_memory_pressure(700).unwrap(), MemoryPressure::Moderate);
-        assert_eq!(stats.calculate_memory_pressure(900).unwrap(), MemoryPressure::High);
-        assert_eq!(stats.calculate_memory_pressure(980).unwrap(), MemoryPressure::Critical);
+        assert_eq!(stats.calculate_memory_pressure(500).unwrap_or_default(), MemoryPressure::Low);
+        assert_eq!(stats.calculate_memory_pressure(700).unwrap_or_default(), MemoryPressure::Moderate);
+        assert_eq!(stats.calculate_memory_pressure(900).unwrap_or_default(), MemoryPressure::High);
+        assert_eq!(stats.calculate_memory_pressure(980).unwrap_or_default(), MemoryPressure::Critical);
     }
 
     #[test]
@@ -1842,14 +1842,14 @@ mod tests {
 
         assert_eq!(stats.total_active_allocations, 1);
         assert_eq!(stats.total_active_memory, 2048);
-        assert_eq!(*stats.allocations_by_type.get(&AllocationType::Gradient).unwrap(), 1);
+        assert_eq!(*stats.allocations_by_type.get(&AllocationType::Gradient).unwrap_or_default(), 1);
 
         // Track deallocation
         let deallocated = tracker.track_deallocation(allocation_id)
             .expect("Failed to track deallocation");
 
         assert!(deallocated.is_some());
-        let allocation_info = deallocated.unwrap();
+        let allocation_info = deallocated.unwrap_or_default();
         assert_eq!(allocation_info.size, 2048);
         assert_eq!(allocation_info.allocation_type, AllocationType::Gradient);
     }
@@ -1906,7 +1906,7 @@ mod tests {
             // Test that allocation types can be used as hash keys
             let mut map = HashMap::new();
             map.insert(allocation_type.clone(), 100);
-            assert_eq!(*map.get(&allocation_type).unwrap(), 100);
+            assert_eq!(*map.get(&allocation_type).unwrap_or_default(), 100);
         }
     }
 

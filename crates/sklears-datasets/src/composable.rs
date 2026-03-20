@@ -485,7 +485,7 @@ impl GenerationPipeline {
         }
 
         // Use targets from first dataset (if any)
-        let targets = datasets.into_iter().next().unwrap().targets;
+        let targets = datasets.into_iter().next().expect("operation should succeed").targets;
 
         Ok(InMemoryDataset {
             features: combined_features,
@@ -1135,9 +1135,9 @@ mod tests {
             .with_param("noise", StrategyValue::Float(0.1))
             .with_param("shuffle", StrategyValue::Boolean(true));
 
-        assert_eq!(config.get_int("n_samples").unwrap(), 100);
-        assert_eq!(config.get_float("noise").unwrap(), 0.1);
-        assert_eq!(config.get_bool("shuffle").unwrap(), true);
+        assert_eq!(config.get_int("n_samples").expect("sampling should succeed"), 100);
+        assert_eq!(config.get_float("noise").expect("operation should succeed"), 0.1);
+        assert_eq!(config.get_bool("shuffle").expect("operation should succeed"), true);
     }
 
     #[test]
@@ -1147,7 +1147,7 @@ mod tests {
             .with_param("n_samples", StrategyValue::Integer(50))
             .with_param("n_features", StrategyValue::Integer(3));
 
-        let dataset = strategy.generate(&config).unwrap();
+        let dataset = strategy.generate(&config).expect("operation should succeed");
         assert_eq!(dataset.features.nrows(), 50);
         assert_eq!(dataset.features.ncols(), 3);
         assert!(dataset.targets.is_some());
@@ -1169,7 +1169,7 @@ mod tests {
             target_names: None,
         };
 
-        let transformed = transformer.transform(&dataset, &config).unwrap();
+        let transformed = transformer.transform(&dataset, &config).expect("transformation should succeed");
 
         // Check that the transformation was applied
         assert_eq!(transformed.features.shape(), dataset.features.shape());
@@ -1187,7 +1187,7 @@ mod tests {
             .transform("noise", StrategyConfig::new()
                 .with_param("std_dev", StrategyValue::Float(0.1)));
 
-        let result = pipeline.execute().unwrap();
+        let result = pipeline.execute().expect("operation should succeed");
         assert_eq!(result.features.nrows(), 100);
         assert_eq!(result.features.ncols(), 2);
     }
@@ -1199,15 +1199,15 @@ mod tests {
         let mut pipeline1 = builder.pipeline()
             .generate("blobs", StrategyConfig::new()
                 .with_param("n_samples", StrategyValue::Integer(50)));
-        let dataset1 = pipeline1.execute().unwrap();
+        let dataset1 = pipeline1.execute().expect("operation should succeed");
 
         let mut pipeline2 = builder.pipeline()
             .generate("blobs", StrategyConfig::new()
                 .with_param("n_samples", StrategyValue::Integer(30)));
-        let dataset2 = pipeline2.execute().unwrap();
+        let dataset2 = pipeline2.execute().expect("operation should succeed");
 
         let pipeline = GenerationPipeline::new(builder.registry.clone());
-        let combined = pipeline.concatenate_datasets(vec![dataset1, dataset2]).unwrap();
+        let combined = pipeline.concatenate_datasets(vec![dataset1, dataset2]).expect("operation should succeed");
 
         assert_eq!(combined.features.nrows(), 80); // 50 + 30
     }
@@ -1220,16 +1220,16 @@ mod tests {
             .generate("blobs", StrategyConfig::new()
                 .with_param("n_samples", StrategyValue::Integer(50))
                 .with_param("n_features", StrategyValue::Integer(2)));
-        let dataset1 = pipeline1.execute().unwrap();
+        let dataset1 = pipeline1.execute().expect("operation should succeed");
 
         let mut pipeline2 = builder.pipeline()
             .generate("classification", StrategyConfig::new()
                 .with_param("n_samples", StrategyValue::Integer(50))
                 .with_param("n_features", StrategyValue::Integer(3)));
-        let dataset2 = pipeline2.execute().unwrap();
+        let dataset2 = pipeline2.execute().expect("operation should succeed");
 
         let pipeline = GenerationPipeline::new(builder.registry.clone());
-        let combined = pipeline.merge_datasets(vec![dataset1, dataset2]).unwrap();
+        let combined = pipeline.merge_datasets(vec![dataset1, dataset2]).expect("operation should succeed");
 
         assert_eq!(combined.features.nrows(), 50);
         assert_eq!(combined.features.ncols(), 5); // 2 + 3

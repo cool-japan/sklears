@@ -3,7 +3,7 @@
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 // ✅ SciRS2 Policy Compliant Import
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -334,14 +334,14 @@ where
 }
 
 /// Perturb instance with random noise
-fn perturb_instance<R: Rng>(
+fn perturb_instance<R: RngExt>(
     instance: &ArrayView1<Float>,
     rng: &mut R,
     noise_scale: Float,
 ) -> Array1<Float> {
     let mut perturbed = instance.to_owned();
     for val in perturbed.iter_mut() {
-        *val += rng.gen_range(-noise_scale..noise_scale);
+        *val += rng.random_range(-noise_scale..noise_scale);
     }
     perturbed
 }
@@ -363,7 +363,7 @@ fn apply_constraints(counterfactual: &mut Array1<Float>, config: &Counterfactual
                             (a - current_val)
                                 .abs()
                                 .partial_cmp(&(b - current_val).abs())
-                                .unwrap()
+                                .expect("operation should succeed")
                         })
                         .unwrap_or(&current_val);
                     counterfactual[*feature_idx] = *closest_val;
@@ -440,7 +440,7 @@ fn update_counterfactual(
                 .collect();
 
             let mut sorted_changes = changes;
-            sorted_changes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            sorted_changes.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             // Keep only top max_features changes
             for (idx, _) in sorted_changes.iter().skip(max_features) {
@@ -716,7 +716,7 @@ fn compute_knn_density(
         distances.push(distance);
     }
 
-    distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     if distances.len() >= k && k > 0 {
         let k_distance = distances[k - 1];
@@ -893,7 +893,7 @@ mod tests {
 
         let result =
             generate_counterfactual(&predict_fn, &instance.view(), &X_train.view(), &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(result.original_prediction, 0.0);
         // The counterfactual might not reach exactly 1.0 with the discrete model
@@ -1012,7 +1012,7 @@ mod tests {
             Some(1.0), // Want prediction = 1
             DistanceMetric::L2,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.original_prediction, 0.0);
         assert_eq!(result.counterfactual_prediction, 1.0);
@@ -1045,7 +1045,7 @@ mod tests {
             &config,
             &actionable_features,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Only feature 1 should be changed (or very close to original for feature 0)
         let feature_0_change = (result.counterfactual_instance[0] - instance[0]).abs();
@@ -1135,7 +1135,7 @@ mod tests {
             &config,
             &causal_config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.original_prediction, 6.0);
         // The causal constraints should influence how features are changed

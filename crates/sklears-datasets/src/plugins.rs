@@ -16,7 +16,7 @@ use thiserror::Error;
 // Helper function for generating normal random values
 #[inline]
 fn gen_normal_value(rng: &mut Random, mean: f64, std: f64) -> f64 {
-    let dist = RandNormal::new(mean, std).unwrap();
+    let dist = RandNormal::new(mean, std).expect("operation should succeed");
     dist.sample(rng)
 }
 
@@ -196,7 +196,7 @@ impl PluginRegistry {
 
         // Check if already registered
         {
-            let generators = self.generators.read().unwrap();
+            let generators = self.generators.read().expect("operation should succeed");
             if generators.contains_key(&name) {
                 return Err(PluginError::AlreadyRegistered(name));
             }
@@ -210,8 +210,8 @@ impl PluginRegistry {
 
         // Register the generator
         {
-            let mut generators = self.generators.write().unwrap();
-            let mut metadata_cache = self.metadata_cache.write().unwrap();
+            let mut generators = self.generators.write().expect("operation should succeed");
+            let mut metadata_cache = self.metadata_cache.write().expect("operation should succeed");
 
             generators.insert(name.clone(), Box::new(generator));
             metadata_cache.insert(name.clone(), metadata);
@@ -222,8 +222,8 @@ impl PluginRegistry {
 
     /// Unregister a plugin generator
     pub fn unregister(&self, name: &str) -> PluginResult<()> {
-        let mut generators = self.generators.write().unwrap();
-        let mut metadata_cache = self.metadata_cache.write().unwrap();
+        let mut generators = self.generators.write().expect("operation should succeed");
+        let mut metadata_cache = self.metadata_cache.write().expect("operation should succeed");
 
         if let Some(mut generator) = generators.remove(name) {
             generator.cleanup()?;
@@ -236,7 +236,7 @@ impl PluginRegistry {
 
     /// Get a generator by name
     pub fn get(&self, name: &str) -> Option<Box<dyn PluginGenerator>> {
-        let generators = self.generators.read().unwrap();
+        let generators = self.generators.read().expect("operation should succeed");
         // Note: This is a simplified version. In a real implementation,
         // you'd need a way to clone or share the generator safely
         None // Placeholder - would need trait object cloning or Arc<Mutex<>>
@@ -244,25 +244,25 @@ impl PluginRegistry {
 
     /// Check if a generator is registered
     pub fn has_generator(&self, name: &str) -> bool {
-        let generators = self.generators.read().unwrap();
+        let generators = self.generators.read().expect("operation should succeed");
         generators.contains_key(name)
     }
 
     /// List all registered generators
     pub fn list_generators(&self) -> Vec<String> {
-        let generators = self.generators.read().unwrap();
+        let generators = self.generators.read().expect("operation should succeed");
         generators.keys().cloned().collect()
     }
 
     /// Get metadata for a generator
     pub fn get_metadata(&self, name: &str) -> Option<PluginMetadata> {
-        let metadata_cache = self.metadata_cache.read().unwrap();
+        let metadata_cache = self.metadata_cache.read().expect("operation should succeed");
         metadata_cache.get(name).cloned()
     }
 
     /// List all metadata
     pub fn list_metadata(&self) -> Vec<PluginMetadata> {
-        let metadata_cache = self.metadata_cache.read().unwrap();
+        let metadata_cache = self.metadata_cache.read().expect("operation should succeed");
         metadata_cache.values().cloned().collect()
     }
 
@@ -272,7 +272,7 @@ impl PluginRegistry {
         name: &str,
         config: GeneratorConfig,
     ) -> DatasetTraitResult<InMemoryDataset> {
-        let generators = self.generators.read().unwrap();
+        let generators = self.generators.read().expect("operation should succeed");
         if let Some(generator) = generators.get(name) {
             generator.validate_config(&config)?;
             generator.generate(config)
@@ -286,7 +286,7 @@ impl PluginRegistry {
 
     /// Find generators by capability
     pub fn find_by_capability(&self, capability: &str) -> Vec<String> {
-        let metadata_cache = self.metadata_cache.read().unwrap();
+        let metadata_cache = self.metadata_cache.read().expect("operation should succeed");
         metadata_cache
             .iter()
             .filter(|(_, meta)| meta.capabilities.contains(&capability.to_string()))
@@ -296,7 +296,7 @@ impl PluginRegistry {
 
     /// Find generators by tag
     pub fn find_by_tag(&self, tag: &str) -> Vec<String> {
-        let metadata_cache = self.metadata_cache.read().unwrap();
+        let metadata_cache = self.metadata_cache.read().expect("operation should succeed");
         metadata_cache
             .iter()
             .filter(|(_, meta)| meta.tags.contains(&tag.to_string()))
@@ -306,7 +306,7 @@ impl PluginRegistry {
 
     /// Validate dependencies
     fn validate_dependencies(&self, dependencies: &[String]) -> PluginResult<()> {
-        let generators = self.generators.read().unwrap();
+        let generators = self.generators.read().expect("operation should succeed");
         for dep in dependencies {
             if !generators.contains_key(dep) {
                 return Err(PluginError::DependencyMissing(dep.clone()));
@@ -317,7 +317,7 @@ impl PluginRegistry {
 
     /// Run registration hooks
     fn run_registration_hooks(&self, metadata: &PluginMetadata) -> PluginResult<()> {
-        let hooks = self.hooks.read().unwrap();
+        let hooks = self.hooks.read().expect("operation should succeed");
         for hook in hooks.iter() {
             hook.on_registration(metadata)?;
         }
@@ -329,13 +329,13 @@ impl PluginRegistry {
     where
         H: PluginHook + 'static,
     {
-        let mut hooks = self.hooks.write().unwrap();
+        let mut hooks = self.hooks.write().expect("operation should succeed");
         hooks.push(Box::new(hook));
     }
 
     /// Clear all hooks
     pub fn clear_hooks(&self) {
-        let mut hooks = self.hooks.write().unwrap();
+        let mut hooks = self.hooks.write().expect("operation should succeed");
         hooks.clear();
     }
 }
@@ -635,7 +635,7 @@ mod tests {
         assert_eq!(registry.list_generators(), vec!["custom_linear"]);
 
         // Check metadata
-        let metadata = registry.get_metadata("custom_linear").unwrap();
+        let metadata = registry.get_metadata("custom_linear").expect("operation should succeed");
         assert_eq!(metadata.name, "custom_linear");
         assert_eq!(metadata.version, "1.0.0");
     }
@@ -660,7 +660,7 @@ mod tests {
 
         assert!(generator.validate_config(&config).is_ok());
 
-        let dataset = generator.generate(config).unwrap();
+        let dataset = generator.generate(config).expect("operation should succeed");
         assert_eq!(dataset.n_samples(), 50);
         assert_eq!(dataset.n_features(), 3);
         assert!(dataset.has_targets());
@@ -689,7 +689,7 @@ mod tests {
         let config = manager.create_test_config("custom_linear");
         assert!(config.is_some());
 
-        let config = config.unwrap();
+        let config = config.expect("operation should succeed");
         assert_eq!(config.n_samples, 100);
         assert_eq!(config.n_features, 4);
     }
@@ -697,7 +697,7 @@ mod tests {
     #[test]
     fn test_capability_and_tag_search() {
         let registry = PluginRegistry::new();
-        registry.register(CustomLinearGenerator).unwrap();
+        registry.register(CustomLinearGenerator).expect("operation should succeed");
 
         // Find by capability
         let regression_generators = registry.find_by_capability("regression");

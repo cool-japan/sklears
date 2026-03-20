@@ -643,11 +643,12 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let correlation = spearman_correlation(&x, &y).unwrap();
+        let correlation = spearman_correlation(&x, &y).expect("operation should succeed");
         assert!((correlation - 1.0).abs() < 1e-10);
 
         let y_reverse = array![5.0, 4.0, 3.0, 2.0, 1.0];
-        let correlation_reverse = spearman_correlation(&x, &y_reverse).unwrap();
+        let correlation_reverse =
+            spearman_correlation(&x, &y_reverse).expect("operation should succeed");
         assert!((correlation_reverse + 1.0).abs() < 1e-10);
     }
 
@@ -656,7 +657,7 @@ mod tests {
         let y_true = array![0, 0, 1, 1];
         let probabilities = array![0.1, 0.4, 0.35, 0.8];
 
-        let auc = compute_auc(&y_true, &probabilities).unwrap();
+        let auc = compute_auc(&y_true, &probabilities).expect("operation should succeed");
         assert!(auc > 0.5); // Should be better than random
         assert!(auc <= 1.0);
     }
@@ -668,7 +669,8 @@ mod tests {
         let y_true = array![0, 0, 0, 1, 1];
 
         let config = StatisticalTestConfig::default();
-        let result = test_ece_improvement(&original, &calibrated, &y_true, &config).unwrap();
+        let result = test_ece_improvement(&original, &calibrated, &y_true, &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.test_name, "ECE Improvement Test");
         // The test should show some improvement
@@ -684,7 +686,8 @@ mod tests {
             min_sample_size: 4, // Allow small sample sizes for testing
             ..StatisticalTestConfig::default()
         };
-        let result = super::test_ranking_preservation(&original, &calibrated, &config).unwrap();
+        let result = super::test_ranking_preservation(&original, &calibrated, &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.test_name, "Ranking Preservation Test");
         assert!(result.passed); // Should preserve ranking

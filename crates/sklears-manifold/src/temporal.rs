@@ -6,7 +6,6 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
@@ -184,7 +183,7 @@ impl TemporalManifold<Untrained> {
         let n_features = x.ncols();
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean.insert_axis(Axis(0));
 
         // Compute covariance matrix
@@ -197,7 +196,11 @@ impl TemporalManifold<Untrained> {
 
         // Sort by eigenvalues (descending)
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         // Project data onto top eigenvectors
         let mut projection_matrix = Array2::zeros((n_features, self.n_components));
@@ -407,7 +410,7 @@ impl TemporalManifold<Untrained> {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, dist) in distances.iter().take(k + 1).skip(1) {
@@ -455,7 +458,11 @@ impl TemporalManifold<Untrained> {
 
         // Sort eigenvalues in descending order
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         // Take top components with positive eigenvalues
         let mut embedding = Array2::zeros((n, self.n_components));
@@ -479,7 +486,7 @@ impl TemporalManifold<Untrained> {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             let neighbor_indices: Vec<usize> = distances
                 .iter()
@@ -549,7 +556,11 @@ impl TemporalManifold<Untrained> {
 
         // Sort eigenvalues in ascending order (we want smallest non-zero eigenvalues)
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[i].partial_cmp(&eigenvalues[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[i]
+                .partial_cmp(&eigenvalues[j])
+                .expect("operation should succeed")
+        });
 
         // Skip the first eigenvector (constant) and take next n_components
         let mut embedding = Array2::zeros((n_samples, self.n_components));
@@ -848,7 +859,7 @@ impl StreamingTemporalManifold<Untrained> {
     fn apply_initial_embedding(&self, x: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         // Simple PCA for initialization
         let n_samples = x.nrows();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean.insert_axis(Axis(0));
         let cov = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
@@ -857,7 +868,11 @@ impl StreamingTemporalManifold<Untrained> {
             .map_err(|e| SklearsError::InvalidInput(format!("Initial PCA failed: {}", e)))?;
 
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         let mut projection = Array2::zeros((x.ncols(), self.n_components));
         for (i, &idx) in indices.iter().take(self.n_components).enumerate() {
@@ -924,8 +939,12 @@ impl StreamingTemporalManifold<TrainedStreamingTemporalManifold> {
                 &self.state.embedding_buffer[self.state.embedding_buffer.len() - 2];
 
             // Compare mean and standard deviation of embeddings
-            let new_mean = new_embedding.mean_axis(Axis(0)).unwrap();
-            let prev_mean = prev_embedding.mean_axis(Axis(0)).unwrap();
+            let new_mean = new_embedding
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
+            let prev_mean = prev_embedding
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
             let mean_change = (&new_mean - &prev_mean).mapv(|x: f64| x * x).sum().sqrt();
 
             let new_std = new_embedding.std_axis(Axis(0), 0.0);
@@ -1026,8 +1045,12 @@ mod tests {
             .temporal_weight(0.5)
             .random_state(42);
 
-        let fitted = temporal.fit(&x.view(), &dummy_y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = temporal
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [3, 3, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1050,11 +1073,15 @@ mod tests {
             .learning_rate(0.1)
             .random_state(42);
 
-        let mut fitted = streaming.fit(&x.view(), &dummy_y.view()).unwrap();
+        let mut fitted = streaming
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
 
         // Test streaming update
         let new_data = array![[1.5, 2.5], [3.5, 4.5]];
-        let new_embedding = fitted.update(&new_data.view()).unwrap();
+        let new_embedding = fitted
+            .update(&new_data.view())
+            .expect("operation should succeed");
 
         assert_eq!(new_embedding.shape(), [2, 2]);
         assert!(new_embedding.iter().all(|&x| x.is_finite()));
@@ -1072,8 +1099,12 @@ mod tests {
                 .base_method(method.to_string())
                 .random_state(42);
 
-            let fitted = temporal.fit(&x.view(), &dummy_y.view()).unwrap();
-            let transformed = fitted.transform(&x.view()).unwrap();
+            let fitted = temporal
+                .fit(&x.view(), &dummy_y.view())
+                .expect("operation should succeed");
+            let transformed = fitted
+                .transform(&x.view())
+                .expect("operation should succeed");
 
             assert_eq!(transformed.shape(), [2, 2, 2]);
             assert!(transformed.iter().all(|&x| x.is_finite()));

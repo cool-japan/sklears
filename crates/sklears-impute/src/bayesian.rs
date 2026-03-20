@@ -1,11 +1,24 @@
 //! Bayesian imputation methods
 //!
 //! This module provides comprehensive Bayesian approaches to missing data imputation.
-//! Note: Many advanced Bayesian methods are currently stub implementations.
+//!
+//! # Note
+//!
+//! All Bayesian imputation methods in this module are stub implementations in v0.1.0.
+//! Methods with `fit_transform` return `Err(NotImplemented)`. Data-only structs (priors,
+//! diagnostics, samplers) are available for type definitions but lack functionality.
+//! Full implementations are planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 
 /// Bayesian Linear Imputer
+///
+/// Imputes missing values using Bayesian linear regression with
+/// conjugate priors on regression coefficients and noise variance.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct BayesianLinearImputer {
     /// max_iter
@@ -34,12 +47,24 @@ impl BayesianLinearImputer {
         Self::default()
     }
 
+    /// Fit the Bayesian linear model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("BayesianLinearImputer not fully implemented yet".to_string())
+        Err("BayesianLinearImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Bayesian Logistic Imputer
+///
+/// Imputes missing binary/categorical values using Bayesian logistic regression
+/// with appropriate link functions.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct BayesianLogisticImputer {
     /// max_iter
@@ -62,12 +87,24 @@ impl BayesianLogisticImputer {
         Self::default()
     }
 
+    /// Fit the Bayesian logistic model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("BayesianLogisticImputer not fully implemented yet".to_string())
+        Err("BayesianLogisticImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Bayesian Multiple Imputer
+///
+/// Generates multiple imputed datasets using Bayesian posterior predictive
+/// distributions, enabling proper uncertainty propagation (Rubin's rules).
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct BayesianMultipleImputer {
     /// n_imputations
@@ -90,12 +127,24 @@ impl BayesianMultipleImputer {
         Self::default()
     }
 
+    /// Fit the Bayesian multiple imputation model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("BayesianMultipleImputer not fully implemented yet".to_string())
+        Err("BayesianMultipleImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Hierarchical Bayesian Imputer
+///
+/// Uses hierarchical (multi-level) Bayesian models to impute missing values,
+/// accounting for group-level structure in the data.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct HierarchicalBayesianImputer {
     /// n_levels
@@ -120,6 +169,13 @@ impl HierarchicalBayesianImputer {
 }
 
 /// Variational Bayes Imputer
+///
+/// Uses variational inference to approximate the posterior distribution
+/// over missing values, providing scalable Bayesian imputation.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct VariationalBayesImputer {
     /// max_iter
@@ -146,12 +202,23 @@ impl VariationalBayesImputer {
 // Stub types for compatibility
 
 /// Bayesian Model trait
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 pub trait BayesianModel: Send + Sync {
     fn log_likelihood(&self, X: &ArrayView2<f64>) -> f64;
     fn sample_posterior(&mut self, X: &ArrayView2<f64>) -> Result<(), String>;
 }
 
 /// Bayesian Model Averaging
+///
+/// Combines predictions from multiple Bayesian models weighted by their
+/// posterior model probabilities.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone, Default)]
 pub struct BayesianModelAveraging {
     /// models
@@ -167,6 +234,10 @@ impl BayesianModelAveraging {
 }
 
 /// Bayesian Model Averaging Results
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct BayesianModelAveragingResults {
     /// predictions
@@ -178,6 +249,12 @@ pub struct BayesianModelAveragingResults {
 }
 
 /// Convergence Diagnostics
+///
+/// Diagnostics for assessing MCMC convergence (R-hat, effective sample size).
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone, Default)]
 pub struct ConvergenceDiagnostics {
     /// rhat
@@ -195,6 +272,12 @@ impl ConvergenceDiagnostics {
 }
 
 /// Pooled Results for multiple imputation
+///
+/// Combines estimates across multiple imputed datasets using Rubin's rules.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct PooledResults {
     /// estimates
@@ -217,6 +300,10 @@ impl PooledResults {
 }
 
 /// Hierarchical Bayesian Sample
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct HierarchicalBayesianSample {
     /// global_parameters
@@ -228,6 +315,10 @@ pub struct HierarchicalBayesianSample {
 }
 
 /// Bayesian Regression Sample
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct BayesianRegressionSample {
     /// coefficients
@@ -240,7 +331,11 @@ pub struct BayesianRegressionSample {
 
 // Additional stub types that may be referenced in lib.rs
 
-/// MCMC Sampler stub
+/// MCMC Sampler
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct MCMCsampler {
     /// n_samples
@@ -249,21 +344,33 @@ pub struct MCMCsampler {
     pub burn_in: usize,
 }
 
-/// Gibbs Sampler stub
+/// Gibbs Sampler
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct GibbsSampler {
     /// n_samples
     pub n_samples: usize,
 }
 
-/// Metropolis-Hastings Sampler stub
+/// Metropolis-Hastings Sampler
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct MetropolisHastingsSampler {
     /// n_samples
     pub n_samples: usize,
 }
 
-/// Prior Specification stub
+/// Prior Specification
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct PriorSpecification {
     /// prior_type
@@ -272,7 +379,11 @@ pub struct PriorSpecification {
     pub parameters: Vec<f64>,
 }
 
-/// Conjugate Prior stub
+/// Conjugate Prior
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct ConjugatePrior {
     /// alpha
@@ -281,7 +392,11 @@ pub struct ConjugatePrior {
     pub beta: f64,
 }
 
-/// Non-conjugate Prior stub
+/// Non-conjugate Prior
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct NonConjugatePrior {
     /// distribution
@@ -290,7 +405,11 @@ pub struct NonConjugatePrior {
     pub parameters: Vec<f64>,
 }
 
-/// Variational Parameters stub
+/// Variational Parameters
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct VariationalParameters {
     /// mean
@@ -299,7 +418,11 @@ pub struct VariationalParameters {
     pub variance: Array1<f64>,
 }
 
-/// ELBO Components stub
+/// ELBO Components
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct ELBOComponents {
     /// log_likelihood

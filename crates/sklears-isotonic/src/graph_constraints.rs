@@ -179,7 +179,7 @@ impl Predict<Array1<Float>, Array1<Float>> for GraphOrderIsotonicRegression<Trai
     fn predict(&self, x: &Array1<Float>) -> Result<Array1<Float>> {
         // For graph-based constraints, we use the fitted values directly
         // since the constraint structure depends on the training data indices
-        let fitted_values = self.fitted_values_.as_ref().unwrap();
+        let fitted_values = self.fitted_values_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.len() == fitted_values.len() {
             // If same length, assume same data points
@@ -198,17 +198,17 @@ impl Predict<Array1<Float>, Array1<Float>> for GraphOrderIsotonicRegression<Trai
 impl GraphOrderIsotonicRegression<Trained> {
     /// Get fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 
     /// Get the adjacency list representation of the graph
     pub fn adjacency_list(&self) -> &HashMap<usize, Vec<usize>> {
-        self.adjacency_list_.as_ref().unwrap()
+        self.adjacency_list_.as_ref().expect("value should be present")
     }
 
     /// Get the topological ordering of the graph
     pub fn topological_order(&self) -> &[usize] {
-        self.topological_order_.as_ref().unwrap()
+        self.topological_order_.as_ref().expect("value should be present")
     }
 }
 
@@ -368,7 +368,7 @@ impl Fit<Array1<Float>, Array1<Float>> for HierarchicalIsotonicRegression<Untrai
 
 impl Predict<Array1<Float>, Array1<Float>> for HierarchicalIsotonicRegression<Trained> {
     fn predict(&self, x: &Array1<Float>) -> Result<Array1<Float>> {
-        let fitted_values = self.fitted_values_.as_ref().unwrap();
+        let fitted_values = self.fitted_values_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.len() == fitted_values.len() {
             Ok(fitted_values.clone())
@@ -384,7 +384,7 @@ impl Predict<Array1<Float>, Array1<Float>> for HierarchicalIsotonicRegression<Tr
 impl HierarchicalIsotonicRegression<Trained> {
     /// Get fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 
     /// Get the hierarchy levels
@@ -406,7 +406,7 @@ fn build_adjacency_list(edges: &[(usize, usize)], n: usize) -> HashMap<usize, Ve
 
     // Add edges
     for &(from, to) in edges {
-        adj_list.get_mut(&from).unwrap().push(to);
+        adj_list.get_mut(&from).expect("operation should succeed").push(to);
     }
 
     adj_list
@@ -691,7 +691,7 @@ mod tests {
         let graph_iso = GraphOrderIsotonicRegression::new().graph_edges(edges);
 
         let x = array![0.0, 1.0, 2.0, 3.0];
-        let fitted = graph_iso.fit(&x, &y).unwrap();
+        let fitted = graph_iso.fit(&x, &y).expect("model fitting should succeed");
         let fitted_values = fitted.fitted_values();
 
         // Check that ordering constraints are satisfied
@@ -709,7 +709,7 @@ mod tests {
         let graph_iso = GraphOrderIsotonicRegression::new().graph_edges(edges);
 
         let x = array![0.0, 1.0, 2.0, 3.0];
-        let fitted = graph_iso.fit(&x, &y).unwrap();
+        let fitted = graph_iso.fit(&x, &y).expect("model fitting should succeed");
         let fitted_values = fitted.fitted_values();
 
         // Check all constraints
@@ -729,7 +729,7 @@ mod tests {
             .bounds(Some(1.5), Some(3.5));
 
         let x = array![0.0, 1.0, 2.0, 3.0];
-        let fitted = graph_iso.fit(&x, &y).unwrap();
+        let fitted = graph_iso.fit(&x, &y).expect("model fitting should succeed");
         let fitted_values = fitted.fitted_values();
 
         // Check bounds are respected
@@ -787,7 +787,7 @@ mod tests {
             .graph_edges(edges.clone())
             .loss(LossFunction::AbsoluteLoss);
 
-        let fitted_l1 = graph_iso_l1.fit(&x, &y).unwrap();
+        let fitted_l1 = graph_iso_l1.fit(&x, &y).expect("model fitting should succeed");
         let fitted_values_l1 = fitted_l1.fitted_values();
 
         // Check ordering constraints
@@ -800,7 +800,7 @@ mod tests {
             .graph_edges(edges)
             .loss(LossFunction::HuberLoss { delta: 1.0 });
 
-        let fitted_huber = graph_iso_huber.fit(&x, &y).unwrap();
+        let fitted_huber = graph_iso_huber.fit(&x, &y).expect("model fitting should succeed");
         let fitted_values_huber = fitted_huber.fitted_values();
 
         // Check ordering constraints
@@ -818,7 +818,7 @@ mod tests {
         let hier_iso = HierarchicalIsotonicRegression::new().hierarchy_levels(levels);
 
         let x = array![0.0, 1.0, 2.0, 3.0, 4.0];
-        let fitted = hier_iso.fit(&x, &y).unwrap();
+        let fitted = hier_iso.fit(&x, &y).expect("model fitting should succeed");
         let fitted_values = fitted.fitted_values();
 
         // Check hierarchical constraints
@@ -877,7 +877,7 @@ mod tests {
             .bounds(Some(1.5), Some(3.5));
 
         let x = array![0.0, 1.0, 2.0, 3.0];
-        let fitted = hier_iso.fit(&x, &y).unwrap();
+        let fitted = hier_iso.fit(&x, &y).expect("model fitting should succeed");
         let fitted_values = fitted.fitted_values();
 
         // Check bounds are respected
@@ -899,7 +899,7 @@ mod tests {
         let y = array![3.0, 1.0, 4.0, 2.0];
         let edges = vec![(0, 1), (1, 2), (2, 3)];
 
-        let fitted = graph_order_isotonic_regression(&y, edges, None, None).unwrap();
+        let fitted = graph_order_isotonic_regression(&y, edges, None, None).expect("operation should succeed");
 
         // Check ordering constraints
         for i in 0..fitted.len() - 1 {
@@ -908,7 +908,7 @@ mod tests {
 
         // Test hierarchical convenience function
         let levels = vec![vec![0], vec![1], vec![2], vec![3]];
-        let fitted_hier = hierarchical_isotonic_regression(&y, levels, None, None).unwrap();
+        let fitted_hier = hierarchical_isotonic_regression(&y, levels, None, None).expect("operation should succeed");
 
         // Check hierarchical constraints (should be monotonic)
         for i in 0..fitted_hier.len() - 1 {
@@ -921,7 +921,7 @@ mod tests {
         // Test with simple DAG
         let edges = vec![(0, 1), (0, 2), (1, 3), (2, 3)];
         let adj_list = build_adjacency_list(&edges, 4);
-        let topo_order = topological_sort(&adj_list, 4).unwrap();
+        let topo_order = topological_sort(&adj_list, 4).expect("operation should succeed");
 
         // Check that the ordering respects all edges
         let position: HashMap<usize, usize> = topo_order

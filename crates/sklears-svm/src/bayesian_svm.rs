@@ -239,7 +239,7 @@ impl BayesianSVM {
         self.convergence_history.clear();
 
         for iteration in 0..self.config.max_iterations {
-            let old_mean = self.weight_mean.as_ref().unwrap().clone();
+            let old_mean = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted").clone();
 
             // E-step: Update approximate posterior
             self.update_variational_posterior(x, y)?;
@@ -252,7 +252,7 @@ impl BayesianSVM {
             self.convergence_history.push(elbo);
 
             // Check convergence
-            let mean_diff = (self.weight_mean.as_ref().unwrap() - &old_mean)
+            let mean_diff = (self.weight_mean.as_ref().expect("weight_mean not available - model not fitted") - &old_mean)
                 .mapv(|x| x * x)
                 .sum()
                 .sqrt();
@@ -283,14 +283,14 @@ impl BayesianSVM {
 
         // Add prior precision
         for i in 0..n_features {
-            precision[[i, i]] = self.weight_precision.as_ref().unwrap()[i];
+            precision[[i, i]] = self.weight_precision.as_ref().expect("weight_precision not available - model not fitted")[i];
         }
 
         // Add likelihood contribution (linearized)
         for i in 0..n_samples {
             let x_i = X.row(i);
             let y_i = y[i];
-            let f_i = x_i.dot(self.weight_mean.as_ref().unwrap()) + self.bias_mean;
+            let f_i = x_i.dot(self.weight_mean.as_ref().expect("weight_mean not available - model not fitted")) + self.bias_mean;
 
             // Compute local approximation parameter (depends on likelihood)
             let lambda_i = match self.config.likelihood {
@@ -347,7 +347,7 @@ impl BayesianSVM {
         for i in 0..n_samples {
             let x_i = X.row(i);
             let y_i = y[i];
-            let f_i = x_i.dot(self.weight_mean.as_ref().unwrap()) + self.bias_mean;
+            let f_i = x_i.dot(self.weight_mean.as_ref().expect("weight_mean not available - model not fitted")) + self.bias_mean;
 
             let grad_contrib = match self.config.likelihood {
                 LikelihoodType::Logistic => {
@@ -388,7 +388,7 @@ impl BayesianSVM {
         // Subtract prior contribution
         for i in 0..n_features {
             gradient[i] -=
-                self.weight_precision.as_ref().unwrap()[i] * self.weight_mean.as_ref().unwrap()[i];
+                self.weight_precision.as_ref().expect("weight_precision not available - model not fitted")[i] * self.weight_mean.as_ref().expect("weight_precision not available - model not fitted")[i];
         }
 
         // Update mean
@@ -410,8 +410,8 @@ impl BayesianSVM {
             let mut new_precision = Array1::zeros(n_features);
 
             for i in 0..n_features {
-                let mean_sq = self.weight_mean.as_ref().unwrap()[i].powi(2);
-                let variance = self.weight_covariance.as_ref().unwrap()[[i, i]];
+                let mean_sq = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted")[i].powi(2);
+                let variance = self.weight_covariance.as_ref().expect("weight_covariance not available - model not fitted")[[i, i]];
 
                 // Update precision (inverse gamma update)
                 new_precision[i] = 1.0 / (mean_sq + variance + 1e-10);
@@ -432,7 +432,7 @@ impl BayesianSVM {
         for i in 0..n_samples {
             let x_i = X.row(i);
             let y_i = y[i];
-            let f_mean = x_i.dot(self.weight_mean.as_ref().unwrap()) + self.bias_mean;
+            let f_mean = x_i.dot(self.weight_mean.as_ref().expect("weight_mean not available - model not fitted")) + self.bias_mean;
             let f_var = self.compute_predictive_variance(&x_i);
 
             let expected_ll = match self.config.likelihood {
@@ -463,13 +463,13 @@ impl BayesianSVM {
 
     /// Compute KL divergence between posterior and prior
     fn compute_kl_divergence(&self) -> BayesianSVMResult<f64> {
-        let n_features = self.weight_mean.as_ref().unwrap().len();
+        let n_features = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted").len();
         let mut kl = 0.0;
 
         for i in 0..n_features {
-            let mean = self.weight_mean.as_ref().unwrap()[i];
-            let variance = self.weight_covariance.as_ref().unwrap()[[i, i]];
-            let precision = self.weight_precision.as_ref().unwrap()[i];
+            let mean = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted")[i];
+            let variance = self.weight_covariance.as_ref().expect("weight_covariance not available - model not fitted")[[i, i]];
+            let precision = self.weight_precision.as_ref().expect("weight_precision not available - model not fitted")[i];
 
             // KL for Gaussian: 0.5 * (log(precision) - log(variance) + variance * precision + mean^2 * precision - 1)
             kl += 0.5
@@ -495,7 +495,7 @@ impl BayesianSVM {
         self.convergence_history.clear();
 
         for iteration in 0..self.config.max_iterations {
-            let old_mean = self.weight_mean.as_ref().unwrap().clone();
+            let old_mean = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted").clone();
 
             // Update each site
             for i in 0..n_samples {
@@ -503,7 +503,7 @@ impl BayesianSVM {
             }
 
             // Check convergence
-            let mean_diff = (self.weight_mean.as_ref().unwrap() - &old_mean)
+            let mean_diff = (self.weight_mean.as_ref().expect("weight_mean not available - model not fitted") - &old_mean)
                 .mapv(|x| x * x)
                 .sum()
                 .sqrt();
@@ -556,7 +556,7 @@ impl BayesianSVM {
         site_idx: usize,
         site_mean: &Array2<f64>,
     ) -> BayesianSVMResult<Array1<f64>> {
-        let global_mean = self.weight_mean.as_ref().unwrap();
+        let global_mean = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted");
         let site_contribution = site_mean.row(site_idx);
 
         Ok(global_mean - &site_contribution)
@@ -568,7 +568,7 @@ impl BayesianSVM {
         site_idx: usize,
         site_precision: &Array2<f64>,
     ) -> BayesianSVMResult<Array1<f64>> {
-        let global_precision = self.weight_precision.as_ref().unwrap();
+        let global_precision = self.weight_precision.as_ref().expect("weight_precision not available - model not fitted");
         let site_contribution = site_precision.row(site_idx);
 
         Ok(global_precision - &site_contribution)
@@ -669,7 +669,7 @@ impl BayesianSVM {
         let (n_samples, n_features) = site_mean.dim();
 
         // Compute global precision
-        let mut global_precision = self.weight_precision.as_ref().unwrap().clone();
+        let mut global_precision = self.weight_precision.as_ref().expect("weight_precision not available - model not fitted").clone();
         for i in 0..n_samples {
             global_precision = &global_precision + &site_precision.row(i);
         }
@@ -699,7 +699,7 @@ impl BayesianSVM {
 
         // Find MAP estimate using Newton-Raphson
         for iteration in 0..self.config.max_iterations {
-            let old_mean = self.weight_mean.as_ref().unwrap().clone();
+            let old_mean = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted").clone();
 
             // Compute gradient and Hessian
             let (gradient, hessian) = self.compute_gradient_hessian(x, y)?;
@@ -708,11 +708,11 @@ impl BayesianSVM {
             let hessian_inv = self.invert_matrix(&hessian)?;
             let update = self.matrix_vector_multiply(&hessian_inv, &gradient);
 
-            let new_mean = self.weight_mean.as_ref().unwrap() - &update;
+            let new_mean = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted") - &update;
             self.weight_mean = Some(new_mean);
 
             // Convergence check
-            let mean_diff = (self.weight_mean.as_ref().unwrap() - &old_mean)
+            let mean_diff = (self.weight_mean.as_ref().expect("weight_mean not available - model not fitted") - &old_mean)
                 .mapv(|x| x * x)
                 .sum()
                 .sqrt();
@@ -743,15 +743,15 @@ impl BayesianSVM {
         // Add prior contribution
         for i in 0..n_features {
             gradient[i] -=
-                self.weight_precision.as_ref().unwrap()[i] * self.weight_mean.as_ref().unwrap()[i];
-            hessian[[i, i]] += self.weight_precision.as_ref().unwrap()[i];
+                self.weight_precision.as_ref().expect("weight_precision not available - model not fitted")[i] * self.weight_mean.as_ref().expect("weight_precision not available - model not fitted")[i];
+            hessian[[i, i]] += self.weight_precision.as_ref().expect("weight_precision not available - model not fitted")[i];
         }
 
         // Add likelihood contribution
         for i in 0..n_samples {
             let x_i = X.row(i);
             let y_i = y[i];
-            let f_i = x_i.dot(self.weight_mean.as_ref().unwrap());
+            let f_i = x_i.dot(self.weight_mean.as_ref().expect("weight_mean not available - model not fitted"));
 
             let (grad_contrib, hess_contrib) = match self.config.likelihood {
                 LikelihoodType::Logistic => {
@@ -792,11 +792,11 @@ impl BayesianSVM {
 
         // Proposal distribution (random walk)
         let proposal_std = 0.1;
-        let normal_dist = Normal::new(0.0, proposal_std).unwrap();
-        let uniform_dist = Uniform::new(0.0, 1.0).unwrap();
+        let normal_dist = Normal::new(0.0, proposal_std).expect("valid distribution params");
+        let uniform_dist = Uniform::new(0.0, 1.0).expect("valid distribution params");
 
         // Initialize chain
-        let mut current_weights = self.weight_mean.as_ref().unwrap().clone();
+        let mut current_weights = self.weight_mean.as_ref().expect("weight_mean not available - model not fitted").clone();
         let mut current_log_prob = self.log_posterior(&current_weights, X, y)?;
 
         // Storage for samples
@@ -846,7 +846,7 @@ impl BayesianSVM {
 
         // Log prior
         for i in 0..weights.len() {
-            log_prob -= 0.5 * self.weight_precision.as_ref().unwrap()[i] * weights[i].powi(2);
+            log_prob -= 0.5 * self.weight_precision.as_ref().expect("weight_precision not available - model not fitted")[i] * weights[i].powi(2);
         }
 
         // Log likelihood
@@ -916,7 +916,7 @@ impl BayesianSVM {
 
         for i in 0..n_samples {
             let x = X.row(i);
-            let f_mean = x.dot(self.weight_mean.as_ref().unwrap()) + self.bias_mean;
+            let f_mean = x.dot(self.weight_mean.as_ref().expect("weight_mean not available - model not fitted")) + self.bias_mean;
             predictions[i] = if f_mean >= 0.0 { 1.0 } else { -1.0 };
         }
 
@@ -938,7 +938,7 @@ impl BayesianSVM {
 
         for i in 0..n_samples {
             let x = X.row(i);
-            means[i] = x.dot(self.weight_mean.as_ref().unwrap()) + self.bias_mean;
+            means[i] = x.dot(self.weight_mean.as_ref().expect("weight_mean not available - model not fitted")) + self.bias_mean;
             variances[i] = self.compute_predictive_variance(&x);
         }
 
@@ -953,7 +953,7 @@ impl BayesianSVM {
         // Add weight uncertainty
         for i in 0..x.len() {
             for j in 0..x.len() {
-                variance += x[i] * self.weight_covariance.as_ref().unwrap()[[i, j]] * x[j];
+                variance += x[i] * self.weight_covariance.as_ref().expect("weight_covariance not available - model not fitted")[[i, j]] * x[j];
             }
         }
 
@@ -971,7 +971,7 @@ impl BayesianSVM {
             let relevance = self
                 .weight_precision
                 .as_ref()
-                .unwrap()
+                .expect("value should be present")
                 .mapv(|p| 1.0 / (p + 1e-10));
             Ok(relevance)
         } else {
@@ -1210,9 +1210,9 @@ mod tests {
     #[test]
     fn test_matrix_inversion() {
         let svm = BayesianSVM::default();
-        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("array shape mismatch");
 
-        let inv = svm.invert_matrix(&matrix).unwrap();
+        let inv = svm.invert_matrix(&matrix).expect("operation should succeed");
 
         // Check A * A^-1 ≈ I
         let mut product: Array2<f64> = Array2::zeros((2, 2));
@@ -1236,19 +1236,19 @@ mod tests {
 
         // Simple linearly separable dataset
         let X = Array2::from_shape_vec((4, 2), vec![-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![-1.0, -1.0, 1.0, 1.0]);
 
         // Fit model
-        svm.fit(&x, &y).unwrap();
+        svm.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that model is trained
         assert!(svm.is_trained);
         assert!(svm.weight_mean.is_some());
 
         // Predict
-        let predictions = svm.predict(&x).unwrap();
+        let predictions = svm.predict(&x).expect("prediction should succeed");
 
         // Check predictions (should match training labels)
         for i in 0..y.len() {
@@ -1261,13 +1261,13 @@ mod tests {
         let mut svm = BayesianSVM::default();
 
         let X = Array2::from_shape_vec((4, 2), vec![-1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![-1.0, -1.0, 1.0, 1.0]);
 
-        svm.fit(&x, &y).unwrap();
+        svm.fit(&x, &y).expect("model fitting should succeed");
 
-        let (means, variances) = svm.predict_with_uncertainty(&x).unwrap();
+        let (means, variances) = svm.predict_with_uncertainty(&x).expect("operation should succeed");
 
         assert_eq!(means.len(), 4);
         assert_eq!(variances.len(), 4);
@@ -1292,7 +1292,7 @@ mod tests {
                 -1.0, 0.0, -0.1, 0.0, 2.0, 2.0, 0.0, 0.0, 0.1, -2.0, -2.0, 0.0, 0.0, -0.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![1.0, 1.0, -1.0, -1.0, 1.0, -1.0]);
 
@@ -1303,7 +1303,7 @@ mod tests {
         }
 
         // Get feature relevance
-        let relevance = svm.feature_relevance().unwrap();
+        let relevance = svm.feature_relevance().expect("operation should succeed");
 
         // First two features should be more relevant
         assert!(relevance[0] > relevance[2]);

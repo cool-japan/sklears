@@ -399,8 +399,8 @@ mod tests {
 
         let model = MultiTaskLasso::new().alpha(0.01).fit_intercept(false);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let coef = fitted.coef().expect("operation should succeed");
 
         // Check that coefficients are approximately correct
         assert_abs_diff_eq!(coef[[0, 0]], 2.0, epsilon = 0.1);
@@ -421,13 +421,13 @@ mod tests {
 
         let model = MultiTaskLasso::new().alpha(0.1).fit_intercept(true);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[4, 2]);
 
         // Should have non-zero intercepts
-        let intercept = fitted.intercept().unwrap();
+        let intercept = fitted.intercept().expect("intercept should be available");
         assert_eq!(intercept.len(), 2);
     }
 
@@ -439,8 +439,8 @@ mod tests {
         // High alpha should make all coefficients zero
         let model = MultiTaskLasso::new().alpha(100.0).fit_intercept(false);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let coef = fitted.coef().expect("operation should succeed");
 
         // All coefficients should be zero
         for &c in coef.iter() {

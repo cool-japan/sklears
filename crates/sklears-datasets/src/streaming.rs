@@ -15,7 +15,7 @@ use thiserror::Error;
 // Helper function for generating normal random values
 #[inline]
 fn gen_normal_value(rng: &mut Random, mean: f64, std: f64) -> f64 {
-    let dist = RandNormal::new(mean, std).unwrap();
+    let dist = RandNormal::new(mean, std).expect("operation should succeed");
     dist.sample(rng)
 }
 
@@ -640,7 +640,7 @@ impl<G: StreamingGenerator + Clone + Send + 'static> ParallelStreamingGenerator<
 
                     for _ in start_chunk..end_chunk {
                         if let Some(chunk) = generator.next_chunk()? {
-                            chunks_clone.lock().unwrap().push(chunk);
+                            chunks_clone.lock().expect("lock should not be poisoned").push(chunk);
                         }
                     }
 
@@ -658,7 +658,7 @@ impl<G: StreamingGenerator + Clone + Send + 'static> ParallelStreamingGenerator<
             })??;
         }
 
-        let mut result = chunks.lock().unwrap().clone();
+        let mut result = chunks.lock().expect("lock should not be poisoned").clone();
         result.sort_by_key(|chunk| chunk.chunk_id);
 
         Ok(result)
@@ -811,12 +811,12 @@ mod tests {
         let mut generator = streaming_classification(streaming_config, generator_config, 40);
 
         // Generate first chunk
-        let chunk1 = generator.next_chunk()?.unwrap();
+        let chunk1 = generator.next_chunk()?.expect("operation should succeed");
         assert_eq!(chunk1.chunk_id, 0);
 
         // Reset and generate again
         generator.reset()?;
-        let chunk1_again = generator.next_chunk()?.unwrap();
+        let chunk1_again = generator.next_chunk()?.expect("operation should succeed");
         assert_eq!(chunk1_again.chunk_id, 0);
 
         // Should be identical due to same random seed
@@ -839,7 +839,7 @@ mod tests {
 
         // Seek to chunk 2
         generator.seek(2)?;
-        let chunk = generator.next_chunk()?.unwrap();
+        let chunk = generator.next_chunk()?.expect("operation should succeed");
         assert_eq!(chunk.chunk_id, 2);
 
         Ok(())
@@ -884,7 +884,7 @@ mod tests {
 
         let mut generator = streaming_classification(streaming_config, generator_config, 50);
 
-        let chunk = generator.next_chunk()?.unwrap();
+        let chunk = generator.next_chunk()?.expect("operation should succeed");
 
         assert_eq!(chunk.metadata.get("generator"), Some(&"streaming_classification".to_string()));
         assert_eq!(chunk.metadata.get("n_classes"), Some(&"4".to_string()));

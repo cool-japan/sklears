@@ -180,7 +180,7 @@ impl BatchModeActiveLearning {
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .copied()
-            .unwrap();
+            .expect("operation should succeed");
         selected_indices.push(first_idx);
         remaining_indices.retain(|&x| x != first_idx);
 

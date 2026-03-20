@@ -636,7 +636,10 @@ pub mod builtin {
                 return Err(SklearsError::FitError("Plugin not fitted".to_string()));
             }
 
-            let selected_indices = self.selected_indices.as_ref().unwrap();
+            let selected_indices = self
+                .selected_indices
+                .as_ref()
+                .expect("operation should succeed");
             if selected_indices.is_empty() {
                 return Err(SklearsError::InvalidInput(
                     "No features selected".to_string(),
@@ -888,18 +891,20 @@ macro_rules! register_plugin {
 #[macro_export]
 macro_rules! plugin_pipeline {
     ($($step_type:ident($name:expr, $config:expr)),+ $(,)?) => {
-        {
+        (|| -> std::result::Result<PluginPipeline, sklears_core::error::SklearsError> {
             let mut pipeline = PluginPipeline::new();
             $(
                 pipeline = match stringify!($step_type) {
                     "plugin" => pipeline.add_plugin($name.to_string(), $config),
                     "transform" => pipeline.add_transformation($name.to_string(), $config),
                     "scoring" => pipeline.add_scoring($name.to_string(), $config),
-                    _ => panic!("Unknown step type: {}", stringify!($step_type)),
+                    _ => return Err(sklears_core::error::SklearsError::InvalidInput(
+                        format!("Unknown step type: {}", stringify!($step_type)),
+                    )),
                 };
             )+
-            pipeline
-        }
+            Ok(pipeline)
+        })()
     };
 }
 
@@ -1035,6 +1040,7 @@ mod tests {
         };
 
         // Pipeline should have 3 steps
+        let pipeline = pipeline?;
         assert_eq!(pipeline.steps.len(), 3);
 
         Ok(())

@@ -205,7 +205,11 @@ impl SemiNaiveBayes<Untrained> {
         }
 
         // Sort by strength and take top dependencies
-        dependencies.sort_by(|a, b| b.strength.partial_cmp(&a.strength).unwrap());
+        dependencies.sort_by(|a, b| {
+            b.strength
+                .partial_cmp(&a.strength)
+                .expect("operation should succeed")
+        });
         dependencies.truncate(self.config.max_dependencies);
         dependencies
     }
@@ -321,7 +325,11 @@ impl SemiNaiveBayes<Untrained> {
             }
         }
 
-        dependencies.sort_by(|a, b| b.strength.partial_cmp(&a.strength).unwrap());
+        dependencies.sort_by(|a, b| {
+            b.strength
+                .partial_cmp(&a.strength)
+                .expect("operation should succeed")
+        });
         dependencies.truncate(self.config.max_dependencies);
         dependencies
     }
@@ -394,7 +402,7 @@ impl SemiNaiveBayes<Untrained> {
             }
 
             // Sort by mutual information and take top k
-            feature_deps.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            feature_deps.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
             feature_deps.truncate(k);
 
             for (j, strength) in feature_deps {
@@ -589,12 +597,27 @@ impl Fit<Array2<Float>, Array1<i32>> for SemiNaiveBayes<Untrained> {
 impl SemiNaiveBayes<Trained> {
     /// Compute the unnormalized posterior log probability of X
     fn joint_log_likelihood(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
-        let dependencies = self.dependencies_.as_ref().unwrap();
-        let feature_means = self.feature_means_.as_ref().unwrap();
-        let feature_vars = self.feature_vars_.as_ref().unwrap();
-        let conditional_probs = self.conditional_probs_.as_ref().unwrap();
-        let class_prior = self.class_prior_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let dependencies = self
+            .dependencies_
+            .as_ref()
+            .expect("operation should succeed");
+        let feature_means = self
+            .feature_means_
+            .as_ref()
+            .expect("operation should succeed");
+        let feature_vars = self
+            .feature_vars_
+            .as_ref()
+            .expect("operation should succeed");
+        let conditional_probs = self
+            .conditional_probs_
+            .as_ref()
+            .expect("operation should succeed");
+        let class_prior = self
+            .class_prior_
+            .as_ref()
+            .expect("operation should succeed");
+        let classes = self.classes_.as_ref().expect("operation should succeed");
         let n_classes = classes.len();
         let n_samples = x.nrows();
         let n_features = x.ncols();
@@ -680,13 +703,13 @@ impl SemiNaiveBayes<Trained> {
 impl Predict<Array2<Float>, Array1<i32>> for SemiNaiveBayes<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
         let log_prob = self.joint_log_likelihood(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         Ok(log_prob.map_axis(Axis(1), |row| {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             classes[max_idx]
@@ -698,7 +721,11 @@ impl PredictProba<Array2<Float>, Array2<f64>> for SemiNaiveBayes<Trained> {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
         let log_prob = self.joint_log_likelihood(x)?;
         let n_samples = x.nrows();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut proba = Array2::zeros((n_samples, n_classes));
 
         // Normalize to get probabilities
@@ -739,28 +766,37 @@ impl Score<Array2<Float>, Array1<i32>> for SemiNaiveBayes<Trained> {
 
 impl NaiveBayesMixin for SemiNaiveBayes<Trained> {
     fn class_log_prior(&self) -> &Array1<f64> {
-        self.class_prior_.as_ref().unwrap()
+        self.class_prior_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     fn feature_log_prob(&self) -> &Array2<f64> {
         // Return feature means as a proxy for log probabilities
-        self.feature_means_.as_ref().unwrap()
+        self.feature_means_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 }
 
 impl SemiNaiveBayes<Trained> {
     /// Get the discovered feature dependencies
     pub fn dependencies(&self) -> &Vec<FeatureDependency> {
-        self.dependencies_.as_ref().unwrap()
+        self.dependencies_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of dependencies modeled
     pub fn n_dependencies(&self) -> usize {
-        self.dependencies_.as_ref().unwrap().len()
+        self.dependencies_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -789,12 +825,12 @@ mod tests {
         let model = SemiNaiveBayes::new()
             .max_dependencies(2)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions, y);
 
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("operation should succeed");
         assert_eq!(score, 1.0);
     }
 
@@ -808,8 +844,10 @@ mod tests {
         ];
         let y = array![0, 0, 1, 1];
 
-        let model = SemiNaiveBayes::new().fit(&x, &y).unwrap();
-        let proba = model.predict_proba(&x).unwrap();
+        let model = SemiNaiveBayes::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
+        let proba = model.predict_proba(&x).expect("operation should succeed");
 
         // Check that probabilities sum to 1
         for i in 0..x.nrows() {
@@ -834,10 +872,10 @@ mod tests {
                 dependencies: manual_deps,
             })
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.n_dependencies(), 2);
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
     }
 
@@ -857,9 +895,9 @@ mod tests {
             .dependency_method(DependencySelectionMethod::KDependence { k: 2 })
             .min_samples_dependency(3)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
     }
 }

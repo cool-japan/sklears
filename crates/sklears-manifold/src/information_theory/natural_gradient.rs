@@ -10,7 +10,6 @@ use super::utils::{
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
 use sklears_core::{

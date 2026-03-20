@@ -281,7 +281,7 @@ impl GpuLDAKernel {
             .map(|row| {
                 row.iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0)
             })
@@ -828,7 +828,7 @@ impl GpuDiscriminantAnalysis {
 
     /// Check if GPU acceleration is available
     pub fn is_gpu_available(&self) -> bool {
-        self.context.is_some() && self.context.as_ref().unwrap().backend() != GpuBackend::Cpu
+        self.context.is_some() && self.context.as_ref().expect("context not available - model not fitted").backend() != GpuBackend::Cpu
     }
 
     /// Get current GPU backend
@@ -838,7 +838,7 @@ impl GpuDiscriminantAnalysis {
 
     /// Get performance statistics
     pub fn performance_stats(&self) -> GpuPerformanceStats {
-        self.performance_stats.lock().unwrap().clone()
+        self.performance_stats.lock().expect("lock not poisoned").clone()
     }
 
     /// Determine whether to use GPU based on problem size
@@ -861,13 +861,13 @@ impl GpuDiscriminantAnalysis {
             return self.cpu_fallback_lda(X, y, X_test, lda_config);
         }
 
-        let context = self.context.as_ref().unwrap();
-        let kernel = self.lda_kernel.as_ref().unwrap();
+        let context = self.context.as_ref().expect("context not available - model not fitted");
+        let kernel = self.lda_kernel.as_ref().expect("lda_kernel not available - model not fitted");
 
         let start_time = std::time::Instant::now();
 
         // Compute number of classes
-        let n_classes = y.iter().max().unwrap() + 1;
+        let n_classes = y.iter().max().expect("collection should not be empty") + 1;
 
         // Compute class means on GPU
         let class_means = kernel.compute_class_means_gpu(context, X, y, n_classes)?;
@@ -894,7 +894,7 @@ impl GpuDiscriminantAnalysis {
         // Update performance stats
         let elapsed = start_time.elapsed();
         {
-            let mut stats = self.performance_stats.lock().unwrap();
+            let mut stats = self.performance_stats.lock().expect("lock not poisoned");
             stats.gpu_time_ms += elapsed.as_millis() as f64;
             stats.kernel_executions += 1;
         }
@@ -916,14 +916,14 @@ impl GpuDiscriminantAnalysis {
             return self.cpu_fallback_qda(X, y, X_test, qda_config);
         }
 
-        let context = self.context.as_ref().unwrap();
-        let lda_kernel = self.lda_kernel.as_ref().unwrap();
-        let qda_kernel = self.qda_kernel.as_ref().unwrap();
+        let context = self.context.as_ref().expect("context not available - model not fitted");
+        let lda_kernel = self.lda_kernel.as_ref().expect("lda_kernel not available - model not fitted");
+        let qda_kernel = self.qda_kernel.as_ref().expect("qda_kernel not available - model not fitted");
 
         let start_time = std::time::Instant::now();
 
         // Compute number of classes
-        let n_classes = y.iter().max().unwrap() + 1;
+        let n_classes = y.iter().max().expect("collection should not be empty") + 1;
 
         // Compute class means on GPU (reuse LDA kernel)
         let class_means = lda_kernel.compute_class_means_gpu(context, X, y, n_classes)?;
@@ -956,7 +956,7 @@ impl GpuDiscriminantAnalysis {
         // Update performance stats
         let elapsed = start_time.elapsed();
         {
-            let mut stats = self.performance_stats.lock().unwrap();
+            let mut stats = self.performance_stats.lock().expect("lock not poisoned");
             stats.gpu_time_ms += elapsed.as_millis() as f64;
             stats.kernel_executions += 1;
         }
@@ -973,7 +973,7 @@ impl GpuDiscriminantAnalysis {
         config: &LinearDiscriminantAnalysisConfig,
     ) -> Result<Array1<usize>> {
         {
-            let mut stats = self.performance_stats.lock().unwrap();
+            let mut stats = self.performance_stats.lock().expect("lock not poisoned");
             stats.fallback_count += 1;
         }
 
@@ -991,7 +991,7 @@ impl GpuDiscriminantAnalysis {
         config: &QuadraticDiscriminantAnalysisConfig,
     ) -> Result<Array1<usize>> {
         {
-            let mut stats = self.performance_stats.lock().unwrap();
+            let mut stats = self.performance_stats.lock().expect("lock not poisoned");
             stats.fallback_count += 1;
         }
 

@@ -671,7 +671,7 @@ const context = {{}};
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .spawn()?
-            .stdin.as_mut().unwrap().write_all(payload_str.as_bytes()).await;
+            .stdin.as_mut().unwrap_or_default().write_all(payload_str.as_bytes()).await;
 
         match output {
             Ok(_) => {
@@ -1137,7 +1137,7 @@ mod tests {
         };
         
         let execution_id = Uuid::new_v4();
-        let allocation = runtime.allocate_resources(&function, execution_id).await.unwrap();
+        let allocation = runtime.allocate_resources(&function, execution_id).await.unwrap_or_default();
         
         assert_eq!(allocation.memory_allocated, 256);
         assert!(allocation.cpu_allocated > 0.0);

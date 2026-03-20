@@ -281,11 +281,17 @@ impl CircuitBreakerStatsTracker {
 
     /// Record a successful request
     pub fn record_success(&self, duration: Duration) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.successful.fetch_add(1, Ordering::Relaxed);
         counters.total.fetch_add(1, Ordering::Relaxed);
 
-        let mut response_times = self.response_times.lock().unwrap();
+        let mut response_times = self
+            .response_times
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         response_times.history.push_back(duration);
         if response_times.history.len() > response_times.window_size {
             response_times.history.pop_front();
@@ -305,11 +311,14 @@ impl CircuitBreakerStatsTracker {
 
     /// Record a failed request
     pub fn record_failure(&self, error: &CircuitBreakerError) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.failed.fetch_add(1, Ordering::Relaxed);
         counters.total.fetch_add(1, Ordering::Relaxed);
 
-        let mut error_tracker = self.error_tracker.lock().unwrap();
+        let mut error_tracker = self.error_tracker.lock().unwrap_or_else(|e| e.into_inner());
         let error_type = format!("{error:?}");
         *error_tracker
             .error_counts
@@ -337,40 +346,58 @@ impl CircuitBreakerStatsTracker {
 
     /// Record a rejected request (circuit open)
     pub fn record_rejection(&self) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.rejected.fetch_add(1, Ordering::Relaxed);
         counters.total.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a timeout request
     pub fn record_timeout(&self) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.timeout.fetch_add(1, Ordering::Relaxed);
         counters.total.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Track a half-open request
     pub fn track_half_open_request(&self) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.half_open_requests.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Track a half-open successful request
     pub fn track_half_open_success(&self) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.half_open_successes.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Reset half-open counters
     pub fn reset_half_open_counters(&self) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.half_open_requests.store(0, Ordering::Relaxed);
         counters.half_open_successes.store(0, Ordering::Relaxed);
     }
 
     /// Get current half-open success count
     pub fn get_half_open_successes(&self) -> u64 {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.half_open_successes.load(Ordering::Relaxed)
     }
 
@@ -381,7 +408,10 @@ impl CircuitBreakerStatsTracker {
         to_state: CircuitBreakerState,
         reason: TransitionReason,
     ) {
-        let mut transitions = self.state_transitions.lock().unwrap();
+        let mut transitions = self
+            .state_transitions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let transition = StateTransition {
             timestamp: SystemTime::now(),
@@ -408,7 +438,10 @@ impl CircuitBreakerStatsTracker {
 
     /// Update health metrics
     pub fn update_health_metrics(&self, health_score: f64, availability: f64, reliability: f64) {
-        let mut health = self.health_metrics.lock().unwrap();
+        let mut health = self
+            .health_metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let previous_score = health.health_score;
         health.health_score = health_score;
@@ -430,7 +463,10 @@ impl CircuitBreakerStatsTracker {
 
     /// Reset all statistics
     pub fn reset(&self) {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         counters.total.store(0, Ordering::Relaxed);
         counters.successful.store(0, Ordering::Relaxed);
         counters.failed.store(0, Ordering::Relaxed);
@@ -440,30 +476,42 @@ impl CircuitBreakerStatsTracker {
         counters.half_open_requests.store(0, Ordering::Relaxed);
         counters.half_open_successes.store(0, Ordering::Relaxed);
 
-        let mut response_times = self.response_times.lock().unwrap();
+        let mut response_times = self
+            .response_times
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         response_times.history.clear();
         response_times.sum = Duration::default();
         response_times.min = None;
         response_times.max = None;
         response_times.percentiles.clear();
 
-        let mut error_tracker = self.error_tracker.lock().unwrap();
+        let mut error_tracker = self.error_tracker.lock().unwrap_or_else(|e| e.into_inner());
         error_tracker.error_counts.clear();
         error_tracker.recent_errors.clear();
         error_tracker.error_rate = 0.0;
 
-        let mut transitions = self.state_transitions.lock().unwrap();
+        let mut transitions = self
+            .state_transitions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         transitions.transitions.clear();
         transitions.transition_counts.clear();
 
-        let mut health = self.health_metrics.lock().unwrap();
+        let mut health = self
+            .health_metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         *health = HealthMetrics::default();
     }
 
     /// Get current statistics
     #[must_use]
     pub fn get_stats(&self) -> CircuitBreakerStats {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         /// CircuitBreakerStats
         CircuitBreakerStats {
             total_requests: counters.total.load(Ordering::Relaxed),
@@ -481,7 +529,10 @@ impl CircuitBreakerStatsTracker {
     /// Get request counters
     #[must_use]
     pub fn get_request_counters(&self) -> RequestCounters {
-        let counters = self.request_counters.lock().unwrap();
+        let counters = self
+            .request_counters
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         /// RequestCounters
         RequestCounters {
             total: AtomicU64::new(counters.total.load(Ordering::Relaxed)),
@@ -500,7 +551,10 @@ impl CircuitBreakerStatsTracker {
     /// Get response time statistics
     #[must_use]
     pub fn get_response_time_stats(&self) -> ResponseTimeStats {
-        let response_times = self.response_times.lock().unwrap();
+        let response_times = self
+            .response_times
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let avg = if response_times.history.is_empty() {
             Duration::default()
@@ -521,7 +575,7 @@ impl CircuitBreakerStatsTracker {
     /// Get error statistics
     #[must_use]
     pub fn get_error_stats(&self) -> ErrorStats {
-        let error_tracker = self.error_tracker.lock().unwrap();
+        let error_tracker = self.error_tracker.lock().unwrap_or_else(|e| e.into_inner());
 
         /// ErrorStats
         ErrorStats {
@@ -535,7 +589,10 @@ impl CircuitBreakerStatsTracker {
     /// Get health metrics
     #[must_use]
     pub fn get_health_metrics(&self) -> HealthMetrics {
-        let health = self.health_metrics.lock().unwrap();
+        let health = self
+            .health_metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         (*health).clone()
     }
 }
@@ -552,7 +609,7 @@ impl CircuitBreakerStatsAggregator {
 
     /// Update aggregated statistics
     pub fn update_stats(&self, breaker_stats: &[CircuitBreakerStats]) {
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         stats.total_breakers = breaker_stats.len() as u64;
         stats.active_breakers = breaker_stats.len() as u64; // Simplified
@@ -592,7 +649,7 @@ impl CircuitBreakerStatsAggregator {
     /// Get aggregated statistics
     #[must_use]
     pub fn get_stats(&self) -> AggregatedStats {
-        let stats = self.stats.read().unwrap();
+        let stats = self.stats.read().unwrap_or_else(|e| e.into_inner());
         /// AggregatedStats
         AggregatedStats {
             total_breakers: stats.total_breakers,
@@ -629,7 +686,7 @@ impl CircuitBreakerStatsAggregator {
 
     /// Reset aggregated statistics
     pub fn reset(&self) {
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         *stats = AggregatedStats::default();
     }
 }

@@ -41,10 +41,10 @@ use super::statistics_tracking::{CircuitBreakerStatsTracker, RequestResult, Tran
 /// use sklears_compose::fault_core::CircuitBreakerConfig;
 ///
 /// let config = CircuitBreakerConfig::default();
-/// let breaker = AdvancedCircuitBreaker::new("api_service", config).unwrap();
+/// let breaker = AdvancedCircuitBreaker::new("api_service", config).unwrap_or_default();
 ///
 /// let result = breaker.execute(|| Ok::<_, CircuitBreakerError>(42));
-/// assert_eq!(result.unwrap(), 42);
+/// assert_eq!(result.unwrap_or_default(), 42);
 /// ```
 pub trait CircuitBreaker: Send + Sync {
     /// Execute a function with circuit breaker protection
@@ -323,7 +323,7 @@ impl AdvancedCircuitBreaker {
 
     /// Check if the circuit should transition to half-open state
     fn should_attempt_reset(&self) -> bool {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         match *state {
             CircuitBreakerState::Open => {
                 // Check if recovery timeout has elapsed
@@ -343,7 +343,7 @@ impl AdvancedCircuitBreaker {
 
     /// Transition circuit breaker state
     fn transition_state(&self, new_state: CircuitBreakerState) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         let old_state = *state;
         *state = new_state;
 
@@ -418,7 +418,7 @@ impl CircuitBreaker for AdvancedCircuitBreaker {
     }
 
     fn is_request_allowed(&self) -> bool {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         match *state {
             CircuitBreakerState::Closed => true,
             CircuitBreakerState::Open => {
@@ -451,7 +451,7 @@ impl CircuitBreaker for AdvancedCircuitBreaker {
             .record_request_completed(self.id.clone(), duration, true);
 
         // Check for state transitions
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         if *state == CircuitBreakerState::HalfOpen {
             // Track half-open successes
             self.stats.track_half_open_success();
@@ -483,7 +483,7 @@ impl CircuitBreaker for AdvancedCircuitBreaker {
                 .record_request_completed(self.id.clone(), Duration::ZERO, false);
 
         // Check for state transitions
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         match *state {
             CircuitBreakerState::Closed => {
                 drop(state); // Release read lock
@@ -501,7 +501,7 @@ impl CircuitBreaker for AdvancedCircuitBreaker {
     }
 
     fn get_state(&self) -> CircuitBreakerState {
-        *self.state.read().unwrap()
+        *self.state.read().unwrap_or_else(|e| e.into_inner())
     }
 
     fn get_stats(&self) -> CircuitBreakerStats {
@@ -618,7 +618,7 @@ mod tests {
             .failure_threshold(5)
             .timeout(Duration::from_millis(100))
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(breaker.name(), "test");
         assert_eq!(breaker.get_state(), CircuitBreakerState::Closed);
@@ -630,11 +630,11 @@ mod tests {
             .failure_threshold(5)
             .timeout(Duration::from_millis(100))
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         let result = breaker.execute(|| Ok::<i32, CircuitBreakerError>(42));
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.unwrap_or_default(), 42);
     }
 
     #[test]
@@ -643,7 +643,7 @@ mod tests {
             .failure_threshold(5)
             .timeout(Duration::from_millis(100))
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         let result = breaker
             .execute(|| Err::<i32, CircuitBreakerError>(CircuitBreakerError::ServiceUnavailable));
@@ -656,7 +656,7 @@ mod tests {
             .failure_threshold(3)
             .timeout(Duration::from_millis(100))
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         // Record enough failures to trip the circuit
         for _ in 0..5 {

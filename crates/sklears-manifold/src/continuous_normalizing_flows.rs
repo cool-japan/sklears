@@ -21,9 +21,9 @@ use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
+use scirs2_core::RngExt;
 use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -305,7 +305,10 @@ impl ContinuousNormalizingFlow<Untrained> {
         // Hidden layers
         for &hidden_dim in &self.hidden_dims {
             let weight = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
-                rng.sample::<f64, _>(Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).unwrap())
+                rng.sample::<f64, _>(
+                    Normal::new(0.0, (2.0 / prev_dim as f64).sqrt())
+                        .expect("operation should succeed"),
+                )
             });
             let bias = Array1::zeros(hidden_dim);
             weights.push(weight);
@@ -315,7 +318,9 @@ impl ContinuousNormalizingFlow<Untrained> {
 
         // Output layer (maps back to total dimension)
         let output_weight = Array2::from_shape_fn((prev_dim, total_dim), |_| {
-            rng.sample::<f64, _>(Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).unwrap())
+            rng.sample::<f64, _>(
+                Normal::new(0.0, (2.0 / prev_dim as f64).sqrt()).expect("operation should succeed"),
+            )
         });
         let output_bias = Array1::zeros(total_dim);
         weights.push(output_weight);
@@ -379,7 +384,8 @@ impl ContinuousNormalizingFlow<Untrained> {
         let mut rng = thread_rng();
         for i in 0..n_samples {
             for j in n_features..(n_features + self.augment_dim) {
-                augmented[[i, j]] = rng.sample::<f64, _>(Normal::new(0.0, 0.01).unwrap());
+                augmented[[i, j]] =
+                    rng.sample::<f64, _>(Normal::new(0.0, 0.01).expect("operation should succeed"));
             }
         }
 
@@ -519,8 +525,10 @@ impl Fit<ArrayView2<'_, Float>, ()> for ContinuousNormalizingFlow<Untrained> {
             let mut rng = thread_rng();
             for weight in weights.iter_mut() {
                 for elem in weight.iter_mut() {
-                    *elem +=
-                        rng.sample::<f64, _>(Normal::new(0.0, self.learning_rate * 0.01).unwrap());
+                    *elem += rng.sample::<f64, _>(
+                        Normal::new(0.0, self.learning_rate * 0.01)
+                            .expect("operation should succeed"),
+                    );
                 }
             }
         }
@@ -722,7 +730,8 @@ impl ContinuousNormalizingFlow<CNFTrained> {
         let mut rng = thread_rng();
         for i in 0..n_samples {
             for j in n_features..(n_features + self.augment_dim) {
-                augmented[[i, j]] = rng.sample::<f64, _>(Normal::new(0.0, 0.01).unwrap());
+                augmented[[i, j]] =
+                    rng.sample::<f64, _>(Normal::new(0.0, 0.01).expect("operation should succeed"));
             }
         }
 

@@ -121,7 +121,9 @@ impl GeometricMedian {
         let mut median = if let Some(ref init) = self.config.initial_point {
             init.clone()
         } else {
-            points.mean_axis(Axis(0)).unwrap()
+            points
+                .mean_axis(Axis(0))
+                .expect("mean_axis requires non-empty array")
         };
 
         let mut converged = false;

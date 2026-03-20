@@ -8,7 +8,6 @@
 use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -312,7 +311,7 @@ impl GeographicMixture<Untrained> {
         let mut rng = thread_rng();
 
         // Choose first center randomly
-        let first_idx = rng.gen_range(0..n_samples);
+        let first_idx = rng.random_range(0..n_samples);
         for j in 0..n_features {
             means[[0, j]] = features[[first_idx, j]];
         }
@@ -339,7 +338,7 @@ impl GeographicMixture<Untrained> {
 
             // Choose next center proportionally to squared distance
             let total_dist: f64 = distances.iter().map(|d| d * d).sum();
-            let threshold = rng.gen::<f64>() * total_dist;
+            let threshold = rng.random::<f64>() * total_dist;
             let mut cumulative = 0.0;
             let mut chosen_idx = 0;
 
@@ -645,7 +644,9 @@ mod tests {
             .build();
 
         let X = array![[0.0, 0.0, 1.0], [1.0, 1.0, 2.0], [2.0, 2.0, 3.0]];
-        let features = gmm.extract_geographic_features(&X).unwrap();
+        let features = gmm
+            .extract_geographic_features(&X)
+            .expect("operation should succeed");
 
         // Original features (3) + elevation (1) + distance to 2 landmarks (2) = 6 features
         assert_eq!(features.ncols(), 6);
@@ -669,7 +670,7 @@ mod tests {
 
         let (new_weights, new_means) = gmm
             .initialize_geographic_parameters(&features, weights, means)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(new_weights.len(), 2);
         assert_eq!(new_means.dim(), (2, 2));

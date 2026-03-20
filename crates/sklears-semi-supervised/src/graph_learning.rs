@@ -143,7 +143,7 @@ impl GraphStructureLearning<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(j, dist) in distances.iter().take(k) {
                 let weight = (-dist / (2.0 * 1.0_f64.powi(2))).exp();
@@ -462,8 +462,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
             let max_idx = distributions
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
 
             predictions[i] = self.state.classes[max_idx];
@@ -801,8 +801,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
             let max_idx = distributions
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
 
             predictions[i] = self.state.classes[max_idx];
@@ -1133,7 +1133,7 @@ impl DistributedGraphLearning<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(j, dist) in distances.iter().take(k) {
                 let weight = (-dist / (2.0 * 1.0_f64.powi(2))).exp();
@@ -1386,8 +1386,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
             let max_idx = distributions
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
 
             predictions[i] = self.state.classes[max_idx];
@@ -1462,12 +1462,16 @@ mod tests {
             .lambda_sparse(0.1)
             .beta_smoothness(1.0)
             .max_iter(20);
-        let fitted = gsl.fit(&X.view(), &y.view()).unwrap();
+        let fitted = gsl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
 
         // Check that learned graph is sparse
@@ -1491,12 +1495,16 @@ mod tests {
             .lambda_sparse(0.1)
             .robust_metric("huber".to_string())
             .max_iter(20);
-        let fitted = rgl.fit(&X.view(), &y.view()).unwrap();
+        let fitted = rgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -1545,7 +1553,9 @@ mod tests {
             .enforce_symmetry(true)
             .max_iter(5) // Reduced iterations for more stable test
             .lambda_sparse(0.01); // Reduced sparsity for better convergence
-        let fitted = gsl.fit(&X.view(), &y.view()).unwrap();
+        let fitted = gsl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         let W = &fitted.state.learned_graph;
         let n = W.nrows();
@@ -1597,12 +1607,16 @@ mod tests {
             .lambda_sparse(0.05)
             .communication_rounds(5)
             .partition_strategy("spectral".to_string());
-        let fitted = dgl.fit(&X.view(), &y.view()).unwrap();
+        let fitted = dgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 8);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (8, 2));
 
         // Check that we have learned a global graph
@@ -1668,8 +1682,12 @@ mod tests {
         let y_sub1 = dgl.extract_sublabels(&y, &partitions[0]);
         let y_sub2 = dgl.extract_sublabels(&y, &partitions[1]);
 
-        let graph1 = dgl.learn_local_graph(&X_sub1, &y_sub1).unwrap();
-        let graph2 = dgl.learn_local_graph(&X_sub2, &y_sub2).unwrap();
+        let graph1 = dgl
+            .learn_local_graph(&X_sub1, &y_sub1)
+            .expect("operation should succeed");
+        let graph2 = dgl
+            .learn_local_graph(&X_sub2, &y_sub2)
+            .expect("operation should succeed");
 
         let local_graphs = vec![graph1, graph2];
         let updated_graphs = dgl.communicate_boundaries(&local_graphs, &partitions);

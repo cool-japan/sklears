@@ -896,7 +896,7 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 1.0, 4.0, 5.0, 5.0, 4.0, 6.0, 6.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array2::from_shape_vec(
             (6, 3),
@@ -905,7 +905,7 @@ mod tests {
                 1.0, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         (X_var, y)
     }
@@ -923,13 +923,15 @@ mod tests {
         assert!(br_svm.fit(&X, &y).is_ok());
 
         // Test prediction
-        let pred = br_svm.predict(&X).unwrap();
+        let pred = br_svm.predict(&X).expect("prediction should succeed");
         assert_eq!(pred.labels.dim(), (6, 3));
         assert_eq!(pred.scores.dim(), (6, 3));
         assert_eq!(pred.label_names.len(), 3);
 
         // Test predict_proba
-        let proba = br_svm.predict_proba(&X).unwrap();
+        let proba = br_svm
+            .predict_proba(&X)
+            .expect("probability prediction should succeed");
         assert_eq!(proba.dim(), (6, 3));
 
         // Check that probabilities are in [0, 1]
@@ -951,7 +953,7 @@ mod tests {
         assert!(cc_svm.fit(&X, &y).is_ok());
 
         // Test prediction
-        let pred = cc_svm.predict(&X).unwrap();
+        let pred = cc_svm.predict(&X).expect("prediction should succeed");
         assert_eq!(pred.labels.dim(), (6, 3));
         assert_eq!(pred.scores.dim(), (6, 3));
         assert_eq!(pred.label_names.len(), 3);
@@ -970,7 +972,7 @@ mod tests {
         assert!(lp_svm.fit(&X, &y).is_ok());
 
         // Test prediction
-        let pred = lp_svm.predict(&X).unwrap();
+        let pred = lp_svm.predict(&X).expect("prediction should succeed");
         assert_eq!(pred.labels.dim(), (6, 3));
         assert_eq!(pred.scores.dim(), (6, 3));
         assert_eq!(pred.label_names.len(), 3);

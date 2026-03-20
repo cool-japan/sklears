@@ -288,7 +288,7 @@ mod tests {
     fn test_mean_gamma_deviance() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let deviance = mean_gamma_deviance(&y_true, &y_pred).unwrap();
+        let deviance = mean_gamma_deviance(&y_true, &y_pred).expect("operation should succeed");
         assert!((deviance - 0.0).abs() < f64::EPSILON);
     }
 
@@ -296,7 +296,7 @@ mod tests {
     fn test_mean_poisson_deviance() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let deviance = mean_poisson_deviance(&y_true, &y_pred).unwrap();
+        let deviance = mean_poisson_deviance(&y_true, &y_pred).expect("operation should succeed");
         assert!((deviance - 0.0).abs() < f64::EPSILON);
     }
 
@@ -304,7 +304,8 @@ mod tests {
     fn test_mean_tweedie_deviance_power_0() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9];
-        let deviance = mean_tweedie_deviance(&y_true, &y_pred, 0.0).unwrap();
+        let deviance =
+            mean_tweedie_deviance(&y_true, &y_pred, 0.0).expect("operation should succeed");
         assert!(deviance > 0.0);
     }
 
@@ -312,7 +313,8 @@ mod tests {
     fn test_mean_tweedie_deviance_power_1() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let deviance = mean_tweedie_deviance(&y_true, &y_pred, 1.0).unwrap();
+        let deviance =
+            mean_tweedie_deviance(&y_true, &y_pred, 1.0).expect("operation should succeed");
         assert!((deviance - 0.0).abs() < f64::EPSILON);
     }
 
@@ -320,7 +322,8 @@ mod tests {
     fn test_mean_tweedie_deviance_power_2() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let deviance = mean_tweedie_deviance(&y_true, &y_pred, 2.0).unwrap();
+        let deviance =
+            mean_tweedie_deviance(&y_true, &y_pred, 2.0).expect("operation should succeed");
         assert!((deviance - 0.0).abs() < f64::EPSILON);
     }
 
@@ -328,7 +331,8 @@ mod tests {
     fn test_negative_log_likelihood_normal() {
         let y_true = array![0.0, 1.0, -1.0];
         let y_pred = array![0.1, 0.9, -0.9];
-        let nll = negative_log_likelihood(&y_true, &y_pred, "normal").unwrap();
+        let nll =
+            negative_log_likelihood(&y_true, &y_pred, "normal").expect("operation should succeed");
         assert!(nll > 0.0);
     }
 
@@ -336,7 +340,7 @@ mod tests {
     fn test_kullback_leibler_divergence() {
         let p = array![0.5, 0.3, 0.2];
         let q = array![0.4, 0.4, 0.2];
-        let kl = kullback_leibler_divergence(&p, &q).unwrap();
+        let kl = kullback_leibler_divergence(&p, &q).expect("operation should succeed");
         assert!(kl >= 0.0);
     }
 

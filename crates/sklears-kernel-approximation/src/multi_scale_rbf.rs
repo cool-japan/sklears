@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -269,7 +269,7 @@ impl MultiScaleRBFSampler<Untrained> {
         }
 
         // Sort distances
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Use percentiles to determine scales
         let mut gammas = Vec::with_capacity(self.n_scales);
@@ -318,7 +318,7 @@ impl Fit<Array2<Float>, ()> for MultiScaleRBFSampler<Untrained> {
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Compute gamma values for each scale
@@ -347,8 +347,10 @@ impl Fit<Array2<Float>, ()> for MultiScaleRBFSampler<Untrained> {
             // Generate random offsets ~ Uniform[0, 2π]
             let mut offsets = Array1::zeros(self.n_components_per_scale);
             for i in 0..self.n_components_per_scale {
-                offsets[i] = rng
-                    .sample::<Float, _>(RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap());
+                offsets[i] = rng.sample::<Float, _>(
+                    RandUniform::new(0.0, 2.0 * std::f64::consts::PI)
+                        .expect("operation should succeed"),
+                );
             }
 
             random_weights.push(weights);
@@ -598,8 +600,8 @@ mod tests {
             .combination_strategy(CombinationStrategy::Concatenation)
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         // Concatenation should give 3 scales * 10 components = 30 features
         assert_eq!(features.shape(), &[3, 30]);
@@ -628,8 +630,8 @@ mod tests {
                 .bandwidth_strategy(*strategy)
                 .random_state(42);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.shape(), &[2, 15]); // 3 scales * 5 components
         }
@@ -653,8 +655,8 @@ mod tests {
                 .combination_strategy(*strategy)
                 .random_state(42);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.shape(), &[3, *expected_features]);
         }
@@ -669,11 +671,14 @@ mod tests {
             .manual_gammas(manual_gammas.clone())
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 24]); // 3 scales * 8 components
-        assert_eq!(fitted.gammas_.as_ref().unwrap(), &manual_gammas);
+        assert_eq!(
+            fitted.gammas_.as_ref().expect("operation should succeed"),
+            &manual_gammas
+        );
     }
 
     #[test]
@@ -687,8 +692,8 @@ mod tests {
             .scale_weights(weights.clone())
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 10]);
     }
@@ -709,11 +714,11 @@ mod tests {
             .combination_strategy(CombinationStrategy::Concatenation)
             .random_state(123);
 
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
 
-        let features1 = fitted1.transform(&x).unwrap();
-        let features2 = fitted2.transform(&x).unwrap();
+        let features1 = fitted1.transform(&x).expect("operation should succeed");
+        let features2 = fitted2.transform(&x).expect("operation should succeed");
 
         for (f1, f2) in features1.iter().zip(features2.iter()) {
             assert_abs_diff_eq!(f1, f2, epsilon = 1e-10);
@@ -736,13 +741,13 @@ mod tests {
             .bandwidth_strategy(BandwidthStrategy::Adaptive)
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[6, 45]); // 3 scales * 15 components
 
         // Check that adaptive gammas were computed
-        let gammas = fitted.gammas_.as_ref().unwrap();
+        let gammas = fitted.gammas_.as_ref().expect("operation should succeed");
         assert_eq!(gammas.len(), 3);
         assert!(gammas.iter().all(|&g| g > 0.0));
     }
@@ -763,7 +768,9 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
-        let fitted = sampler.fit(&x_train, &()).unwrap();
+        let fitted = sampler
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         assert!(fitted.transform(&x_test).is_err());
     }
 
@@ -776,12 +783,12 @@ mod tests {
             .gamma_range(1.0, 1.0)
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 15]);
 
-        let gammas = fitted.gammas_.as_ref().unwrap();
+        let gammas = fitted.gammas_.as_ref().expect("operation should succeed");
         assert_eq!(gammas.len(), 1);
     }
 
@@ -797,7 +804,9 @@ mod tests {
         let log_sampler = sampler
             .clone()
             .bandwidth_strategy(BandwidthStrategy::LogarithmicSpacing);
-        let log_gammas = log_sampler.compute_gammas(&x).unwrap();
+        let log_gammas = log_sampler
+            .compute_gammas(&x)
+            .expect("operation should succeed");
         assert_eq!(log_gammas.len(), 4);
         assert_abs_diff_eq!(log_gammas[0], 0.1, epsilon = 1e-10);
         assert_abs_diff_eq!(log_gammas[3], 10.0, epsilon = 1e-10);
@@ -806,7 +815,9 @@ mod tests {
         let lin_sampler = sampler
             .clone()
             .bandwidth_strategy(BandwidthStrategy::LinearSpacing);
-        let lin_gammas = lin_sampler.compute_gammas(&x).unwrap();
+        let lin_gammas = lin_sampler
+            .compute_gammas(&x)
+            .expect("operation should succeed");
         assert_eq!(lin_gammas.len(), 4);
         assert_abs_diff_eq!(lin_gammas[0], 0.1, epsilon = 1e-10);
         assert_abs_diff_eq!(lin_gammas[3], 10.0, epsilon = 1e-10);
@@ -815,7 +826,9 @@ mod tests {
         let geo_sampler = sampler
             .clone()
             .bandwidth_strategy(BandwidthStrategy::GeometricProgression);
-        let geo_gammas = geo_sampler.compute_gammas(&x).unwrap();
+        let geo_gammas = geo_sampler
+            .compute_gammas(&x)
+            .expect("operation should succeed");
         assert_eq!(geo_gammas.len(), 4);
         assert_abs_diff_eq!(geo_gammas[0], 0.1, epsilon = 1e-10);
         assert_abs_diff_eq!(geo_gammas[3], 10.0, epsilon = 1e-10);

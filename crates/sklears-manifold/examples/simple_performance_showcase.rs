@@ -34,18 +34,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let embedding = match *method {
             "tsne" => {
                 let tsne = TSNE::new().n_components(2).perplexity(30.0).n_iter(250);
-                let fitted = tsne.fit(&data.view(), &()).unwrap();
-                fitted.transform(&data.view()).unwrap()
+                let fitted = tsne
+                    .fit(&data.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&data.view())
+                    .expect("operation should succeed")
             }
             "umap" => {
                 let umap = UMAP::new().n_components(2).n_neighbors(15).min_dist(0.1);
-                let fitted = umap.fit(&data.view(), &()).unwrap();
-                fitted.transform(&data.view()).unwrap()
+                let fitted = umap
+                    .fit(&data.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&data.view())
+                    .expect("operation should succeed")
             }
             "isomap" => {
                 let isomap = Isomap::new().n_components(2).n_neighbors(10);
-                let fitted = isomap.fit(&data.view(), &()).unwrap();
-                fitted.transform(&data.view()).unwrap()
+                let fitted = isomap
+                    .fit(&data.view(), &())
+                    .expect("operation should succeed");
+                fitted
+                    .transform(&data.view())
+                    .expect("operation should succeed")
             }
             _ => unreachable!(),
         };
@@ -74,8 +86,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Quick t-SNE test
         let start = Instant::now();
         let tsne = TSNE::new().n_components(2).perplexity(20.0).n_iter(100);
-        let fitted = tsne.fit(&test_data.view(), &()).unwrap();
-        let _embedding = fitted.transform(&test_data.view()).unwrap();
+        let fitted = tsne
+            .fit(&test_data.view(), &())
+            .expect("operation should succeed");
+        let _embedding = fitted
+            .transform(&test_data.view())
+            .expect("operation should succeed");
         let elapsed = start.elapsed();
 
         println!(
@@ -112,7 +128,7 @@ fn calculate_local_preservation(original: &Array2<f64>, embedding: &Array2<f64>,
                 orig_distances.push((dist_sq.sqrt(), j));
             }
         }
-        orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let orig_neighbors: Vec<usize> =
             orig_distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
@@ -128,7 +144,7 @@ fn calculate_local_preservation(original: &Array2<f64>, embedding: &Array2<f64>,
                 emb_distances.push((dist_sq.sqrt(), j));
             }
         }
-        emb_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        emb_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let emb_neighbors: Vec<usize> = emb_distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
         // Calculate overlap
@@ -160,7 +176,7 @@ mod tests {
                 1.0, 1.0, // Point 3
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Perfect preservation (same layout)
         let preservation = calculate_local_preservation(&original, &original, 2);
@@ -168,7 +184,8 @@ mod tests {
 
         // Random embedding (should have lower preservation)
         let random_embedding =
-            Array2::from_shape_vec((4, 2), vec![3.0, 1.0, 1.0, 3.0, 2.0, 2.0, 0.0, 0.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![3.0, 1.0, 1.0, 3.0, 2.0, 2.0, 0.0, 0.0])
+                .expect("operation should succeed");
 
         let random_preservation = calculate_local_preservation(&original, &random_embedding, 2);
         assert!(random_preservation < 1.0);

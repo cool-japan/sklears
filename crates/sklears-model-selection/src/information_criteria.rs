@@ -111,7 +111,7 @@ impl ModelComparisonResult {
             .map(|(i, name)| (i, name.as_str(), self.results[i].value))
             .collect();
 
-        ranking.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        ranking.sort_by(|a, b| a.2.partial_cmp(&b.2).expect("operation should succeed"));
         ranking
     }
 
@@ -285,7 +285,7 @@ impl InformationCriterionCalculator {
             lppd += log_mean_likelihood;
 
             // Variance of log-likelihoods for data point j
-            let mean_log_likelihood = column.mean().unwrap();
+            let mean_log_likelihood = column.mean().expect("operation should succeed");
             let variance = column
                 .iter()
                 .map(|&x| (x - mean_log_likelihood).powi(2))
@@ -328,7 +328,7 @@ impl InformationCriterionCalculator {
 
         for j in 0..n_data {
             let column = pointwise_log_likelihoods.column(j);
-            let log_likes = column.as_slice().unwrap();
+            let log_likes = column.as_slice().expect("operation should succeed");
 
             // Check Pareto k diagnostic if available
             if let Some(k_values) = pareto_k_diagnostics {
@@ -430,9 +430,13 @@ impl InformationCriterionCalculator {
         let best_idx = results
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.value.partial_cmp(&b.value).unwrap())
+            .min_by(|(_, a), (_, b)| {
+                a.value
+                    .partial_cmp(&b.value)
+                    .expect("operation should succeed")
+            })
             .map(|(i, _)| i)
-            .unwrap();
+            .expect("operation should succeed");
 
         let best_value = results[best_idx].value;
 
@@ -448,7 +452,7 @@ impl InformationCriterionCalculator {
 
         // Evidence ratio (best vs second best)
         let mut sorted_deltas = delta_values.clone();
-        sorted_deltas.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_deltas.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let evidence_ratio = if sorted_deltas.len() > 1 {
             (-0.5 * sorted_deltas[1]).exp()
         } else {
@@ -599,7 +603,9 @@ mod tests {
     #[test]
     fn test_aicc_calculation() {
         let calculator = InformationCriterionCalculator::new();
-        let result = calculator.aicc(-100.0, 5, 20).unwrap();
+        let result = calculator
+            .aicc(-100.0, 5, 20)
+            .expect("operation should succeed");
 
         assert_eq!(result.criterion_name, "AICc");
         assert!(result.value > 210.0); // Should be higher than AIC due to correction
@@ -625,7 +631,7 @@ mod tests {
 
         let result = calculator
             .compare_models(&models, InformationCriterion::AIC)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.model_names.len(), 3);
         assert_eq!(result.best_model(), "Model1"); // Best log-likelihood with fewest parameters
@@ -654,7 +660,9 @@ mod tests {
             [-0.9, -1.1, -1.1, -0.9, -1.1]
         ];
 
-        let result = calculator.waic(&pointwise_ll).unwrap();
+        let result = calculator
+            .waic(&pointwise_ll)
+            .expect("operation should succeed");
         assert_eq!(result.criterion_name, "WAIC");
         assert!(result.effective_parameters.is_some());
     }
@@ -670,7 +678,7 @@ mod tests {
         let calculator = InformationCriterionCalculator::new();
         let result = calculator
             .compare_models(&models, InformationCriterion::AIC)
-            .unwrap();
+            .expect("operation should succeed");
         let ranking = result.model_ranking();
 
         assert_eq!(ranking[0].1, "ModelB"); // Best model
@@ -690,7 +698,7 @@ mod tests {
 
         let averaged = calculator
             .model_averaged_prediction(&predictions, &weights)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(averaged.len(), 3);
 
         // Check weighted average

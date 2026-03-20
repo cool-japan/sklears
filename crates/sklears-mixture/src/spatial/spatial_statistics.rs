@@ -617,7 +617,8 @@ mod tests {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [1.0, 1.0]];
         let constraint = SpatialConstraint::Distance { radius: 1.5 };
 
-        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint).unwrap();
+        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint)
+            .expect("operation should succeed");
         assert_eq!(analyzer.coords.nrows(), 4);
         assert_eq!(analyzer.spatial_weights.dim(), (4, 4));
     }
@@ -626,10 +627,13 @@ mod tests {
     fn test_morans_i_calculation() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]];
         let constraint = SpatialConstraint::Distance { radius: 1.5 };
-        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint).unwrap();
+        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint)
+            .expect("operation should succeed");
 
         let values = array![1.0, 1.0, 0.0]; // Spatially autocorrelated
-        let morans_i = analyzer.morans_i(&values).unwrap();
+        let morans_i = analyzer
+            .morans_i(&values)
+            .expect("operation should succeed");
 
         assert!(morans_i.statistic.is_finite());
         assert!(morans_i.z_score.is_finite());
@@ -640,10 +644,13 @@ mod tests {
     fn test_gearys_c_calculation() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]];
         let constraint = SpatialConstraint::Distance { radius: 1.5 };
-        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint).unwrap();
+        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint)
+            .expect("operation should succeed");
 
         let values = array![1.0, 1.0, 0.0];
-        let gearys_c = analyzer.gearys_c(&values).unwrap();
+        let gearys_c = analyzer
+            .gearys_c(&values)
+            .expect("operation should succeed");
 
         assert!(gearys_c.statistic.is_finite());
         assert!(gearys_c.z_score.is_finite());
@@ -654,10 +661,13 @@ mod tests {
     fn test_local_indicators() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [0.0, 1.0]];
         let constraint = SpatialConstraint::Distance { radius: 1.5 };
-        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint).unwrap();
+        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint)
+            .expect("operation should succeed");
 
         let values = array![1.0, 1.0, 0.0, 1.0];
-        let lisa = analyzer.local_indicators(&values).unwrap();
+        let lisa = analyzer
+            .local_indicators(&values)
+            .expect("operation should succeed");
 
         assert_eq!(lisa.local_morans_i.len(), 4);
         assert_eq!(lisa.local_z_scores.len(), 4);
@@ -682,7 +692,8 @@ mod tests {
         let coords = array![[0.0, 0.0], [0.1, 0.1], [5.0, 5.0], [5.1, 5.1]];
         let assignments = array![0, 0, 1, 1]; // Two well-separated clusters
 
-        let quality = SpatialClusteringQuality::assess(&coords, &assignments, 2).unwrap();
+        let quality = SpatialClusteringQuality::assess(&coords, &assignments, 2)
+            .expect("operation should succeed");
 
         assert!(quality.silhouette_score.is_finite());
         assert!(quality.spatial_separation > 0.0);
@@ -697,10 +708,13 @@ mod tests {
     fn test_mixture_assignments_analysis() {
         let coords = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [0.0, 1.0]];
         let constraint = SpatialConstraint::Adjacency;
-        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint).unwrap();
+        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint)
+            .expect("operation should succeed");
 
         let assignments = array![0, 0, 1, 1];
-        let (morans_i, gearys_c) = analyzer.analyze_mixture_assignments(&assignments).unwrap();
+        let (morans_i, gearys_c) = analyzer
+            .analyze_mixture_assignments(&assignments)
+            .expect("operation should succeed");
 
         assert!(morans_i.statistic.is_finite());
         assert!(gearys_c.statistic.is_finite());
@@ -710,7 +724,8 @@ mod tests {
     fn test_standard_normal_cdf() {
         let coords = array![[0.0, 0.0]];
         let constraint = SpatialConstraint::Distance { radius: 1.0 };
-        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint).unwrap();
+        let analyzer = SpatialAutocorrelationAnalyzer::new(coords, constraint)
+            .expect("operation should succeed");
 
         // Test some known values
         let cdf_0 = analyzer.standard_normal_cdf(0.0);

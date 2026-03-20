@@ -742,7 +742,9 @@ mod tests {
             .n_bootstrap(10)
             .stability_threshold(0.3);
 
-        let fitted = stability_selector.fit(&x, &y).unwrap();
+        let fitted = stability_selector
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         assert!(fitted.n_selected_features() > 0);
         assert!(fitted.n_selected_features() <= 4);
@@ -763,8 +765,10 @@ mod tests {
             .n_bootstrap(5)
             .stability_threshold(0.2);
 
-        let fitted = stability_selector.fit(&x, &y).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = stability_selector
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(x_transformed.nrows(), 4);
         assert!(x_transformed.ncols() <= 5);
@@ -788,7 +792,9 @@ mod tests {
                 .n_bootstrap(5)
                 .stability_threshold(0.2);
 
-            let fitted = stability_selector.fit(&x, &y).unwrap();
+            let fitted = stability_selector
+                .fit(&x, &y)
+                .expect("model fitting should succeed");
             assert!(fitted.n_selected_features() > 0);
         }
     }
@@ -807,7 +813,9 @@ mod tests {
             .n_bootstrap(10)
             .stability_threshold(0.3);
 
-        let fitted = stability_selector.fit(&x, &y).unwrap();
+        let fitted = stability_selector
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Check that stability scores are between 0 and 1
         for stability in fitted.feature_stabilities() {
@@ -831,7 +839,9 @@ mod tests {
             .stability_threshold(0.1) // Low threshold to select many features
             .max_features(Some(2));
 
-        let fitted = stability_selector.fit(&x, &y).unwrap();
+        let fitted = stability_selector
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         assert!(fitted.n_selected_features() <= 2);
     }
 
@@ -850,7 +860,9 @@ mod tests {
             .stability_threshold(0.9) // High threshold to select few features
             .min_features(2);
 
-        let fitted = stability_selector.fit(&x, &y).unwrap();
+        let fitted = stability_selector
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         assert!(fitted.n_selected_features() >= 2);
     }
 
@@ -868,7 +880,9 @@ mod tests {
             .n_bootstrap(5)
             .stability_threshold(0.3);
 
-        let fitted = stability_selector.fit(&x, &y).unwrap();
+        let fitted = stability_selector
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         let support = fitted.support();
 
         assert_eq!(support.len(), 4);

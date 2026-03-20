@@ -653,7 +653,7 @@ impl QualityTimeSeries {
         let std_dev = variance.sqrt();
 
         let mut sorted_values = values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let min = sorted_values[0];
         let max = sorted_values[count - 1];
@@ -978,8 +978,8 @@ fn calculate_trend(points: &[(f64, f64)]) -> Option<QualityTrend> {
     };
 
     // Calculate time period
-    let first_time = points.first().unwrap().0 as i64;
-    let last_time = points.last().unwrap().0 as i64;
+    let first_time = points.first().expect("operation should succeed").0 as i64;
+    let last_time = points.last().expect("operation should succeed").0 as i64;
     let period = Duration::seconds(last_time - first_time);
 
     Some(QualityTrend::new(direction, slope, confidence, period))
@@ -1054,7 +1054,7 @@ mod tests {
         let alert = rule.evaluate(&data_points);
         assert!(alert.is_some());
 
-        let alert = alert.unwrap();
+        let alert = alert.expect("operation should succeed");
         assert_eq!(alert.quality_level, QualityLevel::Critical);
     }
 
@@ -1076,7 +1076,7 @@ mod tests {
         let stats = time_series.calculate_statistics(Duration::hours(1));
         assert!(stats.is_some());
 
-        let stats = stats.unwrap();
+        let stats = stats.expect("operation should succeed");
         assert_eq!(stats.count, 10);
         assert_eq!(stats.min, 0.8);
         assert_eq!(stats.max, 0.89);
@@ -1090,13 +1090,13 @@ mod tests {
         // Record some measurements
         monitor
             .record_measurement(QualityMetric::LocalFidelity, 0.85)
-            .unwrap();
+            .expect("operation should succeed");
         monitor
             .record_measurement(QualityMetric::LocalFidelity, 0.87)
-            .unwrap();
+            .expect("operation should succeed");
         monitor
             .record_measurement(QualityMetric::LocalFidelity, 0.82)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(
             monitor.get_current_value(&QualityMetric::LocalFidelity),
@@ -1115,7 +1115,7 @@ mod tests {
         // Test improving trend
         let points = vec![(0.0, 0.7), (1.0, 0.75), (2.0, 0.8), (3.0, 0.85), (4.0, 0.9)];
 
-        let trend = calculate_trend(&points).unwrap();
+        let trend = calculate_trend(&points).expect("operation should succeed");
         assert_eq!(trend.direction, QualityTrendDirection::Improving);
         assert!(trend.slope > 0.0);
         assert!(trend.confidence > 0.9); // Strong correlation
@@ -1123,7 +1123,7 @@ mod tests {
         // Test degrading trend
         let points = vec![(0.0, 0.9), (1.0, 0.85), (2.0, 0.8), (3.0, 0.75), (4.0, 0.7)];
 
-        let trend = calculate_trend(&points).unwrap();
+        let trend = calculate_trend(&points).expect("operation should succeed");
         assert_eq!(trend.direction, QualityTrendDirection::Degrading);
         assert!(trend.slope < 0.0);
     }

@@ -360,9 +360,9 @@ impl StackedAutoencoders {
         for i in 0..self.layer_sizes.len() - 1 {
             let layer = AutoencoderLayer::new(self.layer_sizes[i], self.layer_sizes[i + 1])
                 .learning_rate(self.learning_rate)
-                .unwrap()
+                .expect("operation should succeed")
                 .epochs(self.pretrain_epochs)
-                .unwrap()
+                .expect("operation should succeed")
                 .noise_factor(self.noise_factor);
             self.layers.push(layer);
         }
@@ -456,7 +456,7 @@ impl StackedAutoencoders {
         self.n_classes = classes.len();
 
         // Initialize classifier weights
-        let hidden_size = self.layer_sizes.last().unwrap();
+        let hidden_size = self.layer_sizes.last().expect("operation should succeed");
         let mut rng = match self.random_state {
             Some(seed) => Random::seed(seed),
             None => Random::seed(42),
@@ -540,9 +540,9 @@ impl StackedAutoencoders {
         let predictions = probabilities.map_axis(Axis(1), |row| {
             row.iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx as i32)
-                .unwrap()
+                .expect("operation should succeed")
         });
         Ok(predictions)
     }
@@ -606,9 +606,9 @@ mod tests {
     fn test_autoencoder_layer_fit_transform() {
         let mut layer = AutoencoderLayer::new(4, 2)
             .learning_rate(0.01)
-            .unwrap()
+            .expect("operation should succeed")
             .epochs(50)
-            .unwrap();
+            .expect("operation should succeed");
 
         let X = array![
             [1.0, 0.0, 1.0, 0.0],
@@ -617,13 +617,19 @@ mod tests {
             [0.0, 0.0, 1.0, 1.0]
         ];
 
-        layer.fit(&X.view(), Some(42)).unwrap();
+        layer
+            .fit(&X.view(), Some(42))
+            .expect("operation should succeed");
         assert!(layer.is_trained);
 
-        let encoded = layer.transform(&X.view()).unwrap();
+        let encoded = layer
+            .transform(&X.view())
+            .expect("operation should succeed");
         assert_eq!(encoded.dim(), (4, 2));
 
-        let reconstructed = layer.reconstruct(&X.view()).unwrap();
+        let reconstructed = layer
+            .reconstruct(&X.view())
+            .expect("operation should succeed");
         assert_eq!(reconstructed.dim(), (4, 4));
     }
 
@@ -631,13 +637,13 @@ mod tests {
     fn test_stacked_autoencoders_creation() {
         let sae = StackedAutoencoders::new()
             .layer_sizes(vec![4, 3, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .learning_rate(0.01)
-            .unwrap()
+            .expect("operation should succeed")
             .pretrain_epochs(10)
-            .unwrap()
+            .expect("operation should succeed")
             .finetune_epochs(5)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(sae.layer_sizes, vec![4, 3, 2]);
         assert_eq!(sae.learning_rate, 0.01);
@@ -650,9 +656,9 @@ mod tests {
     fn test_stacked_autoencoders_pretrain() {
         let mut sae = StackedAutoencoders::new()
             .layer_sizes(vec![4, 3, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .pretrain_epochs(5)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
         let X = array![
@@ -662,11 +668,11 @@ mod tests {
             [0.0, 0.0, 1.0, 1.0]
         ];
 
-        sae.pretrain(&X.view()).unwrap();
+        sae.pretrain(&X.view()).expect("operation should succeed");
         assert!(sae.is_pretrained);
         assert_eq!(sae.layers.len(), 2); // 4->3 and 3->2
 
-        let features = sae.transform(&X.view()).unwrap();
+        let features = sae.transform(&X.view()).expect("operation should succeed");
         assert_eq!(features.dim(), (4, 2));
     }
 
@@ -675,11 +681,11 @@ mod tests {
     fn test_stacked_autoencoders_fit_predict() {
         let sae = StackedAutoencoders::new()
             .layer_sizes(vec![4, 3, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .pretrain_epochs(5)
-            .unwrap()
+            .expect("operation should succeed")
             .finetune_epochs(3)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
         let X = array![
@@ -692,12 +698,17 @@ mod tests {
         ];
         let y = array![0, 1, 0, 1, -1, -1]; // -1 indicates unlabeled
 
-        let fitted = sae.fit(&X.view(), &y.view()).unwrap();
+        let fitted = sae
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = fitted.model.predict_proba(&X.view()).unwrap();
+        let probabilities = fitted
+            .model
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -722,11 +733,11 @@ mod tests {
     fn test_stacked_autoencoders_insufficient_labeled_samples() {
         let sae = StackedAutoencoders::new()
             .layer_sizes(vec![4, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .pretrain_epochs(2)
-            .unwrap()
+            .expect("operation should succeed")
             .finetune_epochs(2)
-            .unwrap();
+            .expect("operation should succeed");
 
         let X = array![[1.0, 0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 1.0]];
         let y = array![-1, -1]; // All unlabeled
@@ -740,11 +751,11 @@ mod tests {
     fn test_stacked_autoencoders_transform() {
         let sae = StackedAutoencoders::new()
             .layer_sizes(vec![4, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .pretrain_epochs(3)
-            .unwrap()
+            .expect("operation should succeed")
             .finetune_epochs(2)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
         let X = array![
@@ -754,8 +765,12 @@ mod tests {
         ];
         let y = array![0, 1, 0];
 
-        let fitted = sae.fit(&X.view(), &y.view()).unwrap();
-        let features = fitted.transform(&X.view()).unwrap();
+        let fitted = sae
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(features.dim(), (3, 2));
 

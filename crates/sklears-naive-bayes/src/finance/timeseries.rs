@@ -153,9 +153,9 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             *class_counts.entry(label).or_insert(0) += 1;
         }
 
-        let total_samples = T::from(labels.len()).unwrap();
+        let total_samples = T::from(labels.len()).expect("operation should succeed");
         for (&class, &count) in class_counts.iter() {
-            let prior = T::from(count).unwrap() / total_samples;
+            let prior = T::from(count).expect("operation should succeed") / total_samples;
             self.priors.insert(class, prior);
         }
 
@@ -220,21 +220,21 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             variance_volume: self.calculate_variance(&volume_values),
             mean_volume_price_corr: self
                 .calculate_volume_price_correlation(prices, volumes, indices)?,
-            variance_volume_price_corr: T::from(0.01).unwrap(), // Placeholder
+            variance_volume_price_corr: T::from(0.01).expect("operation should succeed"), // Placeholder
         };
 
         let volatility_stats = VolatilityStatistics {
             mean_volatility: self.calculate_mean(&volatilities),
             variance_volatility: self.calculate_variance(&volatilities),
-            mean_garch_alpha: T::from(0.1).unwrap(), // Placeholder
-            mean_garch_beta: T::from(0.8).unwrap(),  // Placeholder
+            mean_garch_alpha: T::from(0.1).expect("operation should succeed"), // Placeholder
+            mean_garch_beta: T::from(0.8).expect("operation should succeed"),  // Placeholder
         };
 
         let technical_stats = TechnicalStatistics {
-            rsi_stats: (T::from(50.0).unwrap(), T::from(100.0).unwrap()),
-            macd_stats: (T::from(0.0).unwrap(), T::from(1.0).unwrap()),
-            bb_stats: (T::from(0.5).unwrap(), T::from(0.1).unwrap()),
-            stoch_stats: (T::from(50.0).unwrap(), T::from(100.0).unwrap()),
+            rsi_stats: (T::from(50.0).expect("operation should succeed"), T::from(100.0).expect("operation should succeed")),
+            macd_stats: (T::from(0.0).expect("operation should succeed"), T::from(1.0).expect("operation should succeed")),
+            bb_stats: (T::from(0.5).expect("operation should succeed"), T::from(0.1).expect("operation should succeed")),
+            stoch_stats: (T::from(50.0).expect("operation should succeed"), T::from(100.0).expect("operation should succeed")),
         };
 
         Ok(FeatureStatistics {
@@ -266,7 +266,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         let volatility = self.calculate_std_dev(&returns);
-        Ok(volatility * T::from(252.0).unwrap().sqrt()) // Annualized volatility
+        Ok(volatility * T::from(252.0).expect("operation should succeed").sqrt()) // Annualized volatility
     }
 
     /// Calculate volume-price correlation
@@ -368,7 +368,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
     fn calculate_rsi(&self, prices: &DMatrix<T>, current_idx: usize) -> Result<T, FinanceError> {
         let period = self.technical_indicators.rsi_period;
         if current_idx < period {
-            return Ok(T::from(50.0).unwrap()); // Neutral RSI
+            return Ok(T::from(50.0).expect("operation should succeed")); // Neutral RSI
         }
 
         let mut gains = Vec::new();
@@ -391,11 +391,11 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         let avg_loss = self.calculate_mean(&losses);
 
         if avg_loss == T::zero() {
-            return Ok(T::from(100.0).unwrap());
+            return Ok(T::from(100.0).expect("operation should succeed"));
         }
 
         let rs = avg_gain / avg_loss;
-        let rsi = T::from(100.0).unwrap() - (T::from(100.0).unwrap() / (T::one() + rs));
+        let rsi = T::from(100.0).expect("operation should succeed") - (T::from(100.0).expect("operation should succeed") / (T::one() + rs));
         Ok(rsi)
     }
 
@@ -427,7 +427,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             ));
         }
 
-        let alpha = T::from(2.0).unwrap() / T::from(period + 1).unwrap();
+        let alpha = T::from(2.0).expect("operation should succeed") / T::from(period + 1).expect("operation should succeed");
         let mut ema = prices[(current_idx - period + 1, 0)];
 
         for i in (current_idx - period + 2)..=current_idx {
@@ -482,9 +482,9 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
 
     /// Gaussian probability density function
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
-        let two_pi = T::from(2.0 * std::f64::consts::PI).unwrap();
+        let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).unwrap() * variance);
+        let exponent = -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 
@@ -494,17 +494,17 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             return T::zero();
         }
         let sum: T = values.iter().sum();
-        sum / T::from(values.len()).unwrap()
+        sum / T::from(values.len()).expect("operation should succeed")
     }
 
     /// Calculate variance of a vector
     fn calculate_variance(&self, values: &[T]) -> T {
         if values.len() < 2 {
-            return T::from(0.01).unwrap(); // Small default variance
+            return T::from(0.01).expect("operation should succeed"); // Small default variance
         }
         let mean = self.calculate_mean(values);
         let sum_squared_diff: T = values.iter().map(|&x| (x - mean).powi(2)).sum();
-        sum_squared_diff / T::from(values.len() - 1).unwrap()
+        sum_squared_diff / T::from(values.len() - 1).expect("operation should succeed")
     }
 
     /// Calculate standard deviation
@@ -560,7 +560,7 @@ impl<T: Float> Default for TechnicalIndicators<T> {
             macd_slow: 26,
             macd_signal: 9,
             bb_period: 20,
-            bb_std_dev: T::from(2.0).unwrap(),
+            bb_std_dev: T::from(2.0).expect("operation should succeed"),
             stoch_k_period: 14,
             stoch_d_period: 3,
         }
@@ -571,7 +571,7 @@ impl<T: Float> Default for VolatilityModels<T> {
     fn default() -> Self {
         Self {
             garch_params: GarchParams::default(),
-            ewma_lambda: T::from(0.94).unwrap(),
+            ewma_lambda: T::from(0.94).expect("operation should succeed"),
             hist_vol_window: 30,
         }
     }
@@ -580,9 +580,9 @@ impl<T: Float> Default for VolatilityModels<T> {
 impl<T: Float> Default for GarchParams<T> {
     fn default() -> Self {
         Self {
-            omega: T::from(0.01).unwrap(),
-            alpha: T::from(0.1).unwrap(),
-            beta: T::from(0.8).unwrap(),
+            omega: T::from(0.01).expect("operation should succeed"),
+            alpha: T::from(0.1).expect("operation should succeed"),
+            beta: T::from(0.8).expect("operation should succeed"),
         }
     }
 }
@@ -599,10 +599,10 @@ mod tests {
 
         // Create sample data
         let prices =
-            Array2::from_shape_vec((20, 1), (0..20).map(|i| 100.0 + i as f64).collect()).unwrap();
+            Array2::from_shape_vec((20, 1), (0..20).map(|i| 100.0 + i as f64).collect()).expect("operation should succeed");
         let volumes =
             Array2::from_shape_vec((20, 1), (0..20).map(|i| 1000.0 + i as f64 * 10.0).collect())
-                .unwrap();
+                .expect("operation should succeed");
         let labels = Array1::from_vec(vec![
             0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1,
         ]);
@@ -612,10 +612,10 @@ mod tests {
 
         // Test prediction
         let test_prices =
-            Array2::from_shape_vec((15, 1), (0..15).map(|i| 120.0 + i as f64).collect()).unwrap();
+            Array2::from_shape_vec((15, 1), (0..15).map(|i| 120.0 + i as f64).collect()).expect("operation should succeed");
         let test_volumes =
             Array2::from_shape_vec((15, 1), (0..15).map(|i| 1200.0 + i as f64 * 10.0).collect())
-                .unwrap();
+                .expect("operation should succeed");
 
         let probabilities = classifier.predict_proba(&test_prices, &test_volumes);
         assert!(probabilities.is_ok());

@@ -538,16 +538,16 @@ mod tests {
             .max_depth(5)
             .criterion(SplitCriterion::MSE)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.n_features(), 1);
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test prediction on new data
         let test_x = array![[1.5]];
-        let test_pred = model.predict(&test_x).unwrap();
+        let test_pred = model.predict(&test_x).expect("prediction should succeed");
         assert!(test_pred.len() == 1);
     }
 
@@ -563,11 +563,11 @@ mod tests {
             .pruning(PruningStrategy::ReducedError)
             .missing_values(MissingValueStrategy::Surrogate)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.n_features(), 1);
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -581,11 +581,11 @@ mod tests {
             .max_depth(3)
             .criterion(SplitCriterion::MAE)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.n_features(), 1);
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -606,11 +606,11 @@ mod tests {
             .growing_strategy(TreeGrowingStrategy::DepthFirst)
             .split_type(SplitType::AxisAligned)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.n_features(), 2);
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 }

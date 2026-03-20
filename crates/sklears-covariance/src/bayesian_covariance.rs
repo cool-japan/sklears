@@ -225,7 +225,10 @@ impl<F: NdFloat + FromPrimitive> BayesianCovarianceFitted<F> {
             let n_samples = samples.len();
             let (n_features, _) = samples[0].dim();
 
-            let lower_percentile = alpha / F::from(2.0).unwrap();
+            let lower_percentile = alpha
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
             let upper_percentile = F::one() - lower_percentile;
 
             let mut lower_bounds = Array2::zeros((n_features, n_features));
@@ -287,13 +290,18 @@ impl<F: NdFloat + FromPrimitive> BayesianCovarianceFitted<F> {
                 // For inverse-Wishart posterior, predictive covariance includes uncertainty
                 let sample_cov = self.compute_sample_covariance(x)?;
                 let posterior_scale = &self.covariance_;
-                let posterior_df =
-                    self.config.prior.degrees_of_freedom + F::from(self.n_samples_).unwrap();
+                let posterior_df = self.config.prior.degrees_of_freedom
+                    + F::from(self.n_samples_).ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?;
 
                 // Predictive covariance combines sample and posterior uncertainty
                 let predictive_cov = sample_cov
                     + posterior_scale * (posterior_df + F::one())
-                        / (posterior_df * F::from(n_samples).unwrap());
+                        / (posterior_df
+                            * F::from(n_samples).ok_or_else(|| {
+                                SklearsError::NumericalError("numeric conversion failed".into())
+                            })?);
 
                 Ok(predictive_cov)
             }
@@ -318,7 +326,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovarianceFitted<F> {
             cov = cov + diff_t.dot(&diff_2d);
         }
 
-        Ok(cov / F::from(n_samples - 1).unwrap())
+        Ok(cov
+            / F::from(n_samples - 1)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?)
     }
 }
 
@@ -395,11 +405,17 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         }
 
         // Posterior parameters for inverse-Wishart
-        let posterior_df = prior.degrees_of_freedom + F::from(n_samples).unwrap();
+        let posterior_df = prior.degrees_of_freedom
+            + F::from(n_samples)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
         let posterior_scale = &prior.scale_matrix + &sample_cov;
 
         // Posterior mean covariance
-        let covariance = &posterior_scale / (posterior_df - F::from(n_features + 1).unwrap());
+        let covariance = &posterior_scale
+            / (posterior_df
+                - F::from(n_features + 1).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?);
         let regularized_cov = regularize_matrix(&covariance, self.config.regularization)?;
 
         // Compute log marginal likelihood
@@ -425,7 +441,11 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         Option<VariationalParameters<F>>,
         F,
     )> {
-        let config = self.config.variational_config.as_ref().unwrap();
+        let config = self
+            .config
+            .variational_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
 
         // Initialize variational parameters
@@ -434,7 +454,11 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         let mut lower_bound = F::neg_infinity();
 
         // Compute sample statistics
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let mut sample_cov = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {
@@ -449,7 +473,10 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
             let old_lower_bound = lower_bound;
 
             // Update variational parameters
-            var_df = prior.degrees_of_freedom + F::from(n_samples).unwrap();
+            var_df = prior.degrees_of_freedom
+                + F::from(n_samples).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
             var_scale = &prior.scale_matrix + &sample_cov;
 
             // Compute lower bound
@@ -469,7 +496,11 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         }
 
         // Posterior mean
-        let covariance = &var_scale / (var_df - F::from(n_features + 1).unwrap());
+        let covariance = &var_scale
+            / (var_df
+                - F::from(n_features + 1).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?);
         let regularized_cov = regularize_matrix(&covariance, self.config.regularization)?;
 
         let variational_params = VariationalParameters {
@@ -510,7 +541,10 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
             };
 
             // Update degrees of freedom using hierarchical prior
-            hierarchical_prior.degrees_of_freedom = alpha + F::from(n_samples).unwrap() / beta;
+            hierarchical_prior.degrees_of_freedom = alpha
+                + F::from(n_samples).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })? / beta;
         }
 
         // Fit with updated hierarchical prior
@@ -529,7 +563,11 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         Option<VariationalParameters<F>>,
         F,
     )> {
-        let mcmc_config = self.config.mcmc_config.as_ref().unwrap();
+        let mcmc_config = self
+            .config
+            .mcmc_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
 
         // Initialize with sample covariance
@@ -544,7 +582,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
             let diff_t = diff.insert_axis(Axis(0));
             sample_cov = sample_cov + diff_t.dot(&diff_2d);
         }
-        sample_cov = sample_cov / F::from(n_samples).unwrap();
+        sample_cov = sample_cov
+            / F::from(n_samples)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         let mut current_cov = regularize_matrix(&sample_cov, self.config.regularization)?;
         let mut current_log_posterior = self.compute_log_posterior(x, &current_cov, prior)?;
@@ -589,7 +629,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         for sample in &samples {
             mean_cov = mean_cov + sample;
         }
-        mean_cov = mean_cov / F::from(samples.len()).unwrap();
+        mean_cov = mean_cov
+            / F::from(samples.len())
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         let log_likelihood = current_log_posterior;
 
@@ -610,7 +652,11 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
     )> {
         // For Gibbs sampling with inverse-Wishart, we can sample directly from conjugate posterior
         // This is more efficient than Metropolis-Hastings for this case
-        let mcmc_config = self.config.mcmc_config.as_ref().unwrap();
+        let mcmc_config = self
+            .config
+            .mcmc_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
 
         // Compute posterior parameters
@@ -626,7 +672,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
             sample_cov = sample_cov + diff_t.dot(&diff_2d);
         }
 
-        let posterior_df = prior.degrees_of_freedom + F::from(n_samples).unwrap();
+        let posterior_df = prior.degrees_of_freedom
+            + F::from(n_samples)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
         let posterior_scale = &prior.scale_matrix + &sample_cov;
 
         let mut samples = Vec::new();
@@ -649,7 +697,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         for sample in &samples {
             mean_cov = mean_cov + sample;
         }
-        mean_cov = mean_cov / F::from(samples.len()).unwrap();
+        mean_cov = mean_cov
+            / F::from(samples.len())
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         let log_likelihood = self.compute_inverse_wishart_log_likelihood(
             x,
@@ -676,7 +726,9 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         for i in 0..n_features {
             for j in i..n_features {
                 let noise: f64 = StandardNormal.sample(rng);
-                let noise_f = F::from(noise).unwrap() * scale;
+                let noise_f = F::from(noise).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })? * scale;
                 perturbation[[i, j]] = noise_f;
                 if i != j {
                     perturbation[[j, i]] = noise_f;
@@ -706,14 +758,23 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
             for j in 0..=i {
                 if i == j {
                     // Chi-squared distribution for diagonal elements
-                    let chi_sq_param = df - F::from(i).unwrap();
+                    let chi_sq_param = df
+                        - F::from(i).ok_or_else(|| {
+                            SklearsError::NumericalError("numeric conversion failed".into())
+                        })?;
                     let normal_sample: f64 = StandardNormal.sample(rng);
-                    let chi_sq_sample = F::from(normal_sample).unwrap().powi(2);
+                    let chi_sq_sample = F::from(normal_sample)
+                        .ok_or_else(|| {
+                            SklearsError::NumericalError("numeric conversion failed".into())
+                        })?
+                        .powi(2);
                     a[[i, j]] = (chi_sq_sample * chi_sq_param).sqrt();
                 } else {
                     // Standard normal for off-diagonal elements
                     let normal_sample: f64 = StandardNormal.sample(rng);
-                    a[[i, j]] = F::from(normal_sample).unwrap();
+                    a[[i, j]] = F::from(normal_sample).ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?;
                 }
             }
         }
@@ -762,21 +823,37 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         })?;
         let inv_cov = inv_cov_f64.mapv(|x| F::from(x).unwrap_or(F::zero()));
 
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let mut log_likelihood = F::zero();
 
         for i in 0..n_samples {
             let diff = &x.slice(s![i, ..]) - &mean;
             let mahalanobis = diff.dot(&inv_cov).dot(&diff);
-            log_likelihood = log_likelihood - mahalanobis / F::from(2.0).unwrap();
+            log_likelihood = log_likelihood
+                - mahalanobis
+                    / F::from(2.0).ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?;
         }
 
         log_likelihood = log_likelihood
-            - F::from(n_samples).unwrap()
-                * (F::from(n_features).unwrap()
-                    * F::from(2.0 * std::f64::consts::PI).unwrap().ln()
+            - F::from(n_samples)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+                * (F::from(n_features).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })? * F::from(2.0 * std::f64::consts::PI)
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?
+                    .ln()
                     + det_cov.ln())
-                / F::from(2.0).unwrap();
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
 
         // Log prior (inverse-Wishart)
         let log_prior = self.compute_inverse_wishart_log_prior(
@@ -817,9 +894,22 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
 
         let trace_term = (scale.dot(&inv_cov)).diag().sum();
 
-        let log_prior = (df / F::from(2.0).unwrap()) * det_scale.ln()
-            - ((df + F::from(n + 1).unwrap()) / F::from(2.0).unwrap()) * det_cov.ln()
-            - trace_term / F::from(2.0).unwrap();
+        let log_prior = (df
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?)
+            * det_scale.ln()
+            - ((df
+                + F::from(n + 1).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?)
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?)
+                * det_cov.ln()
+            - trace_term
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
 
         Ok(log_prior)
     }
@@ -848,11 +938,25 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         }
 
         // Marginal likelihood for multivariate normal with inverse-Wishart prior
-        let log_ml = (prior_df / F::from(2.0).unwrap()) * det_prior.ln()
-            - (posterior_df / F::from(2.0).unwrap()) * det_posterior.ln()
-            - F::from(n_samples * n_features).unwrap()
-                * F::from(std::f64::consts::PI).unwrap().ln()
-                / F::from(2.0).unwrap();
+        let log_ml = (prior_df
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?)
+            * det_prior.ln()
+            - (posterior_df
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?)
+                * det_posterior.ln()
+            - F::from(n_samples * n_features)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+                * F::from(std::f64::consts::PI)
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?
+                    .ln()
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
 
         Ok(log_ml)
     }
@@ -893,14 +997,36 @@ impl<F: NdFloat + FromPrimitive> BayesianCovariance<F> {
         })?;
         let inv_var_scale = inv_var_scale_f64.mapv(|x| F::from(x).unwrap_or(F::zero()));
         let trace_term = (sample_cov.dot(&inv_var_scale)).diag().sum();
-        let expected_log_likelihood = F::from(n_samples).unwrap()
-            * (e_log_det / F::from(2.0).unwrap() - trace_term / F::from(2.0).unwrap());
+        let expected_log_likelihood = F::from(n_samples)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+            * (e_log_det
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?
+                - trace_term
+                    / F::from(2.0).ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?);
 
         // KL divergence between variational and prior
-        let kl_div = (var_df - prior_df) / F::from(2.0).unwrap() * det_var_scale.ln()
-            - (var_df / F::from(2.0).unwrap()) * det_var_scale.ln()
-            + (prior_df / F::from(2.0).unwrap()) * det_prior_scale.ln()
-            + ((var_scale - prior_scale).dot(&inv_var_scale)).diag().sum() / F::from(2.0).unwrap();
+        let kl_div = (var_df - prior_df)
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+            * det_var_scale.ln()
+            - (var_df
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?)
+                * det_var_scale.ln()
+            + (prior_df
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?)
+                * det_prior_scale.ln()
+            + ((var_scale - prior_scale).dot(&inv_var_scale)).diag().sum()
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
 
         Ok(expected_log_likelihood - kl_div)
     }
@@ -1046,14 +1172,19 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
         assert_eq!(fitted.n_samples(), 50);
         assert_eq!(fitted.covariance().shape(), &[3, 3]);
 
         // Check that covariance matrix is positive definite
-        let eigenvals = fitted.covariance().eigvalsh(UPLO::Lower).unwrap();
+        let eigenvals = fitted
+            .covariance()
+            .eigvalsh(UPLO::Lower)
+            .expect("operation should succeed");
         assert!(eigenvals.iter().all(|&x| x > 0.0));
     }
 
@@ -1068,12 +1199,16 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert!(fitted.variational_params().is_some());
 
-        let var_params = fitted.variational_params().unwrap();
+        let var_params = fitted
+            .variational_params()
+            .expect("operation should succeed");
         assert!(var_params.lower_bound.is_finite());
         assert!(var_params.degrees_of_freedom > 0.0);
     }
@@ -1090,12 +1225,14 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert!(fitted.samples().is_some());
 
-        let samples = fitted.samples().unwrap();
+        let samples = fitted.samples().expect("operation should succeed");
         assert_eq!(samples.len(), 100);
         assert_eq!(samples[0].shape(), &[2, 2]);
     }
@@ -1111,8 +1248,12 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
-        let (lower, upper) = fitted.credible_intervals(0.05).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let (lower, upper) = fitted
+            .credible_intervals(0.05)
+            .expect("operation should succeed");
 
         assert_eq!(lower.shape(), &[2, 2]);
         assert_eq!(upper.shape(), &[2, 2]);
@@ -1135,13 +1276,19 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
-        let pred_cov = fitted.predict_covariance(&test_data).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let pred_cov = fitted
+            .predict_covariance(&test_data)
+            .expect("operation should succeed");
 
         assert_eq!(pred_cov.shape(), &[3, 3]);
 
         // Check positive definiteness
-        let eigenvals = pred_cov.eigvalsh(UPLO::Lower).unwrap();
+        let eigenvals = pred_cov
+            .eigvalsh(UPLO::Lower)
+            .expect("operation should succeed");
         assert!(eigenvals.iter().all(|&x| x > 0.0));
     }
 
@@ -1155,7 +1302,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert!(fitted.log_likelihood().is_finite());

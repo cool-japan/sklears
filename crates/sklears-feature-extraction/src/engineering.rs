@@ -59,7 +59,7 @@ mod simplicial_complex_tests {
                 0.5, 0.8, // Point 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new()
             .max_dimension(2)
@@ -67,7 +67,9 @@ mod simplicial_complex_tests {
             .include_face_counts(true)
             .include_euler_characteristic(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have features for face counts (3 dimensions: 0, 1, 2) + euler characteristic
         assert_eq!(features.len(), 4);
@@ -101,7 +103,7 @@ mod simplicial_complex_tests {
                 0.5, 0.2, // Point 3
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new()
             .max_dimension(2)
@@ -110,7 +112,9 @@ mod simplicial_complex_tests {
             .include_euler_characteristic(false)
             .include_depth_measures(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have depth measures: max_dim, mean_depth, max_depth, min_depth, complexity
         assert_eq!(features.len(), 5);
@@ -143,7 +147,7 @@ mod simplicial_complex_tests {
                 1.0, 1.0, // Point 3
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new()
             .max_dimension(2)
@@ -152,7 +156,9 @@ mod simplicial_complex_tests {
             .include_euler_characteristic(false)
             .include_boundary_properties(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have boundary properties for dimensions 1 and 2
         // For each dimension: faces_dim, faces_dim_minus_1, density
@@ -185,7 +191,7 @@ mod simplicial_complex_tests {
                 1.0, 1.0, // Point 4
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new()
             .max_dimension(2)
@@ -194,7 +200,9 @@ mod simplicial_complex_tests {
             .include_euler_characteristic(false)
             .normalize_by_vertices(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have face counts normalized by number of vertices
         assert_eq!(features.len(), 3);
@@ -223,7 +231,7 @@ mod simplicial_complex_tests {
                 0.0, 1.0, // Point 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new()
             .max_dimension(2)
@@ -232,7 +240,9 @@ mod simplicial_complex_tests {
             .include_face_counts(true)
             .include_euler_characteristic(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have face counts + euler characteristic
         assert_eq!(features.len(), 4);
@@ -259,7 +269,8 @@ mod simplicial_complex_tests {
 
     #[test]
     fn test_simplicial_complex_extractor_no_features_selected() {
-        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.5, 0.8]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.5, 0.8])
+            .expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new()
             .include_face_counts(false)
@@ -276,7 +287,8 @@ mod simplicial_complex_tests {
 
     #[test]
     fn test_simplicial_complex_extractor_single_point() {
-        let data = Array2::from_shape_vec((1, 2), vec![0.0, 0.0]).unwrap();
+        let data =
+            Array2::from_shape_vec((1, 2), vec![0.0, 0.0]).expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new()
             .max_dimension(2)
@@ -284,7 +296,9 @@ mod simplicial_complex_tests {
             .include_face_counts(true)
             .include_euler_characteristic(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have face counts + euler characteristic
         assert_eq!(features.len(), 4);
@@ -300,7 +314,8 @@ mod simplicial_complex_tests {
 
     #[test]
     fn test_simplicial_complex_extractor_invalid_distance_metric() {
-        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.5, 0.8]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.5, 0.8])
+            .expect("operation should succeed");
 
         let extractor = SimplicialComplexExtractor::new().distance_metric("invalid");
 
@@ -320,7 +335,8 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_basic() {
-        let data = Array2::from_shape_vec((100, 5), (0..500).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((100, 5), (0..500).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .chunk_size(20)
@@ -328,7 +344,9 @@ mod parallel_feature_tests {
             .include_distance_matrix(false)
             .include_correlation_features(false);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have statistical features: 9 features total
         assert_eq!(features.len(), 9);
@@ -341,8 +359,8 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_distance_matrix() {
-        let data =
-            Array2::from_shape_vec((50, 3), (0..150).map(|x| (x as f64) * 0.1).collect()).unwrap();
+        let data = Array2::from_shape_vec((50, 3), (0..150).map(|x| (x as f64) * 0.1).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .chunk_size(10)
@@ -350,7 +368,9 @@ mod parallel_feature_tests {
             .include_distance_matrix(true)
             .distance_metric("euclidean");
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have distance matrix features: mean, std, min, max
         assert_eq!(features.len(), 4);
@@ -371,8 +391,8 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_correlation() {
-        let data =
-            Array2::from_shape_vec((80, 4), (0..320).map(|x| (x as f64) * 0.01).collect()).unwrap();
+        let data = Array2::from_shape_vec((80, 4), (0..320).map(|x| (x as f64) * 0.01).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .chunk_size(15)
@@ -380,7 +400,9 @@ mod parallel_feature_tests {
             .include_distance_matrix(false)
             .include_correlation_features(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have correlation features: mean, std, max_abs
         assert_eq!(features.len(), 3);
@@ -400,8 +422,8 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_all_features() {
-        let data =
-            Array2::from_shape_vec((60, 3), (0..180).map(|x| (x as f64) * 0.05).collect()).unwrap();
+        let data = Array2::from_shape_vec((60, 3), (0..180).map(|x| (x as f64) * 0.05).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .chunk_size(12)
@@ -409,7 +431,9 @@ mod parallel_feature_tests {
             .include_distance_matrix(true)
             .include_correlation_features(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should have 9 + 4 + 3 = 16 features
         assert_eq!(features.len(), 16);
@@ -422,7 +446,8 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_different_metrics() {
-        let data = Array2::from_shape_vec((30, 2), (0..60).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((30, 2), (0..60).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         // Test Manhattan distance
         let extractor_manhattan = ParallelFeatureExtractor::new()
@@ -430,7 +455,9 @@ mod parallel_feature_tests {
             .include_distance_matrix(true)
             .distance_metric("manhattan");
 
-        let features_manhattan = extractor_manhattan.extract_features(&data.view()).unwrap();
+        let features_manhattan = extractor_manhattan
+            .extract_features(&data.view())
+            .expect("operation should succeed");
         assert_eq!(features_manhattan.len(), 4);
 
         // Test Cosine distance
@@ -439,7 +466,9 @@ mod parallel_feature_tests {
             .include_distance_matrix(true)
             .distance_metric("cosine");
 
-        let features_cosine = extractor_cosine.extract_features(&data.view()).unwrap();
+        let features_cosine = extractor_cosine
+            .extract_features(&data.view())
+            .expect("operation should succeed");
         assert_eq!(features_cosine.len(), 4);
 
         // Features should be different for different metrics
@@ -448,14 +477,17 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_custom_threads() {
-        let data = Array2::from_shape_vec((40, 3), (0..120).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((40, 3), (0..120).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .chunk_size(8)
             .num_threads(2)
             .include_statistical_features(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should extract features successfully with custom thread count
         assert_eq!(features.len(), 9);
@@ -472,7 +504,7 @@ mod parallel_feature_tests {
             (5, 2),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .chunk_size(2)
@@ -480,7 +512,9 @@ mod parallel_feature_tests {
             .include_distance_matrix(true)
             .include_correlation_features(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should handle small datasets gracefully
         assert_eq!(features.len(), 16);
@@ -493,13 +527,16 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_single_sample() {
-        let data = Array2::from_shape_vec((1, 3), vec![1.0, 2.0, 3.0]).unwrap();
+        let data =
+            Array2::from_shape_vec((1, 3), vec![1.0, 2.0, 3.0]).expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .include_statistical_features(true)
             .include_distance_matrix(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should handle single sample (distance matrix features will be zeros)
         assert_eq!(features.len(), 13); // 9 statistical + 4 distance (zeros)
@@ -524,7 +561,8 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_no_features_selected() {
-        let data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .include_statistical_features(false)
@@ -540,7 +578,8 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_invalid_distance_metric() {
-        let data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .include_statistical_features(false)
@@ -557,13 +596,16 @@ mod parallel_feature_tests {
 
     #[test]
     fn test_parallel_feature_extractor_large_chunk_size() {
-        let data = Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let extractor = ParallelFeatureExtractor::new()
             .chunk_size(100) // Larger than data size
             .include_statistical_features(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
 
         // Should handle large chunk sizes gracefully
         assert_eq!(features.len(), 9);
@@ -769,14 +811,14 @@ impl ParallelFeatureExtractor {
         features.push(
             *column_mins
                 .iter()
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap(),
+                .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed"),
         );
         features.push(
             *column_maxs
                 .iter()
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap(),
+                .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed"),
         );
 
         // Parallel computation of row-wise statistics
@@ -1182,7 +1224,7 @@ impl MixedTypeFeatureExtractor {
             }
             (MissingValueStrategy::Median, FeatureType::Numerical) => {
                 let mut sorted = valid_values.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let mid = sorted.len() / 2;
                 if sorted.len() % 2 == 0 {
                     (sorted[mid - 1] + sorted[mid]) / 2.0
@@ -1518,7 +1560,7 @@ mod sketching_tests {
                 2.0, // numerical: 2,3,4  categorical: 3,1  ordinal: 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,   // col 0
@@ -1534,8 +1576,8 @@ mod sketching_tests {
             .normalize_numerical(true)
             .encoding_strategy(CategoricalEncoding::OneHot);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert!(features.ncols() > 6); // Should be expanded due to one-hot encoding
@@ -1552,7 +1594,7 @@ mod sketching_tests {
             (3, 4),
             vec![1.0, 1.0, 0.0, 5.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 0.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,
@@ -1572,8 +1614,8 @@ mod sketching_tests {
                 .feature_types(feature_types.clone())
                 .encoding_strategy(encoding);
 
-            let fitted = extractor.fit(&data, &()).unwrap();
-            let features = fitted.transform(&data).unwrap();
+            let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+            let features = fitted.transform(&data).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 3);
             assert!(features.ncols() > 0);
@@ -1598,7 +1640,7 @@ mod sketching_tests {
     fn test_mixed_type_feature_extractor_configuration() {
         let data =
             Array2::from_shape_vec((3, 3), vec![1.0, 1.0, 0.0, 2.0, 2.0, 1.0, 3.0, 1.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,
@@ -1615,8 +1657,8 @@ mod sketching_tests {
             .include_interaction_features(true)
             .random_state(42);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
 
@@ -1647,7 +1689,7 @@ mod sketching_tests {
                 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,
@@ -1668,8 +1710,8 @@ mod sketching_tests {
                 .handle_missing_values(true)
                 .missing_value_strategy(strategy);
 
-            let fitted = extractor.fit(&data, &()).unwrap();
-            let features = fitted.transform(&data).unwrap();
+            let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+            let features = fitted.transform(&data).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 4);
 
@@ -1689,7 +1731,7 @@ mod sketching_tests {
             (3, 4),
             vec![1.0, 1.0, 0.0, 5.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 0.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,
@@ -1702,9 +1744,9 @@ mod sketching_tests {
             .feature_types(feature_types)
             .random_state(42);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features1 = fitted.transform(&data).unwrap();
-        let features2 = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features1 = fitted.transform(&data).expect("operation should succeed");
+        let features2 = fitted.transform(&data).expect("operation should succeed");
 
         // Results should be identical
         assert_eq!(features1.shape(), features2.shape());

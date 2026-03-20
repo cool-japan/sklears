@@ -368,24 +368,30 @@ impl ThreadLocalMetrics {
     /// Update classification metrics with write-combining optimization
     #[inline]
     pub fn update_classification(&self, y_true: i32, y_pred: i32, positive_class: i32) {
-        let mut buffer = self.write_combining_buffer.lock().unwrap();
+        let mut buffer = self
+            .write_combining_buffer
+            .lock()
+            .expect("operation should succeed");
         let should_flush = buffer.add_classification(y_true, y_pred, positive_class);
 
         if should_flush {
             buffer.flush_to_counters(&self.counters);
-            *self.last_flush.lock().unwrap() = std::time::Instant::now();
+            *self.last_flush.lock().expect("operation should succeed") = std::time::Instant::now();
         }
     }
 
     /// Update regression metrics with write-combining optimization
     #[inline]
     pub fn update_regression(&self, y_true: f64, y_pred: f64) {
-        let mut buffer = self.write_combining_buffer.lock().unwrap();
+        let mut buffer = self
+            .write_combining_buffer
+            .lock()
+            .expect("operation should succeed");
         let should_flush = buffer.add_regression(y_true, y_pred);
 
         if should_flush {
             buffer.flush_to_counters(&self.counters);
-            *self.last_flush.lock().unwrap() = std::time::Instant::now();
+            *self.last_flush.lock().expect("operation should succeed") = std::time::Instant::now();
         }
     }
 
@@ -404,10 +410,13 @@ impl ThreadLocalMetrics {
 
     /// Force flush any pending updates in write-combining buffer
     pub fn flush_pending(&self) {
-        let mut buffer = self.write_combining_buffer.lock().unwrap();
+        let mut buffer = self
+            .write_combining_buffer
+            .lock()
+            .expect("operation should succeed");
         if !buffer.is_empty() {
             buffer.flush_to_counters(&self.counters);
-            *self.last_flush.lock().unwrap() = std::time::Instant::now();
+            *self.last_flush.lock().expect("operation should succeed") = std::time::Instant::now();
         }
     }
 
@@ -439,13 +448,16 @@ impl ThreadLocalMetrics {
 
     /// Get last flush time
     pub fn last_flush_time(&self) -> std::time::Instant {
-        *self.last_flush.lock().unwrap()
+        *self.last_flush.lock().expect("operation should succeed")
     }
 
     /// Reset metrics
     pub fn reset(&self) {
         self.counters.reset();
-        let mut buffer = self.write_combining_buffer.lock().unwrap();
+        let mut buffer = self
+            .write_combining_buffer
+            .lock()
+            .expect("operation should succeed");
         buffer.classification_updates.clear();
         buffer.regression_updates.clear();
     }
@@ -457,7 +469,10 @@ impl ThreadLocalMetrics {
 
     /// Get pending update count in write-combining buffer
     pub fn pending_update_count(&self) -> usize {
-        let buffer = self.write_combining_buffer.lock().unwrap();
+        let buffer = self
+            .write_combining_buffer
+            .lock()
+            .expect("operation should succeed");
         buffer.classification_updates.len() + buffer.regression_updates.len()
     }
 }
@@ -513,14 +528,17 @@ impl HierarchicalMetricsAggregator {
 
         // Try read lock first for existing metrics
         {
-            let thread_locals = self.thread_locals.read().unwrap();
+            let thread_locals = self.thread_locals.read().expect("operation should succeed");
             if let Some(tl_metrics) = thread_locals.get(&thread_id) {
                 return tl_metrics.clone();
             }
         }
 
         // Need write lock to create new metrics
-        let mut thread_locals = self.thread_locals.write().unwrap();
+        let mut thread_locals = self
+            .thread_locals
+            .write()
+            .expect("operation should succeed");
 
         // Double-check pattern
         if let Some(tl_metrics) = thread_locals.get(&thread_id) {
@@ -537,7 +555,10 @@ impl HierarchicalMetricsAggregator {
 
         // Update thread groups if group is specified
         if let Some(group) = group {
-            let mut thread_groups = self.thread_groups.write().unwrap();
+            let mut thread_groups = self
+                .thread_groups
+                .write()
+                .expect("operation should succeed");
             thread_groups.entry(group).or_default().push(thread_id);
         }
 
@@ -1060,7 +1081,9 @@ mod tests {
             tl_metrics.update_classification(0, 0, 1);
         }
 
-        let aggregated = aggregator.aggregate_all().unwrap();
+        let aggregated = aggregator
+            .aggregate_all()
+            .expect("operation should succeed");
         assert!(aggregated.contains_key("accuracy"));
         assert_eq!(aggregated["total_samples"], 2.0);
     }
@@ -1084,11 +1107,15 @@ mod tests {
             .collect();
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("operation should succeed");
         }
 
-        let aggregated = aggregator.aggregate_all().unwrap();
-        let stats = aggregator.get_thread_statistics().unwrap();
+        let aggregated = aggregator
+            .aggregate_all()
+            .expect("operation should succeed");
+        let stats = aggregator
+            .get_thread_statistics()
+            .expect("operation should succeed");
 
         assert_eq!(stats["num_threads"], num_threads as f64);
         assert_eq!(
@@ -1108,12 +1135,16 @@ mod tests {
 
         // First call should compute
         let start = std::time::Instant::now();
-        let _metrics1 = aggregator.aggregate_all().unwrap();
+        let _metrics1 = aggregator
+            .aggregate_all()
+            .expect("operation should succeed");
         let first_call_time = start.elapsed();
 
         // Second call should use cache
         let start = std::time::Instant::now();
-        let _metrics2 = aggregator.aggregate_all().unwrap();
+        let _metrics2 = aggregator
+            .aggregate_all()
+            .expect("operation should succeed");
         let second_call_time = start.elapsed();
 
         // Cache should be faster (though this test might be flaky on fast machines)
@@ -1124,17 +1155,17 @@ mod tests {
     fn test_quick_updates() {
         use super::quick_updates::*;
 
-        clear_global_metrics().unwrap();
+        clear_global_metrics().expect("operation should succeed");
 
         update_classification_quick(1, 1, 1);
         update_classification_quick(0, 0, 1);
         update_regression_quick(1.0, 1.1);
 
-        let metrics = get_global_metrics().unwrap();
+        let metrics = get_global_metrics().expect("operation should succeed");
         assert!(metrics.contains_key("accuracy"));
         assert!(metrics.contains_key("mae"));
 
-        let stats = get_global_thread_stats().unwrap();
+        let stats = get_global_thread_stats().expect("operation should succeed");
         assert!(stats["num_threads"] >= 1.0);
     }
 
@@ -1149,14 +1180,20 @@ mod tests {
         }
 
         // Initially should have 1 thread
-        let stats_before = aggregator.get_thread_statistics().unwrap();
+        let stats_before = aggregator
+            .get_thread_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats_before["num_threads"], 1.0);
 
         // Cleanup shouldn't remove recent inactive threads
-        let removed = aggregator.cleanup_inactive_threads().unwrap();
+        let removed = aggregator
+            .cleanup_inactive_threads()
+            .expect("operation should succeed");
         assert_eq!(removed, 0);
 
-        let stats_after = aggregator.get_thread_statistics().unwrap();
+        let stats_after = aggregator
+            .get_thread_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats_after["num_threads"], 1.0);
     }
 
@@ -1177,7 +1214,7 @@ mod tests {
             .collect();
 
         for handle in handles {
-            handle.join().unwrap();
+            handle.join().expect("operation should succeed");
         }
 
         let metrics = counters.get_metrics_snapshot();

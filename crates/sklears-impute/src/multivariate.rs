@@ -195,8 +195,12 @@ impl Fit<ArrayView2<'_, Float>, ()> for CanonicalCorrelationImputer<Untrained> {
         let Y_set = X_complete.slice(s![.., split_point..]).to_owned();
 
         // Compute means and standard deviations
-        let x_mean = X_set.mean_axis(Axis(0)).unwrap();
-        let y_mean = Y_set.mean_axis(Axis(0)).unwrap();
+        let x_mean = X_set
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
+        let y_mean = Y_set
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         let x_std = X_set.std_axis(Axis(0), 1.0);
         let y_std = Y_set.std_axis(Axis(0), 1.0);

@@ -1464,7 +1464,9 @@ mod tests {
         let X = Array2::zeros((100, 5));
         let y = Array1::from_iter((0..100).map(|i| i % 2));
 
-        let folds = validator.generate_folds(&X, &y).unwrap();
+        let folds = validator
+            .generate_folds(&X, &y)
+            .expect("operation should succeed");
         assert_eq!(folds.len(), 5);
 
         // Check that all samples are used exactly once as test data
@@ -1490,11 +1492,11 @@ mod tests {
                 0.2, 0.8, // Correct prediction for class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let metrics = validator
             .compute_calibration_metrics(&y_true, &y_proba)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(metrics.brier_score >= 0.0);
         assert!(metrics.expected_calibration_error >= 0.0);
         assert!(metrics.maximum_calibration_error >= 0.0);
@@ -1507,7 +1509,9 @@ mod tests {
         let X = Array2::zeros((12, 2));
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]);
 
-        let folds = validator.generate_folds(&X, &y).unwrap();
+        let folds = validator
+            .generate_folds(&X, &y)
+            .expect("operation should succeed");
         assert_eq!(folds.len(), 3);
 
         // Check that each fold has approximately equal class distribution

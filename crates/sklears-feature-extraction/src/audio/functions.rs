@@ -46,7 +46,9 @@ mod tests {
             (0..n_samples).map(|i| (2.0 * PI * freq * i as f64 / sample_rate).sin()),
         );
         let mfcc_extractor = MFCCExtractor::new().n_mfcc(13).sample_rate(sample_rate);
-        let mfcc_features = mfcc_extractor.extract_features(&signal.view()).unwrap();
+        let mfcc_features = mfcc_extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert_eq!(mfcc_features.nrows(), 13);
         assert!(mfcc_features.ncols() > 0);
         for &val in mfcc_features.iter() {
@@ -62,7 +64,9 @@ mod tests {
             440.0 * (2.0 * PI * 440.0 * t).sin() + 0.5 * (2.0 * PI * 880.0 * t).sin()
         }));
         let spectral_extractor = SpectralFeaturesExtractor::new().sample_rate(sample_rate);
-        let spectral_features = spectral_extractor.extract_features(&signal.view()).unwrap();
+        let spectral_features = spectral_extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert_eq!(spectral_features.nrows(), 4);
         assert!(spectral_features.ncols() > 0);
         for &val in spectral_features.iter() {
@@ -70,7 +74,7 @@ mod tests {
             assert!(val >= 0.0, "Spectral feature should be non-negative");
         }
         let centroid_values = spectral_features.row(0);
-        let avg_centroid: f64 = centroid_values.mean().unwrap();
+        let avg_centroid: f64 = centroid_values.mean().expect("operation should succeed");
         assert!(
             avg_centroid > 400.0 && avg_centroid < 1000.0,
             "Spectral centroid should be reasonable for test signal"
@@ -85,7 +89,9 @@ mod tests {
             (2.0 * PI * 440.0 * t).sin()
         }));
         let chroma_extractor = ChromaFeaturesExtractor::new().sample_rate(sample_rate);
-        let chroma_features = chroma_extractor.extract_features(&signal.view()).unwrap();
+        let chroma_features = chroma_extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert_eq!(chroma_features.ncols(), 12);
         assert!(chroma_features.nrows() > 0);
         for &val in chroma_features.iter() {
@@ -110,18 +116,18 @@ mod tests {
         let zcr_extractor = ZeroCrossingRateExtractor::new();
         let zcr_high = zcr_extractor
             .extract_features(&signal_high_freq.view())
-            .unwrap();
+            .expect("operation should succeed");
         let zcr_low = zcr_extractor
             .extract_features(&signal_low_freq.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(zcr_high.len() > 0);
         assert!(zcr_low.len() > 0);
         for &val in zcr_high.iter() {
             assert!(val.is_finite(), "ZCR should be finite");
             assert!(val >= 0.0 && val <= 1.0, "ZCR should be between 0 and 1");
         }
-        let avg_zcr_high: f64 = zcr_high.mean().unwrap();
-        let avg_zcr_low: f64 = zcr_low.mean().unwrap();
+        let avg_zcr_high: f64 = zcr_high.mean().expect("operation should succeed");
+        let avg_zcr_low: f64 = zcr_low.mean().expect("operation should succeed");
         assert!(
             avg_zcr_high > avg_zcr_low,
             "High frequency signal should have higher ZCR"
@@ -138,7 +144,9 @@ mod tests {
         let rolloff_extractor = SpectralRolloffExtractor::new()
             .sample_rate(sample_rate)
             .rolloff_threshold(0.85);
-        let rolloff_features = rolloff_extractor.extract_features(&signal.view()).unwrap();
+        let rolloff_features = rolloff_extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert!(rolloff_features.len() > 0);
         for &val in rolloff_features.iter() {
             assert!(val.is_finite(), "Rolloff feature should be finite");
@@ -148,7 +156,7 @@ mod tests {
                 "Rolloff should be below Nyquist frequency"
             );
         }
-        let avg_rolloff: f64 = rolloff_features.mean().unwrap();
+        let avg_rolloff: f64 = rolloff_features.mean().expect("operation should succeed");
         assert!(
             avg_rolloff > 400.0,
             "Rolloff should be above fundamental frequency"
@@ -195,7 +203,7 @@ mod tests {
         let zcr_extractor = ZeroCrossingRateExtractor::new();
         let zcr_features = zcr_extractor
             .extract_features(&constant_signal.view())
-            .unwrap();
+            .expect("operation should succeed");
         for &val in zcr_features.iter() {
             assert_abs_diff_eq!(val, 0.0, epsilon = 1e-10);
         }
@@ -209,7 +217,7 @@ mod tests {
             .hop_length(50);
         let zcr_features = zcr_extractor
             .extract_features(&alternating_signal.view())
-            .unwrap();
+            .expect("operation should succeed");
         for &val in zcr_features.iter() {
             assert!(val > 0.9, "Alternating signal should have high ZCR");
         }

@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Generate synthetic data (simple blob-like patterns)
     let mut rng = seeded_rng(42);
-    let normal_dist = Normal::new(0.0, 1.0).unwrap();
+    let normal_dist = Normal::new(0.0, 1.0).expect("operation should succeed");
     let mut data = Array2::zeros((200, 10));
 
     // Create three blob-like clusters
@@ -38,11 +38,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut scaled_data = data.clone();
     for j in 0..scaled_data.ncols() {
         let column = scaled_data.column(j);
-        let mean = column.mean().unwrap();
+        let mean = column.mean().expect("operation should succeed");
         let std = column
             .mapv(|x: f64| (x - mean).powi(2))
             .mean()
-            .unwrap()
+            .expect("operation should succeed")
             .sqrt();
         let mut col_mut = scaled_data.column_mut(j);
         col_mut.mapv_inplace(|x| (x - mean) / std);
@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let reconstruction_error = (&scaled_data - &reconstructed)
         .mapv(|x: f64| x.powi(2))
         .mean()
-        .unwrap();
+        .expect("operation should succeed");
     println!(
         "   Mean squared reconstruction error: {:.6}",
         reconstruction_error
@@ -100,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Add noise to data
     let mut rng = seeded_rng(42);
-    let normal_dist = Normal::new(0.0, 0.3).unwrap();
+    let normal_dist = Normal::new(0.0, 0.3).expect("operation should succeed");
     let mut noise = Array2::zeros(scaled_data.dim());
     for i in 0..noise.nrows() {
         for j in 0..noise.ncols() {
@@ -127,11 +127,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let noise_level = (&noisy_data - &scaled_data)
         .mapv(|x: f64| x.powi(2))
         .mean()
-        .unwrap();
+        .expect("operation should succeed");
     let denoised_error = (&denoised - &scaled_data)
         .mapv(|x: f64| x.powi(2))
         .mean()
-        .unwrap();
+        .expect("operation should succeed");
 
     println!("   Original noise level: {:.6}", noise_level);
     println!("   After denoising error: {:.6}", denoised_error);
@@ -198,11 +198,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let error_relu = (&scaled_data - &recon_relu)
         .mapv(|x: f64| x.powi(2))
         .mean()
-        .unwrap();
+        .expect("operation should succeed");
     let error_tanh = (&scaled_data - &recon_tanh)
         .mapv(|x: f64| x.powi(2))
         .mean()
-        .unwrap();
+        .expect("operation should succeed");
 
     println!("   ReLU activation MSE: {:.6}", error_relu);
     println!("   Tanh activation MSE: {:.6}", error_tanh);

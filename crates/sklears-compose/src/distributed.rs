@@ -361,7 +361,10 @@ impl LoadBalancer {
 
         match &self.strategy {
             LoadBalancingStrategy::RoundRobin => {
-                let mut index = self.round_robin_index.lock().unwrap();
+                let mut index = self
+                    .round_robin_index
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 let selected = &available_nodes[*index % available_nodes.len()];
                 *index = (*index + 1) % available_nodes.len();
                 Ok(selected.id.clone())
@@ -372,7 +375,7 @@ impl LoadBalancer {
                     .min_by_key(|node| {
                         (node.load.cpu_utilization * 100.0) as u32 + node.load.active_tasks as u32
                     })
-                    .unwrap();
+                    .expect("should have available nodes");
                 Ok(least_loaded.id.clone())
             }
             LoadBalancingStrategy::Random => {
@@ -467,7 +470,10 @@ impl FaultDetector {
 
     /// Record a failure event
     pub fn record_failure(&self, node_id: &NodeId) {
-        let mut history = self.failure_history.lock().unwrap();
+        let mut history = self
+            .failure_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         history
             .entry(node_id.clone())
             .or_default()
@@ -497,14 +503,14 @@ impl ClusterManager {
 
     /// Add a node to the cluster
     pub fn add_node(&self, node: ClusterNode) -> SklResult<()> {
-        let mut nodes = self.nodes.write().unwrap();
+        let mut nodes = self.nodes.write().unwrap_or_else(|e| e.into_inner());
         nodes.insert(node.id.clone(), node);
         Ok(())
     }
 
     /// Remove a node from the cluster
     pub fn remove_node(&self, node_id: &NodeId) -> SklResult<()> {
-        let mut nodes = self.nodes.write().unwrap();
+        let mut nodes = self.nodes.write().unwrap_or_else(|e| e.into_inner());
         nodes.remove(node_id);
         Ok(())
     }
@@ -514,7 +520,7 @@ impl ClusterManager {
         let task_id = task.id.clone();
 
         // Select node for execution
-        let nodes = self.nodes.read().unwrap();
+        let nodes = self.nodes.read().unwrap_or_else(|e| e.into_inner());
         let available_nodes: Vec<ClusterNode> = nodes.values().cloned().collect();
         drop(nodes);
 
@@ -523,7 +529,7 @@ impl ClusterManager {
             .select_node(&available_nodes, &task.resource_requirements)?;
 
         // Record task
-        let mut active_tasks = self.active_tasks.lock().unwrap();
+        let mut active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         active_tasks.insert(task_id.clone(), task);
         drop(active_tasks);
 
@@ -535,7 +541,7 @@ impl ClusterManager {
 
     /// Execute a task on a specific node
     fn execute_task_on_node(&self, task_id: &TaskId, node_id: &NodeId) -> SklResult<()> {
-        let active_tasks = self.active_tasks.lock().unwrap();
+        let active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
         let task = active_tasks
             .get(task_id)
             .ok_or_else(|| SklearsError::InvalidInput(format!("Task {task_id} not found")))?;
@@ -580,7 +586,7 @@ impl ClusterManager {
             node_id: node_id.clone(),
         };
 
-        let mut results = self.task_results.lock().unwrap();
+        let mut results = self.task_results.lock().unwrap_or_else(|e| e.into_inner());
         results.insert(task_id.clone(), task_result);
 
         Ok(())
@@ -627,15 +633,15 @@ impl ClusterManager {
 
     /// Get task result
     pub fn get_task_result(&self, task_id: &TaskId) -> Option<TaskResult> {
-        let results = self.task_results.lock().unwrap();
+        let results = self.task_results.lock().unwrap_or_else(|e| e.into_inner());
         results.get(task_id).cloned()
     }
 
     /// Get cluster status
     pub fn cluster_status(&self) -> ClusterStatus {
-        let nodes = self.nodes.read().unwrap();
-        let active_tasks = self.active_tasks.lock().unwrap();
-        let task_results = self.task_results.lock().unwrap();
+        let nodes = self.nodes.read().unwrap_or_else(|e| e.into_inner());
+        let active_tasks = self.active_tasks.lock().unwrap_or_else(|e| e.into_inner());
+        let task_results = self.task_results.lock().unwrap_or_else(|e| e.into_inner());
 
         let healthy_nodes = nodes
             .values()
@@ -685,7 +691,7 @@ impl ClusterManager {
             loop {
                 thread::sleep(heartbeat_interval);
 
-                let mut nodes_guard = nodes.write().unwrap();
+                let mut nodes_guard = nodes.write().unwrap_or_else(|e| e.into_inner());
                 let mut failed_nodes = Vec::new();
 
                 for (node_id, node) in nodes_guard.iter_mut() {
@@ -1180,8 +1186,12 @@ mod tests {
             priority: TaskPriority::Normal,
         };
 
-        let selected1 = balancer.select_node(&nodes, &requirements).unwrap();
-        let selected2 = balancer.select_node(&nodes, &requirements).unwrap();
+        let selected1 = balancer
+            .select_node(&nodes, &requirements)
+            .unwrap_or_default();
+        let selected2 = balancer
+            .select_node(&nodes, &requirements)
+            .unwrap_or_default();
 
         assert_ne!(selected1, selected2); // Round robin should alternate
     }
@@ -1207,7 +1217,7 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        manager.add_node(node).unwrap();
+        manager.add_node(node).unwrap_or_default();
 
         let status = manager.cluster_status();
         assert_eq!(status.total_nodes, 1);

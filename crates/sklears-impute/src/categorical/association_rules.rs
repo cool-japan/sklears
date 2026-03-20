@@ -2,6 +2,11 @@
 //!
 //! Imputation using association rules discovered from categorical data.
 //! Missing values are imputed based on frequent patterns and strong rules.
+//!
+//! # Note
+//!
+//! Not implemented in v0.1.0. `fit` and `transform` return
+//! `Err(SklearsError::NotImplemented)`. Planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use sklears_core::{
@@ -148,27 +153,12 @@ impl Fit<ArrayView2<'_, Float>, ()> for AssociationRuleImputer<Untrained> {
         let X = X.mapv(|x| x);
         let (_n_samples, n_features) = X.dim();
 
-        // Simplified stub implementation
-        let rules = Vec::new();
-        let mut frequent_values = HashMap::new();
-
-        // Use most frequent value as fallback
-        for j in 0..n_features {
-            frequent_values.insert(j, 0.0);
-        }
-
-        Ok(AssociationRuleImputer {
-            state: AssociationRuleImputerTrained {
-                rules_: rules,
-                frequent_values_: frequent_values,
-                n_features_in_: n_features,
-            },
-            min_support: self.min_support,
-            min_confidence: self.min_confidence,
-            max_itemset_size: self.max_itemset_size,
-            missing_values: self.missing_values,
-            random_state: self.random_state,
-        })
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = n_features;
+        Err(SklearsError::NotImplemented(
+            "AssociationRuleImputer::fit: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        ))
     }
 }
 
@@ -187,17 +177,12 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
             )));
         }
 
-        // Simplified stub - fill with frequent values
-        let mut X_imputed = X.clone();
-        for i in 0..n_samples {
-            for j in 0..n_features {
-                if self.is_missing(X[[i, j]]) {
-                    X_imputed[[i, j]] = *self.state.frequent_values_.get(&j).unwrap_or(&0.0);
-                }
-            }
-        }
-
-        Ok(X_imputed.mapv(|x| x as Float))
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = (n_samples, n_features);
+        Err(SklearsError::NotImplemented(
+            "AssociationRuleImputer::transform: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        ))
     }
 }
 

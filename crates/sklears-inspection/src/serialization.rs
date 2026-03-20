@@ -104,28 +104,62 @@ pub struct ExplanationConfiguration {
 }
 
 /// Serialization format options
+///
+/// # Note
+///
+/// Only [`Json`](SerializationFormat::Json) and [`Csv`](SerializationFormat::Csv) are
+/// currently implemented. [`Binary`](SerializationFormat::Binary) (MessagePack) and
+/// [`Parquet`](SerializationFormat::Parquet) return `Err(InvalidInput)` in v0.1.0.
+/// Planned for v0.2.0.
 #[derive(Clone, Debug, PartialEq)]
 pub enum SerializationFormat {
     /// JSON format
     Json,
     /// Binary format (MessagePack)
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(InvalidInput)` in v0.1.0. Planned for v0.2.0.
     Binary,
     /// CSV format (limited functionality)
     Csv,
     /// Parquet format (for large datasets)
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(InvalidInput)` in v0.1.0. Planned for v0.2.0.
     Parquet,
 }
 
 /// Compression options
+///
+/// # Note
+///
+/// Only [`None`](CompressionType::None) is currently implemented.
+/// [`Gzip`](CompressionType::Gzip), [`Lz4`](CompressionType::Lz4), and
+/// [`Zstd`](CompressionType::Zstd) return `Err(InvalidInput)` in v0.1.0.
+/// Planned for v0.2.0.
 #[derive(Clone, Debug, PartialEq)]
 pub enum CompressionType {
     /// No compression
     None,
     /// Gzip compression
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(InvalidInput)` in v0.1.0. Planned for v0.2.0.
     Gzip,
     /// LZ4 compression
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(InvalidInput)` in v0.1.0. Planned for v0.2.0.
     Lz4,
     /// Zstd compression
+    ///
+    /// # Note
+    ///
+    /// Returns `Err(InvalidInput)` in v0.1.0. Planned for v0.2.0.
     Zstd,
 }
 
@@ -232,7 +266,7 @@ impl SerializableExplanationResult {
             let rows = values.len();
             let cols = values.first().map(|row| row.len()).unwrap_or(0);
             let flat: Vec<Float> = values.iter().flatten().copied().collect();
-            Array2::from_shape_vec((rows, cols), flat).unwrap()
+            Array2::from_shape_vec((rows, cols), flat).expect("operation should succeed")
         })
     }
 
@@ -250,6 +284,18 @@ impl SerializableExplanationResult {
     }
 
     /// Save to file
+    ///
+    /// Saves the explanation result to the specified path using the given configuration.
+    ///
+    /// # Note
+    ///
+    /// Only [`Json`](SerializationFormat::Json) and [`Csv`](SerializationFormat::Csv) formats
+    /// are supported. [`Binary`](SerializationFormat::Binary) and
+    /// [`Parquet`](SerializationFormat::Parquet) return `Err(InvalidInput)` in v0.1.0.
+    /// Planned for v0.2.0.
+    ///
+    /// All compression types except [`None`](CompressionType::None) return
+    /// `Err(InvalidInput)` in v0.1.0. Planned for v0.2.0.
     pub fn save_to_file<P: AsRef<Path>>(
         &self,
         path: P,
@@ -258,14 +304,15 @@ impl SerializableExplanationResult {
         let content = match config.format {
             SerializationFormat::Json => self.to_json()?,
             SerializationFormat::Binary => {
-                return Err(SklearsError::InvalidInput(
-                    "Binary format not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "Binary (MessagePack) format not yet implemented. Planned for v0.2.0."
+                        .to_string(),
                 ));
             }
             SerializationFormat::Csv => self.to_csv()?,
             SerializationFormat::Parquet => {
-                return Err(SklearsError::InvalidInput(
-                    "Parquet format not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "Parquet format not yet implemented. Planned for v0.2.0.".to_string(),
                 ));
             }
         };
@@ -274,18 +321,18 @@ impl SerializableExplanationResult {
         let final_content = match config.compression {
             CompressionType::None => content.into_bytes(),
             CompressionType::Gzip => {
-                return Err(SklearsError::InvalidInput(
-                    "Gzip compression not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "Gzip compression not yet implemented. Planned for v0.2.0.".to_string(),
                 ));
             }
             CompressionType::Lz4 => {
-                return Err(SklearsError::InvalidInput(
-                    "LZ4 compression not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "LZ4 compression not yet implemented. Planned for v0.2.0.".to_string(),
                 ));
             }
             CompressionType::Zstd => {
-                return Err(SklearsError::InvalidInput(
-                    "Zstd compression not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "Zstd compression not yet implemented. Planned for v0.2.0.".to_string(),
                 ));
             }
         };
@@ -297,6 +344,18 @@ impl SerializableExplanationResult {
     }
 
     /// Load from file
+    ///
+    /// Loads an explanation result from the specified path using the given configuration.
+    ///
+    /// # Note
+    ///
+    /// Only [`Json`](SerializationFormat::Json) and [`Csv`](SerializationFormat::Csv) formats
+    /// are supported. [`Binary`](SerializationFormat::Binary) and
+    /// [`Parquet`](SerializationFormat::Parquet) return `Err(InvalidInput)` in v0.1.0.
+    /// Planned for v0.2.0.
+    ///
+    /// All compression types except [`None`](CompressionType::None) return
+    /// `Err(InvalidInput)` in v0.1.0. Planned for v0.2.0.
     pub fn load_from_file<P: AsRef<Path>>(
         path: P,
         config: &SerializationConfig,
@@ -310,30 +369,30 @@ impl SerializableExplanationResult {
                 SklearsError::InvalidInput(format!("Failed to decode UTF-8: {}", e))
             })?,
             CompressionType::Gzip => {
-                return Err(SklearsError::InvalidInput(
-                    "Gzip decompression not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "Gzip decompression not yet implemented. Planned for v0.2.0.".to_string(),
                 ));
             }
             CompressionType::Lz4 => {
-                return Err(SklearsError::InvalidInput(
-                    "LZ4 decompression not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "LZ4 decompression not yet implemented. Planned for v0.2.0.".to_string(),
                 ));
             }
             CompressionType::Zstd => {
-                return Err(SklearsError::InvalidInput(
-                    "Zstd decompression not yet implemented".to_string(),
+                return Err(SklearsError::NotImplemented(
+                    "Zstd decompression not yet implemented. Planned for v0.2.0.".to_string(),
                 ));
             }
         };
 
         match config.format {
             SerializationFormat::Json => Self::from_json(&decompressed_content),
-            SerializationFormat::Binary => Err(SklearsError::InvalidInput(
-                "Binary format not yet implemented".to_string(),
+            SerializationFormat::Binary => Err(SklearsError::NotImplemented(
+                "Binary (MessagePack) format not yet implemented. Planned for v0.2.0.".to_string(),
             )),
             SerializationFormat::Csv => Self::from_csv(&decompressed_content),
-            SerializationFormat::Parquet => Err(SklearsError::InvalidInput(
-                "Parquet format not yet implemented".to_string(),
+            SerializationFormat::Parquet => Err(SklearsError::NotImplemented(
+                "Parquet format not yet implemented. Planned for v0.2.0.".to_string(),
             )),
         }
     }
@@ -651,7 +710,7 @@ mod tests {
         )
         .with_shap_values(shap_values.clone());
 
-        let recovered_shap = result.get_shap_values().unwrap();
+        let recovered_shap = result.get_shap_values().expect("operation should succeed");
         assert_eq!(recovered_shap, shap_values);
     }
 
@@ -665,8 +724,9 @@ mod tests {
             None,
         );
 
-        let json = result.to_json().unwrap();
-        let recovered = SerializableExplanationResult::from_json(&json).unwrap();
+        let json = result.to_json().expect("operation should succeed");
+        let recovered =
+            SerializableExplanationResult::from_json(&json).expect("operation should succeed");
 
         assert_eq!(result.id, recovered.id);
         assert_eq!(result.method, recovered.method);
@@ -685,8 +745,9 @@ mod tests {
             Some(feature_names),
         );
 
-        let csv = result.to_csv().unwrap();
-        let recovered = SerializableExplanationResult::from_csv(&csv).unwrap();
+        let csv = result.to_csv().expect("operation should succeed");
+        let recovered =
+            SerializableExplanationResult::from_csv(&csv).expect("operation should succeed");
 
         assert_eq!(
             result.feature_importance.len(),
@@ -703,7 +764,7 @@ mod tests {
 
     #[test]
     fn test_file_save_and_load() {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir().expect("operation should succeed");
         let file_path = temp_dir.path().join("test_explanation.json");
 
         let feature_importance = array![0.5, 0.3, 0.2];
@@ -715,9 +776,12 @@ mod tests {
         );
 
         let config = SerializationConfig::default();
-        result.save_to_file(&file_path, &config).unwrap();
+        result
+            .save_to_file(&file_path, &config)
+            .expect("operation should succeed");
 
-        let loaded = SerializableExplanationResult::load_from_file(&file_path, &config).unwrap();
+        let loaded = SerializableExplanationResult::load_from_file(&file_path, &config)
+            .expect("operation should succeed");
         assert_eq!(result.id, loaded.id);
         assert_eq!(result.method, loaded.method);
         assert_eq!(result.feature_importance, loaded.feature_importance);
@@ -773,7 +837,7 @@ mod tests {
 
     #[test]
     fn test_batch_save_and_load() {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir().expect("operation should succeed");
 
         let mut batch = ExplanationBatch::new();
         batch.add_result(SerializableExplanationResult::new(
@@ -785,9 +849,12 @@ mod tests {
         batch.add_metadata("experiment".to_string(), "test_batch".to_string());
 
         let config = SerializationConfig::default();
-        batch.save_to_directory(temp_dir.path(), &config).unwrap();
+        batch
+            .save_to_directory(temp_dir.path(), &config)
+            .expect("operation should succeed");
 
-        let loaded_batch = ExplanationBatch::load_from_directory(temp_dir.path(), &config).unwrap();
+        let loaded_batch = ExplanationBatch::load_from_directory(temp_dir.path(), &config)
+            .expect("operation should succeed");
         assert_eq!(loaded_batch.results.len(), 1);
         assert_eq!(
             loaded_batch.metadata.get("experiment"),

@@ -23,7 +23,7 @@
 //! // Create a 3-channel signal with 100 samples each
 //! let signals = Array2::zeros((3, 100));
 //!
-//! let memd = MultivariateEMD::new(3);
+//! let memd = MultivariateEMD::new(3).expect("valid parameter");
 //! let result = memd.decompose(&signals).expect("Decomposition failed");
 //!
 //! // Analyze cross-channel correlations for first IMF
@@ -97,17 +97,20 @@ impl MultivariateEMD {
     /// ```rust,ignore
     /// use sklears_decomposition::signal_processing::multivariate_emd::MultivariateEMD;
     ///
-    /// let memd = MultivariateEMD::new(3); // For 3-channel signals
+    /// let memd = MultivariateEMD::new(3).expect("valid parameter"); // For 3-channel signals
     /// ```
-    pub fn new(n_channels: usize) -> Self {
+    pub fn new(n_channels: usize) -> Result<Self> {
         if n_channels == 0 {
-            panic!("Number of channels must be greater than 0");
+            return Err(SklearsError::InvalidParameter {
+                name: "n_channels".to_string(),
+                reason: "must be greater than 0".to_string(),
+            });
         }
 
-        Self {
+        Ok(Self {
             config: EMDConfig::default(),
             n_channels,
-        }
+        })
     }
 
     /// Set EMD configuration parameters
@@ -170,7 +173,7 @@ impl MultivariateEMD {
     ///     }
     /// }
     ///
-    /// let memd = MultivariateEMD::new(2);
+    /// let memd = MultivariateEMD::new(2).expect("valid parameter");
     /// let result = memd.decompose(&signals).expect("Decomposition should succeed");
     ///
     /// assert_eq!(result.n_channels, 2);
@@ -224,13 +227,13 @@ impl MultivariateEMD {
 
             // Configure EMD for this channel
             let mut emd = EmpiricalModeDecomposition::new()
-                .max_sift_iter(self.config.max_sift_iter)
-                .tolerance(self.config.tolerance)
+                .max_sift_iter(self.config.max_sift_iter)?
+                .tolerance(self.config.tolerance)?
                 .boundary_condition(self.config.boundary_condition)
                 .interpolation(self.config.interpolation);
 
             if let Some(max_imfs) = self.config.max_imfs {
-                emd = emd.max_imfs(max_imfs);
+                emd = emd.max_imfs(max_imfs)?;
             }
 
             // Decompose channel and handle errors gracefully
@@ -283,7 +286,10 @@ impl MultivariateEMD {
 impl Default for MultivariateEMD {
     /// Create default MEMD instance for single-channel processing
     fn default() -> Self {
-        Self::new(1)
+        Self {
+            config: EMDConfig::default(),
+            n_channels: 1,
+        }
     }
 }
 
@@ -434,7 +440,9 @@ impl MEMDResult {
         let mut energies = Array2::zeros((self.n_channels, self.n_imfs_per_channel));
 
         for channel in 0..self.n_channels {
-            let channel_imfs = self.channel_imfs(channel).unwrap();
+            let channel_imfs = self
+                .channel_imfs(channel)
+                .expect("operation should succeed");
             let total_energy: Float = channel_imfs
                 .axis_iter(Axis(0))
                 .map(|imf| imf.mapv(|x| x * x).sum())
@@ -514,7 +522,7 @@ mod tests {
 
     #[test]
     fn test_multivariate_emd_creation() {
-        let memd = MultivariateEMD::new(3);
+        let memd = MultivariateEMD::new(3).expect("valid parameter");
         assert_eq!(memd.n_channels, 3);
 
         let memd_default = MultivariateEMD::default();
@@ -522,20 +530,20 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Number of channels must be greater than 0")]
     fn test_multivariate_emd_zero_channels() {
-        let _memd = MultivariateEMD::new(0);
+        let result = MultivariateEMD::new(0);
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_basic_decomposition() {
         let signals = generate_test_signal(2, 100);
-        let memd = MultivariateEMD::new(2);
+        let memd = MultivariateEMD::new(2).expect("valid parameter");
 
         let result = memd.decompose(&signals);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.n_channels, 2);
         assert!(result.n_imfs_per_channel > 0);
         assert_eq!(result.imfs.dim().0, 2 * result.n_imfs_per_channel);
@@ -556,11 +564,13 @@ mod tests {
             }
         }
 
-        let memd = MultivariateEMD::new(2);
-        let result = memd.decompose(&signals).unwrap();
+        let memd = MultivariateEMD::new(2).expect("valid parameter");
+        let result = memd.decompose(&signals).expect("operation should succeed");
 
         for channel in 0..2 {
-            let reconstructed = result.reconstruct_channel(channel).unwrap();
+            let reconstructed = result
+                .reconstruct_channel(channel)
+                .expect("operation should succeed");
             let original = signals.row(channel);
 
             // Check that the signal dimensions match
@@ -585,11 +595,13 @@ mod tests {
     #[test]
     fn test_cross_channel_correlation() {
         let signals = generate_test_signal(3, 80);
-        let memd = MultivariateEMD::new(3);
-        let result = memd.decompose(&signals).unwrap();
+        let memd = MultivariateEMD::new(3).expect("valid parameter");
+        let result = memd.decompose(&signals).expect("operation should succeed");
 
         for imf_idx in 0..result.n_imfs_per_channel {
-            let correlations = result.cross_channel_correlation(imf_idx).unwrap();
+            let correlations = result
+                .cross_channel_correlation(imf_idx)
+                .expect("operation should succeed");
             assert_eq!(correlations.dim(), (3, 3));
 
             // Check diagonal elements (self-correlation should be 1.0)
@@ -610,8 +622,8 @@ mod tests {
     #[test]
     fn test_energy_distribution() {
         let signals = generate_test_signal(2, 60);
-        let memd = MultivariateEMD::new(2);
-        let result = memd.decompose(&signals).unwrap();
+        let memd = MultivariateEMD::new(2).expect("valid parameter");
+        let result = memd.decompose(&signals).expect("operation should succeed");
 
         let energies = result.imf_energy_distribution();
         assert_eq!(energies.dim(), (2, result.n_imfs_per_channel));
@@ -625,7 +637,7 @@ mod tests {
 
     #[test]
     fn test_error_handling() {
-        let memd = MultivariateEMD::new(2);
+        let memd = MultivariateEMD::new(2).expect("valid parameter");
 
         // Wrong number of channels
         let wrong_signals = Array2::zeros((3, 50));
@@ -646,7 +658,7 @@ mod tests {
 
     #[test]
     fn test_constant_signal_handling() {
-        let memd = MultivariateEMD::new(1);
+        let memd = MultivariateEMD::new(1).expect("valid parameter");
         let constant_signal = Array2::ones((1, 50));
 
         let result = memd.decompose(&constant_signal);
@@ -656,8 +668,8 @@ mod tests {
     #[test]
     fn test_channel_access_bounds() {
         let signals = generate_test_signal(2, 40);
-        let memd = MultivariateEMD::new(2);
-        let result = memd.decompose(&signals).unwrap();
+        let memd = MultivariateEMD::new(2).expect("valid parameter");
+        let result = memd.decompose(&signals).expect("operation should succeed");
 
         // Valid channel access
         assert!(result.channel_imfs(0).is_ok());
@@ -691,8 +703,10 @@ mod tests {
         };
 
         let signals = generate_test_signal(2, 100);
-        let memd = MultivariateEMD::new(2).config(config);
-        let result = memd.decompose(&signals).unwrap();
+        let memd = MultivariateEMD::new(2)
+            .expect("valid parameter")
+            .config(config);
+        let result = memd.decompose(&signals).expect("operation should succeed");
 
         // Should respect max_imfs configuration
         assert!(result.n_imfs_per_channel <= 3);

@@ -1464,7 +1464,7 @@ pub struct ActiveMathematicalOptimization {
 impl Default for MathematicalOptimizer {
     fn default() -> Self {
         Self {
-            optimizer_id: format!("math_opt_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            optimizer_id: format!("math_opt_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             linear_solvers: HashMap::new(),
             quadratic_solvers: HashMap::new(),
             nonlinear_solvers: HashMap::new(),

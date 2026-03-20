@@ -247,7 +247,7 @@ impl AlertManagementSystem {
         // Initialize system if enabled
         if config.enabled {
             {
-                let mut state = system.state.write().unwrap();
+                let mut state = system.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = AlertSystemStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -265,31 +265,31 @@ impl AlertManagementSystem {
 
         // Add to active sessions
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.to_string(), session_manager);
         }
 
         // Initialize session in global processor
         {
-            let mut processor = self.global_processor.write().unwrap();
+            let mut processor = self.global_processor.write().unwrap_or_else(|e| e.into_inner());
             processor.initialize_session(session_id)?;
         }
 
         // Initialize session in correlation engine
         {
-            let mut correlation = self.correlation_engine.write().unwrap();
+            let mut correlation = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
             correlation.initialize_session(session_id)?;
         }
 
         // Initialize session in notification dispatcher
         {
-            let mut dispatcher = self.notification_dispatcher.write().unwrap();
+            let mut dispatcher = self.notification_dispatcher.write().unwrap_or_else(|e| e.into_inner());
             dispatcher.initialize_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count += 1;
             state.total_sessions_initialized += 1;
         }
@@ -304,7 +304,7 @@ impl AlertManagementSystem {
 
         // Remove from active sessions
         let manager = {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.remove(session_id)
         };
 
@@ -315,25 +315,25 @@ impl AlertManagementSystem {
 
         // Shutdown session in global processor
         {
-            let mut processor = self.global_processor.write().unwrap();
+            let mut processor = self.global_processor.write().unwrap_or_else(|e| e.into_inner());
             processor.shutdown_session(session_id)?;
         }
 
         // Shutdown session in correlation engine
         {
-            let mut correlation = self.correlation_engine.write().unwrap();
+            let mut correlation = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
             correlation.shutdown_session(session_id)?;
         }
 
         // Shutdown session in notification dispatcher
         {
-            let mut dispatcher = self.notification_dispatcher.write().unwrap();
+            let mut dispatcher = self.notification_dispatcher.write().unwrap_or_else(|e| e.into_inner());
             dispatcher.shutdown_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count = state.active_sessions_count.saturating_sub(1);
             state.total_sessions_finalized += 1;
         }
@@ -352,7 +352,7 @@ impl AlertManagementSystem {
 
         // Evaluate through session alert manager
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(manager) = sessions.get_mut(session_id) {
                 manager.evaluate_event(event).await?;
             }
@@ -360,13 +360,13 @@ impl AlertManagementSystem {
 
         // Process through global processor
         {
-            let mut processor = self.global_processor.write().unwrap();
+            let mut processor = self.global_processor.write().unwrap_or_else(|e| e.into_inner());
             processor.process_event(session_id, event).await?;
         }
 
         // Check for correlations
         {
-            let mut correlation = self.correlation_engine.write().unwrap();
+            let mut correlation = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
             correlation.process_event(session_id, event).await?;
         }
 
@@ -375,7 +375,7 @@ impl AlertManagementSystem {
 
     /// Get active alerts for session
     pub fn get_active_alerts(&self, session_id: &str) -> SklResult<Vec<ActiveAlert>> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(manager) = sessions.get(session_id) {
             Ok(manager.get_active_alerts())
         } else {
@@ -389,7 +389,7 @@ impl AlertManagementSystem {
         session_id: &str,
         thresholds: Vec<AlertThreshold>,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(manager) = sessions.get_mut(session_id) {
             manager.configure_thresholds(thresholds)
         } else {
@@ -403,7 +403,7 @@ impl AlertManagementSystem {
         session_id: &str,
         alert_info: ManualAlertInfo,
     ) -> SklResult<String> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(manager) = sessions.get_mut(session_id) {
             manager.trigger_manual_alert(alert_info).await
         } else {
@@ -418,7 +418,7 @@ impl AlertManagementSystem {
         alert_id: &str,
         acknowledgment: AlertAcknowledgment,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(manager) = sessions.get_mut(session_id) {
             manager.acknowledge_alert(alert_id, acknowledgment).await
         } else {
@@ -433,7 +433,7 @@ impl AlertManagementSystem {
         alert_id: &str,
         resolution: AlertResolution,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(manager) = sessions.get_mut(session_id) {
             manager.resolve_alert(alert_id, resolution).await
         } else {
@@ -444,7 +444,7 @@ impl AlertManagementSystem {
     /// Get alert statistics
     pub fn get_alert_statistics(&self, session_id: Option<&str>) -> SklResult<AlertStatistics> {
         if let Some(session_id) = session_id {
-            let sessions = self.active_sessions.read().unwrap();
+            let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
             if let Some(manager) = sessions.get(session_id) {
                 Ok(manager.get_statistics())
             } else {
@@ -452,7 +452,7 @@ impl AlertManagementSystem {
             }
         } else {
             // Return global statistics
-            let processor = self.global_processor.read().unwrap();
+            let processor = self.global_processor.read().unwrap_or_else(|e| e.into_inner());
             Ok(processor.get_global_statistics())
         }
     }
@@ -463,7 +463,7 @@ impl AlertManagementSystem {
         session_id: &str,
         alert_id: &str,
     ) -> SklResult<Vec<AlertCorrelation>> {
-        let correlation_engine = self.correlation_engine.read().unwrap();
+        let correlation_engine = self.correlation_engine.read().unwrap_or_else(|e| e.into_inner());
         correlation_engine.get_correlations(session_id, alert_id).await
     }
 
@@ -473,7 +473,7 @@ impl AlertManagementSystem {
         session_id: &str,
         channels: Vec<NotificationChannel>,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(manager) = sessions.get_mut(session_id) {
             manager.configure_notification_channels(channels).await
         } else {
@@ -487,7 +487,7 @@ impl AlertManagementSystem {
         session_id: &str,
         policies: Vec<EscalationPolicy>,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(manager) = sessions.get_mut(session_id) {
             manager.configure_escalation_policies(policies).await
         } else {
@@ -501,14 +501,14 @@ impl AlertManagementSystem {
         session_id: &str,
         analytics_request: AlertAnalyticsRequest,
     ) -> SklResult<AlertAnalytics> {
-        let analytics = self.analytics_processor.read().unwrap();
+        let analytics = self.analytics_processor.read().unwrap_or_else(|e| e.into_inner());
         analytics.generate_analytics(session_id, analytics_request).await
     }
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let health = self.health_monitor.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let health = self.health_monitor.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -526,8 +526,8 @@ impl AlertManagementSystem {
 
     /// Get alert management statistics
     pub fn get_management_statistics(&self) -> SklResult<AlertManagementStatistics> {
-        let state = self.state.read().unwrap();
-        let perf = self.performance_tracker.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let perf = self.performance_tracker.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(AlertManagementStatistics {
             total_alerts_processed: state.total_alerts_processed,
@@ -542,12 +542,12 @@ impl AlertManagementSystem {
 
     /// Private helper methods
     async fn flush_session_alerts(&self, session_id: &str) -> SklResult<()> {
-        let storage = self.storage_manager.read().unwrap();
+        let storage = self.storage_manager.read().unwrap_or_else(|e| e.into_inner());
         storage.flush_session_alerts(session_id).await
     }
 
     fn validate_session_exists(&self, session_id: &str) -> SklResult<()> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if !sessions.contains_key(session_id) {
             return Err(SklearsError::NotFound(format!("Session {} not found", session_id)));
         }
@@ -555,17 +555,17 @@ impl AlertManagementSystem {
     }
 
     fn calculate_notification_success_rate(&self) -> SklResult<f64> {
-        let dispatcher = self.notification_dispatcher.read().unwrap();
+        let dispatcher = self.notification_dispatcher.read().unwrap_or_else(|e| e.into_inner());
         Ok(dispatcher.get_success_rate())
     }
 
     fn calculate_escalation_rate(&self) -> SklResult<f64> {
-        let escalation_mgr = self.escalation_manager.read().unwrap();
+        let escalation_mgr = self.escalation_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(escalation_mgr.get_escalation_rate())
     }
 
     fn calculate_correlation_efficiency(&self) -> SklResult<f64> {
-        let correlation_engine = self.correlation_engine.read().unwrap();
+        let correlation_engine = self.correlation_engine.read().unwrap_or_else(|e| e.into_inner());
         Ok(correlation_engine.get_efficiency_score())
     }
 }
@@ -1194,7 +1194,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_initialization() {
         let config = AlertManagementConfig::default();
-        let mut system = AlertManagementSystem::new(&config).unwrap();
+        let mut system = AlertManagementSystem::new(&config).unwrap_or_default();
 
         let result = system.initialize_session("test_session").await;
         assert!(result.is_ok());

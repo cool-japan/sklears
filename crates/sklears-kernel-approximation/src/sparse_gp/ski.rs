@@ -502,7 +502,9 @@ mod tests {
         let ski = StructuredKernelInterpolation::new(vec![3, 2], kernel);
 
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]];
-        let grid_points = ski.generate_grid_points(&x).unwrap();
+        let grid_points = ski
+            .generate_grid_points(&x)
+            .expect("operation should succeed");
 
         assert_eq!(grid_points.shape(), &[6, 2]); // 3 × 2 grid
         assert!(grid_points.iter().all(|&x| x.is_finite()));
@@ -530,7 +532,7 @@ mod tests {
 
         let weights = ski
             .compute_interpolation_weights(&x, &grid_points, &ranges)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(weights.shape(), &[2, 9]);
 
@@ -549,7 +551,7 @@ mod tests {
         let x = array![[0.0, 0.0], [0.5, 0.5], [1.0, 1.0], [1.5, 1.5]];
         let y = array![0.0, 0.25, 1.0, 2.25];
 
-        let fitted = ski.fit(&x, &y).unwrap();
+        let fitted = ski.fit(&x, &y).expect("operation should succeed");
 
         assert_eq!(fitted.grid_points.nrows(), 9); // 3 × 3 grid
         assert_eq!(fitted.alpha.len(), 9);
@@ -564,9 +566,9 @@ mod tests {
         let x = array![[0.0, 0.0], [0.5, 0.5], [1.0, 1.0], [1.5, 1.5]];
         let y = array![0.0, 0.25, 1.0, 2.25];
 
-        let fitted = ski.fit(&x, &y).unwrap();
+        let fitted = ski.fit(&x, &y).expect("operation should succeed");
         let x_test = array![[0.25, 0.25], [0.75, 0.75]];
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert!(predictions.iter().all(|&x| x.is_finite()));
@@ -580,9 +582,11 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]];
         let y = array![0.0, 1.0, 4.0];
 
-        let fitted = ski.fit(&x, &y).unwrap();
+        let fitted = ski.fit(&x, &y).expect("operation should succeed");
         let x_test = array![[0.5, 0.5], [1.5, 1.5]];
-        let (mean, var) = fitted.predict_with_variance(&x_test).unwrap();
+        let (mean, var) = fitted
+            .predict_with_variance(&x_test)
+            .expect("operation should succeed");
 
         assert_eq!(mean.len(), 2);
         assert_eq!(var.len(), 2);
@@ -597,12 +601,14 @@ mod tests {
             .interpolation(InterpolationMethod::Cubic);
 
         let x = array![[0.5, 0.5], [1.5, 1.5]];
-        let grid_points = ski.generate_grid_points(&x).unwrap();
+        let grid_points = ski
+            .generate_grid_points(&x)
+            .expect("operation should succeed");
         let ranges = vec![(0.0, 2.0), (0.0, 2.0)];
 
         let weights = ski
             .compute_interpolation_weights(&x, &grid_points, &ranges)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(weights.shape(), &[2, 16]); // 4 × 4 grid
 
@@ -643,7 +649,9 @@ mod tests {
             alpha: Array1::zeros(6),
         };
 
-        let inferred_grid_size = fitted_ski.infer_grid_size_from_points().unwrap();
+        let inferred_grid_size = fitted_ski
+            .infer_grid_size_from_points()
+            .expect("operation should succeed");
         assert_eq!(inferred_grid_size, vec![3, 2]);
     }
 }

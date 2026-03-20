@@ -212,7 +212,11 @@ impl MultiTaskGaussianProcessRegressor<Untrained> {
         let mut current_idx = 0;
 
         // Determine input dimension from first task
-        let first_task = self.tasks.values().next().unwrap();
+        let first_task = self
+            .tasks
+            .values()
+            .next()
+            .expect("operation should succeed");
         let n_features = first_task.0.ncols();
 
         for (task_name, (X, y)) in &self.tasks {
@@ -572,7 +576,7 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(mtgp.tasks.len(), 1);
         assert!(mtgp.tasks.contains_key("task1"));
@@ -592,7 +596,7 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X.view(), &y.view())
-            .unwrap()
+            .expect("operation should succeed")
             .remove_task("task1");
 
         assert_eq!(mtgp.tasks.len(), 0);
@@ -610,9 +614,9 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted = mtgp.fit().unwrap();
+        let fitted = mtgp.fit().expect("model fitting should succeed");
         assert_eq!(fitted.task_names().len(), 1);
         assert!(fitted.log_marginal_likelihood_task("task1").is_some());
     }
@@ -630,11 +634,11 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X1.view(), &y1.view())
-            .unwrap()
+            .expect("operation should succeed")
             .add_task("task2", &X2.view(), &y2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted = mtgp.fit().unwrap();
+        let fitted = mtgp.fit().expect("model fitting should succeed");
         assert_eq!(fitted.task_names().len(), 2);
         assert!(fitted.log_marginal_likelihood_task("task1").is_some());
         assert!(fitted.log_marginal_likelihood_task("task2").is_some());
@@ -653,16 +657,20 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X1.view(), &y1.view())
-            .unwrap()
+            .expect("operation should succeed")
             .add_task("task2", &X2.view(), &y2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted = mtgp.fit().unwrap();
+        let fitted = mtgp.fit().expect("model fitting should succeed");
 
-        let predictions = fitted.predict_task("task1", &X1.view()).unwrap();
+        let predictions = fitted
+            .predict_task("task1", &X1.view())
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let predictions2 = fitted.predict_task("task2", &X2.view()).unwrap();
+        let predictions2 = fitted
+            .predict_task("task2", &X2.view())
+            .expect("operation should succeed");
         assert_eq!(predictions2.len(), 4);
     }
 
@@ -678,10 +686,12 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted = mtgp.fit().unwrap();
-        let (shared_pred, task_pred) = fitted.predict_task_components("task1", &X.view()).unwrap();
+        let fitted = mtgp.fit().expect("model fitting should succeed");
+        let (shared_pred, task_pred) = fitted
+            .predict_task_components("task1", &X.view())
+            .expect("operation should succeed");
 
         assert_eq!(shared_pred.len(), 4);
         assert_eq!(task_pred.len(), 4);
@@ -700,18 +710,24 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X1.view(), &y1.view())
-            .unwrap()
+            .expect("operation should succeed")
             .add_task("task2", &X2.view(), &y2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted = mtgp.fit().unwrap();
+        let fitted = mtgp.fit().expect("model fitting should succeed");
         let all_lml = fitted.log_marginal_likelihoods();
 
         assert_eq!(all_lml.len(), 2);
         assert!(all_lml.contains_key("task1"));
         assert!(all_lml.contains_key("task2"));
-        assert!(all_lml.get("task1").unwrap().is_finite());
-        assert!(all_lml.get("task2").unwrap().is_finite());
+        assert!(all_lml
+            .get("task1")
+            .expect("index should be valid")
+            .is_finite());
+        assert!(all_lml
+            .get("task2")
+            .expect("index should be valid")
+            .is_finite());
     }
 
     #[test]
@@ -725,7 +741,7 @@ mod tests {
         let mtgp = MultiTaskGaussianProcessRegressor::new()
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(mtgp.fit().is_err());
 
         // Test with no task kernel
@@ -733,7 +749,7 @@ mod tests {
         let mtgp = MultiTaskGaussianProcessRegressor::new()
             .shared_kernel(Box::new(shared_kernel))
             .add_task("task1", &X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(mtgp.fit().is_err());
 
         // Test with no tasks
@@ -751,9 +767,9 @@ mod tests {
             .shared_kernel(Box::new(shared_kernel))
             .task_kernel(Box::new(task_kernel))
             .add_task("task1", &X.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let fitted = mtgp.fit().unwrap();
+        let fitted = mtgp.fit().expect("model fitting should succeed");
         assert!(fitted.predict_task("nonexistent", &X.view()).is_err());
     }
 

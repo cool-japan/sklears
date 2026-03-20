@@ -19,12 +19,16 @@ fn test_knn_basic_functionality() {
         (6, 2),
         vec![1.0, 2.0, 2.0, 3.0, 3.0, 1.0, 5.0, 6.0, 6.0, 7.0, 7.0, 5.0],
     )
-    .unwrap();
+    .expect("operation should succeed");
     let y = array![0, 0, 0, 1, 1, 1];
 
     let classifier = KNeighborsClassifier::new(3);
-    let fitted_classifier = classifier.fit(&X, &y).unwrap();
-    let predictions = fitted_classifier.predict(&X).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X, &y)
+        .expect("model fitting should succeed");
+    let predictions = fitted_classifier
+        .predict(&X)
+        .expect("prediction should succeed");
 
     assert_eq!(predictions.len(), y.len());
 
@@ -44,7 +48,7 @@ fn test_basic_metrics() {
     let y_true = array![0, 1, 2, 0, 1, 2];
     let y_pred = array![0, 2, 1, 0, 0, 1];
 
-    let accuracy = accuracy_score(&y_true, &y_pred).unwrap();
+    let accuracy = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
 
     // Manual calculation: 2 correct out of 6 = 0.333...
     assert!((accuracy - 0.3333333333333333).abs() < 1e-10);
@@ -61,8 +65,12 @@ fn test_label_encoding() {
     let labels = vec!["cat", "dog", "bird", "cat", "dog"];
 
     let encoder = LabelEncoder::new();
-    let fitted_encoder = encoder.fit(&labels, &()).unwrap();
-    let encoded = fitted_encoder.transform(&labels).unwrap();
+    let fitted_encoder = encoder
+        .fit(&labels, &())
+        .expect("serialization should succeed");
+    let encoded = fitted_encoder
+        .transform(&labels)
+        .expect("serialization should succeed");
 
     // Should have consistent encoding
     assert_eq!(encoded[0], encoded[3]); // Both "cat"
@@ -87,7 +95,7 @@ fn test_simple_data_generation() {
         2,        // n_classes
         Some(42), // random_state
     )
-    .unwrap();
+    .expect("operation should succeed");
 
     assert_eq!(X.shape(), &[10, 3]);
     assert_eq!(y.len(), 10);
@@ -101,7 +109,7 @@ fn test_simple_data_generation() {
         2,        // n_classes
         Some(42), // random_state
     )
-    .unwrap();
+    .expect("operation should succeed");
     assert_eq!(X, X2);
     assert_eq!(y, y2);
 }
@@ -139,12 +147,13 @@ fn test_basic_decision_tree() {
     use sklears::tree::DecisionTreeClassifier;
 
     // Simple linearly separable data
-    let X = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]).unwrap();
+    let X = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0])
+        .expect("shape and data length should match");
     let y = array![0.0, 1.0, 1.0, 0.0]; // XOR pattern
 
     let tree = DecisionTreeClassifier::new();
-    let fitted_tree = tree.fit(&X, &y).unwrap();
-    let predictions = fitted_tree.predict(&X).unwrap();
+    let fitted_tree = tree.fit(&X, &y).expect("model fitting should succeed");
+    let predictions = fitted_tree.predict(&X).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), y.len());
     // Trees should be able to learn XOR with enough depth
@@ -166,12 +175,16 @@ fn test_knn_properties() {
             3.0, 4.0, 3.0, 4.0, // Duplicate
         ],
     )
-    .unwrap();
+    .expect("operation should succeed");
     let y = array![0, 0, 1, 1];
 
     let classifier = KNeighborsClassifier::new(1);
-    let fitted_classifier = classifier.fit(&X, &y).unwrap();
-    let predictions = fitted_classifier.predict(&X).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X, &y)
+        .expect("model fitting should succeed");
+    let predictions = fitted_classifier
+        .predict(&X)
+        .expect("prediction should succeed");
 
     // Identical points should have identical predictions
     assert_eq!(predictions[0], predictions[1]);

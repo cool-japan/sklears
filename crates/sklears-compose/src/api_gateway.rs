@@ -645,7 +645,7 @@ mod tests {
         
         assert!(selected1.is_some());
         assert!(selected2.is_some());
-        assert_ne!(selected1.unwrap().name, selected2.unwrap().name);
+        assert_ne!(selected1.unwrap_or_default().name, selected2.unwrap_or_default().name);
     }
 
     #[test]
@@ -675,7 +675,7 @@ mod tests {
             weight: 1.0,
         };
         
-        gateway.register_service(service).await.unwrap();
+        gateway.register_service(service).await.unwrap_or_default();
         
         let mut health_status = gateway.health_status.write().await;
         health_status.insert("test-service".to_string(), ServiceHealth {

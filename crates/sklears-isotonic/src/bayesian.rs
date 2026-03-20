@@ -135,7 +135,7 @@ impl Fit<Array1<Float>, Array1<Float>> for BayesianIsotonicRegression<Untrained>
 
         // Sort data by x values
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let x_sorted: Array1<Float> = indices.iter().map(|&i| x[i]).collect();
         let y_sorted: Array1<Float> = indices.iter().map(|&i| y[i]).collect();
@@ -144,7 +144,7 @@ impl Fit<Array1<Float>, Array1<Float>> for BayesianIsotonicRegression<Untrained>
         let posterior_samples = self.gibbs_sampling(&x_sorted, &y_sorted)?;
 
         // Compute posterior mean
-        let posterior_mean = posterior_samples.mean_axis(Axis(0)).unwrap();
+        let posterior_mean = posterior_samples.mean_axis(Axis(0)).ok_or_else(|| SklearsError::NumericalError("mean computation should succeed for non-empty array".into()))?;
 
         // Compute credible intervals
         let credible_intervals = self.compute_credible_intervals(&posterior_samples)?;
@@ -294,7 +294,7 @@ impl BayesianIsotonicRegression<Untrained> {
 
         for i in 0..n_points {
             let mut column_values: Vec<Float> = samples.column(i).to_vec();
-            column_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            column_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             let lower_idx = (lower_quantile * (column_values.len() - 1) as Float) as usize;
             let upper_idx = (upper_quantile * (column_values.len() - 1) as Float) as usize;
@@ -479,21 +479,21 @@ mod tests {
             .increasing(true)
             .n_samples(100);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that we can get posterior samples
-        let posterior_samples = fitted_model.posterior_samples().unwrap();
+        let posterior_samples = fitted_model.posterior_samples().expect("operation should succeed");
         assert_eq!(posterior_samples.nrows(), 100);
         assert_eq!(posterior_samples.ncols(), 5);
 
         // Check that posterior mean is monotonic
-        let posterior_mean = fitted_model.posterior_mean().unwrap();
+        let posterior_mean = fitted_model.posterior_mean().expect("operation should succeed");
         for i in 0..posterior_mean.len() - 1 {
             assert!(posterior_mean[i] <= posterior_mean[i + 1]);
         }
 
         // Check that credible intervals are properly ordered
-        let intervals = fitted_model.credible_intervals().unwrap();
+        let intervals = fitted_model.credible_intervals().expect("operation should succeed");
         for i in 0..intervals.nrows() {
             assert!(intervals[[i, 0]] <= intervals[[i, 1]]);
         }
@@ -508,10 +508,10 @@ mod tests {
             .increasing(true)
             .n_samples(50);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         let x_new = Array1::from(vec![1.5, 2.5, 3.5]);
-        let (predictions, uncertainty) = fitted_model.predict_with_uncertainty(&x_new).unwrap();
+        let (predictions, uncertainty) = fitted_model.predict_with_uncertainty(&x_new).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(uncertainty.shape(), &[3, 2]);
@@ -531,7 +531,7 @@ mod tests {
         let result = bayesian_isotonic_regression(&x, &y, true, 1.0, 0.5, 100);
         assert!(result.is_ok());
 
-        let (posterior_mean, posterior_samples, credible_intervals) = result.unwrap();
+        let (posterior_mean, posterior_samples, credible_intervals) = result.expect("operation should succeed");
 
         assert_eq!(posterior_mean.len(), 5);
         assert_eq!(posterior_samples.shape(), &[100, 5]);
@@ -552,12 +552,12 @@ mod tests {
             .increasing(true)
             .n_samples(50);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         let x_new = Array1::from(vec![1.5, 2.5]);
         let predictive_samples = fitted_model
             .sample_posterior_predictive(&x_new, 25)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(predictive_samples.shape(), &[25, 2]);
     }

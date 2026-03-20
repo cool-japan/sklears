@@ -90,9 +90,9 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             *class_counts.entry(risk_level).or_insert(0) += 1;
         }
 
-        let total_samples = T::from(risk_labels.len()).unwrap();
+        let total_samples = T::from(risk_labels.len()).expect("operation should succeed");
         for (&risk_level, &count) in class_counts.iter() {
-            let prior = T::from(count).unwrap() / total_samples;
+            let prior = T::from(count).expect("operation should succeed") / total_samples;
             self.priors.insert(risk_level, prior);
         }
 
@@ -179,7 +179,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
 
         probabilities
             .into_iter()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(risk_level, _)| risk_level)
             .ok_or_else(|| FinanceError::CreditScoring("No predictions available".to_string()))
     }
@@ -266,9 +266,9 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
 
     /// Gaussian probability density function
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
-        let two_pi = T::from(2.0 * std::f64::consts::PI).unwrap();
+        let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).unwrap() * variance);
+        let exponent = -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 
@@ -278,17 +278,17 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             return T::zero();
         }
         let sum: T = values.iter().sum();
-        sum / T::from(values.len()).unwrap()
+        sum / T::from(values.len()).expect("operation should succeed")
     }
 
     /// Calculate variance of a vector
     fn calculate_variance(&self, values: &[T]) -> T {
         if values.len() < 2 {
-            return T::from(0.01).unwrap(); // Small default variance
+            return T::from(0.01).expect("operation should succeed"); // Small default variance
         }
         let mean = self.calculate_mean(values);
         let sum_squared_diff: T = values.iter().map(|&x| (x - mean).powi(2)).sum();
-        sum_squared_diff / T::from(values.len() - 1).unwrap()
+        sum_squared_diff / T::from(values.len() - 1).expect("operation should succeed")
     }
 }
 
@@ -307,9 +307,9 @@ pub struct CreditData<T: Float> {
 impl<T: Float> Default for CreditScoringParams<T> {
     fn default() -> Self {
         Self {
-            min_credit_score: T::from(600.0).unwrap(),
-            max_debt_to_income: T::from(0.4).unwrap(),
-            payment_history_weight: T::from(0.35).unwrap(),
+            min_credit_score: T::from(600.0).expect("operation should succeed"),
+            max_debt_to_income: T::from(0.4).expect("operation should succeed"),
+            payment_history_weight: T::from(0.35).expect("operation should succeed"),
         }
     }
 }

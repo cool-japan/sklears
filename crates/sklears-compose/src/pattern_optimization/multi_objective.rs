@@ -312,7 +312,7 @@ impl Default for MultiObjectiveOptimizer {
                 "moo_{}",
                 SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             pareto_front_manager: ParetoFrontManager::default(),
@@ -335,7 +335,7 @@ impl Default for ParetoFrontManager {
                 "pfm_{}",
                 SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             current_front: Vec::new(),

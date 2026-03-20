@@ -20,7 +20,7 @@ pub fn r2_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> MetricsResult<f64
         return Err(MetricsError::EmptyInput);
     }
 
-    let y_mean = y_true.mean().unwrap();
+    let y_mean = y_true.mean().expect("operation should succeed");
 
     let ss_res = y_true
         .iter()
@@ -50,7 +50,7 @@ pub fn explained_variance_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> M
         return Err(MetricsError::EmptyInput);
     }
 
-    let y_true_mean = y_true.mean().unwrap();
+    let y_true_mean = y_true.mean().expect("operation should succeed");
     let residuals: Vec<f64> = y_true
         .iter()
         .zip(y_pred.iter())
@@ -110,7 +110,7 @@ pub fn median_r2_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> MetricsRes
     }
 
     let mut y_sorted = y_true.to_vec();
-    y_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    y_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = y_sorted.len();
     let y_median = if n % 2 == 0 {
@@ -122,7 +122,7 @@ pub fn median_r2_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> MetricsRes
     let mad_y = {
         let deviations: Vec<f64> = y_true.iter().map(|y| (y - y_median).abs()).collect();
         let mut dev_sorted = deviations;
-        dev_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        dev_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         if n % 2 == 0 {
             (dev_sorted[n / 2 - 1] + dev_sorted[n / 2]) / 2.0
@@ -138,7 +138,7 @@ pub fn median_r2_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> MetricsRes
             .map(|(t, p)| (t - p).abs())
             .collect();
         let mut res_sorted = residuals;
-        res_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        res_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         if n % 2 == 0 {
             (res_sorted[n / 2 - 1] + res_sorted[n / 2]) / 2.0
@@ -185,7 +185,11 @@ pub fn trimmed_r2_score(
         .collect();
 
     let mut indices: Vec<usize> = (0..residuals.len()).collect();
-    indices.sort_by(|&a, &b| residuals[a].partial_cmp(&residuals[b]).unwrap());
+    indices.sort_by(|&a, &b| {
+        residuals[a]
+            .partial_cmp(&residuals[b])
+            .expect("operation should succeed")
+    });
 
     // Trim extreme values
     let n = residuals.len();
@@ -223,7 +227,7 @@ pub fn huber_r2_score(
         return Err(MetricsError::EmptyInput);
     }
 
-    let y_mean = y_true.mean().unwrap();
+    let y_mean = y_true.mean().expect("operation should succeed");
 
     let huber_loss = |r: f64| -> f64 {
         if r.abs() <= delta {
@@ -275,16 +279,16 @@ mod tests {
     fn test_r2_score_perfect() {
         let y_true = array![1.0, 2.0, 3.0, 4.0];
         let y_pred = array![1.0, 2.0, 3.0, 4.0];
-        let r2 = r2_score(&y_true, &y_pred).unwrap();
+        let r2 = r2_score(&y_true, &y_pred).expect("operation should succeed");
         assert!((r2 - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn test_r2_score_mean_prediction() {
         let y_true = array![1.0, 2.0, 3.0, 4.0];
-        let mean_val = y_true.mean().unwrap();
+        let mean_val = y_true.mean().expect("operation should succeed");
         let y_pred = array![mean_val, mean_val, mean_val, mean_val];
-        let r2 = r2_score(&y_true, &y_pred).unwrap();
+        let r2 = r2_score(&y_true, &y_pred).expect("operation should succeed");
         assert!((r2 - 0.0).abs() < f64::EPSILON);
     }
 
@@ -292,7 +296,7 @@ mod tests {
     fn test_explained_variance_score() {
         let y_true = array![3.0, -0.5, 2.0, 7.0];
         let y_pred = array![2.5, 0.0, 2.0, 8.0];
-        let evs = explained_variance_score(&y_true, &y_pred).unwrap();
+        let evs = explained_variance_score(&y_true, &y_pred).expect("operation should succeed");
         assert!((0.0..=1.0).contains(&evs));
     }
 
@@ -301,10 +305,13 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0];
         let y_pred = array![1.1, 1.9, 3.1, 3.9];
 
-        let r2_median = robust_r2_score(&y_true, &y_pred, "median").unwrap();
-        let r2_trimmed = robust_r2_score(&y_true, &y_pred, "trimmed").unwrap();
-        let r2_huber = robust_r2_score(&y_true, &y_pred, "huber").unwrap();
-        let r2_mad = robust_r2_score(&y_true, &y_pred, "mad").unwrap();
+        let r2_median =
+            robust_r2_score(&y_true, &y_pred, "median").expect("operation should succeed");
+        let r2_trimmed =
+            robust_r2_score(&y_true, &y_pred, "trimmed").expect("operation should succeed");
+        let r2_huber =
+            robust_r2_score(&y_true, &y_pred, "huber").expect("operation should succeed");
+        let r2_mad = robust_r2_score(&y_true, &y_pred, "mad").expect("operation should succeed");
 
         // All should give reasonable values
         assert!(r2_median > 0.5);

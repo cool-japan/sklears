@@ -51,7 +51,7 @@ impl LoadBalancingAlgorithm for WeightedRoundRobinBalancer {
         }
         if let Some(ref selected) = best_backend {
             for backend in backends {
-                let weight = self.current_weights.get_mut(&backend.id).unwrap();
+                let weight = self.current_weights.get_mut(&backend.id).unwrap_or_default();
                 if backend.id == *selected {
                     *weight -= backends.iter().map(|b| b.weight).sum::<f64>();
                 } else {

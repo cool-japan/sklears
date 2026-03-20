@@ -502,7 +502,7 @@ impl EMAlgorithm {
     /// Compute sample covariance matrix
     fn compute_sample_covariance(&self, x: &ArrayView2<Float>) -> Array2<Float> {
         let n_features = x.ncols();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let mut cov = Array2::zeros((n_features, n_features));
 
         for sample in x.outer_iter() {
@@ -566,7 +566,7 @@ mod tests {
             .covariance_type(CovarianceType::Diagonal)
             .init_params(WeightInit::KMeans);
 
-        let result = em.fit(&x.view(), 2).unwrap();
+        let result = em.fit(&x.view(), 2).expect("operation should succeed");
 
         assert_eq!(result.weights.len(), 2);
         assert_eq!(result.means.nrows(), 2);
@@ -583,7 +583,9 @@ mod tests {
             .covariance_type(CovarianceType::Full)
             .init_params(WeightInit::KMeans);
 
-        let (weights, means, covariances) = em.initialize_parameters(&x.view(), 2).unwrap();
+        let (weights, means, covariances) = em
+            .initialize_parameters(&x.view(), 2)
+            .expect("operation should succeed");
 
         assert_eq!(weights.len(), 2);
         assert_eq!(means.nrows(), 2);

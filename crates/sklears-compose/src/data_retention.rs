@@ -1273,7 +1273,7 @@ impl DataRetentionManager {
     /// Get retention metrics
     pub fn get_metrics(&self) -> RetentionMetrics {
         // Return a snapshot of current metrics
-        let metrics = self.metrics.lock().unwrap();
+        let metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         RetentionMetrics {
             total_data_managed: AtomicU64::new(metrics.total_data_managed.load(Ordering::Relaxed)),
             data_deleted: AtomicU64::new(metrics.data_deleted.load(Ordering::Relaxed)),
@@ -1303,7 +1303,7 @@ impl RetentionPolicyEngine {
     fn add_policy(&self, policy: RetentionPolicy) -> Result<(), RetentionError> {
         // Validate policy before adding
         // Add to policies map
-        let mut policies = self.policies.write().unwrap();
+        let mut policies = self.policies.write().unwrap_or_else(|e| e.into_inner());
         policies.insert(policy.id.clone(), policy);
         Ok(())
     }
@@ -1351,7 +1351,7 @@ impl CleanupScheduler {
     }
 
     fn schedule_job(&self, job: CleanupJob) -> Result<(), RetentionError> {
-        let mut queue = self.cleanup_queue.lock().unwrap();
+        let mut queue = self.cleanup_queue.lock().unwrap_or_else(|e| e.into_inner());
         queue.push(Reverse(job));
         Ok(())
     }

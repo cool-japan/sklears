@@ -1039,11 +1039,11 @@ mod tests {
                 6.0, 6.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Check centroids
         let centroids = fitted.centroids().expect("centroids should be available");
@@ -1065,23 +1065,25 @@ mod tests {
                 5.8, 5.8, // Should be class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
     }
 
     #[test]
     fn test_nearest_centroid_single_class() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
         let y = array![5, 5, 5]; // All same class
 
         let classifier = NearestCentroid::new();
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((1, 2), vec![2.0, 2.0]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![2.0, 2.0]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         assert_eq!(predictions[0], 5);
     }
@@ -1099,7 +1101,8 @@ mod tests {
 
     #[test]
     fn test_nearest_centroid_shape_mismatch() {
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let y = array![0, 1, 2]; // Wrong length
 
         let classifier = NearestCentroid::new();
@@ -1122,12 +1125,12 @@ mod tests {
                 6.0, 6.0, 52.0, 0.2, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         // Apply shrinkage with threshold 0.5
         let classifier = NearestCentroid::new().with_shrink_threshold(0.5);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Check that shrinkage was applied
         assert!(fitted.has_shrinkage());
@@ -1144,8 +1147,9 @@ mod tests {
         assert!((feature_3_class_0 - feature_3_class_1).abs() < 0.05);
 
         // Test prediction still works
-        let x_test = Array2::from_shape_vec((1, 4), vec![1.2, 1.2, 100.5, 0.15]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((1, 4), vec![1.2, 1.2, 100.5, 0.15])
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
     }
 
@@ -1160,14 +1164,17 @@ mod tests {
                 5.1, 5.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05]).unwrap();
-        let scores = fitted.decision_function(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05])
+            .expect("operation should succeed");
+        let scores = fitted
+            .decision_function(&x_test)
+            .expect("operation should succeed");
 
         // Shape should be (n_samples, n_classes)
         assert_eq!(scores.shape(), &[2, 2]);
@@ -1191,11 +1198,11 @@ mod tests {
                 5.2, 0.1, 22.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         let importances = fitted
             .feature_importances()
@@ -1215,7 +1222,8 @@ mod tests {
 
     #[test]
     fn test_shrinkage_with_negative_threshold() {
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let y = array![0, 1];
 
         let classifier = NearestCentroid::new().with_shrink_threshold(-0.1);
@@ -1226,12 +1234,12 @@ mod tests {
 
     #[test]
     fn test_nearest_centroid_without_shrinkage() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Should not have shrinkage
         assert!(!fitted.has_shrinkage());
@@ -1254,7 +1262,7 @@ mod tests {
                 5.3, 5.3, // Class 1 normal
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 0, 1, 1, 1, 1];
 
         // Use median centroid for class 0 (robust to outliers) and mean for class 1
@@ -1262,7 +1270,7 @@ mod tests {
             .with_class_centroid_type(0, CentroidType::Median)
             .with_class_centroid_type(1, CentroidType::Mean);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
         let centroids = fitted.centroids().expect("centroids should be available");
 
         // Class 0 centroid should be robust to outlier (closer to median ~1.15)
@@ -1280,8 +1288,9 @@ mod tests {
         assert!((centroids[[1, 1]] - 5.15).abs() < 0.1);
 
         // Test prediction
-        let x_test = Array2::from_shape_vec((2, 2), vec![1.15, 1.15, 5.15, 5.15]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((2, 2), vec![1.15, 1.15, 5.15, 5.15])
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
     }
@@ -1299,7 +1308,7 @@ mod tests {
                 5.2, 5.2, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         // Use different distance metrics for different classes
@@ -1307,16 +1316,19 @@ mod tests {
             .with_class_metric(0, Distance::Manhattan)
             .with_class_metric(1, Distance::Euclidean);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test that model still works with different metrics
-        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05])
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
 
         // Test decision function
-        let scores = fitted.decision_function(&x_test).unwrap();
+        let scores = fitted
+            .decision_function(&x_test)
+            .expect("operation should succeed");
         assert_eq!(scores.shape(), &[2, 2]);
 
         // First sample should have higher score for class 0
@@ -1339,14 +1351,14 @@ mod tests {
                 1.0, 1.0, // Normal (to ensure enough samples after trimming)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 0, 0, 0]; // All same class
 
         // Use 20% trimmed mean (remove top and bottom 20%)
         let classifier =
             NearestCentroid::new().with_class_centroid_type(0, CentroidType::TrimmedMean(0.2));
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
         let centroids = fitted.centroids().expect("centroids should be available");
 
         // Centroid should be robust to outlier
@@ -1371,7 +1383,7 @@ mod tests {
                 6.0, 6.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         // Give higher weight to second sample in class 0
@@ -1380,7 +1392,7 @@ mod tests {
             .with_class_centroid_type(0, CentroidType::WeightedMean)
             .with_class_weights(0, weights);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
         let centroids = fitted.centroids().expect("centroids should be available");
 
         // Class 0 centroid should be closer to (2,2) due to higher weight
@@ -1403,13 +1415,13 @@ mod tests {
                 1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 0, 0]; // All same class
 
         let classifier =
             NearestCentroid::new().with_class_centroid_type(0, CentroidType::GeometricMedian);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
         let centroids = fitted.centroids().expect("centroids should be available");
 
         // Geometric median should be at origin (0, 0)
@@ -1430,7 +1442,7 @@ mod tests {
                 5.2, 5.2, 0.8, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         // Apply different shrinkage to different classes
@@ -1438,7 +1450,7 @@ mod tests {
             .with_class_shrink_threshold(0, 0.1) // Strong shrinkage for class 0
             .with_class_shrink_threshold(1, 0.01); // Weaker shrinkage for class 1
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
         let centroids = fitted.centroids().expect("centroids should be available");
 
         // Both classes should have centroids computed
@@ -1461,12 +1473,14 @@ mod tests {
                 5.1, 5.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_initial = array![0, 0, 1, 1];
 
         // Train initial model
         let classifier = NearestCentroid::new();
-        let mut fitted = classifier.fit(&x_initial, &y_initial).unwrap();
+        let mut fitted = classifier
+            .fit(&x_initial, &y_initial)
+            .expect("operation should succeed");
 
         // Check initial centroids
         let initial_centroids = fitted
@@ -1483,11 +1497,13 @@ mod tests {
                 5.2, 5.2, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_new = array![0, 1];
 
         // Perform online update
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("operation should succeed");
 
         // Check updated centroids
         let updated_centroids = fitted
@@ -1524,11 +1540,13 @@ mod tests {
                 5.1, 5.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_initial = array![0, 0, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let mut fitted = classifier.fit(&x_initial, &y_initial).unwrap();
+        let mut fitted = classifier
+            .fit(&x_initial, &y_initial)
+            .expect("operation should succeed");
 
         // Add new class online
         let x_new = Array2::from_shape_vec(
@@ -1538,10 +1556,12 @@ mod tests {
                 10.1, 10.1, // New class 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_new = array![2, 2];
 
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("operation should succeed");
 
         // Check that we now have 3 classes
         let classes = fitted.classes().expect("classes should be available");
@@ -1553,8 +1573,9 @@ mod tests {
         assert_eq!(centroids.shape(), &[3, 2]);
 
         // Test prediction with new class
-        let x_test = Array2::from_shape_vec((1, 2), vec![10.05, 10.05]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![10.05, 10.05]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 2);
     }
 
@@ -1571,15 +1592,17 @@ mod tests {
                 5.2, 5.2, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let mut fitted = classifier.fit(&x, &y).unwrap();
+        let mut fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Remove a sample from class 0
         let sample_to_remove = x.row(0); // [1.0, 1.0]
-        fitted.remove_sample(0, &sample_to_remove).unwrap();
+        fitted
+            .remove_sample(0, &sample_to_remove)
+            .expect("operation should succeed");
 
         // Check updated sample count
         let sample_counts = fitted
@@ -1602,11 +1625,11 @@ mod tests {
                 5.0, 5.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 1];
 
         let classifier = NearestCentroid::new();
-        let mut fitted = classifier.fit(&x, &y).unwrap();
+        let mut fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Try to remove from non-existent class
         let sample = x.row(0);
@@ -1629,11 +1652,11 @@ mod tests {
                 5.1, 5.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         let summary = fitted
             .online_summary()
@@ -1653,11 +1676,11 @@ mod tests {
                 5.1, 5.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let classifier = NearestCentroid::new();
-        let mut fitted = classifier.fit(&x, &y).unwrap();
+        let mut fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Verify initial state
         assert!(fitted.centroids_.is_some());
@@ -1683,21 +1706,23 @@ mod tests {
                 5.0, 5.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 1];
 
         let classifier = NearestCentroid::new();
-        let mut fitted = classifier.fit(&x, &y).unwrap();
+        let mut fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Try to add data with wrong number of features
-        let x_wrong = Array2::from_shape_vec((1, 3), vec![1.0, 1.0, 1.0]).unwrap();
+        let x_wrong =
+            Array2::from_shape_vec((1, 3), vec![1.0, 1.0, 1.0]).expect("operation should succeed");
         let y_new = array![0];
 
         let result = fitted.partial_fit(&x_wrong, &y_new);
         assert!(result.is_err());
 
         // Try to add data with mismatched sample/label counts
-        let x_new = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let x_new = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let y_wrong = array![0]; // Wrong length
 
         let result = fitted.partial_fit(&x_new, &y_wrong);

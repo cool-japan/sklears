@@ -7,7 +7,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -262,8 +262,9 @@ impl GpuRBFSampler {
         // 3. Apply Gaussian distribution scaling
         // 4. Copy results back to host
 
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
 
         let mut weights = Array2::zeros((self.n_components, input_dim));
         for i in 0..self.n_components {
@@ -277,8 +278,9 @@ impl GpuRBFSampler {
 
     fn generate_features_opencl(&self, input_dim: usize, _ctx: &GpuContext) -> Result<Array2<f64>> {
         // Simulate OpenCL kernel execution
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
 
         let mut weights = Array2::zeros((self.n_components, input_dim));
         for i in 0..self.n_components {
@@ -292,8 +294,9 @@ impl GpuRBFSampler {
 
     fn generate_features_metal(&self, input_dim: usize, _ctx: &GpuContext) -> Result<Array2<f64>> {
         // Simulate Metal compute shader execution
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
 
         let mut weights = Array2::zeros((self.n_components, input_dim));
         for i in 0..self.n_components {
@@ -307,8 +310,9 @@ impl GpuRBFSampler {
 
     fn generate_features_cpu(&self, input_dim: usize) -> Result<Array2<f64>> {
         // CPU fallback
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
 
         let mut weights = Array2::zeros((self.n_components, input_dim));
         for i in 0..self.n_components {
@@ -443,8 +447,9 @@ impl Fit<Array2<f64>, ()> for GpuRBFSampler {
         let weights = self.generate_random_features_gpu(input_dim, &gpu_context)?;
 
         // Generate random biases
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
-        let uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
+        let uniform =
+            RandUniform::new(0.0, 2.0 * std::f64::consts::PI).expect("operation should succeed");
         let biases = Array1::from_vec(
             (0..self.n_components)
                 .map(|_| rng.sample(uniform))
@@ -785,7 +790,7 @@ impl Fit<Array2<f64>, ()> for GpuNystroem {
         let n_components = self.n_components.min(n_samples);
 
         // Random sampling of basis vectors
-        let mut rng = RealStdRng::from_seed(thread_rng().gen());
+        let mut rng = RealStdRng::from_seed(thread_rng().random());
         let mut indices: Vec<usize> = (0..n_samples).collect();
         indices.shuffle(&mut rng);
         indices.truncate(n_components);
@@ -961,12 +966,12 @@ mod tests {
     fn test_gpu_rbf_sampler() {
         let x: Array2<f64> = Array::from_shape_fn((50, 10), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let sampler = GpuRBFSampler::new(100).gamma(0.5);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[50, 100]);
     }
@@ -975,12 +980,12 @@ mod tests {
     fn test_gpu_nystroem() {
         let x: Array2<f64> = Array::from_shape_fn((30, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let nystroem = GpuNystroem::new(20).gamma(1.0);
 
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape()[0], 30);
         assert!(transformed.shape()[1] <= 20);

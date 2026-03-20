@@ -666,7 +666,7 @@ impl AdvancedChainClassifier {
         }
 
         let n_samples = x.nrows();
-        let n_labels = self.n_labels.unwrap();
+        let n_labels = self.n_labels.expect("operation should succeed");
         let n_features = x.ncols();
 
         if self.chains.len() == 1 {
@@ -706,7 +706,7 @@ impl AdvancedChainClassifier {
     /// Predict using a single chain
     fn predict_single_chain(&self, x: &Array2<f64>, chain_idx: usize) -> Result<Array2<i32>> {
         let n_samples = x.nrows();
-        let n_labels = self.n_labels.unwrap();
+        let n_labels = self.n_labels.expect("operation should succeed");
         let n_features = x.ncols();
 
         let ordering = &self.label_orderings[chain_idx];
@@ -1059,7 +1059,7 @@ impl MultiLabelNB {
         }
 
         let n_samples = x.nrows();
-        let n_labels = self.n_labels.unwrap();
+        let n_labels = self.n_labels.expect("operation should succeed");
         let mut predictions = Array2::zeros((n_samples, n_labels));
 
         match self.strategy {
@@ -1099,7 +1099,7 @@ impl MultiLabelNB {
         predictions: &mut Array2<i32>,
     ) -> Result<()> {
         let (n_samples, n_features) = x.dim();
-        let n_labels = self.n_labels.unwrap();
+        let n_labels = self.n_labels.expect("operation should succeed");
 
         for label_idx in 0..n_labels {
             // Build extended feature matrix including previous predictions
@@ -1135,7 +1135,7 @@ impl MultiLabelNB {
         }
 
         let n_samples = x.nrows();
-        let n_labels = self.n_labels.unwrap();
+        let n_labels = self.n_labels.expect("operation should succeed");
         let mut probabilities = Array2::zeros((n_samples, n_labels));
 
         match self.strategy {
@@ -1169,7 +1169,7 @@ impl MultiLabelNB {
         probabilities: &mut Array2<f64>,
     ) -> Result<()> {
         let (n_samples, n_features) = x.dim();
-        let n_labels = self.n_labels.unwrap();
+        let n_labels = self.n_labels.expect("operation should succeed");
 
         for label_idx in 0..n_labels {
             // Build extended feature matrix
@@ -1210,10 +1210,13 @@ mod tests {
 
     #[test]
     fn test_label_dependency_graph() {
-        let y = Array2::from_shape_vec((4, 3), vec![1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1]).unwrap();
+        let y = Array2::from_shape_vec((4, 3), vec![1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1])
+            .expect("operation should succeed");
 
         let mut graph = LabelDependencyGraph::new(3);
-        graph.learn_dependencies(&y).unwrap();
+        graph
+            .learn_dependencies(&y)
+            .expect("operation should succeed");
 
         // Check that dependencies were learned
         assert!(graph.dependencies[[0, 1]] > 0.0);
@@ -1222,34 +1225,36 @@ mod tests {
 
     #[test]
     fn test_multilabel_nb_binary_relevance() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
-        let y = Array2::from_shape_vec((4, 2), vec![1, 0, 0, 1, 1, 1, 0, 0]).unwrap();
+        let y = Array2::from_shape_vec((4, 2), vec![1, 0, 0, 1, 1, 1, 0, 0])
+            .expect("operation should succeed");
 
         let mut model = MultiLabelNB::new()
             .strategy(MultiLabelStrategy::BinaryRelevance)
             .base_classifier("gaussian");
 
-        model.fit(&x, &y).unwrap();
-        let predictions = model.predict(&x).unwrap();
+        model.fit(&x, &y).expect("operation should succeed");
+        let predictions = model.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (4, 2));
     }
 
     #[test]
     fn test_multilabel_nb_classifier_chains() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
-        let y = Array2::from_shape_vec((4, 2), vec![1, 0, 0, 1, 1, 1, 0, 0]).unwrap();
+        let y = Array2::from_shape_vec((4, 2), vec![1, 0, 0, 1, 1, 1, 0, 0])
+            .expect("operation should succeed");
 
         let mut model = MultiLabelNB::new()
             .strategy(MultiLabelStrategy::ClassifierChains)
             .base_classifier("gaussian");
 
-        model.fit(&x, &y).unwrap();
-        let predictions = model.predict(&x).unwrap();
+        model.fit(&x, &y).expect("operation should succeed");
+        let predictions = model.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (4, 2));
     }
@@ -1267,10 +1272,10 @@ mod tests {
                 1, 1, 1, // all labels co-occur
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut analysis = LabelCorrelationAnalysis::new(3);
-        analysis.analyze(&y).unwrap();
+        analysis.analyze(&y).expect("operation should succeed");
 
         // Check that frequencies are computed correctly
         assert_abs_diff_eq!(analysis.label_frequencies[0], 4.0 / 6.0, epsilon = 1e-10);
@@ -1298,20 +1303,20 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0, 2.0, 2.0, 3.0, 1.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array2::from_shape_vec(
             (6, 3),
             vec![1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut model = AdvancedChainClassifier::new()
             .ordering_strategy(ChainOrderingStrategy::Frequency)
             .base_classifier("gaussian");
 
-        model.fit(&x, &y).unwrap();
-        let predictions = model.predict(&x).unwrap();
+        model.fit(&x, &y).expect("operation should succeed");
+        let predictions = model.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (6, 3));
 
@@ -1324,17 +1329,22 @@ mod tests {
             .n_chains(3)
             .base_classifier("gaussian");
 
-        ensemble_model.fit(&x, &y).unwrap();
-        let ensemble_predictions = ensemble_model.predict(&x).unwrap();
+        ensemble_model
+            .fit(&x, &y)
+            .expect("operation should succeed");
+        let ensemble_predictions = ensemble_model
+            .predict(&x)
+            .expect("operation should succeed");
         assert_eq!(ensemble_predictions.dim(), (6, 3));
     }
 
     #[test]
     fn test_chain_ordering_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
-        let y = Array2::from_shape_vec((4, 3), vec![1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0]).unwrap();
+        let y = Array2::from_shape_vec((4, 3), vec![1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0])
+            .expect("operation should succeed");
 
         // Test different ordering strategies
         let strategies = vec![
@@ -1349,8 +1359,8 @@ mod tests {
                 .ordering_strategy(strategy)
                 .base_classifier("gaussian");
 
-            model.fit(&x, &y).unwrap();
-            let predictions = model.predict(&x).unwrap();
+            model.fit(&x, &y).expect("operation should succeed");
+            let predictions = model.predict(&x).expect("operation should succeed");
             assert_eq!(predictions.dim(), (4, 3));
         }
     }
@@ -1368,9 +1378,11 @@ mod tests {
                 0.9, 0.3, 0.6, // Normal case
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        hierarchy.enforce_consistency(&mut predictions).unwrap();
+        hierarchy
+            .enforce_consistency(&mut predictions)
+            .expect("operation should succeed");
 
         // First sample: children should be reduced to parent level
         assert!(predictions[[0, 1]] <= predictions[[0, 0]]);
@@ -1382,10 +1394,11 @@ mod tests {
 
     #[test]
     fn test_multilabel_nb_with_hierarchy() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
-        let y = Array2::from_shape_vec((4, 3), vec![1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0]).unwrap();
+        let y = Array2::from_shape_vec((4, 3), vec![1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0])
+            .expect("operation should succeed");
 
         let mut hierarchy = LabelHierarchy::new();
         hierarchy.add_relationship(0, 1); // 0 is parent of 1
@@ -1396,8 +1409,8 @@ mod tests {
             .base_classifier("gaussian");
 
         model.set_label_hierarchy(hierarchy);
-        model.fit(&x, &y).unwrap();
-        let predictions = model.predict(&x).unwrap();
+        model.fit(&x, &y).expect("operation should succeed");
+        let predictions = model.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (4, 3));
     }

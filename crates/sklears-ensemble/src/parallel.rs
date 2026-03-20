@@ -493,7 +493,9 @@ mod tests {
         let config = ParallelConfig::default();
         let trainer = ParallelEnsembleTrainer::new(config);
 
-        let partitions = trainer.create_data_partitions(10, 4).unwrap();
+        let partitions = trainer
+            .create_data_partitions(10, 4)
+            .expect("operation should succeed");
         assert_eq!(partitions.len(), 4);
 
         // Check that all estimators are covered
@@ -511,7 +513,7 @@ mod tests {
 
         let results = trainer
             .train_data_parallel(&mock_trainer, &x, &y, 4)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(results.len(), 4); // Should have 4 results for 4 estimators
     }
 

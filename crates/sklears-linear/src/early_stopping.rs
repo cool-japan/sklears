@@ -399,7 +399,7 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
         let (x_train, y_train, x_val, y_val) =
-            train_validation_split(&x, &y, 0.4, false, Some(42)).unwrap();
+            train_validation_split(&x, &y, 0.4, false, Some(42)).expect("operation should succeed");
 
         assert_eq!(x_train.nrows(), 3); // 60% of 5 = 3
         assert_eq!(x_val.nrows(), 2); // 40% of 5 = 2

@@ -65,8 +65,8 @@ pub enum KernelType {
 /// let kernel_x = KernelType::RBF { gamma: 1.0 };
 /// let kernel_y = KernelType::RBF { gamma: 1.0 };
 /// let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-/// let fitted = kcca.fit(&X, &Y).unwrap();
-/// let X_c = fitted.transform(&X).unwrap();
+/// let fitted = kcca.fit(&X, &Y).expect("fit should succeed");
+/// let X_c = fitted.transform(&X).expect("transform should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct KernelCCA<State = Untrained> {
@@ -174,8 +174,12 @@ impl Fit<Array2<Float>, Array2<Float>> for KernelCCA<Untrained> {
         }
 
         // Center and scale data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
+        let y_mean = y.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
         let mut y_centered = y - &y_mean.view().insert_axis(Axis(0));
@@ -383,9 +387,13 @@ impl KernelCCA<Untrained> {
         let one_n: Array2<Float> = Array2::ones((n, n)) / (n as Float);
 
         // Centered kernel: K_c = K - 1_n K - K 1_n + 1_n K 1_n
-        let k_mean_rows = k.mean_axis(Axis(1)).unwrap();
-        let k_mean_cols = k.mean_axis(Axis(0)).unwrap();
-        let k_mean_all = k.mean().unwrap();
+        let k_mean_rows = k
+            .mean_axis(Axis(1))
+            .expect("mean_axis requires non-empty array");
+        let k_mean_cols = k
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
+        let k_mean_all = k.mean().expect("operation should succeed");
 
         let mut k_centered = k.clone();
 
@@ -473,10 +481,18 @@ impl KernelCCA<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for KernelCCA<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_train = self.x_train_.as_ref().unwrap();
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let alpha = self.alpha_.as_ref().unwrap();
+        let x_train = self.x_train_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let alpha = self.alpha_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -503,10 +519,18 @@ impl Transform<Array2<Float>, Array2<Float>> for KernelCCA<Trained> {
 impl KernelCCA<Trained> {
     /// Transform Y to kernel canonical space
     pub fn transform_y(&self, y: &Array2<Float>) -> Result<Array2<Float>> {
-        let y_train = self.y_train_.as_ref().unwrap();
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
-        let beta = self.beta_.as_ref().unwrap();
+        let y_train = self.y_train_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_std = self.y_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let beta = self.beta_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale Y
         let mut y_scaled = y - &y_mean.view().insert_axis(Axis(0));
@@ -670,17 +694,23 @@ impl KernelCCA<Trained> {
 
     /// Get the canonical correlations
     pub fn canonical_correlations(&self) -> &Array1<Float> {
-        self.canonical_correlations_.as_ref().unwrap()
+        self.canonical_correlations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X coefficients (alpha)
     pub fn alpha(&self) -> &Array2<Float> {
-        self.alpha_.as_ref().unwrap()
+        self.alpha_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y coefficients (beta)
     pub fn beta(&self) -> &Array2<Float> {
-        self.beta_.as_ref().unwrap()
+        self.beta_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 }
 
@@ -698,10 +728,10 @@ mod tests {
         let kernel_x = KernelType::Linear;
         let kernel_y = KernelType::Linear;
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 1]);
         assert_eq!(y_transformed.shape(), &[4, 1]);
@@ -719,10 +749,10 @@ mod tests {
         let kernel_x = KernelType::RBF { gamma: 1.0 };
         let kernel_y = KernelType::RBF { gamma: 1.0 };
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[5, 1]);
         assert_eq!(y_transformed.shape(), &[5, 1]);
@@ -744,10 +774,10 @@ mod tests {
             degree: 2,
         };
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 1]);
         assert_eq!(y_transformed.shape(), &[4, 1]);
@@ -767,10 +797,10 @@ mod tests {
             coef0: 0.0,
         };
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 1]);
         assert_eq!(y_transformed.shape(), &[4, 1]);
@@ -784,9 +814,9 @@ mod tests {
         let kernel_x = KernelType::Linear;
         let kernel_y = KernelType::Linear;
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1).scale(false);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
         assert_eq!(x_transformed.shape(), &[4, 1]);
     }
 
@@ -879,10 +909,10 @@ mod tests {
         let kernel_x = KernelType::Laplacian { gamma: 1.0 };
         let kernel_y = KernelType::Laplacian { gamma: 1.0 };
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 1]);
         assert_eq!(y_transformed.shape(), &[4, 1]);
@@ -897,10 +927,10 @@ mod tests {
         let kernel_x = KernelType::Hellinger;
         let kernel_y = KernelType::Hellinger;
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 1]);
         assert_eq!(y_transformed.shape(), &[4, 1]);
@@ -914,10 +944,10 @@ mod tests {
         let kernel_x = KernelType::HistogramIntersection;
         let kernel_y = KernelType::HistogramIntersection;
         let kcca = KernelCCA::new(1, kernel_x, kernel_y, 0.1);
-        let fitted = kcca.fit(&x, &y).unwrap();
+        let fitted = kcca.fit(&x, &y).expect("fit should succeed");
 
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 1]);
         assert_eq!(y_transformed.shape(), &[4, 1]);

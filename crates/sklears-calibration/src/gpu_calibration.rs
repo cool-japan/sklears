@@ -240,7 +240,10 @@ impl GpuCalibratedClassifier {
 
     /// Get GPU device information
     pub fn get_device_info(&self) -> Result<String, SklearsError> {
-        let gpu_utils = self.gpu_utils.lock().unwrap();
+        let gpu_utils = self
+            .gpu_utils
+            .lock()
+            .map_err(|e| SklearsError::Other(format!("mutex lock poisoned: {}", e)))?;
         if let Some(device) = gpu_utils.get_device(self.device_id) {
             Ok(format!(
                 "GPU Device ID: {} (GPU acceleration available)",
@@ -255,7 +258,10 @@ impl GpuCalibratedClassifier {
 
     /// Get GPU memory usage statistics
     pub fn get_memory_stats(&self) -> Result<String, SklearsError> {
-        let gpu_utils = self.gpu_utils.lock().unwrap();
+        let gpu_utils = self
+            .gpu_utils
+            .lock()
+            .map_err(|e| SklearsError::Other(format!("mutex lock poisoned: {}", e)))?;
         let stats = gpu_utils.get_memory_stats();
 
         Ok(format!(
@@ -268,7 +274,10 @@ impl GpuCalibratedClassifier {
 
     /// Get GPU utilization
     pub fn get_utilization(&self) -> Result<f64, SklearsError> {
-        let gpu_utils = self.gpu_utils.lock().unwrap();
+        let gpu_utils = self
+            .gpu_utils
+            .lock()
+            .map_err(|e| SklearsError::Other(format!("mutex lock poisoned: {}", e)))?;
         let utilization = gpu_utils.get_utilization();
 
         Ok(utilization)
@@ -282,7 +291,10 @@ impl GpuCalibratedClassifier {
             ));
         }
 
-        let profiler = self.profiler.lock().unwrap();
+        let profiler = self
+            .profiler
+            .lock()
+            .map_err(|e| SklearsError::Other(format!("mutex lock poisoned: {}", e)))?;
         let kernel_stats = profiler.get_kernel_stats();
 
         let mut stats = HashMap::new();
@@ -380,7 +392,10 @@ impl GpuCalibratedClassifier {
 
         // Record performance if profiling is enabled
         if self.config.enable_profiling {
-            let mut profiler = self.profiler.lock().unwrap();
+            let mut profiler = self
+                .profiler
+                .lock()
+                .map_err(|e| SklearsError::Other(format!("mutex lock poisoned: {}", e)))?;
             profiler.record_kernel_time("gpu_fit", start_time.elapsed().as_secs_f64() * 1000.0);
         }
 
@@ -411,7 +426,10 @@ impl GpuCalibratedClassifier {
 
         // Record performance if profiling is enabled
         if self.config.enable_profiling {
-            let mut profiler = self.profiler.lock().unwrap();
+            let mut profiler = self
+                .profiler
+                .lock()
+                .map_err(|e| SklearsError::Other(format!("mutex lock poisoned: {}", e)))?;
             profiler.record_kernel_time("gpu_predict", start_time.elapsed().as_secs_f64() * 1000.0);
         }
 
@@ -425,7 +443,7 @@ impl GpuCalibratedClassifier {
         y: &[f32],
         operation: &str,
     ) -> Result<Vec<f32>, SklearsError> {
-        let mut gpu_utils = self.gpu_utils.lock().unwrap();
+        let mut gpu_utils = self.gpu_utils.lock().expect("mutex should not be poisoned");
 
         // Use probability arrays directly
         let prob_data = probabilities.to_vec();

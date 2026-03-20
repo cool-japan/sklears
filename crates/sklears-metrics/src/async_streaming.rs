@@ -317,7 +317,7 @@ impl StreamingMetricsComputer {
         // Process chunk in background task
         task::spawn_blocking(move || {
             for (y_true, y_pred) in chunk {
-                let mut acc = accumulator.lock().unwrap();
+                let mut acc = accumulator.lock().expect("operation should succeed");
                 acc.update(&y_true, &y_pred, window_size);
             }
         })
@@ -329,7 +329,7 @@ impl StreamingMetricsComputer {
 
     /// Get current metric results
     pub async fn get_current_results(&self) -> MetricsResult<MetricResults> {
-        let accumulator = self.accumulator.lock().unwrap();
+        let accumulator = self.accumulator.lock().expect("operation should succeed");
         let mut values = HashMap::new();
 
         for metric_name in &self.metrics {
@@ -358,7 +358,7 @@ impl StreamingMetricsComputer {
 
     /// Reset accumulator state
     pub async fn reset(&mut self) {
-        let mut accumulator = self.accumulator.lock().unwrap();
+        let mut accumulator = self.accumulator.lock().expect("operation should succeed");
         *accumulator = MetricAccumulator::new();
     }
 }
@@ -416,14 +416,14 @@ where
                 // Update accumulator with new data
                 let accumulator = Arc::clone(&self.computer.accumulator);
                 {
-                    let mut acc = accumulator.lock().unwrap();
+                    let mut acc = accumulator.lock().expect("operation should succeed");
                     acc.update(&y_true, &y_pred, self.computer.config.window_size);
                 }
 
                 // Get current results
                 let mut values = HashMap::new();
                 {
-                    let acc = accumulator.lock().unwrap();
+                    let acc = accumulator.lock().expect("operation should succeed");
                     for metric_name in &self.computer.metrics {
                         if let Ok(value) = acc.get_metric(metric_name) {
                             values.insert(metric_name.clone(), value);
@@ -436,7 +436,7 @@ where
                     averaging_strategy: "Real-time streaming".to_string(),
                     has_confidence_intervals: false,
                     sample_size: {
-                        let acc = accumulator.lock().unwrap();
+                        let acc = accumulator.lock().expect("operation should succeed");
                         acc.total_samples
                     },
                     timestamp: "2026-01-04T00:00:00Z".to_string(),
@@ -498,7 +498,7 @@ impl ChannelMetricsComputer {
             while let Some((y_true, y_pred)) = data_rx.recv().await {
                 let accumulator = Arc::clone(&computer.accumulator);
                 {
-                    let mut acc = accumulator.lock().unwrap();
+                    let mut acc = accumulator.lock().expect("operation should succeed");
                     acc.update(&y_true, &y_pred, computer.config.window_size);
                 }
 
@@ -555,7 +555,10 @@ mod tests {
             .with_metric("accuracy")
             .with_metric("f1_score");
 
-        let results = computer.compute_stream(data_stream).await.unwrap();
+        let results = computer
+            .compute_stream(data_stream)
+            .await
+            .expect("operation should succeed");
 
         assert!(results.contains("accuracy"));
         assert!(results.contains("f1_score"));
@@ -578,7 +581,10 @@ mod tests {
             .with_window_size(3)
             .with_metric("accuracy");
 
-        let results = computer.compute_stream(data_stream).await.unwrap();
+        let results = computer
+            .compute_stream(data_stream)
+            .await
+            .expect("operation should succeed");
 
         assert!(results.contains("accuracy"));
         assert_eq!(results.metadata.sample_size, 3); // Window size
@@ -597,7 +603,7 @@ mod tests {
 
         let mut results_count = 0;
         while let Some(result) = metric_stream.next().await {
-            let metrics_result = result.unwrap();
+            let metrics_result = result.expect("operation should succeed");
             assert!(metrics_result.contains("accuracy"));
             assert!(metrics_result.contains("precision"));
             results_count += 1;
@@ -613,7 +619,10 @@ mod tests {
         let data_stream = stream::iter(data);
 
         let mut computer = streaming_accuracy();
-        let results = computer.compute_stream(data_stream).await.unwrap();
+        let results = computer
+            .compute_stream(data_stream)
+            .await
+            .expect("operation should succeed");
 
         assert!(results.contains("accuracy"));
         assert_eq!(results.get("accuracy"), Some(1.0));
@@ -627,7 +636,10 @@ mod tests {
         // Send data
         let y_true = Array1::from_vec(vec![0, 1, 1]);
         let y_pred = Array1::from_vec(vec![0, 1, 0]);
-        computer.send_data(y_true, y_pred).await.unwrap();
+        computer
+            .send_data(y_true, y_pred)
+            .await
+            .expect("operation should succeed");
 
         // Receive results
         if let Some(Ok(results)) = computer.recv_results().await {
@@ -643,11 +655,17 @@ mod tests {
 
         let mut computer = StreamingMetricsComputer::new().with_metric("accuracy");
 
-        let _ = computer.compute_stream(data_stream).await.unwrap();
+        let _ = computer
+            .compute_stream(data_stream)
+            .await
+            .expect("operation should succeed");
 
         // Reset and check
         computer.reset().await;
-        let results = computer.get_current_results().await.unwrap();
+        let results = computer
+            .get_current_results()
+            .await
+            .expect("operation should succeed");
         assert_eq!(results.metadata.sample_size, 0);
     }
 

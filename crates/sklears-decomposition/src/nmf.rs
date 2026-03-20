@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -316,7 +316,7 @@ impl NMF<Untrained> {
     fn initialize_matrices(
         &self,
         x: &Array2<f64>,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, Array2<f64>)> {
         let (n_samples, n_features) = x.dim();
 
@@ -331,13 +331,13 @@ impl NMF<Untrained> {
     }
 
     /// Random initialization
-    fn random_init(&self, shape: (usize, usize), rng: &mut impl Rng) -> Array2<f64> {
+    fn random_init(&self, shape: (usize, usize), rng: &mut impl RngExt) -> Array2<f64> {
         let (rows, cols) = shape;
         let mut matrix = Array2::zeros((rows, cols));
 
         for i in 0..rows {
             for j in 0..cols {
-                matrix[[i, j]] = rng.gen::<f64>();
+                matrix[[i, j]] = rng.random::<f64>();
             }
         }
 
@@ -348,7 +348,7 @@ impl NMF<Untrained> {
     fn nndsvd_init(
         &self,
         x: &Array2<f64>,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, Array2<f64>)> {
         let (n_samples, n_features) = x.dim();
 
@@ -383,14 +383,14 @@ impl NMF<Untrained> {
                 for i in 0..n_samples {
                     for j in 0..self.n_components {
                         if w[[i, j]] == 0.0 {
-                            w[[i, j]] = avg * rng.gen::<f64>() * 0.01;
+                            w[[i, j]] = avg * rng.random::<f64>() * 0.01;
                         }
                     }
                 }
                 for i in 0..self.n_components {
                     for j in 0..n_features {
                         if h[[i, j]] == 0.0 {
-                            h[[i, j]] = avg * rng.gen::<f64>() * 0.01;
+                            h[[i, j]] = avg * rng.random::<f64>() * 0.01;
                         }
                     }
                 }
@@ -1126,8 +1126,10 @@ mod tests {
         ];
 
         let nmf = NMF::new(2).random_state(42);
-        let trained_nmf = nmf.fit(&x, &()).unwrap();
-        let h = trained_nmf.transform(&x).unwrap();
+        let trained_nmf = nmf.fit(&x, &()).expect("model fitting should succeed");
+        let h = trained_nmf
+            .transform(&x)
+            .expect("transformation should succeed");
 
         assert_eq!(h.dim(), (4, 2));
         assert_eq!(trained_nmf.state.n_features_in, 3);
@@ -1144,9 +1146,13 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0],];
 
         let nmf = NMF::new(2).random_state(123);
-        let trained_nmf = nmf.fit(&x, &()).unwrap();
-        let h = trained_nmf.transform(&x).unwrap();
-        let x_reconstructed = trained_nmf.inverse_transform(&h).unwrap();
+        let trained_nmf = nmf.fit(&x, &()).expect("model fitting should succeed");
+        let h = trained_nmf
+            .transform(&x)
+            .expect("transformation should succeed");
+        let x_reconstructed = trained_nmf
+            .inverse_transform(&h)
+            .expect("operation should succeed");
 
         assert_eq!(x_reconstructed.dim(), x.dim());
 
@@ -1169,8 +1175,10 @@ mod tests {
         for solver in solvers {
             let nmf = NMF::new(2).solver(solver).random_state(42);
 
-            let trained_nmf = nmf.fit(&x, &()).unwrap();
-            let h = trained_nmf.transform(&x).unwrap();
+            let trained_nmf = nmf.fit(&x, &()).expect("model fitting should succeed");
+            let h = trained_nmf
+                .transform(&x)
+                .expect("transformation should succeed");
 
             assert_eq!(h.dim(), (3, 2));
 
@@ -1195,8 +1203,10 @@ mod tests {
         for init in inits {
             let nmf = NMF::new(2).init(init).random_state(42);
 
-            let trained_nmf = nmf.fit(&x, &()).unwrap();
-            let h = trained_nmf.transform(&x).unwrap();
+            let trained_nmf = nmf.fit(&x, &()).expect("model fitting should succeed");
+            let h = trained_nmf
+                .transform(&x)
+                .expect("transformation should succeed");
 
             assert_eq!(h.dim(), (3, 2));
         }
@@ -1228,7 +1238,7 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [2.0, 4.0, 6.0], [1.0, 3.0, 5.0],];
 
         let nmf = NMF::new(2).random_state(42);
-        let trained_nmf = nmf.fit(&x, &()).unwrap();
+        let trained_nmf = nmf.fit(&x, &()).expect("model fitting should succeed");
 
         let components = trained_nmf.components();
         assert_eq!(components.dim(), (3, 2));
@@ -1261,11 +1271,17 @@ mod tests {
             .max_iter(100)
             .random_state(42);
 
-        let trained_no_reg = nmf_no_reg.fit(&x, &()).unwrap();
-        let trained_l1 = nmf_l1.fit(&x, &()).unwrap();
+        let trained_no_reg = nmf_no_reg
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let trained_l1 = nmf_l1.fit(&x, &()).expect("model fitting should succeed");
 
-        let h_no_reg = trained_no_reg.transform(&x).unwrap();
-        let h_l1 = trained_l1.transform(&x).unwrap();
+        let h_no_reg = trained_no_reg
+            .transform(&x)
+            .expect("transformation should succeed");
+        let h_l1 = trained_l1
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Check that results are non-negative
         for &val in h_no_reg.iter() {
@@ -1282,8 +1298,12 @@ mod tests {
 
         // L1 regularization should tend to produce more small values (sparsity)
         // If not more sparse elements, then at least smaller values on average
-        let mean_no_reg = h_no_reg.mean().unwrap();
-        let mean_l1 = h_l1.mean().unwrap();
+        let mean_no_reg = h_no_reg
+            .mean()
+            .expect("array should have elements for mean computation");
+        let mean_l1 = h_l1
+            .mean()
+            .expect("array should have elements for mean computation");
 
         // L1 regularization should generally produce smaller coefficients (shrinkage)
         assert!(
@@ -1302,8 +1322,10 @@ mod tests {
             .solver(NMFSolver::MultiplicativeUpdate)
             .random_state(42);
 
-        let trained_l2 = nmf_l2.fit(&x, &()).unwrap();
-        let h_l2 = trained_l2.transform(&x).unwrap();
+        let trained_l2 = nmf_l2.fit(&x, &()).expect("model fitting should succeed");
+        let h_l2 = trained_l2
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Check that results are non-negative
         for &val in h_l2.iter() {
@@ -1329,8 +1351,12 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let trained_elastic = nmf_elastic.fit(&x, &()).unwrap();
-        let h_elastic = trained_elastic.transform(&x).unwrap();
+        let trained_elastic = nmf_elastic
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let h_elastic = trained_elastic
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Check that results are non-negative
         for &val in h_elastic.iter() {
@@ -1353,11 +1379,15 @@ mod tests {
             .regularization(NMFRegularization::L1, 0.1)
             .random_state(42);
 
-        let trained_none = nmf_none.fit(&x, &()).unwrap();
-        let trained_l1 = nmf_l1.fit(&x, &()).unwrap();
+        let trained_none = nmf_none.fit(&x, &()).expect("model fitting should succeed");
+        let trained_l1 = nmf_l1.fit(&x, &()).expect("model fitting should succeed");
 
-        let h_none = trained_none.transform(&x).unwrap();
-        let h_l1 = trained_l1.transform(&x).unwrap();
+        let h_none = trained_none
+            .transform(&x)
+            .expect("transformation should succeed");
+        let h_l1 = trained_l1
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Both should be non-negative
         for &val in h_none.iter() {

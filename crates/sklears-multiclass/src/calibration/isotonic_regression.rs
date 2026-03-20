@@ -80,7 +80,7 @@ impl IsotonicRegression {
             .collect();
 
         // Sort by x values
-        data_points.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap());
+        data_points.sort_by(|a, b| a.x.partial_cmp(&b.x).expect("operation should succeed"));
 
         // Apply Pool Adjacent Violators algorithm
         self.points = self.pool_adjacent_violators(data_points)?;
@@ -111,8 +111,8 @@ impl IsotonicRegression {
 
                 if last_two_violate {
                     // Pool the last two points
-                    let p1 = pooled.pop().unwrap();
-                    let p2 = pooled.pop().unwrap();
+                    let p1 = pooled.pop().expect("operation should succeed");
+                    let p2 = pooled.pop().expect("operation should succeed");
 
                     let total_weight = p1.weight + p2.weight;
                     let pooled_point = IsotonicPoint {
@@ -162,8 +162,8 @@ impl IsotonicRegression {
         if x <= self.points[0].x {
             return self.points[0].y;
         }
-        if x >= self.points.last().unwrap().x {
-            return self.points.last().unwrap().y;
+        if x >= self.points.last().expect("operation should succeed").x {
+            return self.points.last().expect("operation should succeed").y;
         }
 
         // Find the interval for interpolation
@@ -184,7 +184,7 @@ impl IsotonicRegression {
         }
 
         // Fallback (should not reach here)
-        self.points.last().unwrap().y
+        self.points.last().expect("operation should succeed").y
     }
 }
 
@@ -349,9 +349,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![0.1, 0.3, 0.2, 0.8, 0.9]; // Note: y[2] violates monotonicity
 
-        regressor.fit(&x, &y, None).unwrap();
+        regressor.fit(&x, &y, None).expect("operation should succeed");
 
-        let result = regressor.transform(&x).unwrap();
+        let result = regressor.transform(&x).expect("operation should succeed");
 
         // Check that result is monotonic increasing
         for i in 1..result.len() {
@@ -371,9 +371,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![0.9, 0.7, 0.8, 0.3, 0.1]; // Note: y[2] violates decreasing monotonicity
 
-        regressor.fit(&x, &y, None).unwrap();
+        regressor.fit(&x, &y, None).expect("operation should succeed");
 
-        let result = regressor.transform(&x).unwrap();
+        let result = regressor.transform(&x).expect("operation should succeed");
 
         // Check that result is monotonic decreasing
         for i in 1..result.len() {
@@ -389,9 +389,9 @@ mod tests {
         let y = array![0.1, 0.4, 0.3, 0.8];
         let weights = array![1.0, 1.0, 10.0, 1.0]; // High weight on violating point
 
-        regressor.fit(&x, &y, Some(&weights)).unwrap();
+        regressor.fit(&x, &y, Some(&weights)).expect("operation should succeed");
 
-        let result = regressor.transform(&x).unwrap();
+        let result = regressor.transform(&x).expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..result.len() {
@@ -406,11 +406,11 @@ mod tests {
         let x = array![1.0, 3.0, 5.0];
         let y = array![0.2, 0.5, 0.8];
 
-        regressor.fit(&x, &y, None).unwrap();
+        regressor.fit(&x, &y, None).expect("operation should succeed");
 
         // Test interpolation at intermediate points
         let test_x = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let result = regressor.transform(&test_x).unwrap();
+        let result = regressor.transform(&test_x).expect("operation should succeed");
 
         // Check known points
         assert!((result[0] - 0.2).abs() < 1e-10);
@@ -429,11 +429,11 @@ mod tests {
         let x = array![2.0, 3.0, 4.0];
         let y = array![0.3, 0.5, 0.7];
 
-        regressor.fit(&x, &y, None).unwrap();
+        regressor.fit(&x, &y, None).expect("operation should succeed");
 
         // Test extrapolation beyond fitted range
         let test_x = array![1.0, 5.0];
-        let result = regressor.transform(&test_x).unwrap();
+        let result = regressor.transform(&test_x).expect("operation should succeed");
 
         // Should return boundary values
         assert!((result[0] - 0.3).abs() < 1e-10); // Below range
@@ -452,9 +452,9 @@ mod tests {
         ];
         let y_true = array![0, 1, 2, 0];
 
-        regressor.fit(&probabilities, &y_true, None).unwrap();
+        regressor.fit(&probabilities, &y_true, None).expect("operation should succeed");
 
-        let calibrated = regressor.transform(&probabilities).unwrap();
+        let calibrated = regressor.transform(&probabilities).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(calibrated.dim(), (4, 3));
@@ -478,10 +478,10 @@ mod tests {
         let x = array![2.0];
         let y = array![0.5];
 
-        regressor.fit(&x, &y, None).unwrap();
+        regressor.fit(&x, &y, None).expect("operation should succeed");
 
         let test_x = array![1.0, 2.0, 3.0];
-        let result = regressor.transform(&test_x).unwrap();
+        let result = regressor.transform(&test_x).expect("operation should succeed");
 
         // All predictions should be the single fitted value
         for &val in result.iter() {
@@ -518,9 +518,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![0.1, 0.3, 0.5, 0.7, 0.9]; // Already monotonic
 
-        regressor.fit(&x, &y, None).unwrap();
+        regressor.fit(&x, &y, None).expect("operation should succeed");
 
-        let result = regressor.transform(&x).unwrap();
+        let result = regressor.transform(&x).expect("operation should succeed");
 
         // Should be very close to original y values
         for (i, &val) in result.iter().enumerate() {
@@ -555,7 +555,7 @@ mod tests {
             },
         ];
 
-        let pooled = regressor.pool_adjacent_violators(points).unwrap();
+        let pooled = regressor.pool_adjacent_violators(points).expect("operation should succeed");
 
         // Check that result is monotonic
         for i in 1..pooled.len() {
@@ -570,10 +570,10 @@ mod tests {
         let x = array![1.0, 2.0, 3.0];
         let y = array![0.2, 0.5, 0.8];
 
-        regressor.fit(&x, &y, None).unwrap();
+        regressor.fit(&x, &y, None).expect("operation should succeed");
 
         let uncalibrated = array![1.5, 2.5, 3.5];
-        let calibrated = regressor.calibrate(&uncalibrated).unwrap();
+        let calibrated = regressor.calibrate(&uncalibrated).expect("operation should succeed");
 
         assert_eq!(calibrated.len(), 3);
         for &prob in calibrated.iter() {

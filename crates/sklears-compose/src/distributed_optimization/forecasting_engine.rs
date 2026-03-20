@@ -614,11 +614,11 @@ impl ForecastPerformanceTracker {
             history.performance_summary.average_accuracy = average_accuracy;
             history.performance_summary.accuracy_variance = variance;
 
-            if let Some(best_record) = records.iter().max_by(|a, b| a.metrics.r_squared.partial_cmp(&b.metrics.r_squared).unwrap()) {
+            if let Some(best_record) = records.iter().max_by(|a, b| a.metrics.r_squared.partial_cmp(&b.metrics.r_squared).unwrap_or(std::cmp::Ordering::Equal)) {
                 history.performance_summary.best_performance = best_record.metrics.clone();
             }
 
-            if let Some(worst_record) = records.iter().min_by(|a, b| a.metrics.r_squared.partial_cmp(&b.metrics.r_squared).unwrap()) {
+            if let Some(worst_record) = records.iter().min_by(|a, b| a.metrics.r_squared.partial_cmp(&b.metrics.r_squared).unwrap_or(std::cmp::Ordering::Equal)) {
                 history.performance_summary.worst_performance = worst_record.metrics.clone();
             }
         }
@@ -757,7 +757,7 @@ mod tests {
         let result = engine.generate_forecast(&data, 3);
         assert!(result.is_ok());
 
-        let forecast = result.unwrap();
+        let forecast = result.unwrap_or_default();
         assert_eq!(forecast.len(), 3);
     }
 }

@@ -577,7 +577,7 @@ impl ComprehensiveBenchmarkSuite {
         // Find best method overall
         let best_method_overall = method_rankings
             .iter()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
             .map(|(method, _)| method.clone())
             .unwrap_or_else(|| "unknown".to_string());
 

@@ -461,7 +461,11 @@ impl BaseDiscriminantModel for SimpleLDA {
         // Compute pooled covariance matrix
         let mut covariance = Array2::zeros((n_features, n_features));
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {
-            let class_idx = self.classes.iter().position(|&c| c == y[i]).unwrap();
+            let class_idx = self
+                .classes
+                .iter()
+                .position(|&c| c == y[i])
+                .expect("element not found");
             let diff = &row - &self.means.row(class_idx);
             let diff_outer = diff
                 .clone()
@@ -492,7 +496,7 @@ impl BaseDiscriminantModel for SimpleLDA {
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -760,16 +764,18 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let sis = SureIndependenceScreening::new().n_features_to_select(3);
-        let fitted = sis.fit(&x, &y).unwrap();
+        let fitted = sis.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
         assert_eq!(fitted.n_selected_features(), 3);
         assert_eq!(fitted.selected_features().len(), 3);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probas = fitted.predict_proba(&x).unwrap();
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
         assert_eq!(probas.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -778,7 +784,7 @@ mod tests {
             assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-6);
         }
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("transform should succeed");
         assert_eq!(transformed.dim(), (6, 3));
     }
 
@@ -795,7 +801,7 @@ mod tests {
         let sis = SureIndependenceScreening::new()
             .n_features_to_select(10)
             .threshold(0.3);
-        let fitted = sis.fit(&x, &y).unwrap();
+        let fitted = sis.fit(&x, &y).expect("model fitting should succeed");
 
         assert!(fitted.n_selected_features() <= 4);
         assert!(fitted.n_selected_features() > 0);
@@ -817,12 +823,12 @@ mod tests {
             let sis = SureIndependenceScreening::new()
                 .correlation_measure(measure)
                 .n_features_to_select(2);
-            let fitted = sis.fit(&x, &y).unwrap();
+            let fitted = sis.fit(&x, &y).expect("model fitting should succeed");
 
             assert_eq!(fitted.classes().len(), 2);
             assert_eq!(fitted.n_selected_features(), 2);
 
-            let predictions = fitted.predict(&x).unwrap();
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }
@@ -838,7 +844,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let sis = SureIndependenceScreening::new().n_features_to_select(3);
-        let fitted = sis.fit(&x, &y).unwrap();
+        let fitted = sis.fit(&x, &y).expect("model fitting should succeed");
 
         let support = fitted.support();
         assert_eq!(support.len(), 5);
@@ -853,19 +859,27 @@ mod tests {
         let sis = SureIndependenceScreening::new();
 
         // Test Pearson correlation
-        let pearson = sis.pearson_correlation(&x.view(), &y).unwrap();
+        let pearson = sis
+            .pearson_correlation(&x.view(), &y)
+            .expect("operation should succeed");
         assert!(pearson.abs() <= 1.0);
 
         // Test Spearman correlation
-        let spearman = sis.spearman_correlation(&x.view(), &y).unwrap();
+        let spearman = sis
+            .spearman_correlation(&x.view(), &y)
+            .expect("operation should succeed");
         assert!(spearman.abs() <= 1.0);
 
         // Test Kendall correlation
-        let kendall = sis.kendall_correlation(&x.view(), &y).unwrap();
+        let kendall = sis
+            .kendall_correlation(&x.view(), &y)
+            .expect("operation should succeed");
         assert!(kendall.abs() <= 1.0);
 
         // Test mutual information
-        let mi = sis.mutual_information(&x.view(), &y).unwrap();
+        let mi = sis
+            .mutual_information(&x.view(), &y)
+            .expect("operation should succeed");
         assert!(mi >= 0.0);
     }
 }

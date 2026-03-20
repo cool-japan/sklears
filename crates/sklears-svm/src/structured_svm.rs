@@ -353,7 +353,7 @@ impl StructuredSVM<Untrained> {
 
         // Node features (emission features)
         for (pos, &label) in labels.iter().enumerate() {
-            let _label_idx = *label_to_idx.get(&label).unwrap();
+            let _label_idx = *label_to_idx.get(&label).expect("key not found");
             let node_features = sequence.feature_at(pos);
 
             // Add weighted node features
@@ -366,8 +366,8 @@ impl StructuredSVM<Untrained> {
         for pos in 1..labels.len() {
             let prev_label = labels[pos - 1];
             let curr_label = labels[pos];
-            let prev_idx = *label_to_idx.get(&prev_label).unwrap();
-            let curr_idx = *label_to_idx.get(&curr_label).unwrap();
+            let prev_idx = *label_to_idx.get(&prev_label).expect("key not found");
+            let curr_idx = *label_to_idx.get(&curr_label).expect("key not found");
 
             let transition_idx = n_features + prev_idx * n_labels + curr_idx;
             features[transition_idx] += 1.0;
@@ -616,9 +616,18 @@ impl StructuredSVM<Untrained> {
 
 impl Predict<Vec<Sequence>, Vec<Array1<usize>>> for StructuredSVM<Trained> {
     fn predict(&self, sequences: &Vec<Sequence>) -> Result<Vec<Array1<usize>>> {
-        let weights = self.weights.as_ref().unwrap();
-        let transition_weights = self.transition_weights.as_ref().unwrap();
-        let label_to_idx = self.label_to_idx.as_ref().unwrap();
+        let weights = self
+            .weights
+            .as_ref()
+            .expect("weights not available - model not fitted");
+        let transition_weights = self
+            .transition_weights
+            .as_ref()
+            .expect("transition_weights not available - model not fitted");
+        let label_to_idx = self
+            .label_to_idx
+            .as_ref()
+            .expect("label_to_idx not available - model not fitted");
 
         let mut predictions = Vec::new();
 
@@ -761,12 +770,16 @@ impl StructuredSVM<Trained> {
 
     /// Get model weights
     pub fn weights(&self) -> &Array1<f64> {
-        self.weights.as_ref().unwrap()
+        self.weights
+            .as_ref()
+            .expect("weights not available - model not fitted")
     }
 
     /// Get transition weights
     pub fn transition_weights(&self) -> &Array2<f64> {
-        self.transition_weights.as_ref().unwrap()
+        self.transition_weights
+            .as_ref()
+            .expect("transition_weights not available - model not fitted")
     }
 }
 
@@ -828,7 +841,7 @@ mod tests {
         let result = svm.fit(&sequences, &labels);
         assert!(result.is_ok());
 
-        let trained_svm = result.unwrap();
+        let trained_svm = result.expect("operation should succeed");
         assert!(trained_svm.weights.is_some());
         assert!(trained_svm.transition_weights.is_some());
     }
@@ -843,12 +856,14 @@ mod tests {
             .with_tolerance(1e-2);
 
         use sklears_core::traits::Predict;
-        let trained_svm = svm.fit(&sequences, &labels).unwrap();
+        let trained_svm = svm
+            .fit(&sequences, &labels)
+            .expect("model fitting should succeed");
 
         let predictions = trained_svm.predict(&sequences);
         assert!(predictions.is_ok());
 
-        let pred_labels = predictions.unwrap();
+        let pred_labels = predictions.expect("operation should succeed");
         assert_eq!(pred_labels.len(), 2);
         assert_eq!(pred_labels[0].len(), 3);
         assert_eq!(pred_labels[1].len(), 2);
@@ -860,7 +875,9 @@ mod tests {
         let true_labels = array![0, 1, 2, 1];
         let pred_labels = array![0, 2, 2, 0];
 
-        let loss = svm.compute_loss(&true_labels, &pred_labels).unwrap();
+        let loss = svm
+            .compute_loss(&true_labels, &pred_labels)
+            .expect("operation should succeed");
         assert_eq!(loss, 2.0); // Two mismatches
     }
 

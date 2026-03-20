@@ -155,7 +155,7 @@ impl PropertyTester {
 
         for iteration in 0..self.n_iterations {
             let (data, _) = self.generate_test_data();
-            let uniform_scale = Uniform::new(0.1, 10.0).unwrap();
+            let uniform_scale = Uniform::new(0.1, 10.0).expect("valid uniform distribution");
             let scale_factor = uniform_scale.sample(&mut self.rng);
             let scaled_data = &data * scale_factor;
 
@@ -244,9 +244,11 @@ impl PropertyTester {
     }
 
     fn generate_test_data(&mut self) -> (Array2<f64>, Array2<f64>) {
-        let uniform_features = Uniform::new(self.size_range.0, self.size_range.1 + 1).unwrap();
+        let uniform_features = Uniform::new(self.size_range.0, self.size_range.1 + 1)
+            .expect("operation should succeed");
         let n_features = uniform_features.sample(&mut self.rng);
-        let uniform_samples = Uniform::new(self.sample_range.0, self.sample_range.1 + 1).unwrap();
+        let uniform_samples = Uniform::new(self.sample_range.0, self.sample_range.1 + 1)
+            .expect("operation should succeed");
         let n_samples = uniform_samples.sample(&mut self.rng);
 
         // Generate random true covariance matrix
@@ -254,7 +256,7 @@ impl PropertyTester {
 
         // Generate data from multivariate normal distribution (simplified)
         let mut data = Array2::zeros((n_samples, n_features));
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         for i in 0..n_samples {
             for j in 0..n_features {
@@ -271,7 +273,7 @@ impl PropertyTester {
     fn generate_random_covariance_matrix(&mut self, n_features: usize) -> Array2<f64> {
         // Generate random matrix
         let mut a = Array2::zeros((n_features, n_features));
-        let uniform_elements = Uniform::new(-1.0, 1.0).unwrap();
+        let uniform_elements = Uniform::new(-1.0, 1.0).expect("operation should succeed");
         for i in 0..n_features {
             for j in 0..n_features {
                 a[[i, j]] = uniform_elements.sample(&mut self.rng);
@@ -524,7 +526,7 @@ impl NumericalAccuracyTester {
         let n_features = 3;
 
         let mut data = Array2::zeros((n_samples, n_features));
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         for i in 0..n_samples {
             for j in 0..n_features {
@@ -540,7 +542,7 @@ impl NumericalAccuracyTester {
         let n_features = cov.nrows();
 
         let mut data = Array2::zeros((n_samples, n_features));
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         for i in 0..n_samples {
             for j in 0..n_features {
@@ -761,8 +763,16 @@ impl BenchmarkSuite {
             / measurements.len() as f64;
         let std_time = Duration::from_nanos(variance.sqrt() as u64);
 
-        let min_time = measurements.iter().min().cloned().unwrap();
-        let max_time = measurements.iter().max().cloned().unwrap();
+        let min_time = measurements
+            .iter()
+            .min()
+            .cloned()
+            .ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
+        let max_time = measurements
+            .iter()
+            .max()
+            .cloned()
+            .ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
 
         let throughput_samples_per_sec = n_samples as f64 / mean_time.as_secs_f64();
 
@@ -919,7 +929,9 @@ mod tests {
         let mut tester = PropertyTester::new(42).n_iterations(10).size_range(3, 5);
 
         let estimator_fn = |x: &ArrayView2<f64>| -> Result<Array2<f64>, SklearsError> {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x
+                .mean_axis(Axis(0))
+                .expect("mean computation should succeed for non-empty array");
             let centered = x - &mean.insert_axis(Axis(0));
             let cov = centered.t().dot(&centered) / (x.nrows() - 1) as f64;
             Ok(cov)
@@ -934,7 +946,9 @@ mod tests {
         let tester = NumericalAccuracyTester::new();
 
         let estimator_fn = |x: &ArrayView2<f64>| -> Result<Array2<f64>, SklearsError> {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x
+                .mean_axis(Axis(0))
+                .expect("mean computation should succeed for non-empty array");
             let centered = x - &mean.insert_axis(Axis(0));
             let cov = centered.t().dot(&centered) / (x.nrows() - 1) as f64;
             Ok(cov)
@@ -949,7 +963,9 @@ mod tests {
         let mut suite = BenchmarkSuite::new();
 
         let estimator_fn = |x: &ArrayView2<f64>| -> Result<Array2<f64>, SklearsError> {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x
+                .mean_axis(Axis(0))
+                .expect("mean computation should succeed for non-empty array");
             let centered = x - &mean.insert_axis(Axis(0));
             let cov = centered.t().dot(&centered) / (x.nrows() - 1) as f64;
             Ok(cov)

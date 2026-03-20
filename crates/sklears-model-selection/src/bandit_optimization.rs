@@ -195,7 +195,7 @@ impl BanditOptimizer {
     fn select_arm(&mut self) -> usize {
         // Initial random exploration
         if self.current_iteration < self.config.n_initial_random * self.param_space.len() {
-            return self.rng.gen_range(0..self.param_space.len());
+            return self.rng.random_range(0..self.param_space.len());
         }
 
         match &self.strategy {
@@ -240,9 +240,9 @@ impl BanditOptimizer {
     fn select_epsilon_greedy_arm(&mut self, base_epsilon: f64) -> usize {
         let decayed_epsilon = base_epsilon / (1.0 + self.current_iteration as f64 * 0.01);
 
-        if self.rng.gen::<f64>() < decayed_epsilon {
+        if self.rng.random::<f64>() < decayed_epsilon {
             // Explore: random arm
-            self.rng.gen_range(0..self.param_space.len())
+            self.rng.random_range(0..self.param_space.len())
         } else {
             // Exploit: best arm
             let mut best_arm = 0;
@@ -285,7 +285,7 @@ impl BanditOptimizer {
 
         // Sample according to probabilities
         let mut cumsum = 0.0;
-        let random_val = self.rng.gen::<f64>();
+        let random_val = self.rng.random::<f64>();
 
         for (i, &prob) in probs.iter().enumerate() {
             cumsum += prob;
@@ -306,14 +306,14 @@ impl BanditOptimizer {
         for (i, stats) in self.arm_stats.iter().enumerate() {
             let sample = if stats.n_pulls == 0 {
                 // Sample from uninformative prior
-                self.rng.gen()
+                self.rng.random()
             } else {
                 // Sample from posterior (assuming Gaussian with known variance)
                 let mean = stats.mean_reward();
                 let std = (stats.variance() / stats.n_pulls as f64).sqrt().max(0.1);
 
                 use scirs2_core::random::RandNormal;
-                let normal = RandNormal::new(mean, std).unwrap();
+                let normal = RandNormal::new(mean, std).expect("operation should succeed");
                 self.rng.sample(normal)
             };
 
@@ -660,9 +660,9 @@ where
                 Ok(best_arm)
             }
             BanditStrategy::EpsilonGreedy(epsilon) => {
-                if rng.gen::<f64>() < *epsilon {
+                if rng.random::<f64>() < *epsilon {
                     // Explore: random arm
-                    Ok(rng.gen_range(0..n_arms))
+                    Ok(rng.random_range(0..n_arms))
                 } else {
                     // Exploit: best arm so far
                     let mut best_mean = f64::NEG_INFINITY;
@@ -691,7 +691,7 @@ where
                         // Sample from posterior (simplified)
                         let alpha = stats.sum_rewards + 1.0;
                         let _beta = (stats.n_pulls as f64 - stats.sum_rewards) + 1.0;
-                        let sample = rng.gen::<f64>().powf(1.0 / alpha); // Simplified beta sampling
+                        let sample = rng.random::<f64>().powf(1.0 / alpha); // Simplified beta sampling
 
                         if sample > best_sample {
                             best_sample = sample;
@@ -730,7 +730,7 @@ where
                 // Sample from categorical distribution
                 let sum: f64 = weights.iter().sum();
                 let mut cumsum = 0.0;
-                let threshold = rng.gen::<f64>() * sum;
+                let threshold = rng.random::<f64>() * sum;
 
                 for (arm, weight) in weights.iter().enumerate() {
                     cumsum += weight;
@@ -852,7 +852,7 @@ mod tests {
             .with_param_config(param_config_fn);
 
         let cv = KFold::new(3);
-        let result = search.fit(&x, &y, &cv).unwrap();
+        let result = search.fit(&x, &y, &cv).expect("operation should succeed");
 
         // The best parameter should be close to 3.5
         if let ParameterValue::Float(best_val) = result.best_params {
@@ -908,7 +908,7 @@ mod tests {
             .with_param_config(param_config_fn);
 
         let cv = KFold::new(2);
-        let result = search.fit(&x, &y, &cv).unwrap();
+        let result = search.fit(&x, &y, &cv).expect("operation should succeed");
 
         assert_eq!(result.n_iterations, 20);
         assert!(result.best_score.is_finite());

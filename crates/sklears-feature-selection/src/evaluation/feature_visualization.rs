@@ -70,7 +70,7 @@ impl FeatureImportancePlots {
             importance_scores[b]
                 .abs()
                 .partial_cmp(&importance_scores[a].abs())
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         // Draw bars
@@ -153,7 +153,7 @@ impl FeatureImportancePlots {
             importance_scores[b]
                 .abs()
                 .partial_cmp(&importance_scores[a].abs())
-                .unwrap()
+                .expect("operation should succeed")
         });
         sorted_indices.truncate(max_features);
 
@@ -653,7 +653,7 @@ impl SelectionFrequencyCharts {
 
         // Sort by frequency (descending)
         let mut sorted_frequencies = feature_frequencies.to_vec();
-        sorted_frequencies.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        sorted_frequencies.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let max_features = 20.min(sorted_frequencies.len());
         let max_width = 40;
@@ -843,7 +843,11 @@ impl FeatureSetVisualization {
             .zip(importance_scores.iter())
             .map(|(&idx, &score)| (idx, score))
             .collect();
-        indexed_scores.sort_by(|a, b| b.1.abs().partial_cmp(&a.1.abs()).unwrap());
+        indexed_scores.sort_by(|a, b| {
+            b.1.abs()
+                .partial_cmp(&a.1.abs())
+                .expect("operation should succeed")
+        });
 
         let top_n = 10.min(indexed_scores.len());
         summary.push_str(&format!("Top {} Selected Features:\n", top_n));
@@ -915,7 +919,7 @@ mod tests {
             30,
             "Test Importance",
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(chart.contains("Test Importance"));
         assert!(chart.contains("Feature_A"));
@@ -928,7 +932,7 @@ mod tests {
             10,
             "Test Vertical",
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(chart.contains("Test Importance"));
     }
@@ -943,7 +947,7 @@ mod tests {
             None,
             "Test Stability",
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(plot.contains("Stability"));
         assert!(plot.contains("Feature_"));
@@ -954,7 +958,7 @@ mod tests {
             None,
             "Test Cooccurrence",
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(heatmap.contains("Cooccurrence"));
     }
@@ -970,12 +974,13 @@ mod tests {
             None,
             "Test Correlation",
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(heatmap.contains("Correlation"));
 
         let pairs = vec![(0, 1, 0.8), (1, 2, 0.3)];
-        let summary = RedundancyHeatmaps::redundancy_summary(&pairs, None, "Test Summary").unwrap();
+        let summary = RedundancyHeatmaps::redundancy_summary(&pairs, None, "Test Summary")
+            .expect("operation should succeed");
 
         assert!(summary.contains("Correlated"));
         assert!(summary.contains("0.8"));
@@ -996,7 +1001,7 @@ mod tests {
             None,
             "Test Comprehensive Report",
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(report.contains("Comprehensive Report"));
         assert!(report.contains("Feature Importance"));
@@ -1005,7 +1010,7 @@ mod tests {
 
         let quick_summary =
             FeatureSetVisualization::quick_summary(&feature_indices, &importance_scores, None)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(quick_summary.contains("Quick"));
         assert!(quick_summary.contains("Top"));
@@ -1017,7 +1022,7 @@ mod tests {
 
         let histogram =
             SelectionFrequencyCharts::frequency_histogram(&frequencies, None, "Test Frequencies")
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(histogram.contains("Frequencies"));
         assert!(histogram.contains("90.0%"));

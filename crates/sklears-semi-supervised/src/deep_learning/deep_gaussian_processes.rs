@@ -483,9 +483,9 @@ impl DeepGaussianProcess {
                 self.num_inducing,
             )
             .learning_rate(self.learning_rate)
-            .unwrap()
+            .expect("operation should succeed")
             .noise_variance(self.noise_variance)
-            .unwrap();
+            .expect("operation should succeed");
 
             self.layers.push(layer);
         }
@@ -567,7 +567,10 @@ impl DeepGaussianProcess {
         } else {
             self.layer_dims[0] = n_features;
             if self.layer_dims.len() > 1 {
-                *self.layer_dims.last_mut().unwrap() = self.n_classes;
+                *self
+                    .layer_dims
+                    .last_mut()
+                    .expect("operation should succeed") = self.n_classes;
             }
         }
 
@@ -658,9 +661,9 @@ impl DeepGaussianProcess {
         let predictions = probabilities.map_axis(Axis(1), |row| {
             row.iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx as i32)
-                .unwrap()
+                .expect("operation should succeed")
         });
         Ok(predictions)
     }
@@ -690,9 +693,9 @@ impl DeepGaussianProcess {
             let predictions = probabilities.map_axis(Axis(1), |row| {
                 row.iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx as i32)
-                    .unwrap()
+                    .expect("operation should succeed")
             });
 
             uncertainties = layer_uncertainties;
@@ -763,9 +766,9 @@ mod tests {
     fn test_gaussian_process_layer_creation() {
         let layer = GaussianProcessLayer::new(4, 2, 10)
             .learning_rate(0.01)
-            .unwrap()
+            .expect("operation should succeed")
             .noise_variance(0.1)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(layer.input_dim, 4);
         assert_eq!(layer.output_dim, 2);
@@ -779,20 +782,24 @@ mod tests {
     fn test_gaussian_process_layer_fit_predict() {
         let mut layer = GaussianProcessLayer::new(2, 1, 5)
             .learning_rate(0.01)
-            .unwrap()
+            .expect("operation should succeed")
             .noise_variance(0.1)
-            .unwrap();
+            .expect("operation should succeed");
 
         let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
         let y = array![[1.0], [2.0], [3.0], [4.0]];
 
-        layer.fit(&X.view(), &y.view(), Some(42)).unwrap();
+        layer
+            .fit(&X.view(), &y.view(), Some(42))
+            .expect("operation should succeed");
         assert!(layer.is_trained);
 
-        let predictions = layer.predict(&X.view()).unwrap();
+        let predictions = layer.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.dim(), (4, 1));
 
-        let (pred_mean, pred_var) = layer.predict_with_uncertainty(&X.view()).unwrap();
+        let (pred_mean, pred_var) = layer
+            .predict_with_uncertainty(&X.view())
+            .expect("operation should succeed");
         assert_eq!(pred_mean.dim(), (4, 1));
         assert_eq!(pred_var.dim(), (4, 1));
     }
@@ -801,15 +808,15 @@ mod tests {
     fn test_deep_gaussian_process_creation() {
         let dgp = DeepGaussianProcess::new()
             .layer_dims(vec![4, 3, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .num_inducing(10)
-            .unwrap()
+            .expect("operation should succeed")
             .epochs(20)
-            .unwrap()
+            .expect("operation should succeed")
             .learning_rate(0.01)
-            .unwrap()
+            .expect("operation should succeed")
             .noise_variance(0.1)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
         assert_eq!(dgp.layer_dims, vec![4, 3, 2]);
@@ -825,11 +832,11 @@ mod tests {
     fn test_deep_gaussian_process_fit_predict() {
         let dgp = DeepGaussianProcess::new()
             .layer_dims(vec![2, 3, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .num_inducing(5)
-            .unwrap()
+            .expect("operation should succeed")
             .epochs(10)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
         let X = array![
@@ -842,12 +849,16 @@ mod tests {
         ];
         let y = array![0, 1, 0, 1, -1, -1]; // -1 indicates unlabeled
 
-        let fitted = dgp.fit(&X.view(), &y.view()).unwrap();
+        let fitted = dgp
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = fitted.predict_proba(&X.view()).unwrap();
+        let probabilities = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -862,20 +873,24 @@ mod tests {
     fn test_deep_gaussian_process_with_uncertainty() {
         let dgp = DeepGaussianProcess::new()
             .layer_dims(vec![2, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .num_inducing(3)
-            .unwrap()
+            .expect("operation should succeed")
             .epochs(5)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
         let X = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]];
         let y = array![0, 1, 0];
 
-        let fitted = dgp.fit(&X.view(), &y.view()).unwrap();
+        let fitted = dgp
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let (predictions, uncertainties) =
-            fitted.model.predict_with_uncertainty(&X.view()).unwrap();
+        let (predictions, uncertainties) = fitted
+            .model
+            .predict_with_uncertainty(&X.view())
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
         assert_eq!(uncertainties.dim(), (3, 2));
 
@@ -901,9 +916,9 @@ mod tests {
     fn test_deep_gaussian_process_insufficient_labeled_samples() {
         let dgp = DeepGaussianProcess::new()
             .layer_dims(vec![2, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .epochs(5)
-            .unwrap();
+            .expect("operation should succeed");
 
         let X = array![[1.0, 2.0], [2.0, 3.0]];
         let y = array![-1, -1]; // All unlabeled

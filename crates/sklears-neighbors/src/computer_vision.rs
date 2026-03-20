@@ -664,7 +664,8 @@ impl ImageSimilaritySearch {
         }
 
         // Sort by distance and take top k
-        distances_with_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_with_indices
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k_results = k.min(distances_with_indices.len());
 
         let mut results = Vec::new();
@@ -946,7 +947,7 @@ impl FeatureDescriptorMatcher {
             }
 
             // Sort by distance
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Apply ratio test if we have at least 2 matches
             if distances.len() >= 2 {
@@ -1231,7 +1232,9 @@ mod tests {
         let image_data = vec![0.5; 32 * 32 * 3]; // 32x32 RGB image
         let dimensions = (32, 32, 3);
 
-        let features = extractor.extract_features(&image_data, dimensions).unwrap();
+        let features = extractor
+            .extract_features(&image_data, dimensions)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 8 * 3);
 
         // Check normalization
@@ -1245,7 +1248,9 @@ mod tests {
         let image_data = vec![0.5; 16 * 16]; // 16x16 grayscale image
         let dimensions = (16, 16, 1);
 
-        let features = extractor.extract_features(&image_data, dimensions).unwrap();
+        let features = extractor
+            .extract_features(&image_data, dimensions)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 8 + 2); // uniform patterns
     }
 
@@ -1256,16 +1261,25 @@ mod tests {
 
         // Create dummy feature data
         let features = Array2::from_shape_fn((10, 96), |(i, j)| (i + j) as f64);
-        search.build_index(&features).unwrap();
+        search
+            .build_index(&features)
+            .expect("operation should succeed");
 
         // Verify database was built properly
         let (num_images, _feature_dim, _) = search.get_stats();
         assert_eq!(num_images, 0); // No metadata added yet
-        assert_eq!(search.feature_database.as_ref().unwrap().nrows(), 10);
+        assert_eq!(
+            search
+                .feature_database
+                .as_ref()
+                .expect("operation should succeed")
+                .nrows(),
+            10
+        );
 
         // Test search
         let query = Array1::from_vec((0..96).map(|i| i as f64).collect());
-        let results = search.search(&query, 3).unwrap();
+        let results = search.search(&query, 3).expect("operation should succeed");
 
         assert_eq!(results.len(), 3);
         assert!(results[0].distance <= results[1].distance);
@@ -1279,7 +1293,9 @@ mod tests {
         let image_data = vec![0.5; 32 * 32 * 3];
         let dimensions = (32, 32, 3);
 
-        let patches = matcher.extract_patches(&image_data, dimensions).unwrap();
+        let patches = matcher
+            .extract_patches(&image_data, dimensions)
+            .expect("operation should succeed");
         assert!(!patches.is_empty());
 
         // Test patch extraction positions
@@ -1310,7 +1326,7 @@ mod tests {
 
         let matches = matcher
             .match_descriptors(&query_keypoints, &train_keypoints)
-            .unwrap();
+            .expect("operation should succeed");
         // With ratio test, may not find matches for identical descriptors
         assert!(matches.len() <= 1);
     }
@@ -1326,13 +1342,13 @@ mod tests {
 
         recognizer
             .build_vocabulary(&training_patches, patch_dimensions)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test BOW histogram computation
         let test_patches = vec![vec![0.5; 8 * 8 * 3]];
         let histogram = recognizer
             .compute_bow_histogram(&test_patches, patch_dimensions)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(histogram.len(), 16);
         assert!((histogram.sum() - 1.0).abs() < 1e-6);

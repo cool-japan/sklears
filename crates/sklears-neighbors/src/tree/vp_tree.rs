@@ -128,7 +128,7 @@ impl VpTree {
             .collect();
 
         // Sort by distance to find median
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Use median as threshold
         let median_idx = distances.len() / 2;
@@ -290,7 +290,7 @@ impl VpTree {
         }
 
         // Sort by distance
-        results.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        results.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let distances: Vec<Float> = results.iter().map(|&(dist, _)| dist).collect();
         let indices: Vec<usize> = results.iter().map(|&(_, idx)| idx).collect();
@@ -367,10 +367,10 @@ mod tests {
 
     #[test]
     fn test_vp_tree_construction() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
-        let tree = VpTree::new(&data, Distance::default()).unwrap();
+        let tree = VpTree::new(&data, Distance::default()).expect("operation should succeed");
         assert_eq!(tree.len(), 4);
         assert!(!tree.is_empty());
     }
@@ -388,13 +388,15 @@ mod tests {
                 12.0, 12.0, // Point 5 (far)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let tree = VpTree::new(&data, Distance::default()).unwrap();
+        let tree = VpTree::new(&data, Distance::default()).expect("operation should succeed");
 
         // Query near the first cluster
         let query = array![1.5, 1.5];
-        let (distances, indices) = tree.kneighbors(&query.view(), 3).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 3)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 3);
         assert_eq!(indices.len(), 3);
@@ -416,13 +418,15 @@ mod tests {
                 5.0, 5.0, // Point 3 (far)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let tree = VpTree::new(&data, Distance::default()).unwrap();
+        let tree = VpTree::new(&data, Distance::default()).expect("operation should succeed");
 
         // Query at origin with radius 1.5
         let query = array![0.0, 0.0];
-        let (distances, indices) = tree.radius_neighbors(&query.view(), 1.5).unwrap();
+        let (distances, indices) = tree
+            .radius_neighbors(&query.view(), 1.5)
+            .expect("operation should succeed");
 
         // Should find points 0, 1, 2 but not 3
         assert!(distances.len() >= 3);
@@ -438,12 +442,15 @@ mod tests {
 
     #[test]
     fn test_vp_tree_with_different_metrics() {
-        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
 
         // Test with Manhattan distance
-        let tree = VpTree::new(&data, Distance::Manhattan).unwrap();
+        let tree = VpTree::new(&data, Distance::Manhattan).expect("operation should succeed");
         let query = array![0.5, 0.5];
-        let (distances, indices) = tree.kneighbors(&query.view(), 2).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 2)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         assert_eq!(indices.len(), 2);
@@ -454,11 +461,14 @@ mod tests {
 
     #[test]
     fn test_vp_tree_single_point() {
-        let data = Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).unwrap();
-        let tree = VpTree::new(&data, Distance::default()).unwrap();
+        let data =
+            Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).expect("operation should succeed");
+        let tree = VpTree::new(&data, Distance::default()).expect("operation should succeed");
 
         let query = array![1.0, 2.0];
-        let (distances, indices) = tree.kneighbors(&query.view(), 1).unwrap();
+        let (distances, indices) = tree
+            .kneighbors(&query.view(), 1)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 1);
         assert_eq!(indices.len(), 1);
@@ -475,8 +485,9 @@ mod tests {
 
     #[test]
     fn test_vp_tree_invalid_k() {
-        let data = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
-        let tree = VpTree::new(&data, Distance::default()).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
+        let tree = VpTree::new(&data, Distance::default()).expect("operation should succeed");
 
         let query = array![0.0, 0.0];
         let result = tree.kneighbors(&query.view(), 0);

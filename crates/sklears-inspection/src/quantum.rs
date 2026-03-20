@@ -576,10 +576,18 @@ mod tests {
     #[test]
     fn test_count_entangling_gates() {
         let mut circuit = QuantumCircuit::new(3);
-        circuit.add_gate(QuantumGate::Hadamard, 0, vec![]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 1, vec![0]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 2, vec![1]).unwrap();
-        circuit.add_gate(QuantumGate::PauliX, 2, vec![]).unwrap();
+        circuit
+            .add_gate(QuantumGate::Hadamard, 0, vec![])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 1, vec![0])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 2, vec![1])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::PauliX, 2, vec![])
+            .expect("operation should succeed");
 
         assert_eq!(circuit.count_entangling_gates(), 2);
     }
@@ -593,15 +601,21 @@ mod tests {
     #[test]
     fn test_compute_gate_importance() {
         let mut circuit = QuantumCircuit::new(3);
-        circuit.add_gate(QuantumGate::Hadamard, 0, vec![]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 1, vec![0]).unwrap();
-        circuit.add_gate(QuantumGate::PauliZ, 2, vec![]).unwrap();
+        circuit
+            .add_gate(QuantumGate::Hadamard, 0, vec![])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 1, vec![0])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::PauliZ, 2, vec![])
+            .expect("operation should succeed");
 
-        let explainer = QuantumExplainer::new().unwrap();
+        let explainer = QuantumExplainer::new().expect("operation should succeed");
         let importance = explainer.compute_gate_importance(&circuit);
 
         assert!(importance.is_ok());
-        let imp = importance.unwrap();
+        let imp = importance.expect("operation should succeed");
         assert_eq!(imp.len(), 3);
 
         // CNOT (entangling) should have higher importance
@@ -616,12 +630,20 @@ mod tests {
     #[test]
     fn test_compute_qubit_importance() {
         let mut circuit = QuantumCircuit::new(3);
-        circuit.add_gate(QuantumGate::Hadamard, 0, vec![]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 1, vec![0]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 2, vec![1]).unwrap();
+        circuit
+            .add_gate(QuantumGate::Hadamard, 0, vec![])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 1, vec![0])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 2, vec![1])
+            .expect("operation should succeed");
 
-        let explainer = QuantumExplainer::new().unwrap();
-        let importance = explainer.compute_qubit_importance(&circuit).unwrap();
+        let explainer = QuantumExplainer::new().expect("operation should succeed");
+        let importance = explainer
+            .compute_qubit_importance(&circuit)
+            .expect("operation should succeed");
 
         assert_eq!(importance.len(), 3);
         // Qubit 0 and 1 are involved in more gates
@@ -632,11 +654,17 @@ mod tests {
     #[test]
     fn test_compute_entanglement_entropy() {
         let mut circuit = QuantumCircuit::new(3);
-        circuit.add_gate(QuantumGate::Hadamard, 0, vec![]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 1, vec![0]).unwrap();
+        circuit
+            .add_gate(QuantumGate::Hadamard, 0, vec![])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 1, vec![0])
+            .expect("operation should succeed");
 
-        let explainer = QuantumExplainer::new().unwrap();
-        let entropy = explainer.compute_entanglement_entropy(&circuit).unwrap();
+        let explainer = QuantumExplainer::new().expect("operation should succeed");
+        let entropy = explainer
+            .compute_entanglement_entropy(&circuit)
+            .expect("operation should succeed");
 
         assert_eq!(entropy.len(), 3);
         // Qubits involved in CNOT should have non-zero entropy
@@ -648,17 +676,21 @@ mod tests {
     #[test]
     fn test_explain_circuit() {
         let mut circuit = QuantumCircuit::new(3);
-        circuit.add_gate(QuantumGate::Hadamard, 0, vec![]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 1, vec![0]).unwrap();
+        circuit
+            .add_gate(QuantumGate::Hadamard, 0, vec![])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 1, vec![0])
+            .expect("operation should succeed");
         circuit
             .add_parametric_gate(QuantumGate::RY, 2, 0.5)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let explainer = QuantumExplainer::new().unwrap();
+        let explainer = QuantumExplainer::new().expect("operation should succeed");
         let explanation = explainer.explain(&circuit);
 
         assert!(explanation.is_ok());
-        let exp = explanation.unwrap();
+        let exp = explanation.expect("operation should succeed");
         assert_eq!(exp.gate_importance.len(), 3);
         assert_eq!(exp.qubit_importance.len(), 3);
         assert_eq!(exp.entanglement_entropy.len(), 3);
@@ -669,12 +701,18 @@ mod tests {
     fn test_circuit_complexity() {
         let mut circuit = QuantumCircuit::new(4);
         for i in 0..4 {
-            circuit.add_gate(QuantumGate::Hadamard, i, vec![]).unwrap();
+            circuit
+                .add_gate(QuantumGate::Hadamard, i, vec![])
+                .expect("operation should succeed");
         }
-        circuit.add_gate(QuantumGate::CNOT, 1, vec![0]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 3, vec![2]).unwrap();
+        circuit
+            .add_gate(QuantumGate::CNOT, 1, vec![0])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 3, vec![2])
+            .expect("operation should succeed");
 
-        let explainer = QuantumExplainer::new().unwrap();
+        let explainer = QuantumExplainer::new().expect("operation should succeed");
         let complexity = explainer.compute_circuit_complexity(&circuit);
 
         assert_eq!(complexity.total_gates, 6);
@@ -688,13 +726,15 @@ mod tests {
         let mut circuit = QuantumCircuit::new(2);
         circuit
             .add_parametric_gate(QuantumGate::RY, 0, 0.1)
-            .unwrap();
+            .expect("operation should succeed");
         circuit
             .add_parametric_gate(QuantumGate::RX, 1, 0.2)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let explainer = QuantumExplainer::new().unwrap();
-        let sensitivity = explainer.compute_parameter_sensitivity(&circuit).unwrap();
+        let explainer = QuantumExplainer::new().expect("operation should succeed");
+        let sensitivity = explainer
+            .compute_parameter_sensitivity(&circuit)
+            .expect("operation should succeed");
 
         assert_eq!(sensitivity.len(), 2);
         assert!(sensitivity[0] > 0.0);
@@ -704,15 +744,19 @@ mod tests {
     #[test]
     fn test_quantum_classical_boundary() {
         let mut circuit = QuantumCircuit::new(3);
-        circuit.add_gate(QuantumGate::Hadamard, 0, vec![]).unwrap();
-        circuit.add_gate(QuantumGate::CNOT, 1, vec![0]).unwrap();
+        circuit
+            .add_gate(QuantumGate::Hadamard, 0, vec![])
+            .expect("operation should succeed");
+        circuit
+            .add_gate(QuantumGate::CNOT, 1, vec![0])
+            .expect("operation should succeed");
 
-        let explainer = QuantumExplainer::new().unwrap();
+        let explainer = QuantumExplainer::new().expect("operation should succeed");
         let classical_features = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 
         let importance = explainer
             .analyze_quantum_classical_boundary(&circuit, &classical_features.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(importance.len(), 5);
         let total: Float = importance.iter().sum();

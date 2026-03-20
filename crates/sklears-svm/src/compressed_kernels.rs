@@ -778,9 +778,9 @@ mod tests {
                 1.0, 0.8, 0.6, 0.4, 0.8, 1.0, 0.7, 0.5, 0.6, 0.7, 1.0, 0.6, 0.4, 0.5, 0.6, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let compressed = LowRankKernelMatrix::new(&matrix, 2).unwrap();
+        let compressed = LowRankKernelMatrix::new(&matrix, 2).expect("construction should succeed");
         assert_eq!(compressed.dimensions(), (4, 4));
         assert!(compressed.compression_ratio() < 1.0);
     }
@@ -789,9 +789,10 @@ mod tests {
     fn test_quantized_compression() {
         let matrix =
             Array2::from_shape_vec((3, 3), vec![1.0, 0.5, 0.0, 0.5, 1.0, 0.5, 0.0, 0.5, 1.0])
-                .unwrap();
+                .expect("operation should succeed");
 
-        let compressed = QuantizedKernelMatrix::new(&matrix, 16).unwrap();
+        let compressed =
+            QuantizedKernelMatrix::new(&matrix, 16).expect("construction should succeed");
         assert_eq!(compressed.dimensions(), (3, 3));
         assert!(compressed.compression_ratio() < 1.0);
     }
@@ -804,9 +805,10 @@ mod tests {
                 1.0, 0.0, 0.0, 0.8, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.8, 0.0, 0.0, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let compressed = SparseKernelMatrix::new(&matrix, 0.1).unwrap();
+        let compressed =
+            SparseKernelMatrix::new(&matrix, 0.1).expect("construction should succeed");
         assert_eq!(compressed.dimensions(), (4, 4));
         assert!(compressed.compression_ratio() < 1.0);
     }
@@ -820,7 +822,8 @@ mod tests {
             ..CompressionConfig::default()
         };
 
-        let compressed = HierarchicalKernelMatrix::new(&matrix, config).unwrap();
+        let compressed =
+            HierarchicalKernelMatrix::new(&matrix, config).expect("construction should succeed");
         assert_eq!(compressed.dimensions(), (8, 8));
     }
 }

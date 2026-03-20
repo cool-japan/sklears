@@ -172,7 +172,7 @@ impl OnlineNMF {
 
         // Check feature dimension consistency
         {
-            let w = self.w.as_ref().unwrap();
+            let w = self.w.as_ref().expect("operation should succeed");
             if w.nrows() != n_features {
                 return Err(SklearsError::InvalidInput(format!(
                     "Feature dimension mismatch: expected {}, got {}",
@@ -188,7 +188,7 @@ impl OnlineNMF {
         // Mini-batch gradient descent
         for iter in 0..self.config.max_iter_per_batch {
             // Compute reconstruction and loss
-            let w_current = self.w.as_ref().unwrap().clone();
+            let w_current = self.w.as_ref().expect("operation should succeed").clone();
             let reconstruction = h.dot(&w_current.t());
             let loss = self.compute_loss(x, &reconstruction, &h);
             self.loss_history.push(loss);
@@ -251,8 +251,8 @@ impl OnlineNMF {
 
     /// Update W (dictionary) using momentum-based gradient descent
     fn update_w(&mut self, x: &Array2<Float>, h: &Array2<Float>) -> Result<()> {
-        let w = self.w.as_ref().unwrap();
-        let w_velocity = self.w_velocity.as_ref().unwrap();
+        let w = self.w.as_ref().expect("operation should succeed");
+        let w_velocity = self.w_velocity.as_ref().expect("operation should succeed");
 
         // Gradient: ∇W = -(X - HW^T)^T H + λ₁ + 2λ₂W
         let reconstruction = h.dot(&w.t());
@@ -299,7 +299,7 @@ impl OnlineNMF {
 
         // L2 regularization on W and H
         let l2_term = if self.config.l2_reg > 0.0 {
-            let w = self.w.as_ref().unwrap();
+            let w = self.w.as_ref().expect("operation should succeed");
             self.config.l2_reg * (w.mapv(|v| v.powi(2)).sum() + h.mapv(|v| v.powi(2)).sum())
         } else {
             0.0
@@ -321,7 +321,7 @@ impl OnlineNMF {
             ));
         }
 
-        let w = self.w.as_ref().unwrap();
+        let w = self.w.as_ref().expect("operation should succeed");
         let (_n_samples, n_features) = x.dim();
 
         if n_features != w.nrows() {
@@ -359,7 +359,7 @@ impl OnlineNMF {
     /// Get reconstruction error
     pub fn reconstruction_error(&self, x: &Array2<Float>) -> Result<Float> {
         let h = self.transform(x)?;
-        let w = self.w.as_ref().unwrap();
+        let w = self.w.as_ref().expect("operation should succeed");
         let reconstruction = h.dot(&w.t());
         let residual = x - &reconstruction;
         Ok(residual.mapv(|v| v.powi(2)).sum().sqrt())
@@ -512,11 +512,11 @@ mod tests {
             .random_state(42)
             .build();
 
-        model.partial_fit(&data).unwrap();
+        model.partial_fit(&data).expect("operation should succeed");
         let transformed = model.transform(&data);
 
         assert!(transformed.is_ok());
-        let h = transformed.unwrap();
+        let h = transformed.expect("operation should succeed");
         assert_eq!(h.dim(), (20, 3));
     }
 
@@ -532,20 +532,21 @@ mod tests {
         // Fit on multiple batches
         for _ in 0..3 {
             let batch = Array2::from_shape_fn((10, 8), |_| rng.gen_range(0.0..1.0));
-            model.partial_fit(&batch).unwrap();
+            model.partial_fit(&batch).expect("operation should succeed");
         }
 
         assert_eq!(model.n_samples_seen, 30);
         assert!(model.fitted);
 
         // Check that dictionary was learned
-        let w = model.get_components().unwrap();
+        let w = model.get_components().expect("operation should succeed");
         assert_eq!(w.dim(), (8, 3));
     }
 
     #[test]
     fn test_online_nmf_negative_input() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, -1.0, 2.0, 3.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, -1.0, 2.0, 3.0])
+            .expect("shape and data length should match");
 
         let mut model = OnlineNMF::builder().n_components(2).build();
 
@@ -564,9 +565,11 @@ mod tests {
             .random_state(42)
             .build();
 
-        model.partial_fit(&data).unwrap();
+        model.partial_fit(&data).expect("operation should succeed");
 
-        let error = model.reconstruction_error(&data).unwrap();
+        let error = model
+            .reconstruction_error(&data)
+            .expect("operation should succeed");
         assert!(error >= 0.0);
         assert!(error.is_finite());
     }
@@ -581,7 +584,7 @@ mod tests {
             .random_state(42)
             .build();
 
-        model.partial_fit(&data).unwrap();
+        model.partial_fit(&data).expect("operation should succeed");
         assert!(model.fitted);
 
         model.reset();

@@ -6,7 +6,6 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::StdRng;
 use sklears_core::{
@@ -222,7 +221,8 @@ impl GpuAccelerator {
             }
 
             // Sort by distance and take k closest
-            distances_with_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances_with_indices
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (idx, &(dist, neighbor_idx)) in distances_with_indices.iter().take(k).enumerate() {
                 knn_distances[[i, idx]] = dist;
@@ -544,12 +544,12 @@ mod tests {
 
     #[test]
     fn test_pairwise_distances() {
-        let mut accelerator = GpuAccelerator::new().unwrap();
+        let mut accelerator = GpuAccelerator::new().expect("operation should succeed");
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let distances = accelerator
             .pairwise_distances(&data.view(), "euclidean")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(distances.shape(), &[3, 3]);
         assert_abs_diff_eq!(distances[[0, 0]], 0.0, epsilon = 1e-10);
@@ -558,12 +558,12 @@ mod tests {
 
     #[test]
     fn test_knn_search() {
-        let mut accelerator = GpuAccelerator::new().unwrap();
+        let mut accelerator = GpuAccelerator::new().expect("operation should succeed");
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let (distances, indices) = accelerator
             .knn_search(&data.view(), 2, "euclidean")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(distances.shape(), &[4, 2]);
         assert_eq!(indices.shape(), &[4, 2]);
@@ -571,37 +571,39 @@ mod tests {
 
     #[test]
     fn test_matrix_operations() {
-        let mut accelerator = GpuAccelerator::new().unwrap();
+        let mut accelerator = GpuAccelerator::new().expect("operation should succeed");
         let data = array![[1.0, 2.0], [3.0, 4.0]];
 
         let gram = accelerator
             .matrix_operations("gram_matrix", &data.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(gram.shape(), &[2, 2]);
 
         let normalized = accelerator
             .matrix_operations("normalize", &data.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(normalized.shape(), &[2, 2]);
     }
 
     #[test]
     fn test_gpu_tsne() {
-        let mut tsne = GpuTSNE::new().unwrap();
+        let mut tsne = GpuTSNE::new().expect("operation should succeed");
         let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
-        let embedding = tsne.fit_transform(&data.view()).unwrap();
+        let embedding = tsne
+            .fit_transform(&data.view())
+            .expect("operation should succeed");
         assert_eq!(embedding.shape(), &[3, 2]);
     }
 
     #[test]
     fn test_benchmarking() {
-        let mut benchmark = GpuBenchmark::new().unwrap();
+        let mut benchmark = GpuBenchmark::new().expect("operation should succeed");
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let (cpu_time, gpu_time) = benchmark
             .benchmark_distance_computation(&data.view(), "euclidean")
-            .unwrap();
+            .expect("operation should succeed");
         assert!(cpu_time >= 0.0);
         assert!(gpu_time >= 0.0);
     }

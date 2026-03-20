@@ -38,7 +38,7 @@ pub fn make_privacy_preserving_dataset(
 
     // Generate base dataset
     let mut X = Array2::zeros((n_samples, n_features));
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     for i in 0..n_samples {
         for j in 0..n_features {
@@ -48,7 +48,8 @@ pub fn make_privacy_preserving_dataset(
 
     // Add Laplace noise for differential privacy
     let b = sensitivity / epsilon; // Laplace parameter
-    let laplace_noise = Normal::new(0.0, b * std::f64::consts::SQRT_2).unwrap();
+    let laplace_noise =
+        Normal::new(0.0, b * std::f64::consts::SQRT_2).expect("operation should succeed");
 
     for i in 0..n_samples {
         for j in 0..n_features {
@@ -75,7 +76,8 @@ mod tests {
 
     #[test]
     fn test_make_privacy_preserving_dataset() {
-        let (X, y) = make_privacy_preserving_dataset(100, 5, 1.0, 0.01, 1.0, Some(42)).unwrap();
+        let (X, y) = make_privacy_preserving_dataset(100, 5, 1.0, 0.01, 1.0, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(X.shape(), &[100, 5]);
         assert_eq!(y.len(), 100);

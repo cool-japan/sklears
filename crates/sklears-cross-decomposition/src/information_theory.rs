@@ -56,7 +56,7 @@ fn mean<F: FloatTrait>(arr: &Array1<F>) -> F {
         F::zero()
     } else {
         let sum = arr.iter().fold(F::zero(), |acc, &x| acc + x);
-        sum / F::from(arr.len()).unwrap()
+        sum / F::from(arr.len()).expect("operation should succeed")
     }
 }
 
@@ -73,8 +73,8 @@ impl<F: FloatTrait> Default for MutualInformationCCA<F> {
         Self {
             n_components: 2,
             max_iter: 500,
-            tolerance: F::from(1e-6).unwrap(),
-            regularization: F::from(1e-4).unwrap(),
+            tolerance: F::from(1e-6).expect("operation should succeed"),
+            regularization: F::from(1e-4).expect("operation should succeed"),
         }
     }
 }
@@ -99,8 +99,8 @@ impl<F: FloatTrait> Default for MutualInformationConfig<F> {
         Self {
             n_components: 2,
             max_iter: 500,
-            tolerance: F::from(1e-6).unwrap(),
-            regularization: F::from(1e-4).unwrap(),
+            tolerance: F::from(1e-6).expect("operation should succeed"),
+            regularization: F::from(1e-4).expect("operation should succeed"),
         }
     }
 }
@@ -226,8 +226,8 @@ pub struct KLDivergenceMethods<F: FloatTrait> {
 impl<F: FloatTrait> Default for KLDivergenceMethods<F> {
     fn default() -> Self {
         Self {
-            tolerance: F::from(1e-8).unwrap(),
-            smoothing: F::from(1e-10).unwrap(),
+            tolerance: F::from(1e-8).expect("operation should succeed"),
+            smoothing: F::from(1e-10).expect("operation should succeed"),
             max_bins: 50,
         }
     }
@@ -276,7 +276,7 @@ impl<F: FloatTrait> KLDivergenceMethods<F> {
             ));
         }
 
-        let half = F::from(0.5).unwrap();
+        let half = F::from(0.5).unwrap_or(F::zero());
         let mut m = Array1::zeros(p.len());
         for i in 0..p.len() {
             m[i] = half * (p[i] + q[i]);
@@ -301,7 +301,12 @@ impl<F: FloatTrait> KLDivergenceMethods<F> {
             Some(r) => r.clone(),
             None => {
                 // Use uniform distribution as reference
-                let uniform_val = F::one() / F::from(components.ncols()).unwrap();
+                let uniform_val = F::one()
+                    / F::from(components.ncols()).ok_or(
+                        InformationTheoryError::NumericalInstability(
+                            "failed to convert ncols to float".to_string(),
+                        ),
+                    )?;
                 Array1::from_elem(components.ncols(), uniform_val)
             }
         };
@@ -313,7 +318,11 @@ impl<F: FloatTrait> KLDivergenceMethods<F> {
 
         // Select components with lowest KL divergence (most similar to reference)
         let mut indices: Vec<usize> = (0..n_components).collect();
-        indices.sort_by(|&i, &j| scores[i].partial_cmp(&scores[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            scores[i]
+                .partial_cmp(&scores[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(indices)
     }
@@ -360,7 +369,7 @@ impl<F: FloatTrait> Default for FeatureImportanceAnalyzer<F> {
         Self {
             method: ImportanceMethod::WeightBased,
             n_permutations: 100,
-            threshold: F::from(0.05).unwrap(),
+            threshold: F::from(0.05).expect("operation should succeed"),
         }
     }
 }
@@ -398,7 +407,7 @@ impl<F: FloatTrait> FeatureImportanceAnalyzer<F> {
         rankings.sort_by(|&i, &j| {
             importance_scores[j]
                 .partial_cmp(&importance_scores[i])
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         let top_features = rankings.iter().take(10.min(n_features)).cloned().collect();
@@ -455,7 +464,7 @@ impl<F: FloatTrait> FeatureImportanceAnalyzer<F> {
         rankings.sort_by(|&i, &j| {
             importance_scores[j]
                 .partial_cmp(&importance_scores[i])
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         let top_features = rankings.iter().take(10.min(n_features)).cloned().collect();
@@ -512,8 +521,8 @@ pub struct ComponentInterpreter<F: FloatTrait> {
 impl<F: FloatTrait> Default for ComponentInterpreter<F> {
     fn default() -> Self {
         Self {
-            threshold: F::from(0.1).unwrap(),
-            min_contribution: F::from(0.05).unwrap(),
+            threshold: F::from(0.1).expect("operation should succeed"),
+            min_contribution: F::from(0.05).expect("operation should succeed"),
             feature_names: None,
         }
     }
@@ -577,8 +586,12 @@ impl<F: FloatTrait> ComponentInterpreter<F> {
         }
 
         // Sort by absolute loading value
-        feature_contributions
-            .sort_by(|a, b| b.loading.abs().partial_cmp(&a.loading.abs()).unwrap());
+        feature_contributions.sort_by(|a, b| {
+            b.loading
+                .abs()
+                .partial_cmp(&a.loading.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let dominant_pattern = self.identify_pattern(&feature_contributions);
         SingleComponentInterpretation {
@@ -590,8 +603,8 @@ impl<F: FloatTrait> ComponentInterpreter<F> {
     }
 
     fn classify_strength(&self, abs_loading: F) -> String {
-        let strong_threshold = F::from(0.3).unwrap();
-        let moderate_threshold = F::from(0.15).unwrap();
+        let strong_threshold = F::from(0.3).expect("operation should succeed");
+        let moderate_threshold = F::from(0.15).expect("operation should succeed");
 
         if abs_loading >= strong_threshold {
             "Strong".to_string()
@@ -647,7 +660,7 @@ impl<F: FloatTrait> ComponentInterpreter<F> {
         ComponentSimilarityAnalysis {
             correlation_matrix,
             similar_pairs,
-            similarity_threshold: F::from(0.7).unwrap(),
+            similarity_threshold: F::from(0.7).expect("operation should succeed"),
         }
     }
 
@@ -680,7 +693,7 @@ impl<F: FloatTrait> ComponentInterpreter<F> {
 
     fn find_similar_pairs(&self, correlation_matrix: &Array2<F>) -> Vec<(usize, usize, F)> {
         let mut pairs = Vec::new();
-        let threshold = F::from(0.7).unwrap();
+        let threshold = F::from(0.7).expect("operation should succeed");
 
         for i in 0..correlation_matrix.nrows() {
             for j in (i + 1)..correlation_matrix.ncols() {
@@ -760,7 +773,7 @@ pub fn mutual_information<F: FloatTrait>(x: &Array1<F>, y: &Array1<F>) -> Result
 
     // Simple histogram-based MI estimation
     // In practice, would use more sophisticated estimators
-    Ok(F::from(0.5).unwrap())
+    Ok(F::from(0.5).unwrap_or(F::zero()))
 }
 
 pub fn conditional_entropy<F: FloatTrait>(x: &Array1<F>, y: &Array1<F>) -> Result<F> {
@@ -777,7 +790,7 @@ pub fn joint_entropy<F: FloatTrait>(x: &Array1<F>, y: &Array1<F>) -> Result<F> {
     }
 
     // Simple histogram-based estimation
-    Ok(F::from(1.0).unwrap())
+    Ok(F::from(1.0).unwrap_or(F::zero()))
 }
 
 pub fn entropy<F: FloatTrait>(x: &Array1<F>) -> Result<F> {
@@ -788,7 +801,9 @@ pub fn entropy<F: FloatTrait>(x: &Array1<F>) -> Result<F> {
     }
 
     // Simple entropy estimation
-    let n = F::from(x.len()).unwrap();
+    let n = F::from(x.len()).ok_or(InformationTheoryError::NumericalInstability(
+        "failed to convert length to float".to_string(),
+    ))?;
     Ok(n.ln())
 }
 
@@ -854,7 +869,9 @@ mod tests {
         let p = array![0.5, 0.3, 0.2];
         let q = array![0.4, 0.4, 0.2];
 
-        let kl_div = kl_methods.discrete_kl_divergence(&p, &q).unwrap();
+        let kl_div = kl_methods
+            .discrete_kl_divergence(&p, &q)
+            .expect("operation should succeed");
         assert!(kl_div >= 0.0);
     }
 
@@ -864,7 +881,9 @@ mod tests {
         let p = array![0.5, 0.3, 0.2];
         let q = array![0.4, 0.4, 0.2];
 
-        let js_div = kl_methods.jensen_shannon_divergence(&p, &q).unwrap();
+        let js_div = kl_methods
+            .jensen_shannon_divergence(&p, &q)
+            .expect("operation should succeed");
         assert!(js_div >= 0.0);
         assert!(js_div <= 1.0);
     }
@@ -902,7 +921,9 @@ mod tests {
         let kl_methods = KLDivergenceMethods::new();
         let components = array![[0.5, 0.3, 0.2], [0.4, 0.4, 0.2], [0.1, 0.8, 0.1]];
 
-        let selected = kl_methods.component_selection(&components, None).unwrap();
+        let selected = kl_methods
+            .component_selection(&components, None)
+            .expect("operation should succeed");
         assert_eq!(selected.len(), 3);
     }
 

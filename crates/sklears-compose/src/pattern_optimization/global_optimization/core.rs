@@ -1119,7 +1119,7 @@ impl GlobalOptimizer for UnifiedGlobalOptimizer {
 
         match &self.strategy {
             OptimizationStrategy::SingleMethod(method) => {
-                let registry = self.method_registry.read().unwrap();
+                let registry = self.method_registry.read().unwrap_or_else(|e| e.into_inner());
                 if let Some(optimizer) = registry.get_optimizer(method) {
                     optimizer.optimize(problem)
                 } else {
@@ -1128,7 +1128,7 @@ impl GlobalOptimizer for UnifiedGlobalOptimizer {
             },
             OptimizationStrategy::AutoSelect => {
                 let characteristics = self.analyze_problem(problem);
-                let registry = self.method_registry.read().unwrap();
+                let registry = self.method_registry.read().unwrap_or_else(|e| e.into_inner());
                 let best_method = registry.select_best_method(&characteristics);
 
                 if let Some(optimizer) = registry.get_optimizer(&best_method) {
@@ -1233,7 +1233,7 @@ impl UnifiedGlobalOptimizer {
         problem: &OptimizationProblem,
         portfolio: &MethodPortfolio,
     ) -> SklResult<OptimizationResult> {
-        let registry = self.method_registry.read().unwrap();
+        let registry = self.method_registry.read().unwrap_or_else(|e| e.into_inner());
 
         if portfolio.parallel_execution {
             // Parallel execution of methods
@@ -1258,7 +1258,7 @@ impl UnifiedGlobalOptimizer {
                 if let Some(optimizer) = registry.get_optimizer(method) {
                     let result = optimizer.optimize(problem)?;
 
-                    if best_result.is_none() || result.best_solution.fitness < best_result.as_ref().unwrap().best_solution.fitness {
+                    if best_result.is_none() || result.best_solution.fitness < best_result.as_ref().unwrap_or_default().best_solution.fitness {
                         best_result = Some(result.clone());
                     }
                     all_results.push(result);
@@ -1273,7 +1273,7 @@ impl UnifiedGlobalOptimizer {
     fn optimize_adaptively(&self, problem: &OptimizationProblem) -> SklResult<OptimizationResult> {
         // Simplified adaptive optimization - would implement learning and adaptation
         let characteristics = self.analyze_problem(problem);
-        let registry = self.method_registry.read().unwrap();
+        let registry = self.method_registry.read().unwrap_or_else(|e| e.into_inner());
         let selected_method = registry.select_best_method(&characteristics);
 
         if let Some(optimizer) = registry.get_optimizer(&selected_method) {
@@ -1292,13 +1292,13 @@ impl UnifiedGlobalOptimizer {
         match strategy {
             AggregationStrategy::BestResult => {
                 results.into_iter()
-                    .min_by(|a, b| a.best_solution.fitness.partial_cmp(&b.best_solution.fitness).unwrap())
+                    .min_by(|a, b| a.best_solution.fitness.partial_cmp(&b.best_solution.fitness).unwrap_or(std::cmp::Ordering::Equal))
                     .ok_or_else(|| SklError::InvalidParameter("No results to aggregate".to_string()))
             },
             _ => {
                 // Simplified - would implement other aggregation strategies
                 results.into_iter()
-                    .min_by(|a, b| a.best_solution.fitness.partial_cmp(&b.best_solution.fitness).unwrap())
+                    .min_by(|a, b| a.best_solution.fitness.partial_cmp(&b.best_solution.fitness).unwrap_or(std::cmp::Ordering::Equal))
                     .ok_or_else(|| SklError::InvalidParameter("No results to aggregate".to_string()))
             },
         }

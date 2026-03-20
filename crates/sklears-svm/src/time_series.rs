@@ -987,7 +987,7 @@ mod tests {
         let result = kernel.compute_ar_similarity(&seq1, &seq2);
         assert!(result.is_ok());
 
-        let similarity = result.unwrap();
+        let similarity = result.expect("operation should succeed");
         assert!(similarity > 0.0 && similarity <= 1.0);
     }
 
@@ -1001,7 +1001,7 @@ mod tests {
         let result = kernel.estimate_ar_coefficients(&series);
         assert!(result.is_ok());
 
-        let coeffs = result.unwrap();
+        let coeffs = result.expect("operation should succeed");
         assert_eq!(coeffs.len(), 3); // 2 AR coefficients + bias
     }
 
@@ -1009,8 +1009,8 @@ mod tests {
     fn test_streaming_svm_initialization() {
         let mut streaming_svm = StreamingSVM::new(10);
 
-        let x_init =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x_init = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("array shape mismatch");
         let y_init = Array1::from_vec(vec![1.0, 1.0, -1.0, -1.0]);
 
         let result = streaming_svm.initialize(&x_init, &y_init);
@@ -1069,7 +1069,7 @@ mod tests {
         let result = kernel.time_series_to_matrix(&series);
         assert!(result.is_ok());
 
-        let matrix = result.unwrap();
+        let matrix = result.expect("operation should succeed");
         assert_eq!(matrix.nrows(), 3);
         assert_eq!(matrix.ncols(), 4); // Max length is 4
     }

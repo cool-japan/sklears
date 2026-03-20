@@ -33,7 +33,8 @@ fn generate_regression_data(
             &mut rng,
         ));
     }
-    let x = Array2::from_shape_vec((n_samples, n_features), x_data).unwrap();
+    let x = Array2::from_shape_vec((n_samples, n_features), x_data)
+        .expect("shape and data length should match");
 
     // Generate targets with linear relationship plus noise
     let mut y_data = Vec::with_capacity(n_samples);
@@ -64,7 +65,8 @@ fn generate_classification_data(
             &mut rng,
         ));
     }
-    let x = Array2::from_shape_vec((n_samples, n_features), x_data).unwrap();
+    let x = Array2::from_shape_vec((n_samples, n_features), x_data)
+        .expect("shape and data length should match");
 
     let mut y_data = Vec::with_capacity(n_samples);
     for _ in 0..n_samples {
@@ -79,11 +81,13 @@ fn generate_classification_data(
 #[test]
 fn test_dummy_regressor_mean_correctness() {
     let (x, y) = generate_regression_data(1000, 5, 0.1, 42);
-    let true_mean = y.mean().unwrap();
+    let true_mean = y
+        .mean()
+        .expect("array should have elements for mean computation");
 
     let regressor = DummyRegressor::new(RegressorStrategy::Mean);
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     // All predictions should be the mean
     for &pred in predictions.iter() {
@@ -96,11 +100,12 @@ fn test_dummy_regressor_mean_correctness() {
 fn test_dummy_regressor_median_correctness() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
     let y = Array1::from_vec(values);
-    let x = Array2::from_shape_vec((10, 2), vec![0.0; 20]).unwrap();
+    let x =
+        Array2::from_shape_vec((10, 2), vec![0.0; 20]).expect("shape and data length should match");
 
     let regressor = DummyRegressor::new(RegressorStrategy::Median);
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     // Median of [1,2,3,4,5,6,7,8,9,10] is 5.5
     let expected_median = 5.5;
@@ -114,12 +119,13 @@ fn test_dummy_regressor_median_correctness() {
 fn test_dummy_regressor_quantile_correctness() {
     let values: Vec<f64> = (1..=100).map(|x| x as f64).collect();
     let y = Array1::from_vec(values);
-    let x = Array2::from_shape_vec((100, 1), vec![0.0; 100]).unwrap();
+    let x = Array2::from_shape_vec((100, 1), vec![0.0; 100])
+        .expect("shape and data length should match");
 
     // Test 25th percentile
     let regressor = DummyRegressor::new(RegressorStrategy::Quantile(0.25));
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     let expected_q25 = 25.75; // 25th percentile of 1..100
     for &pred in predictions.iter() {
@@ -128,8 +134,8 @@ fn test_dummy_regressor_quantile_correctness() {
 
     // Test 75th percentile
     let regressor = DummyRegressor::new(RegressorStrategy::Quantile(0.75));
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     let expected_q75 = 75.25; // 75th percentile of 1..100
     for &pred in predictions.iter() {
@@ -144,11 +150,14 @@ fn test_dummy_classifier_most_frequent_correctness() {
     let mut y_data = vec![0; 70];
     y_data.extend(vec![1; 30]);
     let y = Array1::from_vec(y_data);
-    let x = Array2::from_shape_vec((100, 2), vec![0.0; 200]).unwrap();
+    let x = Array2::from_shape_vec((100, 2), vec![0.0; 200])
+        .expect("shape and data length should match");
 
     let classifier = DummyClassifier::new(ClassifierStrategy::MostFrequent);
-    let fitted = classifier.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     // All predictions should be class 0 (most frequent)
     for &pred in predictions.iter() {
@@ -161,14 +170,18 @@ fn test_dummy_classifier_most_frequent_correctness() {
 fn test_dummy_classifier_stratified_proportions() {
     let y_data = vec![0, 0, 0, 1, 1, 2]; // 3:2:1 ratio
     let y = Array1::from_vec(y_data);
-    let x = Array2::from_shape_vec((6, 1), vec![0.0; 6]).unwrap();
+    let x =
+        Array2::from_shape_vec((6, 1), vec![0.0; 6]).expect("shape and data length should match");
 
     let classifier = DummyClassifier::new(ClassifierStrategy::Stratified);
-    let fitted = classifier.fit(&x, &y).unwrap();
+    let fitted = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
 
     // Generate many predictions to test proportions
-    let large_x = Array2::from_shape_vec((6000, 1), vec![0.0; 6000]).unwrap();
-    let predictions = fitted.predict(&large_x).unwrap();
+    let large_x = Array2::from_shape_vec((6000, 1), vec![0.0; 6000])
+        .expect("shape and data length should match");
+    let predictions = fitted.predict(&large_x).expect("prediction should succeed");
 
     // Count class frequencies
     let mut class_counts = HashMap::new();
@@ -192,14 +205,18 @@ fn test_dummy_classifier_stratified_proportions() {
 fn test_dummy_classifier_uniform_distribution() {
     let y_data = vec![0, 1, 2, 0, 1, 2]; // Equal classes
     let y = Array1::from_vec(y_data);
-    let x = Array2::from_shape_vec((6, 1), vec![0.0; 6]).unwrap();
+    let x =
+        Array2::from_shape_vec((6, 1), vec![0.0; 6]).expect("shape and data length should match");
 
     let classifier = DummyClassifier::new(ClassifierStrategy::Uniform);
-    let fitted = classifier.fit(&x, &y).unwrap();
+    let fitted = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
 
     // Generate many predictions
-    let large_x = Array2::from_shape_vec((3000, 1), vec![0.0; 3000]).unwrap();
-    let predictions = fitted.predict(&large_x).unwrap();
+    let large_x = Array2::from_shape_vec((3000, 1), vec![0.0; 3000])
+        .expect("shape and data length should match");
+    let predictions = fitted.predict(&large_x).expect("prediction should succeed");
 
     // Count class frequencies
     let mut class_counts = HashMap::new();
@@ -219,14 +236,21 @@ fn test_dummy_classifier_uniform_distribution() {
 #[test]
 fn test_online_dummy_regressor_convergence() {
     let (x, y) = generate_regression_data(1000, 3, 0.1, 42);
-    let true_mean = y.mean().unwrap();
+    let true_mean = y
+        .mean()
+        .expect("array should have elements for mean computation");
 
     // Batch estimation
     let batch_regressor = DummyRegressor::new(RegressorStrategy::Mean);
-    let batch_fitted = batch_regressor.fit(&x, &y).unwrap();
+    let batch_fitted = batch_regressor
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
     let batch_pred = batch_fitted
-        .predict(&Array2::from_shape_vec((1, 3), vec![0.0; 3]).unwrap())
-        .unwrap();
+        .predict(
+            &Array2::from_shape_vec((1, 3), vec![0.0; 3])
+                .expect("shape and data length should match"),
+        )
+        .expect("operation should succeed");
 
     // Online estimation
     let mut online_regressor: OnlineDummyRegressor =
@@ -234,7 +258,9 @@ fn test_online_dummy_regressor_convergence() {
             drift_detection: None,
         });
     for &target in y.iter() {
-        online_regressor.partial_fit(target).unwrap();
+        online_regressor
+            .partial_fit(target)
+            .expect("operation should succeed");
     }
     let online_pred = online_regressor.predict_single();
 
@@ -251,10 +277,15 @@ fn test_online_dummy_classifier_convergence() {
 
     // Batch estimation
     let batch_classifier = DummyClassifier::new(ClassifierStrategy::MostFrequent);
-    let batch_fitted = batch_classifier.fit(&x, &y).unwrap();
+    let batch_fitted = batch_classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
     let batch_pred = batch_fitted
-        .predict(&Array2::from_shape_vec((1, 3), vec![0.0; 3]).unwrap())
-        .unwrap();
+        .predict(
+            &Array2::from_shape_vec((1, 3), vec![0.0; 3])
+                .expect("shape and data length should match"),
+        )
+        .expect("operation should succeed");
 
     // Online estimation
     let mut online_classifier: OnlineDummyClassifier =
@@ -262,7 +293,9 @@ fn test_online_dummy_classifier_convergence() {
     for &target in y.iter() {
         online_classifier.partial_fit(target);
     }
-    let online_pred = online_classifier.predict_single().unwrap();
+    let online_pred = online_classifier
+        .predict_single()
+        .expect("operation should succeed");
 
     // Both should predict the same most frequent class
     assert_eq!(batch_pred[0], online_pred);
@@ -277,7 +310,9 @@ fn test_ewma_online_regressor_properties() {
     // Feed constant values - should converge to that value
     let constant_value = 5.0;
     for _ in 0..100 {
-        regressor.partial_fit(constant_value).unwrap();
+        regressor
+            .partial_fit(constant_value)
+            .expect("operation should succeed");
     }
 
     let prediction = regressor.predict_single();
@@ -286,7 +321,9 @@ fn test_ewma_online_regressor_properties() {
     // Feed a different value - should start adapting
     let new_value = 10.0;
     for _ in 0..50 {
-        regressor.partial_fit(new_value).unwrap();
+        regressor
+            .partial_fit(new_value)
+            .expect("operation should succeed");
     }
 
     let new_prediction = regressor.predict_single();
@@ -306,7 +343,9 @@ fn test_online_quantile_estimation() {
     // Feed ordered values
     let values: Vec<f64> = (1..=100).map(|x| x as f64).collect();
     for &value in &values {
-        regressor.partial_fit(value).unwrap();
+        regressor
+            .partial_fit(value)
+            .expect("operation should succeed");
     }
 
     let prediction = regressor.predict_single();
@@ -325,7 +364,9 @@ fn test_adaptive_window_drift_handling() {
 
     // Feed stable data
     for _ in 0..50 {
-        regressor.partial_fit(1.0).unwrap();
+        regressor
+            .partial_fit(1.0)
+            .expect("operation should succeed");
     }
 
     let stable_prediction = regressor.predict_single();
@@ -333,7 +374,9 @@ fn test_adaptive_window_drift_handling() {
 
     // Introduce drift
     for _ in 0..20 {
-        regressor.partial_fit(10.0).unwrap();
+        regressor
+            .partial_fit(10.0)
+            .expect("operation should succeed");
     }
 
     let drift_prediction = regressor.predict_single();
@@ -348,12 +391,16 @@ fn test_forgetting_factor_weighting() {
 
     // Add old values
     for _ in 0..50 {
-        regressor.partial_fit(1.0).unwrap();
+        regressor
+            .partial_fit(1.0)
+            .expect("operation should succeed");
     }
 
     // Add recent values
     for _ in 0..10 {
-        regressor.partial_fit(10.0).unwrap();
+        regressor
+            .partial_fit(10.0)
+            .expect("operation should succeed");
     }
 
     let prediction = regressor.predict_single();
@@ -378,19 +425,23 @@ fn test_normal_distribution_sampling() {
         y_data.push(sample);
     }
     let y = Array1::from_vec(y_data);
-    let x = Array2::from_shape_vec((1000, 1), vec![0.0; 1000]).unwrap();
+    let x = Array2::from_shape_vec((1000, 1), vec![0.0; 1000])
+        .expect("shape and data length should match");
 
     let regressor = DummyRegressor::new(RegressorStrategy::Normal {
         mean: None,
         std: None,
     });
-    let fitted = regressor.fit(&x, &y).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
     // Generate many samples to test distribution properties
-    let large_x = Array2::from_shape_vec((10000, 1), vec![0.0; 10000]).unwrap();
-    let predictions = fitted.predict(&large_x).unwrap();
+    let large_x = Array2::from_shape_vec((10000, 1), vec![0.0; 10000])
+        .expect("shape and data length should match");
+    let predictions = fitted.predict(&large_x).expect("prediction should succeed");
 
-    let sample_mean = predictions.mean().unwrap();
+    let sample_mean = predictions
+        .mean()
+        .expect("array should have elements for mean computation");
     let sample_std = predictions.std(0.0);
 
     // Should approximate the true mean (with some tolerance)
@@ -403,11 +454,12 @@ fn test_normal_distribution_sampling() {
 #[test]
 fn test_constant_strategy_consistency() {
     let y = Array1::from_vec(vec![1.0, 2.0, 100.0]);
-    let x = Array2::from_shape_vec((3, 1), vec![0.0; 3]).unwrap();
+    let x =
+        Array2::from_shape_vec((3, 1), vec![0.0; 3]).expect("shape and data length should match");
 
     let regressor = DummyRegressor::new(RegressorStrategy::Constant(0.0)).with_constant(42.0);
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     // All predictions should be the constant value
     for &pred in predictions.iter() {
@@ -420,21 +472,22 @@ fn test_constant_strategy_consistency() {
 fn test_small_dataset_edge_cases() {
     // Single sample
     let y = Array1::from_vec(vec![42.0]);
-    let x = Array2::from_shape_vec((1, 1), vec![0.0]).unwrap();
+    let x = Array2::from_shape_vec((1, 1), vec![0.0]).expect("shape and data length should match");
 
     let regressor = DummyRegressor::new(RegressorStrategy::Mean);
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_abs_diff_eq!(predictions[0], 42.0, epsilon = STATISTICAL_TOLERANCE);
 
     // Two samples
     let y = Array1::from_vec(vec![1.0, 3.0]);
-    let x = Array2::from_shape_vec((2, 1), vec![0.0; 2]).unwrap();
+    let x =
+        Array2::from_shape_vec((2, 1), vec![0.0; 2]).expect("shape and data length should match");
 
     let regressor = DummyRegressor::new(RegressorStrategy::Mean);
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_abs_diff_eq!(predictions[0], 2.0, epsilon = STATISTICAL_TOLERANCE);
     assert_abs_diff_eq!(predictions[1], 2.0, epsilon = STATISTICAL_TOLERANCE);
@@ -444,7 +497,8 @@ fn test_small_dataset_edge_cases() {
 #[test]
 fn test_reproducibility_with_random_state() {
     let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
-    let x = Array2::from_shape_vec((5, 1), vec![0.0; 5]).unwrap();
+    let x =
+        Array2::from_shape_vec((5, 1), vec![0.0; 5]).expect("shape and data length should match");
 
     // Test with same random state
     let regressor1 = DummyRegressor::new(RegressorStrategy::Normal {
@@ -452,16 +506,20 @@ fn test_reproducibility_with_random_state() {
         std: None,
     })
     .with_random_state(42);
-    let fitted1 = regressor1.fit(&x, &y).unwrap();
-    let pred1 = fitted1.predict(&x).unwrap();
+    let fitted1 = regressor1
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
+    let pred1 = fitted1.predict(&x).expect("prediction should succeed");
 
     let regressor2 = DummyRegressor::new(RegressorStrategy::Normal {
         mean: None,
         std: None,
     })
     .with_random_state(42);
-    let fitted2 = regressor2.fit(&x, &y).unwrap();
-    let pred2 = fitted2.predict(&x).unwrap();
+    let fitted2 = regressor2
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
+    let pred2 = fitted2.predict(&x).expect("prediction should succeed");
 
     // Should be identical
     for i in 0..pred1.len() {
@@ -474,8 +532,10 @@ fn test_reproducibility_with_random_state() {
         std: None,
     })
     .with_random_state(123);
-    let fitted3 = regressor3.fit(&x, &y).unwrap();
-    let pred3 = fitted3.predict(&x).unwrap();
+    let fitted3 = regressor3
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
+    let pred3 = fitted3.predict(&x).expect("prediction should succeed");
 
     // Should be different (with high probability)
     let mut different_count = 0;
@@ -511,8 +571,8 @@ fn test_comprehensive_integration() {
         } else {
             DummyRegressor::new(strategy)
         };
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Basic sanity checks
         assert_eq!(predictions.len(), x.nrows());
@@ -536,8 +596,10 @@ fn test_comprehensive_integration() {
         } else {
             DummyClassifier::new(strategy)
         };
-        let fitted = classifier.fit(&x_class, &y_class).unwrap();
-        let predictions = fitted.predict(&x_class).unwrap();
+        let fitted = classifier
+            .fit(&x_class, &y_class)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x_class).expect("prediction should succeed");
 
         // Basic sanity checks
         assert_eq!(predictions.len(), x_class.nrows());
@@ -554,8 +616,8 @@ fn test_performance_regression() {
 
     let start = Instant::now();
     let regressor = DummyRegressor::new(RegressorStrategy::Mean);
-    let fitted = regressor.fit(&x, &y).unwrap();
-    let _predictions = fitted.predict(&x).unwrap();
+    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+    let _predictions = fitted.predict(&x).expect("prediction should succeed");
     let duration = start.elapsed();
 
     // Should complete in reasonable time (less than 1 second for 10k samples)
@@ -581,7 +643,7 @@ mod property_tests {
 
             let expected_mean = values.iter().sum::<f64>() / values.len() as f64;
             let y = Array1::from_vec(values);
-            let x = Array2::from_shape_vec((y.len(), 1), vec![0.0; y.len()]).unwrap();
+            let x = Array2::from_shape_vec((y.len(), 1), vec![0.0; y.len()]).expect("shape and data length should match");
 
             let regressor = DummyRegressor::new(RegressorStrategy::Mean);
             let fitted = regressor.fit(&x, &y)?;
@@ -598,7 +660,7 @@ mod property_tests {
             n_samples in 1usize..100
         ) {
             let y = Array1::from_elem(n_samples, 0.0); // Value doesn't matter
-            let x = Array2::from_shape_vec((n_samples, 1), vec![0.0; n_samples]).unwrap();
+            let x = Array2::from_shape_vec((n_samples, 1), vec![0.0; n_samples]).expect("shape and data length should match");
 
             let regressor = DummyRegressor::new(RegressorStrategy::Constant(0.0)).with_constant(constant);
             let fitted = regressor.fit(&x, &y)?;

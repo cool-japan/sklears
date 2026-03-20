@@ -1178,7 +1178,7 @@ impl ForecastingEngine {
         let model = self.forecasting_models.get(model_id)
             .ok_or_else(|| ForecastingError::ModelNotFound(model_id.to_string()))?;
 
-        let mut model_lock = model.write().unwrap();
+        let mut model_lock = model.write().unwrap_or_else(|e| e.into_inner());
         model_lock.model_state = ForecastingModelState::Training;
         model_lock.training_data = training_data;
 
@@ -1253,7 +1253,7 @@ impl ForecastingEngine {
         let model = self.forecasting_models.get(model_id)
             .ok_or_else(|| ForecastingError::ModelNotFound(model_id.to_string()))?;
 
-        let model_lock = model.read().unwrap();
+        let model_lock = model.read().unwrap_or_else(|e| e.into_inner());
 
         if !matches!(model_lock.model_state, ForecastingModelState::Trained | ForecastingModelState::Validated) {
             return Err(ForecastingError::ModelNotTrained(model_id.to_string()));
@@ -1294,7 +1294,7 @@ impl ForecastingEngine {
         let analyzer = self.trend_analyzers.get(analyzer_id)
             .ok_or_else(|| ForecastingError::AnalyzerNotFound(analyzer_id.to_string()))?;
 
-        let analyzer_lock = analyzer.read().unwrap();
+        let analyzer_lock = analyzer.read().unwrap_or_else(|e| e.into_inner());
 
         let trend_results = self.detect_trends(&analyzer_lock, data)?;
         let seasonality_results = self.analyze_seasonality(&analyzer_lock, data)?;

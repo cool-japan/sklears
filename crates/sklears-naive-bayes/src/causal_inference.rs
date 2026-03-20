@@ -88,7 +88,7 @@ impl CausalGraph {
 
         self.edges
             .get_mut(parent)
-            .unwrap()
+            .expect("operation should succeed")
             .insert(child.to_string());
         Ok(())
     }
@@ -826,7 +826,7 @@ impl CounterfactualReasoning {
                         .variable_names
                         .iter()
                         .position(|v| v == var_name)
-                        .unwrap();
+                        .expect("operation should succeed");
                     let mean = self.data.column(var_idx).mean().unwrap_or(0.0);
                     noise_terms.insert(var_name.clone(), observed_value - mean);
                 } else {
@@ -963,7 +963,7 @@ impl CounterfactualReasoning {
             result.push(node.clone());
 
             for child in self.graph.get_children(&node) {
-                let child_degree = in_degree.get_mut(&child).unwrap();
+                let child_degree = in_degree.get_mut(&child).expect("operation should succeed");
                 *child_degree -= 1;
                 if *child_degree == 0 {
                     queue.push_back(child);
@@ -1082,8 +1082,14 @@ impl CausalDiscovery {
                     for conditioning_set in self.combinations(&neighbors_i, conditioning_size) {
                         if self.test_conditional_independence(i, j, &conditioning_set)? {
                             // Remove edge
-                            adjacencies.get_mut(&i).unwrap().remove(&j);
-                            adjacencies.get_mut(&j).unwrap().remove(&i);
+                            adjacencies
+                                .get_mut(&i)
+                                .expect("operation should succeed")
+                                .remove(&j);
+                            adjacencies
+                                .get_mut(&j)
+                                .expect("operation should succeed")
+                                .remove(&i);
                             break;
                         }
                     }
@@ -1355,7 +1361,7 @@ impl CausalNaiveBayes {
 
         self.do_calculus
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .do_intervention(target, intervention, value)
     }
 
@@ -1374,7 +1380,7 @@ impl CausalNaiveBayes {
 
         self.iv_estimator
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .estimate_iv_effect(outcome, treatment, instrument)
     }
 
@@ -1392,7 +1398,7 @@ impl CausalNaiveBayes {
 
         self.counterfactual
             .as_mut()
-            .unwrap()
+            .expect("operation should succeed")
             .compute_counterfactual(&observed, &intervention)
     }
 
@@ -1429,8 +1435,8 @@ mod tests {
         graph.add_node("Y".to_string());
         graph.add_node("Z".to_string());
 
-        graph.add_edge("X", "Y").unwrap();
-        graph.add_edge("Y", "Z").unwrap();
+        graph.add_edge("X", "Y").expect("operation should succeed");
+        graph.add_edge("Y", "Z").expect("operation should succeed");
 
         assert_eq!(graph.get_children("X"), vec!["Y"]);
         assert_eq!(graph.get_parents("Y"), vec!["X"]);
@@ -1443,10 +1449,10 @@ mod tests {
         let mut graph = CausalGraph::new();
         graph.add_node("X".to_string());
         graph.add_node("Y".to_string());
-        graph.add_edge("X", "Y").unwrap();
+        graph.add_edge("X", "Y").expect("operation should succeed");
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0])
+            .expect("operation should succeed");
 
         let variable_names = vec!["X".to_string(), "Y".to_string()];
         let do_calc = DoCalculus::new(graph, data, variable_names);
@@ -1464,14 +1470,14 @@ mod tests {
                 12.0, 13.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let variable_names = vec!["Z".to_string(), "X".to_string(), "Y".to_string()];
         let iv = InstrumentalVariables::new(data, variable_names);
 
         let result = iv.estimate_iv_effect("Y", "X", "Z");
         assert!(result.is_ok());
-        assert!(result.unwrap().is_finite());
+        assert!(result.expect("operation should succeed").is_finite());
     }
 
     #[test]
@@ -1479,10 +1485,10 @@ mod tests {
         let mut graph = CausalGraph::new();
         graph.add_node("X".to_string());
         graph.add_node("Y".to_string());
-        graph.add_edge("X", "Y").unwrap();
+        graph.add_edge("X", "Y").expect("operation should succeed");
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0])
+            .expect("operation should succeed");
 
         let variable_names = vec!["X".to_string(), "Y".to_string()];
         let mut cf = CounterfactualReasoning::new(graph, data, variable_names);
@@ -1507,7 +1513,7 @@ mod tests {
                 12.0, 13.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let variable_names = vec!["X".to_string(), "Y".to_string(), "Z".to_string()];
         let discovery =
@@ -1521,8 +1527,8 @@ mod tests {
     fn test_causal_naive_bayes() {
         let mut causal_nb = CausalNaiveBayes::new();
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0, 4.0, 8.0])
+            .expect("operation should succeed");
 
         let variable_names = vec!["X".to_string(), "Y".to_string()];
 

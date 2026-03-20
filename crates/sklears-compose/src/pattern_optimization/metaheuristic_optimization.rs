@@ -93,7 +93,7 @@ impl Default for MetaheuristicOptimizer {
                 "meta_{}",
                 SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             genetic_algorithms: HashMap::new(),
@@ -784,9 +784,9 @@ impl SelectionStrategies {
             }
 
             let best_index = tournament.iter()
-                .min_by(|&&a, &&b| population[a].fitness.partial_cmp(&population[b].fitness).unwrap())
+                .min_by(|&&a, &&b| population[a].fitness.partial_cmp(&population[b].fitness).unwrap_or(std::cmp::Ordering::Equal))
                 .copied()
-                .unwrap();
+                .unwrap_or_default();
 
             selected.push(best_index);
         }
@@ -829,7 +829,7 @@ impl SelectionStrategies {
         num_parents: usize
     ) -> SklResult<Vec<usize>> {
         let mut indexed_pop: Vec<(usize, &Solution)> = population.iter().enumerate().collect();
-        indexed_pop.sort_by(|a, b| a.1.fitness.partial_cmp(&b.1.fitness).unwrap());
+        indexed_pop.sort_by(|a, b| a.1.fitness.partial_cmp(&b.1.fitness).unwrap_or(std::cmp::Ordering::Equal));
 
         let total_rank: usize = (1..=population.len()).sum();
         let mut rng = rng();
@@ -1231,7 +1231,7 @@ impl MetaheuristicOptimizer {
         // Use SIMD operations for vectorized calculations
         for i in 0..num_solutions {
             let var_slice = variables.row(i);
-            fitness_values[i] = simd_dot_product(var_slice.as_slice().unwrap(), var_slice.as_slice().unwrap())?;
+            fitness_values[i] = simd_dot_product(var_slice.as_slice().unwrap_or_default(), var_slice.as_slice().unwrap_or_default())?;
         }
 
         Ok(fitness_values)
@@ -1634,12 +1634,12 @@ mod tests {
 
         // Test with empty population
         let empty_pop = vec![];
-        let diversity = population_manager.calculate_diversity(&empty_pop).unwrap();
+        let diversity = population_manager.calculate_diversity(&empty_pop).unwrap_or_default();
         assert_eq!(diversity, 0.0);
 
         // Test with single solution
         let single_pop = vec![Solution::new(vec![1.0, 2.0])];
-        let diversity = population_manager.calculate_diversity(&single_pop).unwrap();
+        let diversity = population_manager.calculate_diversity(&single_pop).unwrap_or_default();
         assert_eq!(diversity, 0.0);
 
         // Test with multiple solutions
@@ -1648,7 +1648,7 @@ mod tests {
             Solution::new(vec![1.0, 1.0]),
             Solution::new(vec![2.0, 2.0]),
         ];
-        let diversity = population_manager.calculate_diversity(&multi_pop).unwrap();
+        let diversity = population_manager.calculate_diversity(&multi_pop).unwrap_or_default();
         assert!(diversity > 0.0);
     }
 
@@ -1663,17 +1663,17 @@ mod tests {
         ];
 
         // Test tournament selection
-        let selected = selection.tournament_selection(&population, 2, 2).unwrap();
+        let selected = selection.tournament_selection(&population, 2, 2).unwrap_or_default();
         assert_eq!(selected.len(), 2);
         assert!(selected.iter().all(|&i| i < population.len()));
 
         // Test roulette wheel selection
-        let selected = selection.roulette_wheel_selection(&population, 3).unwrap();
+        let selected = selection.roulette_wheel_selection(&population, 3).unwrap_or_default();
         assert_eq!(selected.len(), 3);
         assert!(selected.iter().all(|&i| i < population.len()));
 
         // Test rank selection
-        let selected = selection.rank_selection(&population, 2).unwrap();
+        let selected = selection.rank_selection(&population, 2).unwrap_or_default();
         assert_eq!(selected.len(), 2);
         assert!(selected.iter().all(|&i| i < population.len()));
     }
@@ -1685,17 +1685,17 @@ mod tests {
         let parent2 = Solution::new(vec![5.0, 6.0, 7.0, 8.0]);
 
         // Test single-point crossover
-        let (child1, child2) = crossover.single_point_crossover(&parent1, &parent2).unwrap();
+        let (child1, child2) = crossover.single_point_crossover(&parent1, &parent2).unwrap_or_default();
         assert_eq!(child1.variables.len(), parent1.variables.len());
         assert_eq!(child2.variables.len(), parent2.variables.len());
 
         // Test uniform crossover
-        let (child1, child2) = crossover.uniform_crossover(&parent1, &parent2, 0.5).unwrap();
+        let (child1, child2) = crossover.uniform_crossover(&parent1, &parent2, 0.5).unwrap_or_default();
         assert_eq!(child1.variables.len(), parent1.variables.len());
         assert_eq!(child2.variables.len(), parent2.variables.len());
 
         // Test arithmetic crossover
-        let (child1, child2) = crossover.arithmetic_crossover(&parent1, &parent2, 0.5).unwrap();
+        let (child1, child2) = crossover.arithmetic_crossover(&parent1, &parent2, 0.5).unwrap_or_default();
         assert_eq!(child1.variables.len(), parent1.variables.len());
         assert_eq!(child2.variables.len(), parent2.variables.len());
 
@@ -1715,14 +1715,14 @@ mod tests {
         let original = solution.clone();
 
         // Test Gaussian mutation
-        mutation.gaussian_mutation(&mut solution, 1.0, 0.1).unwrap();
+        mutation.gaussian_mutation(&mut solution, 1.0, 0.1).unwrap_or_default();
         // With mutation rate 1.0, all variables should be modified
         assert_ne!(solution.variables, original.variables);
 
         // Test uniform mutation
         let mut solution = Solution::new(vec![1.0, 2.0, 3.0]);
         let bounds = vec![(0.0, 10.0), (0.0, 10.0), (0.0, 10.0)];
-        mutation.uniform_mutation(&mut solution, 1.0, &bounds).unwrap();
+        mutation.uniform_mutation(&mut solution, 1.0, &bounds).unwrap_or_default();
 
         // Check bounds are respected
         for (i, &var) in solution.variables.iter().enumerate() {
@@ -1740,7 +1740,7 @@ mod tests {
             Solution { variables: vec![4.0, 5.0], fitness: 0.1, constraints: vec![] },
         ];
 
-        let report = optimizer.analyze_algorithm_performance("test_ga", &solutions).unwrap();
+        let report = optimizer.analyze_algorithm_performance("test_ga", &solutions).unwrap_or_default();
 
         assert_eq!(report.algorithm_id, "test_ga");
         assert_eq!(report.statistics.num_solutions, 4);

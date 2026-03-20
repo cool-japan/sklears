@@ -581,13 +581,13 @@ mod tests {
             timestamp: "2023-01-01T00:00:00Z".to_string(),
         };
 
-        let json = model.to_json().unwrap();
+        let json = model.to_json().expect("operation should succeed");
         let deserialized: SerializableLinearRegression =
-            SerializableLinearRegression::from_json(&json).unwrap();
+            SerializableLinearRegression::from_json(&json).expect("operation should succeed");
 
         assert_eq!(
-            model.coefficients.as_ref().unwrap().data,
-            deserialized.coefficients.as_ref().unwrap().data
+            model.coefficients.as_ref().expect("value should be present").data,
+            deserialized.coefficients.as_ref().expect("serialization should succeed").data
         );
         assert_eq!(model.intercept, deserialized.intercept);
         assert_eq!(model.n_features, deserialized.n_features);
@@ -616,9 +616,9 @@ mod tests {
             timestamp: "2023-01-01T00:00:00Z".to_string(),
         };
 
-        let binary = model.to_binary().unwrap();
+        let binary = model.to_binary().expect("operation should succeed");
         let deserialized: SerializableRidgeRegression =
-            SerializableRidgeRegression::from_binary(&binary).unwrap();
+            SerializableRidgeRegression::from_binary(&binary).expect("operation should succeed");
 
         assert_eq!(model.alpha, deserialized.alpha);
         assert_eq!(model.config.alphas, deserialized.config.alphas);
@@ -626,7 +626,7 @@ mod tests {
 
     #[test]
     fn test_file_serialization() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_model.json");
 
         let model = SerializableLassoRegression {
@@ -653,12 +653,12 @@ mod tests {
         };
 
         // Save model
-        model.save(&file_path, SerializationFormat::Json).unwrap();
+        model.save(&file_path, SerializationFormat::Json).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Load model
         let loaded_model: SerializableLassoRegression =
-            SerializableLassoRegression::load(&file_path, SerializationFormat::Json).unwrap();
+            SerializableLassoRegression::load(&file_path, SerializationFormat::Json).expect("operation should succeed");
 
         assert_eq!(model.alpha, loaded_model.alpha);
         assert_eq!(model.sparsity_level, loaded_model.sparsity_level);
@@ -690,10 +690,10 @@ mod tests {
         assert_eq!(registry.list_models().len(), 1);
         assert!(registry.get_model("model_1").is_some());
 
-        let retrieved_metadata = registry.get_model("model_1").unwrap();
+        let retrieved_metadata = registry.get_model("model_1").expect("operation should succeed");
         assert_eq!(retrieved_metadata.model_type, metadata.model_type);
         assert_eq!(
-            retrieved_metadata.training_info.as_ref().unwrap().n_samples,
+            retrieved_metadata.training_info.as_ref().expect("value should be present").n_samples,
             1000
         );
     }
@@ -739,9 +739,9 @@ mod tests {
             timestamp: "2023-01-01T00:00:00Z".to_string(),
         };
 
-        let json = model.to_json().unwrap();
+        let json = model.to_json().expect("operation should succeed");
         let deserialized: SerializableMultiOutputRegression =
-            SerializableMultiOutputRegression::from_json(&json).unwrap();
+            SerializableMultiOutputRegression::from_json(&json).expect("operation should succeed");
 
         assert_eq!(model.n_features, deserialized.n_features);
         assert_eq!(model.n_targets, deserialized.n_targets);
@@ -769,7 +769,7 @@ mod tests {
         assert_eq!(metadata.model_type, "TestModel");
         assert_eq!(metadata.version, "1.0");
         assert!(metadata.training_info.is_some());
-        assert_eq!(metadata.training_info.as_ref().unwrap().n_samples, 1000);
+        assert_eq!(metadata.training_info.as_ref().expect("value should be present").n_samples, 1000);
     }
 } // End of serde_support module
 

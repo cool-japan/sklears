@@ -796,7 +796,8 @@ mod tests {
 
     #[test]
     fn test_extract_features_small_image() {
-        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect()).unwrap();
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let extractor = WaveletFeatureExtractor::new();
         let result = extractor.extract_features(&image.view());
 
@@ -805,10 +806,12 @@ mod tests {
 
     #[test]
     fn test_extract_features_valid_image() {
-        let image =
-            Array2::from_shape_vec((16, 16), (0..256).map(|x| x as f64 / 256.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((16, 16), (0..256).map(|x| x as f64 / 256.0).collect())
+            .expect("operation should succeed");
         let extractor = WaveletFeatureExtractor::new();
-        let features = extractor.extract_features(&image.view()).unwrap();
+        let features = extractor
+            .extract_features(&image.view())
+            .expect("operation should succeed");
 
         assert!(features.len() > 0);
         // Should extract multiple features from multiple subbands
@@ -825,9 +828,11 @@ mod tests {
                 16.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let subbands = extractor.single_level_decomposition(&image.view()).unwrap();
+        let subbands = extractor
+            .single_level_decomposition(&image.view())
+            .expect("operation should succeed");
 
         assert_eq!(subbands.len(), 4); // LL, LH, HL, HH
         assert!(subbands.contains_key("LL"));
@@ -845,7 +850,9 @@ mod tests {
     fn test_entropy_computation() {
         let extractor = WaveletFeatureExtractor::new();
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let entropy = extractor.compute_entropy(&values).unwrap();
+        let entropy = extractor
+            .compute_entropy(&values)
+            .expect("operation should succeed");
 
         assert!(entropy >= 0.0);
         assert!(entropy.is_finite());
@@ -856,7 +863,7 @@ mod tests {
         let extractor = WaveletFeatureExtractor::new();
         let coefficients =
             Array2::from_shape_vec((3, 3), vec![1.0, 5.0, 1.0, 5.0, 9.0, 5.0, 1.0, 5.0, 1.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let contrast = extractor.compute_contrast(&coefficients);
         assert!(contrast > 0.0); // Should have some contrast

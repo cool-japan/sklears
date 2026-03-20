@@ -321,7 +321,7 @@ pub struct StatisticalMetrics {
 impl Default for OptimizationMetrics {
     fn default() -> Self {
         Self {
-            metrics_id: format!("metrics_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            metrics_id: format!("metrics_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             performance_metrics: PerformanceMetrics::default(),
             convergence_metrics: ConvergenceMetrics::default(),
             resource_metrics: ResourceMetrics::default(),
@@ -350,7 +350,7 @@ impl Default for PerformanceMetrics {
 impl Default for ConvergenceAnalyzer {
     fn default() -> Self {
         Self {
-            analyzer_id: format!("conv_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            analyzer_id: format!("conv_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             detection_algorithms: Vec::new(),
             convergence_history: Vec::new(),
             current_state: ConvergenceState::default(),
@@ -400,7 +400,7 @@ impl Default for ConvergenceParameters {
 impl Default for SensitivityAnalyzer {
     fn default() -> Self {
         Self {
-            analyzer_id: format!("sens_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            analyzer_id: format!("sens_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             computation_methods: Vec::new(),
             sensitivity_results: HashMap::new(),
             robustness_assessments: Vec::new(),

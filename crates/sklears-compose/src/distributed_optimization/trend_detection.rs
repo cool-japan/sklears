@@ -786,7 +786,7 @@ mod tests {
         let result = detector.linear_regression_trend(&increasing_data);
         assert!(result.is_ok());
 
-        let trend = result.unwrap();
+        let trend = result.unwrap_or_default();
         assert!(matches!(trend.trend_direction, TrendDirection::Increasing));
         assert!(trend.trend_strength > 0.0);
     }
@@ -798,7 +798,7 @@ mod tests {
         let result = detector.mann_kendall_trend(&decreasing_data);
         assert!(result.is_ok());
 
-        let trend = result.unwrap();
+        let trend = result.unwrap_or_default();
         assert!(matches!(trend.trend_direction, TrendDirection::Decreasing));
         assert!(trend.trend_strength > 0.0);
     }
@@ -810,7 +810,7 @@ mod tests {
         let result = detector.cusum_detection(&data_with_shift);
         assert!(result.is_ok());
 
-        let changepoints = result.unwrap();
+        let changepoints = result.unwrap_or_default();
         assert!(!changepoints.is_empty());
     }
 
@@ -829,7 +829,7 @@ mod tests {
         let result = recognizer.cross_correlation_matching(&template, &data);
         assert!(result.is_ok());
 
-        let matches = result.unwrap();
+        let matches = result.unwrap_or_default();
         assert!(!matches.is_empty());
     }
 

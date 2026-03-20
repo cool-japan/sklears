@@ -263,7 +263,11 @@ impl Fit<ArrayView2<'_, f64>, ()> for CoordinateDescentCovariance {
         }
 
         // Compute empirical mean and center data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let mut x_centered = x.to_owned();
         for mut row in x_centered.axis_iter_mut(Axis(0)) {
             row -= &mean;
@@ -1108,7 +1112,9 @@ mod tests {
             .l1_alpha(0.1)
             .max_iter(100);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_precision().is_some());
@@ -1125,7 +1131,9 @@ mod tests {
             .target(OptimizationTarget::Covariance)
             .elastic_net(0.1, 0.5);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(matches!(
@@ -1148,12 +1156,16 @@ mod tests {
             .target(OptimizationTarget::FactorModel { n_factors: 2 })
             .max_iter(50);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (4, 4));
         assert!(fitted.get_factor_loadings().is_some());
 
-        let loadings = fitted.get_factor_loadings().unwrap();
+        let loadings = fitted
+            .get_factor_loadings()
+            .expect("operation should succeed");
         assert_eq!(loadings.dim(), (4, 2));
     }
 
@@ -1170,14 +1182,20 @@ mod tests {
         let estimator = CoordinateDescentCovariance::new()
             .target(OptimizationTarget::LowRankPlusSparse { rank: 2 });
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_low_rank_component().is_some());
         assert!(fitted.get_sparse_component().is_some());
 
-        let low_rank = fitted.get_low_rank_component().unwrap();
-        let sparse = fitted.get_sparse_component().unwrap();
+        let low_rank = fitted
+            .get_low_rank_component()
+            .expect("operation should succeed");
+        let sparse = fitted
+            .get_sparse_component()
+            .expect("operation should succeed");
         assert_eq!(low_rank.dim(), (3, 3));
         assert_eq!(sparse.dim(), (3, 3));
     }
@@ -1191,14 +1209,17 @@ mod tests {
             .tolerance(1e-6)
             .check_convergence_freq(5)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let history = fitted.get_convergence_history();
         assert!(history.len() > 0);
 
         // Convergence should generally decrease
         if history.len() > 1 {
-            assert!(history.last().unwrap() <= history.first().unwrap());
+            assert!(
+                history.last().expect("operation should succeed")
+                    <= history.first().expect("operation should succeed")
+            );
         }
     }
 
@@ -1214,7 +1235,9 @@ mod tests {
 
         let estimator = CoordinateDescentCovariance::new().l1_alpha(2.0); // High regularization for sparsity
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         // With high L1 regularization, should achieve some sparsity
         // Note: For small matrices (3x3), complete sparsity might not be achieved
@@ -1232,7 +1255,7 @@ mod tests {
             .adaptive_lr(true)
             .learning_rate(1.0)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_condition_number() > 0.0);

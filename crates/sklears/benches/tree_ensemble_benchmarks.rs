@@ -13,7 +13,8 @@ use sklears_utils::data_generation::{make_classification, make_regression};
 use std::hint::black_box;
 
 fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<i32>) {
-    make_classification(n_samples, n_features, 3, None, None, 0.0, 1.0, Some(42)).unwrap()
+    make_classification(n_samples, n_features, 3, None, None, 0.0, 1.0, Some(42))
+        .expect("sampling should succeed")
 }
 
 fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
@@ -25,7 +26,7 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
         0.0,
         Some(42),
     )
-    .unwrap()
+    .expect("operation should succeed")
 }
 
 // Decision Tree Benchmarks
@@ -51,7 +52,7 @@ fn bench_decision_tree_classification(c: &mut Criterion) {
                             let tree = DecisionTreeClassifier::new()
                                 .criterion(criterion)
                                 .max_depth(10);
-                            black_box(tree.fit(*x, *y).unwrap())
+                            black_box(tree.fit(*x, *y).expect("model fitting should succeed"))
                         })
                     },
                 );
@@ -61,12 +62,14 @@ fn bench_decision_tree_classification(c: &mut Criterion) {
             let tree = DecisionTreeClassifier::new()
                 .criterion(SplitCriterion::Gini)
                 .max_depth(10);
-            let fitted_tree = tree.fit(&x, &y).unwrap();
+            let fitted_tree = tree.fit(&x, &y).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&x, &fitted_tree),
-                |b, (x, fitted_tree)| b.iter(|| black_box(fitted_tree.predict(x).unwrap())),
+                |b, (x, fitted_tree)| {
+                    b.iter(|| black_box(fitted_tree.predict(x).expect("prediction should succeed")))
+                },
             );
         }
     }
@@ -94,7 +97,7 @@ fn bench_decision_tree_regression(c: &mut Criterion) {
                             let tree = DecisionTreeRegressor::new()
                                 .criterion(criterion)
                                 .max_depth(10);
-                            black_box(tree.fit(x, y).unwrap())
+                            black_box(tree.fit(x, y).expect("model fitting should succeed"))
                         })
                     },
                 );
@@ -104,12 +107,14 @@ fn bench_decision_tree_regression(c: &mut Criterion) {
             let tree = DecisionTreeRegressor::new()
                 .criterion(SplitCriterion::MSE)
                 .max_depth(10);
-            let fitted_tree = tree.fit(&x, &y).unwrap();
+            let fitted_tree = tree.fit(&x, &y).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&x, &fitted_tree),
-                |b, (x, fitted_tree)| b.iter(|| black_box(fitted_tree.predict(x).unwrap())),
+                |b, (x, fitted_tree)| {
+                    b.iter(|| black_box(fitted_tree.predict(x).expect("prediction should succeed")))
+                },
             );
         }
     }
@@ -140,7 +145,7 @@ fn bench_random_forest_classification(c: &mut Criterion) {
                                 .n_estimators(n_estimators)
                                 .criterion(SplitCriterion::Gini)
                                 .random_state(42);
-                            black_box(rf.fit(x, y).unwrap())
+                            black_box(rf.fit(x, y).expect("model fitting should succeed"))
                         })
                     },
                 );
@@ -150,12 +155,14 @@ fn bench_random_forest_classification(c: &mut Criterion) {
             let rf = RandomForestClassifier::new()
                 .n_estimators(50)
                 .random_state(42);
-            let fitted_rf = rf.fit(&x, &y).unwrap();
+            let fitted_rf = rf.fit(&x, &y).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&x, &fitted_rf),
-                |b, (x, fitted_rf)| b.iter(|| black_box(fitted_rf.predict(x).unwrap())),
+                |b, (x, fitted_rf)| {
+                    b.iter(|| black_box(fitted_rf.predict(x).expect("prediction should succeed")))
+                },
             );
 
             // Benchmark feature importance calculation
@@ -165,7 +172,15 @@ fn bench_random_forest_classification(c: &mut Criterion) {
                     format!("{}x{}", n_samples, n_features),
                 ),
                 &fitted_rf,
-                |b, fitted_rf| b.iter(|| black_box(fitted_rf.feature_importances().unwrap())),
+                |b, fitted_rf| {
+                    b.iter(|| {
+                        black_box(
+                            fitted_rf
+                                .feature_importances()
+                                .expect("operation should succeed"),
+                        )
+                    })
+                },
             );
         }
     }
@@ -196,7 +211,7 @@ fn _bench_random_forest_regression(c: &mut Criterion) {
                                 .n_estimators(n_estimators)
                                 .criterion(SplitCriterion::MSE)
                                 .random_state(42);
-                            black_box(rf.fit(x, y).unwrap())
+                            black_box(rf.fit(x, y).expect("model fitting should succeed"))
                         })
                     },
                 );
@@ -207,12 +222,14 @@ fn _bench_random_forest_regression(c: &mut Criterion) {
                 .n_estimators(25)
                 .criterion(SplitCriterion::MSE)
                 .random_state(42);
-            let fitted_rf = rf.fit(&x, &y).unwrap();
+            let fitted_rf = rf.fit(&x, &y).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&x, &fitted_rf),
-                |b, (x, fitted_rf)| b.iter(|| black_box(fitted_rf.predict(x).unwrap())),
+                |b, (x, fitted_rf)| {
+                    b.iter(|| black_box(fitted_rf.predict(x).expect("prediction should succeed")))
+                },
             );
 
             group.bench_with_input(
@@ -221,7 +238,15 @@ fn _bench_random_forest_regression(c: &mut Criterion) {
                     format!("{}x{}", n_samples, n_features),
                 ),
                 &fitted_rf,
-                |b, fitted_rf| b.iter(|| black_box(fitted_rf.feature_importances().unwrap())),
+                |b, fitted_rf| {
+                    b.iter(|| {
+                        black_box(
+                            fitted_rf
+                                .feature_importances()
+                                .expect("operation should succeed"),
+                        )
+                    })
+                },
             );
         }
     }
@@ -247,7 +272,7 @@ fn _bench_extra_trees_classification(c: &mut Criterion) {
                         let et = ExtraTreesClassifier::new()
                             .n_estimators(50)
                             .random_state(Some(42));
-                        black_box(et.fit(x, y).unwrap())
+                        black_box(et.fit(x, y).expect("model fitting should succeed"))
                     })
                 },
             );
@@ -256,12 +281,14 @@ fn _bench_extra_trees_classification(c: &mut Criterion) {
             let et = ExtraTreesClassifier::new()
                 .n_estimators(50)
                 .random_state(Some(42));
-            let fitted_et = et.fit(&x, &y).unwrap();
+            let fitted_et = et.fit(&x, &y).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&x, &fitted_et),
-                |b, (x, fitted_et)| b.iter(|| black_box(fitted_et.predict(x).unwrap())),
+                |b, (x, fitted_et)| {
+                    b.iter(|| black_box(fitted_et.predict(x).expect("prediction should succeed")))
+                },
             );
         }
     }
@@ -292,7 +319,10 @@ fn bench_adaboost_classification(c: &mut Criterion) {
                                 .n_estimators(n_estimators)
                                 .learning_rate(1.0)
                                 .random_state(42);
-                            black_box(ada.fit(x, &y.mapv(|v| v as f64)).unwrap())
+                            black_box(
+                                ada.fit(x, &y.mapv(|v| v as f64))
+                                    .expect("model fitting should succeed"),
+                            )
                         })
                     },
                 );
@@ -300,12 +330,16 @@ fn bench_adaboost_classification(c: &mut Criterion) {
 
             // Benchmark prediction
             let ada = AdaBoostClassifier::new().n_estimators(25).random_state(42);
-            let fitted_ada = ada.fit(&x, &y.mapv(|v| v as f64)).unwrap();
+            let fitted_ada = ada
+                .fit(&x, &y.mapv(|v| v as f64))
+                .expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&x, &fitted_ada),
-                |b, (x, fitted_ada)| b.iter(|| black_box(fitted_ada.predict(x).unwrap())),
+                |b, (x, fitted_ada)| {
+                    b.iter(|| black_box(fitted_ada.predict(x).expect("prediction should succeed")))
+                },
             );
 
             // Benchmark feature importance calculation
@@ -315,7 +349,15 @@ fn bench_adaboost_classification(c: &mut Criterion) {
                     format!("{}x{}", n_samples, n_features),
                 ),
                 &fitted_ada,
-                |b, fitted_ada| b.iter(|| black_box(fitted_ada.feature_importances().unwrap())),
+                |b, fitted_ada| {
+                    b.iter(|| {
+                        black_box(
+                            fitted_ada
+                                .feature_importances()
+                                .expect("operation should succeed"),
+                        )
+                    })
+                },
             );
         }
     }
@@ -338,19 +380,27 @@ fn bench_stacking_classification(c: &mut Criterion) {
                 |b, (x, y)| {
                     b.iter(|| {
                         let stacking = StackingClassifier::new(3).cv(3).random_state(42);
-                        black_box(stacking.fit(x, y).unwrap())
+                        black_box(stacking.fit(x, y).expect("model fitting should succeed"))
                     })
                 },
             );
 
             // Benchmark prediction
             let stacking = StackingClassifier::new(3).cv(3).random_state(42);
-            let fitted_stacking = stacking.fit(&x, &y).unwrap();
+            let fitted_stacking = stacking.fit(&x, &y).expect("model fitting should succeed");
 
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&x, &fitted_stacking),
-                |b, (x, fitted_stacking)| b.iter(|| black_box(fitted_stacking.predict(x).unwrap())),
+                |b, (x, fitted_stacking)| {
+                    b.iter(|| {
+                        black_box(
+                            fitted_stacking
+                                .predict(x)
+                                .expect("prediction should succeed"),
+                        )
+                    })
+                },
             );
         }
     }
@@ -381,7 +431,7 @@ fn bench_tree_depth_comparison(c: &mut Criterion) {
                         tree = tree.max_depth(depth);
                     }
 
-                    black_box(tree.fit(*x, *y).unwrap())
+                    black_box(tree.fit(*x, *y).expect("model fitting should succeed"))
                 })
             },
         );
@@ -403,8 +453,8 @@ fn bench_tree_memory_patterns(c: &mut Criterion) {
                 let tree = DecisionTreeClassifier::new()
                     .max_depth(10)
                     .random_state(Some(42));
-                let fitted = tree.fit(&x, &y).unwrap();
-                black_box(fitted.predict(&x).unwrap());
+                let fitted = tree.fit(&x, &y).expect("model fitting should succeed");
+                black_box(fitted.predict(&x).expect("prediction should succeed"));
             }
         })
     });
@@ -417,8 +467,8 @@ fn bench_tree_memory_patterns(c: &mut Criterion) {
                     .n_estimators(10)
                     .max_depth(5)
                     .random_state(42);
-                let fitted = rf.fit(&x, &y_i32).unwrap();
-                black_box(fitted.predict(&x).unwrap());
+                let fitted = rf.fit(&x, &y_i32).expect("model fitting should succeed");
+                black_box(fitted.predict(&x).expect("prediction should succeed"));
             }
         })
     });

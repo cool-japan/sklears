@@ -250,7 +250,7 @@ impl PreprocessingStep for StandardizationStep {
             let (center_val, scale_val) = if self.robust {
                 // Robust scaling using median and MAD
                 let mut sorted_col: Vec<f64> = column.to_vec();
-                sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                 let median = if sorted_col.len() % 2 == 0 {
                     (sorted_col[sorted_col.len() / 2 - 1] + sorted_col[sorted_col.len() / 2]) / 2.0
@@ -262,7 +262,8 @@ impl PreprocessingStep for StandardizationStep {
                     let deviations: Vec<f64> =
                         sorted_col.iter().map(|&x| (x - median).abs()).collect();
                     let mut sorted_deviations = deviations;
-                    sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted_deviations
+                        .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                     if sorted_deviations.len() % 2 == 0 {
                         (sorted_deviations[sorted_deviations.len() / 2 - 1]
@@ -863,7 +864,11 @@ impl CovariancePipeline<Unfit> {
         let mut covariance = Array2::zeros((n_features, n_features));
 
         // Center the data
-        let means: Array1<f64> = data.mean_axis(Axis(0)).unwrap();
+        let means: Array1<f64> = data.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = data - &means.view().insert_axis(Axis(0));
 
         // Compute covariance matrix

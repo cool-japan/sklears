@@ -821,9 +821,10 @@ mod tests {
         let distances = arr2(&[[0.0, 1.0, 2.0], [1.0, 0.0, 1.5], [2.0, 1.5, 0.0]]);
 
         let compressed =
-            CompressedDistanceMatrix::new(&distances, CompressionMethod::Float16, None).unwrap();
+            CompressedDistanceMatrix::new(&distances, CompressionMethod::Float16, None)
+                .expect("operation should succeed");
 
-        let decompressed = compressed.decompress().unwrap();
+        let decompressed = compressed.decompress().expect("operation should succeed");
 
         // Check approximate equality due to precision loss
         for ((i, j), &expected) in distances.indexed_iter() {
@@ -846,9 +847,9 @@ mod tests {
 
         let compressed =
             CompressedDistanceMatrix::new(&distances, CompressionMethod::Quantized8Bit, None)
-                .unwrap();
+                .expect("operation should succeed");
 
-        let decompressed = compressed.decompress().unwrap();
+        let decompressed = compressed.decompress().expect("operation should succeed");
 
         // Check approximate equality due to quantization
         for ((i, j), &expected) in distances.indexed_iter() {
@@ -863,9 +864,9 @@ mod tests {
 
         let compressed =
             CompressedDistanceMatrix::new(&distances, CompressionMethod::Sparse, Some(1.0))
-                .unwrap();
+                .expect("operation should succeed");
 
-        let decompressed = compressed.decompress().unwrap();
+        let decompressed = compressed.decompress().expect("operation should succeed");
 
         // Small values should be preserved exactly
         assert_eq!(decompressed[[0, 0]], 0.0);
@@ -883,9 +884,10 @@ mod tests {
         let distances = arr2(&[[0.0, 1.0, 2.0], [1.0, 0.0, 1.5], [2.0, 1.5, 0.0]]);
 
         let compressed =
-            CompressedDistanceMatrix::new(&distances, CompressionMethod::Float16, None).unwrap();
+            CompressedDistanceMatrix::new(&distances, CompressionMethod::Float16, None)
+                .expect("operation should succeed");
 
-        let row = compressed.get_row(1).unwrap();
+        let row = compressed.get_row(1).expect("operation should succeed");
 
         assert_abs_diff_eq!(row[0], 1.0, epsilon = 0.01);
         assert_abs_diff_eq!(row[1], 0.0, epsilon = 0.01);
@@ -903,7 +905,7 @@ mod tests {
 
         let compressed =
             CompressedDistanceMatrix::new(&distances, CompressionMethod::Quantized8Bit, None)
-                .unwrap();
+                .expect("operation should succeed");
 
         let stats = compressed.stats();
         assert!(stats.compression_ratio > 1.0);

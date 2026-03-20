@@ -12,8 +12,7 @@ use std::time::Instant;
 fn generate_text_documents(n_documents: usize, avg_words_per_doc: usize) -> Vec<String> {
     use scirs2_core::rand_prelude::IndexedRandom;
     use scirs2_core::random::rngs::StdRng;
-    use scirs2_core::random::Rng;
-    use scirs2_core::random::SeedableRng;
+    use scirs2_core::random::{RngExt, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);
 

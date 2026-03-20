@@ -1077,7 +1077,7 @@ mod tests {
         let x = array![[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [2.0, 1.0],];
         let y = array![1.0, 1.0, 2.0, 3.0];
 
-        let coef = orthogonal_mp(&x, &y, Some(2), None, false).unwrap();
+        let coef = orthogonal_mp(&x, &y, Some(2), None, false).expect("operation should succeed");
         assert_eq!(coef.len(), 2);
 
         // The algorithm should produce some coefficients, but the exact values may vary
@@ -1090,7 +1090,8 @@ mod tests {
         let gram = array![[2.0, 1.0], [1.0, 2.0],];
         let xy = array![3.0, 3.0];
 
-        let coef = orthogonal_mp_gram(&gram, &xy, Some(2), None, None).unwrap();
+        let coef =
+            orthogonal_mp_gram(&gram, &xy, Some(2), None, None).expect("operation should succeed");
         assert_eq!(coef.len(), 2);
     }
 
@@ -1099,7 +1100,8 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0],];
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let (coef, intercept) = ridge_regression(&x, &y, 0.1, true, "auto").unwrap();
+        let (coef, intercept) =
+            ridge_regression(&x, &y, 0.1, true, "auto").expect("operation should succeed");
         assert_eq!(coef.len(), 2);
 
         // With regularization, coefficients should be finite
@@ -1112,7 +1114,8 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0],];
         let y = array![1.0, 2.0, 3.0];
 
-        let (coef, intercept) = ridge_regression(&x, &y, 0.1, false, "cholesky").unwrap();
+        let (coef, intercept) =
+            ridge_regression(&x, &y, 0.1, false, "cholesky").expect("operation should succeed");
         assert_eq!(coef.len(), 2);
         assert_eq!(intercept, 0.0);
     }
@@ -1132,7 +1135,7 @@ mod tests {
         let a = array![[1.0, 1.0], [1.0, 2.0], [1.0, 3.0], [1.0, 4.0]];
         let b = array![2.0, 3.0, 4.0, 5.0]; // Perfect linear relationship: y = 1 + x
 
-        let x = stable_normal_equations(&a, &b, None).unwrap();
+        let x = stable_normal_equations(&a, &b, None).expect("operation should succeed");
 
         // Should get approximately [1.0, 1.0] (intercept=1, slope=1)
         assert!((x[0] - 1.0).abs() < 1e-10);
@@ -1146,7 +1149,7 @@ mod tests {
         let b = array![1.0, 1.0, 2.0];
         let alpha = 0.1;
 
-        let x = stable_ridge_regression(&a, &b, alpha, false).unwrap();
+        let x = stable_ridge_regression(&a, &b, alpha, false).expect("operation should succeed");
 
         // Should get a reasonable solution
         assert!(x.iter().all(|&xi| xi.is_finite()));
@@ -1157,12 +1160,12 @@ mod tests {
     fn test_condition_number() {
         // Test condition number calculation
         let a = array![[1.0, 0.0], [0.0, 1.0]]; // Identity matrix, condition number = 1
-        let cond = condition_number(&a).unwrap();
+        let cond = condition_number(&a).expect("operation should succeed");
         assert!((cond - 1.0).abs() < 1e-10);
 
         // Test ill-conditioned matrix
         let a_ill = array![[1.0, 1.0], [1.0, 1.000001]]; // Nearly singular
-        let cond_ill = condition_number(&a_ill).unwrap();
+        let cond_ill = condition_number(&a_ill).expect("operation should succeed");
         assert!(cond_ill > 1e5); // Should be large condition number
     }
 

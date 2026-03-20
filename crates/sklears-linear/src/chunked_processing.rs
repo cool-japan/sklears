@@ -177,9 +177,17 @@ impl ChunkedLinearRegression {
             self.xty = Some(vec![0.0; features]);
         }
 
-        let n_features = self.n_features.unwrap();
-        let xtx = self.xtx.as_mut().unwrap();
-        let xty = self.xty.as_mut().unwrap();
+        let n_features = self
+            .n_features
+            .ok_or_else(|| SklearsError::NumericalError("n_features should be set".into()))?;
+        let xtx = self
+            .xtx
+            .as_mut()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let xty = self
+            .xty
+            .as_mut()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         // Accumulate XTX and XTy
         for i in 0..chunk_rows {
@@ -637,15 +645,19 @@ mod tests {
         let y_data = vec![3.0, 5.0, 11.0, 10.0, 23.0]; // 5x1 vector
 
         let chunk = (x_data, y_data, 5, 2);
-        processor.process_chunk(&chunk, 0).unwrap();
+        processor
+            .process_chunk(&chunk, 0)
+            .expect("operation should succeed");
 
-        let coefficients = processor.combine_results(vec![]).unwrap();
+        let coefficients = processor
+            .combine_results(vec![])
+            .expect("operation should succeed");
         assert_eq!(coefficients.len(), 3); // intercept + 2 features
     }
 
     #[test]
     fn test_chunked_matrix_multiplication() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_a = dir.path().join("matrix_a.dat");
         let file_b = dir.path().join("matrix_b.dat");
 
@@ -653,17 +665,19 @@ mod tests {
         let a_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let b_data = vec![1.0, 0.0, 1.0, 0.0, 1.0, 0.0];
 
-        MmapUtils::array_to_mmap_file(&a_data, &file_a).unwrap();
-        MmapUtils::array_to_mmap_file(&b_data, &file_b).unwrap();
+        MmapUtils::array_to_mmap_file(&a_data, &file_a).expect("operation should succeed");
+        MmapUtils::array_to_mmap_file(&b_data, &file_b).expect("operation should succeed");
 
         let config = MmapConfig::default();
-        let matrix_a = MmapMatrix::from_file(&file_a, 3, 2, config.clone()).unwrap();
-        let matrix_b = MmapMatrix::from_file(&file_b, 2, 3, config).unwrap();
+        let matrix_a =
+            MmapMatrix::from_file(&file_a, 3, 2, config.clone()).expect("operation should succeed");
+        let matrix_b =
+            MmapMatrix::from_file(&file_b, 2, 3, config).expect("operation should succeed");
 
         let proc_config = ChunkProcessingConfig::default();
         let result =
             ChunkedMatrixProcessor::chunked_matrix_multiply(&matrix_a, &matrix_b, &proc_config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(result.len(), 3);
         assert_eq!(result[0].len(), 3);
@@ -671,23 +685,26 @@ mod tests {
 
     #[test]
     fn test_chunked_data_iterator() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_data.dat");
 
         let rows = 100;
         let cols = 5;
         let data: Vec<f64> = (0..rows * cols).map(|i| i as f64).collect();
 
-        MmapUtils::array_to_mmap_file(&data, &file_path).unwrap();
+        MmapUtils::array_to_mmap_file(&data, &file_path).expect("operation should succeed");
 
         let config = MmapConfig::default();
-        let matrix = Arc::new(MmapMatrix::from_file(&file_path, rows, cols, config).unwrap());
+        let matrix = Arc::new(
+            MmapMatrix::from_file(&file_path, rows, cols, config)
+                .expect("operation should succeed"),
+        );
 
         let chunk_size = 5; // Process 5 rows at a time
         let iterator = ChunkedProcessingUtils::create_chunk_iterator(matrix, chunk_size);
 
         let chunks: Result<Vec<_>, _> = iterator.collect();
-        let chunks = chunks.unwrap();
+        let chunks = chunks.expect("operation should succeed");
 
         assert_eq!(chunks.len(), 20); // 100 rows / 5 rows per chunk
         assert_eq!(chunks[0].1, 0); // First chunk starts at position 0
@@ -706,7 +723,7 @@ mod tests {
 
         let result = processor
             .process_parallel(data_chunks, |chunk, _idx| Ok(chunk * 2))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.num_chunks, 10);
         assert_eq!(result.chunk_results.len(), 10);

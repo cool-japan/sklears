@@ -8,7 +8,7 @@
 use super::{Layer, LayerConfig, ParameterizedLayer};
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand, Zip};
-use scirs2_core::random::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use sklears_core::{
     error::SklearsError,
     types::FloatBounds,
@@ -35,8 +35,10 @@ impl<T: FloatBounds> Default for BatchNormConfig<T> {
     fn default() -> Self {
         Self {
             num_features: 0,
-            momentum: T::from(0.1).unwrap_or_else(|| T::one() / T::from(10).unwrap()),
-            epsilon: T::from(1e-5).unwrap_or_else(|| T::one() / T::from(100000).unwrap()),
+            momentum: T::from(0.1)
+                .unwrap_or_else(|| T::one() / T::from(10).unwrap_or_else(|| T::zero())),
+            epsilon: T::from(1e-5)
+                .unwrap_or_else(|| T::one() / T::from(100000).unwrap_or_else(|| T::zero())),
             affine: true,
             track_running_stats: true,
         }
@@ -70,14 +72,19 @@ impl<T: FloatBounds> ConfigValidation for BatchNormConfig<T> {
     fn validate_config(&self) -> sklears_core::error::Result<()> {
         self.validate()?;
 
-        if self.momentum > T::from(0.5).unwrap_or_else(|| T::one() / T::from(2).unwrap()) {
+        if self.momentum
+            > T::from(0.5).unwrap_or_else(|| T::one() / T::from(2).unwrap_or_else(|| T::zero()))
+        {
             log::warn!(
                 "High momentum ({:.3}) may lead to slow adaptation of running statistics",
                 self.momentum.to_f64().unwrap_or(0.0)
             );
         }
 
-        if self.epsilon < T::from(1e-8).unwrap_or_else(|| T::one() / T::from(100000000).unwrap()) {
+        if self.epsilon
+            < T::from(1e-8)
+                .unwrap_or_else(|| T::one() / T::from(100000000).unwrap_or_else(|| T::zero()))
+        {
             log::warn!(
                 "Very small epsilon ({:.2e}) may cause numerical instability",
                 self.epsilon.to_f64().unwrap_or(0.0)
@@ -277,12 +284,12 @@ impl<T: FloatBounds + ScalarOperand> BatchNorm1d<T> {
         if self.config.affine {
             if let Some(ref mut weight) = self.weight {
                 for w in weight.iter_mut() {
-                    *w = T::from(rng.gen::<f64>()).unwrap_or(T::one());
+                    *w = T::from(rng.random::<f64>()).unwrap_or(T::one());
                 }
             }
             if let Some(ref mut bias) = self.bias {
                 for b in bias.iter_mut() {
-                    *b = T::from(rng.gen::<f64>() - 0.5).unwrap_or(T::zero());
+                    *b = T::from(rng.random::<f64>() - 0.5).unwrap_or(T::zero());
                 }
             }
         }
@@ -334,11 +341,16 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for BatchNorm1d<T> {
 
         let (mean, var) = if training {
             // Compute batch statistics
-            let batch_mean = input.mean_axis(Axis(0)).unwrap();
+            let batch_mean = input
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
 
             // Compute batch variance: E[(X - μ)²]
             let centered = input - &batch_mean.view().insert_axis(Axis(0));
-            let batch_var = centered.mapv(|x| x * x).mean_axis(Axis(0)).unwrap();
+            let batch_var = centered
+                .mapv(|x| x * x)
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
 
             // Update running statistics if tracking
             if self.config.track_running_stats {
@@ -353,8 +365,11 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for BatchNorm1d<T> {
 
                 if let Some(ref mut running_var) = self.running_var {
                     // Use unbiased variance estimate for running statistics
-                    let unbiased_var = &batch_var * T::from(batch_size).unwrap()
-                        / T::from(batch_size - 1).unwrap().max(T::one());
+                    let unbiased_var = &batch_var
+                        * T::from(batch_size).unwrap_or_else(|| T::zero())
+                        / T::from(batch_size - 1)
+                            .unwrap_or_else(|| T::zero())
+                            .max(T::one());
                     let momentum_comp = T::one() - self.config.momentum;
                     *running_var =
                         &*running_var * momentum_comp + &unbiased_var * self.config.momentum;
@@ -368,9 +383,14 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for BatchNorm1d<T> {
                 (mean.clone(), var.clone())
             } else {
                 // Fallback to batch statistics if running stats not available
-                let batch_mean = input.mean_axis(Axis(0)).unwrap();
+                let batch_mean = input
+                    .mean_axis(Axis(0))
+                    .expect("mean should not fail on non-empty array");
                 let centered = input - &batch_mean.view().insert_axis(Axis(0));
-                let batch_var = centered.mapv(|x| x * x).mean_axis(Axis(0)).unwrap();
+                let batch_var = centered
+                    .mapv(|x| x * x)
+                    .mean_axis(Axis(0))
+                    .expect("mean should not fail on non-empty array");
                 (batch_mean, batch_var)
             }
         };
@@ -463,7 +483,7 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for BatchNorm1d<T> {
 
         // Backprop through normalization
         let inv_std = std.mapv(|s| T::one() / s);
-        let batch_size_t = T::from(batch_size).unwrap();
+        let batch_size_t = T::from(batch_size).unwrap_or_else(|| T::zero());
 
         // Gradient of normalized values
         let grad_norm = &grad_input;
@@ -471,16 +491,21 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for BatchNorm1d<T> {
         // Gradient w.r.t. variance
         let centered = input - &mean.view().insert_axis(Axis(0));
         let grad_var = (grad_norm * &centered).sum_axis(Axis(0))
-            * T::from(-0.5).unwrap()
+            * T::from(-0.5).unwrap_or_else(|| T::zero())
             * inv_std.mapv(|x| x * x * x);
 
         // Gradient w.r.t. mean
-        let grad_mean = grad_norm.sum_axis(Axis(0)) * T::from(-1.0).unwrap() * &inv_std
-            + &grad_var * &centered.sum_axis(Axis(0)) * T::from(-2.0).unwrap() / batch_size_t;
+        let grad_mean = grad_norm.sum_axis(Axis(0))
+            * T::from(-1.0).unwrap_or_else(|| T::zero())
+            * &inv_std
+            + &grad_var * &centered.sum_axis(Axis(0)) * T::from(-2.0).unwrap_or_else(|| T::zero())
+                / batch_size_t;
 
         // Gradient w.r.t. input
         let grad_input_final = grad_norm * &inv_std.view().insert_axis(Axis(0))
-            + &(&grad_var.view().insert_axis(Axis(0)) * &centered * T::from(2.0).unwrap())
+            + &(&grad_var.view().insert_axis(Axis(0))
+                * &centered
+                * T::from(2.0).unwrap_or_else(|| T::zero()))
                 / batch_size_t
             + &grad_mean.view().insert_axis(Axis(0)) / batch_size_t;
 
@@ -609,7 +634,9 @@ mod tests {
         // Simple input batch: 2 samples, 3 features
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-        let output = bn.forward(&input, true).unwrap();
+        let output = bn
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check output shape
         assert_eq!(output.dim(), (2, 3));
@@ -639,7 +666,9 @@ mod tests {
             [0.0, -2.0]  // (0-1)/1 = -1, (-2-2)/2 = -2
         ];
 
-        let output = bn.forward(&input, false).unwrap();
+        let output = bn
+            .forward(&input, false)
+            .expect("forward pass should succeed");
 
         // Expected normalized values (approximately)
         let expected = array![[1.0, 2.0], [-1.0, -2.0]];
@@ -655,11 +684,16 @@ mod tests {
 
         let input = array![[0.0, 0.0], [1.0, 2.0], [2.0, 4.0]];
 
-        let output = bn.forward(&input, true).unwrap();
+        let output = bn
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Without affine, output should be normalized to ~N(0,1)
-        let output_mean = output.mean_axis(Axis(0)).unwrap();
-        let output_var = output.mapv(|x| x * x).mean_axis(Axis(0)).unwrap();
+        let output_mean = output.mean_axis(Axis(0)).expect("operation should succeed");
+        let output_var = output
+            .mapv(|x| x * x)
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(output_mean[0], 0.0, epsilon = 1e-6);
         assert_abs_diff_eq!(output_mean[1], 0.0, epsilon = 1e-6);
@@ -676,11 +710,15 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         // Forward pass
-        let output = bn.forward(&input, true).unwrap();
+        let output = bn
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Backward pass with unit gradients
         let grad_output = Array2::ones((3, 2));
-        let grad_input = bn.backward(&grad_output).unwrap();
+        let grad_input = bn
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Check gradient shape
         assert_eq!(grad_input.dim(), input.dim());
@@ -701,18 +739,20 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0]];
 
         // Forward pass
-        bn.forward(&input, true).unwrap();
+        bn.forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Backward pass
         let grad_output = array![[1.0, 2.0], [3.0, 4.0]];
-        bn.backward(&grad_output).unwrap();
+        bn.backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Check parameter gradients exist
         assert!(bn.weight_grad.is_some());
         assert!(bn.bias_grad.is_some());
 
-        let weight_grad = bn.weight_grad().unwrap();
-        let bias_grad = bn.bias_grad().unwrap();
+        let weight_grad = bn.weight_grad().expect("operation should succeed");
+        let bias_grad = bn.bias_grad().expect("operation should succeed");
 
         // Bias gradient should be sum of grad_output
         let expected_bias_grad = grad_output.sum_axis(Axis(0));
@@ -753,7 +793,8 @@ mod tests {
         bn.initialize();
 
         let input = array![[1.0, 2.0], [3.0, 4.0]];
-        bn.forward(&input, true).unwrap();
+        bn.forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check that cache is populated
         assert!(bn.cached_input.is_some());
@@ -776,12 +817,14 @@ mod tests {
         let input2 = array![[2.0, 2.0], [3.0, 3.0]];
 
         // First batch
-        bn.forward(&input1, true).unwrap();
-        let mean1 = bn.running_mean().unwrap().clone();
+        bn.forward(&input1, true)
+            .expect("forward pass should succeed");
+        let mean1 = bn.running_mean().expect("operation should succeed").clone();
 
         // Second batch
-        bn.forward(&input2, true).unwrap();
-        let mean2 = bn.running_mean().unwrap().clone();
+        bn.forward(&input2, true)
+            .expect("forward pass should succeed");
+        let mean2 = bn.running_mean().expect("operation should succeed").clone();
 
         // Running mean should have changed (compare element by element)
         let means_changed = mean1

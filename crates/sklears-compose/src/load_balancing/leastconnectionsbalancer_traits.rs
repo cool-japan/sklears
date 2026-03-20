@@ -40,7 +40,7 @@ impl LoadBalancingAlgorithm for LeastConnectionsBalancer {
         let backend = backends
             .iter()
             .min_by_key(|b| b.connections.active_connections)
-            .unwrap();
+            .unwrap_or_default();
         Ok(Some(backend.id.clone()))
     }
     fn update_state(

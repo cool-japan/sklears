@@ -329,7 +329,7 @@ pub fn simd_center_kernel_matrix(K: &mut Array2<f64>) -> SklResult<()> {
     }
 
     // Compute grand mean
-    let grand_mean = row_means.mean().unwrap();
+    let grand_mean = row_means.mean().expect("array should have elements for mean computation");
 
     // Center the kernel matrix
     for i in 0..n {

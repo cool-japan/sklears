@@ -14,9 +14,9 @@ mod tests {
 
     #[test]
     fn test_export_import_classification_csv() {
-        let (features, targets) = make_classification(100, 4, 3, 1, 3, Some(42)).unwrap();
+        let (features, targets) = make_classification(100, 4, 3, 1, 3, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_classification.csv");
 
         // Export
@@ -27,40 +27,40 @@ mod tests {
             "feat4".to_string(),
         ];
         export_classification_csv(&file_path, &features, &targets, Some(&feature_names), None)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Verify file exists and has content
         assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
+        let content = fs::read_to_string(&file_path).expect("operation should succeed");
         assert!(content.contains("feat1"));
         assert!(content.contains("target"));
 
         // Import back
         let (imported_features, imported_targets, imported_names) =
-            import_classification_csv(&file_path, None).unwrap();
+            import_classification_csv(&file_path, None).expect("operation should succeed");
 
         assert_eq!(features.dim(), imported_features.dim());
         assert_eq!(targets.len(), imported_targets.len());
         assert!(imported_names.is_some());
-        assert_eq!(imported_names.unwrap(), feature_names);
+        assert_eq!(imported_names.expect("operation should succeed"), feature_names);
     }
 
     #[test]
     fn test_export_import_regression_csv() {
-        let (features, targets) = make_regression(100, 4, 3, 0.1, Some(42)).unwrap();
+        let (features, targets) = make_regression(100, 4, 3, 0.1, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_regression.csv");
 
         // Export
-        export_regression_csv(&file_path, &features, &targets, None, None).unwrap();
+        export_regression_csv(&file_path, &features, &targets, None, None).expect("operation should succeed");
 
         // Verify file exists
         assert!(file_path.exists());
 
         // Import back
         let (imported_features, imported_targets, _) =
-            import_regression_csv(&file_path, None).unwrap();
+            import_regression_csv(&file_path, None).expect("operation should succeed");
 
         assert_eq!(features.dim(), imported_features.dim());
         assert_eq!(targets.len(), imported_targets.len());
@@ -69,9 +69,9 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn test_export_classification_json() {
-        let (features, targets) = make_blobs(50, 3, 2, 1.0, Some(42)).unwrap();
+        let (features, targets) = make_blobs(50, 3, 2, 1.0, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_classification.json");
 
         let metadata = serde_json::json!({
@@ -81,10 +81,10 @@ mod tests {
             "n_features": 3
         });
 
-        export_classification_json(&file_path, &features, &targets, None, Some(metadata)).unwrap();
+        export_classification_json(&file_path, &features, &targets, None, Some(metadata)).expect("operation should succeed");
 
         assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
+        let content = fs::read_to_string(&file_path).expect("operation should succeed");
         assert!(content.contains("features"));
         assert!(content.contains("targets"));
         assert!(content.contains("description"));
@@ -92,43 +92,43 @@ mod tests {
 
     #[test]
     fn test_export_tsv() {
-        let (features, targets) = make_classification(50, 3, 2, 1, 2, Some(42)).unwrap();
+        let (features, targets) = make_classification(50, 3, 2, 1, 2, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test.tsv");
 
-        export_classification_tsv(&file_path, &features, &targets, None).unwrap();
+        export_classification_tsv(&file_path, &features, &targets, None).expect("operation should succeed");
 
         assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
+        let content = fs::read_to_string(&file_path).expect("operation should succeed");
         assert!(content.contains('\t')); // Should contain tabs
     }
 
     #[test]
     fn test_export_jsonl() {
-        let (features, targets) = make_blobs(20, 2, 2, 1.0, Some(42)).unwrap();
+        let (features, targets) = make_blobs(20, 2, 2, 1.0, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test.jsonl");
 
-        export_classification_jsonl(&file_path, &features, &targets, None).unwrap();
+        export_classification_jsonl(&file_path, &features, &targets, None).expect("operation should succeed");
 
         assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
+        let content = fs::read_to_string(&file_path).expect("operation should succeed");
         let lines: Vec<&str> = content.trim().split('\n').collect();
         assert_eq!(lines.len(), 20); // Should have 20 lines
 
         // Each line should be valid JSON
         for line in lines {
-            let _: serde_json::Value = serde_json::from_str(line).unwrap();
+            let _: serde_json::Value = serde_json::from_str(line).expect("operation should succeed");
         }
     }
 
     #[test]
     fn test_csv_config() {
-        let (features, targets) = make_blobs(10, 2, 2, 1.0, Some(42)).unwrap();
+        let (features, targets) = make_blobs(10, 2, 2, 1.0, Some(42)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_custom.csv");
 
         let config = CsvConfig {
@@ -138,10 +138,10 @@ mod tests {
             escape_char: None,
         };
 
-        export_classification_csv(&file_path, &features, &targets, None, Some(config)).unwrap();
+        export_classification_csv(&file_path, &features, &targets, None, Some(config)).expect("operation should succeed");
 
         assert!(file_path.exists());
-        let content = fs::read_to_string(&file_path).unwrap();
+        let content = fs::read_to_string(&file_path).expect("operation should succeed");
         assert!(content.contains(';')); // Should use semicolon delimiter
         assert!(!content.starts_with("feature_")); // Should not have header
     }
@@ -149,7 +149,7 @@ mod tests {
     #[cfg(feature = "parquet")]
     #[test]
     fn test_export_import_classification_parquet() {
-        let (features, targets) = make_classification(100, 4, 3, 1, 3, Some(42)).unwrap();
+        let (features, targets) = make_classification(100, 4, 3, 1, 3, Some(42)).expect("operation should succeed");
         let feature_names = vec![
             "sepal_length".to_string(),
             "sepal_width".to_string(),
@@ -157,17 +157,17 @@ mod tests {
             "petal_width".to_string(),
         ];
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_classification.parquet");
 
         // Export to parquet
         export_classification_parquet(&file_path, &features, &targets, Some(&feature_names))
-            .unwrap();
+            .expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import from parquet
         let (imported_features, imported_targets, imported_names) =
-            import_classification_parquet(&file_path).unwrap();
+            import_classification_parquet(&file_path).expect("operation should succeed");
 
         // Verify dimensions
         assert_eq!(imported_features.dim(), features.dim());
@@ -175,7 +175,7 @@ mod tests {
 
         // Verify feature names
         assert!(imported_names.is_some());
-        let imported_names = imported_names.unwrap();
+        let imported_names = imported_names.expect("operation should succeed");
         assert_eq!(imported_names, feature_names);
 
         // Verify data (within floating point precision)
@@ -190,23 +190,23 @@ mod tests {
     #[cfg(feature = "parquet")]
     #[test]
     fn test_export_import_regression_parquet() {
-        let (features, targets) = make_regression(50, 3, 2, 0.1, Some(42)).unwrap();
+        let (features, targets) = make_regression(50, 3, 2, 0.1, Some(42)).expect("operation should succeed");
         let feature_names = vec![
             "feature_0".to_string(),
             "feature_1".to_string(),
             "feature_2".to_string(),
         ];
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_regression.parquet");
 
         // Export to parquet
-        export_regression_parquet(&file_path, &features, &targets, Some(&feature_names)).unwrap();
+        export_regression_parquet(&file_path, &features, &targets, Some(&feature_names)).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import from parquet
         let (imported_features, imported_targets, imported_names) =
-            import_regression_parquet(&file_path).unwrap();
+            import_regression_parquet(&file_path).expect("operation should succeed");
 
         // Verify dimensions
         assert_eq!(imported_features.dim(), features.dim());
@@ -214,7 +214,7 @@ mod tests {
 
         // Verify feature names
         assert!(imported_names.is_some());
-        let imported_names = imported_names.unwrap();
+        let imported_names = imported_names.expect("operation should succeed");
         assert_eq!(imported_names, feature_names);
 
         // Verify data (within floating point precision)
@@ -229,21 +229,21 @@ mod tests {
     #[cfg(feature = "parquet")]
     #[test]
     fn test_parquet_without_feature_names() {
-        let (features, targets) = make_classification(30, 2, 2, 0, 2, Some(123)).unwrap();
+        let (features, targets) = make_classification(30, 2, 2, 0, 2, Some(123)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_no_names.parquet");
 
         // Export without feature names
-        export_classification_parquet(&file_path, &features, &targets, None).unwrap();
+        export_classification_parquet(&file_path, &features, &targets, None).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import and check default feature names
         let (imported_features, imported_targets, imported_names) =
-            import_classification_parquet(&file_path).unwrap();
+            import_classification_parquet(&file_path).expect("operation should succeed");
 
         assert!(imported_names.is_some());
-        let imported_names = imported_names.unwrap();
+        let imported_names = imported_names.expect("operation should succeed");
         assert_eq!(
             imported_names,
             vec!["feature_0".to_string(), "feature_1".to_string()]
@@ -258,18 +258,18 @@ mod tests {
     #[test]
     fn test_parquet_large_dataset() {
         // Test with a larger dataset to ensure scalability
-        let (features, targets) = make_regression(1000, 10, 5, 0.05, Some(999)).unwrap();
+        let (features, targets) = make_regression(1000, 10, 5, 0.05, Some(999)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_large.parquet");
 
         // Export large dataset
-        export_regression_parquet(&file_path, &features, &targets, None).unwrap();
+        export_regression_parquet(&file_path, &features, &targets, None).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import and verify
         let (imported_features, imported_targets, _) =
-            import_regression_parquet(&file_path).unwrap();
+            import_regression_parquet(&file_path).expect("operation should succeed");
 
         assert_eq!(imported_features.dim(), (1000, 10));
         assert_eq!(imported_targets.dim(), 1000);
@@ -286,7 +286,7 @@ mod tests {
     #[cfg(feature = "hdf5")]
     #[test]
     fn test_export_import_classification_hdf5() {
-        let (features, targets) = make_classification(100, 4, 3, 1, 3, Some(42)).unwrap();
+        let (features, targets) = make_classification(100, 4, 3, 1, 3, Some(42)).expect("operation should succeed");
         let feature_names = vec![
             "sepal_length".to_string(),
             "sepal_width".to_string(),
@@ -294,16 +294,16 @@ mod tests {
             "petal_width".to_string(),
         ];
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_classification.h5");
 
         // Export to HDF5
-        export_classification_hdf5(&file_path, &features, &targets, Some(&feature_names)).unwrap();
+        export_classification_hdf5(&file_path, &features, &targets, Some(&feature_names)).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import from HDF5
         let (imported_features, imported_targets, imported_names) =
-            import_classification_hdf5(&file_path).unwrap();
+            import_classification_hdf5(&file_path).expect("operation should succeed");
 
         // Verify dimensions
         assert_eq!(imported_features.dim(), features.dim());
@@ -311,7 +311,7 @@ mod tests {
 
         // Verify feature names
         assert!(imported_names.is_some());
-        let imported_names = imported_names.unwrap();
+        let imported_names = imported_names.expect("operation should succeed");
         assert_eq!(imported_names, feature_names);
 
         // Verify data (within floating point precision)
@@ -326,23 +326,23 @@ mod tests {
     #[cfg(feature = "hdf5")]
     #[test]
     fn test_export_import_regression_hdf5() {
-        let (features, targets) = make_regression(50, 3, 2, 0.1, Some(42)).unwrap();
+        let (features, targets) = make_regression(50, 3, 2, 0.1, Some(42)).expect("operation should succeed");
         let feature_names = vec![
             "feature_0".to_string(),
             "feature_1".to_string(),
             "feature_2".to_string(),
         ];
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_regression.h5");
 
         // Export to HDF5
-        export_regression_hdf5(&file_path, &features, &targets, Some(&feature_names)).unwrap();
+        export_regression_hdf5(&file_path, &features, &targets, Some(&feature_names)).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import from HDF5
         let (imported_features, imported_targets, imported_names) =
-            import_regression_hdf5(&file_path).unwrap();
+            import_regression_hdf5(&file_path).expect("operation should succeed");
 
         // Verify dimensions
         assert_eq!(imported_features.dim(), features.dim());
@@ -350,7 +350,7 @@ mod tests {
 
         // Verify feature names
         assert!(imported_names.is_some());
-        let imported_names = imported_names.unwrap();
+        let imported_names = imported_names.expect("operation should succeed");
         assert_eq!(imported_names, feature_names);
 
         // Verify data (within floating point precision)
@@ -365,18 +365,18 @@ mod tests {
     #[cfg(feature = "hdf5")]
     #[test]
     fn test_hdf5_without_feature_names() {
-        let (features, targets) = make_classification(30, 2, 2, 0, 2, Some(123)).unwrap();
+        let (features, targets) = make_classification(30, 2, 2, 0, 2, Some(123)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_no_names.h5");
 
         // Export without feature names
-        export_classification_hdf5(&file_path, &features, &targets, None).unwrap();
+        export_classification_hdf5(&file_path, &features, &targets, None).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import and check no feature names
         let (imported_features, imported_targets, imported_names) =
-            import_classification_hdf5(&file_path).unwrap();
+            import_classification_hdf5(&file_path).expect("operation should succeed");
 
         assert!(imported_names.is_none());
 
@@ -389,17 +389,17 @@ mod tests {
     #[test]
     fn test_hdf5_large_dataset() {
         // Test with a larger dataset to ensure scalability
-        let (features, targets) = make_regression(1000, 10, 5, 0.05, Some(999)).unwrap();
+        let (features, targets) = make_regression(1000, 10, 5, 0.05, Some(999)).expect("operation should succeed");
 
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("test_large.h5");
 
         // Export large dataset
-        export_regression_hdf5(&file_path, &features, &targets, None).unwrap();
+        export_regression_hdf5(&file_path, &features, &targets, None).expect("operation should succeed");
         assert!(file_path.exists());
 
         // Import and verify
-        let (imported_features, imported_targets, _) = import_regression_hdf5(&file_path).unwrap();
+        let (imported_features, imported_targets, _) = import_regression_hdf5(&file_path).expect("operation should succeed");
 
         assert_eq!(imported_features.dim(), (1000, 10));
         assert_eq!(imported_targets.dim(), 1000);

@@ -385,7 +385,7 @@ mod tests {
         let y = array![[2.0, 3.0], [5.0, 6.0], [8.0, 9.0], [11.0, 12.0],];
 
         let cca = CanonicalCorrelationAnalysis::new(2);
-        let fitted = cca.fit(&(x.clone(), y.clone()), &()).unwrap();
+        let fitted = cca.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features_x, 3);
         assert_eq!(fitted.n_features_y, 2);
@@ -395,8 +395,8 @@ mod tests {
         assert_eq!(fitted.canonical_correlations.len(), 2);
 
         // Test transformation
-        let x_transformed = fitted.transform(&x).unwrap();
-        let y_transformed = fitted.transform_y(&y).unwrap();
+        let x_transformed = fitted.transform(&x).expect("transformation should succeed");
+        let y_transformed = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_transformed.dim(), (4, 2));
         assert_eq!(y_transformed.dim(), (4, 2));
@@ -429,7 +429,7 @@ mod tests {
         let y = array![[2.0, 3.0], [5.0, 6.0],];
 
         let cca = CanonicalCorrelationAnalysis::new(1);
-        let fitted = cca.fit(&(x, y), &()).unwrap();
+        let fitted = cca.fit(&(x, y), &()).expect("model fitting should succeed");
 
         // Test with wrong number of features
         let x_wrong = array![[1.0, 2.0]]; // Should have 3 features
@@ -449,7 +449,7 @@ mod tests {
         let y = x.clone();
 
         let cca = CanonicalCorrelationAnalysis::new(2);
-        let fitted = cca.fit(&(x, y), &()).unwrap();
+        let fitted = cca.fit(&(x, y), &()).expect("model fitting should succeed");
 
         // Correlations should be close to 1 for perfectly correlated data
         let correlations = fitted.correlations();
@@ -465,7 +465,7 @@ mod tests {
         let y = array![[2.0], [4.0], [6.0],];
 
         let cca = CanonicalCorrelationAnalysis::new(1);
-        let fitted = cca.fit(&(x, y), &()).unwrap();
+        let fitted = cca.fit(&(x, y), &()).expect("model fitting should succeed");
 
         let x_weights = fitted.x_weights();
         let y_weights = fitted.y_weights();

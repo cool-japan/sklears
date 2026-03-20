@@ -107,7 +107,7 @@ impl<T: Clone> TransformationCache<T> {
             return;
         }
 
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.write().expect("operation should succeed");
 
         // Evict old entries if cache is full
         if cache.len() >= self.config.max_entries {
@@ -141,7 +141,7 @@ impl<T: Clone> TransformationCache<T> {
 
     /// Get cache statistics
     pub fn stats(&self) -> CacheStats {
-        let cache = self.cache.read().unwrap();
+        let cache = self.cache.read().expect("operation should succeed");
         CacheStats {
             entries: cache.len(),
             max_entries: self.config.max_entries,
@@ -324,9 +324,10 @@ where
         match &self.config.combination_strategy {
             BranchCombinationStrategy::Concatenate => self.concatenate_results(branch_results),
             BranchCombinationStrategy::Average => self.average_results(branch_results),
-            BranchCombinationStrategy::FirstSuccess => {
-                Ok(branch_results.into_iter().next().unwrap())
-            }
+            BranchCombinationStrategy::FirstSuccess => Ok(branch_results
+                .into_iter()
+                .next()
+                .expect("operation should succeed")),
             BranchCombinationStrategy::WeightedCombination(weights) => {
                 self.weighted_combination(branch_results, weights)
             }
@@ -1097,14 +1098,19 @@ mod tests {
         assert!(!wrapper.is_fitted());
 
         // Test partial fit
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        wrapper.partial_fit(&data).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        wrapper
+            .partial_fit(&data)
+            .expect("operation should succeed");
 
         // Test that wrapper is fitted after partial_fit
         assert!(wrapper.is_fitted());
 
         // Test transform
-        let result = wrapper.transform(&data).unwrap();
+        let result = wrapper
+            .transform(&data)
+            .expect("transformation should succeed");
         assert_eq!(result.dim(), data.dim());
 
         // Test statistics

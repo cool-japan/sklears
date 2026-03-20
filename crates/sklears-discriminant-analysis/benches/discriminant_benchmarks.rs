@@ -81,16 +81,16 @@ fn benchmark_lda_scaling(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("fit", n_samples), n_samples, |b, _| {
             b.iter(|| {
                 let lda = LinearDiscriminantAnalysis::new();
-                black_box(lda.fit(&x, &y).unwrap());
+                black_box(lda.fit(&x, &y).expect("operation should succeed"));
             });
         });
 
         let lda = LinearDiscriminantAnalysis::new();
-        let trained_lda = lda.fit(&x, &y).unwrap();
+        let trained_lda = lda.fit(&x, &y).expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict", n_samples), n_samples, |b, _| {
             b.iter(|| {
-                black_box(trained_lda.predict(&x).unwrap());
+                black_box(trained_lda.predict(&x).expect("operation should succeed"));
             });
         });
 
@@ -99,7 +99,11 @@ fn benchmark_lda_scaling(c: &mut Criterion) {
             n_samples,
             |b, _| {
                 b.iter(|| {
-                    black_box(trained_lda.predict_proba(&x).unwrap());
+                    black_box(
+                        trained_lda
+                            .predict_proba(&x)
+                            .expect("operation should succeed"),
+                    );
                 });
             },
         );
@@ -118,16 +122,16 @@ fn benchmark_qda_scaling(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("fit", n_samples), n_samples, |b, _| {
             b.iter(|| {
                 let qda = QuadraticDiscriminantAnalysis::new();
-                black_box(qda.fit(&x, &y).unwrap());
+                black_box(qda.fit(&x, &y).expect("operation should succeed"));
             });
         });
 
         let qda = QuadraticDiscriminantAnalysis::new();
-        let trained_qda = qda.fit(&x, &y).unwrap();
+        let trained_qda = qda.fit(&x, &y).expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict", n_samples), n_samples, |b, _| {
             b.iter(|| {
-                black_box(trained_qda.predict(&x).unwrap());
+                black_box(trained_qda.predict(&x).expect("operation should succeed"));
             });
         });
     }
@@ -143,28 +147,28 @@ fn benchmark_method_comparison(c: &mut Criterion) {
     group.bench_function("lda_fit", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new();
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("qda_fit", |b| {
         b.iter(|| {
             let qda = QuadraticDiscriminantAnalysis::new();
-            black_box(qda.fit(&x, &y).unwrap());
+            black_box(qda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("kernel_lda_fit", |b| {
         b.iter(|| {
             let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::RBF { gamma: 1.0 });
-            black_box(kda.fit(&x, &y).unwrap());
+            black_box(kda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("mixture_da_fit", |b| {
         b.iter(|| {
             let mda = MixtureDiscriminantAnalysis::new().n_components_per_class(1);
-            black_box(mda.fit(&x, &y).unwrap());
+            black_box(mda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -184,7 +188,7 @@ fn benchmark_dimensionality_impact(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     let lda = LinearDiscriminantAnalysis::new();
-                    black_box(lda.fit(&x, &y).unwrap());
+                    black_box(lda.fit(&x, &y).expect("operation should succeed"));
                 });
             },
         );
@@ -195,7 +199,7 @@ fn benchmark_dimensionality_impact(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     let qda = QuadraticDiscriminantAnalysis::new();
-                    black_box(qda.fit(&x, &y).unwrap());
+                    black_box(qda.fit(&x, &y).expect("operation should succeed"));
                 });
             },
         );
@@ -212,21 +216,21 @@ fn benchmark_regularization(c: &mut Criterion) {
     group.bench_function("lda_no_regularization", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new();
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("lda_shrinkage", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new().shrinkage(Some(0.1));
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("lda_l1_regularization", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new().l1_reg(0.1);
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -236,7 +240,7 @@ fn benchmark_regularization(c: &mut Criterion) {
                 .l1_reg(0.05)
                 .l2_reg(0.05)
                 .elastic_net_ratio(0.5);
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -250,14 +254,14 @@ fn benchmark_transform_performance(c: &mut Criterion) {
 
     for n_components in [1, 2, 5, 10].iter() {
         let lda = LinearDiscriminantAnalysis::new().n_components(Some(*n_components));
-        let trained_lda = lda.fit(&x, &y).unwrap();
+        let trained_lda = lda.fit(&x, &y).expect("operation should succeed");
 
         group.bench_with_input(
             BenchmarkId::new("transform", n_components),
             n_components,
             |b, _| {
                 b.iter(|| {
-                    black_box(trained_lda.transform(&x).unwrap());
+                    black_box(trained_lda.transform(&x).expect("operation should succeed"));
                 });
             },
         );
@@ -282,9 +286,9 @@ fn benchmark_memory_usage(c: &mut Criterion) {
 
                     for _ in 0..iters {
                         let lda = LinearDiscriminantAnalysis::new();
-                        let trained = lda.fit(&x, &y).unwrap();
-                        let _ = trained.predict(&x).unwrap();
-                        let _ = trained.predict_proba(&x).unwrap();
+                        let trained = lda.fit(&x, &y).expect("operation should succeed");
+                        let _ = trained.predict(&x).expect("operation should succeed");
+                        let _ = trained.predict_proba(&x).expect("operation should succeed");
                         black_box(trained);
                     }
 
@@ -305,7 +309,7 @@ fn benchmark_robust_methods(c: &mut Criterion) {
     group.bench_function("lda_standard", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new();
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -314,14 +318,14 @@ fn benchmark_robust_methods(c: &mut Criterion) {
             let lda = LinearDiscriminantAnalysis::new()
                 .robust(true)
                 .robust_method("mcd");
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("qda_standard", |b| {
         b.iter(|| {
             let qda = QuadraticDiscriminantAnalysis::new();
-            black_box(qda.fit(&x, &y).unwrap());
+            black_box(qda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -330,7 +334,7 @@ fn benchmark_robust_methods(c: &mut Criterion) {
             let qda = QuadraticDiscriminantAnalysis::new()
                 .robust(true)
                 .robust_method("mcd");
-            black_box(qda.fit(&x, &y).unwrap());
+            black_box(qda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -345,14 +349,14 @@ fn benchmark_kernel_types(c: &mut Criterion) {
     group.bench_function("kernel_linear", |b| {
         b.iter(|| {
             let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::Linear);
-            black_box(kda.fit(&x, &y).unwrap());
+            black_box(kda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("kernel_rbf", |b| {
         b.iter(|| {
             let kda = KernelDiscriminantAnalysis::new().kernel(KernelType::RBF { gamma: 1.0 });
-            black_box(kda.fit(&x, &y).unwrap());
+            black_box(kda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -363,7 +367,7 @@ fn benchmark_kernel_types(c: &mut Criterion) {
                 coef0: 1.0,
                 degree: 3,
             });
-            black_box(kda.fit(&x, &y).unwrap());
+            black_box(kda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -373,7 +377,7 @@ fn benchmark_kernel_types(c: &mut Criterion) {
                 gamma: 1.0,
                 coef0: 1.0,
             });
-            black_box(kda.fit(&x, &y).unwrap());
+            black_box(kda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -398,11 +402,11 @@ fn benchmark_large_scale_performance(c: &mut Criterion) {
                 |b, _| {
                     b.iter(|| {
                         let lda = LinearDiscriminantAnalysis::new();
-                        let trained = lda.fit(&x, &y).unwrap();
+                        let trained = lda.fit(&x, &y).expect("operation should succeed");
                         black_box(
                             trained
                                 .predict(&x.slice(s![..1000, ..]).to_owned())
-                                .unwrap(),
+                                .expect("operation should succeed"),
                         );
                     });
                 },
@@ -414,11 +418,11 @@ fn benchmark_large_scale_performance(c: &mut Criterion) {
                 |b, _| {
                     b.iter(|| {
                         let qda = QuadraticDiscriminantAnalysis::new();
-                        let trained = qda.fit(&x, &y).unwrap();
+                        let trained = qda.fit(&x, &y).expect("operation should succeed");
                         black_box(
                             trained
                                 .predict(&x.slice(s![..1000, ..]).to_owned())
-                                .unwrap(),
+                                .expect("operation should succeed"),
                         );
                     });
                 },
@@ -435,10 +439,14 @@ fn benchmark_prediction_throughput(c: &mut Criterion) {
 
     let (x_train, y_train) = generate_synthetic_dataset(10000, 20, 3);
     let lda = LinearDiscriminantAnalysis::new();
-    let trained_lda = lda.fit(&x_train, &y_train).unwrap();
+    let trained_lda = lda
+        .fit(&x_train, &y_train)
+        .expect("operation should succeed");
 
     let qda = QuadraticDiscriminantAnalysis::new();
-    let trained_qda = qda.fit(&x_train, &y_train).unwrap();
+    let trained_qda = qda
+        .fit(&x_train, &y_train)
+        .expect("operation should succeed");
 
     for batch_size in [100, 1000, 10000, 50000].iter() {
         let (x_test, _) = generate_synthetic_dataset(*batch_size, 20, 3);
@@ -448,7 +456,11 @@ fn benchmark_prediction_throughput(c: &mut Criterion) {
             batch_size,
             |b, _| {
                 b.iter(|| {
-                    black_box(trained_lda.predict(&x_test).unwrap());
+                    black_box(
+                        trained_lda
+                            .predict(&x_test)
+                            .expect("operation should succeed"),
+                    );
                 });
             },
         );
@@ -458,7 +470,11 @@ fn benchmark_prediction_throughput(c: &mut Criterion) {
             batch_size,
             |b, _| {
                 b.iter(|| {
-                    black_box(trained_qda.predict(&x_test).unwrap());
+                    black_box(
+                        trained_qda
+                            .predict(&x_test)
+                            .expect("operation should succeed"),
+                    );
                 });
             },
         );
@@ -468,7 +484,11 @@ fn benchmark_prediction_throughput(c: &mut Criterion) {
             batch_size,
             |b, _| {
                 b.iter(|| {
-                    black_box(trained_lda.predict_proba(&x_test).unwrap());
+                    black_box(
+                        trained_lda
+                            .predict_proba(&x_test)
+                            .expect("operation should succeed"),
+                    );
                 });
             },
         );
@@ -491,7 +511,7 @@ fn benchmark_high_dimensional_sparse(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     let lda = LinearDiscriminantAnalysis::new().l1_reg(0.01);
-                    black_box(lda.fit(&x, &y).unwrap());
+                    black_box(lda.fit(&x, &y).expect("operation should succeed"));
                 });
             },
         );
@@ -502,7 +522,7 @@ fn benchmark_high_dimensional_sparse(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     let lda = DiagonalLinearDiscriminantAnalysis::new();
-                    black_box(lda.fit(&x, &y).unwrap());
+                    black_box(lda.fit(&x, &y).expect("operation should succeed"));
                 });
             },
         );
@@ -538,14 +558,14 @@ fn benchmark_numerical_stability(c: &mut Criterion) {
     group.bench_function("lda_ill_conditioned", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new();
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
     group.bench_function("lda_regularized_stability", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new().shrinkage(Some(0.1));
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -554,7 +574,7 @@ fn benchmark_numerical_stability(c: &mut Criterion) {
             let lda = LinearDiscriminantAnalysis::new()
                 .robust(true)
                 .robust_method("mcd");
-            black_box(lda.fit(&x, &y).unwrap());
+            black_box(lda.fit(&x, &y).expect("operation should succeed"));
         });
     });
 
@@ -571,8 +591,8 @@ fn benchmark_accuracy_performance_tradeoffs(c: &mut Criterion) {
     group.bench_function("lda_standard", |b| {
         b.iter(|| {
             let lda = LinearDiscriminantAnalysis::new();
-            let trained = lda.fit(&x, &y).unwrap();
-            black_box(trained.predict(&x).unwrap());
+            let trained = lda.fit(&x, &y).expect("operation should succeed");
+            black_box(trained.predict(&x).expect("operation should succeed"));
         });
     });
 
@@ -583,8 +603,8 @@ fn benchmark_accuracy_performance_tradeoffs(c: &mut Criterion) {
                 .l1_reg(0.01)
                 .l2_reg(0.01)
                 .elastic_net_ratio(0.5);
-            let trained = lda.fit(&x, &y).unwrap();
-            black_box(trained.predict(&x).unwrap());
+            let trained = lda.fit(&x, &y).expect("operation should succeed");
+            black_box(trained.predict(&x).expect("operation should succeed"));
         });
     });
 
@@ -597,8 +617,12 @@ fn benchmark_accuracy_performance_tradeoffs(c: &mut Criterion) {
                     &x.slice(s![..1000, ..]).to_owned(),
                     &y.slice(s![..1000]).to_owned(),
                 )
-                .unwrap();
-            black_box(trained.predict(&x.slice(s![..500, ..]).to_owned()).unwrap());
+                .expect("operation should succeed");
+            black_box(
+                trained
+                    .predict(&x.slice(s![..500, ..]).to_owned())
+                    .expect("operation should succeed"),
+            );
         });
     });
 
@@ -606,8 +630,8 @@ fn benchmark_accuracy_performance_tradeoffs(c: &mut Criterion) {
     group.bench_function("mixture_da", |b| {
         b.iter(|| {
             let mda = MixtureDiscriminantAnalysis::new().n_components_per_class(2);
-            let trained = mda.fit(&x, &y).unwrap();
-            black_box(trained.predict(&x).unwrap());
+            let trained = mda.fit(&x, &y).expect("operation should succeed");
+            black_box(trained.predict(&x).expect("operation should succeed"));
         });
     });
 

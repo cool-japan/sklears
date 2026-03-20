@@ -742,16 +742,22 @@ mod tests {
             .max_epochs(50)
             .build();
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are reasonable
         for i in 0..predictions.len() {
             assert!((predictions[i] - y[i]).abs() < 1.0);
         }
 
-        assert_eq!(fitted.n_samples_seen().unwrap(), 4);
-        assert!(!fitted.loss_history().unwrap().is_empty());
+        assert_eq!(
+            fitted.n_samples_seen().expect("operation should succeed"),
+            4
+        );
+        assert!(!fitted
+            .loss_history()
+            .expect("operation should succeed")
+            .is_empty());
     }
 
     #[test]
@@ -765,8 +771,8 @@ mod tests {
             .chunk_size(2)
             .learning_rate(0.1);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let coef = fitted.coef().expect("operation should succeed");
 
         // Should have non-zero coefficients for relevant features
         assert!(coef[0].abs() > 0.1); // x1 should be important
@@ -782,15 +788,22 @@ mod tests {
 
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let mut stream = DataStreamIterator::new(&x, &y, 2, false).unwrap();
+        let mut stream =
+            DataStreamIterator::new(&x, &y, 2, false).expect("operation should succeed");
 
         // First chunk
-        let chunk1 = stream.next().unwrap().unwrap();
+        let chunk1 = stream
+            .next()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert_eq!(chunk1.0.nrows(), 2);
         assert_eq!(chunk1.1.len(), 2);
 
         // Second chunk
-        let chunk2 = stream.next().unwrap().unwrap();
+        let chunk2 = stream
+            .next()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert_eq!(chunk2.0.nrows(), 2);
         assert_eq!(chunk2.1.len(), 2);
 
@@ -805,17 +818,22 @@ mod tests {
         let y1 = array![3.0, 5.0];
 
         let model = StreamingLinearRegression::new().chunk_size(1);
-        let mut fitted = model.fit(&x1, &y1).unwrap();
+        let mut fitted = model.fit(&x1, &y1).expect("model fitting should succeed");
 
-        let original_samples = fitted.n_samples_seen().unwrap();
+        let original_samples = fitted.n_samples_seen().expect("operation should succeed");
 
         // Add more data
         let x2 = array![[3.0, 4.0], [4.0, 5.0]];
         let y2 = array![7.0, 9.0];
 
-        fitted.partial_fit(&x2, &y2).unwrap();
+        fitted
+            .partial_fit(&x2, &y2)
+            .expect("operation should succeed");
 
-        assert_eq!(fitted.n_samples_seen().unwrap(), original_samples + 2);
+        assert_eq!(
+            fitted.n_samples_seen().expect("operation should succeed"),
+            original_samples + 2
+        );
     }
 
     #[test]

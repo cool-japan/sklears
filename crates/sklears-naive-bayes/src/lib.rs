@@ -16,6 +16,12 @@
 //!
 //! This module provides various Naive Bayes classifiers for different
 //! types of features, compatible with scikit-learn's naive_bayes module.
+//!
+//! ## Known Limitations
+//!
+//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `model_selection` - Model selection and cross-validation for Naive Bayes
 
 // SciRS2 Policy Compliance - Use scirs2-autograd for ndarray types
 use scirs2_core::ndarray::{Array1, Array2};
@@ -51,7 +57,7 @@ mod gaussian;
 mod hierarchical;
 mod kernel_methods;
 mod mixed;
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 //mod model_selection;
 mod multilabel;
 mod multinomial;
@@ -174,7 +180,7 @@ pub use kernel_methods::{
     ScoringMetric as KernelScoringMetric,
 };
 pub use mixed::{FeatureDistribution, MixedNB};
-// TODO: ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use model_selection::{
 //     BayesianModelComparison, BayesianModelSelector, CVResults, CVStrategy, InformationCriterion,
 //     ModelComparison, ModelSelectionResults, NaiveBayesModelSelector, NestedModelComparison,
@@ -300,6 +306,6 @@ fn compute_class_prior(y: &Array1<i32>, classes: &Array1<i32>) -> (Array1<f64>, 
 
 /// Helper function to compute log probability
 fn safe_log<F: Float>(x: F) -> F {
-    let epsilon = F::from(1e-10).unwrap();
+    let epsilon = F::from(1e-10).expect("operation should succeed");
     (x + epsilon).ln()
 }

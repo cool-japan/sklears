@@ -535,13 +535,13 @@ impl ExportManagementSystem {
         // Add to queue with appropriate priority
         let request_id = request.id.clone();
         {
-            let mut queue_manager = self.queue_manager.write().unwrap();
+            let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
             queue_manager.add_request(request).await?;
         }
 
         // Update metrics
         {
-            let mut metrics = self.metrics_collector.write().unwrap();
+            let mut metrics = self.metrics_collector.write().unwrap_or_else(|e| e.into_inner());
             metrics.record_request_submission(&request_id).await?;
         }
 
@@ -552,7 +552,7 @@ impl ExportManagementSystem {
     pub async fn process_next_export(&self) -> Result<Option<ExportResult>> {
         // Get next request from queue
         let request = {
-            let mut queue_manager = self.queue_manager.write().unwrap();
+            let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
             queue_manager.get_next_request().await?
         };
 
@@ -593,7 +593,7 @@ impl ExportManagementSystem {
         // Record performance metrics
         let processing_time = start_time.elapsed();
         {
-            let mut tracker = self.performance_tracker.write().unwrap();
+            let mut tracker = self.performance_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.record_export_completion(&request.id, processing_time).await?;
         }
 
@@ -608,13 +608,13 @@ impl ExportManagementSystem {
 
     /// Validate export request
     async fn validate_export_request(&self, request: &ExportRequest) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap();
+        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
         validation_system.validate_request(request).await
     }
 
     /// Apply security checks to export request
     async fn apply_security_checks(&self, request: &ExportRequest) -> Result<()> {
-        let security_manager = self.security_manager.read().unwrap();
+        let security_manager = self.security_manager.read().unwrap_or_else(|e| e.into_inner());
         security_manager.validate_security_requirements(request).await
     }
 
@@ -632,7 +632,7 @@ impl ExportManagementSystem {
 
     /// Convert data to target format
     async fn convert_format(&self, data: TransformedData, request: &ExportRequest) -> Result<FormattedData> {
-        let format_engines = self.format_engines.read().unwrap();
+        let format_engines = self.format_engines.read().unwrap_or_else(|e| e.into_inner());
         if let Some(engine) = format_engines.get(&request.format.to_string()) {
             engine.convert_data(data, &request.config).await
         } else {
@@ -642,13 +642,13 @@ impl ExportManagementSystem {
 
     /// Validate export quality
     async fn validate_export_quality(&self, data: &FormattedData, request: &ExportRequest) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap();
+        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
         validation_system.validate_quality(data, &request.quality_requirements).await
     }
 
     /// Deliver export to specified channels
     async fn deliver_export(&self, data: FormattedData, request: &ExportRequest) -> Result<DeliveryResult> {
-        let delivery_coordinator = self.delivery_coordinator.read().unwrap();
+        let delivery_coordinator = self.delivery_coordinator.read().unwrap_or_else(|e| e.into_inner());
         delivery_coordinator.deliver(data, &request.delivery_spec).await
     }
 
@@ -660,19 +660,19 @@ impl ExportManagementSystem {
 
     /// Get export status
     pub async fn get_export_status(&self, request_id: &str) -> Result<ExportStatus> {
-        let queue_manager = self.queue_manager.read().unwrap();
+        let queue_manager = self.queue_manager.read().unwrap_or_else(|e| e.into_inner());
         queue_manager.get_request_status(request_id).await
     }
 
     /// Cancel export request
     pub async fn cancel_export(&self, request_id: &str) -> Result<()> {
-        let mut queue_manager = self.queue_manager.write().unwrap();
+        let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
         queue_manager.cancel_request(request_id).await
     }
 
     /// Get export metrics
     pub async fn get_export_metrics(&self) -> Result<ExportSystemMetrics> {
-        let metrics_collector = self.metrics_collector.read().unwrap();
+        let metrics_collector = self.metrics_collector.read().unwrap_or_else(|e| e.into_inner());
         metrics_collector.get_system_metrics().await
     }
 
@@ -680,12 +680,12 @@ impl ExportManagementSystem {
     pub async fn configure_system(&self, config: ExportSystemConfig) -> Result<()> {
         // Apply configuration to all subsystems
         {
-            let mut queue_manager = self.queue_manager.write().unwrap();
+            let mut queue_manager = self.queue_manager.write().unwrap_or_else(|e| e.into_inner());
             queue_manager.update_config(config.queue_config).await?;
         }
 
         {
-            let mut scheduler = self.scheduler.write().unwrap();
+            let mut scheduler = self.scheduler.write().unwrap_or_else(|e| e.into_inner());
             scheduler.update_config(config.scheduler_config).await?;
         }
 

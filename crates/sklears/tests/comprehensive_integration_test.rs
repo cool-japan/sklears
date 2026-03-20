@@ -47,7 +47,8 @@ fn test_categorical_encoding_pipeline() {
 #[allow(non_snake_case)]
 fn test_cross_validation_integration() {
     // Generate data for cross-validation
-    let (_X, _y) = make_classification(100, 5, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (_X, _y) = make_classification(100, 5, 3, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Test cross-validation with different models
     let _kfold = KFold::new(5);
@@ -100,18 +101,24 @@ fn test_feature_engineering_integration() {
 #[allow(non_snake_case)]
 fn test_multiclass_metrics_integration() {
     // Generate multiclass data
-    let (X, y) = make_classification(120, 4, 4, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X, y) = make_classification(120, 4, 4, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Split data
-    let (X_train, X_test, y_train, y_test) = train_test_split(&X, &y, 0.3, Some(42)).unwrap();
+    let (X_train, X_test, y_train, y_test) =
+        train_test_split(&X, &y, 0.3, Some(42)).expect("operation should succeed");
 
     // Train classifier
     let classifier = KNeighborsClassifier::new(5);
-    let fitted_classifier = classifier.fit(&X_train, &y_train).unwrap();
-    let predictions = fitted_classifier.predict(&X_test).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X_train, &y_train)
+        .expect("model fitting should succeed");
+    let predictions = fitted_classifier
+        .predict(&X_test)
+        .expect("prediction should succeed");
 
     // Calculate multiclass metrics
-    let accuracy = accuracy_score(&y_test, &predictions).unwrap();
+    let accuracy = accuracy_score(&y_test, &predictions).expect("operation should succeed");
 
     // For each class, calculate precision, recall, and F1
     let unique_classes = {
@@ -122,9 +129,11 @@ fn test_multiclass_metrics_integration() {
     };
 
     for &class in &unique_classes {
-        let precision = precision_score(&y_test, &predictions, Some(class)).unwrap();
-        let recall = recall_score(&y_test, &predictions, Some(class)).unwrap();
-        let f1 = f1_score(&y_test, &predictions, Some(class)).unwrap();
+        let precision =
+            precision_score(&y_test, &predictions, Some(class)).expect("operation should succeed");
+        let recall =
+            recall_score(&y_test, &predictions, Some(class)).expect("operation should succeed");
+        let f1 = f1_score(&y_test, &predictions, Some(class)).expect("operation should succeed");
 
         println!(
             "Class {}: Precision={:.3}, Recall={:.3}, F1={:.3}",

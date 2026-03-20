@@ -219,100 +219,45 @@ impl SimpleGAN {
         Ok(noise)
     }
 
-    /// Train GAN on data (simplified training loop)
-    pub fn fit(&mut self, data: &Array2<f64>) -> NeuralResult<GANTrainingHistory> {
-        let batch_size = self.config.batch_size;
-        let n_batches = data.nrows().div_ceil(batch_size);
-        let mut history = GANTrainingHistory::new();
-
-        for epoch in 0..self.config.n_epochs {
-            let mut generator_losses = Vec::new();
-            let mut discriminator_losses = Vec::new();
-
-            for batch_idx in 0..n_batches {
-                let start_idx = batch_idx * batch_size;
-                let end_idx = (start_idx + batch_size).min(data.nrows());
-                let current_batch_size = end_idx - start_idx;
-
-                // Get real data batch
-                let real_data = data
-                    .slice(scirs2_core::ndarray::s![start_idx..end_idx, ..])
-                    .to_owned();
-
-                // Train discriminator
-                let d_loss = self.train_discriminator_step(&real_data, current_batch_size)?;
-                discriminator_losses.push(d_loss);
-
-                // Train generator
-                let g_loss = self.train_generator_step(current_batch_size)?;
-                generator_losses.push(g_loss);
-            }
-
-            // Record epoch metrics
-            let avg_g_loss = generator_losses.iter().sum::<f64>() / generator_losses.len() as f64;
-            let avg_d_loss =
-                discriminator_losses.iter().sum::<f64>() / discriminator_losses.len() as f64;
-
-            history.generator_losses.push(avg_g_loss);
-            history.discriminator_losses.push(avg_d_loss);
-            history.epochs_completed = epoch + 1;
-
-            // Print progress every 10 epochs
-            if epoch % 10 == 0 {
-                println!(
-                    "Epoch {}: G_loss = {:.4}, D_loss = {:.4}",
-                    epoch, avg_g_loss, avg_d_loss
-                );
-            }
-        }
-
-        Ok(history)
+    /// Train GAN on data.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    /// GAN training requires adversarial backpropagation to update both generator
+    /// and discriminator weights, which is not yet implemented.
+    pub fn fit(&mut self, _data: &Array2<f64>) -> NeuralResult<GANTrainingHistory> {
+        Err(SklearsError::NotImplemented(
+            "GAN training not yet implemented: adversarial backpropagation \
+             for generator and discriminator weight updates is planned for v0.2.0"
+                .to_string(),
+        ))
     }
 
-    /// Train discriminator for one step (simplified)
+    /// Train discriminator for one step.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     fn train_discriminator_step(
         &mut self,
-        real_data: &Array2<f64>,
-        batch_size: usize,
+        _real_data: &Array2<f64>,
+        _batch_size: usize,
     ) -> NeuralResult<f64> {
-        // Generate fake data
-        let noise = self.generate_noise(batch_size)?;
-        let fake_data = self.generate(&noise);
-
-        // Get discriminator predictions
-        let real_pred = self.discriminate(real_data);
-        let fake_pred = self.discriminate(&fake_data);
-
-        // Compute discriminator loss (binary cross entropy)
-        let real_loss = real_pred.iter().map(|&x| -(x.max(1e-7).ln())).sum::<f64>();
-        let fake_loss = fake_pred
-            .iter()
-            .map(|&x| -((1.0 - x).max(1e-7).ln()))
-            .sum::<f64>();
-
-        let total_loss = (real_loss + fake_loss) / (batch_size * 2) as f64;
-
-        // Note: Actual parameter updates would require backpropagation
-        // For now, just return the loss for monitoring
-
-        Ok(total_loss)
+        Err(SklearsError::NotImplemented(
+            "GAN discriminator training step not yet implemented".to_string(),
+        ))
     }
 
-    /// Train generator for one step (simplified)
-    fn train_generator_step(&mut self, batch_size: usize) -> NeuralResult<f64> {
-        // Generate fake data
-        let noise = self.generate_noise(batch_size)?;
-        let fake_data = self.generate(&noise);
-
-        // Get discriminator prediction on fake data
-        let fake_pred = self.discriminate(&fake_data);
-
-        // Generator wants discriminator to classify fake as real
-        let generator_loss =
-            fake_pred.iter().map(|&x| -(x.max(1e-7).ln())).sum::<f64>() / batch_size as f64;
-
-        // Note: Actual parameter updates would require backpropagation
-        Ok(generator_loss)
+    /// Train generator for one step.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    fn train_generator_step(&mut self, _batch_size: usize) -> NeuralResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "GAN generator training step not yet implemented".to_string(),
+        ))
     }
 
     /// Generate samples from trained GAN
@@ -450,7 +395,7 @@ mod tests {
     #[ignore]
     fn test_simple_network_forward() {
         let network = SimpleNetwork::new(vec![2, 3, 1]);
-        let input = Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).unwrap();
+        let input = Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).expect("array shape mismatch");
         let output = network.forward(&input, false);
         assert_eq!(output.shape(), &[1, 1]);
     }
@@ -468,7 +413,7 @@ mod tests {
     fn test_noise_generation() {
         let config = GANConfig::default().latent_dim(100);
         let gan = SimpleGAN::new(config, 784, 28);
-        let noise = gan.generate_noise(32).unwrap();
+        let noise = gan.generate_noise(32).expect("operation should succeed");
 
         assert_eq!(noise.shape(), &[32, 100]);
     }
@@ -478,7 +423,7 @@ mod tests {
     fn test_generation() {
         let config = GANConfig::default();
         let gan = SimpleGAN::new(config, 10, 5);
-        let noise = gan.generate_noise(5).unwrap();
+        let noise = gan.generate_noise(5).expect("operation should succeed");
         let generated = gan.generate(&noise);
 
         assert_eq!(generated.shape(), &[5, 10]);
@@ -518,7 +463,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_utility_functions() {
-        let samples = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let samples = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array shape mismatch");
         let diversity = utils::evaluate_diversity(&samples);
         assert!(diversity > 0.0);
 

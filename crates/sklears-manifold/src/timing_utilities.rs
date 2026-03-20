@@ -685,7 +685,12 @@ mod tests {
         let total = timer.stop();
 
         assert!(total >= Duration::from_millis(20));
-        assert!(timer.duration_to_checkpoint("checkpoint1").unwrap() >= Duration::from_millis(10));
+        assert!(
+            timer
+                .duration_to_checkpoint("checkpoint1")
+                .expect("operation should succeed")
+                >= Duration::from_millis(10)
+        );
     }
 
     #[test]
@@ -723,11 +728,13 @@ mod tests {
         analyzer.add_report("fast_algo", report1);
         analyzer.add_report("slow_algo", report2);
 
-        let (fastest_name, _) = analyzer.fastest_algorithm().unwrap();
+        let (fastest_name, _) = analyzer
+            .fastest_algorithm()
+            .expect("operation should succeed");
         assert_eq!(fastest_name, "fast_algo");
 
         let speedups = analyzer.speedup_vs_baseline("slow_algo");
-        assert!(speedups.get("fast_algo").unwrap() > &1.5);
+        assert!(speedups.get("fast_algo").expect("operation should succeed") > &1.5);
     }
 
     #[test]
@@ -738,7 +745,7 @@ mod tests {
         thread::sleep(Duration::from_millis(10));
         phase_timer.checkpoint("middle");
         thread::sleep(Duration::from_millis(10));
-        let duration = phase_timer.end_phase().unwrap();
+        let duration = phase_timer.end_phase().expect("operation should succeed");
 
         assert!(duration >= Duration::from_millis(20));
 

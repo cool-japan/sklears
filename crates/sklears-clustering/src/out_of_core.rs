@@ -361,12 +361,19 @@ impl OutOfCoreKMeans<Trained> {
     fn update_clusters(&mut self, x: &ArrayView2<Float>) -> Result<()> {
         if self.cluster_summaries.is_some() && self.centroids.is_some() {
             // Get current centroids for assignment
-            let current_centroids = self.centroids.as_ref().unwrap().clone();
+            let current_centroids = self
+                .centroids
+                .as_ref()
+                .expect("operation should succeed")
+                .clone();
 
             // Assign points to clusters and update summaries
             for sample in x.outer_iter() {
                 let cluster_idx = self.assign_to_cluster(&sample, &current_centroids)?;
-                self.cluster_summaries.as_mut().unwrap()[cluster_idx].update(&sample);
+                self.cluster_summaries
+                    .as_mut()
+                    .expect("operation should succeed")[cluster_idx]
+                    .update(&sample);
             }
 
             // Update centroids from summaries
@@ -692,17 +699,17 @@ mod tests {
             .max_memory_mb(1)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.centroids().is_ok());
         assert!(model.inertia().is_ok());
         assert!(model.n_iter().is_ok());
         assert!(model.n_samples_seen().is_ok());
 
-        let centroids = model.centroids().unwrap();
+        let centroids = model.centroids().expect("operation should succeed");
         assert_eq!(centroids.nrows(), 2);
         assert_eq!(centroids.ncols(), 2);
-        assert_eq!(model.n_samples_seen().unwrap(), 4);
+        assert_eq!(model.n_samples_seen().expect("operation should succeed"), 4);
     }
 
     #[test]
@@ -715,13 +722,15 @@ mod tests {
             .n_clusters(2)
             .random_state(42)
             .fit(&x1.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Process second chunk
-        model.partial_fit(&x2.view()).unwrap();
+        model
+            .partial_fit(&x2.view())
+            .expect("operation should succeed");
 
-        assert_eq!(model.n_samples_seen().unwrap(), 4);
-        assert!(model.inertia().unwrap() >= 0.0);
+        assert_eq!(model.n_samples_seen().expect("operation should succeed"), 4);
+        assert!(model.inertia().expect("operation should succeed") >= 0.0);
     }
 
     #[test]
@@ -733,10 +742,12 @@ mod tests {
             .n_clusters(2)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![[0.1, 0.1], [0.9, 0.9],];
-        let predictions = model.predict(&test_data.view()).unwrap();
+        let predictions = model
+            .predict(&test_data.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
     }
@@ -746,7 +757,7 @@ mod tests {
         let x = array![[0.0, 0.0], [0.1, 0.1], [1.0, 1.0], [1.1, 1.1],];
         let y = Array1::zeros(4);
 
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir().expect("operation should succeed");
         let checkpoint_path = temp_dir.path().join("test_checkpoint.json");
 
         let model = OutOfCoreKMeans::new()
@@ -755,10 +766,12 @@ mod tests {
             .temp_dir(temp_dir.path().to_string_lossy().to_string())
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Save checkpoint
-        model.save_checkpoint(&checkpoint_path).unwrap();
+        model
+            .save_checkpoint(&checkpoint_path)
+            .expect("operation should succeed");
 
         // Load checkpoint into new model
         let mut new_model = OutOfCoreKMeans::new()
@@ -767,16 +780,23 @@ mod tests {
             .temp_dir(temp_dir.path().to_string_lossy().to_string())
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        new_model.load_checkpoint(&checkpoint_path).unwrap();
+        new_model
+            .load_checkpoint(&checkpoint_path)
+            .expect("operation should succeed");
 
         // Verify loaded model has same state
         assert_eq!(
-            model.n_samples_seen().unwrap(),
-            new_model.n_samples_seen().unwrap()
+            model.n_samples_seen().expect("operation should succeed"),
+            new_model
+                .n_samples_seen()
+                .expect("operation should succeed")
         );
-        assert_relative_eq!(model.inertia().unwrap(), new_model.inertia().unwrap());
+        assert_relative_eq!(
+            model.inertia().expect("operation should succeed"),
+            new_model.inertia().expect("operation should succeed")
+        );
     }
 
     #[test]

@@ -1692,7 +1692,7 @@ impl DistributedMetricsComputer {
 
 impl Default for DistributedMetricsComputer {
     fn default() -> Self {
-        Self::new().unwrap()
+        Self::new().expect("operation should succeed")
     }
 }
 
@@ -1738,14 +1738,14 @@ mod tests {
 
     #[test]
     fn test_thread_based_classification() {
-        let computer = DistributedMetricsComputer::new().unwrap();
+        let computer = DistributedMetricsComputer::new().expect("operation should succeed");
         let y_true = array![0, 1, 2, 0, 1, 2, 1, 0, 2];
         let y_pred = array![0, 2, 1, 0, 0, 1, 1, 2, 2];
 
         let results = computer
             .strategy(ComputeStrategy::DataParallel)
             .compute_classification_metrics(&y_true.view(), &y_pred.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(results.metrics.contains_key("accuracy"));
         assert!(results.metrics.contains_key("precision"));
@@ -1757,14 +1757,14 @@ mod tests {
 
     #[test]
     fn test_thread_based_regression() {
-        let computer = DistributedMetricsComputer::new().unwrap();
+        let computer = DistributedMetricsComputer::new().expect("operation should succeed");
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y_pred = array![1.1, 2.1, 2.9, 3.9, 5.1];
 
         let results = computer
             .strategy(ComputeStrategy::DataParallel)
             .compute_regression_metrics(&y_true.view(), &y_pred.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(results.metrics.contains_key("mae"));
         assert!(results.metrics.contains_key("mse"));
@@ -1775,7 +1775,7 @@ mod tests {
 
     #[test]
     fn test_load_balance_calculation() {
-        let computer = DistributedMetricsComputer::new().unwrap();
+        let computer = DistributedMetricsComputer::new().expect("operation should succeed");
 
         // Perfect balance
         let mut acc1 = MetricAccumulator::new();
@@ -1800,7 +1800,7 @@ mod tests {
 
     #[test]
     fn test_thread_local_storage() {
-        let computer = DistributedMetricsComputer::new().unwrap();
+        let computer = DistributedMetricsComputer::new().expect("operation should succeed");
 
         // Update thread-local metrics
         computer
@@ -1809,11 +1809,11 @@ mod tests {
                 acc.update_classification(0, 0, 1);
                 Ok(())
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         // Verify thread-local storage contains data
         let storage = computer.get_thread_local_storage();
-        let storage_lock = storage.lock().unwrap();
+        let storage_lock = storage.lock().expect("operation should succeed");
         assert!(!storage_lock.is_empty());
     }
 }

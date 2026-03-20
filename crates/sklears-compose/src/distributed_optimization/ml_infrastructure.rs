@@ -404,7 +404,7 @@ impl ExperienceBuffer {
         match self.sampling_strategy {
             SamplingStrategy::Random => {
                 for _ in 0..batch_size.min(self.experiences.len()) {
-                    let idx = (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() % self.experiences.len() as u128) as usize;
+                    let idx = (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos() % self.experiences.len() as u128) as usize;
                     if let Some(experience) = self.experiences.get(idx) {
                         batch.push(experience.clone());
                     }
@@ -418,7 +418,7 @@ impl ExperienceBuffer {
             }
             _ => {
                 for _ in 0..batch_size.min(self.experiences.len()) {
-                    let idx = (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() % self.experiences.len() as u128) as usize;
+                    let idx = (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos() % self.experiences.len() as u128) as usize;
                     if let Some(experience) = self.experiences.get(idx) {
                         batch.push(experience.clone());
                     }
@@ -489,7 +489,7 @@ impl PolicyUpdater {
     pub fn select_action(&self, state: &[f64]) -> Result<u32, MachineLearningError> {
         match &self.exploration_strategy {
             ExplorationStrategy::EpsilonGreedy(epsilon) => {
-                let random_value = (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos() % 100) as f64 / 100.0;
+                let random_value = (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos() % 100) as f64 / 100.0;
 
                 if random_value < *epsilon {
                     Ok((random_value * 10.0) as u32)
@@ -652,12 +652,12 @@ impl ModelSelector {
         }
 
         let best_model = model_scores.iter()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(k, _)| k.clone())
             .unwrap_or_else(|| candidate_models[0].clone());
 
         let selection_event = SelectionEvent {
-            event_id: format!("selection_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()),
+            event_id: format!("selection_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs()),
             timestamp: SystemTime::now(),
             selected_model: best_model.clone(),
             selection_reason: "Highest cross-validation score".to_string(),
@@ -849,12 +849,12 @@ mod tests {
                 priority: 1.0,
                 importance_weight: 1.0,
             };
-            buffer.add_experience(experience).unwrap();
+            buffer.add_experience(experience).unwrap_or_default();
         }
 
         let batch = buffer.sample_batch(5);
         assert!(batch.is_ok());
-        assert_eq!(batch.unwrap().len(), 5);
+        assert_eq!(batch.unwrap_or_default().len(), 5);
     }
 
     #[test]
@@ -896,7 +896,7 @@ mod tests {
 
         let result = estimator.compute_gradients(&experiences);
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().len(), 10);
+        assert_eq!(result.unwrap_or_default().len(), 10);
     }
 
     #[test]
@@ -918,7 +918,7 @@ mod tests {
                 priority: 1.0,
                 importance_weight: 1.0,
             };
-            buffer.add_experience(experience).unwrap();
+            buffer.add_experience(experience).unwrap_or_default();
         }
 
         assert_eq!(buffer.size(), 5);
@@ -977,7 +977,7 @@ mod tests {
         let mut selector = ModelSelector::new();
 
         let models = vec!["model1".to_string()];
-        selector.select_best_model(&models).unwrap();
+        selector.select_best_model(&models).unwrap_or_default();
 
         assert_eq!(selector.get_selection_history().len(), 1);
 

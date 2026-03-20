@@ -713,7 +713,7 @@ mod tests {
         let results = QuickBenchmark::run_ci_benchmarks();
         assert!(results.is_ok());
 
-        let results = results.unwrap();
+        let results = results.expect("operation should succeed");
         assert!(results.summary.total_tests > 0);
         assert!(results.execution_time > Duration::from_nanos(0));
     }
@@ -729,7 +729,7 @@ mod tests {
         let results = suite.run_comprehensive_benchmarks();
         assert!(results.is_ok());
 
-        let results = results.unwrap();
+        let results = results.expect("operation should succeed");
         assert!(results.summary.total_tests > 0);
         assert!(results.summary.performance_score > 0.0);
     }

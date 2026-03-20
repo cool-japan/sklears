@@ -903,7 +903,8 @@ mod tests {
         let variance = SimdStatsOps::variance_f32(&data);
         assert_relative_eq!(variance, 9.166667, epsilon = 1e-5);
 
-        let (min_val, max_val) = SimdStatsOps::min_max_f32(&data).unwrap();
+        let (min_val, max_val) =
+            SimdStatsOps::min_max_f32(&data).expect("operation should succeed");
         assert_eq!(min_val, 1.0);
         assert_eq!(max_val, 10.0);
     }

@@ -73,13 +73,13 @@ pub fn parallel_mean_absolute_error<
         .zip(y_pred.axis_iter(Axis(0)))
         .with_min_len(config.chunk_size)
         .map(|(t, p)| {
-            let t_val = t.iter().next().unwrap();
-            let p_val = p.iter().next().unwrap();
+            let t_val = t.iter().next().expect("operation should succeed");
+            let p_val = p.iter().next().expect("operation should succeed");
             (*t_val - *p_val).abs()
         })
         .sum::<F>();
 
-    Ok(sum / F::from(len).unwrap())
+    Ok(sum / F::from(len).expect("operation should succeed"))
 }
 
 /// Parallel mean squared error using rayon
@@ -132,14 +132,14 @@ pub fn parallel_mean_squared_error<
         .zip(y_pred.axis_iter(Axis(0)))
         .with_min_len(config.chunk_size)
         .map(|(t, p)| {
-            let t_val = t.iter().next().unwrap();
-            let p_val = p.iter().next().unwrap();
+            let t_val = t.iter().next().expect("operation should succeed");
+            let p_val = p.iter().next().expect("operation should succeed");
             let diff = *t_val - *p_val;
             diff * diff
         })
         .sum::<F>();
 
-    Ok(sum / F::from(len).unwrap())
+    Ok(sum / F::from(len).expect("operation should succeed"))
 }
 
 /// Parallel R² score using rayon
@@ -193,8 +193,8 @@ pub fn parallel_r2_score<
         .zip(y_pred.axis_iter(Axis(0)))
         .with_min_len(config.chunk_size)
         .map(|(t, p)| {
-            let t_val = t.iter().next().unwrap();
-            let p_val = p.iter().next().unwrap();
+            let t_val = t.iter().next().expect("operation should succeed");
+            let p_val = p.iter().next().expect("operation should succeed");
             let diff = *t_val - *p_val;
             let ssr = diff * diff;
             let st = *t_val;
@@ -207,8 +207,9 @@ pub fn parallel_r2_score<
         );
 
     // Calculate R² score
-    let mean_true = sum_true / F::from(len).unwrap();
-    let total_sum_squares = sum_true_squared - F::from(len).unwrap() * mean_true * mean_true;
+    let mean_true = sum_true / F::from(len).expect("operation should succeed");
+    let total_sum_squares =
+        sum_true_squared - F::from(len).expect("operation should succeed") * mean_true * mean_true;
 
     if total_sum_squares == F::zero() {
         return Ok(F::zero()); // Perfect prediction when all true values are the same
@@ -263,8 +264,8 @@ pub fn parallel_cosine_similarity<
         .zip(b.axis_iter(Axis(0)))
         .with_min_len(config.chunk_size)
         .map(|(a_val, b_val)| {
-            let a_v = a_val.iter().next().unwrap();
-            let b_v = b_val.iter().next().unwrap();
+            let a_v = a_val.iter().next().expect("operation should succeed");
+            let b_v = b_val.iter().next().expect("operation should succeed");
             let dot = *a_v * *b_v;
             let norm_a = *a_v * *a_v;
             let norm_b = *b_v * *b_v;
@@ -315,8 +316,8 @@ pub fn parallel_accuracy<T: PartialEq + Copy + Send + Sync>(
         .zip(y_pred.axis_iter(Axis(0)))
         .with_min_len(config.chunk_size)
         .map(|(t, p)| {
-            let t_val = t.iter().next().unwrap();
-            let p_val = p.iter().next().unwrap();
+            let t_val = t.iter().next().expect("operation should succeed");
+            let p_val = p.iter().next().expect("operation should succeed");
             if t_val == p_val {
                 1usize
             } else {

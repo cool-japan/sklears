@@ -75,10 +75,12 @@ fn test_mock_estimator_predictions() {
     let estimator = MockEstimator::new(0.0);
     let x = array![[1.0, 2.0], [0.0, -1.0], [-1.0, 1.0]];
 
-    let predictions = estimator.predict(&x).unwrap();
+    let predictions = estimator.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions.len(), 3);
 
-    let probabilities = estimator.predict_proba(&x).unwrap();
+    let probabilities = estimator
+        .predict_proba(&x)
+        .expect("operation should succeed");
     assert_eq!(probabilities.dim(), (3, 2));
 
     // Check probabilities sum to 1
@@ -93,7 +95,7 @@ fn test_mock_estimator_uncertainty() {
     let estimator = MockEstimator::new(0.2);
     let x = array![[1.0, 2.0], [0.0, 0.0], [-1.0, -1.0]];
 
-    let uncertainty = estimator.uncertainty(&x).unwrap();
+    let uncertainty = estimator.uncertainty(&x).expect("operation should succeed");
     assert_eq!(uncertainty.len(), 3);
 
     // Uncertainty should be non-negative
@@ -116,12 +118,16 @@ fn test_voting_classifier_fit_predict() {
     let x = array![[1.0, 2.0], [2.0, 3.0], [0.0, 1.0], [-1.0, -2.0]];
     let y = array![1.0, 1.0, 0.0, 0.0];
 
-    let fitted_classifier = classifier.fit(&x, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
 
     assert_eq!(fitted_classifier.n_features_in(), 2);
     assert_eq!(fitted_classifier.classes().len(), 2);
 
-    let predictions = fitted_classifier.predict(&x).unwrap();
+    let predictions = fitted_classifier
+        .predict(&x)
+        .expect("prediction should succeed");
     assert_eq!(predictions.len(), 4);
 }
 
@@ -137,7 +143,9 @@ fn test_voting_strategies() {
     let x = array![[1.0, 2.0], [0.0, 0.0]];
     let y = array![1.0, 0.0];
 
-    let fitted_classifier = classifier.fit(&x, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
 
     // Test that prediction doesn't panic for different strategies
     let test_strategies = vec![
@@ -153,7 +161,9 @@ fn test_voting_strategies() {
         test_classifier.add_estimator(Box::new(MockEstimator::new(0.1)));
         test_classifier.add_estimator(Box::new(MockEstimator::new(-0.1)));
 
-        let fitted = test_classifier.fit(&x, &y).unwrap();
+        let fitted = test_classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
         let predictions = fitted.predict(&x);
         assert!(predictions.is_ok());
     }
@@ -172,9 +182,13 @@ fn test_predict_with_confidence() {
     let x = array![[1.0, 2.0], [0.0, 0.0], [-1.0, -1.0]];
     let y = array![1.0, 0.0, 0.0];
 
-    let fitted_classifier = classifier.fit(&x, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
 
-    let (predictions, confidence) = fitted_classifier.predict_with_confidence(&x).unwrap();
+    let (predictions, confidence) = fitted_classifier
+        .predict_with_confidence(&x)
+        .expect("operation should succeed");
 
     assert_eq!(predictions.len(), 3);
     assert_eq!(confidence.len(), 3);
@@ -197,9 +211,13 @@ fn test_predict_proba() {
     let x = array![[1.0, 2.0], [0.0, 0.0]];
     let y = array![1.0, 0.0];
 
-    let fitted_classifier = classifier.fit(&x, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
 
-    let probabilities = fitted_classifier.predict_proba(&x).unwrap();
+    let probabilities = fitted_classifier
+        .predict_proba(&x)
+        .expect("operation should succeed");
 
     assert_eq!(probabilities.dim(), (2, 2));
 
@@ -222,7 +240,9 @@ fn test_update_weights_dynamically() {
     let x = array![[1.0, 2.0], [0.0, 0.0]];
     let y = array![1.0, 0.0];
 
-    let mut fitted_classifier = classifier.fit(&x, &y).unwrap();
+    let mut fitted_classifier = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
 
     let initial_weights: Vec<Float> = fitted_classifier
         .estimators()
@@ -234,7 +254,7 @@ fn test_update_weights_dynamically() {
     let performances = vec![0.9, 0.6];
     fitted_classifier
         .update_weights_dynamically(&performances)
-        .unwrap();
+        .expect("operation should succeed");
 
     let updated_weights: Vec<Float> = fitted_classifier
         .estimators()
@@ -392,7 +412,7 @@ fn test_consensus_voting() {
     let pred3 = array![0.0, 0.0, 0.0, 1.0];
 
     let all_predictions = vec![pred1, pred2, pred3];
-    let result = consensus_voting(&all_predictions, 0.6).unwrap();
+    let result = consensus_voting(&all_predictions, 0.6).expect("operation should succeed");
 
     assert_eq!(result.len(), 4);
     assert_eq!(result[0], 0.0); // Unanimous for 0
@@ -405,8 +425,8 @@ fn test_dynamic_weight_adjustment() {
     let performances = vec![0.9, 0.6, 0.8];
     let learning_rate = 0.1;
 
-    let new_weights =
-        dynamic_weight_adjustment(&current_weights, &performances, learning_rate).unwrap();
+    let new_weights = dynamic_weight_adjustment(&current_weights, &performances, learning_rate)
+        .expect("operation should succeed");
 
     assert_eq!(new_weights.len(), 3);
 
@@ -426,7 +446,8 @@ fn test_temperature_scaled_voting() {
     let all_probabilities = vec![prob1, prob2];
     let temperature = 0.5; // Lower temperature makes distribution more peaked
 
-    let result = temperature_scaled_voting(&all_probabilities, temperature).unwrap();
+    let result = temperature_scaled_voting(&all_probabilities, temperature)
+        .expect("operation should succeed");
 
     assert_eq!(result.dim(), (2, 2));
 
@@ -445,7 +466,7 @@ fn test_rank_based_voting() {
 
     let all_probabilities = vec![prob1, prob2, prob3];
 
-    let result = rank_based_voting(&all_probabilities).unwrap();
+    let result = rank_based_voting(&all_probabilities).expect("operation should succeed");
 
     assert_eq!(result.len(), 2);
 
@@ -465,7 +486,8 @@ fn test_ensemble_diversity_calculation() {
     let estimators = vec![estimator1, estimator2, estimator3];
     let x = array![[1.0, 2.0], [0.0, 0.0], [-1.0, -1.0]];
 
-    let diversity = ensemble_utils::calculate_ensemble_diversity(&estimators, &x).unwrap();
+    let diversity = ensemble_utils::calculate_ensemble_diversity(&estimators, &x)
+        .expect("operation should succeed");
 
     assert!(diversity >= 0.0 && diversity <= 1.0);
 }
@@ -541,8 +563,12 @@ fn test_voting_classifier_properties() {
         let x = array![[1.0, 2.0], [-1.0, -2.0], [0.0, 1.0]];
         let y = array![1.0, 0.0, 1.0];
 
-        let fitted_classifier = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted_classifier.predict(&x).unwrap();
+        let fitted_classifier = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted_classifier
+            .predict(&x)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 3);
 
@@ -567,7 +593,9 @@ fn test_error_handling() {
     let x = array![[1.0, 2.0]];
     let y = array![1.0];
 
-    let fitted = empty_classifier.fit(&x, &y).unwrap();
+    let fitted = empty_classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
     // Prediction should fail with no estimators
     assert!(fitted.predict(&x).is_err());
 }
@@ -580,7 +608,9 @@ fn test_feature_mismatch() {
     let x_train = array![[1.0, 2.0], [0.0, 1.0]];
     let y_train = array![1.0, 0.0];
 
-    let fitted = classifier.fit(&x_train, &y_train).unwrap();
+    let fitted = classifier
+        .fit(&x_train, &y_train)
+        .expect("model fitting should succeed");
 
     // Try to predict with wrong number of features
     let x_wrong = array![[1.0, 2.0, 3.0]]; // 3 features instead of 2
@@ -603,8 +633,10 @@ fn test_large_ensemble() {
     let x = array![[1.0, 2.0], [0.0, 0.0], [-1.0, -1.0], [2.0, 3.0]];
     let y = array![1.0, 0.0, 0.0, 1.0];
 
-    let fitted = classifier.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = classifier
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.estimators().len(), 20);

@@ -190,8 +190,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for GaussianProcessSemiSupe
                 .row(idx)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             final_labels[idx] = classes[class_idx];
         }
@@ -327,8 +327,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = self.state.classes[class_idx];
         }
@@ -561,7 +561,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
             Random::seed(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
             )
         };
@@ -663,8 +663,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
                 .row(idx)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
 
             // Map component to class (simplified)
@@ -946,7 +946,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for BayesianActiveLearning<
         }
 
         // Sort by uncertainty and select top queries
-        uncertainties.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        uncertainties.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         let query_indices: Vec<usize> = uncertainties
             .iter()
             .take(self.n_queries.min(unlabeled_indices.len()))
@@ -1124,7 +1124,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
             Random::seed(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
             )
         };
@@ -1145,7 +1145,9 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
         for _iter in 0..self.max_iter {
             // Update lower levels based on data
             // Simplified: just average the data points
-            let mean = X.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+            let mean = X
+                .mean_axis(scirs2_core::ndarray::Axis(0))
+                .expect("operation should succeed");
             #[allow(clippy::needless_range_loop)]
             for level_idx in 0..self.n_levels {
                 for comp_idx in 0..self.n_components {
@@ -1272,9 +1274,13 @@ mod tests {
             .noise_level(0.1)
             .random_state(42);
 
-        let fitted = gp.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let fitted = gp
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(probas.dim(), (4, 2));
@@ -1302,8 +1308,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = vb.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = vb
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
@@ -1349,7 +1357,9 @@ mod tests {
             .length_scale(1.0);
         let X = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let K = gp.compute_kernel_matrix(&X, &X).unwrap();
+        let K = gp
+            .compute_kernel_matrix(&X, &X)
+            .expect("operation should succeed");
 
         assert_eq!(K.dim(), (2, 2));
         assert!((K[[0, 0]] - 1.0).abs() < 1e-10); // Self-kernel should be 1
@@ -1364,7 +1374,9 @@ mod tests {
         let gp = GaussianProcessSemiSupervised::new().kernel("linear".to_string());
         let X = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let K = gp.compute_kernel_matrix(&X, &X).unwrap();
+        let K = gp
+            .compute_kernel_matrix(&X, &X)
+            .expect("operation should succeed");
 
         assert_eq!(K.dim(), (2, 2));
         assert!((K[[0, 0]] - 5.0).abs() < 1e-10); // 1*1 + 2*2 = 5
@@ -1380,7 +1392,9 @@ mod tests {
             .length_scale(1.0);
         let X = array![[1.0, 1.0]];
 
-        let K = gp.compute_kernel_matrix(&X, &X).unwrap();
+        let K = gp
+            .compute_kernel_matrix(&X, &X)
+            .expect("operation should succeed");
 
         assert_eq!(K.dim(), (1, 1));
         assert!((K[[0, 0]] - 9.0).abs() < 1e-10); // (1 + 1*1 + 1*1)^2 = 3^2 = 9
@@ -1413,8 +1427,10 @@ mod tests {
             .noise_level(0.1)
             .random_state(42);
 
-        let fitted = gp.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = gp
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert_eq!(predictions[0], 0); // Labeled sample should be correct
@@ -1444,8 +1460,10 @@ mod tests {
 
         let bal = BayesianActiveLearning::new().n_queries(2).random_state(42);
 
-        let fitted = bal.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = bal
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
@@ -1480,8 +1498,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = hb.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = hb
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));

@@ -22,7 +22,7 @@
 
 use scirs2_core::error::{CoreError, ErrorContext};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, Rng, RngExt};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -274,7 +274,7 @@ impl RiemannianManifold for StiefelManifold {
     fn random_point(&self) -> Array2<f64> {
         // Generate random matrix and apply QR decomposition
         let random_matrix =
-            Array2::from_shape_simple_fn((self.n, self.p), || thread_rng().gen::<f64>());
+            Array2::from_shape_simple_fn((self.n, self.p), || thread_rng().random::<f64>());
         self.projection(&random_matrix)
     }
 }
@@ -331,7 +331,7 @@ impl RiemannianManifold for GrassmannManifold {
 
     fn random_point(&self) -> Array2<f64> {
         let random_matrix =
-            Array2::from_shape_simple_fn((self.n, self.p), || thread_rng().gen::<f64>());
+            Array2::from_shape_simple_fn((self.n, self.p), || thread_rng().random::<f64>());
         self.projection(&random_matrix)
     }
 }
@@ -387,7 +387,7 @@ impl RiemannianManifold for SPDManifold {
     fn random_point(&self) -> Array2<f64> {
         // Generate random SPD matrix
         let random_matrix =
-            Array2::from_shape_simple_fn((self.n, self.n), || thread_rng().gen::<f64>());
+            Array2::from_shape_simple_fn((self.n, self.n), || thread_rng().random::<f64>());
         let symmetric = (&random_matrix + &random_matrix.t()) / 2.0;
         self.projection(&symmetric)
     }
@@ -694,7 +694,7 @@ mod tests {
     #[test]
     fn test_stiefel_manifold() {
         let manifold = StiefelManifold::new(5, 3);
-        let random_matrix = Array2::from_shape_simple_fn((5, 3), || thread_rng().gen::<f64>());
+        let random_matrix = Array2::from_shape_simple_fn((5, 3), || thread_rng().random::<f64>());
 
         let projected = manifold.projection(&random_matrix);
         assert_eq!(projected.dim(), (5, 3));
@@ -711,7 +711,7 @@ mod tests {
     #[test]
     fn test_grassmann_manifold() {
         let manifold = GrassmannManifold::new(6, 4);
-        let random_matrix = Array2::from_shape_simple_fn((6, 4), || thread_rng().gen::<f64>());
+        let random_matrix = Array2::from_shape_simple_fn((6, 4), || thread_rng().random::<f64>());
 
         let projected = manifold.projection(&random_matrix);
         assert_eq!(projected.dim(), (6, 4));
@@ -723,7 +723,7 @@ mod tests {
     #[test]
     fn test_spd_manifold() {
         let manifold = SPDManifold::new(4);
-        let random_matrix = Array2::from_shape_simple_fn((4, 4), || thread_rng().gen::<f64>());
+        let random_matrix = Array2::from_shape_simple_fn((4, 4), || thread_rng().random::<f64>());
 
         let projected = manifold.projection(&random_matrix);
         assert_eq!(projected.dim(), (4, 4));
@@ -751,10 +751,10 @@ mod tests {
     fn test_cca_objective() {
         let cxx = Array2::eye(4);
         let cyy = Array2::eye(3);
-        let cxy = Array2::from_shape_simple_fn((4, 3), || 0.1 * thread_rng().gen::<f64>());
+        let cxy = Array2::from_shape_simple_fn((4, 3), || 0.1 * thread_rng().random::<f64>());
 
         let objective = CCAObjective::new(cxx, cyy, cxy);
-        let x = Array2::from_shape_simple_fn((4, 2), || thread_rng().gen::<f64>());
+        let x = Array2::from_shape_simple_fn((4, 2), || thread_rng().random::<f64>());
 
         let f_val = objective.evaluate(&x);
         let grad = objective.euclidean_gradient(&x);
@@ -767,7 +767,7 @@ mod tests {
     fn test_riemannian_optimization() {
         let cxx = Array2::eye(5);
         let cyy = Array2::eye(4);
-        let cxy = Array2::from_shape_simple_fn((5, 4), || 0.1 * thread_rng().gen::<f64>());
+        let cxy = Array2::from_shape_simple_fn((5, 4), || 0.1 * thread_rng().random::<f64>());
 
         let objective = CCAObjective::new(cxx, cyy, cxy);
 
@@ -781,13 +781,13 @@ mod tests {
             ..Default::default()
         };
 
-        let optimizer = RiemannianOptimizer::new(config).unwrap();
-        let initial_point = Array2::from_shape_simple_fn((5, 3), || thread_rng().gen::<f64>());
+        let optimizer = RiemannianOptimizer::new(config).expect("operation should succeed");
+        let initial_point = Array2::from_shape_simple_fn((5, 3), || thread_rng().random::<f64>());
 
         let result = optimizer.optimize(&objective, initial_point);
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert_eq!(results.solution.dim(), (5, 3));
         assert_eq!(
             results.objective_history.len(),
@@ -800,8 +800,8 @@ mod tests {
     fn test_inner_product() {
         let manifold = StiefelManifold::new(4, 2);
         let x = manifold.random_point();
-        let u = Array2::from_shape_simple_fn((4, 2), || thread_rng().gen::<f64>());
-        let v = Array2::from_shape_simple_fn((4, 2), || thread_rng().gen::<f64>());
+        let u = Array2::from_shape_simple_fn((4, 2), || thread_rng().random::<f64>());
+        let v = Array2::from_shape_simple_fn((4, 2), || thread_rng().random::<f64>());
 
         let ip1 = manifold.inner_product(&x, &u, &v);
         let ip2 = manifold.inner_product(&x, &v, &u);
@@ -822,7 +822,7 @@ mod tests {
         assert_eq!(projected.dim(), (6, 3));
 
         // Test that tangent space projection works
-        let v = Array2::from_shape_simple_fn((6, 3), || thread_rng().gen::<f64>());
+        let v = Array2::from_shape_simple_fn((6, 3), || thread_rng().random::<f64>());
         let tangent_v = manifold.tangent_projection(&projected, &v);
         assert_eq!(tangent_v.dim(), (6, 3));
 

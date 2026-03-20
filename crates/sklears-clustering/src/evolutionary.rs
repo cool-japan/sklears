@@ -5,7 +5,7 @@
 //! artificial bee colony, and differential evolution.
 
 use scirs2_core::ndarray::{s, Array, Array1, Array2, Axis};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, Untrained};
 use std::f64;
@@ -326,8 +326,8 @@ impl PSOClustering {
             for c in 0..self.n_clusters {
                 for f in 0..n_features {
                     let range = max_vals[f] - min_vals[f];
-                    positions[[p, c, f]] = min_vals[f] + rng.gen::<f64>() * range;
-                    velocities[[p, c, f]] = (rng.gen::<f64>() - 0.5) * range * 0.1;
+                    positions[[p, c, f]] = min_vals[f] + rng.random::<f64>() * range;
+                    velocities[[p, c, f]] = (rng.random::<f64>() - 0.5) * range * 0.1;
                 }
             }
 
@@ -358,8 +358,8 @@ impl PSOClustering {
                 // Update velocity and position for each particle
                 for c in 0..self.n_clusters {
                     for f in 0..n_features {
-                        let r1 = rng.gen::<f64>();
-                        let r2 = rng.gen::<f64>();
+                        let r1 = rng.random::<f64>();
+                        let r2 = rng.random::<f64>();
 
                         let cognitive_component = self.cognitive_coeff
                             * r1
@@ -462,8 +462,8 @@ mod tests {
             .random_seed(42)
             .build();
 
-        let fitted = pso.fit(&data, &()).unwrap();
-        let labels = fitted.predict(&data).unwrap();
+        let fitted = pso.fit(&data, &()).expect("operation should succeed");
+        let labels = fitted.predict(&data).expect("operation should succeed");
 
         assert_eq!(fitted.cluster_centers.nrows(), 2);
         assert_eq!(fitted.cluster_centers.ncols(), 2);
@@ -487,7 +487,7 @@ mod tests {
             .random_seed(42)
             .build();
 
-        let fitted = pso.fit(&data, &()).unwrap();
+        let fitted = pso.fit(&data, &()).expect("operation should succeed");
 
         assert!(fitted.fitness() < 10.0); // Should find good solution
         assert!(fitted.n_iterations() <= 100);

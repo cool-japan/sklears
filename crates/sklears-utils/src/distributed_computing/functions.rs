@@ -80,8 +80,10 @@ mod tests {
         let cluster = DistributedCluster::new(ClusterConfig::default());
         let node = create_test_node("node1");
         let job = create_test_job("job1");
-        cluster.register_node(node).unwrap();
-        let job_id = cluster.submit_job(job).unwrap();
+        cluster
+            .register_node(node)
+            .expect("operation should succeed");
+        let job_id = cluster.submit_job(job).expect("operation should succeed");
         assert_eq!(job_id, "job1");
         assert!(cluster.get_job_status(&job_id).is_some());
     }
@@ -90,8 +92,10 @@ mod tests {
         let cluster = DistributedCluster::new(ClusterConfig::default());
         let node = create_test_node("node1");
         let job = create_test_job("job1");
-        cluster.register_node(node).unwrap();
-        cluster.submit_job(job).unwrap();
+        cluster
+            .register_node(node)
+            .expect("operation should succeed");
+        cluster.submit_job(job).expect("operation should succeed");
         let status = cluster.get_job_status("job1");
         assert!(status.is_some());
     }
@@ -100,18 +104,25 @@ mod tests {
         let cluster = DistributedCluster::new(ClusterConfig::default());
         let node = create_test_node("node1");
         let job = create_test_job("job1");
-        cluster.register_node(node).unwrap();
-        cluster.submit_job(job).unwrap();
+        cluster
+            .register_node(node)
+            .expect("operation should succeed");
+        cluster.submit_job(job).expect("operation should succeed");
         assert!(cluster.cancel_job("job1").is_ok());
         let execution = cluster.get_job_execution("job1");
         assert!(execution.is_some());
-        assert_eq!(execution.unwrap().status, JobStatus::Cancelled);
+        assert_eq!(
+            execution.expect("operation should succeed").status,
+            JobStatus::Cancelled
+        );
     }
     #[test]
     fn test_node_heartbeat() {
         let cluster = DistributedCluster::new(ClusterConfig::default());
         let node = create_test_node("node1");
-        cluster.register_node(node).unwrap();
+        cluster
+            .register_node(node)
+            .expect("operation should succeed");
         let new_metrics = LoadMetrics {
             cpu_usage: 0.8,
             memory_usage: 0.7,
@@ -131,8 +142,12 @@ mod tests {
         let cluster = DistributedCluster::new(ClusterConfig::default());
         let node1 = create_test_node("node1");
         let node2 = create_test_node("node2");
-        cluster.register_node(node1).unwrap();
-        cluster.register_node(node2).unwrap();
+        cluster
+            .register_node(node1)
+            .expect("operation should succeed");
+        cluster
+            .register_node(node2)
+            .expect("operation should succeed");
         let stats = cluster.get_cluster_stats();
         assert_eq!(stats.total_nodes, 2);
         assert_eq!(stats.available_nodes, 2);
@@ -150,7 +165,9 @@ mod tests {
         let job = create_test_job("job1");
         let selected_node = scheduler.find_suitable_node(&job, &nodes);
         assert!(selected_node.is_some());
-        assert!(["node1", "node2"].contains(&selected_node.unwrap().as_str()));
+        assert!(
+            ["node1", "node2"].contains(&selected_node.expect("operation should succeed").as_str())
+        );
     }
     #[test]
     fn test_load_balancer() {
@@ -166,7 +183,9 @@ mod tests {
         assert!(fault_detector.handle_failure("node1").is_ok());
         assert!(!fault_detector.is_problematic("node1"));
         for _ in 0..4 {
-            fault_detector.handle_failure("node1").unwrap();
+            fault_detector
+                .handle_failure("node1")
+                .expect("operation should succeed");
         }
         assert!(fault_detector.is_problematic("node1"));
     }
@@ -175,8 +194,10 @@ mod tests {
         let cluster = DistributedCluster::new(ClusterConfig::default());
         let node = create_test_node("node1");
         let job = create_test_job("job1");
-        cluster.register_node(node).unwrap();
-        cluster.submit_job(job).unwrap();
+        cluster
+            .register_node(node)
+            .expect("operation should succeed");
+        cluster.submit_job(job).expect("operation should succeed");
         assert!(cluster.handle_node_failure("node1").is_ok());
         let execution = cluster.get_job_execution("job1");
         if let Some(exec) = execution {
@@ -201,14 +222,16 @@ mod tests {
     fn test_job_priorities() {
         let cluster = DistributedCluster::new(ClusterConfig::default());
         let node = create_test_node("node1");
-        cluster.register_node(node).unwrap();
+        cluster
+            .register_node(node)
+            .expect("operation should succeed");
         let mut job1 = create_test_job("job1");
         job1.priority = JobPriority::Low;
         let mut job2 = create_test_job("job2");
         job2.priority = JobPriority::High;
-        cluster.submit_job(job1).unwrap();
-        cluster.submit_job(job2).unwrap();
-        let queue = cluster.job_queue.lock().unwrap();
+        cluster.submit_job(job1).expect("operation should succeed");
+        cluster.submit_job(job2).expect("operation should succeed");
+        let queue = cluster.job_queue.lock().expect("operation should succeed");
         if !queue.is_empty() {
             assert_eq!(queue[0].priority, JobPriority::High);
         }
@@ -226,26 +249,35 @@ mod tests {
             priority: MessagePriority::Normal,
         };
         assert!(mps.send_message(message.clone()).is_err());
-        mps.routing_table.write().unwrap().insert(
-            "node2".to_string(),
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-        );
+        mps.routing_table
+            .write()
+            .expect("operation should succeed")
+            .insert(
+                "node2".to_string(),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+            );
         assert!(mps.send_message(message).is_ok());
     }
     #[test]
     fn test_message_broadcasting() {
         let mps = MessagePassingSystem::new("node1".to_string());
-        mps.routing_table.write().unwrap().insert(
-            "node2".to_string(),
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
-        );
-        mps.routing_table.write().unwrap().insert(
-            "node3".to_string(),
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8082),
-        );
+        mps.routing_table
+            .write()
+            .expect("operation should succeed")
+            .insert(
+                "node2".to_string(),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8081),
+            );
+        mps.routing_table
+            .write()
+            .expect("operation should succeed")
+            .insert(
+                "node3".to_string(),
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8082),
+            );
         let data = vec![5, 6, 7, 8];
         assert!(mps.broadcast_message(MessageType::Heartbeat, data).is_ok());
-        let queue = mps.message_queue.lock().unwrap();
+        let queue = mps.message_queue.lock().expect("operation should succeed");
         assert_eq!(queue.len(), 2);
     }
     #[test]
@@ -267,7 +299,7 @@ mod tests {
             timestamp: Instant::now(),
             priority: MessagePriority::Normal,
         };
-        let response = handler.handle(&message).unwrap();
+        let response = handler.handle(&message).expect("operation should succeed");
         assert!(response.success);
         assert_eq!(response.message_id, "test_msg");
     }
@@ -351,7 +383,9 @@ mod tests {
         nodes.insert("node1".to_string(), node1);
         nodes.insert("node2".to_string(), node2);
         let jobs = vec![create_test_job("job1"), create_test_job("job2")];
-        let decisions = scheduler.gang_schedule(&jobs, &nodes).unwrap();
+        let decisions = scheduler
+            .gang_schedule(&jobs, &nodes)
+            .expect("operation should succeed");
         assert_eq!(decisions.len(), jobs.len());
         for decision in &decisions {
             assert!(nodes.contains_key(&decision.node_id));
@@ -365,7 +399,9 @@ mod tests {
         let node1 = create_test_node("node1");
         nodes.insert("node1".to_string(), node1);
         let waiting_jobs = vec![create_test_job("waiting_job")];
-        let decisions = scheduler.backfill_schedule(&waiting_jobs, &nodes).unwrap();
+        let decisions = scheduler
+            .backfill_schedule(&waiting_jobs, &nodes)
+            .expect("operation should succeed");
         assert_eq!(decisions.len(), 1);
         assert_eq!(decisions[0].job_id, "waiting_job");
     }
@@ -398,9 +434,11 @@ mod tests {
         };
         let checkpoint_id = checkpoint_mgr
             .create_checkpoint("job1", job_state.clone())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(!checkpoint_id.is_empty());
-        let restored_state = checkpoint_mgr.restore_checkpoint(&checkpoint_id).unwrap();
+        let restored_state = checkpoint_mgr
+            .restore_checkpoint(&checkpoint_id)
+            .expect("operation should succeed");
         assert_eq!(restored_state.progress, 0.5);
         assert_eq!(restored_state.runtime_state, vec![1, 2, 3, 4]);
         let stats = checkpoint_mgr.get_checkpoint_stats();
@@ -417,8 +455,10 @@ mod tests {
         };
         checkpoint_mgr
             .create_checkpoint("job1", job_state.clone())
-            .unwrap();
-        checkpoint_mgr.create_checkpoint("job2", job_state).unwrap();
+            .expect("operation should succeed");
+        checkpoint_mgr
+            .create_checkpoint("job2", job_state)
+            .expect("operation should succeed");
         assert_eq!(checkpoint_mgr.checkpoint_storage.len(), 2);
         checkpoint_mgr.cleanup_old_checkpoints(Duration::from_secs(0));
         assert_eq!(checkpoint_mgr.checkpoint_storage.len(), 0);

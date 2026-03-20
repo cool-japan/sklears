@@ -346,7 +346,7 @@ impl MultiTargetRegressionTree<Untrained> {
             // Get unique feature values
             let mut feature_values: Vec<Float> =
                 indices.iter().map(|&idx| X[[idx, feature_idx]]).collect();
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             feature_values.dedup();
 
             for i in 0..feature_values.len().saturating_sub(1) {
@@ -1384,7 +1384,7 @@ pub fn build_classification_tree(
 
     // Check stopping criteria
     let should_stop = n_samples < min_samples_split
-        || (max_depth.is_some() && depth >= max_depth.unwrap())
+        || (max_depth.is_some() && depth >= max_depth.expect("operation should succeed"))
         || current_impurity == 0.0;
 
     if should_stop {
@@ -1411,7 +1411,7 @@ pub fn build_classification_tree(
     for feature_idx in 0..X.ncols() {
         // Get unique values for this feature in current samples
         let mut feature_values: Vec<Float> = indices.iter().map(|&i| X[[i, feature_idx]]).collect();
-        feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         feature_values.dedup();
 
         // Try splits between consecutive unique values
@@ -1464,7 +1464,8 @@ pub fn build_classification_tree(
     }
 
     // Update feature importance
-    feature_importances[best_feature.unwrap()] += best_impurity_reduction * n_samples as Float;
+    feature_importances[best_feature.expect("sampling should succeed")] +=
+        best_impurity_reduction * n_samples as Float;
 
     // Recursively build left and right subtrees
     let left_child = build_classification_tree(
@@ -1584,16 +1585,23 @@ pub fn predict_classification_sample(
     sample: &ArrayView1<Float>,
 ) -> Array1<i32> {
     if node.is_leaf {
-        return node.prediction.as_ref().unwrap().clone();
+        return node
+            .prediction
+            .as_ref()
+            .expect("operation should succeed")
+            .clone();
     }
 
-    let feature_value = sample[node.feature_idx.unwrap()];
-    let threshold = node.threshold.unwrap();
+    let feature_value = sample[node.feature_idx.expect("sampling should succeed")];
+    let threshold = node.threshold.expect("operation should succeed");
 
     if feature_value <= threshold {
-        predict_classification_sample(node.left.as_ref().unwrap(), sample)
+        predict_classification_sample(node.left.as_ref().expect("sampling should succeed"), sample)
     } else {
-        predict_classification_sample(node.right.as_ref().unwrap(), sample)
+        predict_classification_sample(
+            node.right.as_ref().expect("sampling should succeed"),
+            sample,
+        )
     }
 }
 
@@ -1609,26 +1617,28 @@ pub fn predict_classification_probabilities(
             let n_classes = classes_per_target[target_idx].len();
             let mut target_probs = Array1::<Float>::zeros(n_classes);
             for class_idx in 0..n_classes {
-                target_probs[class_idx] =
-                    node.probabilities.as_ref().unwrap()[[target_idx, class_idx]];
+                target_probs[class_idx] = node
+                    .probabilities
+                    .as_ref()
+                    .expect("operation should succeed")[[target_idx, class_idx]];
             }
             result.push(target_probs);
         }
         return result;
     }
 
-    let feature_value = sample[node.feature_idx.unwrap()];
-    let threshold = node.threshold.unwrap();
+    let feature_value = sample[node.feature_idx.expect("sampling should succeed")];
+    let threshold = node.threshold.expect("operation should succeed");
 
     if feature_value <= threshold {
         predict_classification_probabilities(
-            node.left.as_ref().unwrap(),
+            node.left.as_ref().expect("operation should succeed"),
             sample,
             classes_per_target,
         )
     } else {
         predict_classification_probabilities(
-            node.right.as_ref().unwrap(),
+            node.right.as_ref().expect("operation should succeed"),
             sample,
             classes_per_target,
         )

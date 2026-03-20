@@ -231,7 +231,11 @@ impl Fit<ArrayView2<'_, f64>, ()> for ICACovariance {
         }
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let mut x_centered = x.to_owned();
         for mut row in x_centered.axis_iter_mut(Axis(0)) {
             row -= &mean;
@@ -362,7 +366,8 @@ impl ICACovariance {
                     .zip(eigenvectors.axis_iter(Axis(1)))
                     .map(|(&val, vec)| (val.re, vec.mapv(|x| x.re)))
                     .collect();
-                eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+                eigen_pairs
+                    .sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
                 let eigenvals: Array1<f64> = eigen_pairs
                     .iter()
@@ -465,8 +470,12 @@ impl ICACovariance {
                 let (g, g_prime) = self.apply_contrast_function(&s);
 
                 // FastICA update rule
-                let eg = g.mean().unwrap();
-                let eg_prime = g_prime.mean().unwrap();
+                let eg = g
+                    .mean()
+                    .expect("mean computation should succeed for non-empty array");
+                let eg_prime = g_prime
+                    .mean()
+                    .expect("mean computation should succeed for non-empty array");
 
                 let w_new = (x.t().dot(&g) / n_samples as f64) - (w.row(i).to_owned() * eg_prime);
                 w.row_mut(i).assign(&w_new);
@@ -610,9 +619,29 @@ impl ICACovariance {
         let mut kurtosis = Array1::zeros(components.nrows());
 
         for (i, component) in components.axis_iter(Axis(0)).enumerate() {
-            let mean = component.mean().unwrap();
-            let var = component.mapv(|x| (x - mean).powi(2)).mean().unwrap();
-            let kurt = component.mapv(|x| (x - mean).powi(4)).mean().unwrap() / (var * var) - 3.0;
+            let mean = component.mean().ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
+            let var = component
+                .mapv(|x| (x - mean).powi(2))
+                .mean()
+                .ok_or_else(|| {
+                    SklearsError::NumericalError(
+                        "mean computation should succeed for non-empty array".into(),
+                    )
+                })?;
+            let kurt = component
+                .mapv(|x| (x - mean).powi(4))
+                .mean()
+                .ok_or_else(|| {
+                    SklearsError::NumericalError(
+                        "mean computation should succeed for non-empty array".into(),
+                    )
+                })?
+                / (var * var)
+                - 3.0;
             kurtosis[i] = kurt;
         }
 
@@ -625,16 +654,24 @@ impl ICACovariance {
 
         for (i, component) in components.axis_iter(Axis(0)).enumerate() {
             // Normalize component
-            let mean = component.mean().unwrap();
+            let mean = component.mean().ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             let std = component
                 .mapv(|x| (x - mean).powi(2))
                 .mean()
-                .unwrap()
+                .ok_or_else(|| SklearsError::NumericalError("mean failed".into()))?
                 .sqrt();
             let normalized = component.mapv(|x| (x - mean) / std);
 
             // Approximate negentropy using tanh function
-            let tanh_mean = normalized.mapv(|x| x.tanh()).mean().unwrap();
+            let tanh_mean = normalized.mapv(|x| x.tanh()).mean().ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             let gaussian_tanh_mean = 0.0; // E[tanh(v)] where v ~ N(0,1) ≈ 0
 
             negentropy[i] = (tanh_mean - gaussian_tanh_mean).powi(2);
@@ -770,7 +807,9 @@ mod tests {
             .n_components(2)
             .algorithm(ICAAlgorithm::FastICA);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert_eq!(fitted.get_unmixing_matrix().dim(), (2, 2));
@@ -779,11 +818,15 @@ mod tests {
         assert_eq!(fitted.get_n_components(), 2);
 
         // Test transform
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("transform should succeed");
         assert_eq!(transformed.dim(), (5, 2));
 
         // Test inverse transform
-        let reconstructed = fitted.inverse_transform(&transformed.view()).unwrap();
+        let reconstructed = fitted
+            .inverse_transform(&transformed.view())
+            .expect("operation should succeed");
         assert_eq!(reconstructed.dim(), (5, 2));
     }
 
@@ -802,14 +845,14 @@ mod tests {
         let ica_fast = ICACovariance::new()
             .algorithm(ICAAlgorithm::FastICA)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(matches!(ica_fast.get_algorithm(), ICAAlgorithm::FastICA));
 
         // Test Extended Infomax
         let ica_infomax = ICACovariance::new()
             .algorithm(ICAAlgorithm::ExtendedInfomax)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(matches!(
             ica_infomax.get_algorithm(),
             ICAAlgorithm::ExtendedInfomax
@@ -822,12 +865,16 @@ mod tests {
 
         let estimator = ICACovariance::new().contrast_function(ContrastFunction::Logcosh);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.get_n_components(), 2);
 
         let estimator2 = ICACovariance::new().contrast_function(ContrastFunction::Exp);
 
-        let fitted2 = estimator2.fit(&x.view(), &()).unwrap();
+        let fitted2 = estimator2
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted2.get_n_components(), 2);
     }
 
@@ -845,14 +892,14 @@ mod tests {
         let ica_pca = ICACovariance::new()
             .whiten_method(WhiteningMethod::PCA)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(ica_pca.get_components().dim(), (5, 3));
 
         // Test ZCA whitening
         let ica_zca = ICACovariance::new()
             .whiten_method(WhiteningMethod::ZCA)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(ica_zca.get_components().dim(), (5, 3));
     }
 
@@ -868,7 +915,9 @@ mod tests {
             [3.5, 0.5]
         ];
 
-        let fitted = ICACovariance::new().fit(&x.view(), &()).unwrap();
+        let fitted = ICACovariance::new()
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_kurtosis().len(), 2);
         assert_eq!(fitted.get_negentropy().len(), 2);
@@ -882,7 +931,9 @@ mod tests {
 
         let estimator = ICACovariance::new().whiten(false);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
     }
 }

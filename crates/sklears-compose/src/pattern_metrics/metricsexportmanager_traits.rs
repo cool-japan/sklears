@@ -15,7 +15,7 @@ impl Default for MetricsExportManager {
         Self {
             manager_id: format!(
                 "export_mgr_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap().as_millis()
+                .unwrap_or_default().as_millis()
             ),
             export_configurations: HashMap::new(),
             export_schedules: HashMap::new(),

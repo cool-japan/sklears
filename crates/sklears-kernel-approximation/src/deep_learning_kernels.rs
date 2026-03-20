@@ -288,7 +288,7 @@ impl NeuralTangentKernel<Untrained> {
         let mut kernel_deflated = kernel.clone();
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         for i in 0..k {
             // Random initialization
@@ -371,7 +371,7 @@ impl Fit<Array2<Float>, ()> for NeuralTangentKernel<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for NeuralTangentKernel<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(SklearsError::InvalidInput(format!(
@@ -403,7 +403,7 @@ impl Transform<Array2<Float>, Array2<Float>> for NeuralTangentKernel<Trained> {
 impl NeuralTangentKernel<Trained> {
     /// Get the training data
     pub fn x_train(&self) -> &Array2<Float> {
-        self.x_train.as_ref().unwrap()
+        self.x_train.as_ref().expect("operation should succeed")
     }
 
     /// Get the eigenvectors
@@ -545,7 +545,7 @@ impl Fit<Array2<Float>, ()> for DeepKernelLearning<Untrained> {
         }
 
         let mut rng = thread_rng();
-        let normal_dist = Normal::new(0.0, 1.0).unwrap();
+        let normal_dist = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         // Initialize feature extraction layers with random weights
         let mut layer_weights = Vec::new();
@@ -571,7 +571,11 @@ impl Fit<Array2<Float>, ()> for DeepKernelLearning<Untrained> {
         let final_features = if self.config.feature_layers.is_empty() {
             x.ncols()
         } else {
-            *self.config.feature_layers.last().unwrap()
+            *self
+                .config
+                .feature_layers
+                .last()
+                .expect("operation should succeed")
         };
 
         let random_weights =
@@ -579,7 +583,7 @@ impl Fit<Array2<Float>, ()> for DeepKernelLearning<Untrained> {
                 rng.sample(normal_dist) * (2.0 * self.config.gamma).sqrt()
             });
 
-        let uniform_dist = Uniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform_dist = Uniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let random_offset =
             Array1::from_shape_fn(self.config.n_components, |_| rng.sample(uniform_dist));
 
@@ -598,8 +602,14 @@ impl DeepKernelLearning<Trained> {
     /// Apply feature extraction layers
     fn extract_features(&self, x: &Array2<Float>) -> Array2<Float> {
         let mut features = x.clone();
-        let layer_weights = self.layer_weights.as_ref().unwrap();
-        let layer_biases = self.layer_biases.as_ref().unwrap();
+        let layer_weights = self
+            .layer_weights
+            .as_ref()
+            .expect("operation should succeed");
+        let layer_biases = self
+            .layer_biases
+            .as_ref()
+            .expect("operation should succeed");
 
         for (weights, biases) in layer_weights.iter().zip(layer_biases.iter()) {
             // Linear transformation
@@ -626,8 +636,14 @@ impl Transform<Array2<Float>, Array2<Float>> for DeepKernelLearning<Trained> {
         let deep_features = self.extract_features(x);
 
         // Apply random Fourier features to deep features
-        let random_weights = self.random_weights.as_ref().unwrap();
-        let random_offset = self.random_offset.as_ref().unwrap();
+        let random_weights = self
+            .random_weights
+            .as_ref()
+            .expect("operation should succeed");
+        let random_offset = self
+            .random_offset
+            .as_ref()
+            .expect("operation should succeed");
 
         let projection = deep_features.dot(random_weights);
 
@@ -648,22 +664,30 @@ impl Transform<Array2<Float>, Array2<Float>> for DeepKernelLearning<Trained> {
 impl DeepKernelLearning<Trained> {
     /// Get the layer weights
     pub fn layer_weights(&self) -> &Vec<Array2<Float>> {
-        self.layer_weights.as_ref().unwrap()
+        self.layer_weights
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the layer biases
     pub fn layer_biases(&self) -> &Vec<Array1<Float>> {
-        self.layer_biases.as_ref().unwrap()
+        self.layer_biases
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the random weights
     pub fn random_weights(&self) -> &Array2<Float> {
-        self.random_weights.as_ref().unwrap()
+        self.random_weights
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the random offset
     pub fn random_offset(&self) -> &Array1<Float> {
-        self.random_offset.as_ref().unwrap()
+        self.random_offset
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -762,7 +786,7 @@ impl InfiniteWidthKernel<Untrained> {
         let mut kernel_deflated = kernel.clone();
 
         let mut rng = thread_rng();
-        let normal_dist = Normal::new(0.0, 1.0).unwrap();
+        let normal_dist = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         for i in 0..k {
             let mut v = Array1::from_shape_fn(n, |_| rng.sample(normal_dist));
@@ -834,8 +858,11 @@ impl Fit<Array2<Float>, ()> for InfiniteWidthKernel<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for InfiniteWidthKernel<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_train = self.x_train.as_ref().unwrap();
-        let eigenvectors = self.eigenvectors.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let eigenvectors = self
+            .eigenvectors
+            .as_ref()
+            .expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(SklearsError::InvalidInput(format!(
@@ -862,12 +889,14 @@ impl Transform<Array2<Float>, Array2<Float>> for InfiniteWidthKernel<Trained> {
 impl InfiniteWidthKernel<Trained> {
     /// Get the training data
     pub fn x_train(&self) -> &Array2<Float> {
-        self.x_train.as_ref().unwrap()
+        self.x_train.as_ref().expect("operation should succeed")
     }
 
     /// Get the eigenvectors
     pub fn eigenvectors(&self) -> &Array2<Float> {
-        self.eigenvectors.as_ref().unwrap()
+        self.eigenvectors
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -911,8 +940,8 @@ mod tests {
         let ntk = NeuralTangentKernel::new(config);
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let fitted = ntk.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = ntk.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
@@ -931,8 +960,8 @@ mod tests {
         let dkl = DeepKernelLearning::new(config);
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let fitted = dkl.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = dkl.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 50]);
     }
@@ -942,8 +971,8 @@ mod tests {
         let kernel = InfiniteWidthKernel::new(3, Activation::ReLU);
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert!(features.ncols() > 0);
@@ -956,8 +985,8 @@ mod tests {
 
         for act in activations {
             let ntk = NeuralTangentKernel::with_layers(2).activation(act);
-            let fitted = ntk.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = ntk.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 2);
         }
@@ -976,10 +1005,10 @@ mod tests {
         let dkl = DeepKernelLearning::new(config);
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
-        let fitted = dkl.fit(&x, &()).unwrap();
+        let fitted = dkl.fit(&x, &()).expect("operation should succeed");
 
         // Test that features have correct shape
-        let features = fitted.transform(&x).unwrap();
+        let features = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(features.shape(), &[2, 20]);
 
         // Test that all features are finite
@@ -1002,7 +1031,7 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]];
 
-        let fitted = ntk.fit(&x_train, &()).unwrap();
+        let fitted = ntk.fit(&x_train, &()).expect("operation should succeed");
         assert!(fitted.transform(&x_test).is_err());
     }
 }

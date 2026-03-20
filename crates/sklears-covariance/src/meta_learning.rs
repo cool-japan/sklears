@@ -488,7 +488,9 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
     /// Compute empirical covariance matrix
     fn compute_empirical_covariance(&self, x: &ArrayView2<'_, f64>) -> Array2<f64> {
         let (n_samples, n_features) = x.dim();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("mean computation should succeed for non-empty array");
 
         let mut covariance = Array2::zeros((n_features, n_features));
 
@@ -508,7 +510,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
         // Simplified eigenvalue approximation using diagonal elements
         // In practice, would use proper eigenvalue decomposition
         let mut eigenvalues: Vec<f64> = matrix.diag().to_vec();
-        eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
         eigenvalues
     }
 
@@ -538,7 +540,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
 
         for j in 0..n_features {
             let mut column: Vec<f64> = x.column(j).to_vec();
-            column.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            column.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             let q1_idx = n_samples / 4;
             let q3_idx = 3 * n_samples / 4;
@@ -565,7 +567,9 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
     fn estimate_leverage_points(&self, x: &ArrayView2<'_, f64>) -> f64 {
         // Simplified leverage estimation using distance from centroid
         let (n_samples, n_features) = x.dim();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("mean computation should succeed for non-empty array");
 
         let mut high_leverage_count = 0;
         let threshold = 2.0 * n_features as f64 / n_samples as f64;
@@ -730,7 +734,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
         }
 
         // Sort by predicted performance
-        method_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        method_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let top_methods: Vec<CovarianceMethod> = method_scores
             .iter()
@@ -766,7 +770,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
         }
 
         // Use weighted average of rankings from similar datasets
-        similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut method_weights: HashMap<CovarianceMethod, f64> = HashMap::new();
         let mut total_weight = 0.0;
@@ -793,7 +797,7 @@ impl MetaLearningCovariance<MetaLearningUntrained> {
             .map(|(method, score)| (method, score / total_weight.max(1e-12)))
             .collect();
 
-        method_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        method_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let top_methods: Vec<CovarianceMethod> = method_scores
             .iter()
@@ -1218,7 +1222,9 @@ mod tests {
             ])
             .seed(42);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_confidence() >= 0.0 && fitted.get_confidence() <= 1.0);
@@ -1240,7 +1246,9 @@ mod tests {
         ];
 
         let estimator = MetaLearningCovariance::new();
-        let meta_features = estimator.extract_meta_features(&x.view()).unwrap();
+        let meta_features = estimator
+            .extract_meta_features(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(meta_features.n_samples, 5);
         assert_eq!(meta_features.n_features, 3);
@@ -1280,14 +1288,16 @@ mod tests {
         let estimator = MetaLearningCovariance::new();
 
         // Test heuristic selection
-        let (methods, confidence) = estimator.heuristic_selection(&meta_features).unwrap();
+        let (methods, confidence) = estimator
+            .heuristic_selection(&meta_features)
+            .expect("operation should succeed");
         assert!(!methods.is_empty());
         assert!(confidence >= 0.0 && confidence <= 1.0);
 
         // Test learning to rank selection
         let (methods, confidence) = estimator
             .learning_to_rank_selection(&meta_features)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(!methods.is_empty());
         assert!((0.0..=1.0).contains(&confidence));
     }
@@ -1310,7 +1320,9 @@ mod tests {
                 CovarianceMethod::LedoitWolf,
             ]);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_ensemble_weights().is_some());
@@ -1330,7 +1342,9 @@ mod tests {
             .strategy(MetaLearningStrategy::LearningToRank)
             .seed(42);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         let report = fitted.generate_meta_learning_report();
 
         assert!(report.contains("Meta-Learning Covariance Report"));

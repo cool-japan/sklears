@@ -194,7 +194,7 @@ impl HookManager {
     fn read_hooks(
         &self,
     ) -> std::sync::RwLockReadGuard<'_, HashMap<String, Arc<dyn PerformanceHook>>> {
-        self.hooks.read().unwrap()
+        self.hooks.read().expect("operation should succeed")
     }
 
     #[cfg(feature = "no-std")]
@@ -207,7 +207,7 @@ impl HookManager {
     fn write_hooks(
         &self,
     ) -> std::sync::RwLockWriteGuard<'_, HashMap<String, Arc<dyn PerformanceHook>>> {
-        self.hooks.write().unwrap()
+        self.hooks.write().expect("operation should succeed")
     }
 
     #[cfg(feature = "no-std")]
@@ -218,7 +218,7 @@ impl HookManager {
     /// Helper function to handle enabled RwLock read locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn read_enabled(&self) -> std::sync::RwLockReadGuard<'_, bool> {
-        self.enabled.read().unwrap()
+        self.enabled.read().expect("operation should succeed")
     }
 
     #[cfg(feature = "no-std")]
@@ -229,7 +229,7 @@ impl HookManager {
     /// Helper function to handle enabled RwLock write locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn write_enabled(&self) -> std::sync::RwLockWriteGuard<'_, bool> {
-        self.enabled.write().unwrap()
+        self.enabled.write().expect("operation should succeed")
     }
 
     #[cfg(feature = "no-std")]
@@ -240,7 +240,9 @@ impl HookManager {
     /// Helper function to handle event buffer Mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn lock_event_buffer(&self) -> std::sync::MutexGuard<'_, Vec<PerformanceEvent>> {
-        self.event_buffer.lock().unwrap()
+        self.event_buffer
+            .lock()
+            .expect("lock should not be poisoned")
     }
 
     #[cfg(feature = "no-std")]
@@ -527,7 +529,9 @@ pub mod builtin_hooks {
         /// Helper function to handle operation counts RwLock read locking
         #[cfg(not(feature = "no-std"))]
         fn read_counts(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
-            self.operation_counts.read().unwrap()
+            self.operation_counts
+                .read()
+                .expect("operation should succeed")
         }
 
         #[cfg(feature = "no-std")]
@@ -538,7 +542,9 @@ pub mod builtin_hooks {
         /// Helper function to handle operation counts RwLock write locking
         #[cfg(not(feature = "no-std"))]
         fn write_counts(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
-            self.operation_counts.write().unwrap()
+            self.operation_counts
+                .write()
+                .expect("operation should succeed")
         }
 
         #[cfg(feature = "no-std")]
@@ -549,7 +555,9 @@ pub mod builtin_hooks {
         /// Helper function to handle execution time RwLock read locking
         #[cfg(not(feature = "no-std"))]
         fn read_times(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
-            self.total_execution_time.read().unwrap()
+            self.total_execution_time
+                .read()
+                .expect("operation should succeed")
         }
 
         #[cfg(feature = "no-std")]
@@ -560,7 +568,9 @@ pub mod builtin_hooks {
         /// Helper function to handle execution time RwLock write locking
         #[cfg(not(feature = "no-std"))]
         fn write_times(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
-            self.total_execution_time.write().unwrap()
+            self.total_execution_time
+                .write()
+                .expect("operation should succeed")
         }
 
         #[cfg(feature = "no-std")]
@@ -571,7 +581,9 @@ pub mod builtin_hooks {
         /// Helper function to handle elements processed RwLock read locking
         #[cfg(not(feature = "no-std"))]
         fn read_elements(&self) -> std::sync::RwLockReadGuard<'_, HashMap<String, AtomicU64>> {
-            self.total_elements_processed.read().unwrap()
+            self.total_elements_processed
+                .read()
+                .expect("operation should succeed")
         }
 
         #[cfg(feature = "no-std")]
@@ -582,7 +594,9 @@ pub mod builtin_hooks {
         /// Helper function to handle elements processed RwLock write locking
         #[cfg(not(feature = "no-std"))]
         fn write_elements(&self) -> std::sync::RwLockWriteGuard<'_, HashMap<String, AtomicU64>> {
-            self.total_elements_processed.write().unwrap()
+            self.total_elements_processed
+                .write()
+                .expect("operation should succeed")
         }
 
         #[cfg(feature = "no-std")]
@@ -705,7 +719,9 @@ mod tests {
     fn test_event_firing() {
         let manager = HookManager::new();
         let hook = Arc::new(LoggingHook::new("test_hook".to_string()));
-        manager.register_hook(hook).unwrap();
+        manager
+            .register_hook(hook)
+            .expect("operation should succeed");
 
         let event = PerformanceEvent::new(
             "test_operation".to_string(),
@@ -727,7 +743,9 @@ mod tests {
         let stats_hook = Arc::new(StatsHook::new("stats".to_string()));
         let stats_hook_clone = stats_hook.clone();
 
-        manager.register_hook(stats_hook).unwrap();
+        manager
+            .register_hook(stats_hook)
+            .expect("operation should succeed");
 
         // Fire some events
         for i in 0..5 {
@@ -749,7 +767,7 @@ mod tests {
     #[test]
     fn test_global_hooks() {
         let hook = Arc::new(LoggingHook::new("global_test".to_string()));
-        global::register_hook(hook).unwrap();
+        global::register_hook(hook).expect("operation should succeed");
 
         let event = PerformanceEvent::new(
             "global_test_op".to_string(),

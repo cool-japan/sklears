@@ -150,7 +150,7 @@ impl Fit<Array2<Float>, ()> for RBM<Untrained> {
 
         // Initialize weights and biases
         let mut rng = seeded_rng(42);
-        let normal = Normal::new(0.0, 0.01).unwrap();
+        let normal = Normal::new(0.0, 0.01).expect("valid distribution params");
         let mut weights =
             Array2::from_shape_fn((n_features, n_hidden), |_| normal.sample(&mut rng));
         let mut hidden_bias = Array1::zeros(n_hidden);
@@ -348,7 +348,7 @@ impl RBM<Trained> {
 
         // Start from random visible state
         let mut rng = seeded_rng(42);
-        let uniform = Uniform::new(0.0, 1.0).unwrap();
+        let uniform = Uniform::new(0.0, 1.0).expect("valid distribution params");
         let mut v_sample =
             Array2::from_shape_fn((n_samples, n_features), |_| uniform.sample(&mut rng));
 
@@ -364,17 +364,23 @@ impl RBM<Trained> {
 
     /// Get the learned weights
     pub fn weights(&self) -> &Array2<Float> {
-        self.weights_.as_ref().unwrap()
+        self.weights_
+            .as_ref()
+            .expect("weights_ not available - model not fitted")
     }
 
     /// Get the hidden bias
     pub fn hidden_bias(&self) -> &Array1<Float> {
-        self.hidden_bias_.as_ref().unwrap()
+        self.hidden_bias_
+            .as_ref()
+            .expect("hidden_bias_ not available - model not fitted")
     }
 
     /// Get the visible bias
     pub fn visible_bias(&self) -> &Array1<Float> {
-        self.visible_bias_.as_ref().unwrap()
+        self.visible_bias_
+            .as_ref()
+            .expect("visible_bias_ not available - model not fitted")
     }
 }
 
@@ -411,7 +417,7 @@ fn sample_bernoulli(probs: &Array2<Float>) -> Array2<Float> {
 
     for i in 0..shape[0] {
         for j in 0..shape[1] {
-            if rng.gen::<Float>() < probs[[i, j]] {
+            if rng.random::<Float>() < probs[[i, j]] {
                 samples[[i, j]] = 1.0;
             }
         }
@@ -452,10 +458,10 @@ mod tests {
             .learning_rate(0.1)
             .random_state(42);
 
-        let fitted = rbm.fit(&x, &()).unwrap();
+        let fitted = rbm.fit(&x, &()).expect("model fitting should succeed");
 
         // Check that transform works
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("transform should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
 
         // Check that values are probabilities
@@ -474,8 +480,8 @@ mod tests {
             .learning_rate(0.1)
             .random_state(42);
 
-        let fitted = rbm.fit(&x, &()).unwrap();
-        let reconstructed = fitted.reconstruct(&x).unwrap();
+        let fitted = rbm.fit(&x, &()).expect("model fitting should succeed");
+        let reconstructed = fitted.reconstruct(&x).expect("operation should succeed");
 
         assert_eq!(reconstructed.shape(), x.shape());
 
@@ -496,8 +502,8 @@ mod tests {
 
         let rbm = RBM::new().n_hidden(2).n_epochs(20).random_state(42);
 
-        let fitted = rbm.fit(&x, &()).unwrap();
-        let samples = fitted.sample(5, 10).unwrap();
+        let fitted = rbm.fit(&x, &()).expect("model fitting should succeed");
+        let samples = fitted.sample(5, 10).expect("sampling should succeed");
 
         assert_eq!(samples.shape(), &[5, 4]);
 

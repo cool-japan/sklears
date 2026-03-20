@@ -3,7 +3,7 @@
 //! This module provides cross-validation methods that account for spatial
 //! autocorrelation and geographic dependencies in spatial datasets.
 
-use scirs2_core::random::Rng;
+use scirs2_core::RngExt;
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashSet;
 
@@ -162,7 +162,7 @@ impl SpatialCrossValidator {
         // Initialize centroids randomly
         let mut rng = self.get_rng();
         for _i in 0..self.config.n_splits {
-            let idx = rng.gen_range(0..n_samples);
+            let idx = rng.random_range(0..n_samples);
             centroids.push(coordinates[idx]);
         }
 
@@ -198,8 +198,12 @@ impl SpatialCrossValidator {
                     if new_centroids[best_cluster].z.is_none() {
                         new_centroids[best_cluster].z = Some(0.0);
                     }
-                    new_centroids[best_cluster].z =
-                        Some(new_centroids[best_cluster].z.unwrap() + z);
+                    new_centroids[best_cluster].z = Some(
+                        new_centroids[best_cluster]
+                            .z
+                            .expect("operation should succeed")
+                            + z,
+                    );
                 }
                 cluster_counts[best_cluster] += 1;
             }
@@ -587,7 +591,9 @@ mod tests {
             coordinates.push(SpatialCoordinate::new(x, y));
         }
 
-        let splits = cv.split(25, &coordinates).unwrap();
+        let splits = cv
+            .split(25, &coordinates)
+            .expect("operation should succeed");
         assert!(!splits.is_empty(), "Should generate at least one split");
 
         for (train_indices, test_indices) in &splits {
@@ -604,7 +610,7 @@ mod tests {
         let region_labels = vec![0, 0, 1, 1, 2, 2];
         let cv = LeaveOneRegionOut::new(region_labels);
 
-        let splits = cv.split(6).unwrap();
+        let splits = cv.split(6).expect("operation should succeed");
         assert_eq!(splits.len(), 3, "Should have 3 splits for 3 regions");
 
         for (train_indices, test_indices) in &splits {

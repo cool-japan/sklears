@@ -322,7 +322,9 @@ impl TrainedStochasticDiscriminantAnalysis {
         // Compute gradient of loss with respect to weights
         let error = &probabilities - &y_one_hot;
         let grad_weights = x.t().dot(&error) / (n_samples as Float);
-        let grad_bias = error.mean_axis(Axis(0)).unwrap();
+        let grad_bias = error
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
 
         // Add regularization to weight gradients
         let l2_reg = (1.0 - self.config.l1_ratio) * self.config.alpha;
@@ -355,7 +357,10 @@ impl TrainedStochasticDiscriminantAnalysis {
                     optimizer_state.velocity = Some(Array2::zeros(self.weights.dim()));
                 }
 
-                let velocity = optimizer_state.velocity.as_mut().unwrap();
+                let velocity = optimizer_state
+                    .velocity
+                    .as_mut()
+                    .expect("value should be present");
                 *velocity = &*velocity * *momentum + &reg_grad_weights * learning_rate;
                 self.weights -= &*velocity;
                 self.bias -= &(grad_bias * learning_rate);
@@ -373,8 +378,8 @@ impl TrainedStochasticDiscriminantAnalysis {
                     optimizer_state.v = Some(Array2::zeros(self.weights.dim()));
                 }
 
-                let m = optimizer_state.m.as_mut().unwrap();
-                let v = optimizer_state.v.as_mut().unwrap();
+                let m = optimizer_state.m.as_mut().expect("value should be present");
+                let v = optimizer_state.v.as_mut().expect("value should be present");
 
                 // Update biased first moment estimate
                 *m = &*m * *beta1 + &reg_grad_weights * (1.0 - *beta1);
@@ -397,7 +402,7 @@ impl TrainedStochasticDiscriminantAnalysis {
                     optimizer_state.v = Some(Array2::zeros(self.weights.dim()));
                 }
 
-                let v = optimizer_state.v.as_mut().unwrap();
+                let v = optimizer_state.v.as_mut().expect("value should be present");
 
                 // Update accumulated squared gradients
                 *v = &*v * *decay + &reg_grad_weights.mapv(|x| x * x) * (1.0 - *decay);
@@ -717,8 +722,8 @@ impl<D: Data<Elem = Float>> Predict<ArrayBase<D, Ix2>, Array1<i32>>
             let max_idx = score_row
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -771,8 +776,8 @@ mod tests {
         let sda = StochasticDiscriminantAnalysis::new()
             .max_epochs(50)
             .batch_size(2);
-        let fitted = sda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = sda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -786,8 +791,10 @@ mod tests {
         let sda = StochasticDiscriminantAnalysis::new()
             .max_epochs(30)
             .learning_rate(LearningRateSchedule::Constant { rate: 0.1 });
-        let fitted = sda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = sda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -806,8 +813,8 @@ mod tests {
         let sda = StochasticDiscriminantAnalysis::new()
             .optimizer(Optimizer::Momentum { momentum: 0.9 })
             .max_epochs(20);
-        let fitted = sda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = sda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -825,8 +832,8 @@ mod tests {
                 epsilon: 1e-8,
             })
             .max_epochs(20);
-        let fitted = sda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = sda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -838,12 +845,14 @@ mod tests {
         let y1 = array![0, 1]; // Need at least 2 classes for initial training
 
         let sda = StochasticDiscriminantAnalysis::new();
-        let mut fitted = sda.fit(&x1, &y1).unwrap();
+        let mut fitted = sda.fit(&x1, &y1).expect("model fitting should succeed");
 
         // Add more data
         let x2 = array![[3.0, 4.0], [3.1, 4.1]];
         let y2 = array![1, 1];
-        fitted.partial_fit(&x2, &y2).unwrap();
+        fitted
+            .partial_fit(&x2, &y2)
+            .expect("partial fit should succeed");
 
         assert_eq!(fitted.n_samples_seen(), 4);
     }
@@ -856,8 +865,8 @@ mod tests {
         let sda = StochasticDiscriminantAnalysis::new()
             .loss(LossFunction::Hinge)
             .max_epochs(20);
-        let fitted = sda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = sda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -869,7 +878,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let sda = StochasticDiscriminantAnalysis::new().max_epochs(10);
-        let fitted = sda.fit(&x, &y).unwrap();
+        let fitted = sda.fit(&x, &y).expect("model fitting should succeed");
         let history = fitted.training_history();
 
         assert!(history.len() > 0);

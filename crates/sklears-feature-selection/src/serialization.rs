@@ -650,7 +650,7 @@ mod tests {
 
     #[test]
     fn test_feature_list_export() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("features.csv");
 
         let features = vec![0, 5, 10, 15, 20];
@@ -663,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_feature_scores_export() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("scores.csv");
 
         let features = vec![0, 1, 2];
@@ -682,7 +682,7 @@ mod tests {
 
     #[test]
     fn test_config_export_import() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("operation should succeed");
         let file_path = dir.path().join("config.yaml");
 
         let config = SerializableFluentConfig {
@@ -695,8 +695,8 @@ mod tests {
         };
 
         // Test export
-        let yaml = serde_yaml::to_string(&config).unwrap();
-        std::fs::write(&file_path, yaml).unwrap();
+        let yaml = serde_yaml::to_string(&config).expect("operation should succeed");
+        std::fs::write(&file_path, yaml).expect("operation should succeed");
 
         assert!(file_path.exists());
     }

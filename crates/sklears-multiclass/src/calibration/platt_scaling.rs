@@ -385,9 +385,9 @@ mod tests {
         let decision_values = array![1.0, 2.0, -1.0, -2.0];
         let y_true = array![1, 1, 0, 0];
 
-        scaler.fit(&decision_values, &y_true, 100, 1e-6).unwrap();
+        scaler.fit(&decision_values, &y_true, 100, 1e-6).expect("operation should succeed");
 
-        let calibrated = scaler.transform(&decision_values).unwrap();
+        let calibrated = scaler.transform(&decision_values).expect("operation should succeed");
 
         // Check that calibrated probabilities are between 0 and 1
         for &prob in calibrated.iter() {
@@ -420,9 +420,9 @@ mod tests {
         let decision_values = array![1.0, 2.0, 3.0];
         let y_true = array![1, 1, 1]; // Only positive class
 
-        scaler.fit(&decision_values, &y_true, 100, 1e-6).unwrap();
+        scaler.fit(&decision_values, &y_true, 100, 1e-6).expect("operation should succeed");
 
-        let calibrated = scaler.transform(&decision_values).unwrap();
+        let calibrated = scaler.transform(&decision_values).expect("operation should succeed");
 
         // All probabilities should be high for positive-only data
         for &prob in calibrated.iter() {
@@ -442,9 +442,9 @@ mod tests {
         ];
         let y_true = array![0, 1, 2, 0];
 
-        scaler.fit(&probabilities, &y_true, 100, 1e-6).unwrap();
+        scaler.fit(&probabilities, &y_true, 100, 1e-6).expect("operation should succeed");
 
-        let calibrated = scaler.transform(&probabilities).unwrap();
+        let calibrated = scaler.transform(&probabilities).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(calibrated.dim(), (4, 3));
@@ -466,7 +466,7 @@ mod tests {
         let scaler = PlattScaling { a: 1.0, b: 0.0 };
 
         let uncalibrated = array![0.8, 0.2, 0.6, 0.4];
-        let calibrated = scaler.calibrate(&uncalibrated).unwrap();
+        let calibrated = scaler.calibrate(&uncalibrated).expect("operation should succeed");
 
         assert_eq!(calibrated.len(), 4);
         for &prob in calibrated.iter() {

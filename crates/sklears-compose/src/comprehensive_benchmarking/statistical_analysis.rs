@@ -77,7 +77,7 @@ impl StatisticalProcessingEngine {
 
         // Record performance metrics
         {
-            let mut monitor = self.performance_monitor.write().unwrap();
+            let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             monitor.record_analysis_operation(
                 analysis_config.analysis_name.clone(),
                 Utc::now().signed_duration_since(start_time),
@@ -136,7 +136,7 @@ impl StatisticalProcessingEngine {
         let std_dev = variance.sqrt();
 
         let mut sorted = values.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted.len() % 2 == 0 {
             (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
@@ -217,7 +217,7 @@ impl StatisticalProcessingEngine {
         let mode_str = frequency_map.iter()
             .find(|(_, &count)| count == *max_count)
             .map(|(value, _)| value)
-            .unwrap();
+            .unwrap_or_default();
 
         Ok(Some(mode_str.parse::<f64>().unwrap_or(0.0)))
     }

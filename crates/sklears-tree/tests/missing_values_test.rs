@@ -20,14 +20,14 @@ fn test_decision_tree_classifier_skip_missing() {
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Skip)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should have 4 samples remaining (rows 0, 2, 4, 5)
     assert_eq!(model.n_features(), 2);
 
     // Test prediction on clean data
     let x_test = array![[2.5, 3.5], [5.5, 6.5]];
-    let predictions = model.predict(&x_test).unwrap();
+    let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 2);
 }
 
@@ -47,14 +47,14 @@ fn test_decision_tree_classifier_majority_imputation() {
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Majority)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should keep all 5 samples
     assert_eq!(model.n_features(), 2);
 
     // Test prediction
     let x_test = array![[2.5, 3.5], [5.5, 6.5]];
-    let predictions = model.predict(&x_test).unwrap();
+    let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 2);
 }
 
@@ -76,14 +76,14 @@ fn test_decision_tree_regressor_skip_missing() {
         .criterion(sklears_tree::SplitCriterion::MSE)
         .missing_values(MissingValueStrategy::Skip)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should have 4 samples remaining (rows 0, 2, 3, 5)
     assert_eq!(model.n_features(), 1);
 
     // Test prediction
     let x_test = array![[2.5], [5.5]];
-    let predictions = model.predict(&x_test).unwrap();
+    let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 2);
 }
 
@@ -104,14 +104,14 @@ fn test_decision_tree_regressor_majority_imputation() {
         .criterion(sklears_tree::SplitCriterion::MSE)
         .missing_values(MissingValueStrategy::Majority)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should keep all 5 samples
     assert_eq!(model.n_features(), 1);
 
     // Test prediction
     let x_test = array![[2.5], [5.5]];
-    let predictions = model.predict(&x_test).unwrap();
+    let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 2);
 }
 
@@ -130,12 +130,12 @@ fn test_no_missing_values() {
         let model = DecisionTreeClassifier::new()
             .missing_values(strategy)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.n_features(), 2);
         assert_eq!(model.n_classes(), 2);
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 }
@@ -173,12 +173,12 @@ fn test_column_all_missing() {
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Majority)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     assert_eq!(model.n_features(), 2);
 
     let x_test = array![[2.5, 1.0]]; // Test with any value for second feature
-    let predictions = model.predict(&x_test).unwrap();
+    let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 1);
 }
 
@@ -199,7 +199,7 @@ fn test_mixed_missing_patterns() {
     let model_skip = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Skip)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should keep 2 samples (rows 0 and 5)
     assert_eq!(model_skip.n_features(), 3);
@@ -208,7 +208,7 @@ fn test_mixed_missing_patterns() {
     let model_majority = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Majority)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should keep all 6 samples
     assert_eq!(model_majority.n_features(), 3);
@@ -216,8 +216,12 @@ fn test_mixed_missing_patterns() {
     // Both models should be able to predict
     let x_test = array![[2.0, 3.0, 4.0]];
 
-    let pred_skip = model_skip.predict(&x_test).unwrap();
-    let pred_majority = model_majority.predict(&x_test).unwrap();
+    let pred_skip = model_skip
+        .predict(&x_test)
+        .expect("prediction should succeed");
+    let pred_majority = model_majority
+        .predict(&x_test)
+        .expect("prediction should succeed");
 
     assert_eq!(pred_skip.len(), 1);
     assert_eq!(pred_majority.len(), 1);
@@ -233,12 +237,12 @@ fn test_surrogate_fallback() {
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Surrogate)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     assert_eq!(model.n_features(), 2);
 
     let x_test = array![[2.0, 3.0]];
-    let predictions = model.predict(&x_test).unwrap();
+    let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 1);
 }
 
@@ -256,13 +260,13 @@ fn test_missing_values_mean_calculation() {
     let model = DecisionTreeClassifier::new()
         .missing_values(MissingValueStrategy::Majority)
         .fit(&x, &y)
-        .unwrap();
+        .expect("operation should succeed");
 
     // Should successfully train with imputed values
     assert_eq!(model.n_features(), 2);
 
     // Test that prediction works
     let x_test = array![[3.0, 23.3]]; // Close to expected imputed values
-    let predictions = model.predict(&x_test).unwrap();
+    let predictions = model.predict(&x_test).expect("prediction should succeed");
     assert_eq!(predictions.len(), 1);
 }

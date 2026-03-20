@@ -5,7 +5,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -256,7 +256,7 @@ where
             for i in 0..n_samples {
                 let mut values: Vec<Float> =
                     individual_predictions.iter().map(|pred| pred[i]).collect();
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 ensemble[i] = if values.len() % 2 == 0 {
                     (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                 } else {
@@ -283,7 +283,10 @@ where
 
     Ok(EnsembleAnalysisResult {
         ensemble_prediction,
-        ensemble_error: ensemble_error.mapv(|x| x.abs()).mean().unwrap(),
+        ensemble_error: ensemble_error
+            .mapv(|x| x.abs())
+            .mean()
+            .expect("operation should succeed"),
         individual_contributions: contributions,
         bias_variance_decomposition: bias_variance,
         method,
@@ -359,7 +362,7 @@ where
     for _ in 0..config.n_bootstrap_samples {
         let mut bootstrap_indices = Vec::new();
         for _ in 0..n_samples {
-            bootstrap_indices.push(rng.gen_range(0..n_samples));
+            bootstrap_indices.push(rng.random_range(0..n_samples));
         }
 
         let mut bootstrap_X = Array2::zeros((n_samples, X.ncols()));
@@ -414,11 +417,17 @@ fn compute_model_metrics(
 
     // Compute regression metrics
     let residuals = y_pred - y_true;
-    let mse = residuals.mapv(|x| x.powi(2)).mean().unwrap();
-    let mae = residuals.mapv(|x| x.abs()).mean().unwrap();
+    let mse = residuals
+        .mapv(|x| x.powi(2))
+        .mean()
+        .expect("operation should succeed");
+    let mae = residuals
+        .mapv(|x| x.abs())
+        .mean()
+        .expect("operation should succeed");
 
     // R-squared
-    let y_mean = y_true.mean().unwrap();
+    let y_mean = y_true.mean().expect("operation should succeed");
     let ss_tot = y_true.mapv(|x| (x - y_mean).powi(2)).sum();
     let ss_res = residuals.mapv(|x| x.powi(2)).sum();
     let r2 = if ss_tot > 0.0 {
@@ -470,8 +479,8 @@ fn compute_correlation(x: &ArrayView1<Float>, y: &ArrayView1<Float>) -> SklResul
     }
 
     let n = x.len() as Float;
-    let x_mean = x.mean().unwrap();
-    let y_mean = y.mean().unwrap();
+    let x_mean = x.mean().expect("operation should succeed");
+    let y_mean = y.mean().expect("operation should succeed");
 
     let numerator: Float = x
         .iter()
@@ -516,7 +525,7 @@ fn create_ensemble_predictions(
             let mut ensemble = Array1::zeros(n_samples);
             for i in 0..n_samples {
                 let mut values: Vec<Float> = predictions.iter().map(|pred| pred[i]).collect();
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 ensemble[i] = if values.len() % 2 == 0 {
                     (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                 } else {
@@ -648,7 +657,7 @@ where
         for i in 0..perturbed_X.nrows() {
             for j in 0..perturbed_X.ncols() {
                 let noise =
-                    rng.gen_range(-config.perturbation_magnitude..config.perturbation_magnitude);
+                    rng.random_range(-config.perturbation_magnitude..config.perturbation_magnitude);
                 perturbed_X[[i, j]] += noise;
             }
         }
@@ -657,7 +666,7 @@ where
         let diff = (&perturbed_predictions - &original_predictions)
             .mapv(|x| x.abs())
             .mean()
-            .unwrap();
+            .expect("operation should succeed");
 
         perturbation_diffs.push(diff);
     }
@@ -748,8 +757,8 @@ mod tests {
 
         let config = ModelComparisonConfig::default();
 
-        let result =
-            compare_models(&models, &model_ids, &X.view(), &y_true.view(), &config).unwrap();
+        let result = compare_models(&models, &model_ids, &X.view(), &y_true.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.individual_metrics.len(), 2);
         assert_eq!(result.agreement_metrics.shape(), &[2, 2]);
@@ -779,7 +788,7 @@ mod tests {
             &y_true.view(),
             EnsembleMethod::Average,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.ensemble_prediction.len(), 3);
         assert_eq!(result.individual_contributions.len(), 2);
@@ -797,7 +806,8 @@ mod tests {
         let mut config = ModelComparisonConfig::default();
         config.n_bootstrap_samples = 10; // Small for test
 
-        let result = assess_prediction_stability(&model, &X.view(), &config).unwrap();
+        let result = assess_prediction_stability(&model, &X.view(), &config)
+            .expect("operation should succeed");
 
         assert!(result.prediction_variance >= 0.0);
         assert!(result.stability_index >= 0.0);
@@ -818,7 +828,8 @@ mod tests {
         let models = vec![model1, model2];
         let X = array![[1.0], [2.0], [3.0]];
 
-        let agreement = compute_model_agreement(&models, &X.view(), 0.1).unwrap();
+        let agreement =
+            compute_model_agreement(&models, &X.view(), 0.1).expect("operation should succeed");
 
         assert_eq!(agreement.shape(), &[2, 2]);
         assert_eq!(agreement[[0, 0]], 1.0); // Self-agreement is 1
@@ -832,7 +843,8 @@ mod tests {
         let predictions = vec![pred1, pred2];
         let y_true = array![1.0, 2.0, 3.0];
 
-        let result = compute_bias_variance_decomposition(&predictions, &y_true.view()).unwrap();
+        let result = compute_bias_variance_decomposition(&predictions, &y_true.view())
+            .expect("operation should succeed");
 
         assert!(result.bias >= 0.0);
         assert!(result.variance >= 0.0);

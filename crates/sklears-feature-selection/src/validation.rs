@@ -711,7 +711,7 @@ mod tests {
             eprintln!("Error in selection consistency test: {:?}", e);
         }
         assert!(result.is_ok());
-        let validation_result = result.unwrap();
+        let validation_result = result.expect("operation should succeed");
         assert_eq!(validation_result.test_name, "Split Consistency Test");
         assert!(validation_result.test_statistic >= 0.0);
         assert!(validation_result.test_statistic <= 1.0);
@@ -732,7 +732,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let validation_result = result.unwrap();
+        let validation_result = result.expect("operation should succeed");
         assert_eq!(validation_result.test_name, "Permutation Significance Test");
         assert!(validation_result.p_value >= 0.0);
         assert!(validation_result.p_value <= 1.0);
@@ -752,7 +752,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let validation_result = result.unwrap();
+        let validation_result = result.expect("operation should succeed");
         assert_eq!(validation_result.test_name, "Structural Validity Test");
         assert!(validation_result.test_statistic >= 0.0);
         assert!(validation_result.test_statistic <= 1.0);
@@ -775,7 +775,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let validation_result = result.unwrap();
+        let validation_result = result.expect("operation should succeed");
         assert_eq!(validation_result.test_name, "Noise Robustness Test");
         assert!(validation_result.test_statistic >= 0.0);
         assert!(validation_result.test_statistic <= 1.0);

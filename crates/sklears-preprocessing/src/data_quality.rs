@@ -675,20 +675,20 @@ mod tests {
 
     fn generate_test_data(nrows: usize, ncols: usize, seed: u64) -> Array2<f64> {
         let mut rng = seeded_rng(seed);
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let data: Vec<f64> = (0..nrows * ncols)
             .map(|_| normal.sample(&mut rng))
             .collect();
 
-        Array2::from_shape_vec((nrows, ncols), data).unwrap()
+        Array2::from_shape_vec((nrows, ncols), data).expect("shape and data length should match")
     }
 
     #[test]
     fn test_data_quality_validator_basic() {
         let x = generate_test_data(100, 5, 42);
         let validator = DataQualityValidator::new();
-        let report = validator.validate(&x).unwrap();
+        let report = validator.validate(&x).expect("operation should succeed");
 
         assert_eq!(report.n_samples, 100);
         assert_eq!(report.n_features, 5);
@@ -705,7 +705,7 @@ mod tests {
         }
 
         let validator = DataQualityValidator::new();
-        let report = validator.validate(&x).unwrap();
+        let report = validator.validate(&x).expect("operation should succeed");
 
         let missing_in_col0 = &report.missing_stats[0];
         assert_eq!(missing_in_col0.missing_count, 20);
@@ -722,7 +722,7 @@ mod tests {
         }
 
         let validator = DataQualityValidator::new();
-        let report = validator.validate(&x).unwrap();
+        let report = validator.validate(&x).expect("operation should succeed");
 
         let constant_issues: Vec<_> = report.issues_by_category(IssueCategory::ConstantFeatures);
 
@@ -738,7 +738,7 @@ mod tests {
         x[[1, 0]] = -100.0;
 
         let validator = DataQualityValidator::new();
-        let report = validator.validate(&x).unwrap();
+        let report = validator.validate(&x).expect("operation should succeed");
 
         let outliers_in_col0 = &report.outlier_stats[0];
         assert!(outliers_in_col0.outlier_count > 0);
@@ -748,7 +748,7 @@ mod tests {
     fn test_quality_score_calculation() {
         let x = generate_test_data(100, 5, 321);
         let validator = DataQualityValidator::new();
-        let report = validator.validate(&x).unwrap();
+        let report = validator.validate(&x).expect("operation should succeed");
 
         // Clean data should have high quality score
         assert!(report.quality_score > 80.0);

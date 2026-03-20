@@ -750,7 +750,10 @@ impl CircuitBreakerFailureDetector {
     #[must_use]
     pub fn should_trip(&self) -> bool {
         // Simplified failure detection logic
-        let window = self.sliding_window.lock().unwrap();
+        let window = self
+            .sliding_window
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         window.failure_count > 5 // Simple threshold
     }
 
@@ -761,7 +764,10 @@ impl CircuitBreakerFailureDetector {
         response_time: Duration,
         error_details: Option<String>,
     ) {
-        let mut window = self.sliding_window.lock().unwrap();
+        let mut window = self
+            .sliding_window
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let entry = WindowEntry {
             timestamp: SystemTime::now(),
@@ -802,7 +808,10 @@ impl CircuitBreakerFailureDetector {
     /// Get current failure rate
     #[must_use]
     pub fn get_failure_rate(&self) -> f64 {
-        let window = self.sliding_window.lock().unwrap();
+        let window = self
+            .sliding_window
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let total = window.success_count + window.failure_count;
         if total > 0 {
             window.failure_count as f64 / total as f64
@@ -831,7 +840,10 @@ impl CircuitBreakerFailureDetector {
 
     /// Reset failure detector state
     pub fn reset(&self) {
-        let mut window = self.sliding_window.lock().unwrap();
+        let mut window = self
+            .sliding_window
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         window.entries.clear();
         window.success_count = 0;
         window.failure_count = 0;

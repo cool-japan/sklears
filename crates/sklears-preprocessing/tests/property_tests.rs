@@ -41,7 +41,10 @@ mod unit_tests {
         let mut runner = proptest::test_runner::TestRunner::default();
 
         for _ in 0..10 {
-            let value = strategy.new_tree(&mut runner).unwrap().current();
+            let value = strategy
+                .new_tree(&mut runner)
+                .expect("operation should succeed")
+                .current();
             assert!(value.nrows() >= 5 && value.nrows() < 10);
             assert!(value.ncols() >= 2 && value.ncols() < 5);
         }
@@ -94,7 +97,7 @@ mod unit_tests {
  *         // Check each column has approximately zero mean and unit variance
  *         for col_idx in 0..transformed.ncols() {
  *             let col = transformed.column(col_idx);
- *             let mean = col.mean().unwrap();
+ *             let mean = col.mean().expect("array should have elements for mean computation");
  *             let std = col.std(0.0);
  *             prop_assert!(mean.abs() < 0.1);
  *             prop_assert!((std - 1.0).abs() < 0.1);

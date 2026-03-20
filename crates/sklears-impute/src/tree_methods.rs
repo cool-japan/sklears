@@ -347,7 +347,7 @@ fn build_tree_node(
 
     for feature_idx in 0..n_features {
         let mut feature_values: Vec<f64> = data.iter().map(|row| row[feature_idx]).collect();
-        feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         feature_values.dedup();
 
         for &threshold in &feature_values {

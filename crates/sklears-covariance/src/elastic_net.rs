@@ -60,7 +60,7 @@ pub struct ElasticNetCovarianceConfig {
 /// let estimator = ElasticNetCovariance::new()
 ///     .alpha(0.1)
 ///     .l1_ratio(0.5);
-/// let fitted = estimator.fit(&x.view(), &()).unwrap();
+/// let fitted = estimator.fit(&x.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// ```
 #[derive(Debug, Clone)]
@@ -372,7 +372,7 @@ mod tests {
         match estimator.fit(&x.view(), &()) {
             Ok(fitted) => {
                 let covariance = fitted.get_covariance();
-                let precision = fitted.get_precision().unwrap();
+                let precision = fitted.get_precision().expect("operation should succeed");
 
                 // Check dimensions
                 assert_eq!(covariance.dim(), (3, 3));
@@ -398,7 +398,7 @@ mod tests {
 
         match estimator.fit(&x.view(), &()) {
             Ok(fitted) => {
-                let precision = fitted.get_precision().unwrap();
+                let precision = fitted.get_precision().expect("operation should succeed");
 
                 // With L1 regularization, some off-diagonal elements might be zero
                 assert_eq!(precision.dim(), (2, 2));
@@ -417,7 +417,9 @@ mod tests {
 
         let estimator = ElasticNetCovariance::new().alpha(0.1).l1_ratio(0.0); // Pure L2 (Ridge)
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         let covariance = fitted.get_covariance();
 
         assert_eq!(covariance.dim(), (2, 2));
@@ -450,9 +452,13 @@ mod tests {
         let x_test = array![[2.0, 3.0], [6.0, 7.0]];
 
         let estimator = ElasticNetCovariance::new().alpha(0.1);
-        let fitted = estimator.fit(&x_train.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x_train.view(), &())
+            .expect("model fitting should succeed");
 
-        let distances = fitted.mahalanobis_distance(&x_test.view()).unwrap();
+        let distances = fitted
+            .mahalanobis_distance(&x_test.view())
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         for &dist in distances.iter() {
@@ -476,7 +482,7 @@ mod tests {
 
         match estimator.fit(&x.view(), &()) {
             Ok(fitted) => {
-                let sparsity = fitted.sparsity().unwrap();
+                let sparsity = fitted.sparsity().expect("operation should succeed");
 
                 // Should have some non-zero elements
                 assert!(sparsity > 0);
@@ -494,7 +500,9 @@ mod tests {
 
         let estimator = ElasticNetCovariance::new().max_iter(50).tol(1e-8);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         let n_iter = fitted.get_n_iter();
 
         assert!(n_iter > 0);
@@ -512,7 +520,9 @@ mod tests {
         // Test with valid minimal data
         let x = array![[1.0, 2.0], [3.0, 4.0]];
         let estimator = ElasticNetCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
     }
 

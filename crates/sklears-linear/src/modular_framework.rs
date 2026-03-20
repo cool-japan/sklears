@@ -736,7 +736,8 @@ mod tests {
         let objective = CompositeObjective::new(&loss, Some(&regularization));
 
         let data = ObjectiveData {
-            features: Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap(),
+            features: Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .expect("valid array shape"),
             targets: Array::from_vec(vec![1.0, 2.0, 3.0]),
             sample_weights: None,
             metadata: ObjectiveMetadata::default(),
@@ -768,10 +769,14 @@ mod tests {
         let y_true = Array::from_vec(vec![1.0, 2.0, 3.0]);
         let y_pred = Array::from_vec(vec![1.1, 1.9, 3.1]);
 
-        let loss_value = loss.loss(&y_true, &y_pred).unwrap();
+        let loss_value = loss
+            .loss(&y_true, &y_pred)
+            .expect("operation should succeed");
         assert!(loss_value >= 0.0);
 
-        let derivative = loss.loss_derivative(&y_true, &y_pred).unwrap();
+        let derivative = loss
+            .loss_derivative(&y_true, &y_pred)
+            .expect("operation should succeed");
         assert_eq!(derivative.len(), y_true.len());
 
         assert_eq!(loss.name(), "SquaredLoss");
@@ -783,10 +788,14 @@ mod tests {
         let reg = DummyRegularization { alpha: 0.1 };
         let coefficients = Array::from_vec(vec![1.0, -1.0, 2.0]);
 
-        let penalty = reg.penalty(&coefficients).unwrap();
+        let penalty = reg
+            .penalty(&coefficients)
+            .expect("operation should succeed");
         assert!(penalty >= 0.0);
 
-        let gradient = reg.penalty_gradient(&coefficients).unwrap();
+        let gradient = reg
+            .penalty_gradient(&coefficients)
+            .expect("operation should succeed");
         assert_eq!(gradient.len(), coefficients.len());
 
         assert_eq!(reg.strength(), 0.1);

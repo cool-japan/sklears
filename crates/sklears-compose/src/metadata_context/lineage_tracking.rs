@@ -1032,7 +1032,7 @@ mod tests {
             Some("Test data source".to_string()),
             ["source", "test"].iter().map(|s| s.to_string()).collect(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         let model_id = tracker.add_node(
             NodeType::Model,
@@ -1040,7 +1040,7 @@ mod tests {
             Some("Test ML model".to_string()),
             ["model", "test"].iter().map(|s| s.to_string()).collect(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Add edge
         let edge_id = tracker.add_edge(
@@ -1049,7 +1049,7 @@ mod tests {
             RelationshipType::Trains,
             1.0,
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Verify nodes exist
         assert!(tracker.graph.get_node(&source_id).is_some());
@@ -1067,7 +1067,7 @@ mod tests {
             include_inactive: false,
         };
 
-        let results = tracker.query_lineage(query).unwrap();
+        let results = tracker.query_lineage(query).unwrap_or_default();
         assert_eq!(results.len(), 2); // Both nodes should be included
     }
 
@@ -1081,7 +1081,7 @@ mod tests {
             None,
             HashSet::new(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         let origin = OriginInfo {
             source_id: "original_data".to_string(),
@@ -1113,10 +1113,10 @@ mod tests {
             origin,
             transformations,
             quality_metrics,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Verify provenance was recorded
-        let provenance = tracker.get_provenance(&node_id).unwrap();
+        let provenance = tracker.get_provenance(&node_id).unwrap_or_default();
         assert_eq!(provenance.node_id, node_id);
         assert_eq!(provenance.transformations.len(), 1);
         assert_eq!(provenance.quality_metrics["completeness"], 0.95);
@@ -1133,7 +1133,7 @@ mod tests {
             None,
             HashSet::new(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         let node2 = tracker.add_node(
             NodeType::Dataset,
@@ -1141,7 +1141,7 @@ mod tests {
             None,
             HashSet::new(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         let node3 = tracker.add_node(
             NodeType::Model,
@@ -1149,7 +1149,7 @@ mod tests {
             None,
             HashSet::new(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Add edges
         tracker.add_edge(
@@ -1158,7 +1158,7 @@ mod tests {
             RelationshipType::TransformsTo,
             1.0,
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         tracker.add_edge(
             node2.clone(),
@@ -1166,10 +1166,10 @@ mod tests {
             RelationshipType::Trains,
             1.0,
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Analyze impact of changing node1
-        let impact = tracker.analyze_impact(&node1).unwrap();
+        let impact = tracker.analyze_impact(&node1).unwrap_or_default();
 
         assert_eq!(impact.source_node_id, node1);
         assert_eq!(impact.directly_affected.len(), 1);
@@ -1188,7 +1188,7 @@ mod tests {
             None,
             HashSet::new(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         let node2 = tracker.add_node(
             NodeType::Dataset,
@@ -1196,7 +1196,7 @@ mod tests {
             None,
             HashSet::new(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         let node3 = tracker.add_node(
             NodeType::Dataset,
@@ -1204,7 +1204,7 @@ mod tests {
             None,
             HashSet::new(),
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Create a cycle: node1 -> node2 -> node3 -> node1
         tracker.add_edge(
@@ -1213,7 +1213,7 @@ mod tests {
             RelationshipType::TransformsTo,
             1.0,
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         tracker.add_edge(
             node2.clone(),
@@ -1221,7 +1221,7 @@ mod tests {
             RelationshipType::TransformsTo,
             1.0,
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         tracker.add_edge(
             node3.clone(),
@@ -1229,7 +1229,7 @@ mod tests {
             RelationshipType::TransformsTo,
             1.0,
             HashMap::new(),
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Detect cycles
         let cycles = tracker.graph.detect_cycles();

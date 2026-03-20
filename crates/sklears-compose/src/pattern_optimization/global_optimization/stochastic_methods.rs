@@ -912,7 +912,7 @@ impl StochasticOptimizer {
         Ok(OptimizationResult {
             best_solution,
             convergence_history: fitness_history.iter().map(|f| f.iter().copied().fold(f64::INFINITY, f64::min)).collect(),
-            metadata: analysis.map(|a| serde_json::to_value(a).unwrap()),
+            metadata: analysis.map(|a| serde_json::to_value(a).unwrap_or_default()),
         })
     }
 
@@ -1503,7 +1503,7 @@ mod tests {
             10,
             &problem,
             &SamplingStrategy::UniformRandom,
-        ).unwrap();
+        ).unwrap_or_default();
 
         assert_eq!(population.len(), 10);
         assert_eq!(population[0].len(), 3);
@@ -1564,7 +1564,7 @@ mod tests {
             &population_history,
             &fitness_history,
             &convergence,
-        ).unwrap();
+        ).unwrap_or_default();
 
         assert!(converged);
     }

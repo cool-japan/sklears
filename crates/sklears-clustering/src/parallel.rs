@@ -238,8 +238,8 @@ mod tests {
     #[cfg(feature = "parallel")]
     fn test_simple_parallel_kmeans() {
         // Create simple test data
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+            .expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 2,
@@ -256,11 +256,15 @@ mod tests {
         };
 
         let kmeans = SimpleParallelKMeans::new(config, parallel_config);
-        let fitted = kmeans.fit_parallel(&x, &()).unwrap();
+        let fitted = kmeans
+            .fit_parallel(&x, &())
+            .expect("operation should succeed");
 
         assert_eq!(fitted.cluster_centers().nrows(), 2);
 
-        let predictions = fitted.predict_parallel(&x).unwrap();
+        let predictions = fitted
+            .predict_parallel(&x)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 }

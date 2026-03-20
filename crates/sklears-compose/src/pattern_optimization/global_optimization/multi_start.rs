@@ -662,7 +662,7 @@ mod tests {
             .clustering_enabled(false)
             .parallel_execution(false)
             .build()
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(params.num_starts, 50);
         assert!(!params.clustering_enabled);

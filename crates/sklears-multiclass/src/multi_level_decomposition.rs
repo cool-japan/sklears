@@ -632,7 +632,7 @@ mod tests {
         let classifier = MultiLevelDecompositionClassifier::new(base_classifier, levels);
         assert!(classifier.is_ok());
 
-        let classifier = classifier.unwrap();
+        let classifier = classifier.expect("operation should succeed");
         assert_eq!(classifier.n_levels(), 2);
         assert_eq!(classifier.levels()[0].n_groups(), 2);
         assert_eq!(classifier.levels()[1].n_groups(), 4);
@@ -644,7 +644,7 @@ mod tests {
         let base_classifier = MockNativeClassifier::new();
 
         let classifier = MultiLevelDecompositionClassifier::builder(base_classifier, levels)
-            .unwrap()
+            .expect("operation should succeed")
             .combination_strategy(LevelCombinationStrategy::WeightedAverage)
             .level_weights(vec![0.6, 0.4])
             .confidence_threshold(0.7)
@@ -662,7 +662,7 @@ mod tests {
 
     #[test]
     fn test_binary_tree_decomposition() {
-        let levels = MultiLevelDecompositionUtils::binary_tree_decomposition(4).unwrap();
+        let levels = MultiLevelDecompositionUtils::binary_tree_decomposition(4).expect("operation should succeed");
         assert!(!levels.is_empty());
 
         // First level should have binary split
@@ -674,7 +674,7 @@ mod tests {
 
     #[test]
     fn test_multi_level_ovr() {
-        let levels = MultiLevelDecompositionUtils::multi_level_ovr(6, 3).unwrap();
+        let levels = MultiLevelDecompositionUtils::multi_level_ovr(6, 3).expect("operation should succeed");
         assert_eq!(levels.len(), 3);
 
         for level in &levels {
@@ -690,7 +690,7 @@ mod tests {
             (2, vec![5, 6]), // 2 splits into 5 and 6
         ];
 
-        let levels = MultiLevelDecompositionUtils::hierarchical_decomposition(&hierarchy).unwrap();
+        let levels = MultiLevelDecompositionUtils::hierarchical_decomposition(&hierarchy).expect("operation should succeed");
         assert!(!levels.is_empty());
 
         // Should have multiple levels based on hierarchy depth

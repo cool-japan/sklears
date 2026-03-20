@@ -397,9 +397,9 @@ impl ParetoFrontier {
         }
 
         // Add new point
-        let new_points = Array2::from_shape_vec((1, new_point.len()), new_point.to_vec()).unwrap();
+        let new_points = Array2::from_shape_vec((1, new_point.len()), new_point.to_vec()).expect("shape and data length should match");
         let new_objs =
-            Array2::from_shape_vec((1, new_objectives.len()), new_objectives.to_vec()).unwrap();
+            Array2::from_shape_vec((1, new_objectives.len()), new_objectives.to_vec()).expect("shape and data length should match");
 
         self.points = concatenate![Axis(0), self.points, new_points];
         self.objectives = concatenate![Axis(0), self.objectives, new_objs];
@@ -907,7 +907,7 @@ impl MultiObjectiveBayesianOptimizer<Trained> {
             let mut temp_objectives = self._state.pareto_frontier.objectives.clone();
             let new_obj_row =
                 Array2::from_shape_vec((1, pred_objectives.len()), pred_objectives.to_vec())
-                    .unwrap();
+                    .expect("operation should succeed");
             temp_objectives = concatenate![Axis(0), temp_objectives, new_obj_row];
 
             let temp_frontier = ParetoFrontier::from_data(
@@ -1059,7 +1059,7 @@ mod tests {
         let points = array![[1.0], [2.0], [3.0], [4.0]];
         let objectives = array![[1.0, 4.0], [2.0, 3.0], [3.0, 2.0], [4.0, 1.0]];
 
-        let frontier = ParetoFrontier::from_data(points, objectives).unwrap();
+        let frontier = ParetoFrontier::from_data(points, objectives).expect("operation should succeed");
 
         // All points should be non-dominated in this case
         assert!(frontier.dominated_indices.is_empty());
@@ -1071,7 +1071,7 @@ mod tests {
         let objectives = array![[1.0, 3.0], [2.0, 2.0]];
         let reference_point = array![5.0, 5.0];
 
-        let frontier = ParetoFrontier::from_data(points, objectives).unwrap();
+        let frontier = ParetoFrontier::from_data(points, objectives).expect("operation should succeed");
         let hypervolume = frontier.hypervolume(&reference_point);
 
         assert!(hypervolume > 0.0);
@@ -1112,7 +1112,7 @@ mod tests {
             .reference_point(array![5.0, 5.0])
             .build();
 
-        let trained = mobo.fit(&X, &Y).unwrap();
+        let trained = mobo.fit(&X, &Y).expect("model fitting should succeed");
 
         assert_eq!(trained.n_objectives, 2);
         assert!(trained.hypervolume() > 0.0);
@@ -1129,10 +1129,10 @@ mod tests {
             .n_objectives(2)
             .build();
 
-        let trained = mobo.fit(&X, &Y).unwrap();
+        let trained = mobo.fit(&X, &Y).expect("model fitting should succeed");
 
         let candidates = array![[1.5], [2.5]];
-        let acquisition_values = trained.evaluate_acquisition(&candidates).unwrap();
+        let acquisition_values = trained.evaluate_acquisition(&candidates).expect("operation should succeed");
 
         assert_eq!(acquisition_values.len(), candidates.nrows());
         assert!(acquisition_values.iter().all(|&x| x >= 0.0));
@@ -1149,10 +1149,10 @@ mod tests {
             .n_objectives(2)
             .build();
 
-        let trained = mobo.fit(&X, &Y).unwrap();
+        let trained = mobo.fit(&X, &Y).expect("model fitting should succeed");
 
         let candidates = array![[0.5], [1.5], [2.5], [3.5]];
-        let next_point = trained.suggest_next_point(&candidates).unwrap();
+        let next_point = trained.suggest_next_point(&candidates).expect("operation should succeed");
 
         assert_eq!(next_point.len(), 1);
     }
@@ -1162,7 +1162,7 @@ mod tests {
         let points = array![[1.0], [2.0]];
         let objectives = array![[2.0, 3.0], [3.0, 2.0]];
 
-        let mut frontier = ParetoFrontier::from_data(points, objectives).unwrap();
+        let mut frontier = ParetoFrontier::from_data(points, objectives).expect("operation should succeed");
 
         // Add a dominated point
         let added = frontier.update(array![3.0], array![4.0, 4.0]);
@@ -1185,7 +1185,7 @@ mod tests {
             .n_objectives(2)
             .build();
 
-        let trained = mobo.fit(&X, &Y).unwrap();
+        let trained = mobo.fit(&X, &Y).expect("model fitting should succeed");
         let diversity = trained.diversity_metric();
 
         assert!(diversity >= 0.0);
@@ -1204,10 +1204,10 @@ mod tests {
             .n_objectives(2)
             .build();
 
-        let trained = mobo.fit(&X, &Y).unwrap();
+        let trained = mobo.fit(&X, &Y).expect("model fitting should succeed");
 
         let candidates = array![[1.5]];
-        let poi_values = trained.evaluate_acquisition(&candidates).unwrap();
+        let poi_values = trained.evaluate_acquisition(&candidates).expect("operation should succeed");
 
         assert_eq!(poi_values.len(), 1);
         assert!(poi_values[0] >= 0.0 && poi_values[0] <= 1.0);
@@ -1227,10 +1227,10 @@ mod tests {
             .n_objectives(2)
             .build();
 
-        let trained = mobo.fit(&X, &Y).unwrap();
+        let trained = mobo.fit(&X, &Y).expect("model fitting should succeed");
 
         let candidates = array![[1.5]];
-        let sei_values = trained.evaluate_acquisition(&candidates).unwrap();
+        let sei_values = trained.evaluate_acquisition(&candidates).expect("operation should succeed");
 
         assert_eq!(sei_values.len(), 1);
         assert!(sei_values[0] >= 0.0);
@@ -1246,7 +1246,7 @@ mod tests {
             .n_objectives(2)
             .build();
 
-        let trained = mobo.fit(&X, &Y).unwrap();
+        let trained = mobo.fit(&X, &Y).expect("model fitting should succeed");
 
         // Test without true Pareto front
         let convergence = trained.convergence_metric(None);

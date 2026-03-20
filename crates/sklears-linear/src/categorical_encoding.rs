@@ -824,7 +824,7 @@ mod tests {
         let result = encoder.fit_transform(&data, None);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(transformed.len(), 5); // 5 samples
@@ -844,7 +844,7 @@ mod tests {
         let result = encoder.fit_transform(&data, None);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(transformed.len(), 5); // 5 samples
@@ -867,7 +867,7 @@ mod tests {
         let result = encoder.fit_transform(&data, Some(&target));
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(transformed.len(), 5); // 5 samples
@@ -882,7 +882,7 @@ mod tests {
         let result = encoder.fit_transform(&data, None);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should auto-detect columns 0 and 1 as categorical
         assert!(transformed[0].len() > 3); // Should have more than just the original 3 columns
@@ -899,7 +899,7 @@ mod tests {
         let result = encoder.fit_transform(&data, None);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // 3 unique colors -> needs 2 bits, 3 unique sizes -> needs 2 bits for binary encoding
         assert_eq!(transformed[0].len(), 5); // 2 color binary features + 2 size binary features + 1 numeric = 5 features
@@ -915,7 +915,7 @@ mod tests {
         let result = encoder.fit_transform(&data, None);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(transformed.len(), 5); // 5 samples
@@ -943,7 +943,9 @@ mod tests {
             .with_categorical_columns(vec![0]);
 
         let data = create_sample_data();
-        encoder.fit(&data, None).unwrap();
+        encoder
+            .fit(&data, None)
+            .expect("model fitting should succeed");
 
         // Transform data with unknown category
         let test_data = vec![
@@ -952,7 +954,7 @@ mod tests {
 
         let result = encoder.transform(&test_data);
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should use the specified unknown value
         assert_eq!(transformed[0][0], -1.0);
@@ -969,7 +971,9 @@ mod tests {
             .with_categorical_columns(vec![0, 1]);
 
         let data = create_sample_data();
-        encoder.fit(&data, None).unwrap();
+        encoder
+            .fit(&data, None)
+            .expect("model fitting should succeed");
 
         let feature_names = encoder.get_feature_names(Some(&[
             "color".to_string(),

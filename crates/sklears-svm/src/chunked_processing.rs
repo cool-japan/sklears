@@ -293,7 +293,10 @@ impl ChunkedDataset {
         self.add_to_cache(chunk_id, x, y);
 
         // Return reference to cached chunk
-        let (_, cached_chunk) = self.cached_chunks.back().unwrap();
+        let (_, cached_chunk) = self
+            .cached_chunks
+            .back()
+            .expect("collection should not be empty");
         Ok((&cached_chunk.x, &cached_chunk.y))
     }
 
@@ -664,7 +667,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_chunked_dataset_creation() {
-        let x = Array2::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect()).unwrap();
+        let x = Array2::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect())
+            .expect("array shape mismatch");
         let y = Array1::from_vec(
             (0..100)
                 .map(|i| if i % 2 == 0 { 1.0 } else { -1.0 })
@@ -676,7 +680,8 @@ mod tests {
             ..Default::default()
         };
 
-        let dataset = ChunkedDataset::from_arrays(&x, &y, config).unwrap();
+        let dataset =
+            ChunkedDataset::from_arrays(&x, &y, config).expect("operation should succeed");
 
         assert!(dataset.n_chunks() > 1);
         assert_eq!(dataset.n_samples(), 100);
@@ -686,7 +691,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_chunk_iteration() {
-        let x = Array2::from_shape_vec((50, 3), (0..150).map(|i| i as Float).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 3), (0..150).map(|i| i as Float).collect())
+            .expect("array shape mismatch");
         let y = Array1::from_vec(
             (0..50)
                 .map(|i| if i % 2 == 0 { 1.0 } else { -1.0 })
@@ -698,13 +704,14 @@ mod tests {
             ..Default::default()
         };
 
-        let mut dataset = ChunkedDataset::from_arrays(&x, &y, config).unwrap();
+        let mut dataset =
+            ChunkedDataset::from_arrays(&x, &y, config).expect("operation should succeed");
 
         let mut total_samples = 0;
         let chunk_iter = dataset.chunk_iter();
 
         for chunk_result in chunk_iter {
-            let (_chunk_id, chunk_x, chunk_y) = chunk_result.unwrap();
+            let (_chunk_id, chunk_x, chunk_y) = chunk_result.expect("operation should succeed");
             total_samples += chunk_x.nrows();
             assert_eq!(chunk_x.ncols(), 3);
             assert_eq!(chunk_x.nrows(), chunk_y.len());
@@ -725,8 +732,9 @@ mod tests {
             ..Default::default()
         };
 
-        let mut dataset = ChunkedDataset::from_arrays(&x, &y, config).unwrap();
-        let stats = dataset.compute_stats().unwrap();
+        let mut dataset =
+            ChunkedDataset::from_arrays(&x, &y, config).expect("operation should succeed");
+        let stats = dataset.compute_stats().expect("operation should succeed");
 
         assert_eq!(stats.n_samples, 4);
         assert_eq!(stats.n_features, 2);
@@ -754,12 +762,15 @@ mod tests {
             ..Default::default()
         };
 
-        let dataset = ChunkedDataset::from_arrays(&x, &y, config).unwrap();
+        let dataset =
+            ChunkedDataset::from_arrays(&x, &y, config).expect("operation should succeed");
         let kernel = RbfKernel::new(1.0);
         let mut trainer = ChunkedSvmTrainer::new(kernel, ChunkedProcessingConfig::default());
 
         trainer.set_dataset(dataset);
-        let result = trainer.train(1.0, 1e-3, 100).unwrap();
+        let result = trainer
+            .train(1.0, 1e-3, 100)
+            .expect("operation should succeed");
 
         assert!(result.n_support_vectors > 0);
         assert!(result.alpha.sum() > 0.0);

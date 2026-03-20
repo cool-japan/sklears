@@ -250,7 +250,9 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
 
         // Standardize data if requested
         let (standardized_x, means, stds) = if self.config.standardize {
-            let means = x.mean_axis(Axis(0)).unwrap();
+            let means = x
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
             let stds = x.std_axis(Axis(0), 0.0);
             let mut standardized = x.to_owned();
             for (i, mut column) in standardized.columns_mut().into_iter().enumerate() {
@@ -267,7 +269,9 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
         };
 
         // Compute overall mean
-        let overall_mean = standardized_x.mean_axis(Axis(0)).unwrap();
+        let overall_mean = standardized_x
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
 
         // Compute group means and sizes
         let mut group_means = Array2::zeros((n_classes, n_features));
@@ -285,9 +289,11 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
             );
 
             if class_samples.nrows() > 0 {
-                group_means
-                    .row_mut(i)
-                    .assign(&class_samples.mean_axis(Axis(0)).unwrap());
+                group_means.row_mut(i).assign(
+                    &class_samples
+                        .mean_axis(Axis(0))
+                        .expect("mean should not fail on non-empty array"),
+                );
                 group_sizes[i] = class_samples.nrows() as Float;
             }
         }
@@ -312,8 +318,13 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
                     let outer = diff
                         .clone()
                         .into_shape((n_features, 1))
-                        .unwrap()
-                        .dot(&diff.clone().into_shape((1, n_features)).unwrap());
+                        .expect("value should be present")
+                        .dot(
+                            &diff
+                                .clone()
+                                .into_shape((1, n_features))
+                                .expect("array shape error"),
+                        );
                     w_matrix += &outer;
                 }
             }
@@ -326,8 +337,13 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
             let outer = diff
                 .clone()
                 .into_shape((n_features, 1))
-                .unwrap()
-                .dot(&diff.clone().into_shape((1, n_features)).unwrap());
+                .expect("value should be present")
+                .dot(
+                    &diff
+                        .clone()
+                        .into_shape((1, n_features))
+                        .expect("array shape error"),
+                );
             b_matrix += &(outer * group_sizes[i]);
         }
 
@@ -359,7 +375,7 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for CanonicalDis
             })
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Determine number of components
         let n_components = self
@@ -415,8 +431,8 @@ impl<D: Data<Elem = Float>> Predict<ArrayBase<D, Ix2>, Array1<i32>>
             let min_idx = distance_row
                 .iter()
                 .enumerate()
-                .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .min_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[min_idx];
         }
@@ -498,8 +514,8 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -512,8 +528,10 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -535,8 +553,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let cda = CanonicalDiscriminantAnalysis::new().n_components(Some(1));
-        let fitted = cda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 1));
     }
@@ -554,9 +572,11 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 3);
@@ -575,8 +595,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let cda = CanonicalDiscriminantAnalysis::new().standardize(false);
-        let fitted = cda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -588,8 +608,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let cda = CanonicalDiscriminantAnalysis::new().reg_param(0.1);
-        let fitted = cda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -606,7 +626,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let cda = CanonicalDiscriminantAnalysis::new();
-        let fitted = cda.fit(&x, &y).unwrap();
+        let fitted = cda.fit(&x, &y).expect("model fitting should succeed");
         let correlations = fitted.canonical_correlations();
 
         assert_eq!(correlations.len(), fitted.eigenvalues().len());

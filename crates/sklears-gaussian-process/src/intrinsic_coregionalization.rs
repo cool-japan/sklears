@@ -17,7 +17,7 @@
 // SciRS2 Policy - Use scirs2-autograd for ndarray types and array! macro
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -165,13 +165,13 @@ impl IntrinsicCoregionalizationModel<Untrained> {
 
         // Fill diagonal with 1.0 + small random values
         for i in 0..self.n_outputs {
-            B[[i, i]] = 1.0 + rng.gen_range(0.0..0.1);
+            B[[i, i]] = 1.0 + rng.random_range(0.0..0.1);
         }
 
         // Fill off-diagonal with small random correlations
         for i in 0..self.n_outputs {
             for j in (i + 1)..self.n_outputs {
-                let corr = rng.gen_range(-0.3..0.3);
+                let corr = rng.random_range(-0.3..0.3);
                 B[[i, j]] = corr;
                 B[[j, i]] = corr;
             }
@@ -522,8 +522,12 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = icm.fit(&X.view(), &Y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = icm
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
+        let predictions = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[4, 2]);
     }
@@ -542,7 +546,9 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = icm.fit(&X.view(), &Y.view()).unwrap();
+        let fitted = icm
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
         let learned_matrix = fitted.coregionalization_matrix();
 
         assert_eq!(learned_matrix.shape(), custom_matrix.shape());
@@ -564,7 +570,9 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = icm.fit(&X.view(), &Y.view()).unwrap();
+        let fitted = icm
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
         let correlations = fitted.output_correlations();
 
         assert_eq!(correlations.shape(), &[2, 2]);
@@ -585,7 +593,9 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = icm.fit(&X.view(), &Y.view()).unwrap();
+        let fitted = icm
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
         let log_ml = fitted.log_marginal_likelihood();
 
         assert!(log_ml.is_finite());
@@ -603,10 +613,14 @@ mod tests {
             .n_outputs(2)
             .alpha(1e-6);
 
-        let fitted = icm.fit(&X.view(), &Y.view()).unwrap();
+        let fitted = icm
+            .fit(&X.view(), &Y.view())
+            .expect("model fitting should succeed");
 
         // Test eigendecomposition (using placeholder implementation)
-        let (eigenvalues, eigenvectors) = fitted.coregionalization_eigendecomposition().unwrap();
+        let (eigenvalues, eigenvectors) = fitted
+            .coregionalization_eigendecomposition()
+            .expect("operation should succeed");
         assert_eq!(eigenvalues.len(), 2);
         assert_eq!(eigenvectors.shape(), &[2, 2]);
         // All eigenvalues should be positive for positive semidefinite matrix

@@ -136,44 +136,81 @@ pub type TrainedMinimumVolumeEllipsoidDiscriminantAnalysis =
 
 impl MinimumVolumeEllipsoidDiscriminantAnalysis<Trained> {
     pub fn location(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().location
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .location
     }
 
     pub fn covariance(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().covariance
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .covariance
     }
 
     pub fn precision(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().precision
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .precision
     }
 
     pub fn support(&self) -> &Array1<bool> {
-        &self.data.as_ref().unwrap().support
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .support
     }
 
     pub fn classes(&self) -> &Array1<i32> {
-        &self.data.as_ref().unwrap().classes
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .classes
     }
 
     pub fn class_locations(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().class_locations
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .class_locations
     }
 
     pub fn class_covariances(&self) -> &Vec<Array2<Float>> {
-        &self.data.as_ref().unwrap().class_covariances
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .class_covariances
     }
 
     pub fn n_features(&self) -> usize {
-        self.data.as_ref().unwrap().n_features
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .n_features
     }
 
     pub fn determinant(&self) -> Float {
-        self.data.as_ref().unwrap().determinant
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .determinant
     }
 
     /// Compute Mahalanobis distance to the center
     pub fn mahalanobis_distance(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let mut distances = Array1::zeros(x.nrows());
 
         for (i, sample) in x.axis_iter(Axis(0)).enumerate() {
@@ -402,7 +439,7 @@ impl MinimumVolumeEllipsoidDiscriminantAnalysis<Untrained> {
             }
 
             // Sort by distance and take h closest points
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
             let subset_indices: Vec<usize> =
                 distances.iter().take(h).map(|(_, idx)| *idx).collect();
             let subset = x.select(Axis(0), &subset_indices);
@@ -431,7 +468,7 @@ impl MinimumVolumeEllipsoidDiscriminantAnalysis<Untrained> {
             let distance = diff.dot(&precision.dot(&diff));
             distances.push((distance, i));
         }
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut support = Array1::from_elem(n_samples, false);
         for (_, idx) in distances.iter().take(h) {
@@ -493,7 +530,9 @@ impl MinimumVolumeEllipsoidDiscriminantAnalysis<Untrained> {
         }
 
         // Compute mean
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
 
         // Compute covariance matrix
         let mut covariance = Array2::zeros((n_features, n_features));
@@ -639,7 +678,7 @@ impl Predict<Array2<Float>, Array1<i32>> for MinimumVolumeEllipsoidDiscriminantA
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes()[max_idx];
         }
@@ -662,7 +701,10 @@ impl PredictProba<Array2<Float>, Array2<Float>>
             )));
         }
 
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let n_classes = data.classes.len();
         let mut probas = Array2::zeros((n_samples, n_classes));
 
@@ -702,7 +744,10 @@ impl Transform<Array2<Float>, Array2<Float>>
 {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         // Transform data using the global precision matrix (Mahalanobis transformation)
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let mut transformed = Array2::zeros(x.dim());
 
         for (i, sample) in x.axis_iter(Axis(0)).enumerate() {
@@ -740,8 +785,8 @@ mod tests {
             .support_fraction(0.6)
             .n_trials(100);
 
-        let fitted = mve.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = mve.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.classes().len(), 2);
@@ -764,8 +809,10 @@ mod tests {
             .support_fraction(0.8)
             .n_trials(50);
 
-        let fitted = mve.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = mve.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (6, 2));
 
@@ -795,8 +842,8 @@ mod tests {
             .reweight_threshold(2.0)
             .n_trials(50);
 
-        let fitted = mve.fit(&x, &y).unwrap();
-        let outliers = fitted.is_outlier(&x).unwrap();
+        let fitted = mve.fit(&x, &y).expect("model fitting should succeed");
+        let outliers = fitted.is_outlier(&x).expect("operation should succeed");
 
         // The outliers at (10, 10) and (20, 20) should be detected
         assert!(outliers[3] || outliers[7]); // At least one outlier should be detected
@@ -817,8 +864,10 @@ mod tests {
 
         let mve = MinimumVolumeEllipsoidDiscriminantAnalysis::new().n_trials(50);
 
-        let fitted = mve.fit(&x, &y).unwrap();
-        let distances = fitted.mahalanobis_distance(&x).unwrap();
+        let fitted = mve.fit(&x, &y).expect("model fitting should succeed");
+        let distances = fitted
+            .mahalanobis_distance(&x)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 6);
         assert!(distances.iter().all(|&d| d >= 0.0));
@@ -838,8 +887,8 @@ mod tests {
 
         let mve = MinimumVolumeEllipsoidDiscriminantAnalysis::new().n_trials(50);
 
-        let fitted = mve.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = mve.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (6, 2));
     }
@@ -866,8 +915,8 @@ mod tests {
                 .support_fraction(support_fraction)
                 .n_trials(30);
 
-            let fitted = mve.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = mve.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 9);
             assert_eq!(fitted.classes().len(), 3);
@@ -895,11 +944,19 @@ mod tests {
             .reweight(false)
             .n_trials(50);
 
-        let fitted_reweight = mve_reweight.fit(&x, &y).unwrap();
-        let fitted_no_reweight = mve_no_reweight.fit(&x, &y).unwrap();
+        let fitted_reweight = mve_reweight
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let fitted_no_reweight = mve_no_reweight
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let predictions_reweight = fitted_reweight.predict(&x).unwrap();
-        let predictions_no_reweight = fitted_no_reweight.predict(&x).unwrap();
+        let predictions_reweight = fitted_reweight
+            .predict(&x)
+            .expect("prediction should succeed");
+        let predictions_no_reweight = fitted_no_reweight
+            .predict(&x)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions_reweight.len(), 6);
         assert_eq!(predictions_no_reweight.len(), 6);
@@ -919,7 +976,7 @@ mod tests {
 
         let mve = MinimumVolumeEllipsoidDiscriminantAnalysis::new().n_trials(50);
 
-        let fitted = mve.fit(&x, &y).unwrap();
+        let fitted = mve.fit(&x, &y).expect("model fitting should succeed");
 
         // Test accessor methods
         assert_eq!(fitted.location().len(), 2);

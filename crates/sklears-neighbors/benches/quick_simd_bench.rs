@@ -34,14 +34,26 @@ fn bench_knn_simd_integration(c: &mut Criterion) {
     let fitted = classifier.fit(&x_train, &y_train).expect("Failed to fit");
 
     c.bench_function("knn_predict_euclidean_simd", |b| {
-        b.iter(|| black_box(fitted.predict(black_box(&x_test)).unwrap()))
+        b.iter(|| {
+            black_box(
+                fitted
+                    .predict(black_box(&x_test))
+                    .expect("operation should succeed"),
+            )
+        })
     });
 
     let classifier = KNeighborsClassifier::new(5).with_metric(Distance::Manhattan);
     let fitted = classifier.fit(&x_train, &y_train).expect("Failed to fit");
 
     c.bench_function("knn_predict_manhattan_simd", |b| {
-        b.iter(|| black_box(fitted.predict(black_box(&x_test)).unwrap()))
+        b.iter(|| {
+            black_box(
+                fitted
+                    .predict(black_box(&x_test))
+                    .expect("operation should succeed"),
+            )
+        })
     });
 }
 

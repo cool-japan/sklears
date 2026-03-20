@@ -344,7 +344,8 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>> for KNNImputer<KNNImputerTr
                         distances.push((distance, train_idx));
                     }
 
-                    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                    distances
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
                     // Take k nearest neighbors that have this feature observed
                     let mut neighbor_values = Vec::new();

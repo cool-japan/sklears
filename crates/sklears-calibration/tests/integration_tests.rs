@@ -12,7 +12,7 @@ use sklears_core::traits::Fit;
 /// Generate reproducible test data
 fn generate_test_data(n_samples: usize, seed: u64) -> (Array2<f64>, Array1<i32>) {
     let mut rng = seeded_rng(seed);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     let x = Array2::from_shape_fn((n_samples, 2), |_| normal.sample(&mut rng));
     let y = Array1::from_shape_fn(n_samples, |i| if i < n_samples / 2 { 0 } else { 1 });
@@ -55,8 +55,8 @@ fn test_multiclass_methods() {
     let (x_extra, _) = generate_test_data(100, 456);
     let y_extra = Array1::from_elem(100, 2);
 
-    x = concatenate(Axis(0), &[x.view(), x_extra.view()]).unwrap();
-    y = concatenate(Axis(0), &[y.view(), y_extra.view()]).unwrap();
+    x = concatenate(Axis(0), &[x.view(), x_extra.view()]).expect("operation should succeed");
+    y = concatenate(Axis(0), &[y.view(), y_extra.view()]).expect("operation should succeed");
 
     let methods = vec![
         CalibrationMethod::MulticlassTemperature,

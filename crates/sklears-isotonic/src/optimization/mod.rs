@@ -39,7 +39,7 @@
 //! use scirs2_core::ndarray::array;
 //!
 //! let y = array![3.0, 1.0, 2.0, 4.0];
-//! let result = isotonic_regression_qp(&y, None, true).unwrap();
+//! let result = isotonic_regression_qp(&y, None, true).expect("operation should succeed");
 //! // Result is monotonically increasing
 //! ```
 //!
@@ -55,7 +55,7 @@
 //!     .bounds(Some(0.0), Some(10.0))
 //!     .barrier_parameters(1.0, 0.1, 1e-12);
 //!
-//! let result = regressor.solve(&y, None).unwrap();
+//! let result = regressor.solve(&y, None).expect("solve should succeed");
 //! ```
 //!
 //! ## Projected Gradient Method
@@ -69,7 +69,7 @@
 //!     .increasing(true)
 //!     .step_parameters(1.0, 0.5, 1e-10);
 //!
-//! let result = regressor.solve(&y, None).unwrap();
+//! let result = regressor.solve(&y, None).expect("solve should succeed");
 //! ```
 //!
 //! ## Large-Scale Dual Decomposition
@@ -86,7 +86,7 @@
 //!     .increasing(true)
 //!     .decomposition_parameters(0.1, 100, 10);
 //!
-//! let result = regressor.solve(&y, None).unwrap();
+//! let result = regressor.solve(&y, None).expect("solve should succeed");
 //! ```
 //!
 //! ## Multi-Dimensional Isotonic Regression
@@ -99,7 +99,7 @@
 //! let y = array![1.0, 2.0, 3.0];
 //! let constraints = vec![true, false]; // First increasing, second decreasing
 //!
-//! let result = separable_isotonic_regression(&x, &y, &constraints, None).unwrap();
+//! let result = separable_isotonic_regression(&x, &y, &constraints, None).expect("operation should succeed");
 //! ```
 //!
 //! ## Sparse Isotonic Regression
@@ -115,8 +115,8 @@
 //!     .increasing(true)
 //!     .sparsity_threshold(1e-8);
 //!
-//! let fitted = regressor.fit(&x, &y).unwrap();
-//! let predictions = fitted.predict(&x).unwrap();
+//! let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+//! let predictions = fitted.predict(&x).expect("prediction should succeed");
 //! ```
 //!
 //! ## Additive Isotonic Models
@@ -133,8 +133,8 @@
 //!     .feature_increasing(1, true)
 //!     .alpha(0.1);
 //!
-//! let fitted = regressor.fit(&x, &y).unwrap();
-//! let predictions = fitted.predict(&x).unwrap();
+//! let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+//! let predictions = fitted.predict(&x).expect("prediction should succeed");
 //! ```
 
 // Re-export all submodules
@@ -486,7 +486,7 @@ mod tests {
         let result = isotonic_regression_qp(&y, None, true);
         assert!(result.is_ok());
 
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
         // Check monotonicity
         for i in 1..solution.len() {
             assert!(solution[i] >= solution[i - 1] - 1e-10);
@@ -499,7 +499,7 @@ mod tests {
         let result = isotonic_regression_interior_point(&y, None, true);
         assert!(result.is_ok());
 
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
         // Check monotonicity
         for i in 1..solution.len() {
             assert!(solution[i] >= solution[i - 1] - 1e-10);
@@ -512,7 +512,7 @@ mod tests {
         let result = isotonic_regression_projected_gradient(&y, None, true);
         assert!(result.is_ok());
 
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
         // Check monotonicity
         for i in 1..solution.len() {
             assert!(solution[i] >= solution[i - 1] - 1e-10);
@@ -525,7 +525,7 @@ mod tests {
         let result = isotonic_regression_dual_decomposition(&y, None, true);
         assert!(result.is_ok());
 
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
         // Check monotonicity
         for i in 1..solution.len() {
             assert!(solution[i] >= solution[i - 1] - 1e-10);
@@ -539,7 +539,7 @@ mod tests {
         let result = sparse_isotonic_regression(&x, &y, true, None);
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -552,7 +552,7 @@ mod tests {
         let result = separable_isotonic_regression(&x, &y, &constraints, None);
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -565,7 +565,7 @@ mod tests {
         let result = additive_isotonic_regression(&x, &y, &constraints, None, None);
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
     }
 

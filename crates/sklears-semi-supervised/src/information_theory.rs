@@ -161,7 +161,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MutualInformationMaximi
             Random::seed(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
             )
         };
@@ -231,7 +231,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for MutualInformationMaximi
             }
 
             // Sort by distance and take majority vote of k=3 nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             let k = 3.min(labeled_indices.len());
             let mut class_votes = HashMap::new();
 
@@ -503,7 +503,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for InformationBottleneck<U
             Random::seed(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
             )
         };
@@ -772,7 +772,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
                     distances.push((j, dist));
                 }
             }
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(j, dist) in distances.iter().take(self.n_neighbors) {
                 let weight = (-dist.powi(2) / 2.0).exp();
@@ -842,8 +842,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>>
                 .row(idx)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             final_labels[idx] = classes[class_idx];
         }
@@ -1015,7 +1015,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for KLDivergenceOptimizatio
             Random::seed(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
             )
         };
@@ -1123,8 +1123,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for KLDivergenceOptimizatio
                 .row(idx)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             final_labels[idx] = classes[class_idx];
         }
@@ -1159,8 +1159,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for KLDivergenceOptimization<KL
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = self.state.classes[class_idx];
         }
@@ -1214,8 +1214,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = mim.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = mim
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
@@ -1241,8 +1243,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = ib.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = ib
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         // Predictions should be valid class labels (including -1 for potentially unlabeled predictions)
@@ -1260,7 +1264,7 @@ mod tests {
 
         let mi = mim
             .estimate_mutual_information(&X, &y, &labeled_indices, &classes)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(mi >= 0.0); // Mutual information should be non-negative
     }
 
@@ -1321,8 +1325,10 @@ mod tests {
             .max_iter(5)
             .random_state(42);
 
-        let fitted = mim.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = mim
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         // With only one labeled class, predictions should be stable
@@ -1340,8 +1346,10 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = er.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = er
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));
@@ -1372,8 +1380,10 @@ mod tests {
             .temperature(1.0)
             .random_state(42);
 
-        let fitted = kl.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = kl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0 && p <= 1));

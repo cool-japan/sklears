@@ -220,7 +220,7 @@ impl MarkovRandomFieldMixture<Untrained> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             let k = self.neighborhood_size.min(n_samples - 1);
             for (_, neighbor_idx) in distances.iter().take(k) {
@@ -336,7 +336,9 @@ mod tests {
             .build();
 
         let X = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [0.0, 1.0]];
-        let graph = mrf.build_neighborhood_graph(&X).unwrap();
+        let graph = mrf
+            .build_neighborhood_graph(&X)
+            .expect("operation should succeed");
 
         // Each point should have exactly 2 neighbors (or fewer if there are fewer than 2 other points)
         for i in 0..X.nrows() {
@@ -351,7 +353,7 @@ mod tests {
         let mrf = MarkovRandomFieldMixtureBuilder::new(2).build();
         let X = array![[0.0, 0.0], [1.0, 1.0], [2.0, 2.0], [3.0, 3.0]];
 
-        let means = mrf.initialize_means(&X).unwrap();
+        let means = mrf.initialize_means(&X).expect("operation should succeed");
 
         assert_eq!(means.dim(), (2, 2));
         // First component should be initialized with first sample

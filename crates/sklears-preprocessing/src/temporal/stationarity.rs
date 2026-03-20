@@ -735,7 +735,9 @@ mod tests {
         let mut data = Array1::zeros(10);
         let mut rng = thread_rng();
         for i in 0..10 {
-            data[i] = 2.0 * (i as Float) + 5.0 + rng.sample(&Uniform::new(-0.1, 0.1).unwrap());
+            data[i] = 2.0 * (i as Float)
+                + 5.0
+                + rng.sample(&Uniform::new(-0.1, 0.1).expect("sampling should succeed"));
             // Linear trend with noise
         }
 

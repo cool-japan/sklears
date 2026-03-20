@@ -390,7 +390,7 @@ impl<S> ModelFusion<S> {
                 }
 
                 // Output layer
-                let last_hidden = hidden_layers.last().unwrap();
+                let last_hidden = hidden_layers.last().unwrap_or_default();
                 weights.push(Array2::zeros((*last_hidden, 1)));
                 biases.push(Array1::zeros(1));
 
@@ -897,7 +897,7 @@ impl ModelFusion<Trained> {
                 }
 
                 // Output layer
-                count += hidden_layers.last().unwrap() * 1;
+                count += hidden_layers.last().unwrap_or_default() * 1;
 
                 count
             },

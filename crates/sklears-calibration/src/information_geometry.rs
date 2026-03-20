@@ -615,7 +615,10 @@ impl InformationGeometricCalibrator {
             });
         }
 
-        let current_point = self.current_point.as_ref().unwrap();
+        let current_point = self
+            .current_point
+            .as_ref()
+            .expect("value should be set after fitting");
         let mut predictions = Array1::zeros(probabilities.len());
 
         for (i, &prob) in probabilities.iter().enumerate() {
@@ -633,7 +636,10 @@ impl InformationGeometricCalibrator {
             });
         }
 
-        let current_point = self.current_point.as_ref().unwrap();
+        let current_point = self
+            .current_point
+            .as_ref()
+            .expect("value should be set after fitting");
         let final_metric = self.fisher_evolution.last().cloned().ok_or_else(|| {
             SklearsError::InvalidInput("No Fisher evolution available".to_string())
         })?;
@@ -717,7 +723,10 @@ impl InformationGeometricCalibrator {
         }
 
         let stats = self.compute_manifold_statistics()?;
-        let current_point = self.current_point.as_ref().unwrap();
+        let current_point = self
+            .current_point
+            .as_ref()
+            .expect("value should be set after fitting");
 
         let mut report = String::new();
         report.push_str("INFORMATION GEOMETRIC CALIBRATION REPORT\n");
@@ -845,7 +854,8 @@ mod tests {
     #[test]
     fn test_manifold_point_creation() {
         let natural_params = array![0.5, -0.2, 0.1];
-        let point = ManifoldPoint::from_natural_params(natural_params.clone()).unwrap();
+        let point = ManifoldPoint::from_natural_params(natural_params.clone())
+            .expect("operation should succeed");
 
         assert_eq!(point.natural_params.len(), 3);
         assert_eq!(point.expectation_params.len(), 3);
@@ -856,10 +866,12 @@ mod tests {
     #[test]
     fn test_fisher_information_metric() {
         let natural_params = array![0.1, 0.0];
-        let point = ManifoldPoint::from_natural_params(natural_params).unwrap();
+        let point =
+            ManifoldPoint::from_natural_params(natural_params).expect("operation should succeed");
         let config = InformationGeometricConfig::default();
 
-        let fisher_metric = FisherInformationMetric::compute(&point, &config).unwrap();
+        let fisher_metric =
+            FisherInformationMetric::compute(&point, &config).expect("operation should succeed");
 
         assert_eq!(fisher_metric.fisher_matrix.shape(), &[2, 2]);
         assert_eq!(fisher_metric.metric_tensor.shape(), &[2, 2]);
@@ -873,10 +885,13 @@ mod tests {
         let end_params = array![1.0, 0.5];
         let config = InformationGeometricConfig::default();
 
-        let start_point = ManifoldPoint::from_natural_params(start_params).unwrap();
-        let end_point = ManifoldPoint::from_natural_params(end_params).unwrap();
+        let start_point =
+            ManifoldPoint::from_natural_params(start_params).expect("operation should succeed");
+        let end_point =
+            ManifoldPoint::from_natural_params(end_params).expect("operation should succeed");
 
-        let geodesic = ProbabilityGeodesic::compute(start_point, end_point, &config).unwrap();
+        let geodesic = ProbabilityGeodesic::compute(start_point, end_point, &config)
+            .expect("operation should succeed");
 
         assert!(geodesic.geodesic_length > 0.0);
         assert!(!geodesic.path_points.is_empty());
@@ -886,11 +901,14 @@ mod tests {
     #[test]
     fn test_riemannian_curvature() {
         let natural_params = array![0.2, -0.1];
-        let point = ManifoldPoint::from_natural_params(natural_params).unwrap();
+        let point =
+            ManifoldPoint::from_natural_params(natural_params).expect("operation should succeed");
         let config = InformationGeometricConfig::default();
 
-        let fisher_metric = FisherInformationMetric::compute(&point, &config).unwrap();
-        let curvature = RiemannianCurvature::compute(&point, &fisher_metric).unwrap();
+        let fisher_metric =
+            FisherInformationMetric::compute(&point, &config).expect("operation should succeed");
+        let curvature =
+            RiemannianCurvature::compute(&point, &fisher_metric).expect("operation should succeed");
 
         assert_eq!(curvature.riemann_tensor.shape(), &[2, 2, 2]);
         assert_eq!(curvature.ricci_tensor.shape(), &[2, 2]);
@@ -904,10 +922,14 @@ mod tests {
         let probabilities = array![0.1, 0.3, 0.7, 0.9];
         let y_true = array![0, 0, 1, 1];
 
-        calibrator.fit(&probabilities, &y_true).unwrap();
+        calibrator
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
         assert!(calibrator.is_fitted);
 
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(predictions.len(), 4);
 
         for &pred in predictions.iter() {
@@ -921,8 +943,12 @@ mod tests {
         let probabilities = array![0.2, 0.4, 0.6, 0.8];
         let y_true = array![0, 0, 1, 1];
 
-        calibrator.fit(&probabilities, &y_true).unwrap();
-        let stats = calibrator.compute_manifold_statistics().unwrap();
+        calibrator
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
+        let stats = calibrator
+            .compute_manifold_statistics()
+            .expect("operation should succeed");
 
         assert!(stats.manifold_dimension > 0);
         assert!(stats.geodesic_diameter >= 0.0);
@@ -937,13 +963,14 @@ mod tests {
         let calibrator = InformationGeometricCalibrator::new(config);
 
         let natural_params = array![0.1, 0.0];
-        let point = ManifoldPoint::from_natural_params(natural_params).unwrap();
+        let point =
+            ManifoldPoint::from_natural_params(natural_params).expect("operation should succeed");
         let probabilities = array![0.3, 0.7];
         let y_true = array![0, 1];
 
         let gradient = calibrator
             .compute_natural_gradient(&point, &probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(gradient.len(), 2);
         assert!(gradient.iter().all(|&x| x.is_finite()));
@@ -955,8 +982,12 @@ mod tests {
         let probabilities = array![0.15, 0.35, 0.65, 0.85];
         let y_true = array![0, 0, 1, 1];
 
-        calibrator.fit(&probabilities, &y_true).unwrap();
-        let report = calibrator.generate_geometric_report().unwrap();
+        calibrator
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
+        let report = calibrator
+            .generate_geometric_report()
+            .expect("operation should succeed");
 
         assert!(report.contains("INFORMATION GEOMETRIC CALIBRATION"));
         assert!(report.contains("MANIFOLD PROPERTIES"));
@@ -971,20 +1002,26 @@ mod tests {
         let end_params = array![0.5, 0.3];
         let config = InformationGeometricConfig::default();
 
-        let start_point = ManifoldPoint::from_natural_params(start_params).unwrap();
-        let end_point = ManifoldPoint::from_natural_params(end_params).unwrap();
+        let start_point =
+            ManifoldPoint::from_natural_params(start_params).expect("operation should succeed");
+        let end_point =
+            ManifoldPoint::from_natural_params(end_params).expect("operation should succeed");
 
-        let geodesic = ProbabilityGeodesic::compute(start_point, end_point, &config).unwrap();
+        let geodesic = ProbabilityGeodesic::compute(start_point, end_point, &config)
+            .expect("operation should succeed");
         let vector = array![1.0, 0.0];
 
-        let transported = geodesic.parallel_transport(&vector).unwrap();
+        let transported = geodesic
+            .parallel_transport(&vector)
+            .expect("operation should succeed");
         assert_eq!(transported.len(), vector.len());
     }
 
     #[test]
     fn test_exponential_family_properties() {
         let natural_params = array![1.0, -0.5];
-        let point = ManifoldPoint::from_natural_params(natural_params).unwrap();
+        let point =
+            ManifoldPoint::from_natural_params(natural_params).expect("operation should succeed");
 
         // Test that probability distribution sums to 1
         let prob_sum = point.probability_distribution.sum();

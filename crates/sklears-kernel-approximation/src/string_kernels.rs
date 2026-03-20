@@ -748,8 +748,12 @@ mod tests {
         let kernel = NGramKernel::new(2).mode(NGramMode::Character);
         let sequences = vec!["hello".to_string(), "world".to_string(), "help".to_string()];
 
-        let fitted = kernel.fit(&sequences, &()).unwrap();
-        let features = fitted.transform(&sequences).unwrap();
+        let fitted = kernel
+            .fit(&sequences, &())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&sequences)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
@@ -765,8 +769,12 @@ mod tests {
             "hello there".to_string(),
         ];
 
-        let fitted = kernel.fit(&sequences, &()).unwrap();
-        let features = fitted.transform(&sequences).unwrap();
+        let fitted = kernel
+            .fit(&sequences, &())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&sequences)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
@@ -782,8 +790,12 @@ mod tests {
             "ATCGATCG".to_string(), // duplicate
         ];
 
-        let fitted = kernel.fit(&sequences, &()).unwrap();
-        let features = fitted.transform(&sequences).unwrap();
+        let fitted = kernel
+            .fit(&sequences, &())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&sequences)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
@@ -799,8 +811,12 @@ mod tests {
         let kernel = SubsequenceKernel::new(3, 0.5);
         let sequences = vec!["ABC".to_string(), "ACB".to_string(), "ABC".to_string()];
 
-        let fitted = kernel.fit(&sequences, &()).unwrap();
-        let features = fitted.transform(&sequences).unwrap();
+        let fitted = kernel
+            .fit(&sequences, &())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&sequences)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert_eq!(features.ncols(), 3);
@@ -821,8 +837,12 @@ mod tests {
             "dog".to_string(),
         ];
 
-        let fitted = kernel.fit(&sequences, &()).unwrap();
-        let features = fitted.transform(&sequences).unwrap();
+        let fitted = kernel
+            .fit(&sequences, &())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&sequences)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert_eq!(features.ncols(), 4);
@@ -845,8 +865,12 @@ mod tests {
             "GCTA".to_string(),
         ];
 
-        let fitted = kernel.fit(&sequences, &()).unwrap();
-        let features = fitted.transform(&sequences).unwrap();
+        let fitted = kernel
+            .fit(&sequences, &())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&sequences)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
@@ -873,8 +897,12 @@ mod tests {
             "aba".to_string(), // "ab" and "ba" appear once each
         ];
 
-        let fitted = kernel.fit(&sequences, &()).unwrap();
-        let features = fitted.transform(&sequences).unwrap();
+        let fitted = kernel
+            .fit(&sequences, &())
+            .expect("operation should succeed");
+        let features = fitted
+            .transform(&sequences)
+            .expect("operation should succeed");
 
         // In binary mode, repeated n-grams should only count as 1
         assert!(features.iter().all(|&x| x == 0.0 || x == 1.0));

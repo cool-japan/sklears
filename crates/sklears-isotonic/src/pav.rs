@@ -308,7 +308,7 @@ pub fn weighted_median(values_weights: &[(Float, Float)]) -> Float {
 
     // Sort by value
     let mut sorted = values_weights.to_vec();
-    sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     // Calculate cumulative weights
     let total_weight: Float = sorted.iter().map(|(_, w)| w).sum();
@@ -323,7 +323,7 @@ pub fn weighted_median(values_weights: &[(Float, Float)]) -> Float {
     }
 
     // Fallback
-    sorted.last().unwrap().0
+    sorted.last().expect("operation should succeed").0
 }
 
 /// Calculate weighted quantile of values
@@ -338,7 +338,7 @@ pub fn weighted_quantile(values_weights: &[(Float, Float)], quantile: Float) -> 
 
     // Sort by value
     let mut sorted = values_weights.to_vec();
-    sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    sorted.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     // Calculate cumulative weights
     let total_weight: Float = sorted.iter().map(|(_, w)| w).sum();
@@ -353,7 +353,7 @@ pub fn weighted_quantile(values_weights: &[(Float, Float)], quantile: Float) -> 
     }
 
     // Fallback
-    sorted.last().unwrap().0
+    sorted.last().expect("operation should succeed").0
 }
 
 #[allow(non_snake_case)]
@@ -366,7 +366,7 @@ mod tests {
     #[test]
     fn test_pav_l2_increasing() {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
-        let result = pool_adjacent_violators_l2(&y, None, true).unwrap();
+        let result = pool_adjacent_violators_l2(&y, None, true).expect("operation should succeed");
 
         // Check that result is increasing
         for i in 0..result.len() - 1 {
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn test_pav_l2_decreasing() {
         let y = array![5.0, 3.0, 4.0, 2.0, 1.0];
-        let result = pool_adjacent_violators_l2(&y, None, false).unwrap();
+        let result = pool_adjacent_violators_l2(&y, None, false).expect("operation should succeed");
 
         // Check that result is decreasing
         for i in 0..result.len() - 1 {
@@ -389,7 +389,8 @@ mod tests {
     fn test_pav_l2_weighted() {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
         let weights = array![1.0, 10.0, 1.0, 1.0, 1.0]; // Heavy weight on second value
-        let result = pool_adjacent_violators_l2(&y, Some(&weights), true).unwrap();
+        let result =
+            pool_adjacent_violators_l2(&y, Some(&weights), true).expect("operation should succeed");
 
         // Check that result is increasing
         for i in 0..result.len() - 1 {
@@ -423,7 +424,7 @@ mod tests {
     #[test]
     fn test_pav_empty() {
         let y = Array1::zeros(0);
-        let result = pool_adjacent_violators_l2(&y, None, true).unwrap();
+        let result = pool_adjacent_violators_l2(&y, None, true).expect("operation should succeed");
         assert_eq!(result.len(), 0);
     }
 }

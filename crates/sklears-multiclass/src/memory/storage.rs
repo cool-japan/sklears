@@ -33,7 +33,7 @@ impl SparseMatrix {
                     nnz_in_row += 1;
                 }
             }
-            row_ptrs.push(row_ptrs.last().unwrap() + nnz_in_row);
+            row_ptrs.push(row_ptrs.last().expect("operation should succeed") + nnz_in_row);
         }
 
         Self {

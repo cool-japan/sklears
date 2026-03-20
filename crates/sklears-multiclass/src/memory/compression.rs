@@ -153,7 +153,7 @@ fn bytes_to_array1(bytes: &[u8], len: usize) -> SklResult<Array1<f64>> {
 
     let mut array = Array1::zeros(len);
     for (i, chunk) in bytes.chunks_exact(8).enumerate() {
-        array[i] = f64::from_le_bytes(chunk.try_into().unwrap());
+        array[i] = f64::from_le_bytes(chunk.try_into().expect("operation should succeed"));
     }
     Ok(array)
 }
@@ -169,7 +169,7 @@ fn bytes_to_array2(bytes: &[u8], nrows: usize, ncols: usize) -> SklResult<Array2
     for (idx, chunk) in bytes.chunks_exact(8).enumerate() {
         let i = idx / ncols;
         let j = idx % ncols;
-        array[[i, j]] = f64::from_le_bytes(chunk.try_into().unwrap());
+        array[[i, j]] = f64::from_le_bytes(chunk.try_into().expect("operation should succeed"));
     }
     Ok(array)
 }
@@ -260,9 +260,16 @@ fn decompress_run_length_1d(compressed: &CompressedData) -> SklResult<Array1<f64
             ));
         }
 
-        let val = f64::from_le_bytes(compressed.data[offset..offset + 8].try_into().unwrap());
-        let count =
-            u32::from_le_bytes(compressed.data[offset + 8..offset + 12].try_into().unwrap());
+        let val = f64::from_le_bytes(
+            compressed.data[offset..offset + 8]
+                .try_into()
+                .expect("operation should succeed"),
+        );
+        let count = u32::from_le_bytes(
+            compressed.data[offset + 8..offset + 12]
+                .try_into()
+                .expect("operation should succeed"),
+        );
 
         for _ in 0..count {
             array.push(val);
@@ -311,8 +318,9 @@ mod tests {
     #[test]
     fn test_compress_decompress_none() {
         let arr = array![1.0, 2.0, 3.0, 4.0];
-        let compressed = compress_array1(&arr, CompressionAlgorithm::None).unwrap();
-        let decompressed = decompress_array1(&compressed).unwrap();
+        let compressed =
+            compress_array1(&arr, CompressionAlgorithm::None).expect("operation should succeed");
+        let decompressed = decompress_array1(&compressed).expect("operation should succeed");
 
         assert_eq!(arr, decompressed);
     }
@@ -320,8 +328,9 @@ mod tests {
     #[test]
     fn test_compress_decompress_run_length() {
         let arr = array![1.0, 1.0, 1.0, 2.0, 2.0, 3.0];
-        let compressed = compress_array1(&arr, CompressionAlgorithm::RunLength).unwrap();
-        let decompressed = decompress_array1(&compressed).unwrap();
+        let compressed = compress_array1(&arr, CompressionAlgorithm::RunLength)
+            .expect("operation should succeed");
+        let decompressed = decompress_array1(&compressed).expect("operation should succeed");
 
         assert_eq!(arr, decompressed);
         // Should be compressed since we have runs
@@ -331,8 +340,9 @@ mod tests {
     #[test]
     fn test_compress_array2() {
         let arr = array![[1.0, 2.0], [3.0, 4.0]];
-        let compressed = compress_array2(&arr, CompressionAlgorithm::None).unwrap();
-        let decompressed = decompress_array2(&compressed).unwrap();
+        let compressed =
+            compress_array2(&arr, CompressionAlgorithm::None).expect("operation should succeed");
+        let decompressed = decompress_array2(&compressed).expect("operation should succeed");
 
         assert_eq!(arr, decompressed);
     }
@@ -340,7 +350,8 @@ mod tests {
     #[test]
     fn test_compression_ratio() {
         let arr = array![1.0, 1.0, 1.0, 1.0, 1.0];
-        let compressed = compress_array1(&arr, CompressionAlgorithm::RunLength).unwrap();
+        let compressed = compress_array1(&arr, CompressionAlgorithm::RunLength)
+            .expect("operation should succeed");
 
         assert!(compressed.compression_ratio() > 1.0);
     }

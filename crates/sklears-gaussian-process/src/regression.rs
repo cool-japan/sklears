@@ -928,7 +928,8 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
             .collect();
 
         // Sort by uncertainty (descending)
-        uncertainty_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        uncertainty_indices
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Strategy 2: Ensure good spatial coverage by checking distances to existing inducing points
         let mut selected_indices = Vec::new();
@@ -1014,7 +1015,7 @@ impl VariationalSparseGaussianProcessRegressor<VsgprTrained> {
         }
 
         // Sort by influence (ascending - remove least influential)
-        influence_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        influence_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Select points to remove
         let indices_to_remove: Vec<usize> = influence_scores

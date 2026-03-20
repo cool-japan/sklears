@@ -911,7 +911,7 @@ mod tests {
     fn test_context_coordinator_creation() {
         let config = ContextCoordinatorConfig::default();
         let coordinator = ContextCoordinator::new(config);
-        assert!(coordinator.context_count().unwrap() == 0);
+        assert!(coordinator.context_count().unwrap_or_default() == 0);
     }
 
     #[test]

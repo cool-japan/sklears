@@ -450,7 +450,11 @@ impl LDAModel {
         // Compute pooled covariance matrix
         let mut covariance = Array2::zeros((n_features, n_features));
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {
-            let class_idx = self.classes.iter().position(|&c| c == y[i]).unwrap();
+            let class_idx = self
+                .classes
+                .iter()
+                .position(|&c| c == y[i])
+                .expect("element not found");
             let diff = &row - &self.means.row(class_idx);
             for j in 0..n_features {
                 for k in 0..n_features {
@@ -569,7 +573,7 @@ impl DiscriminantModel for LDAModel {
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -731,7 +735,7 @@ impl SimpleRng {
         unsafe {
             if HAS_CACHED {
                 HAS_CACHED = false;
-                return mean + std * CACHED.unwrap();
+                return mean + std * CACHED.unwrap_or(0.0);
             }
         }
 
@@ -910,7 +914,11 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedRandomProjectionDiscriminant
             // Get majority vote
             let mut final_predictions = Array1::zeros(n_samples);
             for (i, votes) in vote_counts.iter().enumerate() {
-                final_predictions[i] = *votes.iter().max_by_key(|(_, &count)| count).unwrap().0;
+                final_predictions[i] = *votes
+                    .iter()
+                    .max_by_key(|(_, &count)| count)
+                    .expect("empty collection")
+                    .0;
             }
 
             Ok(final_predictions)
@@ -1028,15 +1036,17 @@ mod tests {
             .n_components(3)
             .random_state(42);
 
-        let fitted = rpda.fit(&x, &y).unwrap();
+        let fitted = rpda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
         assert_eq!(fitted.n_projections(), 1);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probas = fitted.predict_proba(&x).unwrap();
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
         assert_eq!(probas.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -1045,7 +1055,7 @@ mod tests {
             assert_abs_diff_eq!(sum, 1.0, epsilon = 1e-6);
         }
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("transform should succeed");
         assert_eq!(transformed.dim(), (6, 3));
     }
 
@@ -1064,14 +1074,16 @@ mod tests {
             .n_projections(3)
             .random_state(42);
 
-        let fitted = rpda.fit(&x, &y).unwrap();
+        let fitted = rpda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_projections(), 3);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&x).unwrap();
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -1099,12 +1111,14 @@ mod tests {
                 .projection_type(projection_type)
                 .random_state(42);
 
-            let fitted = rpda.fit(&x, &y).unwrap();
+            let fitted = rpda.fit(&x, &y).expect("model fitting should succeed");
 
-            let predictions = fitted.predict(&x).unwrap();
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
 
-            let probas = fitted.predict_proba(&x).unwrap();
+            let probas = fitted
+                .predict_proba(&x)
+                .expect("probability prediction should succeed");
             assert_eq!(probas.dim(), (4, 2));
         }
     }
@@ -1124,12 +1138,12 @@ mod tests {
             .eps(0.1)
             .random_state(42);
 
-        let fitted = rpda.fit(&x, &y).unwrap();
+        let fitted = rpda.fit(&x, &y).expect("model fitting should succeed");
 
         // Test that reduction ratio is computed (value may vary based on JL bound)
         assert!(fitted.reduction_ratio() > 0.0);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -1161,9 +1175,9 @@ mod tests {
                 .discriminant_method(method)
                 .random_state(42);
 
-            let fitted = rpda.fit(&x, &y).unwrap();
+            let fitted = rpda.fit(&x, &y).expect("model fitting should succeed");
 
-            let predictions = fitted.predict(&x).unwrap();
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }

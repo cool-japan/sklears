@@ -12,8 +12,8 @@ fn test_online_discriminant_analysis() {
         .update_strategy(UpdateStrategy::ExponentialMovingAverage { decay_rate: 0.01 })
         .reg_param(0.01);
 
-    let fitted = oda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -33,10 +33,14 @@ fn test_online_partial_fit() {
     let x_batch2 = x.slice(s![1..4, ..]).to_owned(); // [0, 1, 1] - has both classes
     let y_batch2 = y.slice(s![1..4]).to_owned();
 
-    let mut fitted = oda.fit(&x_batch1, &y_batch1).unwrap();
-    fitted.partial_fit(&x_batch2, &y_batch2).unwrap();
+    let mut fitted = oda
+        .fit(&x_batch1, &y_batch1)
+        .expect("model fitting should succeed");
+    fitted
+        .partial_fit(&x_batch2, &y_batch2)
+        .expect("partial fit should succeed");
 
-    let predictions = fitted.predict(&x).unwrap();
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
     assert_eq!(predictions.len(), 4);
 }
 
@@ -59,8 +63,8 @@ fn test_online_update_strategies() {
             .update_strategy(strategy)
             .reg_param(0.01);
 
-        let fitted = oda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = oda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -77,18 +81,20 @@ fn test_online_new_class_addition() {
         .drift_detection(true);
 
     // Initial fit
-    let mut fitted = oda.fit(&x1, &y1).unwrap();
+    let mut fitted = oda.fit(&x1, &y1).expect("model fitting should succeed");
     assert_eq!(fitted.classes().len(), 2);
 
     // Add new class
     let x2 = array![[3.0, 4.0], [4.0, 5.0]];
     let y2 = array![2, 2];
 
-    fitted.partial_fit(&x2, &y2).unwrap();
+    fitted
+        .partial_fit(&x2, &y2)
+        .expect("partial fit should succeed");
     assert_eq!(fitted.classes().len(), 3);
 
     // Test predictions on all data
     let x_all = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]];
-    let predictions = fitted.predict(&x_all).unwrap();
+    let predictions = fitted.predict(&x_all).expect("prediction should succeed");
     assert_eq!(predictions.len(), 4);
 }

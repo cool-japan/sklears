@@ -179,7 +179,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for BigQUIC<Untrained> {
         let centered_data = if self.assume_centered {
             x.to_owned()
         } else {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             x - &mean.insert_axis(Axis(0))
         };
 

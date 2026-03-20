@@ -656,7 +656,7 @@ impl BootstrapValidator {
 
         // Compute confidence intervals (95% by default)
         let mut sorted_scores = bootstrap_scores.clone();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let alpha = 0.05;
         let lower_idx = ((alpha / 2.0) * sorted_scores.len() as Float) as usize;
         let upper_idx = ((1.0 - alpha / 2.0) * sorted_scores.len() as Float) as usize;

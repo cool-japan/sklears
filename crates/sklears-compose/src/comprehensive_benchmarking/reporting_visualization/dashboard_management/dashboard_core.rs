@@ -358,7 +358,7 @@ impl DashboardManagementSystem {
         // Validate dashboard before creation
         self.validate_dashboard(&dashboard)?;
 
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
 
         // Check for duplicate dashboard ID
         if dashboards.contains_key(&dashboard.dashboard_id) {
@@ -373,7 +373,7 @@ impl DashboardManagementSystem {
 
     /// Get dashboard by ID
     pub fn get_dashboard(&self, dashboard_id: &str) -> Result<Dashboard, DashboardError> {
-        let dashboards = self.dashboards.read().unwrap();
+        let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
         dashboards.get(dashboard_id)
             .cloned()
             .ok_or_else(|| DashboardError::DashboardNotFound(dashboard_id.to_string()))
@@ -384,7 +384,7 @@ impl DashboardManagementSystem {
         // Validate dashboard before update
         self.validate_dashboard(&dashboard)?;
 
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
 
         // Check if dashboard exists
         if !dashboards.contains_key(&dashboard.dashboard_id) {
@@ -397,7 +397,7 @@ impl DashboardManagementSystem {
 
     /// Delete dashboard
     pub fn delete_dashboard(&self, dashboard_id: &str) -> Result<(), DashboardError> {
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
         dashboards.remove(dashboard_id)
             .ok_or_else(|| DashboardError::DashboardNotFound(dashboard_id.to_string()))?;
         Ok(())
@@ -405,19 +405,19 @@ impl DashboardManagementSystem {
 
     /// List all dashboards
     pub fn list_dashboards(&self) -> Result<Vec<String>, DashboardError> {
-        let dashboards = self.dashboards.read().unwrap();
+        let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
         Ok(dashboards.keys().cloned().collect())
     }
 
     /// Get dashboard count
     pub fn get_dashboard_count(&self) -> Result<usize, DashboardError> {
-        let dashboards = self.dashboards.read().unwrap();
+        let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
         Ok(dashboards.len())
     }
 
     /// Create dashboard template
     pub fn create_template(&self, template: DashboardTemplate) -> Result<(), DashboardError> {
-        let mut templates = self.dashboard_templates.write().unwrap();
+        let mut templates = self.dashboard_templates.write().unwrap_or_else(|e| e.into_inner());
 
         // Check for duplicate template ID
         if templates.contains_key(&template.template_id) {
@@ -432,7 +432,7 @@ impl DashboardManagementSystem {
 
     /// Get dashboard template
     pub fn get_template(&self, template_id: &str) -> Result<DashboardTemplate, DashboardError> {
-        let templates = self.dashboard_templates.read().unwrap();
+        let templates = self.dashboard_templates.read().unwrap_or_else(|e| e.into_inner());
         templates.get(template_id)
             .cloned()
             .ok_or_else(|| DashboardError::TemplateNotFound(template_id.to_string()))
@@ -486,7 +486,7 @@ impl DashboardManagementSystem {
 
     /// Update dashboard state
     pub fn update_dashboard_state(&self, dashboard_id: &str, new_state: DashboardStateType, triggered_by: String) -> Result<(), DashboardError> {
-        let mut dashboards = self.dashboards.write().unwrap();
+        let mut dashboards = self.dashboards.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(dashboard) = dashboards.get_mut(dashboard_id) {
             // Add state history entry
@@ -511,7 +511,7 @@ impl DashboardManagementSystem {
 
     /// Get dashboard by status
     pub fn get_dashboards_by_status(&self, status: DashboardStatus) -> Result<Vec<Dashboard>, DashboardError> {
-        let dashboards = self.dashboards.read().unwrap();
+        let dashboards = self.dashboards.read().unwrap_or_else(|e| e.into_inner());
         Ok(dashboards.values()
             .filter(|d| std::mem::discriminant(&d.metadata.status) == std::mem::discriminant(&status))
             .cloned()

@@ -64,7 +64,7 @@ impl AttributionScores {
             })
             .collect();
 
-        feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         feature_scores.into_iter().take(k).collect()
     }
 
@@ -550,7 +550,8 @@ impl FeatureImportanceAnalyzer {
             .map(|(idx, &coef)| (idx, coef.abs()))
             .collect();
 
-        feature_importance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_importance
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let top_features = feature_importance
             .into_iter()
@@ -963,13 +964,17 @@ mod tests {
     #[test]
     fn test_vanilla_gradients() {
         let model = MockModel {
-            weights: Array2::from_shape_vec((1, 3), vec![0.5, -0.3, 0.8]).unwrap(),
+            weights: Array2::from_shape_vec((1, 3), vec![0.5, -0.3, 0.8])
+                .expect("array shape mismatch"),
         };
 
-        let input = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, -1.0, 0.5, 1.5]).unwrap();
+        let input = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, -1.0, 0.5, 1.5])
+            .expect("array shape mismatch");
 
         let interpreter = ModelInterpreter::new();
-        let result = interpreter.vanilla_gradients(&model, &input, None).unwrap();
+        let result = interpreter
+            .vanilla_gradients(&model, &input, None)
+            .expect("operation should succeed");
 
         assert_eq!(result.method, "VanillaGradients");
         assert_eq!(result.scores.raw_dim(), input.raw_dim());
@@ -978,10 +983,10 @@ mod tests {
     #[test]
     fn test_integrated_gradients() {
         let model = MockModel {
-            weights: Array2::from_shape_vec((1, 2), vec![1.0, -1.0]).unwrap(),
+            weights: Array2::from_shape_vec((1, 2), vec![1.0, -1.0]).expect("array shape mismatch"),
         };
 
-        let input = Array2::from_shape_vec((1, 2), vec![2.0, 3.0]).unwrap();
+        let input = Array2::from_shape_vec((1, 2), vec![2.0, 3.0]).expect("array shape mismatch");
 
         let config = InterpretationConfig {
             n_steps: 10,
@@ -992,7 +997,7 @@ mod tests {
         let interpreter = ModelInterpreter::with_config(config);
         let result = interpreter
             .integrated_gradients(&model, &input, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.method, "IntegratedGradients");
         assert_eq!(result.scores.raw_dim(), input.raw_dim());
@@ -1000,7 +1005,8 @@ mod tests {
 
     #[test]
     fn test_attribution_scores() {
-        let scores = Array2::from_shape_vec((2, 3), vec![0.5, -0.3, 0.8, -0.2, 0.9, -0.1]).unwrap();
+        let scores = Array2::from_shape_vec((2, 3), vec![0.5, -0.3, 0.8, -0.2, 0.9, -0.1])
+            .expect("array shape mismatch");
 
         let mut attribution = AttributionScores {
             scores,
@@ -1024,13 +1030,15 @@ mod tests {
     #[test]
     fn test_lime_explanation() {
         let model = MockModel {
-            weights: Array2::from_shape_vec((1, 3), vec![0.5, -0.3, 0.8]).unwrap(),
+            weights: Array2::from_shape_vec((1, 3), vec![0.5, -0.3, 0.8])
+                .expect("array shape mismatch"),
         };
 
         let instance = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
         let (explanation, intercept) =
-            FeatureImportanceAnalyzer::lime(&model, &instance, 100, 3, 1.0).unwrap();
+            FeatureImportanceAnalyzer::lime(&model, &instance, 100, 3, 1.0)
+                .expect("operation should succeed");
 
         assert_eq!(explanation.len(), 3);
         assert!(intercept.is_finite());
@@ -1041,7 +1049,7 @@ mod tests {
     #[test]
     fn test_lime_kernel_width() {
         let model = MockModel {
-            weights: Array2::from_shape_vec((1, 2), vec![1.0, -1.0]).unwrap(),
+            weights: Array2::from_shape_vec((1, 2), vec![1.0, -1.0]).expect("array shape mismatch"),
         };
 
         let instance = Array1::from_vec(vec![2.0, 3.0]);
@@ -1090,10 +1098,12 @@ mod tests {
 
     #[test]
     fn test_solve_linear_system() {
-        let A = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 3.0]).unwrap();
+        let A =
+            Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 3.0]).expect("array shape mismatch");
         let b = Array1::from_vec(vec![5.0, 6.0]);
 
-        let x = FeatureImportanceAnalyzer::solve_linear_system(A, b).unwrap();
+        let x =
+            FeatureImportanceAnalyzer::solve_linear_system(A, b).expect("operation should succeed");
 
         assert_eq!(x.len(), 2);
         // Solution should be approximately [1.8, 1.4]
@@ -1133,12 +1143,12 @@ mod tests {
     #[test]
     fn test_train_cav() {
         // Create concept activations (3 samples, 2 features)
-        let concept_acts =
-            Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 1.5, 2.5, 1.2, 2.2]).unwrap();
+        let concept_acts = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 1.5, 2.5, 1.2, 2.2])
+            .expect("array shape mismatch");
 
         // Create random activations (3 samples, 2 features)
-        let random_acts =
-            Array2::from_shape_vec((3, 2), vec![0.0, 0.5, -0.5, 0.8, 0.2, 0.3]).unwrap();
+        let random_acts = Array2::from_shape_vec((3, 2), vec![0.0, 0.5, -0.5, 0.8, 0.2, 0.3])
+            .expect("array shape mismatch");
 
         let cav = TCAVAnalyzer::train_cav(
             &concept_acts,
@@ -1146,7 +1156,7 @@ mod tests {
             "concept_a".to_string(),
             "layer_2".to_string(),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(cav.concept_name, "concept_a");
         assert_eq!(cav.layer_name, "layer_2");
@@ -1157,7 +1167,8 @@ mod tests {
     #[test]
     fn test_tcav_score() {
         let model = MockModel {
-            weights: Array2::from_shape_vec((1, 3), vec![0.5, -0.3, 0.8]).unwrap(),
+            weights: Array2::from_shape_vec((1, 3), vec![0.5, -0.3, 0.8])
+                .expect("array shape mismatch"),
         };
 
         let vector = Array1::from_vec(vec![1.0, 0.0, 0.0]);
@@ -1168,19 +1179,21 @@ mod tests {
             "layer_1".to_string(),
         );
 
-        let test_instances =
-            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, -1.0, 0.5, 1.5]).unwrap();
+        let test_instances = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, -1.0, 0.5, 1.5])
+            .expect("array shape mismatch");
 
-        let tcav = TCAVAnalyzer::tcav_score(&model, &cav, &test_instances, 0).unwrap();
+        let tcav = TCAVAnalyzer::tcav_score(&model, &cav, &test_instances, 0)
+            .expect("operation should succeed");
 
         assert!(tcav >= 0.0 && tcav <= 1.0);
     }
 
     #[test]
     fn test_cav_dimension_mismatch() {
-        let concept_acts =
-            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 1.5, 2.5, 3.5]).unwrap();
-        let random_acts = Array2::from_shape_vec((2, 2), vec![0.0, 0.5, -0.5, 0.8]).unwrap();
+        let concept_acts = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 1.5, 2.5, 3.5])
+            .expect("array shape mismatch");
+        let random_acts = Array2::from_shape_vec((2, 2), vec![0.0, 0.5, -0.5, 0.8])
+            .expect("array shape mismatch");
 
         let result = TCAVAnalyzer::train_cav(
             &concept_acts,

@@ -7,8 +7,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use std::hint::black_box;
 
 // Import the algorithms we want to benchmark
@@ -169,7 +169,9 @@ fn benchmark_nearest_neighbors(c: &mut Criterion) {
                                     distances.push((dist, j));
                                 }
                             }
-                            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                            distances.sort_by(|a, b| {
+                                a.0.partial_cmp(&b.0).expect("operation should succeed")
+                            });
                             let knn: Vec<usize> =
                                 distances.iter().take(k).map(|(_, idx)| *idx).collect();
                             neighbors.push(knn);
@@ -213,7 +215,8 @@ fn benchmark_quality_metrics(c: &mut Criterion) {
                         orig_distances.push((dist, j));
                     }
                 }
-                orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                orig_distances
+                    .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 let orig_neighbors: Vec<usize> =
                     orig_distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
@@ -226,7 +229,8 @@ fn benchmark_quality_metrics(c: &mut Criterion) {
                         embed_distances.push((dist, j));
                     }
                 }
-                embed_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                embed_distances
+                    .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 let embed_neighbors: Vec<usize> = embed_distances
                     .iter()
                     .take(k)

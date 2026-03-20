@@ -197,7 +197,7 @@ impl ModelMetadata {
     pub fn new(version: ModelVersion, architecture: String) -> Self {
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
+            .expect("value should be present")
             .as_secs();
 
         Self {
@@ -494,8 +494,10 @@ impl ModelVersionManager {
                     if !parameters.contains_key(&name) {
                         // Create default parameter with appropriate shape
                         // This is a simplified example - real implementation would need shape info
-                        let default_param =
-                            Array2::from_elem((1, 1), T::from(default_val).unwrap());
+                        let default_param = Array2::from_elem(
+                            (1, 1),
+                            T::from(default_val).unwrap_or_else(|| T::zero()),
+                        );
                         parameters.insert(name.clone(), default_param);
                     }
                 }
@@ -586,15 +588,17 @@ mod tests {
 
     #[test]
     fn test_version_parsing() {
-        let version: ModelVersion = "1.2.3".parse().unwrap();
+        let version: ModelVersion = "1.2.3".parse().expect("operation should succeed");
         assert_eq!(version.major, 1);
         assert_eq!(version.minor, 2);
         assert_eq!(version.patch, 3);
 
-        let version_with_pre: ModelVersion = "1.2.3-alpha".parse().unwrap();
+        let version_with_pre: ModelVersion =
+            "1.2.3-alpha".parse().expect("operation should succeed");
         assert_eq!(version_with_pre.pre_release, Some("alpha".to_string()));
 
-        let version_with_build: ModelVersion = "1.2.3+20240101".parse().unwrap();
+        let version_with_build: ModelVersion =
+            "1.2.3+20240101".parse().expect("operation should succeed");
         assert_eq!(version_with_build.build, Some("20240101".to_string()));
     }
 
@@ -640,7 +644,9 @@ mod tests {
             },
         );
 
-        let report = checker.check_compatibility(&v1_0, &v1_1).unwrap();
+        let report = checker
+            .check_compatibility(&v1_0, &v1_1)
+            .expect("operation should succeed");
         assert!(report.compatible);
         assert!(report.migration_required);
         assert!(matches!(

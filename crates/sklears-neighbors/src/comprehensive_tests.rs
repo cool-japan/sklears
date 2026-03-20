@@ -34,7 +34,7 @@ impl TestStrategies {
         .prop_map(|data| {
             let n_samples = data.len();
             let flat: Vec<Float> = data.into_iter().flatten().collect();
-            Array2::from_shape_vec((n_samples, 2), flat).unwrap()
+            Array2::from_shape_vec((n_samples, 2), flat).expect("operation should succeed")
         })
     }
 
@@ -42,7 +42,8 @@ impl TestStrategies {
     pub fn feature_matrix() -> impl Strategy<Value = Array2<Float>> {
         (2..=10_usize, 4..50_usize).prop_flat_map(|(n_features, n_samples)| {
             prop::collection::vec(-10.0..10.0_f64, n_samples * n_features).prop_map(move |data| {
-                Array2::from_shape_vec((n_samples, n_features), data).unwrap()
+                Array2::from_shape_vec((n_samples, n_features), data)
+                    .expect("operation should succeed")
             })
         })
     }
@@ -1317,7 +1318,8 @@ impl IntegrationTests {
 
         for (i, &score) in scores.iter().enumerate() {
             if score < threshold {
-                x_clean_data.extend_from_slice(x.row(i).as_slice().unwrap());
+                x_clean_data
+                    .extend_from_slice(x.row(i).as_slice().expect("operation should succeed"));
                 y_clean_data.push(y[i]);
             }
         }

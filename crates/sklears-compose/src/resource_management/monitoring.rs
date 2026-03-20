@@ -535,7 +535,7 @@ impl AlertSystem {
                     "cpu-high-{}",
                     SystemTime::now()
                         .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
+                        .unwrap_or_default()
                         .as_secs()
                 ),
                 alert_type: AlertType::CpuHigh,
@@ -558,7 +558,7 @@ impl AlertSystem {
                     "memory-high-{}",
                     SystemTime::now()
                         .duration_since(SystemTime::UNIX_EPOCH)
-                        .unwrap()
+                        .unwrap_or_default()
                         .as_secs()
                 ),
                 alert_type: AlertType::MemoryHigh,

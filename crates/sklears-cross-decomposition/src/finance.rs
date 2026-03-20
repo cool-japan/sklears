@@ -73,9 +73,9 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
             n_factors,
             rotation: FactorRotation::Varimax,
             max_iter: 100,
-            tol: F::from(1e-6).unwrap(),
+            tol: F::from(1e-6).expect("operation should succeed"),
             scale: true,
-            risk_free_rate: F::from(0.02).unwrap(), // 2% annual risk-free rate
+            risk_free_rate: F::from(0.02).expect("operation should succeed"), // 2% annual risk-free rate
         }
     }
 
@@ -137,7 +137,7 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
 
     fn compute_excess_returns(&self, returns: &ArrayView2<F>) -> Result<Array2<F>, FinanceError> {
         let mut excess_returns = returns.to_owned();
-        let period_risk_free = self.risk_free_rate / F::from(252.0).unwrap(); // Daily risk-free rate
+        let period_risk_free = self.risk_free_rate / F::from(252.0).unwrap_or(F::zero()); // Daily risk-free rate
 
         for mut row in excess_returns.rows_mut() {
             for ret in row.iter_mut() {
@@ -181,7 +181,9 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
     }
 
     fn compute_covariance(&self, data: &Array2<F>) -> Result<Array2<F>, FinanceError> {
-        let n_samples = F::from(data.nrows()).unwrap();
+        let n_samples = F::from(data.nrows()).ok_or(FinanceError::InvalidParameter(
+            "failed to convert nrows to float".to_string(),
+        ))?;
         let cov = data.t().dot(data) / (n_samples - F::one());
         Ok(cov)
     }
@@ -223,7 +225,7 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
             eigenvalues[b]
                 .abs()
                 .partial_cmp(&eigenvalues[a].abs())
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         let mut sorted_eigenvalues = Array1::zeros(n);
@@ -319,7 +321,7 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
             })
             .collect();
 
-        factor_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        factor_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Reorder factors
         let mut reordered = Array2::zeros(rotated.raw_dim());
@@ -418,13 +420,16 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
                     diff * diff
                 })
                 .fold(F::zero(), |acc, x| acc + x)
-                / F::from(factor_column.len()).unwrap();
+                / F::from(factor_column.len()).ok_or(FinanceError::InvalidParameter(
+                    "failed to convert length to float".to_string(),
+                ))?;
             let volatility = variance.sqrt();
             factor_volatilities[i] = volatility;
 
             // Compute Sharpe ratio
             let sharpe_ratio = if volatility > F::zero() {
-                (mean_return - self.risk_free_rate / F::from(252.0).unwrap()) / volatility
+                (mean_return - self.risk_free_rate / F::from(252.0).unwrap_or(F::zero()))
+                    / volatility
             } else {
                 F::zero()
             };
@@ -450,9 +455,9 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
             let volatility = stats.factor_volatilities[i];
             let sharpe = stats.factor_sharpe_ratios[i];
 
-            let interpretation_str = if sharpe > F::from(1.0).unwrap() {
+            let interpretation_str = if sharpe > F::from(1.0).unwrap_or(F::zero()) {
                 "High_Sharpe_Factor".to_string()
-            } else if volatility > F::from(0.02).unwrap() {
+            } else if volatility > F::from(0.02).unwrap_or(F::zero()) {
                 "High_Volatility_Factor".to_string()
             } else if self.is_market_factor(&column) {
                 "Market_Factor".to_string()
@@ -485,7 +490,7 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
             .iter()
             .map(|&x| x.abs())
             .fold(F::zero(), |acc, x| acc + x)
-            / F::from(loadings.len()).unwrap();
+            / F::from(loadings.len()).expect("operation should succeed");
         let std_abs = {
             let variance = loadings
                 .iter()
@@ -494,11 +499,11 @@ impl<F: Float + 'static + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
                     diff * diff
                 })
                 .fold(F::zero(), |acc, x| acc + x)
-                / F::from(loadings.len()).unwrap();
+                / F::from(loadings.len()).expect("operation should succeed");
             variance.sqrt()
         };
 
-        std_abs > mean_abs * F::from(0.5).unwrap()
+        std_abs > mean_abs * F::from(0.5).expect("operation should succeed")
     }
 
     fn is_value_factor(&self, loadings: &ArrayView1<F>) -> bool {
@@ -667,7 +672,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> FactorConstrainedOptimi
             expected_returns,
             risk_aversion,
             factor_constraints: HashMap::new(),
-            max_weight: F::from(0.1).unwrap(),
+            max_weight: F::from(0.1).expect("operation should succeed"),
             min_weight: F::zero(),
         }
     }
@@ -699,7 +704,8 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> FactorConstrainedOptimi
         let n_assets = self.expected_returns.len();
 
         // Simple equal-weight initialization
-        let mut weights = Array1::from_elem(n_assets, F::one() / F::from(n_assets).unwrap());
+        let mut weights =
+            Array1::from_elem(n_assets, F::one() / F::from(n_assets).unwrap_or(F::zero()));
 
         // Apply constraints iteratively (simplified optimization)
         for _ in 0..100 {
@@ -753,7 +759,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> FactorConstrainedOptimi
         let factor_column = factor_loadings.column(factor_idx);
 
         // Adjust weights based on factor loadings
-        let adjustment = F::from(0.01).unwrap();
+        let adjustment = F::from(0.01).expect("operation should succeed");
 
         for (i, &loading) in factor_column.iter().enumerate() {
             if increase {
@@ -823,7 +829,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
             ],
             lags: vec![0, 1, 2, 3], // Current, 1-month, 2-month, 3-month lags
             max_iter: 100,
-            tol: F::from(1e-6).unwrap(),
+            tol: F::from(1e-6).expect("operation should succeed"),
             seasonal_adjust: true,
             forecast_horizon: 12, // 12 months
         }
@@ -932,7 +938,9 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
                         diff * diff
                     })
                     .fold(F::zero(), |acc, x| acc + x)
-                    / F::from(column.len()).unwrap();
+                    / F::from(column.len()).ok_or(FinanceError::InvalidParameter(
+                        "failed to convert length to float".to_string(),
+                    ))?;
                 variance.sqrt()
             };
 
@@ -1036,7 +1044,9 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
     }
 
     fn compute_covariance(&self, data: &Array2<F>) -> Result<Array2<F>, FinanceError> {
-        let n_samples = F::from(data.nrows()).unwrap();
+        let n_samples = F::from(data.nrows()).ok_or(FinanceError::InvalidParameter(
+            "failed to convert nrows to float".to_string(),
+        ))?;
         let cov = data.t().dot(data) / (n_samples - F::one());
         Ok(cov)
     }
@@ -1078,7 +1088,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
             eigenvalues[b]
                 .abs()
                 .partial_cmp(&eigenvalues[a].abs())
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         let mut sorted_eigenvalues = Array1::zeros(n);
@@ -1121,7 +1131,9 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
     }
 
     fn compute_correlation(&self, x: &ArrayView1<F>, y: &ArrayView1<F>) -> Result<F, FinanceError> {
-        let n = F::from(x.len()).unwrap();
+        let n = F::from(x.len()).ok_or(FinanceError::InvalidParameter(
+            "failed to convert length to float".to_string(),
+        ))?;
         let mean_x = x.mean().unwrap_or(F::zero());
         let mean_y = y.mean().unwrap_or(F::zero());
 
@@ -1175,7 +1187,8 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
                 .map(|(i, &loading)| (i, loading.abs()))
                 .collect();
 
-            indicator_loadings.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            indicator_loadings
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             // Interpret based on top indicators
             let top_indicator_idx = indicator_loadings[0].0;
@@ -1244,7 +1257,7 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
             sum_x = sum_x + x;
         }
 
-        let n_obs = F::from(n - 1).unwrap();
+        let n_obs = F::from(n - 1).unwrap_or(F::zero());
         let beta = if sum_x2 > F::zero() {
             (sum_xy - sum_x * sum_y / n_obs) / (sum_x2 - sum_x * sum_x / n_obs)
         } else {
@@ -1280,7 +1293,9 @@ impl<F: Float + 'static + FromPrimitive + ScalarOperand> MacroeconomicFactorAnal
                     diff * diff
                 })
                 .fold(F::zero(), |acc, x| acc + x)
-                / F::from(factor_column.len()).unwrap();
+                / F::from(factor_column.len()).ok_or(FinanceError::InvalidParameter(
+                    "failed to convert length to float".to_string(),
+                ))?;
             factor_volatilities[factor_idx] = variance.sqrt();
 
             // Compute persistence (AR(1) coefficient)
@@ -1446,7 +1461,7 @@ mod tests {
         let result = factor_analysis.fit(returns.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.factor_loadings().ncols(), 2);
         assert_eq!(fitted.factor_scores().ncols(), 2);
         assert_eq!(fitted.explained_variance().len(), 2);
@@ -1464,14 +1479,16 @@ mod tests {
         ];
 
         let factor_analysis = FinancialFactorAnalysis::new(2);
-        let fitted = factor_analysis.fit(returns.view()).unwrap();
+        let fitted = factor_analysis
+            .fit(returns.view())
+            .expect("fit should succeed");
 
         let new_returns = array![[0.012, 0.018, 0.014], [0.008, 0.015, 0.011],];
 
         let transformed = fitted.transform(new_returns.view());
         assert!(transformed.is_ok());
 
-        let result = transformed.unwrap();
+        let result = transformed.expect("operation should succeed");
         assert_eq!(result.shape(), &[2, 2]);
     }
 
@@ -1486,13 +1503,15 @@ mod tests {
         ];
 
         let factor_analysis = FinancialFactorAnalysis::new(2);
-        let fitted = factor_analysis.fit(returns.view()).unwrap();
+        let fitted = factor_analysis
+            .fit(returns.view())
+            .expect("fit should succeed");
 
         let portfolio_weights = array![0.4, 0.4, 0.2];
         let exposure = fitted.portfolio_exposure(portfolio_weights.view());
 
         assert!(exposure.is_ok());
-        let exp = exposure.unwrap();
+        let exp = exposure.expect("operation should succeed");
         assert_eq!(exp.len(), 2);
     }
 
@@ -1507,13 +1526,15 @@ mod tests {
         ];
 
         let factor_analysis = FinancialFactorAnalysis::new(2);
-        let fitted = factor_analysis.fit(returns.view()).unwrap();
+        let fitted = factor_analysis
+            .fit(returns.view())
+            .expect("fit should succeed");
 
         let portfolio_weights = array![0.4, 0.4, 0.2];
         let risk_decomp = fitted.risk_decomposition(portfolio_weights.view());
 
         assert!(risk_decomp.is_ok());
-        let decomp = risk_decomp.unwrap();
+        let decomp = risk_decomp.expect("operation should succeed");
         assert_eq!(decomp.factor_exposures.len(), 2);
         assert_eq!(decomp.factor_contributions.len(), 2);
         assert!(decomp.total_risk >= 0.0);
@@ -1536,12 +1557,14 @@ mod tests {
         ];
 
         let factor_analysis = FinancialFactorAnalysis::new(1);
-        let fitted = factor_analysis.fit(returns.view()).unwrap();
+        let fitted = factor_analysis
+            .fit(returns.view())
+            .expect("fit should succeed");
 
         let result = optimizer.optimize(&fitted);
         assert!(result.is_ok());
 
-        let portfolio = result.unwrap();
+        let portfolio = result.expect("operation should succeed");
         assert_eq!(portfolio.weights.len(), 3);
         assert!((portfolio.weights.sum() - 1.0).abs() < 1e-6);
         assert!(portfolio.weights.iter().all(|&w| w >= 0.1 && w <= 0.6));
@@ -1574,7 +1597,9 @@ mod tests {
         ];
 
         let factor_analysis = FinancialFactorAnalysis::new(2);
-        let fitted = factor_analysis.fit(returns.view()).unwrap();
+        let fitted = factor_analysis
+            .fit(returns.view())
+            .expect("fit should succeed");
 
         let interpretation = fitted.factor_interpretation();
         assert_eq!(interpretation.len(), 2);
@@ -1611,7 +1636,7 @@ mod tests {
         let result = macro_analysis.fit(economic_data.view(), asset_returns.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.factor_loadings().ncols(), 2);
         assert_eq!(fitted.factor_scores().ncols(), 2);
         assert_eq!(fitted.explained_variance().len(), 2);
@@ -1640,18 +1665,18 @@ mod tests {
         let macro_analysis = MacroeconomicFactorAnalysis::new(1);
         let fitted = macro_analysis
             .fit(economic_data.view(), asset_returns.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test factor forecasting
         let factor_forecasts = fitted.forecast_factors(3);
         assert!(factor_forecasts.is_ok());
-        let forecasts = factor_forecasts.unwrap();
+        let forecasts = factor_forecasts.expect("operation should succeed");
         assert_eq!(forecasts.shape(), &[3, 1]);
 
         // Test asset return forecasting
         let return_forecasts = fitted.forecast_asset_returns(3);
         assert!(return_forecasts.is_ok());
-        let ret_forecasts = return_forecasts.unwrap();
+        let ret_forecasts = return_forecasts.expect("operation should succeed");
         assert_eq!(ret_forecasts.shape(), &[3, 2]);
     }
 
@@ -1676,14 +1701,14 @@ mod tests {
         let macro_analysis = MacroeconomicFactorAnalysis::new(2);
         let fitted = macro_analysis
             .fit(economic_data.view(), asset_returns.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test scenario analysis with factor shocks
         let factor_shocks = array![0.1, -0.05]; // +10% shock to factor 1, -5% to factor 2
         let impact = fitted.scenario_analysis(factor_shocks.view());
 
         assert!(impact.is_ok());
-        let impact_result = impact.unwrap();
+        let impact_result = impact.expect("operation should succeed");
         assert_eq!(impact_result.len(), 2); // 2 assets
     }
 
@@ -1708,7 +1733,7 @@ mod tests {
         let macro_analysis = MacroeconomicFactorAnalysis::new(2);
         let fitted = macro_analysis
             .fit(economic_data.view(), asset_returns.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let interpretation = fitted.factor_interpretation();
         assert_eq!(interpretation.len(), 2);
@@ -1761,7 +1786,7 @@ mod tests {
         let macro_analysis = MacroeconomicFactorAnalysis::new(2);
         let fitted = macro_analysis
             .fit(economic_data.view(), asset_returns.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats = fitted.factor_statistics();
         assert_eq!(stats.factor_volatilities.len(), 2);

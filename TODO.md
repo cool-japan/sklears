@@ -9,7 +9,7 @@ Create a production-ready machine learning library in Rust that:
 - Enables deployment without Python runtime dependencies
 - Leverages SciRS2's scientific computing capabilities
 
-## 📊 Current Status (v0.1.0-beta.1)
+## 📊 Current Status (v0.1.0)
 
 **Overall API Coverage: >99%** 🎉
 
@@ -54,11 +54,11 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ## 📊 Quality Metrics
 
-- **Test Suite**: 11,160 tests (11,159 passing, 99.99% success rate)
+- **Test Suite**: 11,222 tests (11,222 passing, 100% success rate)
 - **Code Quality**: 100% warning-free compilation
 - **Performance**: Pure Rust implementation with ongoing performance optimization
 - **Dependencies**: Pure Rust stack (OxiBLAS v0.1.2, Oxicode v0.1.1)
-- **Build Status**: ✅ 35/35 crates building successfully
+- **Build Status**: ✅ 36/36 crates building successfully
 
 ## 🚀 Future Roadmap
 
@@ -106,6 +106,6 @@ All major scikit-learn modules are implemented with production-ready quality:
 
 ---
 
-*Version: 0.1.0-beta.1*
-*Release Date: January 1, 2026*
-*Next Milestone: 0.1.0 Stable - Q2 2026*
+*Version: 0.1.0*
+*Release Date: March 20, 2026*
+*Next Milestone: 0.1.1 - Q2 2026*

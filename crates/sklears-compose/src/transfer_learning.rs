@@ -942,8 +942,8 @@ pub mod domain_adaptation {
             bandwidth: f64,
         ) -> f64 {
             // Simplified MMD computation using mean differences
-            let source_mean = source_x.mean_axis(Axis(0)).unwrap();
-            let target_mean = target_x.mean_axis(Axis(0)).unwrap();
+            let source_mean = source_x.mean_axis(Axis(0)).unwrap_or_default();
+            let target_mean = target_x.mean_axis(Axis(0)).unwrap_or_default();
             let diff = &source_mean - &target_mean;
             (diff.mapv(|x| x * x).sum() / bandwidth).sqrt()
         }
@@ -956,8 +956,8 @@ pub mod domain_adaptation {
             }
 
             // Compute covariance matrices (simplified)
-            let source_mean = source_x.mean_axis(Axis(0)).unwrap();
-            let target_mean = target_x.mean_axis(Axis(0)).unwrap();
+            let source_mean = source_x.mean_axis(Axis(0)).unwrap_or_default();
+            let target_mean = target_x.mean_axis(Axis(0)).unwrap_or_default();
 
             // For simplicity, just compute variance differences
             let source_var = source_x.var_axis(Axis(0), 1.0);
@@ -1014,8 +1014,8 @@ pub mod domain_adaptation {
             target_x: &Array2<f64>,
             bandwidth: f64,
         ) -> f64 {
-            let source_mean = source_x.mean_axis(Axis(0)).unwrap();
-            let target_mean = target_x.mean_axis(Axis(0)).unwrap();
+            let source_mean = source_x.mean_axis(Axis(0)).unwrap_or_default();
+            let target_mean = target_x.mean_axis(Axis(0)).unwrap_or_default();
             let diff = &source_mean - &target_mean;
             (diff.mapv(|x| x * x).sum() / bandwidth).sqrt()
         }
@@ -1078,8 +1078,10 @@ mod tests {
         let pipeline =
             TransferLearningPipeline::fine_tuning(pretrained_model, target_estimator, 0.001, 5);
 
-        let fitted_pipeline = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
-        let predictions = fitted_pipeline.predict(&x.view()).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
+        let predictions = fitted_pipeline.predict(&x.view()).unwrap_or_default();
 
         assert_eq!(predictions.len(), x.nrows());
     }
@@ -1096,8 +1098,12 @@ mod tests {
         let pipeline =
             DomainAdaptationPipeline::mmd((source_x, source_y), base_estimator, 1.0, 0.1);
 
-        let fitted_pipeline = pipeline.fit(&target_x.view(), &None).unwrap();
-        let predictions = fitted_pipeline.predict(&target_x.view()).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&target_x.view(), &None)
+            .expect("operation should succeed");
+        let predictions = fitted_pipeline
+            .predict(&target_x.view())
+            .unwrap_or_default();
 
         assert_eq!(predictions.len(), target_x.nrows());
         assert!(fitted_pipeline

@@ -12,7 +12,7 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Distribution, Rng, SeedableRng};
+use scirs2_core::random::{Distribution, RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::types::Float;
 use std::collections::{HashMap, VecDeque};
@@ -366,7 +366,7 @@ impl TransferLearningOptimizer {
         }
 
         // Sort by similarity (descending)
-        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         similarities.truncate(k);
 
         Ok(similarities)
@@ -800,8 +800,8 @@ impl FewShotOptimizer {
         // Return best parameters from support set
         let best = support_set
             .iter()
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-            .unwrap();
+            .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
+            .expect("operation should succeed");
 
         Ok(best.0.clone())
     }
@@ -1207,7 +1207,7 @@ impl ExperienceReplayBuffer {
         let buffer_vec: Vec<_> = self.buffer.iter().collect();
 
         for _ in 0..n {
-            let idx = self.rng.gen_range(0..self.buffer.len());
+            let idx = self.rng.random_range(0..self.buffer.len());
             sampled.push(buffer_vec[idx].clone());
         }
 
@@ -1244,7 +1244,7 @@ impl ExperienceReplayBuffer {
             }
 
             for _ in 0..per_stratum.min(stratum.len()) {
-                let idx = self.rng.gen_range(0..stratum.len());
+                let idx = self.rng.random_range(0..stratum.len());
                 sampled.push(stratum[idx].clone());
             }
         }

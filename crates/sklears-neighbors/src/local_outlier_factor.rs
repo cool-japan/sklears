@@ -115,7 +115,7 @@ impl Fit<Features, ()> for LocalOutlierFactor {
 
         // Compute threshold based on contamination
         let mut sorted_scores = negative_outlier_factor.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let threshold_idx = ((1.0 - self.contamination) * sorted_scores.len() as Float) as usize;
         let threshold_idx = threshold_idx.min(sorted_scores.len() - 1);
@@ -145,7 +145,7 @@ impl Predict<Features, Array1<Int>> for LocalOutlierFactor<sklears_core::traits:
         }
 
         let decision_scores = self.decision_function(x)?;
-        let threshold = self.threshold_.unwrap();
+        let threshold = self.threshold_.expect("operation should succeed");
 
         let predictions = decision_scores.mapv(|score| if score >= threshold { 1 } else { -1 });
         Ok(predictions)
@@ -155,7 +155,7 @@ impl Predict<Features, Array1<Int>> for LocalOutlierFactor<sklears_core::traits:
 impl LocalOutlierFactor<sklears_core::traits::Trained> {
     /// Shifted opposite of the Local Outlier Factor
     pub fn decision_function(&self, x: &Features) -> Result<Array1<Float>> {
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -170,7 +170,11 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
             self.compute_lof_scores_novelty(x)
         } else {
             // For outlier detection, return precomputed scores
-            Ok(self.negative_outlier_factor_.as_ref().unwrap().clone())
+            Ok(self
+                .negative_outlier_factor_
+                .as_ref()
+                .expect("operation should succeed")
+                .clone())
         }
     }
 
@@ -183,8 +187,11 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
             .into());
         }
 
-        let scores = self.negative_outlier_factor_.as_ref().unwrap();
-        let threshold = self.threshold_.unwrap();
+        let scores = self
+            .negative_outlier_factor_
+            .as_ref()
+            .expect("operation should succeed");
+        let threshold = self.threshold_.expect("operation should succeed");
 
         let predictions = scores.mapv(|score| if score >= threshold { 1 } else { -1 });
         Ok(predictions)
@@ -210,7 +217,7 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
                 .enumerate()
                 .map(|(idx, &dist)| (dist, idx))
                 .collect();
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Take k+1 neighbors (including self), then exclude self
             let k_neighbors: Vec<usize> = neighbors
@@ -293,7 +300,7 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
 
     /// Compute LOF scores for novelty detection (new points vs training data)
     fn compute_lof_scores_novelty(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
         let n_queries = x.nrows();
         let _n_train = x_train.nrows();
 
@@ -313,7 +320,7 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
                 .enumerate()
                 .map(|(idx, &dist)| (dist, idx))
                 .collect();
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Take k neighbors from training data
             let k_neighbors: Vec<(Float, usize)> =
@@ -380,7 +387,7 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
                 .enumerate()
                 .map(|(idx, &dist)| (dist, idx))
                 .collect();
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Take k+1 neighbors (including self), then exclude self
             let k_neighbors: Vec<usize> = neighbors
@@ -427,7 +434,9 @@ impl LocalOutlierFactor<sklears_core::traits::Trained> {
 
     /// Get the negative outlier factor for the training samples
     pub fn negative_outlier_factor(&self) -> &Array1<Float> {
-        self.negative_outlier_factor_.as_ref().unwrap()
+        self.negative_outlier_factor_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -451,12 +460,12 @@ mod tests {
                 -50.0, -50.0, // Outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let lof = LocalOutlierFactor::new(2).with_contamination(0.4);
-        let fitted = lof.fit(&x, &()).unwrap();
+        let fitted = lof.fit(&x, &()).expect("operation should succeed");
 
-        let predictions = fitted.fit_predict(&x).unwrap();
+        let predictions = fitted.fit_predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
         // The algorithm should produce predictions with proper values (-1 or 1)
@@ -470,13 +479,13 @@ mod tests {
 
     #[test]
     fn test_local_outlier_factor_novelty() {
-        let x_train =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.0, 1.1]).unwrap();
+        let x_train = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.0, 1.1])
+            .expect("operation should succeed");
 
         let lof = LocalOutlierFactor::new(2)
             .with_novelty(true)
             .with_contamination(0.1);
-        let fitted = lof.fit(&x_train, &()).unwrap();
+        let fitted = lof.fit(&x_train, &()).expect("operation should succeed");
 
         // Test with new data including outliers
         let x_test = Array2::from_shape_vec(
@@ -487,16 +496,18 @@ mod tests {
                 -5.0, -5.0, // Should be outlier (far from training data)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
 
         // Check that the first point (close to training data) has a better score than the far points
         // With improved LOF implementation, exact threshold behavior may vary
         // but the pattern should be: close point < far points in terms of outlier score
 
-        let decision_scores = fitted.decision_function(&x_test).unwrap();
+        let decision_scores = fitted
+            .decision_function(&x_test)
+            .expect("operation should succeed");
 
         // The close point should have a less negative score (closer to -1) than the far points
         assert!(
@@ -525,7 +536,8 @@ mod tests {
 
     #[test]
     fn test_local_outlier_factor_errors() {
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
 
         // Test invalid n_neighbors
         let lof = LocalOutlierFactor::new(0);
@@ -545,10 +557,11 @@ mod tests {
 
     #[test]
     fn test_local_outlier_factor_predict_without_novelty() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
 
         let lof = LocalOutlierFactor::new(2); // novelty=false by default
-        let fitted = lof.fit(&x, &()).unwrap();
+        let fitted = lof.fit(&x, &()).expect("operation should succeed");
 
         let result = fitted.predict(&x);
         assert!(result.is_err()); // Should fail when novelty=false
@@ -556,10 +569,11 @@ mod tests {
 
     #[test]
     fn test_local_outlier_factor_fit_predict_with_novelty() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
 
         let lof = LocalOutlierFactor::new(2).with_novelty(true);
-        let fitted = lof.fit(&x, &()).unwrap();
+        let fitted = lof.fit(&x, &()).expect("operation should succeed");
 
         let result = fitted.fit_predict(&x);
         assert!(result.is_err()); // Should fail when novelty=true

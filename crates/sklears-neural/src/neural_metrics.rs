@@ -151,7 +151,7 @@ where
         .fold(max_gradient, T::min);
 
     // Calculate mean and standard deviation
-    let n = T::from(all_gradients.len()).unwrap();
+    let n = T::from(all_gradients.len()).unwrap_or_else(|| T::zero());
     let sum: T = all_gradients.iter().map(|g| g.abs()).sum();
     let mean_gradient = sum / n;
 
@@ -166,7 +166,7 @@ where
     let std_gradient = variance.sqrt();
 
     // Calculate sparsity (percentage of near-zero gradients)
-    let threshold = T::from(1e-6).unwrap();
+    let threshold = T::from(1e-6).unwrap_or_else(|| T::zero());
     let near_zero_count = all_gradients
         .iter()
         .filter(|&&g| g.abs() < threshold)
@@ -193,7 +193,8 @@ where
             .collect();
 
         let avg_clip_ratio = if !clip_ratios.is_empty() {
-            clip_ratios.iter().copied().sum::<T>() / T::from(clip_ratios.len()).unwrap()
+            clip_ratios.iter().copied().sum::<T>()
+                / T::from(clip_ratios.len()).unwrap_or_else(|| T::zero())
         } else {
             T::one()
         };
@@ -280,7 +281,7 @@ where
                     diff * diff
                 })
                 .sum::<T>()
-                / T::from(head_attention.len()).unwrap();
+                / T::from(head_attention.len()).unwrap_or_else(|| T::zero());
 
             head_score += variance.to_f64().unwrap_or(0.0);
 
@@ -497,7 +498,8 @@ mod tests {
         let grad2 = array![[0.5, -1.5], [2.5, -0.5]];
         let gradients = vec![grad1.view(), grad2.view()];
 
-        let stats = calculate_gradient_statistics(&gradients, Some(2.0)).unwrap();
+        let stats =
+            calculate_gradient_statistics(&gradients, Some(2.0)).expect("operation should succeed");
 
         assert!(stats.global_norm > 0.0);
         assert!(stats.max_gradient >= stats.mean_gradient);
@@ -508,7 +510,7 @@ mod tests {
     #[test]
     fn test_attention_entropy() {
         let attention = array![[0.5, 0.3, 0.2], [0.1, 0.8, 0.1]];
-        let entropy = attention_entropy(&attention).unwrap();
+        let entropy = attention_entropy(&attention).expect("operation should succeed");
         assert!(entropy > 0.0);
     }
 
@@ -544,7 +546,9 @@ mod tests {
         collector.add_loss(0.6);
         collector.add_learning_rate(0.001);
 
-        let dynamics = collector.get_training_dynamics().unwrap();
+        let dynamics = collector
+            .get_training_dynamics()
+            .expect("operation should succeed");
         assert!(dynamics.smoothed_loss > 0.0);
         assert_relative_eq!(dynamics.current_lr, 0.001, epsilon = 1e-9);
 

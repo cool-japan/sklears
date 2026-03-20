@@ -1014,7 +1014,8 @@ impl GraphNeuralNetwork<Untrained> {
                 (hidden_dim, self.hidden_dim)
             };
 
-            let normal_dist = RandNormal::new(0.0, (2.0 / in_dim as Float).sqrt()).unwrap();
+            let normal_dist = RandNormal::new(0.0, (2.0 / in_dim as Float).sqrt())
+                .expect("operation should succeed");
             let mut input_weight = Array2::<Float>::zeros((in_dim, out_dim));
             for i in 0..in_dim {
                 for j in 0..out_dim {
@@ -1036,7 +1037,7 @@ impl GraphNeuralNetwork<Untrained> {
                 } else {
                     self.hidden_dim
                 };
-                let att_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+                let att_normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
                 let mut attention_weight = Array2::<Float>::zeros((att_dim * 2, 1));
                 for i in 0..(att_dim * 2) {
                     attention_weight[[i, 0]] = rng.sample(att_normal_dist);
@@ -1071,7 +1072,9 @@ impl GraphNeuralNetwork<Untrained> {
                     &biases[layer_idx],
                 )?,
                 MessagePassingVariant::GAT => {
-                    let att_weights = attention_weights.as_ref().unwrap();
+                    let att_weights = attention_weights
+                        .as_ref()
+                        .expect("operation should succeed");
                     self.gat_layer(
                         &current_embeddings,
                         adjacency,
@@ -1417,7 +1420,11 @@ impl GraphNeuralNetwork<GraphNeuralNetworkTrained> {
     ) -> SklResult<Array2<Float>> {
         let weights = &self.state.layer_weights[layer_idx];
         let bias = &self.state.layer_biases[layer_idx];
-        let attention_weights = self.state.attention_weights.as_ref().unwrap();
+        let attention_weights = self
+            .state
+            .attention_weights
+            .as_ref()
+            .expect("operation should succeed");
         let att_weights = &attention_weights[layer_idx];
 
         let n_nodes = node_embeddings.nrows();
@@ -1588,11 +1595,11 @@ mod tests {
 
         let trained_gnn = gnn
             .fit_graph(&adjacency.view(), &node_features.view(), &node_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         let predictions = trained_gnn
             .predict_graph(&adjacency.view(), &node_features.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (3, 2));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));
@@ -1610,7 +1617,7 @@ mod tests {
             .max_iter(5);
         let trained_gcn = gnn_gcn
             .fit_graph(&adjacency.view(), &node_features.view(), &node_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test GAT
         let gnn_gat = GraphNeuralNetwork::new()
@@ -1618,7 +1625,7 @@ mod tests {
             .max_iter(5);
         let trained_gat = gnn_gat
             .fit_graph(&adjacency.view(), &node_features.view(), &node_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test GraphSAGE
         let gnn_sage = GraphNeuralNetwork::new()
@@ -1626,7 +1633,7 @@ mod tests {
             .max_iter(5);
         let trained_sage = gnn_sage
             .fit_graph(&adjacency.view(), &node_features.view(), &node_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(
             trained_gcn.state.message_passing_variant,
@@ -1726,11 +1733,11 @@ mod tests {
 
         let trained_gnn = gnn
             .fit_graph(&adjacency.view(), &node_features.view(), &node_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         let predictions = trained_gnn
             .predict_graph(&adjacency.view(), &node_features.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (5, 3));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));
@@ -1758,11 +1765,11 @@ mod tests {
 
         let trained_gnn = gnn
             .fit_graph(&adjacency.view(), &node_features.view(), &node_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         let predictions = trained_gnn
             .predict_graph(&adjacency.view(), &node_features.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (3, 2));
     }
@@ -1788,10 +1795,10 @@ mod tests {
 
         let trained_gnn = gnn
             .fit_graph(&adjacency.view(), &node_features.view(), &node_labels)
-            .unwrap();
+            .expect("operation should succeed");
         let predictions = trained_gnn
             .predict_graph(&adjacency.view(), &node_features.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (5, 3));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));

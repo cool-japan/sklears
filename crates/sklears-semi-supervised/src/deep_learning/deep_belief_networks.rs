@@ -598,7 +598,10 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for DeepBeliefNetwork {
             let mut correct_predictions = 0;
 
             for (sample_idx, &label) in labeled_y.iter().enumerate() {
-                let class_idx = unique_classes.iter().position(|&c| c == label).unwrap();
+                let class_idx = unique_classes
+                    .iter()
+                    .position(|&c| c == label)
+                    .expect("operation should succeed");
                 let feature_vec = features.row(sample_idx);
 
                 // Forward pass
@@ -622,9 +625,9 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for DeepBeliefNetwork {
                 let predicted_class = probabilities
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(i, _)| i)
-                    .unwrap();
+                    .expect("operation should succeed");
 
                 if predicted_class == class_idx {
                     correct_predictions += 1;
@@ -679,9 +682,9 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for FittedDeepBeliefNetwork {
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(i, _)| i)
-                .unwrap();
+                .expect("operation should succeed");
             predictions[i] = self.classes[predicted_class_idx];
         }
 
@@ -734,7 +737,7 @@ mod tests {
 
     #[test]
     fn test_rbm_creation() {
-        let rbm = RestrictedBoltzmannMachine::new(10, 5).unwrap();
+        let rbm = RestrictedBoltzmannMachine::new(10, 5).expect("operation should succeed");
         assert_eq!(rbm.n_visible, 10);
         assert_eq!(rbm.n_hidden, 5);
         assert_eq!(rbm.learning_rate, 0.01);
@@ -746,7 +749,7 @@ mod tests {
         assert!(RestrictedBoltzmannMachine::new(0, 5).is_err());
         assert!(RestrictedBoltzmannMachine::new(5, 0).is_err());
 
-        let rbm = RestrictedBoltzmannMachine::new(5, 3).unwrap();
+        let rbm = RestrictedBoltzmannMachine::new(5, 3).expect("operation should succeed");
         assert!(rbm.clone().learning_rate(0.0).is_err());
         assert!(rbm.clone().learning_rate(-0.1).is_err());
         assert!(rbm.clone().n_epochs(0).is_err());
@@ -756,7 +759,7 @@ mod tests {
 
     #[test]
     fn test_rbm_sigmoid() {
-        let rbm = RestrictedBoltzmannMachine::new(3, 2).unwrap();
+        let rbm = RestrictedBoltzmannMachine::new(3, 2).expect("operation should succeed");
         assert_abs_diff_eq!(rbm.sigmoid(0.0), 0.5, epsilon = 1e-10);
         assert!(rbm.sigmoid(10.0) > 0.9);
         assert!(rbm.sigmoid(-10.0) < 0.1);
@@ -773,18 +776,18 @@ mod tests {
         ];
 
         let mut rbm = RestrictedBoltzmannMachine::new(3, 2)
-            .unwrap()
+            .expect("operation should succeed")
             .learning_rate(0.1)
-            .unwrap()
+            .expect("operation should succeed")
             .n_epochs(5)
-            .unwrap()
+            .expect("operation should succeed")
             .batch_size(2)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
-        rbm.fit(&X.view()).unwrap();
+        rbm.fit(&X.view()).expect("operation should succeed");
 
-        let transformed = rbm.transform(&X.view()).unwrap();
+        let transformed = rbm.transform(&X.view()).expect("operation should succeed");
         assert_eq!(transformed.dim(), (4, 2));
 
         // Check that transformed values are probabilities (between 0 and 1)
@@ -799,16 +802,18 @@ mod tests {
         let X = array![[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]];
 
         let mut rbm = RestrictedBoltzmannMachine::new(3, 2)
-            .unwrap()
+            .expect("operation should succeed")
             .learning_rate(0.1)
-            .unwrap()
+            .expect("operation should succeed")
             .n_epochs(3)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
-        rbm.fit(&X.view()).unwrap();
+        rbm.fit(&X.view()).expect("operation should succeed");
 
-        let reconstructed = rbm.reconstruct(&X.view()).unwrap();
+        let reconstructed = rbm
+            .reconstruct(&X.view())
+            .expect("operation should succeed");
         assert_eq!(reconstructed.dim(), (2, 3));
 
         // Check that reconstructed values are binary (0 or 1)
@@ -821,15 +826,15 @@ mod tests {
     fn test_dbn_creation() {
         let dbn = DeepBeliefNetwork::new()
             .hidden_layers(vec![10, 5])
-            .unwrap()
+            .expect("operation should succeed")
             .learning_rate(0.01)
-            .unwrap()
+            .expect("operation should succeed")
             .pretraining_epochs(5)
-            .unwrap()
+            .expect("operation should succeed")
             .finetuning_epochs(5)
-            .unwrap()
+            .expect("operation should succeed")
             .batch_size(16)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
         assert_eq!(dbn.hidden_layers, vec![10, 5]);
@@ -866,20 +871,22 @@ mod tests {
 
         let dbn = DeepBeliefNetwork::new()
             .hidden_layers(vec![3, 2])
-            .unwrap()
+            .expect("operation should succeed")
             .learning_rate(0.1)
-            .unwrap()
+            .expect("operation should succeed")
             .pretraining_epochs(3)
-            .unwrap()
+            .expect("operation should succeed")
             .finetuning_epochs(3)
-            .unwrap()
+            .expect("operation should succeed")
             .batch_size(2)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
 
-        let fitted = dbn.fit(&X.view(), &y.view()).unwrap();
+        let fitted = dbn
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Check that predictions are valid class labels
@@ -887,7 +894,9 @@ mod tests {
             assert!(pred == 0 || pred == 1);
         }
 
-        let probabilities = fitted.predict_proba(&X.view()).unwrap();
+        let probabilities = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -908,7 +917,9 @@ mod tests {
         let X = array![[1.0, 2.0], [2.0, 3.0]];
         let y = array![-1, -1]; // All unlabeled
 
-        let dbn = DeepBeliefNetwork::new().hidden_layers(vec![2]).unwrap();
+        let dbn = DeepBeliefNetwork::new()
+            .hidden_layers(vec![2])
+            .expect("operation should succeed");
 
         let result = dbn.fit(&X.view(), &y.view());
         assert!(result.is_err());
@@ -917,12 +928,14 @@ mod tests {
     #[test]
     fn test_rbm_hidden_probs_computation() {
         let mut rbm = RestrictedBoltzmannMachine::new(3, 2)
-            .unwrap()
+            .expect("operation should succeed")
             .random_state(42);
-        rbm.initialize_weights().unwrap();
+        rbm.initialize_weights().expect("operation should succeed");
 
         let visible = array![1.0, 0.0, 1.0];
-        let hidden_probs = rbm.compute_hidden_probs(&visible.view()).unwrap();
+        let hidden_probs = rbm
+            .compute_hidden_probs(&visible.view())
+            .expect("operation should succeed");
 
         assert_eq!(hidden_probs.len(), 2);
         for prob in hidden_probs.iter() {

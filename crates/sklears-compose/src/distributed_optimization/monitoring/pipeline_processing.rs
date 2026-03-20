@@ -631,7 +631,7 @@ impl CheckpointManager {
 
     /// Create a checkpoint
     pub fn create_checkpoint(&mut self, pipeline_id: &str) -> Result<String, String> {
-        let checkpoint_id = format!("checkpoint_{}_{}", pipeline_id, SystemTime::now().elapsed().unwrap().as_secs());
+        let checkpoint_id = format!("checkpoint_{}_{}", pipeline_id, SystemTime::now().elapsed().unwrap_or_default().as_secs());
         // Checkpoint creation logic would go here
         Ok(checkpoint_id)
     }

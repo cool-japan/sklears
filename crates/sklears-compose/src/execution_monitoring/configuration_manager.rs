@@ -276,7 +276,7 @@ impl ConfigurationManager {
         // Initialize manager if enabled
         if config.enabled {
             {
-                let mut state = manager.state.write().unwrap();
+                let mut state = manager.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = ConfigurationStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -292,7 +292,7 @@ impl ConfigurationManager {
     ) -> SklResult<ConfigurationUpdateResult> {
         // Validate configuration update
         let validation_result = {
-            let validator = self.validator.read().unwrap();
+            let validator = self.validator.read().unwrap_or_else(|e| e.into_inner());
             validator.validate_update(&config_update)?
         };
 
@@ -307,7 +307,7 @@ impl ConfigurationManager {
 
         // Create backup of current configuration
         let backup_result = {
-            let mut backup_mgr = self.backup_manager.write().unwrap();
+            let mut backup_mgr = self.backup_manager.write().unwrap_or_else(|e| e.into_inner());
             backup_mgr.create_backup(&self.get_current_config()).await?
         };
 
@@ -316,19 +316,19 @@ impl ConfigurationManager {
 
         // Update version
         let new_version = {
-            let mut version_mgr = self.version_manager.write().unwrap();
+            let mut version_mgr = self.version_manager.write().unwrap_or_else(|e| e.into_inner());
             version_mgr.create_new_version(config_update.clone()).await?
         };
 
         // Distribute configuration if enabled
         if self.config.distribution.enabled {
-            let mut distributor = self.distributor.write().unwrap();
+            let mut distributor = self.distributor.write().unwrap_or_else(|e| e.into_inner());
             distributor.distribute_configuration(&self.get_current_config()).await?;
         }
 
         // Audit configuration change
         {
-            let mut auditor = self.change_auditor.write().unwrap();
+            let mut auditor = self.change_auditor.write().unwrap_or_else(|e| e.into_inner());
             auditor.record_change(ConfigurationChange {
                 change_id: Uuid::new_v4().to_string(),
                 timestamp: SystemTime::now(),
@@ -345,7 +345,7 @@ impl ConfigurationManager {
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.total_updates_applied += 1;
             state.current_version = new_version.clone();
             state.last_update = SystemTime::now();
@@ -361,12 +361,12 @@ impl ConfigurationManager {
 
     /// Get current configuration
     pub fn get_current_config(&self) -> MonitoringConfiguration {
-        self.current_config.read().unwrap().clone()
+        self.current_config.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get configuration version history
     pub fn get_version_history(&self) -> SklResult<Vec<ConfigurationSnapshot>> {
-        let version_mgr = self.version_manager.read().unwrap();
+        let version_mgr = self.version_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(version_mgr.get_version_history())
     }
 
@@ -376,7 +376,7 @@ impl ConfigurationManager {
         target_version: ConfigurationVersion,
     ) -> SklResult<RollbackResult> {
         // Validate rollback target
-        let version_mgr = self.version_manager.read().unwrap();
+        let version_mgr = self.version_manager.read().unwrap_or_else(|e| e.into_inner());
         if !version_mgr.version_exists(&target_version) {
             return Err(SklearsError::Configuration(
                 format!("Target version {} does not exist", target_version.version_number)
@@ -386,25 +386,25 @@ impl ConfigurationManager {
 
         // Perform rollback
         let rollback_result = {
-            let mut version_mgr = self.version_manager.write().unwrap();
+            let mut version_mgr = self.version_manager.write().unwrap_or_else(|e| e.into_inner());
             version_mgr.rollback_to_version(target_version.clone()).await?
         };
 
         // Update current configuration
         {
-            let mut current_config = self.current_config.write().unwrap();
+            let mut current_config = self.current_config.write().unwrap_or_else(|e| e.into_inner());
             *current_config = rollback_result.restored_configuration.clone();
         }
 
         // Distribute rolled-back configuration
         if self.config.distribution.enabled {
-            let mut distributor = self.distributor.write().unwrap();
+            let mut distributor = self.distributor.write().unwrap_or_else(|e| e.into_inner());
             distributor.distribute_configuration(&rollback_result.restored_configuration).await?;
         }
 
         // Audit rollback
         {
-            let mut auditor = self.change_auditor.write().unwrap();
+            let mut auditor = self.change_auditor.write().unwrap_or_else(|e| e.into_inner());
             auditor.record_change(ConfigurationChange {
                 change_id: Uuid::new_v4().to_string(),
                 timestamp: SystemTime::now(),
@@ -427,7 +427,7 @@ impl ConfigurationManager {
         &self,
         config: &MonitoringConfiguration,
     ) -> SklResult<ValidationResult> {
-        let validator = self.validator.read().unwrap();
+        let validator = self.validator.read().unwrap_or_else(|e| e.into_inner());
         validator.validate_configuration(config).await
     }
 
@@ -441,7 +441,7 @@ impl ConfigurationManager {
                 self.load_from_file(&path).await?
             }
             ConfigurationSource::Environment => {
-                let env_mgr = self.environment_manager.read().unwrap();
+                let env_mgr = self.environment_manager.read().unwrap_or_else(|e| e.into_inner());
                 env_mgr.load_from_environment()?
             }
             ConfigurationSource::Database(connection) => {
@@ -451,7 +451,7 @@ impl ConfigurationManager {
                 self.load_from_remote(&url).await?
             }
             ConfigurationSource::Template(template_config) => {
-                let template_engine = self.template_engine.read().unwrap();
+                let template_engine = self.template_engine.read().unwrap_or_else(|e| e.into_inner());
                 template_engine.generate_from_template(&template_config)?
             }
         };
@@ -495,7 +495,7 @@ impl ConfigurationManager {
         let watcher = ConfigurationWatcher::new(watcher_id.clone(), watcher_config)?;
 
         {
-            let mut watchers = self.watchers.write().unwrap();
+            let mut watchers = self.watchers.write().unwrap_or_else(|e| e.into_inner());
             watchers.insert(watcher_id, watcher.clone());
         }
 
@@ -504,14 +504,14 @@ impl ConfigurationManager {
 
     /// Unregister configuration watcher
     pub async fn unregister_watcher(&mut self, watcher_id: &str) -> SklResult<()> {
-        let mut watchers = self.watchers.write().unwrap();
+        let mut watchers = self.watchers.write().unwrap_or_else(|e| e.into_inner());
         watchers.remove(watcher_id);
         Ok(())
     }
 
     /// Get configuration schema
     pub fn get_configuration_schema(&self) -> SklResult<ConfigurationSchema> {
-        let schema_registry = self.schema_registry.read().unwrap();
+        let schema_registry = self.schema_registry.read().unwrap_or_else(|e| e.into_inner());
         schema_registry.get_current_schema()
     }
 
@@ -520,19 +520,19 @@ impl ConfigurationManager {
         &mut self,
         migration_config: MigrationConfiguration,
     ) -> SklResult<MigrationResult> {
-        let mut migration_mgr = self.migration_manager.write().unwrap();
+        let mut migration_mgr = self.migration_manager.write().unwrap_or_else(|e| e.into_inner());
         migration_mgr.perform_migration(migration_config).await
     }
 
     /// Get configuration statistics
     pub fn get_configuration_statistics(&self) -> SklResult<ConfigurationStatistics> {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(ConfigurationStatistics {
             total_updates_applied: state.total_updates_applied,
             current_version: state.current_version.clone(),
             total_rollbacks: state.total_rollbacks,
-            active_watchers: self.watchers.read().unwrap().len(),
+            active_watchers: self.watchers.read().unwrap_or_else(|e| e.into_inner()).len(),
             last_update: state.last_update,
             configuration_size: self.calculate_configuration_size()?,
             validation_success_rate: self.calculate_validation_success_rate()?,
@@ -541,7 +541,7 @@ impl ConfigurationManager {
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -559,7 +559,7 @@ impl ConfigurationManager {
     /// Private helper methods
     async fn apply_changes(&mut self, config_update: ConfigurationUpdate) -> SklResult<Vec<String>> {
         let mut applied_changes = Vec::new();
-        let mut current_config = self.current_config.write().unwrap();
+        let mut current_config = self.current_config.write().unwrap_or_else(|e| e.into_inner());
 
         // Apply metrics collection changes
         if let Some(metrics_config) = config_update.metrics_collection {
@@ -628,12 +628,12 @@ impl ConfigurationManager {
         let config = self.get_current_config();
 
         // Notify through configuration channel
-        if let Some(tx) = &*self.config_tx.lock().unwrap() {
+        if let Some(tx) = &*self.config_tx.lock().unwrap_or_else(|e| e.into_inner()) {
             let _ = tx.send(config.clone());
         }
 
         // Notify watchers
-        let watchers = self.watchers.read().unwrap();
+        let watchers = self.watchers.read().unwrap_or_else(|e| e.into_inner());
         for (_, watcher) in watchers.iter() {
             watcher.notify_change(&config).await?;
         }

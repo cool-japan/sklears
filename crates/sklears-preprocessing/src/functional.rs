@@ -230,7 +230,7 @@ pub fn robust_scale(
 
     for j in 0..x.ncols() {
         let mut column: Vec<Float> = x.column(j).to_vec();
-        column.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        column.sort_by(|a, b| a.partial_cmp(b).expect("matrix indexing should be valid"));
 
         let n = column.len();
         let q1_idx = ((n as Float) * quantile_range.0) as usize;
@@ -363,11 +363,14 @@ mod tests {
         let x = arr2(&[[0.0, 0.0], [0.0, 0.0], [1.0, 1.0], [1.0, 1.0]]);
 
         // Scale along features
-        let scaled = scale(&x, 0, true, true).unwrap();
+        let scaled = scale(&x, 0, true, true).expect("operation should succeed");
 
         // Check mean is 0
         for j in 0..x.ncols() {
-            let col_mean = scaled.column(j).mean().unwrap();
+            let col_mean = scaled
+                .column(j)
+                .mean()
+                .expect("array should have elements for mean computation");
             assert_abs_diff_eq!(col_mean, 0.0, epsilon = 1e-10);
         }
 
@@ -384,7 +387,7 @@ mod tests {
         let x = arr2(&[[4.0, 3.0], [1.0, 2.0]]);
 
         // L2 normalize along samples
-        let normalized = normalize(&x, NormType::L2, 1).unwrap();
+        let normalized = normalize(&x, NormType::L2, 1).expect("operation should succeed");
 
         // Check L2 norm is 1 for each row
         for i in 0..x.nrows() {
@@ -398,7 +401,7 @@ mod tests {
     fn test_binarize() {
         let x = arr2(&[[0.5, 1.5], [2.5, 3.5]]);
 
-        let binarized = binarize(&x, 2.0).unwrap();
+        let binarized = binarize(&x, 2.0).expect("operation should succeed");
 
         assert_eq!(binarized[[0, 0]], 0.0);
         assert_eq!(binarized[[0, 1]], 0.0);
@@ -410,7 +413,7 @@ mod tests {
     fn test_minmax_scale() {
         let x = arr2(&[[0.0, 0.0], [1.0, 2.0], [2.0, 4.0]]);
 
-        let scaled = minmax_scale(&x, (0.0, 1.0), 0).unwrap();
+        let scaled = minmax_scale(&x, (0.0, 1.0), 0).expect("operation should succeed");
 
         // Check min is 0 and max is 1 for each feature
         for j in 0..x.ncols() {
@@ -426,7 +429,7 @@ mod tests {
     fn test_add_dummy_feature() {
         let x = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
 
-        let x_with_dummy = add_dummy_feature(&x, 1.0).unwrap();
+        let x_with_dummy = add_dummy_feature(&x, 1.0).expect("operation should succeed");
 
         assert_eq!(x_with_dummy.shape(), &[2, 3]);
         assert_eq!(x_with_dummy[[0, 0]], 1.0);
@@ -439,7 +442,7 @@ mod tests {
     fn test_label_binarize() {
         let y = arr1(&[0, 1, 2, 1, 0]);
 
-        let binarized = label_binarize(&y, 0, 1).unwrap();
+        let binarized = label_binarize(&y, 0, 1).expect("operation should succeed");
 
         // Should have shape (n_samples, n_classes)
         assert_eq!(binarized.shape(), &[5, 3]);

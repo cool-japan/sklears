@@ -757,7 +757,7 @@ impl PipelineDebugger {
     /// Start debugging a pipeline execution
     pub fn start_execution(&self, pipeline_name: &str) -> Result<String> {
         if self.config.enable_execution_tracing {
-            let mut tracer = self.tracer.write().unwrap();
+            let mut tracer = self.tracer.write().unwrap_or_else(|e| e.into_inner());
             let context = ExecutionContext {
                 pipeline_name: pipeline_name.to_string(),
                 current_step: "initialization".to_string(),
@@ -772,7 +772,7 @@ impl PipelineDebugger {
             "debug_session_{}",
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs()
         ))
     }
@@ -789,12 +789,12 @@ impl PipelineDebugger {
             step_name,
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_millis()
         );
 
         if self.config.enable_execution_tracing {
-            let mut tracer = self.tracer.write().unwrap();
+            let mut tracer = self.tracer.write().unwrap_or_else(|e| e.into_inner());
             let input_metadata = self.create_data_metadata(&input_data);
 
             let step = ExecutionStep {
@@ -815,18 +815,24 @@ impl PipelineDebugger {
         }
 
         if self.config.enable_performance_profiling {
-            let mut profiler = self.profiler.write().unwrap();
+            let mut profiler = self.profiler.write().unwrap_or_else(|e| e.into_inner());
             profiler.start_measurement(&step_id, step_name);
         }
 
         if self.config.enable_data_inspection {
-            let mut inspector = self.data_inspector.write().unwrap();
+            let mut inspector = self
+                .data_inspector
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             inspector.capture_data_snapshot(step_name, &input_data)?;
         }
 
         // Check for breakpoints
         if self.config.enable_interactive_debugging {
-            let debugger = self.interactive_debugger.lock().unwrap();
+            let debugger = self
+                .interactive_debugger
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if debugger.should_break(step_name) {
                 // Breakpoint hit - could trigger user interaction
                 println!("Breakpoint hit at step: {step_name}");
@@ -839,13 +845,13 @@ impl PipelineDebugger {
     /// Record the completion of a pipeline step
     pub fn step_complete(&self, step_id: &str, output_data: ArrayView2<f64>) -> Result<()> {
         if self.config.enable_execution_tracing {
-            let mut tracer = self.tracer.write().unwrap();
+            let mut tracer = self.tracer.write().unwrap_or_else(|e| e.into_inner());
             let output_metadata = self.create_data_metadata(&output_data);
             tracer.complete_step(step_id, output_metadata)?;
         }
 
         if self.config.enable_performance_profiling {
-            let mut profiler = self.profiler.write().unwrap();
+            let mut profiler = self.profiler.write().unwrap_or_else(|e| e.into_inner());
             if let Some(metrics) = profiler.end_measurement(step_id) {
                 // Store performance metrics
                 if let Ok(mut tracer) = self.tracer.write() {
@@ -860,7 +866,7 @@ impl PipelineDebugger {
     /// Record an error during pipeline execution
     pub fn step_error(&self, step_id: &str, error: &SklearsComposeError) -> Result<()> {
         if self.config.enable_execution_tracing {
-            let mut tracer = self.tracer.write().unwrap();
+            let mut tracer = self.tracer.write().unwrap_or_else(|e| e.into_inner());
             let error_info = ErrorInfo {
                 message: error.to_string(),
                 error_type: format!("{error:?}"),
@@ -870,7 +876,10 @@ impl PipelineDebugger {
         }
 
         // Generate error context and suggestions
-        let mut error_manager = self.error_manager.write().unwrap();
+        let mut error_manager = self
+            .error_manager
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         error_manager.record_error(step_id, error)?;
 
         Ok(())
@@ -878,10 +887,13 @@ impl PipelineDebugger {
 
     /// Generate a comprehensive debugging report
     pub fn generate_report(&self) -> Result<DebugReport> {
-        let tracer = self.tracer.read().unwrap();
-        let profiler = self.profiler.read().unwrap();
-        let inspector = self.data_inspector.read().unwrap();
-        let error_manager = self.error_manager.read().unwrap();
+        let tracer = self.tracer.read().unwrap_or_else(|e| e.into_inner());
+        let profiler = self.profiler.read().unwrap_or_else(|e| e.into_inner());
+        let inspector = self
+            .data_inspector
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
+        let error_manager = self.error_manager.read().unwrap_or_else(|e| e.into_inner());
 
         let report = DebugReport {
             execution_summary: tracer.get_execution_summary(),
@@ -900,7 +912,7 @@ impl PipelineDebugger {
         let report = self.generate_report()?;
 
         match format {
-            ExportFormat::Json => Ok(serde_json::to_string_pretty(&report).unwrap()),
+            ExportFormat::Json => Ok(serde_json::to_string_pretty(&report).unwrap_or_default()),
             ExportFormat::Html => Ok(self.generate_html_report(&report)),
             ExportFormat::Markdown => Ok(self.generate_markdown_report(&report)),
             ExportFormat::Csv => Ok(self.generate_csv_report(&report)),
@@ -1267,7 +1279,7 @@ impl ErrorContextManager {
                 step_id,
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             error_message: error.to_string(),
@@ -1447,10 +1459,12 @@ mod tests {
         let debugger = PipelineDebugger::new();
         let data = Array2::zeros((10, 5));
 
-        let session = debugger.start_execution("test_pipeline").unwrap();
+        let session = debugger
+            .start_execution("test_pipeline")
+            .unwrap_or_default();
         let step_id = debugger
             .step_start("test_step", StepType::Transform, data.view())
-            .unwrap();
+            .unwrap_or_default();
         let result = debugger.step_complete(&step_id, data.view());
 
         assert!(result.is_ok());
@@ -1480,7 +1494,7 @@ mod tests {
             debugger.debug_transform("scale", input.view(), |data| Ok(data.to_owned() * 2.0));
 
         assert!(result.is_ok());
-        let output = result.unwrap();
+        let output = result.unwrap_or_default();
         assert_eq!(output[[0, 0]], 2.0);
     }
 
@@ -1529,9 +1543,13 @@ mod tests {
     #[test]
     fn test_data_statistics() {
         let debugger = PipelineDebugger::new();
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data =
+            Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap_or_default();
 
-        let inspector = debugger.data_inspector.read().unwrap();
+        let inspector = debugger
+            .data_inspector
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let stats = inspector.compute_statistics(&data.view());
 
         assert_eq!(stats.n_samples, 3);

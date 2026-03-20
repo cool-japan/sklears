@@ -482,7 +482,7 @@ impl ConnectionFactory {
 
     /// Create a new connection
     pub fn create_connection(&mut self) -> Result<ManagedConnection, String> {
-        let connection_id = format!("conn_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos());
+        let connection_id = format!("conn_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos());
         let connection = ManagedConnection {
             connection_id,
             state: ConnectionState::Active,
@@ -507,7 +507,7 @@ impl ConnectionFactory {
         let template = self.templates.get(template_id)
             .ok_or_else(|| format!("Template {} not found", template_id))?;
 
-        let connection_id = format!("conn_{}_{}", template_id, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos());
+        let connection_id = format!("conn_{}_{}", template_id, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos());
         let connection = ManagedConnection {
             connection_id,
             state: ConnectionState::Active,

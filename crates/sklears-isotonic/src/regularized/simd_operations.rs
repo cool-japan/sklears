@@ -191,7 +191,9 @@ pub fn simd_interpolate(x_grid: &[f64], y_grid: &[f64], x_query: &[f64]) -> Vec<
         .iter()
         .map(|&x_q| {
             // Binary search for insertion point
-            let idx = match x_grid.binary_search_by(|&x| x.partial_cmp(&x_q).unwrap()) {
+            let idx = match x_grid
+                .binary_search_by(|&x| x.partial_cmp(&x_q).expect("operation should succeed"))
+            {
                 Ok(i) => return y_grid[i], // Exact match
                 Err(i) => i,
             };

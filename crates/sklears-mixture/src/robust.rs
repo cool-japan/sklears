@@ -258,8 +258,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for RobustGaussianMixture<Untrained> {
             }
         }
 
-        let (weights, means, covariances) = best_params.unwrap();
-        let outlier_mask = best_outlier_mask.unwrap();
+        let (weights, means, covariances) = best_params.expect("operation should succeed");
+        let outlier_mask = best_outlier_mask.expect("operation should succeed");
 
         // Calculate model selection criteria
         let n_params =
@@ -414,7 +414,7 @@ impl RobustGaussianMixture<Untrained> {
         // Calculate median for each feature
         for j in 0..n_features {
             let mut feature_values: Vec<f64> = X.column(j).to_vec();
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let median = if n_samples % 2 == 0 {
                 (feature_values[n_samples / 2 - 1] + feature_values[n_samples / 2]) / 2.0
             } else {
@@ -428,7 +428,7 @@ impl RobustGaussianMixture<Untrained> {
         }
 
         // Calculate median absolute deviation
-        all_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        all_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let mad = if all_deviations.len() % 2 == 0 {
             (all_deviations[all_deviations.len() / 2 - 1]
                 + all_deviations[all_deviations.len() / 2])
@@ -504,7 +504,7 @@ impl RobustGaussianMixture<Untrained> {
 
         // Calculate robust threshold using percentile
         let mut sorted_likelihoods = sample_likelihoods.to_vec();
-        sorted_likelihoods.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_likelihoods.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Use lower percentile as threshold
         let threshold_idx = ((1.0 - self.outlier_fraction) * n_samples as f64) as usize;
@@ -1013,7 +1013,7 @@ impl RobustGaussianMixture<RobustGaussianMixtureTrained> {
 
         // Use same outlier detection logic as training
         let mut sorted_scores = scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let threshold_idx = ((1.0 - self.outlier_fraction) * n_samples as f64) as usize;
         let threshold_idx = threshold_idx.min(n_samples - 1);

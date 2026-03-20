@@ -179,7 +179,7 @@ impl MVU<Untrained> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             neighbors[i] = distances
                 .iter()
                 .take(self.n_neighbors)
@@ -249,9 +249,9 @@ impl MVU<Untrained> {
         let n_samples = kernel.nrows();
 
         // Center the kernel matrix
-        let row_means = kernel.mean_axis(Axis(1)).unwrap();
-        let col_means = kernel.mean_axis(Axis(0)).unwrap();
-        let total_mean = kernel.mean().unwrap();
+        let row_means = kernel.mean_axis(Axis(1)).expect("operation should succeed");
+        let col_means = kernel.mean_axis(Axis(0)).expect("operation should succeed");
+        let total_mean = kernel.mean().expect("operation should succeed");
 
         let mut centered_kernel = kernel.clone();
         for i in 0..n_samples {
@@ -267,7 +267,11 @@ impl MVU<Untrained> {
 
         // Select the largest eigenvalues and corresponding eigenvectors
         let mut sorted_indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        sorted_indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        sorted_indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for (comp, &idx) in sorted_indices.iter().take(self.n_components).enumerate() {

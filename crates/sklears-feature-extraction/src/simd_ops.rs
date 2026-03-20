@@ -738,7 +738,8 @@ mod tests {
 
     #[test]
     fn test_matrix_vector_multiply() {
-        let matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let vector = array![1.0, 2.0, 3.0];
 
         let result = SimdOps::matrix_vector_multiply(matrix.view(), vector.view());

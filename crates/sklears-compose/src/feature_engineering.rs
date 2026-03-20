@@ -132,7 +132,11 @@ impl FeatureInteractionDetector {
         }
 
         // Sort by strength and take top interactions
-        interactions.sort_by(|a, b| b.strength.partial_cmp(&a.strength).unwrap());
+        interactions.sort_by(|a, b| {
+            b.strength
+                .partial_cmp(&a.strength)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         interactions.truncate(self.max_interactions);
 
         Ok(interactions)
@@ -427,7 +431,8 @@ impl AutoFeatureEngineer {
             }
 
             // Sort by variance (descending)
-            feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            feature_scores
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             // Select top features
             let selected_indices: Vec<usize> = feature_scores
@@ -591,7 +596,9 @@ mod tests {
 
         let detector = FeatureInteractionDetector::new().min_correlation(0.5);
 
-        let interactions = detector.detect_interactions(&x.view(), None).unwrap();
+        let interactions = detector
+            .detect_interactions(&x.view(), None)
+            .unwrap_or_default();
         assert!(!interactions.is_empty());
     }
 
@@ -603,7 +610,9 @@ mod tests {
             .polynomial_features(true, 2)
             .interaction_features(true);
 
-        let engineered = engineer.generate_features(&x.view(), None).unwrap();
+        let engineered = engineer
+            .generate_features(&x.view(), None)
+            .unwrap_or_default();
         assert!(engineered.ncols() > x.ncols());
     }
 

@@ -67,12 +67,14 @@ impl OnlineFeatureSelector<Untrained> {
     }
 
     /// Set the decay factor for exponential moving statistics
-    pub fn decay_factor(mut self, decay_factor: f64) -> Self {
+    pub fn decay_factor(mut self, decay_factor: f64) -> Result<Self, SklearsError> {
         if !(0.0..=1.0).contains(&decay_factor) {
-            panic!("decay_factor must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "decay_factor must be between 0 and 1".to_string(),
+            ));
         }
         self.decay_factor = decay_factor;
-        self
+        Ok(self)
     }
 
     /// Set minimum samples before selection begins
@@ -232,7 +234,7 @@ impl OnlineFeatureSelector<Trained> {
                 .collect();
 
             // Sort by score (descending)
-            feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             // Select top k features
             let selected: Vec<usize> = feature_scores
@@ -361,12 +363,14 @@ impl StreamingFeatureImportance {
     }
 
     /// Set decay factor for exponential moving average
-    pub fn decay_factor(mut self, decay_factor: f64) -> Self {
+    pub fn decay_factor(mut self, decay_factor: f64) -> Result<Self, SklearsError> {
         if !(0.0..=1.0).contains(&decay_factor) {
-            panic!("decay_factor must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "decay_factor must be between 0 and 1".to_string(),
+            ));
         }
         self.decay_factor = decay_factor;
-        self
+        Ok(self)
     }
 
     /// Update importance scores with new sample
@@ -418,7 +422,7 @@ impl StreamingFeatureImportance {
             .map(|(&idx, &score)| (idx, score))
             .collect();
 
-        scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         scores.into_iter().take(k).map(|(idx, _)| idx).collect()
     }
 }
@@ -599,7 +603,7 @@ mod tests {
         let y = array![1.0, 2.0, 3.0];
 
         let selector = OnlineFeatureSelector::new(2).min_samples(2);
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         assert_eq!(fitted.selected_features().len(), 2);
         assert_eq!(fitted.sample_count_, 3);
@@ -611,11 +615,13 @@ mod tests {
         let y = array![1.0, 2.0];
 
         let selector = OnlineFeatureSelector::new(2);
-        let mut fitted = selector.fit(&x, &y).unwrap();
+        let mut fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         // Add new sample
         let new_sample = array![10.0, 11.0, 12.0];
-        fitted.partial_fit_sample(&new_sample, 3.0).unwrap();
+        fitted
+            .partial_fit_sample(&new_sample, 3.0)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.sample_count_, 3);
     }
@@ -625,7 +631,9 @@ mod tests {
         let mut importance = StreamingFeatureImportance::new();
 
         let features = array![1.0, 2.0, 3.0];
-        importance.update(&features, 5.0, 4.8).unwrap();
+        importance
+            .update(&features, 5.0, 4.8)
+            .expect("operation should succeed");
 
         let scores = importance.get_importance_scores();
         assert_eq!(scores.len(), 3);
@@ -640,13 +648,13 @@ mod tests {
         let y = array![1.0, 2.0, 3.0];
 
         let selector = ConceptDriftAwareSelector::new(1).min_samples(2);
-        let mut fitted = selector.fit(&x, &y).unwrap();
+        let mut fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         // Add sample with performance
         let sample = array![7.0, 8.0];
         fitted
             .partial_fit_with_performance(&sample, 4.0, 0.9)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(fitted.selected_features().len(), 1);
     }
@@ -657,10 +665,10 @@ mod tests {
         let y = array![1.0, 2.0];
 
         let selector = OnlineFeatureSelector::new(2).min_samples(2);
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         let test_x = array![[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]];
-        let transformed = fitted.transform(&test_x).unwrap();
+        let transformed = fitted.transform(&test_x).expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 2);
         assert_eq!(transformed.nrows(), 2);

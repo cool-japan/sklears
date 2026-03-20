@@ -336,7 +336,7 @@ fn compute_metric_tensor(
                 distances.push((dist, j));
             }
         }
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let neighbors: Vec<usize> = distances
             .iter()
@@ -352,7 +352,9 @@ fn compute_metric_tensor(
         }
 
         // Compute covariance matrix
-        let mean = local_data.mean_axis(Axis(0)).unwrap();
+        let mean = local_data
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
         let centered_data = &local_data - &mean;
         let cov = centered_data.t().dot(&centered_data) / (neighbors.len() as Float - 1.0);
 
@@ -395,7 +397,7 @@ fn compute_geodesic_distances_dijkstra(
                 neighbor_distances.push((dist, j));
             }
         }
-        neighbor_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbor_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Add edges to k nearest neighbors
         for &(dist, j) in neighbor_distances
@@ -471,7 +473,7 @@ fn compute_geodesic_distances_floyd_warshall(
                 neighbor_distances.push((dist, j));
             }
         }
-        neighbor_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbor_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Add edges to k nearest neighbors
         for &(dist, j) in neighbor_distances

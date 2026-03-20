@@ -659,7 +659,7 @@ impl LDATopicModel {
 
     /// Convert documents to word count matrix
     fn documents_to_word_counts(&self, documents: &[String]) -> (Array2<f64>, Vec<Vec<String>>) {
-        let vocabulary = self.vocabulary.as_ref().unwrap();
+        let vocabulary = self.vocabulary.as_ref().expect("operation should succeed");
         let n_docs = documents.len();
         let vocab_size = vocabulary.len();
         let mut word_counts = Array2::zeros((n_docs, vocab_size));
@@ -1104,7 +1104,9 @@ mod tests {
             "hello peace".to_string(),
         ];
 
-        let features = extractor.fit_transform(&documents).unwrap();
+        let features = extractor
+            .fit_transform(&documents)
+            .expect("operation should succeed");
 
         // Should have 3 documents and some number of features
         assert_eq!(features.nrows(), 3);
@@ -1113,11 +1115,16 @@ mod tests {
 
     #[test]
     fn test_tfidf_transformer() {
-        let tf_matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 0.0, 1.0, 0.0, 1.0]).unwrap();
+        let tf_matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 0.0, 1.0, 0.0, 1.0])
+            .expect("operation should succeed");
 
         let mut transformer = TfIdfTransformer::new();
-        transformer.fit(&tf_matrix).unwrap();
-        let tfidf_matrix = transformer.transform(&tf_matrix).unwrap();
+        transformer
+            .fit(&tf_matrix)
+            .expect("operation should succeed");
+        let tfidf_matrix = transformer
+            .transform(&tf_matrix)
+            .expect("operation should succeed");
 
         // Check that transformation was applied
         assert_eq!(tfidf_matrix.dim(), tf_matrix.dim());
@@ -1139,10 +1146,10 @@ mod tests {
             .ngram_range((1, 1))
             .use_tfidf(false);
 
-        model.fit(&documents, &y).unwrap();
+        model.fit(&documents, &y).expect("operation should succeed");
 
         let test_docs = vec!["this is good".to_string()];
-        let predictions = model.predict(&test_docs).unwrap();
+        let predictions = model.predict(&test_docs).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 1);
     }
@@ -1158,14 +1165,16 @@ mod tests {
                 0.0, 2.0, 0.0, 8.0, // doc 3: length = 10
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let transformer = TfIdfTransformer::new()
             .doc_length_norm(true)
             .use_idf(false)
             .norm(None);
 
-        let result = transformer.transform(&tf_matrix).unwrap();
+        let result = transformer
+            .transform(&tf_matrix)
+            .expect("operation should succeed");
 
         // Check that each row sums to 1.0 (document length normalized)
         for i in 0..result.nrows() {
@@ -1189,11 +1198,13 @@ mod tests {
             .use_tfidf(true)
             .doc_length_norm(true);
 
-        model.fit(&documents, &y).unwrap();
+        model.fit(&documents, &y).expect("operation should succeed");
 
         let test_docs = vec!["this is medium".to_string()];
-        let predictions = model.predict(&test_docs).unwrap();
-        let probabilities = model.predict_proba(&test_docs).unwrap();
+        let predictions = model.predict(&test_docs).expect("operation should succeed");
+        let probabilities = model
+            .predict_proba(&test_docs)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 1);
         assert_eq!(probabilities.nrows(), 1);
@@ -1218,8 +1229,10 @@ mod tests {
             .max_iter(10)
             .random_state(Some(42));
 
-        model.fit(&documents).unwrap();
-        let topic_distributions = model.transform(&documents).unwrap();
+        model.fit(&documents).expect("operation should succeed");
+        let topic_distributions = model
+            .transform(&documents)
+            .expect("operation should succeed");
 
         assert_eq!(topic_distributions.nrows(), 4);
         assert_eq!(topic_distributions.ncols(), 2);
@@ -1231,7 +1244,7 @@ mod tests {
         }
 
         // Test topic words extraction
-        let topics = model.get_topic_words(3).unwrap();
+        let topics = model.get_topic_words(3).expect("operation should succeed");
         assert_eq!(topics.len(), 2);
         for topic in topics {
             assert!(topic.len() <= 3);
@@ -1255,11 +1268,13 @@ mod tests {
             .topic_weight(0.3)
             .alpha(0.1);
 
-        model.fit(&documents, &y).unwrap();
+        model.fit(&documents, &y).expect("operation should succeed");
 
         let test_docs = vec!["machine learning programming".to_string()];
-        let predictions = model.predict(&test_docs).unwrap();
-        let probabilities = model.predict_proba(&test_docs).unwrap();
+        let predictions = model.predict(&test_docs).expect("operation should succeed");
+        let probabilities = model
+            .predict_proba(&test_docs)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 1);
         assert_eq!(probabilities.nrows(), 1);
@@ -1270,7 +1285,7 @@ mod tests {
         assert_abs_diff_eq!(prob_sum, 1.0, epsilon = 1e-10);
 
         // Test topics extraction
-        let topics = model.get_topics(3).unwrap();
+        let topics = model.get_topics(3).expect("operation should succeed");
         assert_eq!(topics.len(), 2);
     }
 
@@ -1289,10 +1304,10 @@ mod tests {
             .use_text_features(false) // Only use topic features
             .use_topic_features(true);
 
-        model.fit(&documents, &y).unwrap();
+        model.fit(&documents, &y).expect("operation should succeed");
 
         let test_docs = vec!["apple car".to_string()];
-        let predictions = model.predict(&test_docs).unwrap();
+        let predictions = model.predict(&test_docs).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 1);
     }

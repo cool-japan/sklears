@@ -171,13 +171,21 @@ impl MultiTaskFeatureSelector {
             }
 
             // Sort by importance and limit number of features
-            task_features.sort_by(|&a, &b| importance[b].partial_cmp(&importance[a]).unwrap());
+            task_features.sort_by(|&a, &b| {
+                importance[b]
+                    .partial_cmp(&importance[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             // Apply min/max constraints
             if task_features.len() < self.config.min_features_per_task {
                 // Add top features to meet minimum requirement
                 let mut all_features: Vec<usize> = (0..n_features).collect();
-                all_features.sort_by(|&a, &b| importance[b].partial_cmp(&importance[a]).unwrap());
+                all_features.sort_by(|&a, &b| {
+                    importance[b]
+                        .partial_cmp(&importance[a])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
                 task_features = all_features
                     .into_iter()
                     .take(self.config.min_features_per_task)
@@ -212,14 +220,20 @@ impl MultiTaskFeatureSelector {
             .filter(|&i| avg_importance[i] > self.config.importance_threshold)
             .collect();
 
-        shared_features
-            .sort_by(|&a, &b| avg_importance[b].partial_cmp(&avg_importance[a]).unwrap());
+        shared_features.sort_by(|&a, &b| {
+            avg_importance[b]
+                .partial_cmp(&avg_importance[a])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Apply constraints
         if shared_features.len() < self.config.min_features_per_task {
             let mut all_features: Vec<usize> = (0..n_features).collect();
-            all_features
-                .sort_by(|&a, &b| avg_importance[b].partial_cmp(&avg_importance[a]).unwrap());
+            all_features.sort_by(|&a, &b| {
+                avg_importance[b]
+                    .partial_cmp(&avg_importance[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             shared_features = all_features
                 .into_iter()
                 .take(self.config.min_features_per_task)
@@ -271,8 +285,11 @@ impl MultiTaskFeatureSelector {
             .filter(|&i| avg_importance[i] > self.config.importance_threshold)
             .collect();
 
-        shared_candidates
-            .sort_by(|&a, &b| avg_importance[b].partial_cmp(&avg_importance[a]).unwrap());
+        shared_candidates.sort_by(|&a, &b| {
+            avg_importance[b]
+                .partial_cmp(&avg_importance[a])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let shared_features: Vec<usize> = shared_candidates.into_iter().take(n_shared).collect();
 
@@ -289,8 +306,11 @@ impl MultiTaskFeatureSelector {
                 })
                 .collect();
 
-            task_specific_candidates
-                .sort_by(|&a, &b| importance[b].partial_cmp(&importance[a]).unwrap());
+            task_specific_candidates.sort_by(|&a, &b| {
+                importance[b]
+                    .partial_cmp(&importance[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             task_features.extend(task_specific_candidates.into_iter().take(n_task_specific));
 
@@ -299,7 +319,11 @@ impl MultiTaskFeatureSelector {
                 let mut all_remaining: Vec<usize> = (0..n_features)
                     .filter(|i| !task_features.contains(i))
                     .collect();
-                all_remaining.sort_by(|&a, &b| importance[b].partial_cmp(&importance[a]).unwrap());
+                all_remaining.sort_by(|&a, &b| {
+                    importance[b]
+                        .partial_cmp(&importance[a])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
 
                 let needed = self.config.min_features_per_task - task_features.len();
                 task_features.extend(all_remaining.into_iter().take(needed));
@@ -347,8 +371,11 @@ impl MultiTaskFeatureSelector {
                     .filter(|i| !task_features.contains(i))
                     .collect();
 
-                additional_features
-                    .sort_by(|&a, &b| importance[b].partial_cmp(&importance[a]).unwrap());
+                additional_features.sort_by(|&a, &b| {
+                    importance[b]
+                        .partial_cmp(&importance[a])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
 
                 let needed = self.config.min_features_per_task - task_features.len();
                 task_features.extend(additional_features.into_iter().take(needed));
@@ -358,8 +385,11 @@ impl MultiTaskFeatureSelector {
             if let Some(max_features) = self.config.max_features_per_task {
                 if task_features.len() > max_features {
                     // Sort by importance and keep top features
-                    task_features
-                        .sort_by(|&a, &b| importance[b].partial_cmp(&importance[a]).unwrap());
+                    task_features.sort_by(|&a, &b| {
+                        importance[b]
+                            .partial_cmp(&importance[a])
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
                     task_features.truncate(max_features);
                 }
             }
@@ -530,7 +560,9 @@ mod tests {
             [0.3, 0.4],  // Feature 2: important for both tasks
         ];
 
-        let result = selector.select_features(&coefficients, 2).unwrap();
+        let result = selector
+            .select_features(&coefficients, 2)
+            .expect("operation should succeed");
 
         // Task 0 should select features 0 and 2
         let task_0_features = &result.selected_features[&0];
@@ -563,7 +595,9 @@ mod tests {
             [0.8, 0.7], // Feature 2: important for both
         ];
 
-        let result = selector.select_features(&coefficients, 2).unwrap();
+        let result = selector
+            .select_features(&coefficients, 2)
+            .expect("operation should succeed");
 
         // Both tasks should have the same features
         assert_eq!(result.selected_features[&0], result.selected_features[&1]);
@@ -594,7 +628,9 @@ mod tests {
             [0.5, 0.5],  // Feature 3: medium for both (could be shared)
         ];
 
-        let result = selector.select_features(&coefficients, 2).unwrap();
+        let result = selector
+            .select_features(&coefficients, 2)
+            .expect("operation should succeed");
 
         // Should have shared features
         assert!(!result.shared_features.is_empty());
@@ -625,7 +661,9 @@ mod tests {
             [0.9, 0.1], // Feature 2: selected by task 0 only
         ];
 
-        let result = selector.select_features(&coefficients, 2).unwrap();
+        let result = selector
+            .select_features(&coefficients, 2)
+            .expect("operation should succeed");
 
         // Feature 0 should be selected by both tasks (consensus)
         assert!(result.selected_features[&0].contains(&0));
@@ -639,7 +677,9 @@ mod tests {
 
         let coefficients = array![[0.5, 0.6], [0.1, 0.8], [0.7, 0.2],];
 
-        let result = selector.select_features(&coefficients, 2).unwrap();
+        let result = selector
+            .select_features(&coefficients, 2)
+            .expect("operation should succeed");
         let summary = selector.get_selection_summary(&result);
 
         assert_eq!(summary.n_tasks, 2);

@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -239,7 +239,7 @@ impl ParallelKNN {
 
             if heap.len() < self.k {
                 heap.push(NeighborDistance { index: i, distance });
-            } else if distance < heap.peek().unwrap().distance {
+            } else if distance < heap.peek().expect("operation should succeed").distance {
                 heap.pop();
                 heap.push(NeighborDistance { index: i, distance });
             }
@@ -529,7 +529,7 @@ impl KDTree {
                 index: node.point_index,
                 distance,
             });
-        } else if distance < heap.peek().unwrap().distance {
+        } else if distance < heap.peek().expect("operation should succeed").distance {
             heap.pop();
             heap.push(NeighborDistance {
                 index: node.point_index,
@@ -554,7 +554,8 @@ impl KDTree {
 
         // Search secondary subtree if necessary
         if let Some(ref child) = secondary {
-            let should_search = heap.len() < k || diff.abs() < heap.peek().unwrap().distance;
+            let should_search = heap.len() < k
+                || diff.abs() < heap.peek().expect("operation should succeed").distance;
             if should_search {
                 self.search_recursive(child, query, k, heap, metric)?;
             }
@@ -759,7 +760,9 @@ impl BallTree {
 
         let min_distance_to_ball = (distance_to_center - node.radius).max(0.0);
 
-        if heap.len() >= k && min_distance_to_ball >= heap.peek().unwrap().distance {
+        if heap.len() >= k
+            && min_distance_to_ball >= heap.peek().expect("operation should succeed").distance
+        {
             return Ok(()); // Prune this subtree
         }
 
@@ -783,7 +786,7 @@ impl BallTree {
                         index: idx,
                         distance,
                     });
-                } else if distance < heap.peek().unwrap().distance {
+                } else if distance < heap.peek().expect("operation should succeed").distance {
                     heap.pop();
                     heap.push(NeighborDistance {
                         index: idx,
@@ -825,7 +828,7 @@ impl LSHIndex {
 
         // Generate random hash functions
         let mut hash_functions = Vec::new();
-        let mut rng = StdRng::seed_from_u64(thread_rng().gen());
+        let mut rng = StdRng::seed_from_u64(thread_rng().random());
         for _ in 0..n_hash_tables {
             let mut hash_func = Array2::<Float>::zeros((n_hash_functions_per_table, n_features));
             for elem in hash_func.iter_mut() {
@@ -977,7 +980,9 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let knn = ParallelKNN::new(2);
-        let (indices, distances) = knn.fit_search(&data, &data).unwrap();
+        let (indices, distances) = knn
+            .fit_search(&data, &data)
+            .expect("operation should succeed");
 
         assert_eq!(indices.shape(), &[4, 2]);
         assert_eq!(distances.shape(), &[4, 2]);
@@ -997,7 +1002,9 @@ mod tests {
 
         for algorithm in algorithms {
             let knn = ParallelKNN::new(2).algorithm(algorithm);
-            let (indices, distances) = knn.fit_search(&data, &data).unwrap();
+            let (indices, distances) = knn
+                .fit_search(&data, &data)
+                .expect("operation should succeed");
 
             assert_eq!(indices.shape(), &[5, 2]);
             assert_eq!(distances.shape(), &[5, 2]);
@@ -1019,7 +1026,9 @@ mod tests {
 
         for metric in metrics {
             let knn = ParallelKNN::new(2).metric(metric);
-            let (indices, distances) = knn.fit_search(&data, &data).unwrap();
+            let (indices, distances) = knn
+                .fit_search(&data, &data)
+                .expect("operation should succeed");
 
             assert_eq!(indices.shape(), &[4, 2]);
             assert_eq!(distances.shape(), &[4, 2]);
@@ -1048,7 +1057,9 @@ mod tests {
             .algorithm("lsh")
             .approximate(true)
             .precision(0.8);
-        let (indices, distances) = knn.fit_search(&data, &data).unwrap();
+        let (indices, distances) = knn
+            .fit_search(&data, &data)
+            .expect("operation should succeed");
 
         assert_eq!(indices.shape(), &[6, 2]);
         assert_eq!(distances.shape(), &[6, 2]);
@@ -1075,7 +1086,7 @@ mod tests {
         let manhattan_dist = manhattan_distance(&a.view(), &b.view());
         assert_abs_diff_eq!(manhattan_dist, 9.0, epsilon = 1e-10);
 
-        let cosine_dist = cosine_distance(&a.view(), &b.view()).unwrap();
+        let cosine_dist = cosine_distance(&a.view(), &b.view()).expect("operation should succeed");
         assert!(cosine_dist >= 0.0 && cosine_dist <= 2.0);
     }
 
@@ -1083,9 +1094,11 @@ mod tests {
     fn test_kd_tree() {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
-        let kd_tree = KDTree::build(&data).unwrap();
+        let kd_tree = KDTree::build(&data).expect("operation should succeed");
         let query = array![3.5, 4.5];
-        let (indices, distances) = kd_tree.search_knn(&query.view(), 2, "euclidean").unwrap();
+        let (indices, distances) = kd_tree
+            .search_knn(&query.view(), 2, "euclidean")
+            .expect("operation should succeed");
 
         assert_eq!(indices.len(), 2);
         assert_eq!(distances.len(), 2);
@@ -1096,9 +1109,11 @@ mod tests {
     fn test_ball_tree() {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
-        let ball_tree = BallTree::build(&data, "euclidean").unwrap();
+        let ball_tree = BallTree::build(&data, "euclidean").expect("operation should succeed");
         let query = array![3.5, 4.5];
-        let (indices, distances) = ball_tree.search_knn(&query.view(), 2).unwrap();
+        let (indices, distances) = ball_tree
+            .search_knn(&query.view(), 2)
+            .expect("operation should succeed");
 
         assert_eq!(indices.len(), 2);
         assert_eq!(distances.len(), 2);
@@ -1109,11 +1124,11 @@ mod tests {
     fn test_lsh_index() {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
-        let lsh_index = LSHIndex::build(&data, 0.8).unwrap();
+        let lsh_index = LSHIndex::build(&data, 0.8).expect("operation should succeed");
         let query = array![3.5, 4.5];
         let (indices, distances) = lsh_index
             .search_approximate_knn(&query.view(), 2, &data, "euclidean")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(indices.len(), 2);
         assert_eq!(distances.len(), 2);

@@ -185,13 +185,13 @@ pub fn robust_statistics(data: &ArrayView1<Float>) -> (Float, Float) {
         return (0.0, 0.0);
     }
 
-    finite_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    finite_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let median = percentile(&finite_values, 50.0);
 
     // Median Absolute Deviation
     let deviations: Vec<Float> = finite_values.iter().map(|&x| (x - median).abs()).collect();
     let mut sorted_deviations = deviations;
-    sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let mad = percentile(&sorted_deviations, 50.0);
 
     (median, mad)

@@ -4,8 +4,7 @@
 //! choose the best covariance estimator for given data characteristics, and ensemble
 //! methods that combine multiple estimators for improved robustness and accuracy.
 
-use crate::polars_integration::{CovarianceDataFrame, CovarianceResult, DataFrameEstimator};
-use scirs2_core::ndarray::{Array2, ArrayView2, NdFloat};
+use scirs2_core::ndarray::{Array2, ArrayView2, Axis, NdFloat};
 use sklears_core::error::{Result as SklResult, SklearsError};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -57,9 +56,26 @@ impl<F: NdFloat> Clone for CandidateEstimator<F> {
     }
 }
 
+/// Trait for estimators that can fit on array data and return a covariance matrix
+pub trait ArrayEstimator<F: NdFloat>: Debug + Send + Sync {
+    /// Fit the estimator on array data and return the covariance matrix
+    fn fit_array(&self, data: &ArrayView2<F>) -> SklResult<ArrayCovarianceResult<F>>;
+    /// Get the estimator name
+    fn name(&self) -> &str;
+}
+
+/// Result from fitting an array-based covariance estimator
+#[derive(Debug, Clone)]
+pub struct ArrayCovarianceResult<F: NdFloat> {
+    /// The covariance matrix
+    pub covariance: Array2<F>,
+    /// The precision matrix (if computed)
+    pub precision: Option<Array2<F>>,
+}
+
 /// Factory function type for creating estimators
 pub type EstimatorFactory<F> =
-    Box<dyn Fn(&DataCharacteristics) -> SklResult<Box<dyn DataFrameEstimator<F>>> + Send + Sync>;
+    Box<dyn Fn(&DataCharacteristics) -> SklResult<Box<dyn ArrayEstimator<F>>> + Send + Sync>;
 
 /// Model selection strategies
 #[derive(Debug, Clone)]
@@ -471,7 +487,7 @@ pub struct BestEstimator<F: NdFloat> {
     /// Estimator name
     pub name: String,
     /// Fitted estimator result
-    pub result: CovarianceResult<F>,
+    pub result: ArrayCovarianceResult<F>,
     /// Selection score
     pub score: f64,
     /// Confidence in selection
@@ -492,7 +508,7 @@ pub struct CandidateResult<F: NdFloat> {
     /// Standard error of score
     pub score_std: f64,
     /// Fitted result on full data
-    pub fitted_result: Option<CovarianceResult<F>>,
+    pub fitted_result: Option<ArrayCovarianceResult<F>>,
     /// Computational time
     pub computation_time: f64,
     /// Memory usage
@@ -580,7 +596,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     }
 
     /// Perform automatic model selection
-    pub fn select_best(&self, data: &CovarianceDataFrame) -> SklResult<ModelSelectionResult<F>> {
+    pub fn select_best(&self, data: &ArrayView2<'_, F>) -> SklResult<ModelSelectionResult<F>> {
         let start_time = std::time::Instant::now();
 
         // Analyze data characteristics
@@ -625,26 +641,25 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     /// Analyze characteristics of the input data
     fn analyze_data_characteristics(
         &self,
-        data: &CovarianceDataFrame,
+        data: &ArrayView2<'_, F>,
     ) -> SklResult<DataCharacteristics> {
-        let (n_samples, n_features) = data.shape();
+        let (n_samples, n_features) = data.dim();
         let sample_feature_ratio = n_samples as f64 / n_features as f64;
 
         // Analyze correlation structure
-        let data_array = data.as_array_view();
-        let correlation_structure = self.analyze_correlation_structure(&data_array)?;
+        let correlation_structure = self.analyze_correlation_structure(data)?;
 
         // Estimate sparsity
-        let sparsity_level = self.estimate_sparsity(&data_array)?;
+        let sparsity_level = self.estimate_sparsity(data)?;
 
         // Estimate condition number
-        let condition_number = self.estimate_condition_number(&data_array)?;
+        let condition_number = self.estimate_condition_number(data)?;
 
         // Analyze distribution characteristics
-        let distribution = self.analyze_distribution(&data_array)?;
+        let distribution = self.analyze_distribution(data)?;
 
-        // Missing data analysis
-        let missing_data = self.analyze_missing_data(data)?;
+        // Missing data analysis (no missing data with array-based API)
+        let missing_data = MissingDataInfo::default();
 
         // Default computational constraints
         let computational_constraints = ComputationalConstraints {
@@ -670,7 +685,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     /// Analyze correlation structure in the data
     fn analyze_correlation_structure(
         &self,
-        data: &ArrayView2<f64>,
+        data: &ArrayView2<'_, F>,
     ) -> SklResult<CorrelationStructure> {
         // Simplified correlation analysis
         let (n_samples, n_features) = data.dim();
@@ -705,7 +720,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     }
 
     /// Estimate sparsity level in the data
-    fn estimate_sparsity(&self, data: &ArrayView2<f64>) -> SklResult<f64> {
+    fn estimate_sparsity(&self, data: &ArrayView2<'_, F>) -> SklResult<f64> {
         // Simplified sparsity estimation based on pairwise correlations
         let (n_samples, n_features) = data.dim();
 
@@ -719,8 +734,12 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
 
         for i in 0..n_features {
             for j in (i + 1)..n_features {
-                let col_i: Vec<f64> = (0..n_samples).map(|k| data[[k, i]]).collect();
-                let col_j: Vec<f64> = (0..n_samples).map(|k| data[[k, j]]).collect();
+                let col_i: Vec<f64> = (0..n_samples)
+                    .map(|k| data[[k, i]].to_f64().unwrap_or(0.0))
+                    .collect();
+                let col_j: Vec<f64> = (0..n_samples)
+                    .map(|k| data[[k, j]].to_f64().unwrap_or(0.0))
+                    .collect();
 
                 let correlation = self.compute_correlation(&col_i, &col_j);
                 if correlation.abs()
@@ -767,7 +786,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     }
 
     /// Estimate condition number of the data covariance
-    fn estimate_condition_number(&self, data: &ArrayView2<f64>) -> SklResult<f64> {
+    fn estimate_condition_number(&self, data: &ArrayView2<'_, F>) -> SklResult<f64> {
         // Simplified condition number estimation
         let (n_samples, n_features) = data.dim();
 
@@ -776,12 +795,16 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
         let mut off_diagonal_sum = 0.0;
 
         for i in 0..n_features {
-            let col_i: Vec<f64> = (0..n_samples).map(|k| data[[k, i]]).collect();
+            let col_i: Vec<f64> = (0..n_samples)
+                .map(|k| data[[k, i]].to_f64().unwrap_or(0.0))
+                .collect();
             let var_i = col_i.iter().map(|&x| x * x).sum::<f64>() / n_samples as f64;
             diagonal_sum += var_i;
 
             for j in (i + 1)..n_features {
-                let col_j: Vec<f64> = (0..n_samples).map(|k| data[[k, j]]).collect();
+                let col_j: Vec<f64> = (0..n_samples)
+                    .map(|k| data[[k, j]].to_f64().unwrap_or(0.0))
+                    .collect();
                 let cov_ij = col_i
                     .iter()
                     .zip(col_j.iter())
@@ -809,7 +832,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     /// Analyze distribution characteristics
     fn analyze_distribution(
         &self,
-        data: &ArrayView2<f64>,
+        data: &ArrayView2<'_, F>,
     ) -> SklResult<DistributionCharacteristics> {
         let (n_samples, n_features) = data.dim();
 
@@ -819,7 +842,9 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
         let mut normal_features = 0;
 
         for j in 0..n_features {
-            let column: Vec<f64> = (0..n_samples).map(|i| data[[i, j]]).collect();
+            let column: Vec<f64> = (0..n_samples)
+                .map(|i| data[[i, j]].to_f64().unwrap_or(0.0))
+                .collect();
             let (skewness, kurtosis) = self.compute_moments(&column);
 
             total_skewness += skewness.abs();
@@ -880,36 +905,6 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
         (skewness, kurtosis)
     }
 
-    /// Analyze missing data patterns
-    fn analyze_missing_data(&self, data: &CovarianceDataFrame) -> SklResult<MissingDataInfo> {
-        let missing_fraction = if data.has_missing_values() {
-            let missing_ratios = data.missing_ratios();
-            missing_ratios.values().sum::<f64>() / missing_ratios.len() as f64
-        } else {
-            0.0
-        };
-
-        let pattern = if missing_fraction == 0.0 {
-            MissingDataPattern::Complete
-        } else if missing_fraction < 0.1 {
-            MissingDataPattern::Random
-        } else {
-            MissingDataPattern::Arbitrary
-        };
-
-        let mechanism = if missing_fraction == 0.0 {
-            MissingDataMechanism::MCAR
-        } else {
-            MissingDataMechanism::Unknown
-        };
-
-        Ok(MissingDataInfo {
-            missing_fraction,
-            pattern,
-            mechanism,
-        })
-    }
-
     /// Filter candidates based on data characteristics
     fn filter_candidates(
         &self,
@@ -961,7 +956,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     fn evaluate_candidates(
         &self,
         candidates: &[&CandidateEstimator<F>],
-        data: &CovarianceDataFrame,
+        data: &ArrayView2<'_, F>,
         characteristics: &DataCharacteristics,
     ) -> SklResult<Vec<CandidateResult<F>>> {
         let mut results = Vec::new();
@@ -983,7 +978,7 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
             let score_std = score_variance.sqrt();
 
             // Fit on full data
-            let fitted_result = estimator.fit_dataframe(data).ok();
+            let fitted_result = estimator.fit_array(data).ok();
 
             let computation_time = start_time.elapsed().as_secs_f64();
 
@@ -1004,10 +999,10 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     /// Perform cross-validation for an estimator
     fn cross_validate(
         &self,
-        estimator: &dyn DataFrameEstimator<F>,
-        data: &CovarianceDataFrame,
+        estimator: &dyn ArrayEstimator<F>,
+        data: &ArrayView2<'_, F>,
     ) -> SklResult<Vec<f64>> {
-        let n_samples = data.shape().0;
+        let n_samples = data.nrows();
         let fold_size = n_samples / self.cv_config.n_folds;
         let mut scores = Vec::new();
 
@@ -1030,15 +1025,15 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
     /// Compute cross-validation score for a single fold
     fn compute_cv_score(
         &self,
-        estimator: &dyn DataFrameEstimator<F>,
-        data: &CovarianceDataFrame,
-        val_start: usize,
-        val_end: usize,
+        estimator: &dyn ArrayEstimator<F>,
+        data: &ArrayView2<'_, F>,
+        _val_start: usize,
+        _val_end: usize,
     ) -> SklResult<f64> {
         // Simplified CV score computation
         // In practice, would need proper train/validation splitting
 
-        match estimator.fit_dataframe(data) {
+        match estimator.fit_array(data) {
             Ok(result) => {
                 // Compute log-likelihood score (simplified)
                 let cov_matrix = &result.covariance;
@@ -1077,8 +1072,12 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
         // Find best candidate based on mean CV score
         let best_candidate = candidates
             .iter()
-            .max_by(|a, b| a.mean_score.partial_cmp(&b.mean_score).unwrap())
-            .unwrap();
+            .max_by(|a, b| {
+                a.mean_score
+                    .partial_cmp(&b.mean_score)
+                    .expect("operation should succeed")
+            })
+            .expect("operation should succeed");
 
         let confidence = self.compute_selection_confidence(best_candidate, candidates);
         let selection_reasons = vec![
@@ -1094,7 +1093,11 @@ impl<F: NdFloat> AutoCovarianceSelector<F> {
 
         Ok(BestEstimator {
             name: best_candidate.name.clone(),
-            result: best_candidate.fitted_result.as_ref().unwrap().clone(),
+            result: best_candidate
+                .fitted_result
+                .as_ref()
+                .expect("value should be present")
+                .clone(),
             score: best_candidate.mean_score,
             confidence,
             selection_reasons,
@@ -1197,8 +1200,8 @@ pub mod presets {
         selector = selector.add_candidate(
             "EmpiricalCovariance".to_string(),
             Box::new(|_chars| {
-                let estimator = EmpiricalCovariance::new();
-                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+                let estimator = EmpiricalCovarianceEstimator;
+                Ok(Box::new(estimator) as Box<dyn ArrayEstimator<f64>>)
             }),
             DataCharacteristics::default(),
             ComputationalComplexity::Quadratic,
@@ -1208,8 +1211,8 @@ pub mod presets {
         selector = selector.add_candidate(
             "LedoitWolf".to_string(),
             Box::new(|_chars| {
-                let estimator = LedoitWolf::new();
-                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+                let estimator = LedoitWolfEstimator;
+                Ok(Box::new(estimator) as Box<dyn ArrayEstimator<f64>>)
             }),
             DataCharacteristics::default(),
             ComputationalComplexity::Quadratic,
@@ -1220,16 +1223,14 @@ pub mod presets {
 
     /// Create a selector optimized for high-dimensional data
     pub fn high_dimensional_selector() -> AutoCovarianceSelector<f64> {
-        use crate::LedoitWolf;
-
         let mut selector = AutoCovarianceSelector::new();
 
         // Add Ledoit-Wolf - ideal for high-dimensional data
         selector = selector.add_candidate(
             "LedoitWolf".to_string(),
             Box::new(|_chars| {
-                let estimator = LedoitWolf::new();
-                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+                let estimator = LedoitWolfEstimator;
+                Ok(Box::new(estimator) as Box<dyn ArrayEstimator<f64>>)
             }),
             DataCharacteristics::default(),
             ComputationalComplexity::Quadratic,
@@ -1243,22 +1244,77 @@ pub mod presets {
 
     /// Create a selector for sparse data
     pub fn sparse_selector() -> AutoCovarianceSelector<f64> {
-        use crate::GraphicalLasso;
-
         let mut selector = AutoCovarianceSelector::new();
 
         // Add GraphicalLasso - ideal for sparse precision matrices
         selector = selector.add_candidate(
             "GraphicalLasso".to_string(),
             Box::new(|_chars| {
-                let estimator = GraphicalLasso::new().alpha(0.01);
-                Ok(Box::new(estimator) as Box<dyn DataFrameEstimator<f64>>)
+                let estimator = GraphicalLassoEstimator;
+                Ok(Box::new(estimator) as Box<dyn ArrayEstimator<f64>>)
             }),
             DataCharacteristics::default(),
             ComputationalComplexity::Cubic,
         );
 
         selector
+    }
+
+    /// Wrapper for EmpiricalCovariance as ArrayEstimator
+    #[derive(Debug)]
+    struct EmpiricalCovarianceEstimator;
+
+    impl ArrayEstimator<f64> for EmpiricalCovarianceEstimator {
+        fn fit_array(&self, data: &ArrayView2<f64>) -> SklResult<ArrayCovarianceResult<f64>> {
+            use sklears_core::traits::Fit;
+            let estimator = crate::EmpiricalCovariance::new();
+            let fitted = estimator.fit(data, &())?;
+            Ok(ArrayCovarianceResult {
+                covariance: fitted.get_covariance().clone(),
+                precision: fitted.get_precision().cloned(),
+            })
+        }
+        fn name(&self) -> &str {
+            "EmpiricalCovariance"
+        }
+    }
+
+    /// Wrapper for LedoitWolf as ArrayEstimator
+    #[derive(Debug)]
+    struct LedoitWolfEstimator;
+
+    impl ArrayEstimator<f64> for LedoitWolfEstimator {
+        fn fit_array(&self, data: &ArrayView2<f64>) -> SklResult<ArrayCovarianceResult<f64>> {
+            use sklears_core::traits::Fit;
+            let estimator = crate::LedoitWolf::new();
+            let fitted = estimator.fit(data, &())?;
+            Ok(ArrayCovarianceResult {
+                covariance: fitted.get_covariance().clone(),
+                precision: fitted.get_precision().cloned(),
+            })
+        }
+        fn name(&self) -> &str {
+            "LedoitWolf"
+        }
+    }
+
+    /// Wrapper for GraphicalLasso as ArrayEstimator
+    #[derive(Debug)]
+    struct GraphicalLassoEstimator;
+
+    impl ArrayEstimator<f64> for GraphicalLassoEstimator {
+        fn fit_array(&self, data: &ArrayView2<f64>) -> SklResult<ArrayCovarianceResult<f64>> {
+            use sklears_core::traits::Fit;
+            let estimator = crate::GraphicalLasso::new().alpha(0.01);
+            let fitted = estimator.fit(data, &())?;
+            Ok(ArrayCovarianceResult {
+                covariance: fitted.get_covariance().clone(),
+                precision: Some(fitted.get_precision().clone()),
+            })
+        }
+        fn name(&self) -> &str {
+            "GraphicalLasso"
+        }
     }
 }
 
@@ -1348,7 +1404,6 @@ impl Default for ComputationalConstraints {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::polars_utils;
 
     #[test]
     fn test_auto_selector_creation() {

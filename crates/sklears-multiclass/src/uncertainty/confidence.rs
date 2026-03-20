@@ -158,7 +158,7 @@ impl ConfidenceEstimator {
             .enumerate()
             .map(|(i, &p)| (i, p))
             .collect();
-        sorted_probs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        sorted_probs.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let max_probability = sorted_probs[0].1;
         let second_max_probability = if sorted_probs.len() > 1 {
@@ -214,7 +214,7 @@ impl ConfidenceEstimator {
     /// Margin confidence (difference between top two probabilities)
     fn margin_confidence(&self, probabilities: &Array1<f64>) -> SklResult<f64> {
         let mut sorted_probs: Vec<f64> = probabilities.to_vec();
-        sorted_probs.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_probs.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         if sorted_probs.len() < 2 {
             return Ok(sorted_probs.first().copied().unwrap_or(0.0));
@@ -227,7 +227,7 @@ impl ConfidenceEstimator {
     /// Ratio confidence (ratio between top two probabilities)
     fn ratio_confidence(&self, probabilities: &Array1<f64>) -> SklResult<f64> {
         let mut sorted_probs: Vec<f64> = probabilities.to_vec();
-        sorted_probs.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_probs.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         if sorted_probs.len() < 2 || sorted_probs[1] <= 1e-15 {
             return Ok(1.0);
@@ -390,7 +390,9 @@ mod tests {
 
         let probabilities = array![[0.8, 0.1, 0.1], [0.4, 0.3, 0.3]];
 
-        let confidence = estimator.estimate(&probabilities).unwrap();
+        let confidence = estimator
+            .estimate(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(confidence.len(), 2);
         assert!((confidence[0] - 0.8).abs() < 1e-10);
@@ -405,7 +407,9 @@ mod tests {
 
         let probabilities = array![[1.0, 0.0, 0.0], [0.33, 0.33, 0.34]];
 
-        let confidence = estimator.estimate(&probabilities).unwrap();
+        let confidence = estimator
+            .estimate(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(confidence.len(), 2);
         // Perfect prediction (1.0, 0.0, 0.0) should have high confidence
@@ -422,7 +426,9 @@ mod tests {
 
         let probabilities = array![[0.8, 0.1, 0.1], [0.4, 0.35, 0.25]];
 
-        let confidence = estimator.estimate(&probabilities).unwrap();
+        let confidence = estimator
+            .estimate(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(confidence.len(), 2);
         // First prediction has larger margin (0.8 - 0.1 = 0.7)
@@ -442,7 +448,9 @@ mod tests {
 
         let probabilities = array![[0.8, 0.1, 0.1]];
 
-        let confidence = estimator.estimate(&probabilities).unwrap();
+        let confidence = estimator
+            .estimate(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(confidence.len(), 1);
         // Should be average of max_prob (0.8) and margin (0.7) = 0.75
@@ -457,7 +465,9 @@ mod tests {
 
         let probabilities = array![[0.8, 0.1, 0.1]];
 
-        let detailed = estimator.estimate_detailed(&probabilities).unwrap();
+        let detailed = estimator
+            .estimate_detailed(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(detailed.len(), 1);
         let score = &detailed[0];
@@ -504,7 +514,9 @@ mod tests {
 
         let probabilities = array![[0.8, 0.2], [0.5, 0.5]];
 
-        let confidence = estimator.estimate(&probabilities).unwrap();
+        let confidence = estimator
+            .estimate(&probabilities)
+            .expect("operation should succeed");
 
         assert_eq!(confidence.len(), 2);
         // First has ratio 0.8/0.2 = 4, confidence = (4-1)/4 = 0.75

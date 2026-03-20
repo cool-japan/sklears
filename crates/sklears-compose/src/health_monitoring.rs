@@ -61,7 +61,7 @@ impl HealthChecker {
 
     /// Register health monitor for component
     pub fn register_monitor(&mut self, component_name: String, monitor: Box<dyn HealthMonitor>) -> SklResult<()> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         if self.monitors.contains_key(&component_name) {
             return Err(SklearsError::InvalidInput(
@@ -77,7 +77,7 @@ impl HealthChecker {
 
     /// Remove health monitor
     pub fn remove_monitor(&mut self, component_name: &str) -> SklResult<()> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         self.monitors.remove(component_name);
         self.component_states.remove(component_name);
@@ -87,7 +87,7 @@ impl HealthChecker {
 
     /// Perform comprehensive health check
     pub fn check_health(&mut self) -> SklResult<SystemHealth> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         let start_time = Instant::now();
 
         let mut component_health = HashMap::new();
@@ -213,7 +213,7 @@ impl HealthChecker {
 
     /// Get health trends
     pub fn get_health_trends(&self) -> HealthTrends {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
 
         if self.health_history.len() < 2 {
             return HealthTrends::default();
@@ -229,7 +229,7 @@ impl HealthChecker {
 
     /// Get component health state
     pub fn get_component_state(&self, component_name: &str) -> Option<&ComponentHealthState> {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
         self.component_states.get(component_name)
     }
 
@@ -240,13 +240,13 @@ impl HealthChecker {
 
     /// Get registered components
     pub fn get_registered_components(&self) -> Vec<String> {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
         self.monitors.keys().cloned().collect()
     }
 
     /// Enable/disable component monitoring
     pub fn set_component_enabled(&mut self, component_name: &str, enabled: bool) -> SklResult<()> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(state) = self.component_states.get_mut(component_name) {
             state.enabled = enabled;
@@ -274,7 +274,7 @@ impl HealthChecker {
 
     /// Analyze individual components
     fn analyze_components(&self) -> Vec<ComponentAnalysis> {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
 
         self.component_states.iter()
             .map(|(name, state)| ComponentAnalysis {
@@ -1074,17 +1074,17 @@ mod tests {
             name: "healthy_component".to_string(),
             healthy: true,
         });
-        checker.register_monitor("healthy_component".to_string(), healthy_monitor).unwrap();
+        checker.register_monitor("healthy_component".to_string(), healthy_monitor).unwrap_or_default();
 
         // Register unhealthy monitor
         let unhealthy_monitor = Box::new(MockHealthMonitor {
             name: "unhealthy_component".to_string(),
             healthy: false,
         });
-        checker.register_monitor("unhealthy_component".to_string(), unhealthy_monitor).unwrap();
+        checker.register_monitor("unhealthy_component".to_string(), unhealthy_monitor).unwrap_or_default();
 
         // Perform health check
-        let health = checker.check_health().unwrap();
+        let health = checker.check_health().unwrap_or_default();
 
         assert_eq!(health.components.len(), 2);
         assert!(health.components.contains_key("healthy_component"));

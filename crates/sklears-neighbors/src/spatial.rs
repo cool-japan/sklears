@@ -232,7 +232,7 @@ impl RTree {
                 points: vec![(point, index)],
             });
         } else {
-            let root = self.root.take().unwrap();
+            let root = self.root.take().expect("operation should succeed");
             let new_root = self.insert_recursive(root, point, index)?;
             self.root = Some(new_root);
         }
@@ -378,7 +378,7 @@ impl RTree {
                 Array1::zeros(self.dimensions),
                 Array1::zeros(self.dimensions),
             )
-            .unwrap();
+            .expect("operation should succeed");
         }
 
         let first_point = &points[0].0;
@@ -392,7 +392,7 @@ impl RTree {
             }
         }
 
-        Rectangle::new(min_bounds, max_bounds).unwrap()
+        Rectangle::new(min_bounds, max_bounds).expect("operation should succeed")
     }
 
     /// Compute bounds for a set of nodes
@@ -402,7 +402,7 @@ impl RTree {
                 Array1::zeros(self.dimensions),
                 Array1::zeros(self.dimensions),
             )
-            .unwrap();
+            .expect("operation should succeed");
         }
 
         let first_bounds = nodes[0].bounds().clone();
@@ -461,7 +461,7 @@ impl RTree {
         }
 
         // Sort by distance and take k nearest
-        candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).expect("operation should succeed"));
         candidates.into_iter().take(k).collect()
     }
 
@@ -486,7 +486,8 @@ impl RTree {
                     .enumerate()
                     .map(|(i, child)| (i, child.bounds().min_distance_to_point(query_point)))
                     .collect();
-                child_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                child_distances
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 for (child_idx, _) in child_distances {
                     self.knn_query_recursive(&children[child_idx], query_point, candidates);
@@ -722,7 +723,7 @@ impl QuadTree {
             Array1::from_vec(vec![min_x, min_y]),
             Array1::from_vec(vec![max_x, max_y]),
         )
-        .unwrap()
+        .expect("operation should succeed")
     }
 
     /// Range query: find all points within a rectangle
@@ -770,7 +771,7 @@ impl QuadTree {
         }
 
         // Sort by distance and take k nearest
-        candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         candidates.into_iter().take(k).collect()
     }
 
@@ -809,7 +810,8 @@ impl QuadTree {
                     })
                     .collect();
 
-                child_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                child_distances
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 for (child_idx, _) in child_distances {
                     if let Some(ref child) = children[child_idx] {
@@ -839,9 +841,11 @@ mod tests {
 
     #[test]
     fn test_rectangle_operations() {
-        let rect1 = Rectangle::new(array![0.0, 0.0], array![2.0, 2.0]).unwrap();
+        let rect1 =
+            Rectangle::new(array![0.0, 0.0], array![2.0, 2.0]).expect("operation should succeed");
 
-        let rect2 = Rectangle::new(array![1.0, 1.0], array![3.0, 3.0]).unwrap();
+        let rect2 =
+            Rectangle::new(array![1.0, 1.0], array![3.0, 3.0]).expect("operation should succeed");
 
         // Test intersection
         assert!(rect1.intersects(&rect2));
@@ -862,13 +866,22 @@ mod tests {
         let mut rtree = RTree::new(4, 2);
 
         // Insert some points
-        rtree.insert(array![1.0, 1.0], 0).unwrap();
-        rtree.insert(array![2.0, 2.0], 1).unwrap();
-        rtree.insert(array![3.0, 3.0], 2).unwrap();
-        rtree.insert(array![4.0, 4.0], 3).unwrap();
+        rtree
+            .insert(array![1.0, 1.0], 0)
+            .expect("operation should succeed");
+        rtree
+            .insert(array![2.0, 2.0], 1)
+            .expect("operation should succeed");
+        rtree
+            .insert(array![3.0, 3.0], 2)
+            .expect("operation should succeed");
+        rtree
+            .insert(array![4.0, 4.0], 3)
+            .expect("operation should succeed");
 
         // Range query
-        let query_rect = Rectangle::new(array![0.5, 0.5], array![2.5, 2.5]).unwrap();
+        let query_rect =
+            Rectangle::new(array![0.5, 0.5], array![2.5, 2.5]).expect("operation should succeed");
 
         let results = rtree.range_query(&query_rect);
         assert_eq!(results.len(), 2); // Points 0 and 1 should be in range
@@ -881,18 +894,28 @@ mod tests {
 
     #[test]
     fn test_quadtree_basic() {
-        let bounds = Rectangle::new(array![0.0, 0.0], array![10.0, 10.0]).unwrap();
+        let bounds =
+            Rectangle::new(array![0.0, 0.0], array![10.0, 10.0]).expect("operation should succeed");
 
-        let mut qtree = QuadTree::new(bounds, 2, 5).unwrap();
+        let mut qtree = QuadTree::new(bounds, 2, 5).expect("operation should succeed");
 
         // Insert some points
-        qtree.insert(array![1.0, 1.0], 0).unwrap();
-        qtree.insert(array![2.0, 2.0], 1).unwrap();
-        qtree.insert(array![8.0, 8.0], 2).unwrap();
-        qtree.insert(array![9.0, 9.0], 3).unwrap();
+        qtree
+            .insert(array![1.0, 1.0], 0)
+            .expect("operation should succeed");
+        qtree
+            .insert(array![2.0, 2.0], 1)
+            .expect("operation should succeed");
+        qtree
+            .insert(array![8.0, 8.0], 2)
+            .expect("operation should succeed");
+        qtree
+            .insert(array![9.0, 9.0], 3)
+            .expect("operation should succeed");
 
         // Range query
-        let query_rect = Rectangle::new(array![0.5, 0.5], array![2.5, 2.5]).unwrap();
+        let query_rect =
+            Rectangle::new(array![0.5, 0.5], array![2.5, 2.5]).expect("operation should succeed");
 
         let results = qtree.range_query(&query_rect);
         assert_eq!(results.len(), 2);
@@ -905,7 +928,8 @@ mod tests {
 
     #[test]
     fn test_rectangle_distance_functions() {
-        let rect = Rectangle::new(array![1.0, 1.0], array![3.0, 3.0]).unwrap();
+        let rect =
+            Rectangle::new(array![1.0, 1.0], array![3.0, 3.0]).expect("operation should succeed");
 
         // Point inside rectangle
         let inside_point = array![2.0, 2.0];
@@ -1147,7 +1171,7 @@ impl OctTree {
         }
 
         // Sort by distance and take k nearest
-        candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        candidates.sort_by(|a, b| a.2.partial_cmp(&b.2).expect("operation should succeed"));
         candidates.into_iter().take(k).collect()
     }
 
@@ -1176,7 +1200,8 @@ impl OctTree {
                             .map(|c| (i, c.bounds().min_distance_to_point(query_point)))
                     })
                     .collect();
-                child_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                child_distances
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 // Visit children in order of increasing distance
                 for (child_idx, _) in child_distances {
@@ -1291,7 +1316,7 @@ impl OctTree {
             Array1::from_vec(vec![min_x, min_y, min_z]),
             Array1::from_vec(vec![max_x, max_y, max_z]),
         )
-        .unwrap()
+        .expect("operation should succeed")
     }
 
     /// Calculate Euclidean distance between two 3D points
@@ -1349,10 +1374,12 @@ mod oct_tree_tests {
                 1.0, 2.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut octree = OctTree::new(4, 5);
-        octree.insert_batch(&data.view()).unwrap();
+        octree
+            .insert_batch(&data.view())
+            .expect("operation should succeed");
 
         assert!(!octree.is_empty());
         assert!(octree.height() > 0);
@@ -1366,17 +1393,19 @@ mod oct_tree_tests {
                 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 0.5, 0.5, 0.5, 10.0, 10.0, 10.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut octree = OctTree::new(2, 5);
-        octree.insert_batch(&data.view()).unwrap();
+        octree
+            .insert_batch(&data.view())
+            .expect("operation should succeed");
 
         // Query for points in range [0, 2.5] for all dimensions
         let query_bounds = Rectangle::new(
             Array1::from_vec(vec![0.0, 0.0, 0.0]),
             Array1::from_vec(vec![2.5, 2.5, 2.5]),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let results = octree.range_query(&query_bounds);
         assert_eq!(results.len(), 3); // Should find points 0, 1, 3
@@ -1390,10 +1419,12 @@ mod oct_tree_tests {
                 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 10.0, 10.0, 10.0, 1.1, 1.1, 1.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut octree = OctTree::new(2, 5);
-        octree.insert_batch(&data.view()).unwrap();
+        octree
+            .insert_batch(&data.view())
+            .expect("operation should succeed");
 
         let query_point = array![1.0, 1.0, 1.0];
         let results = octree.knn_query(&query_point.view(), 2);
@@ -1435,7 +1466,7 @@ mod oct_tree_tests {
         assert_eq!(point.index, 5);
 
         let coords = array![4.0, 5.0, 6.0];
-        let point2 = OctPoint::from_coords(&coords.view(), 10).unwrap();
+        let point2 = OctPoint::from_coords(&coords.view(), 10).expect("operation should succeed");
         assert_eq!(point2.coords[0], 4.0);
         assert_eq!(point2.coords[1], 5.0);
         assert_eq!(point2.coords[2], 6.0);
@@ -1597,7 +1628,7 @@ impl SpatialHash {
             })
             .collect();
 
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         distances.truncate(k);
 
         Ok(distances)
@@ -1640,7 +1671,7 @@ impl SpatialHash {
             .filter(|(_, distance)| *distance <= radius)
             .collect();
 
-        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         Ok(neighbors)
     }
 
@@ -1768,7 +1799,7 @@ mod spatial_hash_tests {
     #[test]
     fn test_spatial_hash_creation() {
         let cell_size = Array1::from_vec(vec![1.0, 1.0]);
-        let hash = SpatialHash::new(cell_size).unwrap();
+        let hash = SpatialHash::new(cell_size).expect("operation should succeed");
         assert_eq!(hash.num_cells(), 0);
     }
 
@@ -1787,9 +1818,9 @@ mod spatial_hash_tests {
                 1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 10.0, 10.0, 10.1, 10.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let hash = SpatialHash::from_data(&data.view(), 2).unwrap();
+        let hash = SpatialHash::from_data(&data.view(), 2).expect("operation should succeed");
         assert!(hash.num_cells() > 0);
         assert_eq!(hash.points.nrows(), 6);
     }
@@ -1800,14 +1831,14 @@ mod spatial_hash_tests {
             (5, 2),
             vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 10.0, 10.0, 10.1, 10.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let hash = SpatialHash::from_data(&data.view(), 2).unwrap();
+        let hash = SpatialHash::from_data(&data.view(), 2).expect("operation should succeed");
 
         let query = array![1.05, 1.05];
         let neighbors = hash
             .approximate_neighbors(&query.view(), 2, Some(1))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(neighbors.len() >= 1);
         // Should find nearby points (indices 0 and 1)
@@ -1816,13 +1847,15 @@ mod spatial_hash_tests {
 
     #[test]
     fn test_spatial_hash_radius_neighbors() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.2, 1.2, 5.0, 5.0, 10.0, 10.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.2, 1.2, 5.0, 5.0, 10.0, 10.0])
+            .expect("operation should succeed");
 
-        let hash = SpatialHash::from_data(&data.view(), 2).unwrap();
+        let hash = SpatialHash::from_data(&data.view(), 2).expect("operation should succeed");
 
         let query = array![1.1, 1.1];
-        let neighbors = hash.radius_neighbors(&query.view(), 0.5).unwrap();
+        let neighbors = hash
+            .radius_neighbors(&query.view(), 0.5)
+            .expect("operation should succeed");
 
         // Should find points within radius 0.5
         assert!(neighbors.len() >= 1);
@@ -1839,14 +1872,14 @@ mod spatial_hash_tests {
                 1.0, 1.0, 1.0, 1.1, 1.1, 1.1, 5.0, 5.0, 5.0, 10.0, 10.0, 10.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let hash = SpatialHash::from_data(&data.view(), 2).unwrap();
+        let hash = SpatialHash::from_data(&data.view(), 2).expect("operation should succeed");
 
         let query = array![1.05, 1.05, 1.05];
         let neighbors = hash
             .approximate_neighbors(&query.view(), 2, Some(1))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(neighbors.len() >= 1);
     }
@@ -1859,9 +1892,9 @@ mod spatial_hash_tests {
                 1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 10.0, 10.0, 10.1, 10.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let hash = SpatialHash::from_data(&data.view(), 2).unwrap();
+        let hash = SpatialHash::from_data(&data.view(), 2).expect("operation should succeed");
         let stats = hash.get_stats();
 
         assert_eq!(stats.total_points, 6);
@@ -1878,9 +1911,10 @@ mod spatial_hash_tests {
 
     #[test]
     fn test_spatial_hash_dimension_mismatch() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
 
-        let hash = SpatialHash::from_data(&data.view(), 2).unwrap();
+        let hash = SpatialHash::from_data(&data.view(), 2).expect("operation should succeed");
 
         let query_3d = array![1.0, 1.0, 1.0]; // Wrong dimensions
         let result = hash.approximate_neighbors(&query_3d.view(), 1, Some(1));

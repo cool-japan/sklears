@@ -77,12 +77,15 @@ impl NuSVR<Untrained> {
     }
 
     /// Set the nu parameter (0 < nu <= 1)
-    pub fn nu(mut self, nu: Float) -> Self {
+    pub fn nu(mut self, nu: Float) -> Result<Self> {
         if nu <= 0.0 || nu > 1.0 {
-            panic!("Nu must be in the range (0, 1]");
+            return Err(SklearsError::InvalidParameter {
+                name: "nu".to_string(),
+                reason: "must be in the range (0, 1]".to_string(),
+            });
         }
         self.config.nu = nu;
-        self
+        Ok(self)
     }
 
     /// Set the kernel type
@@ -182,17 +185,30 @@ impl Fit<Array2<Float>, Array1<Float>> for NuSVR<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for NuSVR<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(format!(
                 "Feature mismatch: expected {} features, got {}",
-                self.n_features_in_.unwrap(),
+                self.n_features_in_
+                    .expect("n_features_in_ not available - model not fitted"),
                 x.ncols()
             )));
         }
 
-        let support_vectors = self.support_vectors_.as_ref().unwrap();
-        let dual_coef = self.dual_coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let support_vectors = self
+            .support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted");
+        let dual_coef = self
+            .dual_coef_
+            .as_ref()
+            .expect("dual_coef_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ not available - model not fitted");
 
         let kernel = match &self.config.kernel {
             KernelType::Linear => Box::new(crate::kernels::LinearKernel) as Box<dyn Kernel>,
@@ -219,37 +235,47 @@ impl Predict<Array2<Float>, Array1<Float>> for NuSVR<Trained> {
 impl NuSVR<Trained> {
     /// Get the support vectors
     pub fn support_vectors(&self) -> &Array2<Float> {
-        self.support_vectors_.as_ref().unwrap()
+        self.support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted")
     }
 
     /// Get the indices of support vectors
     pub fn support(&self) -> &Array1<usize> {
-        self.support_.as_ref().unwrap()
+        self.support_
+            .as_ref()
+            .expect("support_ not available - model not fitted")
     }
 
     /// Get the dual coefficients
     pub fn dual_coef(&self) -> &Array1<Float> {
-        self.dual_coef_.as_ref().unwrap()
+        self.dual_coef_
+            .as_ref()
+            .expect("dual_coef_ not available - model not fitted")
     }
 
     /// Get the intercept
     pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+        self.intercept_
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the number of support vectors
     pub fn n_support(&self) -> usize {
-        self.n_support_.unwrap()
+        self.n_support_
+            .expect("n_support_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 
     /// Get the epsilon parameter
     pub fn epsilon(&self) -> Float {
-        self.epsilon_.unwrap()
+        self.epsilon_
+            .expect("epsilon_ not available - model not fitted")
     }
 }
 
@@ -263,6 +289,7 @@ mod tests {
     fn test_nusvr_creation() {
         let nusvr = NuSVR::new()
             .nu(0.3)
+            .expect("valid parameter")
             .kernel(KernelType::Linear)
             .tol(1e-4)
             .max_iter(500)
@@ -275,9 +302,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Nu must be in the range (0, 1]")]
     fn test_nusvr_invalid_nu() {
-        let _nusvr = NuSVR::new().nu(1.5);
+        let result = NuSVR::new().nu(1.5);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -285,13 +312,16 @@ mod tests {
         let x = array![[1.0], [2.0], [3.0], [4.0], [5.0], [6.0],];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0]; // y = 2*x
 
-        let nusvr = NuSVR::new().nu(0.5).kernel(KernelType::Linear);
-        let fitted_model = nusvr.fit(&x, &y).unwrap();
+        let nusvr = NuSVR::new()
+            .nu(0.5)
+            .expect("valid parameter")
+            .kernel(KernelType::Linear);
+        let fitted_model = nusvr.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 1);
         assert!(fitted_model.epsilon() > 0.0);
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Check that predictions are finite
@@ -319,7 +349,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
         let nusvr = NuSVR::new();
-        let fitted_model = nusvr.fit(&x_train, &y_train).unwrap();
+        let fitted_model = nusvr
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         let result = fitted_model.predict(&x_test);
 
         assert!(result.is_err());
@@ -355,8 +387,8 @@ mod tests {
 
         for kernel in kernels {
             let nusvr = NuSVR::new().kernel(kernel);
-            let fitted_model = nusvr.fit(&x, &y).unwrap();
-            let predictions = fitted_model.predict(&x).unwrap();
+            let fitted_model = nusvr.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted_model.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             for &pred in predictions.iter() {

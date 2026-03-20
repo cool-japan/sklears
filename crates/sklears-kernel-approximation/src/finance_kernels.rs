@@ -91,7 +91,8 @@ impl Fit<Array2<Float>, ()> for FinancialKernel<Untrained> {
         let feature_dim = base_features + volatility_features + technical_features;
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim, self.n_components));
@@ -129,9 +130,12 @@ impl Transform<Array2<Float>, Array2<Float>> for FinancialKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
-        let feature_weights = self.feature_weights.as_ref().unwrap();
+        let feature_weights = self
+            .feature_weights
+            .as_ref()
+            .expect("operation should succeed");
 
         // Extract financial features
         let mut financial_features = Array2::zeros((n_samples, feature_dim));
@@ -266,7 +270,8 @@ impl Fit<Array2<Float>, ()> for VolatilityKernel<Untrained> {
         let feature_dim = 20;
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim, self.n_components));
@@ -297,7 +302,7 @@ impl Transform<Array2<Float>, Array2<Float>> for VolatilityKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
 
         // Extract volatility features
@@ -427,7 +432,8 @@ impl Fit<Array2<Float>, ()> for EconometricKernel<Untrained> {
         let feature_dim = base_dim + diff_dim;
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim, self.n_components));
@@ -458,7 +464,7 @@ impl Transform<Array2<Float>, Array2<Float>> for EconometricKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
 
         // Extract econometric features
@@ -571,7 +577,8 @@ impl Fit<Array2<Float>, ()> for PortfolioKernel<Untrained> {
         let feature_dim = 30;
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim, self.n_components));
@@ -602,7 +609,7 @@ impl Transform<Array2<Float>, Array2<Float>> for PortfolioKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
 
         // Extract portfolio features
@@ -735,7 +742,8 @@ impl Fit<Array2<Float>, ()> for RiskKernel<Untrained> {
         let feature_dim = base_dim + tail_dim;
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim, self.n_components));
@@ -766,7 +774,7 @@ impl Transform<Array2<Float>, Array2<Float>> for RiskKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
 
         // Extract risk features
@@ -884,8 +892,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
         let kernel = FinancialKernel::new(50, 10);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
     }
@@ -895,8 +903,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         let kernel = FinancialKernel::new(40, 5).include_volatility(true);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 40]);
     }
@@ -906,8 +914,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
         let kernel = VolatilityKernel::new(50, VolatilityModel::EWMA).decay_factor(0.94);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
     }
@@ -925,8 +933,8 @@ mod tests {
 
         for model in models {
             let kernel = VolatilityKernel::new(30, model);
-            let fitted = kernel.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
             assert_eq!(features.shape(), &[2, 30]);
         }
     }
@@ -936,8 +944,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0, 5.0], [6.0, 7.0, 8.0, 9.0, 10.0]];
 
         let kernel = EconometricKernel::new(50, 3);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
     }
@@ -947,8 +955,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
         let kernel = EconometricKernel::new(40, 2).include_differences(true);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 40]);
     }
@@ -958,8 +966,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
         let kernel = PortfolioKernel::new(50, 4);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
     }
@@ -969,8 +977,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         let kernel = PortfolioKernel::new(40, 3).risk_free_rate(0.03);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 40]);
     }
@@ -980,8 +988,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
         let kernel = RiskKernel::new(50, 0.95);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
     }
@@ -991,8 +999,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         let kernel = RiskKernel::new(40, 0.99).include_tail_risk(true);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 40]);
     }

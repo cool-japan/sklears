@@ -50,7 +50,6 @@ use scirs2_linalg::compat::ArrayLinalgExt;
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -602,7 +601,7 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>> for StructuralEquationModel
                 }
 
                 // Add noise
-                let noise = (rng.gen::<Float>() - 0.5) * self.state.noise_std[var_idx];
+                let noise = (rng.random::<Float>() - 0.5) * self.state.noise_std[var_idx];
                 value += noise;
 
                 result[[sample_idx, var_idx]] = value;
@@ -798,7 +797,8 @@ mod tests {
 
     #[test]
     fn test_causal_discovery_fit() {
-        let data = Array2::from_shape_vec((50, 4), vec![0.1; 200]).unwrap();
+        let data =
+            Array2::from_shape_vec((50, 4), vec![0.1; 200]).expect("operation should succeed");
         let discovery = CausalDiscovery::new().max_conditioning_size(2);
         let result = discovery.fit(&data.view(), &());
         assert!(result.is_ok());
@@ -813,7 +813,7 @@ mod tests {
 
         let topo = graph.topological_sort();
         assert!(topo.is_some());
-        let order = topo.unwrap();
+        let order = topo.expect("operation should succeed");
         assert_eq!(order.len(), 4);
     }
 }

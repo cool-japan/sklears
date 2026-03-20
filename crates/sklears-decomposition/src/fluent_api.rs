@@ -323,7 +323,7 @@ impl DecompositionPipelineBuilder {
 
         Ok(DecompositionPipeline {
             preprocessing_steps: self.preprocessing_steps,
-            algorithm: self.algorithm.unwrap(),
+            algorithm: self.algorithm.expect("operation should succeed"),
             postprocessing_steps: self.postprocessing_steps,
             params: self.params,
             config: self.config,
@@ -572,11 +572,13 @@ impl PreprocessingStep for StandardizationStep {
     }
 
     fn process(&mut self, data: &Array2<Float>) -> Result<Array2<Float>> {
-        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("array should have elements for mean computation");
         let std = data
             .mapv(|x| x.powi(2))
             .mean_axis(scirs2_core::ndarray::Axis(0))
-            .unwrap()
+            .expect("operation should succeed")
             .mapv(|x| x.sqrt());
 
         self.mean = Some(mean.clone());
@@ -631,7 +633,9 @@ impl PreprocessingStep for CenteringStep {
         "Centering"
     }
     fn process(&mut self, data: &Array2<Float>) -> Result<Array2<Float>> {
-        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("array should have elements for mean computation");
         self.mean = Some(mean.clone());
         Ok(data - &mean)
     }
@@ -967,7 +971,7 @@ mod tests {
             .with_standardization()
             .with_pca(3)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         let result = pipeline.fit_transform(&data);
         assert!(result.is_ok());
@@ -993,7 +997,7 @@ mod tests {
         let mut pipeline = DecompositionPipelineBuilder::new()
             .with_pca(3)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         use scirs2_core::random::thread_rng;
         let mut rng = thread_rng();
@@ -1001,7 +1005,7 @@ mod tests {
             (i + j) as Float + rng.gen_range(-0.1..0.1)
         });
 
-        pipeline.fit(&data).unwrap();
+        pipeline.fit(&data).expect("model fitting should succeed");
 
         let json = pipeline.to_json();
         assert!(json.is_ok());

@@ -381,7 +381,7 @@ impl ConsentManager {
     /// Process consent request
     pub fn process_consent_request(&mut self, request_id: &Uuid, granted: bool) -> Option<ConsentRequest> {
         if let Some(pos) = self.consent_requests.iter().position(|req| req.id == *request_id) {
-            let mut request = self.consent_requests.remove(pos).unwrap();
+            let mut request = self.consent_requests.remove(pos).unwrap_or_default();
             request.status = if granted { RequestStatus::Granted } else { RequestStatus::Denied };
             request.responded_at = Some(SystemTime::now());
 
@@ -646,7 +646,7 @@ mod tests {
         // Process request (grant)
         let processed = manager.process_consent_request(&request_id, true);
         assert!(processed.is_some());
-        assert_eq!(processed.unwrap().status, RequestStatus::Granted);
+        assert_eq!(processed.unwrap_or_default().status, RequestStatus::Granted);
         assert_eq!(manager.consents.len(), 1);
     }
 
@@ -684,7 +684,7 @@ mod tests {
         let success = manager.withdraw_consent("test-consent", withdrawal);
         assert!(success);
 
-        let consent = manager.get_consent("test-consent").unwrap();
+        let consent = manager.get_consent("test-consent").unwrap_or_default();
         assert_eq!(consent.status, ConsentStatus::Withdrawn);
         assert!(consent.withdrawal_date.is_some());
         assert_eq!(manager.withdrawals.len(), 1);

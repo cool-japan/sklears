@@ -933,7 +933,7 @@ mod tests {
         let x = vec![1.0, 2.0, 3.0, 4.0];
         let y = vec![2.0, 1.0, 4.0, 3.0];
 
-        let result = kernel.compute(&x, &y).unwrap();
+        let result = kernel.compute(&x, &y).expect("computation should succeed");
         assert_abs_diff_eq!(result, 8.0, epsilon = 1e-10);
     }
 
@@ -944,7 +944,7 @@ mod tests {
         let x = vec![1.0, 2.0, 3.0, 4.0];
         let y = vec![1.0, 2.0, 3.0, 4.0];
 
-        let result = kernel.compute(&x, &y).unwrap();
+        let result = kernel.compute(&x, &y).expect("computation should succeed");
         assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
     }
 
@@ -955,7 +955,7 @@ mod tests {
         let x = vec![1.0, 2.0, 3.0, 4.0];
         let y = vec![1.0, 2.0, 3.0, 4.0];
 
-        let result = kernel.compute(&x, &y).unwrap();
+        let result = kernel.compute(&x, &y).expect("computation should succeed");
         assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
     }
 
@@ -966,7 +966,7 @@ mod tests {
         let x = vec![1.0, 2.0, 3.0, 4.0];
         let y = vec![2.0, 1.0, 4.0, 3.0];
 
-        let result = kernel.compute(&x, &y).unwrap();
+        let result = kernel.compute(&x, &y).expect("computation should succeed");
         assert!(result > 0.0);
     }
 
@@ -985,7 +985,7 @@ mod tests {
             17.0, 18.0, 19.0, 20.0, 21.0,
         ];
 
-        let result = kernel.compute(&x, &y).unwrap();
+        let result = kernel.compute(&x, &y).expect("computation should succeed");
         assert!(result > 0.0);
     }
 
@@ -993,10 +993,14 @@ mod tests {
     fn test_kernel_matrix_computation() {
         let kernel = CVKernelFunction::new(CVKernelType::HistogramIntersection);
 
-        let X_var = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let Y_var = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let X_var = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array shape mismatch");
+        let Y_var = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array shape mismatch");
 
-        let result = kernel.compute_matrix(&X_var, &Y_var).unwrap();
+        let result = kernel
+            .compute_matrix(&X_var, &Y_var)
+            .expect("matrix computation should succeed");
         assert_eq!(result.dim(), (2, 2));
     }
 
@@ -1030,7 +1034,9 @@ mod tests {
         );
         let x = vec![1.0; 24];
         let y = vec![1.0; 24];
-        let result = color_kernel.compute(&x, &y).unwrap();
+        let result = color_kernel
+            .compute(&x, &y)
+            .expect("computation should succeed");
         assert_eq!(result, 24.0);
     }
 
@@ -1097,17 +1103,23 @@ mod tests {
         let deep_linear = DeepFeatureKernel::new(512, DeepFeatureKernelType::Linear);
         let x = vec![1.0; 512];
         let y = vec![1.0; 512];
-        let result = deep_linear.compute(&x, &y).unwrap();
+        let result = deep_linear
+            .compute(&x, &y)
+            .expect("computation should succeed");
         assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
 
         // Test RBF kernel
         let deep_rbf = DeepFeatureKernel::new(512, DeepFeatureKernelType::RBF { gamma: 0.5 });
-        let result = deep_rbf.compute(&x, &y).unwrap();
+        let result = deep_rbf
+            .compute(&x, &y)
+            .expect("computation should succeed");
         assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
 
         // Test cosine similarity
         let deep_cosine = DeepFeatureKernel::new(512, DeepFeatureKernelType::Cosine);
-        let result = deep_cosine.compute(&x, &y).unwrap();
+        let result = deep_cosine
+            .compute(&x, &y)
+            .expect("computation should succeed");
         assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
 
         // Test polynomial kernel
@@ -1119,7 +1131,9 @@ mod tests {
                 coef0: 1.0,
             },
         );
-        let result = deep_poly.compute(&x, &y).unwrap();
+        let result = deep_poly
+            .compute(&x, &y)
+            .expect("computation should succeed");
         assert!(result > 1.0); // (1*1 + 1)^2 = 4
 
         // Test dimension mismatch
@@ -1135,12 +1149,14 @@ mod tests {
         let bof_kernel = BagOfFeaturesKernel::new(100, CVKernelType::HistogramIntersection);
         let x = vec![1.0; 100];
         let y = vec![1.0; 100];
-        let result = bof_kernel.compute(&x, &y).unwrap();
+        let result = bof_kernel
+            .compute(&x, &y)
+            .expect("computation should succeed");
         assert_eq!(result, 100.0);
 
         // Test with chi-square kernel
         let bof_chi = BagOfFeaturesKernel::new(100, CVKernelType::ChiSquare { gamma: 1.0 });
-        let result = bof_chi.compute(&x, &y).unwrap();
+        let result = bof_chi.compute(&x, &y).expect("computation should succeed");
         assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
     }
 
@@ -1154,13 +1170,17 @@ mod tests {
 
         let x = vec![1.0; dim];
         let y = vec![1.0; dim];
-        let result = fisher_kernel.compute(&x, &y).unwrap();
+        let result = fisher_kernel
+            .compute(&x, &y)
+            .expect("computation should succeed");
         assert!(result > 0.0 && result <= 1.0);
 
         // Test power normalization effect
         let mut x_varied = vec![1.0; dim];
         x_varied[0] = 0.5; // Make it different
-        let result_varied = fisher_kernel.compute(&x_varied, &y).unwrap();
+        let result_varied = fisher_kernel
+            .compute(&x_varied, &y)
+            .expect("computation should succeed");
         assert!(result_varied < 1.0 && result_varied > 0.0);
     }
 

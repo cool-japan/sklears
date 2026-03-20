@@ -512,10 +512,10 @@ impl Fit<CrossModalInput, ArrayView1<'_, i32>> for CrossModalContrastive<Untrain
 
         Ok(CrossModalContrastive {
             state: CrossModalContrastiveTrained {
-                projection1: model.projection1.unwrap(),
-                projection2: model.projection2.unwrap(),
-                classifier_weights: model.classifier_weights.unwrap(),
-                classifier_biases: model.classifier_biases.unwrap(),
+                projection1: model.projection1.expect("operation should succeed"),
+                projection2: model.projection2.expect("operation should succeed"),
+                classifier_weights: model.classifier_weights.expect("operation should succeed"),
+                classifier_biases: model.classifier_biases.expect("operation should succeed"),
                 classes: Array1::from(unique_classes),
                 projection_dim: model.projection_dim,
                 n_classes: model.n_classes,
@@ -604,7 +604,7 @@ mod tests {
         let result = network.forward(&x.view());
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert_eq!(output.len(), 2);
 
         // Check L2 normalization - match the epsilon used in forward() for consistency
@@ -667,19 +667,19 @@ mod tests {
         let result = model.fit(&input, &y.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.state.classes.len(), 2);
 
         let predictions = fitted.predict(&input);
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.len(), 6);
 
         let probabilities = fitted.predict_proba(&input);
         assert!(probabilities.is_ok());
 
-        let proba = probabilities.unwrap();
+        let proba = probabilities.expect("operation should succeed");
         assert_eq!(proba.dim(), (6, 2));
 
         // Check probabilities sum to 1
@@ -734,12 +734,14 @@ mod tests {
         let model = CrossModalContrastive::new().projection_dim(6).max_iter(3);
 
         let input = (x1.clone(), x2.clone());
-        let fitted = model.fit(&input, &y.view()).unwrap();
+        let fitted = model
+            .fit(&input, &y.view())
+            .expect("operation should succeed");
 
         let embeddings = fitted.get_embeddings(&x1.view(), &x2.view());
         assert!(embeddings.is_ok());
 
-        let (z1, z2) = embeddings.unwrap();
+        let (z1, z2) = embeddings.expect("operation should succeed");
         assert_eq!(z1.dim(), (4, 6));
         assert_eq!(z2.dim(), (4, 6));
 
@@ -777,8 +779,8 @@ mod tests {
         let result = model.fit(&input, &y.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
-        let predictions = fitted.predict(&input).unwrap();
+        let fitted = result.expect("operation should succeed");
+        let predictions = fitted.predict(&input).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 }

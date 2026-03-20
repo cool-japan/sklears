@@ -22,9 +22,11 @@ fn test_mlp_classifier_xor_problem() {
         .random_state(42)
         .verbose(false);
 
-    let trained_mlp = mlp.fit(&x, &y).unwrap();
-    let predictions = trained_mlp.predict(&x).unwrap();
-    let probabilities = trained_mlp.predict_proba(&x).unwrap();
+    let trained_mlp = mlp.fit(&x, &y).expect("operation should succeed");
+    let predictions = trained_mlp.predict(&x).expect("operation should succeed");
+    let probabilities = trained_mlp
+        .predict_proba(&x)
+        .expect("operation should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(probabilities.dim(), (4, 2));
@@ -83,8 +85,8 @@ fn test_mlp_regressor_linear_function() {
         .alpha(0.0001)
         .random_state(123);
 
-    let trained_mlp = mlp.fit(&x, &y_computed).unwrap();
-    let predictions = trained_mlp.predict(&x).unwrap();
+    let trained_mlp = mlp.fit(&x, &y_computed).expect("operation should succeed");
+    let predictions = trained_mlp.predict(&x).expect("operation should succeed");
 
     assert_eq!(predictions.dim(), (8, 1));
 
@@ -128,9 +130,11 @@ fn test_mlp_classifier_multiclass() {
         .learning_rate_init(0.01)
         .random_state(42);
 
-    let trained_mlp = mlp.fit(&x, &y).unwrap();
-    let predictions = trained_mlp.predict(&x).unwrap();
-    let probabilities = trained_mlp.predict_proba(&x).unwrap();
+    let trained_mlp = mlp.fit(&x, &y).expect("operation should succeed");
+    let predictions = trained_mlp.predict(&x).expect("operation should succeed");
+    let probabilities = trained_mlp
+        .predict_proba(&x)
+        .expect("operation should succeed");
 
     assert_eq!(predictions.len(), 12);
     assert_eq!(probabilities.dim(), (12, 3));
@@ -174,8 +178,8 @@ fn test_mlp_different_activations() {
             .max_iter(100)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("operation should succeed");
+        let predictions = trained_mlp.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         // Should get some predictions (not all zeros)
@@ -197,8 +201,8 @@ fn test_mlp_different_solvers() {
             .max_iter(50)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("operation should succeed");
+        let predictions = trained_mlp.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (4, 1));
         // Check that all predictions are finite
@@ -220,12 +224,12 @@ fn test_mlp_early_stopping() {
         .tol(1e-3)
         .random_state(42);
 
-    let trained_mlp = mlp.fit(&x, &y).unwrap();
+    let trained_mlp = mlp.fit(&x, &y).expect("operation should succeed");
 
     // With early stopping, shouldn't need all 1000 iterations
     assert!(trained_mlp.n_iter() < 1000);
 
-    let predictions = trained_mlp.predict(&x).unwrap();
+    let predictions = trained_mlp.predict(&x).expect("operation should succeed");
     assert_eq!(predictions.len(), 4);
 }
 
@@ -253,8 +257,8 @@ fn test_mlp_batch_size_effects() {
             .max_iter(50)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("operation should succeed");
+        let predictions = trained_mlp.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.dim(), (8, 1));
 
@@ -285,8 +289,8 @@ fn test_mlp_weight_initialization() {
             .max_iter(50)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("operation should succeed");
+        let predictions = trained_mlp.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         // Should complete training without errors

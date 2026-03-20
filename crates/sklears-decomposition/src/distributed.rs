@@ -182,7 +182,9 @@ impl DistributedWorker {
             worker_id: self.id,
             eigenvalues: selected_eigenvals,
             eigenvectors: selected_eigenvecs,
-            data_mean: centered_data.mean_axis(Axis(0)).unwrap(),
+            data_mean: centered_data
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation"),
             sample_count: total_rows,
         })
     }
@@ -573,8 +575,16 @@ impl DistributedDecomposition {
         let load_balance_metric = if partition_sizes.is_empty() {
             0.0
         } else {
-            let min_size = *partition_sizes.iter().min().unwrap() as Float;
-            let max_size = *partition_sizes.iter().max().unwrap() as Float;
+            let min_size = *partition_sizes
+                .iter()
+                .min()
+                .expect("collection should not be empty for min/max")
+                as Float;
+            let max_size = *partition_sizes
+                .iter()
+                .max()
+                .expect("collection should not be empty for min/max")
+                as Float;
             if max_size > 0.0 {
                 min_size / max_size
             } else {
@@ -651,7 +661,7 @@ mod tests {
     fn test_data_partition_creation() {
         let data =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
         let row_indices = vec![0, 1, 2];
         let col_indices = vec![0, 1, 2];
 
@@ -687,9 +697,11 @@ mod tests {
                 16.0, 17.0, 18.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        distributed.partition_data(&data).unwrap();
+        distributed
+            .partition_data(&data)
+            .expect("operation should succeed");
 
         let stats = distributed.get_statistics();
         assert_eq!(stats.num_workers, 2);
@@ -712,11 +724,15 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        distributed.partition_data(&data).unwrap();
+        distributed
+            .partition_data(&data)
+            .expect("operation should succeed");
 
-        let result = distributed.distributed_pca(2).unwrap();
+        let result = distributed
+            .distributed_pca(2)
+            .expect("operation should succeed");
         assert_eq!(result.n_components, 2);
         assert_eq!(result.eigenvalues.len(), 2);
         assert_eq!(result.eigenvectors.ncols(), 2);
@@ -738,11 +754,15 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        distributed.partition_data(&data).unwrap();
+        distributed
+            .partition_data(&data)
+            .expect("operation should succeed");
 
-        let result = distributed.distributed_svd(2).unwrap();
+        let result = distributed
+            .distributed_svd(2)
+            .expect("operation should succeed");
         assert_eq!(result.n_components, 2);
         assert_eq!(result.singular_values.len(), 2);
         assert!(result.convergence_info.converged);

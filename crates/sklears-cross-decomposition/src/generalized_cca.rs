@@ -31,7 +31,7 @@ use std::marker::PhantomData;
 /// let views = vec![view1, view2, view3];
 ///
 /// let gcca = GeneralizedCCA::new(1).regularization(0.1);
-/// let fitted = gcca.fit(&views, &()).unwrap();
+/// let fitted = gcca.fit(&views, &()).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct GeneralizedCCA<State = Untrained> {
@@ -186,7 +186,11 @@ impl GeneralizedCCA<Untrained> {
         }
 
         // Validate n_components
-        let min_features = views.iter().map(|v| v.ncols()).min().unwrap();
+        let min_features = views
+            .iter()
+            .map(|v| v.ncols())
+            .min()
+            .expect("operation should succeed");
         let max_components = (n_samples - 1).min(min_features);
         if self.n_components > max_components {
             return Err(SklearsError::InvalidInput(format!(
@@ -201,7 +205,9 @@ impl GeneralizedCCA<Untrained> {
         let mut stds = Vec::new();
 
         for view in views {
-            let view_mean = view.mean_axis(Axis(0)).unwrap();
+            let view_mean = view.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
             let mut centered_view = view - &view_mean.view().insert_axis(Axis(0));
 
             let view_std = if self.scale {
@@ -232,7 +238,7 @@ impl GeneralizedCCA<Untrained> {
         // Construct block matrices
         let mut feature_offsets = vec![0];
         for view in &scaled_views {
-            feature_offsets.push(feature_offsets.last().unwrap() + view.ncols());
+            feature_offsets.push(feature_offsets.last().copied().unwrap_or(0) + view.ncols());
         }
 
         // Between-view covariance matrix K
@@ -279,7 +285,7 @@ impl GeneralizedCCA<Untrained> {
             .map(|(i, &val)| (val, eigenvectors.column(i).to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Take the top n_components
         let selected_eigenvalues: Array1<Float> = eigen_pairs
@@ -484,9 +490,15 @@ impl GeneralizedCCA<Untrained> {
 impl Transform<Vec<Array2<Float>>, Vec<Array2<Float>>> for GeneralizedCCA<Trained> {
     /// Transform views to canonical space
     fn transform(&self, views: &Vec<Array2<Float>>) -> Result<Vec<Array2<Float>>> {
-        let weights = self.weights_.as_ref().unwrap();
-        let means = self.means_.as_ref().unwrap();
-        let stds = self.stds_.as_ref().unwrap();
+        let weights = self.weights_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let means = self.means_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let stds = self.stds_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         if views.len() != weights.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -522,32 +534,44 @@ impl Transform<Vec<Array2<Float>>, Vec<Array2<Float>>> for GeneralizedCCA<Traine
 impl GeneralizedCCA<Trained> {
     /// Get the canonical weights for each view
     pub fn weights(&self) -> &Vec<Array2<Float>> {
-        self.weights_.as_ref().unwrap()
+        self.weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical loadings for each view
     pub fn loadings(&self) -> &Vec<Array2<Float>> {
-        self.loadings_.as_ref().unwrap()
+        self.loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical correlations
     pub fn canonical_correlations(&self) -> &Array1<Float> {
-        self.canonical_correlations_.as_ref().unwrap()
+        self.canonical_correlations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the eigenvalues from generalized eigenvalue decomposition
     pub fn eigenvalues(&self) -> &Array1<Float> {
-        self.eigenvalues_.as_ref().unwrap()
+        self.eigenvalues_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance for each component
     pub fn explained_variance(&self) -> &Array1<Float> {
-        self.explained_variance_.as_ref().unwrap()
+        self.explained_variance_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance ratio for each component
     pub fn explained_variance_ratio(&self) -> &Array1<Float> {
-        self.explained_variance_ratio_.as_ref().unwrap()
+        self.explained_variance_ratio_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 }
 
@@ -566,7 +590,7 @@ mod tests {
         let views = vec![view1.clone(), view2, view3];
 
         let gcca = GeneralizedCCA::new(1);
-        let fitted = gcca.fit_views(&views).unwrap();
+        let fitted = gcca.fit_views(&views).expect("fit should succeed");
 
         // Check that weights were computed
         assert_eq!(fitted.weights().len(), 3);
@@ -587,8 +611,8 @@ mod tests {
         let views = vec![view1.clone(), view2.clone()];
 
         let gcca = GeneralizedCCA::new(1);
-        let fitted = gcca.fit_views(&views).unwrap();
-        let transformed = fitted.transform(&views).unwrap();
+        let fitted = gcca.fit_views(&views).expect("fit should succeed");
+        let transformed = fitted.transform(&views).expect("transform should succeed");
 
         assert_eq!(transformed.len(), 2);
         assert_eq!(transformed[0].shape(), &[4, 1]);
@@ -619,7 +643,7 @@ mod tests {
         let views = vec![view1, view2, view3];
 
         let gcca = GeneralizedCCA::new(1).regularization(0.1);
-        let fitted = gcca.fit_views(&views).unwrap();
+        let fitted = gcca.fit_views(&views).expect("fit should succeed");
 
         // Should work with regularization
         assert!(fitted.explained_variance()[0] >= 0.0);
@@ -632,7 +656,9 @@ mod tests {
 
         // Test with a simple positive definite matrix
         let A = array![[4.0, 2.0], [2.0, 3.0]];
-        let L = gcca.cholesky_decomposition(&A).unwrap();
+        let L = gcca
+            .cholesky_decomposition(&A)
+            .expect("operation should succeed");
 
         // Check that L * L^T = A
         let reconstructed = L.dot(&L.t());

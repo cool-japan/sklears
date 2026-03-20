@@ -4,7 +4,7 @@
 use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -249,7 +249,7 @@ fn discretize_features(X_train: &ArrayView2<Float>, n_bins: usize) -> HashMap<us
     for feature_idx in 0..n_features {
         let feature_values: Vec<Float> = X_train.column(feature_idx).to_vec();
         let mut sorted_values = feature_values;
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Remove duplicates
         sorted_values.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
@@ -367,7 +367,7 @@ fn generate_candidate_conditions(
 /// Compute quartiles for a feature
 fn compute_quartiles(values: &[Float]) -> Vec<Float> {
     let mut sorted = values.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = sorted.len();
     if n == 0 {
@@ -470,7 +470,9 @@ where
                 rng,
                 config,
             );
-            score_b.partial_cmp(&score_a).unwrap()
+            score_b
+                .partial_cmp(&score_a)
+                .expect("operation should succeed")
         });
         next_beam.truncate(config.beam_size);
 
@@ -616,7 +618,7 @@ fn generate_perturbation(
     let n_features = instance.len();
 
     // Randomly select features to perturb (typically 20-50%)
-    let n_perturb = rng.gen_range(1.max(n_features / 5)..n_features / 2 + 1);
+    let n_perturb = rng.random_range(1.max(n_features / 5)..n_features / 2 + 1);
     let mut features_to_perturb: Vec<usize> = (0..n_features).collect();
     features_to_perturb.shuffle(rng);
     features_to_perturb.truncate(n_perturb);
@@ -625,7 +627,7 @@ fn generate_perturbation(
         // Sample a random value from the training distribution for this feature
         let column_values: Vec<Float> = X_train.column(feature_idx).to_vec();
         if !column_values.is_empty() {
-            let random_value = column_values[rng.gen_range(0..column_values.len())];
+            let random_value = column_values[rng.random_range(0..column_values.len())];
             perturbation[feature_idx] = random_value;
         }
     }
@@ -699,8 +701,8 @@ mod tests {
         config.precision_threshold = 0.7; // More lenient for test reliability
         config.n_perturbations = 2000; // More perturbations for better estimation
 
-        let result =
-            explain_with_anchors(&predict_fn, &instance.view(), &X_train.view(), &config).unwrap();
+        let result = explain_with_anchors(&predict_fn, &instance.view(), &X_train.view(), &config)
+            .expect("operation should succeed");
 
         // Test that the algorithm completes without error and returns reasonable values
         assert!(result.precision >= 0.5); // Very lenient for test reliability

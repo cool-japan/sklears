@@ -73,7 +73,7 @@ mod tests {
         let smoothness = gmm.compute_spatial_smoothness(&coords);
         assert!(smoothness.is_ok());
 
-        let smoothness_matrix = smoothness.unwrap();
+        let smoothness_matrix = smoothness.expect("operation should succeed");
         assert_eq!(smoothness_matrix.shape(), &[4, 4]);
     }
 
@@ -90,7 +90,7 @@ mod tests {
         let features = geo.extract_geographic_features(&X);
 
         assert!(features.is_ok());
-        let feature_matrix = features.unwrap();
+        let feature_matrix = features.expect("operation should succeed");
         // Original 3 features + 1 elevation + 1 distance to landmark = 5 total
         assert_eq!(feature_matrix.ncols(), 5);
     }
@@ -287,7 +287,9 @@ mod tests {
             .spatial_constraint(SpatialConstraint::Distance { radius: 1.5 })
             .build();
 
-        let smoothness = gmm.compute_spatial_smoothness(&coords).unwrap();
+        let smoothness = gmm
+            .compute_spatial_smoothness(&coords)
+            .expect("operation should succeed");
 
         // Check matrix is symmetric
         let (n, m) = smoothness.dim();
@@ -340,7 +342,9 @@ mod tests {
             .spatial_constraint(SpatialConstraint::Adjacency)
             .build();
 
-        let smoothness = gmm.compute_spatial_smoothness(&coords).unwrap();
+        let smoothness = gmm
+            .compute_spatial_smoothness(&coords)
+            .expect("operation should succeed");
 
         // Each point should be connected to its k=4 nearest neighbors
         // Since we have 5 points in a line, each should connect to all others
@@ -369,7 +373,9 @@ mod tests {
             [1.0, 1.0] // Row 1
         ];
 
-        let smoothness = gmm.compute_spatial_smoothness(&coords).unwrap();
+        let smoothness = gmm
+            .compute_spatial_smoothness(&coords)
+            .expect("operation should succeed");
 
         // In a 2x2 grid:
         // Point 0 (0,0) connects to points 1 (0,1) and 2 (1,0)
@@ -405,8 +411,10 @@ mod tests {
             .build()
             .with_coordinates(coords);
 
-        let fitted = gmm.fit(&X_train, &()).unwrap();
-        let predictions = fitted.predict(&X_test).unwrap();
+        let fitted = gmm
+            .fit(&X_train, &())
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&X_test).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
         // Predictions should be valid component indices

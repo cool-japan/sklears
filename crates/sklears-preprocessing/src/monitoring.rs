@@ -336,11 +336,17 @@ impl MonitoringSession {
             .filter(|m| m.duration_ms.is_some())
             .max_by(|a, b| {
                 a.duration_ms
-                    .unwrap()
-                    .partial_cmp(&b.duration_ms.unwrap())
+                    .expect("operation should succeed")
+                    .partial_cmp(&b.duration_ms.expect("operation should succeed"))
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|m| format!("{} ({:.2}ms)", m.name, m.duration_ms.unwrap()))
+            .map(|m| {
+                format!(
+                    "{} ({:.2}ms)",
+                    m.name,
+                    m.duration_ms.expect("operation should succeed")
+                )
+            })
     }
 
     /// Find fastest transformation
@@ -350,11 +356,17 @@ impl MonitoringSession {
             .filter(|m| m.duration_ms.is_some())
             .min_by(|a, b| {
                 a.duration_ms
-                    .unwrap()
-                    .partial_cmp(&b.duration_ms.unwrap())
+                    .expect("operation should succeed")
+                    .partial_cmp(&b.duration_ms.expect("operation should succeed"))
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|m| format!("{} ({:.2}ms)", m.name, m.duration_ms.unwrap()))
+            .map(|m| {
+                format!(
+                    "{} ({:.2}ms)",
+                    m.name,
+                    m.duration_ms.expect("operation should succeed")
+                )
+            })
     }
 
     /// Print summary
@@ -460,13 +472,13 @@ mod tests {
 
     fn generate_test_data(nrows: usize, ncols: usize, seed: u64) -> Array2<f64> {
         let mut rng = seeded_rng(seed);
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let data: Vec<f64> = (0..nrows * ncols)
             .map(|_| normal.sample(&mut rng))
             .collect();
 
-        Array2::from_shape_vec((nrows, ncols), data).unwrap()
+        Array2::from_shape_vec((nrows, ncols), data).expect("shape and data length should match")
     }
 
     #[test]
@@ -480,7 +492,7 @@ mod tests {
 
         assert!(metrics.success);
         assert!(metrics.duration_ms.is_some());
-        assert!(metrics.duration_ms.unwrap() >= 10.0);
+        assert!(metrics.duration_ms.expect("operation should succeed") >= 10.0);
     }
 
     #[test]
@@ -492,7 +504,9 @@ mod tests {
 
         let idx = session.start_transformation("StandardScaler".to_string(), &input);
         thread::sleep(Duration::from_millis(5));
-        session.complete_transformation(idx, &output).unwrap();
+        session
+            .complete_transformation(idx, &output)
+            .expect("operation should succeed");
 
         assert_eq!(session.successful_count(), 1);
         assert_eq!(session.failed_count(), 0);
@@ -507,7 +521,7 @@ mod tests {
         let idx = session.start_transformation("Faulty".to_string(), &input);
         session
             .fail_transformation(idx, "Test error".to_string())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(session.successful_count(), 0);
         assert_eq!(session.failed_count(), 1);
@@ -524,7 +538,7 @@ mod tests {
 
         let throughput = metrics.throughput();
         assert!(throughput.is_some());
-        assert!(throughput.unwrap() > 0.0);
+        assert!(throughput.expect("operation should succeed") > 0.0);
     }
 
     #[test]
@@ -536,11 +550,15 @@ mod tests {
 
         let idx1 = session.start_transformation("Step1".to_string(), &input1);
         thread::sleep(Duration::from_millis(5));
-        session.complete_transformation(idx1, &input1).unwrap();
+        session
+            .complete_transformation(idx1, &input1)
+            .expect("operation should succeed");
 
         let idx2 = session.start_transformation("Step2".to_string(), &input2);
         thread::sleep(Duration::from_millis(10));
-        session.complete_transformation(idx2, &input2).unwrap();
+        session
+            .complete_transformation(idx2, &input2)
+            .expect("operation should succeed");
 
         let summary = session.summary();
 

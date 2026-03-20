@@ -14,7 +14,7 @@ fn generate_linearly_separable_data(
     seed: u64,
 ) -> (Array2<Float>, Array1<Float>) {
     let mut rng = seeded_rng(seed);
-    let uniform = Uniform::new(-1.0, 1.0).unwrap(); // Reduced noise
+    let uniform = Uniform::new(-1.0, 1.0).expect("operation should succeed"); // Reduced noise
 
     let samples_per_class = n_samples / 2;
     let mut x = Array2::zeros((n_samples, n_features));
@@ -46,7 +46,7 @@ fn test_svc_performance_6_samples() {
     let model = SVC::new();
 
     let start = Instant::now();
-    let trained_model = model.fit(&x, &y).unwrap();
+    let trained_model = model.fit(&x, &y).expect("operation should succeed");
     let duration = start.elapsed();
 
     println!("6 samples - Training time: {:?}", duration);
@@ -58,7 +58,7 @@ fn test_svc_performance_6_samples() {
     assert!(duration.as_secs() < 2, "Should complete in under 2 seconds");
 
     // Test prediction
-    let predictions = trained_model.predict(&x).unwrap();
+    let predictions = trained_model.predict(&x).expect("operation should succeed");
     println!("6 samples - Predictions: {:?}", predictions);
 }
 
@@ -69,7 +69,7 @@ fn test_svc_performance_20_samples() {
     let model = SVC::new();
 
     let start = Instant::now();
-    let trained_model = model.fit(&x, &y).unwrap();
+    let trained_model = model.fit(&x, &y).expect("operation should succeed");
     let duration = start.elapsed();
 
     println!("20 samples - Training time: {:?}", duration);
@@ -81,7 +81,7 @@ fn test_svc_performance_20_samples() {
     assert!(duration.as_secs() < 3, "Should complete in under 3 seconds");
 
     // Test prediction accuracy
-    let predictions = trained_model.predict(&x).unwrap();
+    let predictions = trained_model.predict(&x).expect("operation should succeed");
     let accuracy = predictions
         .iter()
         .zip(y.iter())
@@ -103,7 +103,7 @@ fn test_svc_performance_50_samples() {
     let model = SVC::new();
 
     let start = Instant::now();
-    let trained_model = model.fit(&x, &y).unwrap();
+    let trained_model = model.fit(&x, &y).expect("operation should succeed");
     let duration = start.elapsed();
 
     println!("50 samples - Training time: {:?}", duration);
@@ -115,7 +115,7 @@ fn test_svc_performance_50_samples() {
     assert!(duration.as_secs() < 5, "Should complete in under 5 seconds");
 
     // Test prediction accuracy
-    let predictions = trained_model.predict(&x).unwrap();
+    let predictions = trained_model.predict(&x).expect("operation should succeed");
     let accuracy = predictions
         .iter()
         .zip(y.iter())
@@ -138,7 +138,7 @@ fn test_svc_performance_100_samples() {
     let model = SVC::new();
 
     let start = Instant::now();
-    let trained_model = model.fit(&x, &y).unwrap();
+    let trained_model = model.fit(&x, &y).expect("operation should succeed");
     let duration = start.elapsed();
 
     println!("100 samples - Training time: {:?}", duration);
@@ -153,7 +153,7 @@ fn test_svc_performance_100_samples() {
     );
 
     // Test prediction accuracy
-    let predictions = trained_model.predict(&x).unwrap();
+    let predictions = trained_model.predict(&x).expect("operation should succeed");
     let accuracy = predictions
         .iter()
         .zip(y.iter())
@@ -176,7 +176,7 @@ fn test_svc_convergence_stats() {
     let model = SVC::new().c(1.0).max_iter(1000).tol(1e-3);
 
     let start = Instant::now();
-    let trained_model = model.fit(&x, &y).unwrap();
+    let trained_model = model.fit(&x, &y).expect("operation should succeed");
     let duration = start.elapsed();
 
     println!("\nConvergence Statistics:");

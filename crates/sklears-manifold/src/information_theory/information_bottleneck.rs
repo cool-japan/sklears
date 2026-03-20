@@ -11,7 +11,6 @@ use super::utils::{
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
 use scirs2_linalg::compat::ArrayLinalgExt;
@@ -127,7 +126,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, Float>> for InformationBottleneck
         let y_f64 = y.mapv(|v| v);
 
         // Center the data
-        let mean = x_f64.mean_axis(Axis(0)).unwrap();
+        let mean = x_f64.mean_axis(Axis(0)).expect("operation should succeed");
         let x_centered = &x_f64 - &mean.clone().insert_axis(Axis(0));
 
         // Initialize encoder weights randomly
@@ -167,7 +166,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, Float>> for InformationBottleneck
             encoder_weights = encoder_weights + learning_rate * grad;
 
             // Orthogonalize weights (optional regularization)
-            let (u, _, vt) = encoder_weights.svd(true).unwrap();
+            let (u, _, vt) = encoder_weights.svd(true).expect("operation should succeed");
             let (u_mat, vt_mat) = (u, vt);
             use scirs2_core::ndarray::s;
             encoder_weights = u_mat.slice(s![.., ..self.n_components]).dot(&vt_mat);

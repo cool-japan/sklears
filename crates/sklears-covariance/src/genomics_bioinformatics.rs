@@ -561,8 +561,16 @@ impl GeneExpressionNetwork {
             ));
         }
 
-        let mean_x = x.mean().unwrap();
-        let mean_y = y.mean().unwrap();
+        let mean_x = x.mean().ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
+        let mean_y = y.mean().ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
 
         let mut numerator = 0.0;
         let mut sum_sq_x = 0.0;
@@ -661,7 +669,11 @@ impl GeneExpressionNetwork {
 
         let n_tests = p_vec.len();
         let mut sorted_indices: Vec<usize> = (0..n_tests).collect();
-        sorted_indices.sort_by(|&a, &b| p_vec[a].partial_cmp(&p_vec[b]).unwrap());
+        sorted_indices.sort_by(|&a, &b| {
+            p_vec[a]
+                .partial_cmp(&p_vec[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut adjusted_p_vec = vec![0.0; n_tests];
 

@@ -356,8 +356,8 @@ impl Predict<Features, Array1<Int>> for KNeighborsClassifier<sklears_core::trait
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
-        let y_train = self.y_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -404,8 +404,8 @@ impl Predict<Features, Array1<Float>> for KNeighborsRegressor<sklears_core::trai
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
-        let y_train = self.y_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -452,8 +452,8 @@ impl PredictProba<Features, Array2<Float>> for KNeighborsClassifier<sklears_core
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_train = self.x_train.as_ref().unwrap();
-        let y_train = self.y_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -574,7 +574,7 @@ impl KNeighborsClassifier<sklears_core::traits::Trained> {
             .map(|(&dist, &label)| (dist, label))
             .collect();
 
-        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Take k nearest neighbors
         let k = self.n_neighbors.min(neighbors.len());
@@ -619,7 +619,7 @@ impl KNeighborsClassifier<sklears_core::traits::Trained> {
                 // Return the class with the highest weighted vote
                 class_weights
                     .into_iter()
-                    .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                    .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
                     .map(|(class, _)| class)
                     .ok_or(NeighborsError::NoNeighbors)
             }
@@ -737,7 +737,7 @@ impl KNeighborsRegressor<sklears_core::traits::Trained> {
             .map(|(&dist, &target)| (dist, target))
             .collect();
 
-        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Take k nearest neighbors
         let k = self.n_neighbors.min(neighbors.len());
@@ -804,11 +804,11 @@ mod tests {
                 4.0, 4.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = KNeighborsClassifier::new(3);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test prediction
         let x_test = Array2::from_shape_vec(
@@ -818,9 +818,9 @@ mod tests {
                 3.8, 3.8, // Should be class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
     }
@@ -837,15 +837,16 @@ mod tests {
                 4.0, 4.0, // y = 8.0
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![2.0, 4.0, 6.0, 8.0];
 
         let regressor = KNeighborsRegressor::new(2);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("operation should succeed");
 
         // Test prediction
-        let x_test = Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict something close to 5.0 (average of 4.0 and 6.0)
         assert_abs_diff_eq!(predictions[0], 5.0, epsilon = 0.1);
@@ -862,14 +863,17 @@ mod tests {
                 3.1, 3.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let classifier = KNeighborsClassifier::new(2);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((1, 2), vec![1.05, 1.05]).unwrap();
-        let probabilities = fitted.predict_proba(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![1.05, 1.05]).expect("operation should succeed");
+        let probabilities = fitted
+            .predict_proba(&x_test)
+            .expect("operation should succeed");
 
         assert_eq!(probabilities.shape(), &[1, 2]);
         // Should be mostly class 0
@@ -884,15 +888,16 @@ mod tests {
 
     #[test]
     fn test_distance_weighted_knn() {
-        let x = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 10.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 10.0]).expect("operation should succeed");
         let y = array![0, 0, 1];
 
         let classifier = KNeighborsClassifier::new(3).with_weights(WeightStrategy::Distance);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test point close to first two points
-        let x_test = Array2::from_shape_vec((1, 1), vec![1.5]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((1, 1), vec![1.5]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict class 0 due to distance weighting
         assert_eq!(predictions[0], 0);
@@ -912,11 +917,11 @@ mod tests {
                 4.0, 4.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = KNeighborsClassifier::new(3).with_algorithm(Algorithm::KdTree);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Verify KD-tree was built
         assert!(fitted.kd_tree.is_some());
@@ -929,9 +934,9 @@ mod tests {
                 3.8, 3.8, // Should be class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
     }
@@ -948,18 +953,19 @@ mod tests {
                 4.0, 4.0, // y = 8.0
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![2.0, 4.0, 6.0, 8.0];
 
         let regressor = KNeighborsRegressor::new(2).with_algorithm(Algorithm::KdTree);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("operation should succeed");
 
         // Verify KD-tree was built
         assert!(fitted.kd_tree.is_some());
 
         // Test prediction
-        let x_test = Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict something close to 5.0 (average of 4.0 and 6.0)
         assert_abs_diff_eq!(predictions[0], 5.0, epsilon = 0.1);
@@ -979,17 +985,17 @@ mod tests {
                 3.1, 3.1, // Class 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 
         // Test classifier with VP-tree
         let classifier = KNeighborsClassifier::new(3).with_algorithm(Algorithm::VpTree);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test prediction on training data
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test that predictions are reasonable (at least some correct)
@@ -1010,8 +1016,8 @@ mod tests {
         let y_reg = Array1::from_vec(vec![0.0, 0.1, 1.0, 1.1, 2.0, 2.1]);
         let regressor = KNeighborsRegressor::new(3).with_algorithm(Algorithm::VpTree);
 
-        let fitted_reg = regressor.fit(&x, &y_reg).unwrap();
-        let reg_predictions = fitted_reg.predict(&x).unwrap();
+        let fitted_reg = regressor.fit(&x, &y_reg).expect("operation should succeed");
+        let reg_predictions = fitted_reg.predict(&x).expect("operation should succeed");
         assert_eq!(reg_predictions.len(), 6);
 
         // All predictions should be finite
@@ -1036,17 +1042,17 @@ mod tests {
                 5.1, 5.1, // Class 3
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0, 0, 1, 1, 2, 2, 3, 3]);
 
         // Test classifier with cover tree
         let classifier = KNeighborsClassifier::new(3).with_algorithm(Algorithm::CoverTree);
 
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test prediction on training data
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), 8);
 
         // Test that predictions are reasonable (at least some correct)
@@ -1061,8 +1067,8 @@ mod tests {
         let y_reg = Array1::from_vec(vec![0.0, 0.1, 1.0, 1.1, 2.0, 2.1, 3.0, 3.1]);
         let regressor = KNeighborsRegressor::new(3).with_algorithm(Algorithm::CoverTree);
 
-        let fitted_reg = regressor.fit(&x, &y_reg).unwrap();
-        let reg_predictions = fitted_reg.predict(&x).unwrap();
+        let fitted_reg = regressor.fit(&x, &y_reg).expect("operation should succeed");
+        let reg_predictions = fitted_reg.predict(&x).expect("operation should succeed");
         assert_eq!(reg_predictions.len(), 8);
 
         // All predictions should be finite
@@ -1078,18 +1084,22 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 4.0, 3.0, 1.0, 4.0, 2.0, 5.0, 3.0, 6.0, 1.5],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         // Create Mahalanobis distance metric from training data
-        let mahalanobis_metric = Distance::from_mahalanobis(&x_train).unwrap();
+        let mahalanobis_metric =
+            Distance::from_mahalanobis(&x_train).expect("operation should succeed");
 
         let classifier = KNeighborsClassifier::new(3).with_metric(mahalanobis_metric);
-        let fitted = classifier.fit(&x_train, &y).unwrap();
+        let fitted = classifier
+            .fit(&x_train, &y)
+            .expect("operation should succeed");
 
         // Test prediction
-        let x_test = Array2::from_shape_vec((1, 2), vec![2.5, 1.5]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![2.5, 1.5]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should produce a valid prediction
         assert!(predictions[0] == 0 || predictions[0] == 1);
@@ -1109,11 +1119,11 @@ mod tests {
                 4.0, 4.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = KNeighborsClassifier::new(3).with_algorithm(Algorithm::BallTree);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Verify Ball tree was built
         assert!(fitted.ball_tree.is_some());
@@ -1126,9 +1136,9 @@ mod tests {
                 3.8, 3.8, // Should be class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         // Should produce valid predictions (either 0 or 1)
         assert!(predictions[0] == 0 || predictions[0] == 1);
         assert!(predictions[1] == 0 || predictions[1] == 1);
@@ -1147,18 +1157,19 @@ mod tests {
                 4.0, 4.0, // y = 8.0
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![2.0, 4.0, 6.0, 8.0];
 
         let regressor = KNeighborsRegressor::new(2).with_algorithm(Algorithm::BallTree);
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("operation should succeed");
 
         // Verify Ball tree was built
         assert!(fitted.ball_tree.is_some());
 
         // Test prediction
-        let x_test = Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict a reasonable value based on nearby points
         // Ball tree might find different neighbors than brute force due to algorithm differences

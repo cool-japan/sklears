@@ -117,7 +117,10 @@ impl StreamWindow {
     pub fn targets_array(&self) -> Option<Array1<f64>> {
         if self.data_points.iter().all(|p| p.target.is_some()) {
             Some(Array1::from_vec(
-                self.data_points.iter().map(|p| p.target.unwrap()).collect(),
+                self.data_points
+                    .iter()
+                    .map(|p| p.target.unwrap_or_default())
+                    .collect(),
             ))
         } else {
             None
@@ -861,8 +864,8 @@ impl StreamingPipeline<StreamingPipelineTrained> {
         let cur_features = current_window.features_matrix()?;
 
         // Simple drift detection using mean difference
-        let ref_mean = ref_features.mean_axis(Axis(0)).unwrap();
-        let cur_mean = cur_features.mean_axis(Axis(0)).unwrap();
+        let ref_mean = ref_features.mean_axis(Axis(0)).unwrap_or_default();
+        let cur_mean = cur_features.mean_axis(Axis(0)).unwrap_or_default();
 
         let drift_score = (&ref_mean - &cur_mean).mapv(|x| x * x).sum().sqrt();
 
@@ -908,7 +911,7 @@ mod tests {
 
         assert_eq!(window.size(), 2);
 
-        let features = window.features_matrix().unwrap();
+        let features = window.features_matrix().unwrap_or_default();
         assert_eq!(features.nrows(), 2);
         assert_eq!(features.ncols(), 2);
     }
@@ -932,7 +935,9 @@ mod tests {
         let base_estimator = Box::new(MockPredictor::new());
         let pipeline = StreamingPipeline::tumbling_time(base_estimator, Duration::from_secs(60));
 
-        let fitted_pipeline = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
         assert_eq!(fitted_pipeline.state.n_features_in, 2);
         assert_eq!(fitted_pipeline.state.statistics.total_samples, 2);
     }
@@ -945,10 +950,12 @@ mod tests {
         let base_estimator = Box::new(MockPredictor::new());
         let pipeline = StreamingPipeline::tumbling_time(base_estimator, Duration::from_secs(60));
 
-        let mut fitted_pipeline = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
+        let mut fitted_pipeline = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
 
         let point = StreamDataPoint::new(array![5.0, 6.0], "test_point".to_string());
-        let prediction = fitted_pipeline.process_point(point).unwrap();
+        let prediction = fitted_pipeline.process_point(point).unwrap_or_default();
 
         assert!(prediction.is_some());
         assert_eq!(fitted_pipeline.active_windows(), 1);

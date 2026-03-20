@@ -230,7 +230,7 @@ impl KernelBandwidthSelector {
         }
 
         // Compute median
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let median_dist_sq = distances[distances.len() / 2];
 
         if median_dist_sq <= 0.0 {
@@ -757,27 +757,27 @@ mod tests {
             (5, 2),
             vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let result = median_heuristic(&x).unwrap();
+        let result = median_heuristic(&x).expect("operation should succeed");
         assert!(result > 0.0);
         assert!(result.is_finite());
     }
 
     #[test]
     fn test_scott_rule() {
-        let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).expect("array shape mismatch");
 
-        let result = scott_rule(&x).unwrap();
+        let result = scott_rule(&x).expect("operation should succeed");
         assert!(result > 0.0);
         assert!(result.is_finite());
     }
 
     #[test]
     fn test_silverman_rule() {
-        let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).expect("array shape mismatch");
 
-        let result = silverman_rule(&x).unwrap();
+        let result = silverman_rule(&x).expect("operation should succeed");
         assert!(result > 0.0);
         assert!(result.is_finite());
     }
@@ -786,9 +786,9 @@ mod tests {
     fn test_bandwidth_selector() {
         let selector = KernelBandwidthSelector::with_method(BandwidthMethod::MedianHeuristic);
 
-        let X = Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64).collect()).expect("array shape mismatch");
 
-        let selection = selector.select(&x).unwrap();
+        let selection = selector.select(&x).expect("operation should succeed");
 
         assert!(selection.gamma > 0.0);
         assert!(selection.gamma.is_finite());
@@ -797,7 +797,7 @@ mod tests {
 
     #[test]
     fn test_insufficient_data() {
-        let X = Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).unwrap();
+        let X = Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).expect("array shape mismatch");
 
         let result = median_heuristic(&x);
         assert!(result.is_err());

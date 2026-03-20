@@ -133,7 +133,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for NuclearNormMinimization<Untrained> {
         let x_centered = if self.assume_centered {
             x.to_owned()
         } else {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             x.to_owned() - &mean.insert_axis(Axis(0))
         };
 
@@ -352,7 +356,7 @@ impl NuclearNormMinimization<Untrained> {
         let threshold = if let Some(rank) = self.target_rank {
             // Use rank-based thresholding
             let mut sorted_values = singular_values.to_vec();
-            sorted_values.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            sorted_values.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
             if rank < sorted_values.len() {
                 sorted_values[rank]
             } else {
@@ -460,7 +464,9 @@ mod tests {
         ];
 
         let estimator = NuclearNormMinimization::new().lambda(0.1);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_precision().is_some());
@@ -483,7 +489,9 @@ mod tests {
         let estimator = NuclearNormMinimization::new()
             .lambda(0.01)
             .target_rank(Some(1));
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_rank(), 1);
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
@@ -496,7 +504,9 @@ mod tests {
         let estimator = NuclearNormMinimization::new()
             .lambda(0.1)
             .algorithm(NuclearNormAlgorithm::APG);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_n_iter() > 0);
@@ -509,7 +519,9 @@ mod tests {
         let estimator = NuclearNormMinimization::new()
             .lambda(0.05)
             .algorithm(NuclearNormAlgorithm::FPC);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
     }
@@ -518,7 +530,7 @@ mod tests {
     fn test_nuclear_norm_computation() {
         let matrix = array![[1.0, 0.0], [0.0, 2.0]];
 
-        let nuclear_norm = compute_nuclear_norm(&matrix).unwrap();
+        let nuclear_norm = compute_nuclear_norm(&matrix).expect("operation should succeed");
         assert!((nuclear_norm - 3.0).abs() < 1e-10);
     }
 
@@ -526,7 +538,7 @@ mod tests {
     fn test_singular_values_computation() {
         let matrix = array![[3.0, 0.0], [0.0, 1.0]];
 
-        let singular_values = compute_singular_values(&matrix).unwrap();
+        let singular_values = compute_singular_values(&matrix).expect("operation should succeed");
         assert_eq!(singular_values.len(), 2);
         assert!((singular_values[0] - 3.0).abs() < 1e-10);
         assert!((singular_values[1] - 1.0).abs() < 1e-10);

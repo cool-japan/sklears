@@ -51,7 +51,9 @@ pub fn simd_group_norm(coefficients: &Array2<f64>, groups: &[Vec<usize>]) -> Vec
         for &feature_idx in group {
             if feature_idx < coefficients.nrows() {
                 let feature_coefs = coefficients.row(feature_idx);
-                let coef_slice = feature_coefs.as_slice().unwrap();
+                let coef_slice = feature_coefs
+                    .as_slice()
+                    .expect("slice operation should succeed");
                 let norm_squared = simd_dot_product(coef_slice, coef_slice);
                 group_sum += norm_squared;
             }
@@ -122,7 +124,7 @@ pub fn simd_frobenius_norm(matrix: &Array2<f64>) -> f64 {
     let mut sum_squares = 0.0;
 
     for row in matrix.rows() {
-        let row_slice = row.as_slice().unwrap();
+        let row_slice = row.as_slice().expect("matrix indexing should be valid");
         sum_squares += simd_dot_product(row_slice, row_slice);
     }
 
@@ -132,8 +134,12 @@ pub fn simd_frobenius_norm(matrix: &Array2<f64>) -> f64 {
 /// SIMD-accelerated task similarity computation
 /// Provides 8.3x-11.7x speedup for multi-task relationship learning
 pub fn simd_task_similarity(task1_coefs: &Array1<f64>, task2_coefs: &Array1<f64>) -> f64 {
-    let coef1_slice = task1_coefs.as_slice().unwrap();
-    let coef2_slice = task2_coefs.as_slice().unwrap();
+    let coef1_slice = task1_coefs
+        .as_slice()
+        .expect("slice operation should succeed");
+    let coef2_slice = task2_coefs
+        .as_slice()
+        .expect("slice operation should succeed");
 
     let dot_product = simd_dot_product(coef1_slice, coef2_slice);
     let norm1 = simd_l2_norm(coef1_slice);

@@ -152,7 +152,7 @@ impl OutlierDetector<Untrained> {
     /// Compute median of data
     fn compute_median(&self, data: &Array1<Float>) -> Float {
         let mut sorted: Vec<Float> = data.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted.len();
         if n % 2 == 0 {
             (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
@@ -165,7 +165,7 @@ impl OutlierDetector<Untrained> {
     fn compute_mad(&self, data: &Array1<Float>, median: Float) -> Float {
         let deviations: Vec<Float> = data.iter().map(|&x| (x - median).abs()).collect();
         let mut sorted_deviations = deviations;
-        sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted_deviations.len();
         if n % 2 == 0 {
             (sorted_deviations[n / 2 - 1] + sorted_deviations[n / 2]) / 2.0
@@ -177,7 +177,7 @@ impl OutlierDetector<Untrained> {
     /// Compute quartiles and IQR
     fn compute_quartiles(&self, data: &Array1<Float>) -> (Float, Float, Float) {
         let mut sorted: Vec<Float> = data.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted.len();
 
         let q1_idx = (0.25 * (n - 1) as Float) as usize;
@@ -193,7 +193,7 @@ impl OutlierDetector<Untrained> {
     /// Compute percentile bounds
     fn compute_percentile_bounds(&self, data: &Array1<Float>) -> (Float, Float) {
         let mut sorted: Vec<Float> = data.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let n = sorted.len();
 
         let lower_idx = ((self.config.lower_percentile / 100.0) * (n - 1) as Float) as usize;
@@ -211,7 +211,10 @@ impl OutlierDetector<Untrained> {
         let n_samples = x.nrows();
 
         // Compute mean vector
-        let mean = x.mean_axis(Axis(0)).unwrap().to_vec();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation")
+            .to_vec();
 
         // Compute covariance matrix
         let mut covariance = vec![vec![0.0; n_features]; n_features];

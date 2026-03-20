@@ -1,6 +1,6 @@
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::{seeded_rng, Rng, SliceRandom};
+use scirs2_core::random::{seeded_rng, Rng, RngExt, SliceRandom};
 use std::collections::HashMap;
 
 /// Statistical validation tests for cross-validation methods
@@ -18,10 +18,10 @@ mod statistical_validation_tests {
 
         // Generate data with known distribution
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Test KFold CV
@@ -35,8 +35,10 @@ mod statistical_validation_tests {
             let train_x = x.select(Axis(0), &train_idx);
             let test_x = x.select(Axis(0), &test_idx);
 
-            let train_mean = train_x.mean_axis(Axis(0)).unwrap();
-            let test_mean = test_x.mean_axis(Axis(0)).unwrap();
+            let train_mean = train_x
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
+            let test_mean = test_x.mean_axis(Axis(0)).expect("operation should succeed");
 
             fold_means.push(train_mean);
             fold_means.push(test_mean);
@@ -62,10 +64,10 @@ mod statistical_validation_tests {
 
         // Generate data
         let x = Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Test different CV methods
@@ -99,7 +101,7 @@ mod statistical_validation_tests {
 
         // Generate imbalanced binary classification data
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let mut y = Array2::zeros((n_samples, 1));
 
@@ -144,10 +146,10 @@ mod statistical_validation_tests {
 
         // Generate data
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Simulate CV scores multiple times
@@ -180,9 +182,9 @@ mod statistical_validation_tests {
             (n_samples, 3),
             (0..n_samples * 3).map(|i| i as f64).collect(),
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array2::from_shape_vec((n_samples, 1), (0..n_samples).map(|i| i as f64).collect())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test time series CV
         let ts_cv = TimeSeriesSplit::new(5, None, 0);
@@ -210,10 +212,10 @@ mod statistical_validation_tests {
 
         // Generate data with known effect size
         let x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Test different CV methods and their statistical power
@@ -253,10 +255,10 @@ mod statistical_validation_tests {
 
         // Generate clean data
         let mut x = Array2::from_shape_fn((n_samples, 5), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
         let mut y = Array2::from_shape_fn((n_samples, 1), |_| {
-            rng.sample(Normal::new(0.0, 1.0).unwrap())
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
         });
 
         // Add outliers
@@ -354,7 +356,7 @@ mod statistical_validation_tests {
 
     fn calculate_confidence_interval(scores: &[f64], confidence_level: f64) -> (f64, f64) {
         let mut sorted_scores = scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let alpha = 1.0 - confidence_level;
         let lower_idx = ((alpha / 2.0) * sorted_scores.len() as f64) as usize;
@@ -497,7 +499,7 @@ mod statistical_validation_tests {
             y: Option<&Array2<f64>>,
         ) -> Box<dyn Iterator<Item = (Vec<usize>, Vec<usize>)>> {
             let n_samples = x.shape()[0];
-            let y = y.unwrap();
+            let y = y.expect("operation should succeed");
 
             // Group indices by class
             let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();

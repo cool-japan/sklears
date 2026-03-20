@@ -294,7 +294,7 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskElasticNetCV {
                 // Create model with current parameters
                 let model = MultiTaskElasticNet::new()
                     .alpha(alpha)
-                    .l1_ratio(l1_ratio)
+                    .l1_ratio(l1_ratio)?
                     .fit_intercept(self.config.fit_intercept)
                     .max_iter(self.config.max_iter)
                     .tol(self.config.tol);
@@ -368,7 +368,7 @@ impl Fit<Array2<Float>, Array2<Float>> for MultiTaskElasticNetCV {
         // Refit on entire dataset with best parameters
         let best_model = MultiTaskElasticNet::new()
             .alpha(best_alpha)
-            .l1_ratio(best_l1_ratio)
+            .l1_ratio(best_l1_ratio)?
             .fit_intercept(self.config.fit_intercept)
             .max_iter(self.config.max_iter)
             .tol(self.config.tol);
@@ -520,14 +520,14 @@ mod tests {
             .l1_ratios(vec![0.5, 0.9])
             .build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that we found best parameters
         assert!(trained.alphas().contains(&trained.best_alpha()));
         assert!(trained.l1_ratios().contains(&trained.best_l1_ratio()));
 
         // Check predictions shape
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[6, 2]);
 
         // Check coefficients shape
@@ -563,7 +563,7 @@ mod tests {
         // Don't specify alphas or l1_ratios, should use defaults
         let model = MultiTaskElasticNetCV::builder().cv(3).n_alphas(10).build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Should have generated 10 alphas and 7 default l1_ratios
         assert_eq!(trained.alphas().len(), 10);
@@ -586,13 +586,13 @@ mod tests {
             .alphas(vec![0.01, 0.1, 1.0])
             .build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Should have l1_ratio = 1.0
         assert_eq!(trained.best_l1_ratio(), 1.0);
 
         // Predictions should work
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[5, 2]);
     }
 }

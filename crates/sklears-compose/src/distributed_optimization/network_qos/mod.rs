@@ -1122,7 +1122,7 @@ impl CoordinationEngine {
     }
 
     pub async fn get_state(&self) -> Result<CoordinationState, QosCoordinatorError> {
-        Ok(self.coordination_state.read().unwrap().clone())
+        Ok(self.coordination_state.read().unwrap_or_else(|e| e.into_inner()).clone())
     }
 
     pub async fn update_config(&self, _config: &NetworkQosConfig) -> Result<(), QosCoordinatorError> {

@@ -355,7 +355,7 @@ mod tests {
         // Valid probability
         let prob = 0.5f64.typed_prob::<distribution_types::Gaussian, feature_types::Continuous>();
         assert!(prob.is_ok());
-        assert_eq!(*prob.unwrap().value(), 0.5);
+        assert_eq!(*prob.expect("operation should succeed").value(), 0.5);
 
         // Invalid probability (too large)
         let prob = 1.5f64.typed_prob::<distribution_types::Gaussian, feature_types::Continuous>();
@@ -373,7 +373,7 @@ mod tests {
         let log_prob =
             (-0.5f64).typed_log_prob::<distribution_types::Gaussian, feature_types::Continuous>();
         assert!(log_prob.is_ok());
-        assert_eq!(*log_prob.unwrap().value(), -0.5);
+        assert_eq!(*log_prob.expect("operation should succeed").value(), -0.5);
 
         // Invalid log probability (positive)
         let log_prob =

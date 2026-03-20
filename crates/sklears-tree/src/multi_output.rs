@@ -289,7 +289,7 @@ impl SingleOutputTree {
         for feature_idx in 0..n_features {
             // Get unique values for this feature
             let mut values: Vec<f64> = samples.iter().map(|&i| x[[i, feature_idx]]).collect();
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             values.dedup();
 
             // Try splits between consecutive values
@@ -298,7 +298,7 @@ impl SingleOutputTree {
                 let impurity_reduction =
                     self.calculate_impurity_reduction(x, y, samples, feature_idx, threshold);
 
-                if best_split.is_none() || impurity_reduction > best_split.as_ref().unwrap().2 {
+                if best_split.is_none() || impurity_reduction > best_split.as_ref().expect("operation should succeed").2 {
                     best_split = Some((feature_idx, threshold, impurity_reduction));
                 }
             }
@@ -877,7 +877,7 @@ impl MultiLabelRandomForest<Trained> {
 
         for tree in &self.trees {
             let tree_importances = tree.feature_importances()?;
-            let mean_importance = tree_importances.mean_axis(Axis(1)).unwrap();
+            let mean_importance = tree_importances.mean_axis(Axis(1)).expect("array should have elements for mean computation");
             total_importances = total_importances + mean_importance;
         }
 
@@ -930,7 +930,7 @@ mod tests {
 
         assert!(tree.fit(&x, &y).is_ok());
 
-        let predictions = tree.predict(&x).unwrap();
+        let predictions = tree.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -942,8 +942,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let y = array![[1.0, 0.0], [2.0, 1.0], [3.0, 0.0]]; // Two outputs
 
-        let fitted_tree = tree.fit(&x, &y).unwrap();
-        let predictions = fitted_tree.predict(&x).unwrap();
+        let fitted_tree = tree.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted_tree.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.nrows(), 3);
         assert_eq!(predictions.ncols(), 2);
@@ -958,7 +958,7 @@ mod tests {
             [1.0, 1.0, 1.0],
         ];
 
-        let correlations = compute_label_correlations(&y, 0.1).unwrap();
+        let correlations = compute_label_correlations(&y, 0.1).expect("operation should succeed");
         assert_eq!(correlations.correlations.nrows(), 3);
         assert_eq!(correlations.correlations.ncols(), 3);
         assert_eq!(correlations.cooccurrence.nrows(), 3);
@@ -980,8 +980,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0],];
         let y = array![[1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.0, 0.0],];
 
-        let fitted_forest = forest.fit(&x, &y).unwrap();
-        let predictions = fitted_forest.predict(&x).unwrap();
+        let fitted_forest = forest.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted_forest.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.nrows(), 4);
         assert_eq!(predictions.ncols(), 2);
@@ -1000,8 +1000,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![[1.0, 0.0], [2.0, 1.0], [3.0, 0.0], [4.0, 1.0]];
 
-        let fitted_tree = tree.fit(&x, &y).unwrap();
-        let importances = fitted_tree.feature_importances().unwrap();
+        let fitted_tree = tree.fit(&x, &y).expect("model fitting should succeed");
+        let importances = fitted_tree.feature_importances().expect("operation should succeed");
 
         assert_eq!(importances.nrows(), 2); // 2 features
         assert_eq!(importances.ncols(), 2); // 2 outputs

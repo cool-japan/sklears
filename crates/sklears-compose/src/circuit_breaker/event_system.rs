@@ -350,7 +350,7 @@ impl CircuitBreakerEventRecorder {
 
         // Add to buffer
         {
-            let mut buffer = self.event_buffer.lock().unwrap();
+            let mut buffer = self.event_buffer.lock().unwrap_or_else(|e| e.into_inner());
             buffer.push_back(event.clone());
 
             // Maintain buffer size
@@ -483,7 +483,7 @@ impl CircuitBreakerEventRecorder {
     /// Get recent events
     #[must_use]
     pub fn get_recent_events(&self, count: usize) -> Vec<CircuitBreakerEvent> {
-        let buffer = self.event_buffer.lock().unwrap();
+        let buffer = self.event_buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.iter().rev().take(count).cloned().collect()
     }
 
@@ -493,7 +493,7 @@ impl CircuitBreakerEventRecorder {
         &self,
         event_type: CircuitBreakerEventType,
     ) -> Vec<CircuitBreakerEvent> {
-        let buffer = self.event_buffer.lock().unwrap();
+        let buffer = self.event_buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer
             .iter()
             .filter(|event| event.event_type == event_type)
@@ -504,7 +504,7 @@ impl CircuitBreakerEventRecorder {
     /// Get events by circuit
     #[must_use]
     pub fn get_events_by_circuit(&self, circuit_id: &str) -> Vec<CircuitBreakerEvent> {
-        let buffer = self.event_buffer.lock().unwrap();
+        let buffer = self.event_buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer
             .iter()
             .filter(|event| event.circuit_id == circuit_id)
@@ -514,14 +514,14 @@ impl CircuitBreakerEventRecorder {
 
     /// Clear event buffer
     pub fn clear_events(&self) {
-        let mut buffer = self.event_buffer.lock().unwrap();
+        let mut buffer = self.event_buffer.lock().unwrap_or_else(|e| e.into_inner());
         buffer.clear();
     }
 
     /// Get event statistics
     #[must_use]
     pub fn get_statistics(&self) -> EventStatistics {
-        let buffer = self.event_buffer.lock().unwrap();
+        let buffer = self.event_buffer.lock().unwrap_or_else(|e| e.into_inner());
         let mut stats = EventStatistics::default();
 
         stats.total_events = buffer.len() as u64;
@@ -768,20 +768,20 @@ impl MemoryEventPublisher {
     /// Get stored events
     #[must_use]
     pub fn get_events(&self) -> Vec<CircuitBreakerEvent> {
-        let events = self.events.lock().unwrap();
+        let events = self.events.lock().unwrap_or_else(|e| e.into_inner());
         events.iter().cloned().collect()
     }
 
     /// Clear stored events
     pub fn clear(&self) {
-        let mut events = self.events.lock().unwrap();
+        let mut events = self.events.lock().unwrap_or_else(|e| e.into_inner());
         events.clear();
     }
 }
 
 impl EventPublisher for MemoryEventPublisher {
     fn publish(&self, event: &CircuitBreakerEvent) -> SklResult<()> {
-        let mut events = self.events.lock().unwrap();
+        let mut events = self.events.lock().unwrap_or_else(|e| e.into_inner());
         events.push_back(event.clone());
 
         // Maintain max events

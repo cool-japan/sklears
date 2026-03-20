@@ -140,18 +140,18 @@ impl<F: NdFloat> Default for TimeVaryingCovarianceConfig<F> {
         Self {
             method: TimeVaryingMethod::RollingWindow,
             dcc_config: Some(DccConfig {
-                alpha: F::from(0.01).unwrap(),
-                beta: F::from(0.95).unwrap(),
+                alpha: F::from(0.01).expect("operation should succeed"),
+                beta: F::from(0.95).expect("operation should succeed"),
                 robust: false,
                 max_iter: 1000,
-                tolerance: F::from(1e-6).unwrap(),
+                tolerance: F::from(1e-6).expect("operation should succeed"),
             }),
             garch_config: Some(GarchConfig {
                 garch_type: GarchType::Diagonal,
                 order: (1, 1),
                 include_constant: true,
                 max_iter: 1000,
-                tolerance: F::from(1e-6).unwrap(),
+                tolerance: F::from(1e-6).expect("operation should succeed"),
             }),
             rolling_config: Some(RollingWindowConfig {
                 window_size: 60,
@@ -159,18 +159,18 @@ impl<F: NdFloat> Default for TimeVaryingCovarianceConfig<F> {
                 step_size: 1,
             }),
             exponential_config: Some(ExponentialWeightedConfig {
-                decay_factor: F::from(0.94).unwrap(),
+                decay_factor: F::from(0.94).expect("operation should succeed"),
                 bias_adjustment: true,
                 min_periods: Some(10),
             }),
             regime_config: Some(RegimeSwitchingConfig {
                 n_regimes: 2,
-                transition_smoothing: F::from(0.01).unwrap(),
+                transition_smoothing: F::from(0.01).expect("operation should succeed"),
                 max_iter: 100,
-                tolerance: F::from(1e-4).unwrap(),
+                tolerance: F::from(1e-4).expect("operation should succeed"),
                 init_kmeans: true,
             }),
-            regularization: F::from(1e-8).unwrap(),
+            regularization: F::from(1e-8).expect("operation should succeed"),
             random_state: None,
         }
     }
@@ -315,7 +315,7 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
                     .config
                     .exponential_config
                     .as_ref()
-                    .unwrap()
+                    .ok_or_else(|| SklearsError::NumericalError("as_ref failed".into()))?
                     .decay_factor;
                 let last_cov = self.covariance_at(self.n_time_periods_ - 1)?;
                 let mut forecasts = Array3::zeros((horizon, self.n_features_, self.n_features_));
@@ -346,16 +346,22 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
     }
 
     fn forecast_dcc(&self, horizon: usize) -> Result<Array3<F>> {
-        let dcc_config = self.config.dcc_config.as_ref().unwrap();
+        let dcc_config = self
+            .config
+            .dcc_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let alpha = dcc_config.alpha;
         let beta = dcc_config.beta;
 
         let mut forecasts = Array3::zeros((horizon, self.n_features_, self.n_features_));
-        let last_corr = self.correlation_at(self.n_time_periods_ - 1)?.unwrap();
+        let last_corr = self
+            .correlation_at(self.n_time_periods_ - 1)?
+            .ok_or_else(|| SklearsError::NumericalError("correlation should be present".into()))?;
         let last_vol = self
             .volatilities_
             .as_ref()
-            .unwrap()
+            .ok_or_else(|| SklearsError::NumericalError("as_ref failed".into()))?
             .slice(s![self.n_time_periods_ - 1, ..]);
 
         let unconditional_corr = self.compute_unconditional_correlation()?;
@@ -381,7 +387,8 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
         let mut forecasts = Array3::zeros((horizon, self.n_features_, self.n_features_));
 
         // For simplicity, assume persistence and gradual mean reversion
-        let persistence = F::from(0.9).unwrap();
+        let persistence = F::from(0.9)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
         let unconditional_cov = self.compute_unconditional_covariance()?;
 
         for h in 0..horizon {
@@ -395,14 +402,18 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
     }
 
     fn forecast_regime_switching(&self, horizon: usize) -> Result<Array3<F>> {
-        let regime_config = self.config.regime_config.as_ref().unwrap();
+        let regime_config = self
+            .config
+            .regime_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let n_regimes = regime_config.n_regimes;
 
         // Get last regime probabilities
         let last_regime_probs = self
             .regime_probabilities_
             .as_ref()
-            .unwrap()
+            .ok_or_else(|| SklearsError::NumericalError("as_ref failed".into()))?
             .slice(s![self.n_time_periods_ - 1, ..]);
 
         let mut forecasts = Array3::zeros((horizon, self.n_features_, self.n_features_));
@@ -425,14 +436,19 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
 
     fn compute_unconditional_correlation(&self) -> Result<Array2<F>> {
         // Compute average correlation across time
-        let correlations = self.correlations_.as_ref().unwrap();
+        let correlations = self
+            .correlations_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let mut unconditional = Array2::zeros((self.n_features_, self.n_features_));
 
         for t in 0..self.n_time_periods_ {
             unconditional = unconditional + &correlations.slice(s![t, .., ..]);
         }
 
-        Ok(unconditional / F::from(self.n_time_periods_).unwrap())
+        Ok(unconditional
+            / F::from(self.n_time_periods_)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?)
     }
 
     fn compute_unconditional_covariance(&self) -> Result<Array2<F>> {
@@ -443,7 +459,9 @@ impl<F: NdFloat> TimeVaryingCovarianceFitted<F> {
             unconditional = unconditional + &self.covariances_.slice(s![t, .., ..]);
         }
 
-        Ok(unconditional / F::from(self.n_time_periods_).unwrap())
+        Ok(unconditional
+            / F::from(self.n_time_periods_)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?)
     }
 
     fn create_volatility_matrix(&self, volatilities: &Array1<F>) -> Array2<F> {
@@ -541,7 +559,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         F,
         Array1<usize>,
     )> {
-        let rolling_config = self.config.rolling_config.as_ref().unwrap();
+        let rolling_config = self
+            .config
+            .rolling_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
 
         let window_size = rolling_config.window_size;
@@ -605,7 +627,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         F,
         Array1<usize>,
     )> {
-        let ewma_config = self.config.exponential_config.as_ref().unwrap();
+        let ewma_config = self
+            .config
+            .exponential_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
         let decay = ewma_config.decay_factor;
         let min_periods = ewma_config.min_periods.unwrap_or(1);
@@ -614,7 +640,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         let time_indices = Array1::from_iter(0..n_samples);
 
         // Compute mean
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
 
         // Initialize with first observation
         let first_diff = &x.slice(s![0, ..]) - &mean;
@@ -690,7 +720,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         F,
         Array1<usize>,
     )> {
-        let dcc_config = self.config.dcc_config.as_ref().unwrap();
+        let dcc_config = self
+            .config
+            .dcc_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
 
         // Step 1: Estimate univariate GARCH models for volatilities
@@ -790,7 +824,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         F,
         Array1<usize>,
     )> {
-        let garch_config = self.config.garch_config.as_ref().unwrap();
+        let garch_config = self
+            .config
+            .garch_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
 
         match garch_config.garch_type {
@@ -851,7 +889,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         F,
         Array1<usize>,
     )> {
-        let regime_config = self.config.regime_config.as_ref().unwrap();
+        let regime_config = self
+            .config
+            .regime_config
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let (n_samples, n_features) = x.dim();
         let n_regimes = regime_config.n_regimes;
 
@@ -871,9 +913,13 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
             };
 
             let regime_data = x.slice(s![start_idx..end_idx, ..]);
-            regime_means
-                .slice_mut(s![regime, ..])
-                .assign(&regime_data.mean_axis(Axis(0)).unwrap());
+            regime_means.slice_mut(s![regime, ..]).assign(
+                &regime_data.mean_axis(Axis(0)).ok_or_else(|| {
+                    SklearsError::NumericalError(
+                        "mean computation should succeed for non-empty array".into(),
+                    )
+                })?,
+            );
 
             let regime_cov = self.compute_sample_covariance(&regime_data.to_owned())?;
             let regularized_cov = regularize_matrix(&regime_cov, self.config.regularization)?;
@@ -1009,7 +1055,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     /// Compute sample covariance matrix
     fn compute_sample_covariance(&self, x: &Array2<F>) -> Result<Array2<F>> {
         let (n_samples, n_features) = x.dim();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
 
         let mut cov = Array2::zeros((n_features, n_features));
         for i in 0..n_samples {
@@ -1019,7 +1069,9 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
             cov = cov + diff_t.dot(&diff_2d);
         }
 
-        Ok(cov / F::from(n_samples - 1).unwrap())
+        Ok(cov
+            / F::from(n_samples - 1)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?)
     }
 
     /// Compute sample correlation matrix
@@ -1046,7 +1098,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     /// Estimate univariate GARCH model (simplified)
     fn estimate_univariate_garch(&self, series: &Array1<F>) -> Result<(Array1<F>, Array1<F>)> {
         let n = series.len();
-        let mean = series.mean().unwrap();
+        let mean = series.mean().ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
 
         // Simple GARCH(1,1) estimation
         let mut volatilities = Array1::zeros(n);
@@ -1058,9 +1114,12 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         residuals[0] = (series[0] - mean) / volatilities[0];
 
         // GARCH parameters (simplified fixed values)
-        let omega = F::from(0.01).unwrap();
-        let alpha = F::from(0.05).unwrap();
-        let beta = F::from(0.90).unwrap();
+        let omega = F::from(0.01)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
+        let alpha = F::from(0.05)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
+        let beta = F::from(0.90)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         for t in 1..n {
             let epsilon_prev = series[t - 1] - mean;
@@ -1076,9 +1135,12 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     fn estimate_garch_with_params(&self, series: &Array1<F>) -> Result<(Array1<F>, Vec<F>, F)> {
         let (volatilities, _) = self.estimate_univariate_garch(series)?;
         let parameters = vec![
-            F::from(0.01).unwrap(),
-            F::from(0.05).unwrap(),
-            F::from(0.90).unwrap(),
+            F::from(0.01)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?,
+            F::from(0.05)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?,
+            F::from(0.90)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?,
         ]; // omega, alpha, beta
         let log_likelihood = F::zero(); // Would compute actual likelihood
         Ok((volatilities, parameters, log_likelihood))
@@ -1087,7 +1149,11 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
     /// Compute Gaussian log likelihood
     fn compute_gaussian_log_likelihood(&self, data: &Array2<F>, cov: &Array2<F>) -> Result<F> {
         let (n_samples, n_features) = data.dim();
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
 
         // Convert to f64 for determinant computation
         let cov_f64 = cov.mapv(|x| x.to_f64().unwrap_or(0.0));
@@ -1107,15 +1173,27 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         for i in 0..n_samples {
             let diff = &data.slice(s![i, ..]) - &mean;
             let mahalanobis = diff.dot(&inv_cov).dot(&diff);
-            log_likelihood = log_likelihood - mahalanobis / F::from(2.0).unwrap();
+            log_likelihood = log_likelihood
+                - mahalanobis
+                    / F::from(2.0).ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?;
         }
 
         log_likelihood = log_likelihood
-            - F::from(n_samples).unwrap()
-                * (F::from(n_features).unwrap()
-                    * F::from(2.0 * std::f64::consts::PI).unwrap().ln()
+            - F::from(n_samples)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+                * (F::from(n_features).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })? * F::from(2.0 * std::f64::consts::PI)
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?
+                    .ln()
                     + det_cov.ln())
-                / F::from(2.0).unwrap();
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
 
         Ok(log_likelihood)
     }
@@ -1143,10 +1221,20 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         let inv_cov = inv_cov_f64.mapv(|x| F::from(x).unwrap_or(F::zero()));
 
         let mahalanobis = obs.to_owned().dot(&inv_cov).dot(&obs.to_owned());
-        let log_likelihood = -mahalanobis / F::from(2.0).unwrap()
-            - (F::from(n_features).unwrap() * F::from(2.0 * std::f64::consts::PI).unwrap().ln()
+        let log_likelihood = -mahalanobis
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+            - (F::from(n_features)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+                * F::from(2.0 * std::f64::consts::PI)
+                    .ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?
+                    .ln()
                 + det_cov.ln())
-                / F::from(2.0).unwrap();
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
 
         Ok(log_likelihood)
     }
@@ -1168,8 +1256,13 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         let inv_corr = inv_corr_f64.mapv(|x| F::from(x).unwrap_or(F::zero()));
 
         let quadratic_form = z.to_owned().dot(&inv_corr).dot(&z.to_owned());
-        let log_likelihood =
-            -quadratic_form / F::from(2.0).unwrap() - det_corr.ln() / F::from(2.0).unwrap();
+        let log_likelihood = -quadratic_form
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+            - det_corr.ln()
+                / F::from(2.0).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?;
 
         Ok(log_likelihood)
     }
@@ -1199,9 +1292,16 @@ impl<F: NdFloat + FromPrimitive> TimeVaryingCovariance<F> {
         let inv_cov = inv_cov_f64.mapv(|x| F::from(x).unwrap_or(F::zero()));
 
         let mahalanobis = diff.dot(&inv_cov).dot(&diff);
-        let normalization =
-            (F::from(2.0 * std::f64::consts::PI).unwrap().powi(n as i32) * det_cov).sqrt();
-        let pdf = (-mahalanobis / F::from(2.0).unwrap()).exp() / normalization;
+        let normalization = (F::from(2.0 * std::f64::consts::PI)
+            .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+            .powi(n as i32)
+            * det_cov)
+            .sqrt();
+        let pdf = (-mahalanobis
+            / F::from(2.0)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?)
+        .exp()
+            / normalization;
 
         Ok(pdf)
     }
@@ -1393,7 +1493,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
         assert!(fitted.n_time_periods() > 0);
@@ -1414,14 +1516,16 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert_eq!(fitted.n_time_periods(), 50);
 
         // Check that covariances evolve over time
-        let first_cov = fitted.covariance_at(0).unwrap();
-        let last_cov = fitted.covariance_at(49).unwrap();
+        let first_cov = fitted.covariance_at(0).expect("operation should succeed");
+        let last_cov = fitted.covariance_at(49).expect("operation should succeed");
 
         // They should be different due to time-varying nature
         let diff = (&last_cov - &first_cov).mapv(|x| x.abs()).sum();
@@ -1439,16 +1543,18 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert!(fitted.correlations().is_some());
         assert!(fitted.volatilities().is_some());
 
-        let correlations = fitted.correlations().unwrap();
+        let correlations = fitted.correlations().expect("operation should succeed");
         assert_eq!(correlations.shape(), &[40, 2, 2]);
 
-        let volatilities = fitted.volatilities().unwrap();
+        let volatilities = fitted.volatilities().expect("operation should succeed");
         assert_eq!(volatilities.shape(), &[40, 2]);
     }
 
@@ -1464,12 +1570,16 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert!(fitted.regime_probabilities().is_some());
 
-        let regime_probs = fitted.regime_probabilities().unwrap();
+        let regime_probs = fitted
+            .regime_probabilities()
+            .expect("operation should succeed");
         assert_eq!(regime_probs.shape(), &[60, 2]);
 
         // Check that probabilities sum to 1
@@ -1490,12 +1600,14 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
         assert!(fitted.volatilities().is_some());
 
-        let volatilities = fitted.volatilities().unwrap();
+        let volatilities = fitted.volatilities().expect("operation should succeed");
         assert_eq!(volatilities.shape(), &[30, 3]);
 
         // Check that all volatilities are positive
@@ -1512,15 +1624,20 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
-        let forecasts = fitted.forecast(5).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let forecasts = fitted.forecast(5).expect("operation should succeed");
 
         assert_eq!(forecasts.shape(), &[5, 2, 2]);
 
         // Check that forecast covariances are positive definite (with tolerance for numerical errors)
         for h in 0..5 {
             let forecast_cov = forecasts.slice(s![h, .., ..]);
-            let eigenvals = forecast_cov.to_owned().eigvalsh(UPLO::Lower).unwrap();
+            let eigenvals = forecast_cov
+                .to_owned()
+                .eigvalsh(UPLO::Lower)
+                .expect("operation should succeed");
             assert!(eigenvals.iter().all(|&x| x > -1e-10));
         }
     }
@@ -1536,14 +1653,18 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         for t in 0..fitted.n_time_periods() {
-            let cov_t = fitted.covariance_at(t).unwrap();
+            let cov_t = fitted.covariance_at(t).expect("operation should succeed");
             assert_eq!(cov_t.shape(), &[2, 2]);
 
             // Check positive definiteness (with tolerance for numerical errors)
-            let eigenvals = cov_t.eigvalsh(UPLO::Lower).unwrap();
+            let eigenvals = cov_t
+                .eigvalsh(UPLO::Lower)
+                .expect("operation should succeed");
             assert!(eigenvals.iter().all(|&x| x > -1e-10));
         }
 

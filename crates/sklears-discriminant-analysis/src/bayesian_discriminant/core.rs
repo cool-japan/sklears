@@ -125,8 +125,8 @@ impl<D: Data<Elem = Float>> Fit<ArrayBase<D, Ix2>, Array1<i32>> for BayesianDisc
 
         let mut class_priors = Array1::zeros(n_classes);
         for (i, &class_label) in classes_array.iter().enumerate() {
-            class_priors[i] =
-                *class_counts.get(&class_label).unwrap() as Float / n_samples as Float;
+            class_priors[i] = *class_counts.get(&class_label).expect("key not found") as Float
+                / n_samples as Float;
         }
 
         // Compute class means

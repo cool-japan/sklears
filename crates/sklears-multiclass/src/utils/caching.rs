@@ -362,7 +362,7 @@ mod tests {
         cache.cache_prediction(&X, pred.clone());
         let cached = cache.get_prediction(&X);
         assert!(cached.is_some());
-        assert_eq!(cached.unwrap(), pred);
+        assert_eq!(cached.expect("operation should succeed"), pred);
     }
 
     #[test]
@@ -379,7 +379,7 @@ mod tests {
         cache.cache_prediction_proba(&X, proba.clone());
         let cached = cache.get_prediction_proba(&X);
         assert!(cached.is_some());
-        assert_eq!(cached.unwrap(), proba);
+        assert_eq!(cached.expect("operation should succeed"), proba);
     }
 
     #[test]

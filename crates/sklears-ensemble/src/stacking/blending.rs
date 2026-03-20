@@ -41,12 +41,15 @@ impl BlendingClassifier<Untrained> {
     }
 
     /// Set the holdout ratio for validation set
-    pub fn holdout_ratio(mut self, ratio: f64) -> Self {
+    pub fn holdout_ratio(mut self, ratio: f64) -> Result<Self> {
         if ratio <= 0.0 || ratio >= 1.0 {
-            panic!("Holdout ratio must be between 0 and 1");
+            return Err(SklearsError::InvalidParameter {
+                name: "holdout_ratio".to_string(),
+                reason: "must be between 0 and 1".to_string(),
+            });
         }
         self.holdout_ratio = ratio;
-        self
+        Ok(self)
     }
 
     /// Set the random state for reproducibility
@@ -90,16 +93,16 @@ impl Fit<Array2<Float>, Array1<i32>> for BlendingClassifier<Untrained> {
 
 impl Predict<Array2<Float>, Array1<i32>> for BlendingClassifier<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols() != self.n_features_in_.expect("operation should succeed") {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.unwrap(),
+                expected: self.n_features_in_.expect("operation should succeed"),
                 actual: x.ncols(),
             });
         }
 
         // Placeholder implementation
         let n_samples = x.nrows();
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Simple prediction: assign first class to all samples
         let predictions = Array1::from_elem(n_samples, classes[0]);
@@ -111,17 +114,17 @@ impl Predict<Array2<Float>, Array1<i32>> for BlendingClassifier<Trained> {
 impl BlendingClassifier<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of features in the training data
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_.expect("operation should succeed")
     }
 
     /// Get the number of base estimators
     pub fn n_base_estimators(&self) -> usize {
-        self.n_base_estimators_.unwrap()
+        self.n_base_estimators_.expect("operation should succeed")
     }
 
     /// Get the holdout ratio used for validation
@@ -145,11 +148,17 @@ mod tests {
     fn test_blending_creation() {
         let blending = BlendingClassifier::new(2)
             .holdout_ratio(0.3)
+            .expect("valid parameter")
             .random_state(42);
 
         assert_eq!(blending.holdout_ratio, 0.3);
         assert_eq!(blending.random_state, Some(42));
-        assert_eq!(blending.n_base_estimators_.unwrap(), 2);
+        assert_eq!(
+            blending
+                .n_base_estimators_
+                .expect("operation should succeed"),
+            2
+        );
     }
 
     #[test]
@@ -171,19 +180,19 @@ mod tests {
         let y = array![0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1];
 
         let blending = BlendingClassifier::new(2);
-        let fitted_model = blending.fit(&x, &y).unwrap();
+        let fitted_model = blending.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert_eq!(fitted_model.classes().len(), 2);
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 12);
     }
 
     #[test]
-    #[should_panic(expected = "Holdout ratio must be between 0 and 1")]
     fn test_invalid_holdout_ratio() {
-        let _blending = BlendingClassifier::new(2).holdout_ratio(1.5);
+        let result = BlendingClassifier::new(2).holdout_ratio(1.5);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -212,7 +221,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
         let blending = BlendingClassifier::new(1);
-        let fitted_model = blending.fit(&x_train, &y_train).unwrap();
+        let fitted_model = blending
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         let result = fitted_model.predict(&x_test);
 
         assert!(result.is_err());

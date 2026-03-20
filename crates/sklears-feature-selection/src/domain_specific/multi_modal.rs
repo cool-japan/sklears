@@ -916,7 +916,11 @@ fn concatenate_modalities(
         ));
     }
 
-    let n_samples = modalities.values().next().unwrap().nrows();
+    let n_samples = modalities
+        .values()
+        .next()
+        .expect("operation should succeed")
+        .nrows();
     let mut feature_views = Vec::new();
     let mut feature_mapping = HashMap::new();
     let mut modality_feature_counts = HashMap::new();
@@ -1183,15 +1187,16 @@ mod tests {
     fn test_concatenate_modalities() {
         let mut modalities = HashMap::new();
 
-        let text_features =
-            Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let image_features =
-            Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
+        let text_features = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        let image_features = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+            .expect("operation should succeed");
 
         modalities.insert("text".to_string(), text_features);
         modalities.insert("image".to_string(), image_features);
 
-        let (combined, mapping, counts) = concatenate_modalities(&modalities).unwrap();
+        let (combined, mapping, counts) =
+            concatenate_modalities(&modalities).expect("operation should succeed");
 
         assert_eq!(combined.dim(), (3, 4));
         assert_eq!(mapping.len(), 4);
@@ -1203,9 +1208,11 @@ mod tests {
         let mut modalities = HashMap::new();
 
         let text_features =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+                .expect("operation should succeed");
         let image_features =
-            Array2::from_shape_vec((4, 2), vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+                .expect("operation should succeed");
 
         modalities.insert("text".to_string(), text_features);
         modalities.insert("image".to_string(), image_features);
@@ -1217,8 +1224,12 @@ mod tests {
             .k(2)
             .build();
 
-        let trained = selector.fit(&modalities, &target).unwrap();
-        let transformed = trained.transform(&modalities).unwrap();
+        let trained = selector
+            .fit(&modalities, &target)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&modalities)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 2);
         assert_eq!(transformed.nrows(), 4);
@@ -1234,9 +1245,10 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let image_features =
-            Array2::from_shape_vec((4, 2), vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+                .expect("operation should succeed");
 
         modalities.insert("text".to_string(), text_features);
         modalities.insert("image".to_string(), image_features);
@@ -1248,8 +1260,12 @@ mod tests {
             .modality_k([("text", 2), ("image", 1)])
             .build();
 
-        let trained = selector.fit(&modalities, &target).unwrap();
-        let transformed = trained.transform(&modalities).unwrap();
+        let trained = selector
+            .fit(&modalities, &target)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&modalities)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 3); // 2 from text + 1 from image
         assert_eq!(transformed.nrows(), 4);
@@ -1257,8 +1273,9 @@ mod tests {
 
     #[test]
     fn test_normalize_features() {
-        let features = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]).unwrap();
-        let normalized = normalize_features(&features).unwrap();
+        let features = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0])
+            .expect("operation should succeed");
+        let normalized = normalize_features(&features).expect("operation should succeed");
 
         assert_eq!(normalized.dim(), (3, 2));
 
@@ -1282,9 +1299,9 @@ mod tests {
     //             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
     //         ],
     //     )
-    //     .unwrap();
+    //     .expect("operation should succeed");
     //     let image_features =
-    //         Array2::from_shape_vec((3, 2), vec![13.0, 14.0, 15.0, 16.0, 17.0, 18.0]).unwrap();
+    //         Array2::from_shape_vec((3, 2), vec![13.0, 14.0, 15.0, 16.0, 17.0, 18.0]).expect("operation should succeed");
     //
     //     modalities.insert("text".to_string(), text_features);
     //     modalities.insert("image".to_string(), image_features);
@@ -1296,8 +1313,8 @@ mod tests {
     //         .modality_k([("text", 2), ("image", 1)])
     //         .build();
     //
-    //     let trained = selector.fit(&modalities, &target).unwrap();
-    //     let support = trained.get_support().unwrap();
+    //     let trained = selector.fit(&modalities, &target).expect("operation should succeed");
+    //     let support = trained.get_support().expect("operation should succeed");
     //
     //     assert_eq!(support.len(), 6); // 4 + 2 total features
     //     assert_eq!(support.iter().filter(|&&x| x).count(), 3); // 2 + 1 selected

@@ -124,7 +124,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .filter(|r| r.n_samples == n_samples)
             .collect();
 
-        size_results.sort_by(|a, b| a.avg_time_ms.partial_cmp(&b.avg_time_ms).unwrap());
+        size_results.sort_by(|a, b| {
+            a.avg_time_ms
+                .partial_cmp(&b.avg_time_ms)
+                .expect("comparison should succeed for non-NaN values")
+        });
 
         if let Some(fastest) = size_results.first() {
             println!(
@@ -165,7 +169,7 @@ struct BenchmarkResult {
 
 fn generate_benchmark_data(n_samples: usize) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     let x = Array2::from_shape_fn((n_samples, 3), |_| normal.sample(&mut rng));
     let y = Array1::from_shape_fn(n_samples, |i| if i < n_samples / 2 { 0 } else { 1 });

@@ -525,7 +525,7 @@ macro_rules! probability {
         const _: () = {
             assert!($value >= 0.0 && $value <= 1.0, "Probability must be between 0 and 1");
         };
-        Probability::new($value).unwrap()
+        Probability::new($value).expect("operation should succeed")
     }};
 }
 
@@ -570,7 +570,7 @@ mod tests {
 
     #[test]
     fn test_probability_creation() {
-        let valid_prob = Probability::new(0.5).unwrap();
+        let valid_prob = Probability::new(0.5).expect("operation should succeed");
         assert_eq!(valid_prob.value(), 0.5);
 
         let invalid_prob = Probability::new(1.5);
@@ -579,10 +579,10 @@ mod tests {
 
     #[test]
     fn test_probability_operations() {
-        let prob1 = Probability::new(0.3).unwrap();
-        let prob2 = Probability::new(0.4).unwrap();
+        let prob1 = Probability::new(0.3).expect("operation should succeed");
+        let prob2 = Probability::new(0.4).expect("operation should succeed");
 
-        let sum = prob1.safe_add(&prob2).unwrap();
+        let sum = prob1.safe_add(&prob2).expect("operation should succeed");
         assert_eq!(sum.value(), 0.7);
 
         let product = prob1.safe_mul(&prob2);
@@ -595,10 +595,10 @@ mod tests {
     #[test]
     fn test_probability_array() {
         let values = Array1::from(vec![0.1, 0.5, 0.9]);
-        let prob_array = ProbabilityArray::<0, true>::new(values).unwrap();
+        let prob_array = ProbabilityArray::<0, true>::new(values).expect("operation should succeed");
 
         assert_eq!(prob_array.len(), 3);
-        assert_eq!(prob_array.get(1).unwrap().value(), 0.5);
+        assert_eq!(prob_array.get(1).expect("index should be valid").value(), 0.5);
 
         let invalid_values = Array1::from(vec![0.1, 1.5, 0.9]);
         let invalid_array = ProbabilityArray::<0, true>::new(invalid_values);
@@ -610,13 +610,13 @@ mod tests {
         let inner = Box::new(SigmoidCalibrator::new());
         let untrained_calibrator = TypeSafeCalibrator::<SigmoidMethod, Untrained>::new(inner);
 
-        let probabilities = ProbabilityArray::new(Array1::from(vec![0.1, 0.3, 0.7, 0.9])).unwrap();
+        let probabilities = ProbabilityArray::new(Array1::from(vec![0.1, 0.3, 0.7, 0.9])).expect("operation should succeed");
         let targets = Array1::from(vec![0, 0, 1, 1]);
 
-        let trained_calibrator = untrained_calibrator.fit(&probabilities, &targets).unwrap();
+        let trained_calibrator = untrained_calibrator.fit(&probabilities, &targets).expect("fit should succeed");
 
-        let test_probs = ProbabilityArray::new(Array1::from(vec![0.2, 0.8])).unwrap();
-        let predictions = trained_calibrator.predict_proba(&test_probs).unwrap();
+        let test_probs = ProbabilityArray::new(Array1::from(vec![0.2, 0.8])).expect("operation should succeed");
+        let predictions = trained_calibrator.predict_proba(&test_probs).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), 2);
     }
@@ -626,20 +626,20 @@ mod tests {
         let inner = Box::new(SigmoidCalibrator::new());
         let calibrator = FixedSizeCalibrator::<4, SigmoidMethod, Untrained>::new(inner);
 
-        let probabilities = ProbabilityArray::new(Array1::from(vec![0.1, 0.3, 0.7, 0.9])).unwrap();
+        let probabilities = ProbabilityArray::new(Array1::from(vec![0.1, 0.3, 0.7, 0.9])).expect("operation should succeed");
         let targets = [0, 0, 1, 1];
 
-        let trained = calibrator.fit(&probabilities, &targets).unwrap();
+        let trained = calibrator.fit(&probabilities, &targets).expect("fit should succeed");
 
-        let test_probs = ProbabilityArray::new(Array1::from(vec![0.2, 0.4, 0.6, 0.8])).unwrap();
-        let predictions = trained.predict_proba(&test_probs).unwrap();
+        let test_probs = ProbabilityArray::new(Array1::from(vec![0.2, 0.4, 0.6, 0.8])).expect("operation should succeed");
+        let predictions = trained.predict_proba(&test_probs).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_zero_cost_transformations() {
-        let prob = Probability::new(0.7).unwrap();
+        let prob = Probability::new(0.7).expect("operation should succeed");
 
         let identity = IdentityTransform;
         let transformed = identity.transform(prob);
@@ -650,26 +650,26 @@ mod tests {
         assert!(logit.is_finite());
 
         let sigmoid_transform = SigmoidTransform;
-        let back_to_prob = sigmoid_transform.transform(logit).validate().unwrap();
+        let back_to_prob = sigmoid_transform.transform(logit).validate().expect("transform should succeed");
         assert!((back_to_prob.value() - 0.7).abs() < 1e-10);
     }
 
     #[test]
     fn test_bounded_probabilities() {
-        let standard_prob = BoundedProbability::<StandardBounds>::new(0.0).unwrap();
+        let standard_prob = BoundedProbability::<StandardBounds>::new(0.0).expect("operation should succeed");
         assert_eq!(standard_prob.value(), 0.0);
 
         let strict_prob_result = BoundedProbability::<StrictBounds>::new(0.0);
         assert!(strict_prob_result.is_err());
 
-        let valid_strict = BoundedProbability::<StrictBounds>::new(0.5).unwrap();
+        let valid_strict = BoundedProbability::<StrictBounds>::new(0.5).expect("operation should succeed");
         assert_eq!(valid_strict.value(), 0.5);
     }
 
     #[test]
     fn test_calibration_builder() {
         let builder = factory::sigmoid().with_parameter("alpha", 1.0);
-        let calibrator = builder.build().unwrap();
+        let calibrator = builder.build().expect("operation should succeed");
 
         assert_eq!(calibrator.method_type(), "sklears_calibration::type_safety::SigmoidMethod");
     }
@@ -677,14 +677,14 @@ mod tests {
     #[test]
     fn test_probability_array_operations() {
         let values = Array1::from(vec![0.1, 0.2, 0.3, 0.4]);
-        let prob_array = ProbabilityArray::<0, true>::new(values).unwrap();
+        let prob_array = ProbabilityArray::<0, true>::new(values).expect("operation should succeed");
 
-        let normalized = prob_array.normalize().unwrap();
+        let normalized = prob_array.normalize().expect("operation should succeed");
         let sum: Float = normalized.inner().sum();
         assert!((sum - 1.0).abs() < 1e-10);
 
         let logits = prob_array.to_logits();
-        let back_to_probs = ProbabilityArray::<0, true>::from_logits(&logits).unwrap();
+        let back_to_probs = ProbabilityArray::<0, true>::from_logits(&logits).expect("operation should succeed");
         
         for (orig, back) in prob_array.inner().iter().zip(back_to_probs.inner().iter()) {
             assert!((orig - back).abs() < 1e-10);
@@ -694,9 +694,9 @@ mod tests {
     #[test]
     fn test_softmax_normalization() {
         let values = Array1::from(vec![1.0, 2.0, 3.0]);
-        let prob_array = ProbabilityArray::<0, true>::new(values).unwrap();
+        let prob_array = ProbabilityArray::<0, true>::new(values).expect("operation should succeed");
 
-        let softmax_result = prob_array.softmax().unwrap();
+        let softmax_result = prob_array.softmax().expect("operation should succeed");
         let sum: Float = softmax_result.inner().sum();
         assert!((sum - 1.0).abs() < 1e-10);
 

@@ -13,7 +13,7 @@ impl From<RelevanceError> for SklearsError {
         SklearsError::FitError(format!("Relevance analysis error: {}", err))
     }
 }
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -149,7 +149,7 @@ impl InformationGainScoring {
     /// Equal frequency binning (quantile-based)
     fn equal_frequency_binning(&self, values: ArrayView1<f64>) -> Result<Array1<i32>> {
         let mut sorted_values: Vec<f64> = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = values.len();
         let bin_size = n / self.n_bins;
@@ -625,7 +625,7 @@ impl ReliefScoring {
         // Relief algorithm iterations
         for _ in 0..self.n_iterations {
             // Randomly select an instance
-            let random_idx = (thread_rng().gen::<f64>() * X.nrows() as f64) as usize % X.nrows();
+            let random_idx = (thread_rng().random::<f64>() * X.nrows() as f64) as usize % X.nrows();
 
             let random_instance = X.row(random_idx);
             let random_class = y[random_idx];
@@ -888,7 +888,7 @@ impl RelevanceAssessment {
         }
 
         // Sort by score (descending)
-        feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         feature_scores.into_iter().take(n).collect()
     }
@@ -907,7 +907,9 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0];
 
         let ig_scorer = InformationGainScoring::new(3, true);
-        let scores = ig_scorer.compute(X.view(), y.view(), &[0, 1]).unwrap();
+        let scores = ig_scorer
+            .compute(X.view(), y.view(), &[0, 1])
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 2);
         for score in &scores {
@@ -922,7 +924,9 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0];
 
         let chi2_scorer = ChiSquareScoring::new(3);
-        let scores = chi2_scorer.compute(X.view(), y.view(), &[0, 1]).unwrap();
+        let scores = chi2_scorer
+            .compute(X.view(), y.view(), &[0, 1])
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 2);
         for score in &scores {
@@ -937,7 +941,9 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0];
 
         let f_scorer = FStatisticScoring::new(true);
-        let scores = f_scorer.compute(X.view(), y.view(), &[0, 1]).unwrap();
+        let scores = f_scorer
+            .compute(X.view(), y.view(), &[0, 1])
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 2);
         for score in &scores {
@@ -952,7 +958,9 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let corr_scorer = CorrelationScoring::new(true);
-        let scores = corr_scorer.compute(X.view(), y.view(), &[0, 1]).unwrap();
+        let scores = corr_scorer
+            .compute(X.view(), y.view(), &[0, 1])
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 2);
         for score in &scores {
@@ -967,7 +975,9 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0];
 
         let relief_scorer = ReliefScoring::new(10, 1);
-        let scores = relief_scorer.compute(X.view(), y.view(), &[0, 1]).unwrap();
+        let scores = relief_scorer
+            .compute(X.view(), y.view(), &[0, 1])
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 2);
         // Relief scores can be negative
@@ -988,7 +998,7 @@ mod tests {
         let relevance_scorer = RelevanceScoring::new(true);
         let assessment = relevance_scorer
             .compute(X.view(), y.view(), &[0, 1, 2])
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(assessment.information_gain_scores.len(), 3);
         assert_eq!(assessment.chi_square_scores.len(), 3);

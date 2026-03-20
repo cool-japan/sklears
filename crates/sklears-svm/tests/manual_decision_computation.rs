@@ -12,7 +12,7 @@ fn generate_linearly_separable_data(
     seed: u64,
 ) -> (Array2<f64>, Array1<f64>) {
     let mut rng = seeded_rng(seed);
-    let uniform = Uniform::new(-10.0, 10.0).unwrap();
+    let uniform = Uniform::new(-10.0, 10.0).expect("operation should succeed");
 
     let mut x_data = Vec::with_capacity(n_samples * n_features);
     let mut y_data = Vec::with_capacity(n_samples);
@@ -33,7 +33,8 @@ fn generate_linearly_separable_data(
         y_data.push(1.0);
     }
 
-    let x = Array2::from_shape_vec((n_samples, n_features), x_data).unwrap();
+    let x =
+        Array2::from_shape_vec((n_samples, n_features), x_data).expect("operation should succeed");
     let y = Array1::from_vec(y_data);
 
     (x, y)

@@ -390,7 +390,7 @@ fn generate_gaussian_dataset(
 
     for class_idx in 0..n_classes {
         let class_mean = (class_idx as f64) * 3.0;
-        let normal = RandNormal::new(class_mean, 1.0).unwrap();
+        let normal = RandNormal::new(class_mean, 1.0).expect("operation should succeed");
 
         for _ in 0..samples_per_class {
             let mut sample = Vec::new();
@@ -447,7 +447,7 @@ fn generate_multinomial_dataset(
 
     for class_idx in 0..n_classes {
         let class_rate = 2.0 + (class_idx as f64) * 1.5;
-        let poisson = Poisson::new(class_rate).unwrap();
+        let poisson = Poisson::new(class_rate).expect("operation should succeed");
 
         for _ in 0..samples_per_class {
             let mut sample = Vec::new();
@@ -548,11 +548,12 @@ mod tests {
         let benchmark = NaiveBayesBenchmark::new();
 
         // Generate small test dataset
-        let (x_train, y_train, x_test, y_test) = generate_gaussian_dataset(100, 5, 2, 42).unwrap();
+        let (x_train, y_train, x_test, y_test) =
+            generate_gaussian_dataset(100, 5, 2, 42).expect("operation should succeed");
 
         let result = benchmark
             .benchmark_gaussian_nb(&x_train, &y_train, &x_test, &y_test, "test_gaussian")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.dataset_name, "test_gaussian");
         assert!(result.sklears_accuracy >= 0.0 && result.sklears_accuracy <= 1.0);
@@ -567,11 +568,11 @@ mod tests {
 
         // Generate small test dataset
         let (x_train, y_train, x_test, y_test) =
-            generate_multinomial_dataset(100, 5, 2, 42).unwrap();
+            generate_multinomial_dataset(100, 5, 2, 42).expect("operation should succeed");
 
         let result = benchmark
             .benchmark_multinomial_nb(&x_train, &y_train, &x_test, &y_test, "test_multinomial")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.dataset_name, "test_multinomial");
         assert!(result.sklears_accuracy >= 0.0 && result.sklears_accuracy <= 1.0);

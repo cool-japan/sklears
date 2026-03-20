@@ -261,7 +261,7 @@ impl MetricsCollectionSystem {
             // Note: In real implementation, would start background tasks here
             // For now, we'll initialize the state to active
             {
-                let mut state = system.state.write().unwrap();
+                let mut state = system.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = CollectionStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -279,25 +279,25 @@ impl MetricsCollectionSystem {
 
         // Add to active sessions
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.to_string(), session_collector);
         }
 
         // Initialize session in buffer manager
         {
-            let mut buffer_mgr = self.buffer_manager.write().unwrap();
+            let mut buffer_mgr = self.buffer_manager.write().unwrap_or_else(|e| e.into_inner());
             buffer_mgr.initialize_session(session_id)?;
         }
 
         // Initialize session in stats engine
         {
-            let mut stats = self.stats_engine.write().unwrap();
+            let mut stats = self.stats_engine.write().unwrap_or_else(|e| e.into_inner());
             stats.initialize_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count += 1;
             state.total_sessions_initialized += 1;
         }
@@ -312,7 +312,7 @@ impl MetricsCollectionSystem {
 
         // Remove from active sessions
         let collector = {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.remove(session_id)
         };
 
@@ -323,19 +323,19 @@ impl MetricsCollectionSystem {
 
         // Shutdown session in buffer manager
         {
-            let mut buffer_mgr = self.buffer_manager.write().unwrap();
+            let mut buffer_mgr = self.buffer_manager.write().unwrap_or_else(|e| e.into_inner());
             buffer_mgr.shutdown_session(session_id)?;
         }
 
         // Shutdown session in stats engine
         {
-            let mut stats = self.stats_engine.write().unwrap();
+            let mut stats = self.stats_engine.write().unwrap_or_else(|e| e.into_inner());
             stats.shutdown_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count = state.active_sessions_count.saturating_sub(1);
             state.total_sessions_finalized += 1;
         }
@@ -358,7 +358,7 @@ impl MetricsCollectionSystem {
 
         // Record in session collector
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(collector) = sessions.get_mut(session_id) {
                 collector.record_metric(timestamped_metric.clone()).await?;
             } else {
@@ -368,31 +368,31 @@ impl MetricsCollectionSystem {
 
         // Update global aggregator
         {
-            let mut aggregator = self.global_aggregator.write().unwrap();
+            let mut aggregator = self.global_aggregator.write().unwrap_or_else(|e| e.into_inner());
             aggregator.update_with_metric(&timestamped_metric).await?;
         }
 
         // Process through statistics engine
         {
-            let mut stats = self.stats_engine.write().unwrap();
+            let mut stats = self.stats_engine.write().unwrap_or_else(|e| e.into_inner());
             stats.process_metric(session_id, &metric).await?;
         }
 
         // Check for anomalies
         {
-            let mut detector = self.anomaly_detector.write().unwrap();
+            let mut detector = self.anomaly_detector.write().unwrap_or_else(|e| e.into_inner());
             detector.analyze_metric(session_id, &metric).await?;
         }
 
         // Update performance tracking
         {
-            let mut perf = self.performance_tracker.write().unwrap();
+            let mut perf = self.performance_tracker.write().unwrap_or_else(|e| e.into_inner());
             perf.record_metric_processed();
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.total_metrics_processed += 1;
             state.last_metric_time = Some(SystemTime::now());
         }
@@ -402,7 +402,7 @@ impl MetricsCollectionSystem {
 
     /// Get session metrics status
     pub fn get_session_status(&self, session_id: &str) -> SklResult<SessionMetricsStatus> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(collector) = sessions.get(session_id) {
             Ok(collector.get_status())
         } else {
@@ -416,7 +416,7 @@ impl MetricsCollectionSystem {
         session_id: &str,
         time_range: Option<TimeRange>,
     ) -> SklResult<AggregatedMetrics> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(collector) = sessions.get(session_id) {
             collector.get_aggregated_metrics(time_range).await
         } else {
@@ -429,7 +429,7 @@ impl MetricsCollectionSystem {
         &self,
         session_id: &str,
     ) -> SklResult<broadcast::Receiver<TimestampedMetric>> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(collector) = sessions.get(session_id) {
             collector.get_real_time_stream()
         } else {
@@ -443,14 +443,14 @@ impl MetricsCollectionSystem {
         session_id: &str,
         export_config: MetricsExportConfig,
     ) -> SklResult<ExportResult> {
-        let export_mgr = self.export_manager.read().unwrap();
+        let export_mgr = self.export_manager.read().unwrap_or_else(|e| e.into_inner());
         export_mgr.export_session_metrics(session_id, export_config).await
     }
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let health = self.health_tracker.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let health = self.health_tracker.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -468,8 +468,8 @@ impl MetricsCollectionSystem {
 
     /// Get collection statistics
     pub fn get_collection_statistics(&self) -> SklResult<CollectionStatistics> {
-        let state = self.state.read().unwrap();
-        let perf = self.performance_tracker.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let perf = self.performance_tracker.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(CollectionStatistics {
             total_metrics_processed: state.total_metrics_processed,
@@ -499,12 +499,12 @@ impl MetricsCollectionSystem {
 
         // Propagate configuration to subsystems
         {
-            let mut buffer_mgr = self.buffer_manager.write().unwrap();
+            let mut buffer_mgr = self.buffer_manager.write().unwrap_or_else(|e| e.into_inner());
             buffer_mgr.update_configuration(&self.config).await?;
         }
 
         {
-            let mut stats = self.stats_engine.write().unwrap();
+            let mut stats = self.stats_engine.write().unwrap_or_else(|e| e.into_inner());
             stats.update_configuration(&self.config).await?;
         }
 
@@ -513,17 +513,17 @@ impl MetricsCollectionSystem {
 
     /// Private helper methods
     async fn flush_session_metrics(&self, session_id: &str) -> SklResult<()> {
-        let buffer_mgr = self.buffer_manager.read().unwrap();
+        let buffer_mgr = self.buffer_manager.read().unwrap_or_else(|e| e.into_inner());
         buffer_mgr.flush_session(session_id).await
     }
 
     fn calculate_buffer_utilization(&self) -> SklResult<f64> {
-        let buffer_mgr = self.buffer_manager.read().unwrap();
+        let buffer_mgr = self.buffer_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(buffer_mgr.get_utilization())
     }
 
     fn calculate_memory_usage(&self) -> SklResult<MemoryUsage> {
-        let buffer_mgr = self.buffer_manager.read().unwrap();
+        let buffer_mgr = self.buffer_manager.read().unwrap_or_else(|e| e.into_inner());
         Ok(buffer_mgr.get_memory_usage())
     }
 }
@@ -941,7 +941,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_initialization() {
         let config = MetricsCollectionConfig::default();
-        let mut system = MetricsCollectionSystem::new(&config).unwrap();
+        let mut system = MetricsCollectionSystem::new(&config).unwrap_or_default();
 
         let result = system.initialize_session("test_session").await;
         assert!(result.is_ok());

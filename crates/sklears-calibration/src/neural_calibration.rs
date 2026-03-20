@@ -351,8 +351,9 @@ impl MixupCalibrator {
         let mut mixed_targets = Vec::new();
 
         // Add original data
-        mixed_probabilities.extend_from_slice(probabilities.as_slice().unwrap());
-        mixed_targets.extend_from_slice(targets.as_slice().unwrap());
+        mixed_probabilities
+            .extend_from_slice(probabilities.as_slice().expect("operation should succeed"));
+        mixed_targets.extend_from_slice(targets.as_slice().expect("operation should succeed"));
 
         // Generate mixup samples
         for _ in 0..self.num_mixup_samples {
@@ -639,8 +640,12 @@ mod tests {
             .with_learning_params(0.01, 50)
             .with_activation(ActivationType::Sigmoid);
 
-        neural_cal.fit(&probabilities, &targets).unwrap();
-        let predictions = neural_cal.predict_proba(&probabilities).unwrap();
+        neural_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = neural_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -655,8 +660,12 @@ mod tests {
 
         let mut mixup_cal = MixupCalibrator::new(base_calibrator).with_mixup_params(0.2, 20);
 
-        mixup_cal.fit(&probabilities, &targets).unwrap();
-        let predictions = mixup_cal.predict_proba(&probabilities).unwrap();
+        mixup_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = mixup_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -670,8 +679,12 @@ mod tests {
             .with_dropout_params(0.1, 20)
             .with_layer_params(vec![6], 0.02, 30);
 
-        dropout_cal.fit(&probabilities, &targets).unwrap();
-        let predictions = dropout_cal.predict_proba(&probabilities).unwrap();
+        dropout_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = dropout_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -683,8 +696,12 @@ mod tests {
 
         let mut ensemble_cal = EnsembleNeuralCalibrator::new(1, 1, 3);
 
-        ensemble_cal.fit(&probabilities, &targets).unwrap();
-        let predictions = ensemble_cal.predict_proba(&probabilities).unwrap();
+        ensemble_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = ensemble_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -707,8 +724,12 @@ mod tests {
                 .with_activation(activation)
                 .with_learning_params(0.01, 20);
 
-            neural_cal.fit(&probabilities, &targets).unwrap();
-            let predictions = neural_cal.predict_proba(&probabilities).unwrap();
+            neural_cal
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
+            let predictions = neural_cal
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -721,10 +742,16 @@ mod tests {
 
         let mut neural_cal = NeuralCalibrationLayer::new(1, 1).with_learning_params(0.01, 50);
 
-        neural_cal.fit(&probabilities, &targets).unwrap();
+        neural_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let pred1 = neural_cal.predict_proba(&probabilities).unwrap();
-        let pred2 = neural_cal.predict_proba(&probabilities).unwrap();
+        let pred1 = neural_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
+        let pred2 = neural_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         // Neural network predictions should be deterministic after training
         for (p1, p2) in pred1.iter().zip(pred2.iter()) {

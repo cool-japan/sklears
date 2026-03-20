@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 use sklears_core::{
     error::Result as SklResult,
     traits::{Fit, Transform},
@@ -345,7 +345,7 @@ impl MissingPatternGenerator {
         // Make missingness in columns 1+ depend on column 0
         let column_0_median = {
             let mut sorted: Vec<f64> = original_data.column(0).iter().cloned().collect();
-            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             sorted[sorted.len() / 2]
         };
 
@@ -360,7 +360,7 @@ impl MissingPatternGenerator {
 
                 let prob_missing = (base_prob + prob_adjustment).clamp(0.0, 1.0);
 
-                if rng.gen::<f64>() < prob_missing {
+                if rng.random::<f64>() < prob_missing {
                     data[[i, j]] = f64::NAN;
                     missing_mask[[i, j]] = true;
                 }
@@ -385,7 +385,7 @@ impl MissingPatternGenerator {
             let column_values: Vec<f64> = original_data.column(j).iter().cloned().collect();
             let column_threshold = {
                 let mut sorted = column_values.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 sorted[(sorted.len() as f64 * threshold) as usize]
             };
 
@@ -398,7 +398,7 @@ impl MissingPatternGenerator {
                     base_prob * 0.5
                 };
 
-                if rng.gen::<f64>() < prob_missing.min(1.0) {
+                if rng.random::<f64>() < prob_missing.min(1.0) {
                     data[[i, j]] = f64::NAN;
                     missing_mask[[i, j]] = true;
                 }
@@ -767,12 +767,14 @@ impl BenchmarkSuite {
         }
 
         // Find best performing methods
-        let best_rmse = benchmarks
-            .iter()
-            .min_by(|a, b| a.rmse.partial_cmp(&b.rmse).unwrap());
+        let best_rmse = benchmarks.iter().min_by(|a, b| {
+            a.rmse
+                .partial_cmp(&b.rmse)
+                .expect("operation should succeed")
+        });
         let best_mae = benchmarks
             .iter()
-            .min_by(|a, b| a.mae.partial_cmp(&b.mae).unwrap());
+            .min_by(|a, b| a.mae.partial_cmp(&b.mae).expect("operation should succeed"));
         let fastest = benchmarks.iter().min_by_key(|b| b.execution_time);
 
         let best_rmse_method = best_rmse.map(|b| b.method_name.clone()).unwrap_or_default();
@@ -817,7 +819,7 @@ impl BenchmarkSuite {
 
         // Create sorted rankings
         let mut rmse_pairs: Vec<_> = method_avg_rmse.into_iter().collect();
-        rmse_pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        rmse_pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         for (rank, (method, _)) in rmse_pairs.into_iter().enumerate() {
             accuracy_rankings.insert(method, rank + 1);
         }
@@ -897,13 +899,19 @@ mod tests {
     fn test_dataset_generation() {
         let generator = BenchmarkDatasetGenerator::new(50, 3).random_state(Some(42));
 
-        let linear_data = generator.generate_linear_data().unwrap();
+        let linear_data = generator
+            .generate_linear_data()
+            .expect("operation should succeed");
         assert_eq!(linear_data.shape(), &[50, 3]);
 
-        let nonlinear_data = generator.generate_nonlinear_data().unwrap();
+        let nonlinear_data = generator
+            .generate_nonlinear_data()
+            .expect("operation should succeed");
         assert_eq!(nonlinear_data.shape(), &[50, 3]);
 
-        let correlated_data = generator.generate_correlated_data().unwrap();
+        let correlated_data = generator
+            .generate_correlated_data()
+            .expect("operation should succeed");
         assert_eq!(correlated_data.shape(), &[50, 3]);
     }
 
@@ -914,7 +922,9 @@ mod tests {
 
         // Test MCAR pattern
         let mcar_pattern = MissingPattern::MCAR { missing_rate: 0.2 };
-        let (_data_mcar, mask_mcar) = generator.introduce_missing(&data, &mcar_pattern).unwrap();
+        let (_data_mcar, mask_mcar) = generator
+            .introduce_missing(&data, &mcar_pattern)
+            .expect("operation should succeed");
         let missing_count = mask_mcar.iter().filter(|&&x| x).count();
         assert!(missing_count > 0);
         assert!(missing_count < data.len());
@@ -924,7 +934,9 @@ mod tests {
             missing_rate: 0.15,
             dependency_strength: 0.3,
         };
-        let (_data_mar, mask_mar) = generator.introduce_missing(&data, &mar_pattern).unwrap();
+        let (_data_mar, mask_mar) = generator
+            .introduce_missing(&data, &mar_pattern)
+            .expect("operation should succeed");
         let mar_missing_count = mask_mar.iter().filter(|&&x| x).count();
         assert!(mar_missing_count > 0);
 
@@ -933,7 +945,9 @@ mod tests {
             block_size: 4,
             missing_rate: 0.1,
         };
-        let (_data_block, mask_block) = generator.introduce_missing(&data, &block_pattern).unwrap();
+        let (_data_block, mask_block) = generator
+            .introduce_missing(&data, &block_pattern)
+            .expect("operation should succeed");
         let block_missing_count = mask_block.iter().filter(|&&x| x).count();
         assert!(block_missing_count > 0);
     }
@@ -974,7 +988,7 @@ mod tests {
         let simple_imputer = SimpleImputer::new().strategy("mean".to_string());
         let simple_results = suite
             .benchmark_imputer(simple_imputer, "SimpleImputer")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(simple_results.len(), 1);
         assert_eq!(simple_results[0].method_name, "SimpleImputer");
@@ -983,7 +997,9 @@ mod tests {
 
         // Test KNN imputer
         let knn_imputer = KNNImputer::new().n_neighbors(3);
-        let knn_results = suite.benchmark_imputer(knn_imputer, "KNNImputer").unwrap();
+        let knn_results = suite
+            .benchmark_imputer(knn_imputer, "KNNImputer")
+            .expect("operation should succeed");
 
         assert_eq!(knn_results.len(), 1);
         assert_eq!(knn_results[0].method_name, "KNNImputer");
@@ -1012,7 +1028,7 @@ mod tests {
         let simple_imputer = SimpleImputer::new().strategy("mean".to_string());
         let results = suite
             .benchmark_imputer(simple_imputer, "SimpleImputer")
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should have results for each dataset × pattern combination
         let expected_results = suite.datasets.len() * suite.missing_patterns.len();

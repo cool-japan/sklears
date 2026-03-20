@@ -15,7 +15,7 @@ impl Default for MetricsAlertManager {
         Self {
             manager_id: format!(
                 "alert_mgr_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap().as_millis()
+                .unwrap_or_default().as_millis()
             ),
             alert_rules: HashMap::new(),
             active_alerts: HashMap::new(),

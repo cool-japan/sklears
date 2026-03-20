@@ -206,7 +206,7 @@ pub fn make_polynomial_regression(
 
         // Add noise
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             target += rng.sample(noise_dist);
         }
 

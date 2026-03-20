@@ -278,7 +278,7 @@ pub fn enet_path_enhanced(
     let alphas = match alphas {
         Some(alphas) => {
             let mut sorted_alphas = alphas;
-            sorted_alphas.sort_by(|a, b| b.partial_cmp(a).unwrap()); // Descending order
+            sorted_alphas.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal)); // Descending order
             Array1::from(sorted_alphas)
         }
         None => {
@@ -619,7 +619,11 @@ fn compute_alpha_max(
     let mut y_centered = y.clone();
 
     if fit_intercept {
-        let y_mean = y.mean().unwrap();
+        let y_mean = y.mean().ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         y_centered -= y_mean;
     }
 
@@ -719,7 +723,9 @@ fn coordinate_descent_with_warm_start(
                 y,
                 intercept,
                 l1_reg,
-                feature_norms.as_ref().unwrap(),
+                feature_norms.as_ref().ok_or_else(|| {
+                    SklearsError::NumericalError("value should be present".into())
+                })?,
                 fit_intercept,
             );
         }
@@ -935,7 +941,7 @@ mod tests {
             1e-4,
             false,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(alphas.len(), 3);
         assert_eq!(coefs.shape(), &[2, 3]); // 2 features, 3 alphas
@@ -952,7 +958,7 @@ mod tests {
             &x, &y, None, // Auto-generate alphas
             5, true, 100, 1e-4, false,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(alphas.len(), 5);
         assert_eq!(coefs.shape(), &[2, 5]);
@@ -968,7 +974,8 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0], [5.0, 6.0],];
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let (alphas, _active, coef_path) = lars_path(&x, &y, Some(2), 0.0, true).unwrap();
+        let (alphas, _active, coef_path) =
+            lars_path(&x, &y, Some(2), 0.0, true).expect("operation should succeed");
 
         assert!(!alphas.is_empty());
         assert_eq!(coef_path.nrows(), 2); // n_features
@@ -979,7 +986,8 @@ mod tests {
         let xy = array![1.0, 2.0];
         let gram = array![[1.0, 0.5], [0.5, 1.0],];
 
-        let (alphas, _active, coef_path) = lars_path_gram(&xy, &gram, 5, Some(2), 0.0).unwrap();
+        let (alphas, _active, coef_path) =
+            lars_path_gram(&xy, &gram, 5, Some(2), 0.0).expect("operation should succeed");
 
         assert!(!alphas.is_empty());
         assert_eq!(coef_path.nrows(), 2);
@@ -1011,7 +1019,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = enet_path_enhanced(&x, &y, &config, None).unwrap();
+        let result = enet_path_enhanced(&x, &y, &config, None).expect("operation should succeed");
 
         // Test may get fewer alphas due to convergence, so be more flexible
         assert!(!result.alphas.is_empty());
@@ -1046,7 +1054,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = enet_path_enhanced(&x, &y, &config, None).unwrap();
+        let result = enet_path_enhanced(&x, &y, &config, None).expect("operation should succeed");
 
         assert!(!result.alphas.is_empty());
         assert!(result.alphas.len() <= 3);
@@ -1074,7 +1082,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = enet_path_enhanced(&x, &y, &config, None).unwrap();
+        let result = enet_path_enhanced(&x, &y, &config, None).expect("operation should succeed");
 
         assert!(!result.alphas.is_empty());
         assert!(result.alphas.len() <= 3);
@@ -1141,7 +1149,8 @@ mod tests {
         };
 
         let custom_alphas = vec![1.0, 0.5, 0.1];
-        let result = enet_path_enhanced(&x, &y, &config, Some(custom_alphas.clone())).unwrap();
+        let result = enet_path_enhanced(&x, &y, &config, Some(custom_alphas.clone()))
+            .expect("operation should succeed");
 
         assert_eq!(result.alphas.len(), 3);
         // Should be sorted in descending order
@@ -1171,7 +1180,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = enet_path_enhanced(&x, &y, &config, None).unwrap();
+        let result = enet_path_enhanced(&x, &y, &config, None).expect("operation should succeed");
 
         // With warm starting, most solutions should converge reasonably quickly
         if let Some(n_iters) = &result.n_iters {

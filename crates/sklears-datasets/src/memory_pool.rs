@@ -750,8 +750,8 @@ mod tests {
         let pool = MemoryPool::new(config);
 
         // Allocate up to the limit
-        let _block1 = pool.allocate(64).unwrap();
-        let _block2 = pool.allocate(64).unwrap();
+        let _block1 = pool.allocate(64).expect("operation should succeed");
+        let _block2 = pool.allocate(64).expect("operation should succeed");
 
         // This should fail
         assert!(pool.allocate(64).is_err());

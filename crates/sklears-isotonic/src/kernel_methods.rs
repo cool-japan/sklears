@@ -1435,7 +1435,7 @@ mod tests {
         let result = kernel_isotonic_regression(&x, &y, kernel, 0.1, true);
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 4);
 
         // Check that we get reasonable results (kernel methods may not preserve exact monotonicity)
@@ -1453,7 +1453,7 @@ mod tests {
         let result = rkhs_isotonic_regression(&x, &y, kernel, 0.1, true);
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 4);
     }
 
@@ -1466,7 +1466,7 @@ mod tests {
         let result = gaussian_process_isotonic_regression(&x, &y, kernel, 0.1, true);
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 4);
     }
 
@@ -1479,7 +1479,7 @@ mod tests {
         let result = support_vector_isotonic_regression(&x, &y, kernel, 1.0, 0.1, true);
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 4);
     }
 
@@ -1497,7 +1497,7 @@ mod tests {
 
         let predictions = model.predict(&x);
         assert!(predictions.is_ok());
-        assert_eq!(predictions.unwrap().len(), 3);
+        assert_eq!(predictions.expect("operation should succeed").len(), 3);
     }
 
     #[test]
@@ -1513,7 +1513,7 @@ mod tests {
         let result = model.predict_with_uncertainty(&x);
         assert!(result.is_ok());
 
-        let (mean, variance) = result.unwrap();
+        let (mean, variance) = result.expect("operation should succeed");
         assert_eq!(mean.len(), 3);
         assert_eq!(variance.len(), 3);
         assert!(variance.iter().all(|&v| v > 0.0));
@@ -1532,7 +1532,7 @@ mod tests {
         let result = learner.optimize(&x, &y);
         assert!(result.is_ok());
 
-        let optimized_kernel = result.unwrap();
+        let optimized_kernel = result.expect("operation should succeed");
         match optimized_kernel {
             KernelFunction::RBF { gamma } => {
                 assert!(gamma > 0.0);
@@ -1558,7 +1558,7 @@ mod tests {
         let result = learner.optimize(&x, &y);
         assert!(result.is_ok());
 
-        let optimized_kernel = result.unwrap();
+        let optimized_kernel = result.expect("operation should succeed");
         match optimized_kernel {
             KernelFunction::Polynomial { gamma, r, degree } => {
                 assert!(gamma > 0.0);
@@ -1584,7 +1584,7 @@ mod tests {
 
         let predictions = auto_model.predict(&x);
         assert!(predictions.is_ok());
-        assert_eq!(predictions.unwrap().len(), 4);
+        assert_eq!(predictions.expect("operation should succeed").len(), 4);
 
         assert!(auto_model.optimized_kernel().is_some());
         assert!(auto_model.best_parameters().is_some());
@@ -1606,7 +1606,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 3);
     }
 
@@ -1623,7 +1623,7 @@ mod tests {
         let result = learner.optimize(&x, &y);
         assert!(result.is_ok());
 
-        let optimized_kernel = result.unwrap();
+        let optimized_kernel = result.expect("operation should succeed");
         match optimized_kernel {
             KernelFunction::Gaussian { sigma } => {
                 assert!(sigma > 0.0);
@@ -1646,7 +1646,7 @@ mod tests {
         let result = learner.optimize(&x, &y);
         assert!(result.is_ok());
 
-        let optimized_kernel = result.unwrap();
+        let optimized_kernel = result.expect("operation should succeed");
         match optimized_kernel {
             KernelFunction::Sigmoid { gamma, r } => {
                 assert!(gamma > 0.0);

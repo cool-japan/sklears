@@ -349,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_aligned_alloc() {
-        let mut alloc = AlignedAlloc::<f32>::new(1024).unwrap();
+        let mut alloc = AlignedAlloc::<f32>::new(1024).expect("operation should succeed");
         let slice = alloc.as_mut_slice();
 
         // Check alignment

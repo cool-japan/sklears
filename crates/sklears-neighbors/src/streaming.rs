@@ -271,8 +271,8 @@ impl Predict<Features, Array1<Int>>
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_buffer = self.x_buffer.as_ref().unwrap();
-        let y_buffer = self.y_buffer.as_ref().unwrap();
+        let x_buffer = self.x_buffer.as_ref().expect("operation should succeed");
+        let y_buffer = self.y_buffer.as_ref().expect("operation should succeed");
 
         if x_buffer.is_empty() {
             return Err(
@@ -299,8 +299,8 @@ impl Predict<Features, Array1<Float>>
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let x_buffer = self.x_buffer.as_ref().unwrap();
-        let y_buffer = self.y_buffer.as_ref().unwrap();
+        let x_buffer = self.x_buffer.as_ref().expect("operation should succeed");
+        let y_buffer = self.y_buffer.as_ref().expect("operation should succeed");
 
         if x_buffer.is_empty() {
             return Err(
@@ -335,8 +335,8 @@ impl IncrementalKNeighborsClassifier<sklears_core::traits::Trained> {
 
         // Add new samples
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {
-            let x_buffer = self.x_buffer.as_mut().unwrap();
-            let y_buffer = self.y_buffer.as_mut().unwrap();
+            let x_buffer = self.x_buffer.as_mut().expect("operation should succeed");
+            let y_buffer = self.y_buffer.as_mut().expect("operation should succeed");
 
             x_buffer.push_back(row.to_owned());
             y_buffer.push_back(y[i]);
@@ -345,29 +345,57 @@ impl IncrementalKNeighborsClassifier<sklears_core::traits::Trained> {
                 // Apply memory strategy directly to avoid borrowing conflicts
                 match self.memory_strategy {
                     MemoryStrategy::KeepRecent => {
-                        self.x_buffer.as_mut().unwrap().pop_front();
-                        self.y_buffer.as_mut().unwrap().pop_front();
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .pop_front();
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .pop_front();
                     }
                     MemoryStrategy::Random => {
                         // Remove a random sample
                         use scirs2_core::random::*;
                         let mut rng = thread_rng();
-                        let buffer_len = self.x_buffer.as_ref().unwrap().len();
+                        let buffer_len = self
+                            .x_buffer
+                            .as_ref()
+                            .expect("operation should succeed")
+                            .len();
                         let remove_idx = rng.gen_range(0..buffer_len);
-                        self.x_buffer.as_mut().unwrap().remove(remove_idx);
-                        self.y_buffer.as_mut().unwrap().remove(remove_idx);
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
                     }
                     MemoryStrategy::Diversity => {
                         // Remove the sample that is most similar to others (lowest diversity)
                         let remove_idx = self.find_least_diverse_sample()?;
-                        self.x_buffer.as_mut().unwrap().remove(remove_idx);
-                        self.y_buffer.as_mut().unwrap().remove(remove_idx);
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
                     }
                     MemoryStrategy::Representative => {
                         // Remove the sample that is most representative (closest to centroid)
                         let remove_idx = self.find_most_representative_sample()?;
-                        self.x_buffer.as_mut().unwrap().remove(remove_idx);
-                        self.y_buffer.as_mut().unwrap().remove(remove_idx);
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
                     }
                 }
             }
@@ -394,7 +422,7 @@ impl IncrementalKNeighborsClassifier<sklears_core::traits::Trained> {
             .collect();
 
         // Sort by distance and take k nearest
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         distances.truncate(self.k);
 
         Ok(distances)
@@ -432,7 +460,7 @@ impl IncrementalKNeighborsClassifier<sklears_core::traits::Trained> {
 
                 class_weights
                     .into_iter()
-                    .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+                    .max_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"))
                     .map(|(class, _)| class)
                     .ok_or(NeighborsError::NoNeighbors)
             }
@@ -485,8 +513,8 @@ impl IncrementalKNeighborsRegressor<sklears_core::traits::Trained> {
 
         // Add new samples
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {
-            let x_buffer = self.x_buffer.as_mut().unwrap();
-            let y_buffer = self.y_buffer.as_mut().unwrap();
+            let x_buffer = self.x_buffer.as_mut().expect("operation should succeed");
+            let y_buffer = self.y_buffer.as_mut().expect("operation should succeed");
 
             x_buffer.push_back(row.to_owned());
             y_buffer.push_back(y[i]);
@@ -495,29 +523,57 @@ impl IncrementalKNeighborsRegressor<sklears_core::traits::Trained> {
                 // Apply memory strategy directly to avoid borrowing conflicts
                 match self.memory_strategy {
                     MemoryStrategy::KeepRecent => {
-                        self.x_buffer.as_mut().unwrap().pop_front();
-                        self.y_buffer.as_mut().unwrap().pop_front();
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .pop_front();
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .pop_front();
                     }
                     MemoryStrategy::Random => {
                         // Remove a random sample
                         use scirs2_core::random::*;
                         let mut rng = thread_rng();
-                        let buffer_len = self.x_buffer.as_ref().unwrap().len();
+                        let buffer_len = self
+                            .x_buffer
+                            .as_ref()
+                            .expect("operation should succeed")
+                            .len();
                         let remove_idx = rng.gen_range(0..buffer_len);
-                        self.x_buffer.as_mut().unwrap().remove(remove_idx);
-                        self.y_buffer.as_mut().unwrap().remove(remove_idx);
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
                     }
                     MemoryStrategy::Diversity => {
                         // Remove the sample that is most similar to others (lowest diversity)
                         let remove_idx = self.find_least_diverse_sample()?;
-                        self.x_buffer.as_mut().unwrap().remove(remove_idx);
-                        self.y_buffer.as_mut().unwrap().remove(remove_idx);
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
                     }
                     MemoryStrategy::Representative => {
                         // Remove the sample that is most representative (closest to centroid)
                         let remove_idx = self.find_most_representative_sample()?;
-                        self.x_buffer.as_mut().unwrap().remove(remove_idx);
-                        self.y_buffer.as_mut().unwrap().remove(remove_idx);
+                        self.x_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
+                        self.y_buffer
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .remove(remove_idx);
                     }
                 }
             }
@@ -543,7 +599,7 @@ impl IncrementalKNeighborsRegressor<sklears_core::traits::Trained> {
             })
             .collect();
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         distances.truncate(self.k);
 
         Ok(distances)
@@ -621,7 +677,7 @@ impl IncrementalKNeighborsRegressor<sklears_core::traits::Trained> {
 
     /// Find the least diverse sample (most similar to others)
     fn find_least_diverse_sample(&self) -> NeighborsResult<usize> {
-        let x_buffer = self.x_buffer.as_ref().unwrap();
+        let x_buffer = self.x_buffer.as_ref().expect("operation should succeed");
         if x_buffer.len() <= 1 {
             return Ok(0);
         }
@@ -649,7 +705,7 @@ impl IncrementalKNeighborsRegressor<sklears_core::traits::Trained> {
 
     /// Find the most representative sample (closest to centroid)
     fn find_most_representative_sample(&self) -> NeighborsResult<usize> {
-        let x_buffer = self.x_buffer.as_ref().unwrap();
+        let x_buffer = self.x_buffer.as_ref().expect("operation should succeed");
         if x_buffer.len() <= 1 {
             return Ok(0);
         }
@@ -691,7 +747,7 @@ impl IncrementalKNeighborsClassifier<sklears_core::traits::Trained> {
 
     /// Find the least diverse sample (most similar to others)
     fn find_least_diverse_sample(&self) -> NeighborsResult<usize> {
-        let x_buffer = self.x_buffer.as_ref().unwrap();
+        let x_buffer = self.x_buffer.as_ref().expect("operation should succeed");
         if x_buffer.len() <= 1 {
             return Ok(0);
         }
@@ -719,7 +775,7 @@ impl IncrementalKNeighborsClassifier<sklears_core::traits::Trained> {
 
     /// Find the most representative sample (closest to centroid)
     fn find_most_representative_sample(&self) -> NeighborsResult<usize> {
-        let x_buffer = self.x_buffer.as_ref().unwrap();
+        let x_buffer = self.x_buffer.as_ref().expect("operation should succeed");
         if x_buffer.len() <= 1 {
             return Ok(0);
         }
@@ -767,25 +823,31 @@ mod tests {
                 5.1, 5.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_train = array![0, 0, 1, 1];
 
         let classifier = IncrementalKNeighborsClassifier::new(3, 10);
-        let mut fitted = classifier.fit(&x_train, &y_train).unwrap();
+        let mut fitted = classifier
+            .fit(&x_train, &y_train)
+            .expect("operation should succeed");
 
         // Test initial prediction
-        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05])
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
 
         // Add more data incrementally
-        let x_new = Array2::from_shape_vec((2, 2), vec![2.0, 2.0, 6.0, 6.0]).unwrap();
+        let x_new = Array2::from_shape_vec((2, 2), vec![2.0, 2.0, 6.0, 6.0])
+            .expect("operation should succeed");
         let y_new = array![0, 1];
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("operation should succeed");
 
         // Test prediction after incremental update
-        let predictions_new = fitted.predict(&x_test).unwrap();
+        let predictions_new = fitted.predict(&x_test).expect("operation should succeed");
         assert_eq!(predictions_new.len(), 2);
 
         // Check that buffer size is correct
@@ -795,22 +857,28 @@ mod tests {
 
     #[test]
     fn test_incremental_knn_regressor() {
-        let x_train = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x_train = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let y_train = array![2.0, 4.0, 6.0, 8.0]; // y = 2 * x
 
         let regressor = IncrementalKNeighborsRegressor::new(2, 10);
-        let mut fitted = regressor.fit(&x_train, &y_train).unwrap();
+        let mut fitted = regressor
+            .fit(&x_train, &y_train)
+            .expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((1, 1), vec![2.5]).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((1, 1), vec![2.5]).expect("operation should succeed");
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // Should predict around 5.0 (average of 4.0 and 6.0)
         assert!((predictions[0] - 5.0).abs() < 1.0);
 
         // Add more data incrementally
-        let x_new = Array2::from_shape_vec((2, 1), vec![5.0, 6.0]).unwrap();
+        let x_new =
+            Array2::from_shape_vec((2, 1), vec![5.0, 6.0]).expect("operation should succeed");
         let y_new = array![10.0, 12.0];
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.n_samples_in_buffer(), 6);
         assert_eq!(fitted.n_samples_seen(), 6);
@@ -818,21 +886,27 @@ mod tests {
 
     #[test]
     fn test_memory_overflow() {
-        let x_train = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let x_train = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
         let y_train = array![0, 1, 2];
 
         // Set max_samples to 2 to force overflow
         let classifier = IncrementalKNeighborsClassifier::new(1, 2);
-        let mut fitted = classifier.fit(&x_train, &y_train).unwrap();
+        let mut fitted = classifier
+            .fit(&x_train, &y_train)
+            .expect("operation should succeed");
 
         // Buffer should only contain 2 samples (most recent)
         assert_eq!(fitted.n_samples_in_buffer(), 2);
         assert_eq!(fitted.n_samples_seen(), 3);
 
         // Add more data to test overflow handling
-        let x_new = Array2::from_shape_vec((2, 2), vec![4.0, 4.0, 5.0, 5.0]).unwrap();
+        let x_new = Array2::from_shape_vec((2, 2), vec![4.0, 4.0, 5.0, 5.0])
+            .expect("operation should succeed");
         let y_new = array![3, 4];
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("operation should succeed");
 
         // Buffer should still be 2, but total seen should be 5
         assert_eq!(fitted.n_samples_in_buffer(), 2);
@@ -841,7 +915,8 @@ mod tests {
 
     #[test]
     fn test_memory_strategies() {
-        let x_train = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let x_train = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let y_train = array![0, 1];
 
         // Test different memory strategies
@@ -855,7 +930,9 @@ mod tests {
         for strategy in &strategies {
             let classifier =
                 IncrementalKNeighborsClassifier::new(1, 3).with_memory_strategy(*strategy);
-            let fitted = classifier.fit(&x_train, &y_train).unwrap();
+            let fitted = classifier
+                .fit(&x_train, &y_train)
+                .expect("operation should succeed");
 
             // Should work without error
             assert_eq!(fitted.n_samples_in_buffer(), 2);
@@ -864,7 +941,8 @@ mod tests {
 
     #[test]
     fn test_incremental_errors() {
-        let x_train = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let x_train = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let y_train = array![0, 1];
 
         // Test invalid k

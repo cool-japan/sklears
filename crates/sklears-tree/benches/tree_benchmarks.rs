@@ -19,7 +19,7 @@ fn generate_classification_data_f64(
     n_classes: usize,
 ) -> (Array2<f64>, Array1<f64>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     let mut x = Array2::zeros((n_samples, n_features));
     let mut y = Array1::zeros(n_samples);
@@ -41,7 +41,7 @@ fn generate_classification_data_i32(
     n_classes: usize,
 ) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     let mut x = Array2::zeros((n_samples, n_features));
     let mut y = Array1::zeros(n_samples);
@@ -59,7 +59,7 @@ fn generate_classification_data_i32(
 /// Generate synthetic regression dataset
 fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     let mut x = Array2::zeros((n_samples, n_features));
     let mut y = Array1::zeros(n_samples);
@@ -93,7 +93,7 @@ fn bench_decision_tree_classifier(c: &mut Criterion) {
                     .max_depth(10)
                     .criterion(SplitCriterion::Gini);
 
-                black_box(model.fit(&x, &y).unwrap())
+                black_box(model.fit(&x, &y).expect("model fitting should succeed"))
             });
         });
 
@@ -102,10 +102,10 @@ fn bench_decision_tree_classifier(c: &mut Criterion) {
             .max_depth(10)
             .criterion(SplitCriterion::Gini)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict", size), &size, |b, _| {
-            b.iter(|| black_box(model.predict(&x).unwrap()));
+            b.iter(|| black_box(model.predict(&x).expect("prediction should succeed")));
         });
     }
 
@@ -125,7 +125,7 @@ fn bench_decision_tree_regressor(c: &mut Criterion) {
                     .max_depth(10)
                     .criterion(SplitCriterion::MSE);
 
-                black_box(model.fit(&x, &y).unwrap())
+                black_box(model.fit(&x, &y).expect("model fitting should succeed"))
             });
         });
 
@@ -134,10 +134,10 @@ fn bench_decision_tree_regressor(c: &mut Criterion) {
             .max_depth(10)
             .criterion(SplitCriterion::MSE)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict", size), &size, |b, _| {
-            b.iter(|| black_box(model.predict(&x).unwrap()));
+            b.iter(|| black_box(model.predict(&x).expect("prediction should succeed")));
         });
     }
 
@@ -159,7 +159,7 @@ fn bench_random_forest(c: &mut Criterion) {
                     .max_depth(5)
                     .criterion(SplitCriterion::Gini);
 
-                black_box(model.fit(&x, &y).unwrap())
+                black_box(model.fit(&x, &y).expect("model fitting should succeed"))
             });
         });
 
@@ -169,10 +169,10 @@ fn bench_random_forest(c: &mut Criterion) {
             .max_depth(5)
             .criterion(SplitCriterion::Gini)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict_10_trees", size), &size, |b, _| {
-            b.iter(|| black_box(model.predict(&x).unwrap()));
+            b.iter(|| black_box(model.predict(&x).expect("prediction should succeed")));
         });
     }
 
@@ -194,7 +194,7 @@ fn bench_isolation_forest(c: &mut Criterion) {
             b.iter(|| {
                 let model = IsolationForest::new().n_estimators(50).contamination(0.1);
 
-                black_box(model.fit(&x, &y).unwrap())
+                black_box(model.fit(&x, &y).expect("model fitting should succeed"))
             });
         });
 
@@ -206,7 +206,7 @@ fn bench_isolation_forest(c: &mut Criterion) {
                     .extended(true)
                     .contamination(0.1);
 
-                black_box(model.fit(&x, &y).unwrap())
+                black_box(model.fit(&x, &y).expect("model fitting should succeed"))
             });
         });
 
@@ -215,10 +215,10 @@ fn bench_isolation_forest(c: &mut Criterion) {
             .n_estimators(50)
             .contamination(0.1)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict", size), &size, |b, _| {
-            b.iter(|| black_box(model.predict(&x).unwrap()));
+            b.iter(|| black_box(model.predict(&x).expect("prediction should succeed")));
         });
     }
 
@@ -240,7 +240,7 @@ fn bench_model_tree(c: &mut Criterion) {
                     .max_depth(5)
                     .leaf_model(LeafModelType::Linear);
 
-                black_box(model.fit(&x, &y).unwrap())
+                black_box(model.fit(&x, &y).expect("model fitting should succeed"))
             });
         });
 
@@ -251,7 +251,7 @@ fn bench_model_tree(c: &mut Criterion) {
                     .max_depth(5)
                     .leaf_model(LeafModelType::Constant);
 
-                black_box(model.fit(&x, &y).unwrap())
+                black_box(model.fit(&x, &y).expect("model fitting should succeed"))
             });
         });
 
@@ -260,10 +260,10 @@ fn bench_model_tree(c: &mut Criterion) {
             .max_depth(5)
             .leaf_model(LeafModelType::Linear)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict", size), &size, |b, _| {
-            b.iter(|| black_box(model.predict(&x).unwrap()));
+            b.iter(|| black_box(model.predict(&x).expect("prediction should succeed")));
         });
     }
 
@@ -281,7 +281,11 @@ fn bench_tree_depth_scaling(c: &mut Criterion) {
                     .max_depth(*depth)
                     .criterion(SplitCriterion::Gini);
 
-                black_box(model.fit(&x_data, &y_data).unwrap())
+                black_box(
+                    model
+                        .fit(&x_data, &y_data)
+                        .expect("model fitting should succeed"),
+                )
             });
         });
     }
@@ -305,7 +309,11 @@ fn bench_tree_feature_scaling(c: &mut Criterion) {
                         .max_depth(10)
                         .criterion(SplitCriterion::Gini);
 
-                    black_box(model.fit(&x_data, &y_data).unwrap())
+                    black_box(
+                        model
+                            .fit(&x_data, &y_data)
+                            .expect("model fitting should succeed"),
+                    )
                 });
             },
         );

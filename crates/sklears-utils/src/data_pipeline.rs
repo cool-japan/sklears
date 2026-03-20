@@ -546,7 +546,7 @@ mod tests {
 
         assert_eq!(step.name(), "double");
         assert_eq!(step.description(), Some("Doubles the input value"));
-        assert_eq!(step.process(5.0).unwrap(), 10.0);
+        assert_eq!(step.process(5.0).expect("operation should succeed"), 10.0);
     }
 
     #[test]
@@ -555,7 +555,7 @@ mod tests {
             .add_transform("add_one".to_string(), |x: f64| Ok(x + 1.0))
             .add_transform("multiply_two".to_string(), |x: f64| Ok(x * 2.0));
 
-        let result = pipeline.execute(5.0).unwrap();
+        let result = pipeline.execute(5.0).expect("operation should succeed");
         assert_eq!(result.data, 12.0); // (5 + 1) * 2
         assert_eq!(result.steps_executed.len(), 2);
     }
@@ -565,7 +565,7 @@ mod tests {
         let data = array![[1.0, 2.0, f64::NAN], [3.0, f64::NAN, 4.0], [5.0, 6.0, 7.0]];
 
         let pipeline = MLPipelineBuilder::data_cleaning();
-        let result = pipeline.execute(data).unwrap();
+        let result = pipeline.execute(data).expect("operation should succeed");
 
         // Check that NaN values were replaced
         assert!(result.data.iter().all(|&x| x.is_finite()));
@@ -577,7 +577,7 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let pipeline = MLPipelineBuilder::feature_engineering();
-        let result = pipeline.execute(data).unwrap();
+        let result = pipeline.execute(data).expect("operation should succeed");
 
         // Original 2 features + 1 interaction + 3 statistical features = 6 total
         assert_eq!(result.data.ncols(), 6);
@@ -589,7 +589,7 @@ mod tests {
         let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
         let pipeline = MLPipelineBuilder::data_validation();
-        let result = pipeline.execute(data).unwrap();
+        let result = pipeline.execute(data).expect("operation should succeed");
 
         assert_eq!(result.data.shape(), &[3, 3]);
         assert_eq!(result.steps_executed.len(), 3);
@@ -616,13 +616,13 @@ mod tests {
 
         monitor.record_execution(&result, true);
 
-        let metrics = monitor.get_metrics().unwrap();
+        let metrics = monitor.get_metrics().expect("operation should succeed");
         assert_eq!(metrics.total_executions, 1);
         assert_eq!(metrics.successful_executions, 1);
         assert_eq!(metrics.success_rate(), 1.0);
 
         monitor.reset_metrics();
-        let metrics = monitor.get_metrics().unwrap();
+        let metrics = monitor.get_metrics().expect("operation should succeed");
         assert_eq!(metrics.total_executions, 0);
     }
 

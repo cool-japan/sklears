@@ -178,7 +178,7 @@ where
     pub fn new() -> Self {
         Self {
             regularization: T::from_f64(1e-12).unwrap_or(T::epsilon()),
-            condition_threshold: T::from_f64(1e12).unwrap(),
+            condition_threshold: T::from_f64(1e12).expect("operation should succeed"),
             use_iterative_refinement: true,
             pivoting_strategy: PivotingStrategy::Partial,
             _phantom: PhantomData,
@@ -204,7 +204,9 @@ where
         // Compute sample covariance
         let mean = self.compute_stable_mean(x);
         let centered = x - &mean.insert_axis(Axis(0));
-        let mut cov = centered.t().dot(&centered) / T::from_usize(n_samples - 1).unwrap();
+        let mut cov = centered.t().dot(&centered)
+            / T::from_usize(n_samples - 1)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?;
 
         // Apply regularization for numerical stability
         self.apply_regularization(&mut cov);
@@ -230,7 +232,10 @@ where
             let mut regularized = stable_cov;
             let reg_diag = Array2::from_diag(&Array1::from_elem(
                 n_features,
-                self.regularization * T::from_f64(10.0).unwrap(),
+                self.regularization
+                    * T::from_f64(10.0).ok_or_else(|| {
+                        SklearsError::NumericalError("numeric conversion failed".into())
+                    })?,
             ));
             regularized = regularized + reg_diag;
             TypedMatrix::from_eigendecomposition(Array1::ones(n_features), Array2::eye(n_features))
@@ -253,7 +258,7 @@ where
             }
         }
 
-        sums / T::from_usize(n_samples).unwrap()
+        sums / T::from_usize(n_samples).expect("operation should succeed")
     }
 
     fn apply_regularization(&self, cov: &mut Array2<T>) {
@@ -344,7 +349,7 @@ where
             for j in 0..N {
                 means[i] = means[i] + data[j][i];
             }
-            means[i] = means[i] / T::from_usize(N).unwrap();
+            means[i] = means[i] / T::from_usize(N).expect("operation should succeed");
         }
 
         // Compute covariance
@@ -356,7 +361,7 @@ where
                     let centered_j = data[k][j] - means[j];
                     sum = sum + centered_i * centered_j;
                 }
-                result[i][j] = sum / T::from_usize(N - 1).unwrap();
+                result[i][j] = sum / T::from_usize(N - 1).expect("operation should succeed");
             }
         }
 
@@ -600,8 +605,17 @@ where
             });
         }
 
-        let n = T::from_usize(self.n_samples).unwrap();
-        let n_minus_1 = T::from_usize(self.n_samples - 1).unwrap();
+        let n =
+            T::from_usize(self.n_samples).ok_or_else(|| CovarianceError::NumericalInstability {
+                condition_number: T::infinity(),
+                recommended_regularization: T::from(1e-6).unwrap_or(T::zero()),
+            })?;
+        let n_minus_1 = T::from_usize(self.n_samples - 1).ok_or_else(|| {
+            CovarianceError::NumericalInstability {
+                condition_number: T::infinity(),
+                recommended_regularization: T::from(1e-6).unwrap_or(T::zero()),
+            }
+        })?;
 
         // Compute sample covariance using the formula:
         // Cov = (1/(n-1)) * (sum_of_squares - (1/n) * sum * sum^T)
@@ -708,9 +722,20 @@ where
         }
 
         // Compute sample covariance
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean =
+            data.mean_axis(Axis(0))
+                .ok_or_else(|| CovarianceError::NumericalInstability {
+                    condition_number: T::infinity(),
+                    recommended_regularization: T::from(1e-6).unwrap_or(T::zero()),
+                })?;
         let centered = data - &mean.insert_axis(Axis(0));
-        let mut cov = centered.t().dot(&centered) / T::from_usize(n_samples - 1).unwrap();
+        let mut cov = centered.t().dot(&centered)
+            / T::from_usize(n_samples - 1).ok_or_else(|| {
+                CovarianceError::NumericalInstability {
+                    condition_number: T::infinity(),
+                    recommended_regularization: T::from(1e-6).unwrap_or(T::zero()),
+                }
+            })?;
 
         // Apply regularization if specified
         if let Some(reg) = self.regularization {

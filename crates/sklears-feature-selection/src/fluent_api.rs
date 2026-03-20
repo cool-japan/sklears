@@ -371,7 +371,7 @@ impl FeatureSelectionBuilder {
         // Get top k features
         let mut score_indices: Vec<(usize, f64)> =
             scores.iter().enumerate().map(|(i, &s)| (i, s)).collect();
-        score_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        score_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let keep_indices: Vec<usize> = score_indices.iter().take(k).map(|(idx, _)| *idx).collect();
 
@@ -417,9 +417,9 @@ impl FeatureSelectionBuilder {
             let min_idx = importances
                 .iter()
                 .enumerate()
-                .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .min_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
-                .unwrap();
+                .expect("operation should succeed");
 
             current_features.remove(min_idx);
 

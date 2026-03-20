@@ -166,7 +166,8 @@ fn create_blob_dataset() -> Array2<f64> {
         data.push([x, y]);
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }
 
 /// Create a larger dataset for performance testing
@@ -185,7 +186,8 @@ fn create_large_dataset() -> Array2<f64> {
         }
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }
 
 /// Create multimodal data with overlapping distributions
@@ -216,5 +218,6 @@ fn create_multimodal_data() -> Array2<f64> {
         data.push([x, y]);
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }

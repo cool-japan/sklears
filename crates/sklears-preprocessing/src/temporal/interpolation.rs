@@ -495,7 +495,11 @@ impl TimeSeriesInterpolator {
     /// Simple argsort implementation
     fn argsort(&self, arr: &Array1<Float>) -> Vec<usize> {
         let mut indices: Vec<usize> = (0..arr.len()).collect();
-        indices.sort_by(|&a, &b| arr[a].partial_cmp(&arr[b]).unwrap());
+        indices.sort_by(|&a, &b| {
+            arr[a]
+                .partial_cmp(&arr[b])
+                .expect("operation should succeed")
+        });
         indices
     }
 }
@@ -643,7 +647,7 @@ impl TimeSeriesResampler {
         }
 
         let mut sorted_values = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let len = sorted_values.len();
         if len % 2 == 0 {
@@ -738,7 +742,7 @@ impl MultiVariateTimeSeriesAligner {
             for (times, _) in series_data.iter() {
                 all_times.extend(times.iter());
             }
-            all_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            all_times.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             all_times.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
             Array1::from(all_times)
         };

@@ -87,7 +87,7 @@ pub fn permutation_entropy(data: &Array1<f64>, order: usize, delay: usize) -> Re
         }
 
         // Sort by value, keeping track of original indices
-        pattern.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        pattern.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Extract the ordinal pattern
         let ordinal_pattern: Vec<usize> = pattern.iter().map(|&(idx, _)| idx % order).collect();
@@ -502,7 +502,11 @@ impl Fit<Array2<f64>, Array1<f64>> for InformationFeatureSelector {
         let mut selected_features: Vec<usize> = if let Some(k) = self.config.k {
             // Select top k features
             let mut indices: Vec<usize> = (0..n_features).collect();
-            indices.sort_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap());
+            indices.sort_by(|&a, &b| {
+                scores[b]
+                    .partial_cmp(&scores[a])
+                    .expect("operation should succeed")
+            });
             indices.into_iter().take(k.min(n_features)).collect()
         } else if let Some(threshold) = self.config.threshold {
             // Select features above threshold
@@ -652,7 +656,7 @@ mod tests {
     fn test_shannon_entropy_uniform() {
         // Uniform distribution should have maximum entropy
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let entropy = shannon_entropy(&data, 8).unwrap();
+        let entropy = shannon_entropy(&data, 8).expect("operation should succeed");
 
         // For uniform distribution with 8 bins: H = log2(8) = 3
         assert_relative_eq!(entropy, 3.0, epsilon = 0.1);
@@ -662,7 +666,7 @@ mod tests {
     fn test_shannon_entropy_deterministic() {
         // All same values should have zero entropy
         let data = array![1.0, 1.0, 1.0, 1.0, 1.0];
-        let entropy = shannon_entropy(&data, 5).unwrap();
+        let entropy = shannon_entropy(&data, 5).expect("operation should succeed");
 
         assert_relative_eq!(entropy, 0.0, epsilon = 1e-10);
     }
@@ -673,7 +677,7 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![5.0, 4.0, 3.0, 2.0, 1.0];
 
-        let mi = mutual_information(&x, &y, 5).unwrap();
+        let mi = mutual_information(&x, &y, 5).expect("operation should succeed");
 
         // MI should be close to 0 for independent variables
         assert!(mi >= 0.0);
@@ -683,8 +687,8 @@ mod tests {
     fn test_mutual_information_identical() {
         // Identical variables should have MI = H(X)
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let mi = mutual_information(&x, &x, 5).unwrap();
-        let h_x = shannon_entropy(&x, 5).unwrap();
+        let mi = mutual_information(&x, &x, 5).expect("operation should succeed");
+        let h_x = shannon_entropy(&x, 5).expect("operation should succeed");
 
         assert_relative_eq!(mi, h_x, epsilon = 1e-10);
     }
@@ -694,9 +698,9 @@ mod tests {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
         // Renyi entropy should approach Shannon entropy as alpha -> 1
-        let renyi_05 = renyi_entropy(&data, 5, 0.5).unwrap();
-        let renyi_20 = renyi_entropy(&data, 5, 2.0).unwrap();
-        let shannon = shannon_entropy(&data, 5).unwrap();
+        let renyi_05 = renyi_entropy(&data, 5, 0.5).expect("operation should succeed");
+        let renyi_20 = renyi_entropy(&data, 5, 2.0).expect("operation should succeed");
+        let shannon = shannon_entropy(&data, 5).expect("operation should succeed");
 
         assert!(renyi_05 > 0.0);
         assert!(renyi_20 > 0.0);
@@ -706,7 +710,7 @@ mod tests {
     #[test]
     fn test_permutation_entropy() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 1.0];
-        let pe = permutation_entropy(&data, 3, 1).unwrap();
+        let pe = permutation_entropy(&data, 3, 1).expect("operation should succeed");
 
         assert!(pe > 0.0);
         assert!(pe <= 6.0f64.log2()); // Maximum for order 3
@@ -715,7 +719,7 @@ mod tests {
     #[test]
     fn test_approximate_entropy() {
         let data = array![1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0];
-        let apen = approximate_entropy(&data, 2, 0.5).unwrap();
+        let apen = approximate_entropy(&data, 2, 0.5).expect("operation should succeed");
 
         assert!(apen >= 0.0);
     }
@@ -723,7 +727,7 @@ mod tests {
     #[test]
     fn test_lempel_ziv_complexity() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let lz = lempel_ziv_complexity(&data, 4).unwrap();
+        let lz = lempel_ziv_complexity(&data, 4).expect("operation should succeed");
 
         println!("LZ complexity: {}", lz);
         assert!(lz > 0.0);
@@ -739,7 +743,7 @@ mod tests {
     #[test]
     fn test_sample_entropy() {
         let data = array![1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0];
-        let sampen = sample_entropy(&data, 2, 0.5).unwrap();
+        let sampen = sample_entropy(&data, 2, 0.5).expect("sampling should succeed");
 
         assert!(sampen >= 0.0);
     }
@@ -763,12 +767,12 @@ mod tests {
         };
 
         let selector = InformationFeatureSelector::new(config);
-        let fitted = selector.fit(&X, &y).unwrap();
+        let fitted = selector.fit(&X, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.selected_features().len(), 2);
         assert_eq!(fitted.scores().len(), 3);
 
-        let X_transformed = fitted.transform(&X).unwrap();
+        let X_transformed = fitted.transform(&X).expect("transformation should succeed");
         assert_eq!(X_transformed.ncols(), 2);
     }
 
@@ -777,7 +781,7 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0];
 
-        let nmi = normalized_mutual_information(&x, &y, 5).unwrap();
+        let nmi = normalized_mutual_information(&x, &y, 5).expect("operation should succeed");
 
         assert!(nmi >= 0.0);
         assert!(nmi <= 1.0);
@@ -788,8 +792,8 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0];
 
-        let h_y_given_x = conditional_entropy(&y, &x, 5).unwrap();
-        let h_y = shannon_entropy(&y, 5).unwrap();
+        let h_y_given_x = conditional_entropy(&y, &x, 5).expect("operation should succeed");
+        let h_y = shannon_entropy(&y, 5).expect("operation should succeed");
 
         assert!(h_y_given_x >= 0.0);
         assert!(h_y_given_x <= h_y);
@@ -800,7 +804,7 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let y = array![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
 
-        let te = transfer_entropy(&x, &y, 4, 1).unwrap();
+        let te = transfer_entropy(&x, &y, 4, 1).expect("operation should succeed");
 
         assert!(te.is_finite());
     }
@@ -808,7 +812,7 @@ mod tests {
     #[test]
     fn test_discretize() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let discretized = discretize(&data, 5).unwrap();
+        let discretized = discretize(&data, 5).expect("operation should succeed");
 
         assert_eq!(discretized.len(), 5);
         assert!(discretized.iter().all(|&b| b < 5));
@@ -832,7 +836,7 @@ mod tests {
         };
 
         let selector = InformationFeatureSelector::new(config);
-        let fitted = selector.fit(&X, &y).unwrap();
+        let fitted = selector.fit(&X, &y).expect("model fitting should succeed");
 
         assert!(fitted.selected_features().len() <= 3);
     }

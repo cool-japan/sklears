@@ -454,7 +454,7 @@ mod tests {
     fn test_cache_friendly_matrix_creation() {
         let array =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let cache_matrix = CacheFriendlyMatrix::new(
             array.clone(),
@@ -469,13 +469,15 @@ mod tests {
 
     #[test]
     fn test_cache_friendly_matmul() {
-        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let b = Array2::from_shape_vec((3, 2), vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+            .expect("shape and data length should match");
 
         let cache_a = CacheFriendlyMatrix::new(a, MatrixLayout::RowMajor, CacheConfig::default());
         let cache_b = CacheFriendlyMatrix::new(b, MatrixLayout::RowMajor, CacheConfig::default());
 
-        let result = cache_a.matmul(&cache_b).unwrap();
+        let result = cache_a.matmul(&cache_b).expect("operation should succeed");
         assert_eq!(result.dim(), (2, 2));
 
         // Expected result: [[58, 64], [139, 154]]
@@ -520,7 +522,8 @@ mod tests {
 
     #[test]
     fn test_column_major_layout() {
-        let array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
 
         let cache_matrix = CacheFriendlyMatrix::new(
             array.clone(),

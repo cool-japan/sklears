@@ -136,7 +136,7 @@ mod tests {
             &grid,
             PartialDependenceKind::Average,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.values.len(), 5); // 5 grid points
         assert_eq!(result.grid.len(), 5);
@@ -166,7 +166,7 @@ mod tests {
             &grid,
             PartialDependenceKind::Individual,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.individual_values.len(), 2); // 2 grid points
         assert_eq!(result.individual_values[0].len(), 2); // 2 samples

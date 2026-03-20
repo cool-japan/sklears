@@ -555,7 +555,7 @@ mod tests {
 
         let result = explainer.explain(&input, &());
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), input);
+        assert_eq!(result.expect("operation should succeed"), input);
         assert_eq!(explainer.name(), "MockExplainer");
     }
 
@@ -567,7 +567,7 @@ mod tests {
         let top_features = explainer.top_features(&input, &(), 2);
         assert!(top_features.is_ok());
 
-        let features = top_features.unwrap();
+        let features = top_features.expect("operation should succeed");
         assert_eq!(features.len(), 2);
         assert_eq!(features[0].0, 2); // Index of max value (4.0)
         assert_eq!(features[1].0, 0); // Index of second max (3.0)

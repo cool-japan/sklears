@@ -42,7 +42,7 @@ fn generate_clustered_data(
             .map(|_| rng.random_range(-20.0..20.0))
             .collect();
 
-        let normal = Normal::new(0.0, cluster_std).unwrap();
+        let normal = Normal::new(0.0, cluster_std).expect("operation should succeed");
 
         for i in start_idx..end_idx {
             for j in 0..n_features {

@@ -162,8 +162,12 @@ impl ParallelSmo {
 
             // Check global convergence
             if sync_result.max_violation < self.config.base_config.tol {
-                let final_alpha = shared_state.alpha.read().unwrap().clone();
-                let final_bias = *shared_state.bias.read().unwrap();
+                let final_alpha = shared_state
+                    .alpha
+                    .read()
+                    .expect("lock not poisoned")
+                    .clone();
+                let final_bias = *shared_state.bias.read().expect("lock not poisoned");
 
                 let result = ParallelSmoResult {
                     alpha: final_alpha.clone(),
@@ -183,12 +187,16 @@ impl ParallelSmo {
             }
 
             // Update iteration counter
-            *shared_state.iteration.lock().unwrap() = global_iter + 1;
+            *shared_state.iteration.lock().expect("lock not poisoned") = global_iter + 1;
         }
 
         // Return final result (not converged)
-        let final_alpha = shared_state.alpha.read().unwrap().clone();
-        let final_bias = *shared_state.bias.read().unwrap();
+        let final_alpha = shared_state
+            .alpha
+            .read()
+            .expect("lock not poisoned")
+            .clone();
+        let final_bias = *shared_state.bias.read().expect("lock not poisoned");
 
         let result = ParallelSmoResult {
             alpha: final_alpha.clone(),
@@ -273,8 +281,16 @@ impl ParallelSmo {
         let mut local_objective_change = 0.0;
 
         // Get current alpha and gradient snapshots
-        let current_alpha = shared_state.alpha.read().unwrap().clone();
-        let current_gradient = shared_state.gradient.read().unwrap().clone();
+        let current_alpha = shared_state
+            .alpha
+            .read()
+            .expect("lock not poisoned")
+            .clone();
+        let current_gradient = shared_state
+            .gradient
+            .read()
+            .expect("lock not poisoned")
+            .clone();
 
         // Perform local SMO iterations on working set
         for &i in working_set {
@@ -376,7 +392,10 @@ impl ParallelSmo {
 
         // Update convergence info
         {
-            let mut conv_info = shared_state.convergence_info.lock().unwrap();
+            let mut conv_info = shared_state
+                .convergence_info
+                .lock()
+                .expect("lock not poisoned");
             conv_info.max_violation = max_violation;
             conv_info.n_updates = total_updates;
             conv_info.objective_change = total_objective_change;
@@ -410,7 +429,7 @@ impl ParallelSmo {
 
         // Try to get from cache first
         {
-            let cache_guard = cache.lock().unwrap();
+            let cache_guard = cache.lock().expect("lock not poisoned");
             if let Some(&value) = cache_guard.get(&key) {
                 return Ok(value);
             }
@@ -419,7 +438,7 @@ impl ParallelSmo {
         // Compute and cache
         let value = kernel.compute(x.row(i), x.row(j));
         {
-            let mut cache_guard = cache.lock().unwrap();
+            let mut cache_guard = cache.lock().expect("lock not poisoned");
             cache_guard.insert(key, value);
         }
 
@@ -581,7 +600,7 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 3.0], [3.0, 3.0], [2.0, 1.0], [3.0, 2.0]];
         let y = array![1.0, 1.0, 1.0, -1.0, -1.0];
 
-        let result = solver.solve(kernel, &x, &y).unwrap();
+        let result = solver.solve(kernel, &x, &y).expect("solver should succeed");
 
         assert!(result.n_support_vectors > 0);
         assert!(result.alpha.sum() > 0.0);

@@ -140,7 +140,7 @@ impl GraphBuilder {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
             let k = std::cmp::min(self.n_neighbors, distances.len());
             for &(j, dist) in distances.iter().take(k) {
@@ -555,9 +555,9 @@ impl Predict<Array2<f64>, Array1<i32>> for TrainedGraphSemiSupervisedSVM {
                 let best_class_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("value should be present");
                 predictions[i] = self.classes_[best_class_idx];
             }
             Ok(predictions)
@@ -663,14 +663,18 @@ mod tests {
 
         let trained_model = model
             .fit_semi_supervised(&X_labeled_var, &y_labeled, &X_unlabeled_var)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test predictions on labeled data
-        let predictions = trained_model.predict(&X_labeled_var).unwrap();
+        let predictions = trained_model
+            .predict(&X_labeled_var)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 2);
 
         // Test decision function
-        let scores = trained_model.decision_function(&X_labeled_var).unwrap();
+        let scores = trained_model
+            .decision_function(&X_labeled_var)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (2, 1));
 
         // Check that unlabeled predictions were generated
@@ -764,7 +768,7 @@ mod tests {
         let result = model.fit_semi_supervised(&X_labeled_var, &y_labeled, &X_unlabeled_var);
         assert!(result.is_ok());
 
-        let trained_model = result.unwrap();
+        let trained_model = result.expect("operation should succeed");
 
         // Check that unlabeled predictions are reasonable
         let unlabeled_preds = trained_model.unlabeled_predictions();

@@ -776,13 +776,13 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.5, 2.5, 2.5];
 
-        let l = loss.loss(&y_true, &y_pred).unwrap();
+        let l = loss.loss(&y_true, &y_pred).expect("operation should succeed");
         assert!((l - 0.25).abs() < 1e-10); // (0.25 + 0.25 + 0.25) / 3 = 0.25
 
-        let grad = loss.gradient(&y_true, &y_pred).unwrap();
+        let grad = loss.gradient(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(grad, array![0.5, 0.5, -0.5]);
 
-        let hess = loss.hessian(&y_true, &y_pred).unwrap();
+        let hess = loss.hessian(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(hess, array![1.0, 1.0, 1.0]);
     }
 
@@ -792,10 +792,10 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.5, 2.5, 2.5];
 
-        let l = loss.loss(&y_true, &y_pred).unwrap();
+        let l = loss.loss(&y_true, &y_pred).expect("operation should succeed");
         assert!((l - 0.5).abs() < 1e-10); // (0.5 + 0.5 + 0.5) / 3 = 0.5
 
-        let grad = loss.gradient(&y_true, &y_pred).unwrap();
+        let grad = loss.gradient(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(grad, array![1.0, 1.0, -1.0]);
     }
 
@@ -805,23 +805,23 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.5, 2.5, 2.5];
 
-        let l = loss.loss(&y_true, &y_pred).unwrap();
+        let l = loss.loss(&y_true, &y_pred).expect("operation should succeed");
         assert!(l > 0.0);
 
-        let grad = loss.gradient(&y_true, &y_pred).unwrap();
+        let grad = loss.gradient(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(grad.len(), 3);
     }
 
     #[test]
     fn test_quantile_loss() {
-        let loss = QuantileLoss::new(0.5).unwrap();
+        let loss = QuantileLoss::new(0.5).expect("operation should succeed");
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.5, 2.5, 2.5];
 
-        let l = loss.loss(&y_true, &y_pred).unwrap();
+        let l = loss.loss(&y_true, &y_pred).expect("operation should succeed");
         assert!(l > 0.0);
 
-        let grad = loss.gradient(&y_true, &y_pred).unwrap();
+        let grad = loss.gradient(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(grad.len(), 3);
     }
 
@@ -831,10 +831,10 @@ mod tests {
         let y_true = array![1.0, 0.0, 1.0];
         let y_pred = array![0.5, -0.5, 1.0];
 
-        let l = loss.loss(&y_true, &y_pred).unwrap();
+        let l = loss.loss(&y_true, &y_pred).expect("operation should succeed");
         assert!(l > 0.0);
 
-        let grad = loss.gradient(&y_true, &y_pred).unwrap();
+        let grad = loss.gradient(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(grad.len(), 3);
     }
 
@@ -844,10 +844,10 @@ mod tests {
         let y_true = array![1.0, 0.0, 1.0];
         let y_pred = array![0.5, -0.5, 1.0];
 
-        let l = loss.loss(&y_true, &y_pred).unwrap();
+        let l = loss.loss(&y_true, &y_pred).expect("operation should succeed");
         assert!(l > 0.0);
 
-        let grad = loss.gradient(&y_true, &y_pred).unwrap();
+        let grad = loss.gradient(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(grad.len(), 3);
     }
 
@@ -857,10 +857,10 @@ mod tests {
         let y_true = array![1.0, 0.0, 1.0];
         let y_pred = array![0.5, -0.5, 1.0];
 
-        let l = loss.loss(&y_true, &y_pred).unwrap();
+        let l = loss.loss(&y_true, &y_pred).expect("operation should succeed");
         assert!(l > 0.0);
 
-        let grad = loss.gradient(&y_true, &y_pred).unwrap();
+        let grad = loss.gradient(&y_true, &y_pred).expect("operation should succeed");
         assert_eq!(grad.len(), 3);
     }
 
@@ -883,7 +883,7 @@ mod tests {
         let y_true = array![1.0, 2.0];
         let y_pred = array![1.5, 2.5];
 
-        let (l, g, h) = utils::evaluate_loss(&loss, &y_true, &y_pred).unwrap();
+        let (l, g, h) = utils::evaluate_loss(&loss, &y_true, &y_pred).expect("operation should succeed");
         assert!(l > 0.0);
         assert_eq!(g.len(), 2);
         assert_eq!(h.len(), 2);

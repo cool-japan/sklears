@@ -135,21 +135,27 @@ impl TemporalFeatureExtractor {
                 features.push(
                     *window
                         .iter()
-                        .min_by(|a, b| a.partial_cmp(b).unwrap())
-                        .unwrap(),
+                        .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                        .expect("operation should succeed"),
                 );
                 features.push(
                     *window
                         .iter()
-                        .max_by(|a, b| a.partial_cmp(b).unwrap())
-                        .unwrap(),
+                        .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                        .expect("operation should succeed"),
                 );
             } else {
                 // Use entire series if window is larger than series
                 let mean = ts.sum() / n as Float;
                 let std = (ts.mapv(|x| (x - mean).powi(2)).sum() / n as Float).sqrt();
-                let min_val = *ts.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
-                let max_val = *ts.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                let min_val = *ts
+                    .iter()
+                    .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed");
+                let max_val = *ts
+                    .iter()
+                    .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed");
 
                 features.extend_from_slice(&[mean, std, min_val, max_val]);
             }
@@ -341,15 +347,16 @@ impl SlidingWindowFeatures {
                     }
                     "min" => *window
                         .iter()
-                        .min_by(|a, b| a.partial_cmp(b).unwrap())
-                        .unwrap(),
+                        .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                        .expect("operation should succeed"),
                     "max" => *window
                         .iter()
-                        .max_by(|a, b| a.partial_cmp(b).unwrap())
-                        .unwrap(),
+                        .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                        .expect("operation should succeed"),
                     "median" => {
                         let mut sorted_window = window.to_vec();
-                        sorted_window.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        sorted_window
+                            .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         if self.window_size % 2 == 1 {
                             sorted_window[self.window_size / 2]
                         } else {

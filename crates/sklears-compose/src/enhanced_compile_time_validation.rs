@@ -723,7 +723,7 @@ impl CompileTimeValidator<Unvalidated> {
         let schema_name = validator.schema_name().to_string();
         self.schema_validators
             .write()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .insert(schema_name, validator);
         self
     }
@@ -731,14 +731,20 @@ impl CompileTimeValidator<Unvalidated> {
     /// Add a constraint validator
     #[must_use]
     pub fn add_constraint_validator(self, validator: Box<dyn ConstraintValidator>) -> Self {
-        self.constraint_validators.write().unwrap().push(validator);
+        self.constraint_validators
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(validator);
         self
     }
 
     /// Add a dependency validator
     #[must_use]
     pub fn add_dependency_validator(self, validator: Box<dyn DependencyValidator>) -> Self {
-        self.dependency_validators.write().unwrap().push(validator);
+        self.dependency_validators
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(validator);
         self
     }
 
@@ -750,7 +756,7 @@ impl CompileTimeValidator<Unvalidated> {
     ) -> Self {
         self.cross_reference_validators
             .write()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .push(validator);
         self
     }
@@ -758,7 +764,10 @@ impl CompileTimeValidator<Unvalidated> {
     /// Add a custom validator
     #[must_use]
     pub fn add_custom_validator(self, validator: Box<dyn CustomValidator>) -> Self {
-        self.custom_validators.write().unwrap().push(validator);
+        self.custom_validators
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(validator);
         self
     }
 
@@ -776,7 +785,12 @@ impl CompileTimeValidator<Unvalidated> {
         // Check validation cache
         let config_hash = self.compute_config_hash(config);
         if self.config.enable_caching {
-            if let Some(cached_result) = self.validation_cache.read().unwrap().get(&config_hash) {
+            if let Some(cached_result) = self
+                .validation_cache
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .get(&config_hash)
+            {
                 let validation_cache_clone = Arc::clone(&self.validation_cache);
                 return Ok((
                     /// CompileTimeValidator
@@ -796,8 +810,18 @@ impl CompileTimeValidator<Unvalidated> {
         }
 
         // Schema validation
-        if !self.schema_validators.read().unwrap().is_empty() {
-            for validator in self.schema_validators.read().unwrap().values() {
+        if !self
+            .schema_validators
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_empty()
+        {
+            for validator in self
+                .schema_validators
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .values()
+            {
                 match validator.validate_schema(config) {
                     Ok(mut schema_errors) => {
                         errors.append(&mut schema_errors);
@@ -834,7 +858,12 @@ impl CompileTimeValidator<Unvalidated> {
         // Constraint validation
         if self.config.enable_constraint_validation && (errors.is_empty() || !self.config.fail_fast)
         {
-            for validator in self.constraint_validators.read().unwrap().iter() {
+            for validator in self
+                .constraint_validators
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+            {
                 match validator.validate_constraints(config) {
                     Ok(mut constraint_errors) => {
                         errors.append(&mut constraint_errors);
@@ -871,7 +900,12 @@ impl CompileTimeValidator<Unvalidated> {
         // Dependency validation
         if self.config.enable_dependency_validation && (errors.is_empty() || !self.config.fail_fast)
         {
-            for validator in self.dependency_validators.read().unwrap().iter() {
+            for validator in self
+                .dependency_validators
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+            {
                 match validator.validate_dependencies(config) {
                     Ok(mut dependency_errors) => {
                         errors.append(&mut dependency_errors);
@@ -909,7 +943,12 @@ impl CompileTimeValidator<Unvalidated> {
         if self.config.enable_cross_reference_validation
             && (errors.is_empty() || !self.config.fail_fast)
         {
-            for validator in self.cross_reference_validators.read().unwrap().iter() {
+            for validator in self
+                .cross_reference_validators
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+            {
                 match validator.validate_cross_references(config) {
                     Ok(mut cross_ref_errors) => {
                         errors.append(&mut cross_ref_errors);
@@ -945,7 +984,12 @@ impl CompileTimeValidator<Unvalidated> {
 
         // Custom validation
         if self.config.enable_custom_validation && (errors.is_empty() || !self.config.fail_fast) {
-            for validator in self.custom_validators.read().unwrap().iter() {
+            for validator in self
+                .custom_validators
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .iter()
+            {
                 match validator.validate(config) {
                     Ok(mut custom_errors) => {
                         errors.append(&mut custom_errors);
@@ -1010,7 +1054,7 @@ impl CompileTimeValidator<Unvalidated> {
         if self.config.enable_caching {
             self.validation_cache
                 .write()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .insert(config_hash, result.clone());
         }
 
@@ -1092,7 +1136,7 @@ impl CompileTimeValidator<Validated> {
                 "proof_{}",
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             validation_time: SystemTime::now(),
@@ -1630,7 +1674,7 @@ mod tests {
         let result = validator.validate(&config);
         assert!(result.is_ok());
 
-        let (_, validation_result) = result.unwrap();
+        let (_, validation_result) = result.expect("operation should succeed");
         assert!(matches!(validation_result.status, ValidationStatus::Valid));
     }
 
@@ -1648,7 +1692,7 @@ mod tests {
         let result = validator.validate(&config);
         assert!(result.is_ok());
 
-        let (_, validation_result) = result.unwrap();
+        let (_, validation_result) = result.expect("operation should succeed");
         assert!(matches!(
             validation_result.status,
             ValidationStatus::Invalid
@@ -1672,7 +1716,7 @@ mod tests {
         let result = builder.build();
         assert!(result.is_ok());
 
-        let built_config = result.unwrap();
+        let built_config = result.expect("operation should succeed");
         assert_eq!(built_config.config_data().len(), 4);
     }
 
@@ -1681,7 +1725,9 @@ mod tests {
         let validator = CompileTimeValidator::<Unvalidated>::new();
         let config = HashMap::new();
 
-        let (validated_validator, _) = validator.validate(&config).unwrap();
+        let (validated_validator, _) = validator
+            .validate(&config)
+            .expect("operation should succeed");
         let validated_config = validated_validator.create_validated_config(config);
 
         assert!(validated_config
@@ -1700,7 +1746,7 @@ mod tests {
         let result = validator.validate(&config);
         assert!(result.is_ok());
 
-        let (_, validation_result) = result.unwrap();
+        let (_, validation_result) = result.expect("operation should succeed");
         assert!(matches!(
             validation_result.status,
             ValidationStatus::Invalid
@@ -1729,7 +1775,9 @@ mod tests {
 
         let config = HashMap::new();
 
-        let (_, validation_result) = validator.validate(&config).unwrap();
+        let (_, validation_result) = validator
+            .validate(&config)
+            .expect("operation should succeed");
         assert!(!validation_result.suggestions.is_empty());
 
         let suggestion = &validation_result.suggestions[0];

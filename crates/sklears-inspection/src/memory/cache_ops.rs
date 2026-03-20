@@ -207,7 +207,7 @@ mod tests {
 
         let importances =
             cache_friendly_permutation_importance(&X.view(), &y.view(), &model, &cache, &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(importances.len(), 2);
     }
@@ -217,7 +217,8 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 1.9, 3.1];
 
-        let r2 = compute_r2_score(&y_true.view(), &y_pred.view()).unwrap();
+        let r2 =
+            compute_r2_score(&y_true.view(), &y_pred.view()).expect("operation should succeed");
         assert!(r2 > 0.9); // Should be high for good predictions
         assert!(r2 <= 1.0);
     }
@@ -226,7 +227,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_baseline_data_computation() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let baseline = compute_baseline_data(&X.view()).unwrap();
+        let baseline = compute_baseline_data(&X.view()).expect("operation should succeed");
 
         // Should have 1 row (means) and same number of columns
         assert_eq!(baseline.nrows(), 1);
@@ -249,8 +250,8 @@ mod tests {
             Ok(x.sum_axis(Axis(1)))
         };
 
-        let shap_values =
-            cache_friendly_shap_computation(&X.view(), &model, &cache, &config).unwrap();
+        let shap_values = cache_friendly_shap_computation(&X.view(), &model, &cache, &config)
+            .expect("operation should succeed");
 
         assert_eq!(shap_values.nrows(), 2); // 2 samples
         assert_eq!(shap_values.ncols(), 2); // 2 features
@@ -283,7 +284,7 @@ mod tests {
 
         let importances =
             compute_permutation_importance_optimized(&X.view(), &y.view(), &model, &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(importances.len(), 2);
 
@@ -318,7 +319,8 @@ mod tests {
 
         let model = |x: &ArrayView2<Float>| -> SklResult<Array1<Float>> { Ok(x.sum_axis(Axis(1))) };
 
-        let shap_values = compute_shap_optimized(&X.view(), &model, &config).unwrap();
+        let shap_values =
+            compute_shap_optimized(&X.view(), &model, &config).expect("operation should succeed");
 
         assert_eq!(shap_values.nrows(), 2);
         assert_eq!(shap_values.ncols(), 2);

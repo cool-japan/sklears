@@ -203,7 +203,9 @@ impl AutomaticNoiseFunctionSelector {
             }
         }
 
-        Ok(best_evaluation.unwrap().noise_function)
+        Ok(best_evaluation
+            .expect("operation should succeed")
+            .noise_function)
     }
 
     /// Evaluate a noise function on given data
@@ -699,10 +701,14 @@ mod tests {
             .criterion(InformationCriterion::BIC)
             .max_iter(50);
 
-        let best_noise_fn = selector.select_best(&x, &y).unwrap();
+        let best_noise_fn = selector
+            .select_best(&x, &y)
+            .expect("operation should succeed");
 
         // Should be able to compute noise
-        let noise_pred = best_noise_fn.compute_noise(&x).unwrap();
+        let noise_pred = best_noise_fn
+            .compute_noise(&x)
+            .expect("operation should succeed");
         assert_eq!(noise_pred.len(), x.nrows());
         assert!(noise_pred.iter().all(|&n| n > 0.0));
     }
@@ -721,11 +727,15 @@ mod tests {
             .combination_method(CombinationMethod::WeightedAverage);
 
         // Test initial prediction
-        let pred = ensemble.compute_noise(&x).unwrap();
+        let pred = ensemble
+            .compute_noise(&x)
+            .expect("operation should succeed");
         assert_eq!(pred.len(), x.nrows());
 
         // Test weight learning
-        ensemble.learn_weights(&x, &y, 10).unwrap();
+        ensemble
+            .learn_weights(&x, &y, 10)
+            .expect("operation should succeed");
 
         // Weights should be normalized
         let weight_sum: f64 = ensemble.weights.sum();
@@ -742,7 +752,9 @@ mod tests {
             .add_candidate_linear()
             .max_iter(10);
 
-        let evaluations = selector.evaluate_all(&x, &y).unwrap();
+        let evaluations = selector
+            .evaluate_all(&x, &y)
+            .expect("operation should succeed");
         assert_eq!(evaluations.len(), 2);
 
         for eval in &evaluations {
@@ -765,8 +777,12 @@ mod tests {
             .cross_validation_folds(3)
             .max_iter(10);
 
-        let best_noise_fn = selector.select_best(&x, &y).unwrap();
-        let noise_pred = best_noise_fn.compute_noise(&x).unwrap();
+        let best_noise_fn = selector
+            .select_best(&x, &y)
+            .expect("operation should succeed");
+        let noise_pred = best_noise_fn
+            .compute_noise(&x)
+            .expect("operation should succeed");
         assert_eq!(noise_pred.len(), x.nrows());
     }
 
@@ -803,7 +819,9 @@ mod tests {
             let ensemble =
                 EnsembleNoiseFunction::new(noise_functions.clone()).combination_method(*method);
 
-            let pred = ensemble.compute_noise(&x).unwrap();
+            let pred = ensemble
+                .compute_noise(&x)
+                .expect("operation should succeed");
             assert_eq!(pred.len(), x.nrows());
             assert!(pred.iter().all(|&p| p > 0.0));
         }

@@ -175,7 +175,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for FactorModelCovariance<Untrained> {
         let centered_data = if self.assume_centered {
             x.to_owned()
         } else {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             x - &mean.insert_axis(Axis(0))
         };
 
@@ -239,7 +243,11 @@ impl FactorModelCovariance<Untrained> {
 
         // Sort eigenvalues and eigenvectors in descending order
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Extract top k factors
         let mut loadings = Array2::zeros((n_features, self.n_factors));
@@ -334,7 +342,11 @@ impl FactorModelCovariance<Untrained> {
 
             // Sort eigenvalues and eigenvectors in descending order
             let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-            indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+            indices.sort_by(|&i, &j| {
+                eigenvalues[j]
+                    .partial_cmp(&eigenvalues[i])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             // Extract top k factors
             let mut loadings = Array2::zeros((n_features, self.n_factors));
@@ -360,7 +372,11 @@ impl FactorModelCovariance<Untrained> {
         })?;
 
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut loadings = Array2::zeros((n_features, self.n_factors));
         for (j, &idx) in indices.iter().take(self.n_factors).enumerate() {

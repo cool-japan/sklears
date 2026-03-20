@@ -713,7 +713,7 @@ impl ExtensibleParameterEstimator for BuiltinMLEEstimator {
             if !class_data.is_empty() {
                 let means: Vec<Float> = class_data
                     .mean_axis(scirs2_core::ndarray::Axis(0))
-                    .unwrap()
+                    .expect("operation should succeed")
                     .to_vec();
                 parameters.insert(format!("class_{}_means", class_idx), means);
             }
@@ -782,7 +782,7 @@ impl ExtensibleParameterEstimator for BuiltinMAPEstimator {
                 // Add some regularization for MAP estimation
                 let means: Vec<Float> = class_data
                     .mean_axis(scirs2_core::ndarray::Axis(0))
-                    .unwrap()
+                    .expect("operation should succeed")
                     .iter()
                     .map(|&mean| mean * 0.99) // Simple regularization
                     .collect();
@@ -898,7 +898,7 @@ static GLOBAL_REGISTRY: once_cell::sync::Lazy<std::sync::Mutex<PluginRegistry>> 
 
 /// Get a reference to the global plugin registry
 pub fn get_global_registry() -> std::sync::MutexGuard<'static, PluginRegistry> {
-    GLOBAL_REGISTRY.lock().unwrap()
+    GLOBAL_REGISTRY.lock().expect("operation should succeed")
 }
 
 /// Register a custom distribution globally
@@ -947,7 +947,7 @@ mod tests {
         let mut dist = BuiltinGaussianDistribution::default();
 
         let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
-        dist.fit(&data).unwrap();
+        dist.fit(&data).expect("operation should succeed");
 
         assert!(dist.log_prob(3.0).is_finite());
         assert_eq!(dist.n_parameters(), 2);
@@ -971,11 +971,13 @@ mod tests {
     fn test_mle_estimator() {
         let estimator = BuiltinMLEEstimator::default();
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
-        let result = estimator.estimate(&x, &y).unwrap();
+        let result = estimator
+            .estimate(&x, &y)
+            .expect("operation should succeed");
         assert!(!result.parameters.is_empty());
         assert!(result.convergence_info.converged);
     }
@@ -1001,7 +1003,9 @@ mod tests {
             },
         ];
 
-        let best = selector.select_model(&candidates).unwrap();
+        let best = selector
+            .select_model(&candidates)
+            .expect("operation should succeed");
         assert_eq!(best.model_type, "multinomial");
         assert_eq!(best.score, Some(0.9));
     }

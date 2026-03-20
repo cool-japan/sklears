@@ -875,7 +875,7 @@ mod tests {
         assert_eq!(leaf.node_id, 1);
         assert_eq!(leaf.depth, 2);
         assert!(leaf.is_leaf);
-        assert_eq!(leaf.leaf_values.unwrap(), leaf_values);
+        assert_eq!(leaf.leaf_values.expect("operation should succeed"), leaf_values);
     }
 
     #[test]
@@ -924,7 +924,7 @@ mod tests {
                 -2.0, -2.1, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
@@ -936,14 +936,14 @@ mod tests {
             .random_state(Some(42))
             .build();
 
-        let trained_tree = tree.fit(&X, &y).unwrap();
+        let trained_tree = tree.fit(&X, &y).expect("model fitting should succeed");
 
         // Test predictions
-        let predictions = trained_tree.predict(&X).unwrap();
+        let predictions = trained_tree.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test probability predictions
-        let probabilities = trained_tree.predict_proba(&X).unwrap();
+        let probabilities = trained_tree.predict_proba(&X).expect("operation should succeed");
         assert_eq!(probabilities.shape(), &[6, 2]);
 
         // Check that probabilities sum to 1 for each sample
@@ -964,8 +964,8 @@ mod tests {
         let X = Array2::zeros((3, 2));
         let y = Array1::from_vec(vec![0, 1, 0]);
 
-        let trained_tree = tree.fit(&X, &y).unwrap();
-        let y_one_hot = trained_tree.labels_to_one_hot(&y).unwrap();
+        let trained_tree = tree.fit(&X, &y).expect("model fitting should succeed");
+        let y_one_hot = trained_tree.labels_to_one_hot(&y).expect("operation should succeed");
 
         assert_eq!(y_one_hot.shape(), &[3, 2]);
         assert_eq!(y_one_hot[[0, 0]], 1.0);
@@ -979,7 +979,7 @@ mod tests {
     #[test]
     fn test_tree_structure_display() {
         let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 2.0, 2.0, 1.0, 2.0, 2.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 2.0, 2.0, 1.0, 2.0, 2.0]).expect("shape and data length should match");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let tree = SoftDecisionTreeClassifier::<Untrained>::builder()
@@ -988,7 +988,7 @@ mod tests {
             .random_state(Some(42))
             .build();
 
-        let trained_tree = tree.fit(&X, &y).unwrap();
+        let trained_tree = tree.fit(&X, &y).expect("model fitting should succeed");
         let structure = trained_tree.tree_structure();
 
         // Should contain node information and leaf information

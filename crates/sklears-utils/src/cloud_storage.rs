@@ -119,8 +119,8 @@ impl MockCloudStorageClient {
 
 impl CloudStorageClient for MockCloudStorageClient {
     fn upload(&self, key: &str, data: &[u8]) -> UtilsResult<String> {
-        let mut storage = self.storage.lock().unwrap();
-        let mut metadata = self.metadata.lock().unwrap();
+        let mut storage = self.storage.lock().expect("operation should succeed");
+        let mut metadata = self.metadata.lock().expect("operation should succeed");
 
         storage.insert(key.to_string(), data.to_vec());
         metadata.insert(
@@ -138,7 +138,7 @@ impl CloudStorageClient for MockCloudStorageClient {
     }
 
     fn download(&self, key: &str) -> UtilsResult<Vec<u8>> {
-        let storage = self.storage.lock().unwrap();
+        let storage = self.storage.lock().expect("operation should succeed");
         storage
             .get(key)
             .cloned()
@@ -146,8 +146,8 @@ impl CloudStorageClient for MockCloudStorageClient {
     }
 
     fn delete(&self, key: &str) -> UtilsResult<()> {
-        let mut storage = self.storage.lock().unwrap();
-        let mut metadata = self.metadata.lock().unwrap();
+        let mut storage = self.storage.lock().expect("operation should succeed");
+        let mut metadata = self.metadata.lock().expect("operation should succeed");
 
         storage.remove(key);
         metadata.remove(key);
@@ -155,7 +155,7 @@ impl CloudStorageClient for MockCloudStorageClient {
     }
 
     fn list_objects(&self, prefix: &str) -> UtilsResult<Vec<String>> {
-        let storage = self.storage.lock().unwrap();
+        let storage = self.storage.lock().expect("operation should succeed");
         let objects: Vec<String> = storage
             .keys()
             .filter(|key| key.starts_with(prefix))
@@ -165,12 +165,12 @@ impl CloudStorageClient for MockCloudStorageClient {
     }
 
     fn exists(&self, key: &str) -> UtilsResult<bool> {
-        let storage = self.storage.lock().unwrap();
+        let storage = self.storage.lock().expect("operation should succeed");
         Ok(storage.contains_key(key))
     }
 
     fn get_metadata(&self, key: &str) -> UtilsResult<ObjectMetadata> {
-        let metadata = self.metadata.lock().unwrap();
+        let metadata = self.metadata.lock().expect("operation should succeed");
         metadata
             .get(key)
             .cloned()
@@ -245,9 +245,13 @@ impl CloudStorageUtils {
             let path = entry.path();
 
             if path.is_file() {
-                let filename = path.file_name().unwrap().to_str().unwrap();
+                let filename = path
+                    .file_name()
+                    .expect("operation should succeed")
+                    .to_str()
+                    .expect("operation should succeed");
                 let key = format!("{key_prefix}/{filename}");
-                let local_path = path.to_str().unwrap();
+                let local_path = path.to_str().expect("operation should succeed");
 
                 client.upload_file(&key, local_path)?;
                 uploaded_keys.push(key);
@@ -447,16 +451,22 @@ mod tests {
         let test_data = b"hello world";
 
         // Test upload
-        let url = client.upload("test-key", test_data).unwrap();
+        let url = client
+            .upload("test-key", test_data)
+            .expect("operation should succeed");
         assert_eq!(url, "mock://bucket/test-key");
 
         // Test download
-        let downloaded = client.download("test-key").unwrap();
+        let downloaded = client
+            .download("test-key")
+            .expect("operation should succeed");
         assert_eq!(downloaded, test_data);
 
         // Test exists
-        assert!(client.exists("test-key").unwrap());
-        assert!(!client.exists("nonexistent-key").unwrap());
+        assert!(client.exists("test-key").expect("operation should succeed"));
+        assert!(!client
+            .exists("nonexistent-key")
+            .expect("operation should succeed"));
     }
 
     #[test]
@@ -464,9 +474,13 @@ mod tests {
         let client = MockCloudStorageClient::new();
         let test_data = b"hello world";
 
-        client.upload("test-key", test_data).unwrap();
+        client
+            .upload("test-key", test_data)
+            .expect("operation should succeed");
 
-        let metadata = client.get_metadata("test-key").unwrap();
+        let metadata = client
+            .get_metadata("test-key")
+            .expect("operation should succeed");
         assert_eq!(metadata.size, test_data.len() as u64);
         assert_eq!(metadata.etag, Some("mock-etag-test-key".to_string()));
         assert_eq!(
@@ -479,11 +493,19 @@ mod tests {
     fn test_mock_client_list_objects() {
         let client = MockCloudStorageClient::new();
 
-        client.upload("data/file1.txt", b"content1").unwrap();
-        client.upload("data/file2.txt", b"content2").unwrap();
-        client.upload("other/file3.txt", b"content3").unwrap();
+        client
+            .upload("data/file1.txt", b"content1")
+            .expect("operation should succeed");
+        client
+            .upload("data/file2.txt", b"content2")
+            .expect("operation should succeed");
+        client
+            .upload("other/file3.txt", b"content3")
+            .expect("operation should succeed");
 
-        let objects = client.list_objects("data/").unwrap();
+        let objects = client
+            .list_objects("data/")
+            .expect("operation should succeed");
         assert_eq!(objects.len(), 2);
         assert!(objects.contains(&"data/file1.txt".to_string()));
         assert!(objects.contains(&"data/file2.txt".to_string()));
@@ -493,11 +515,13 @@ mod tests {
     fn test_mock_client_delete() {
         let client = MockCloudStorageClient::new();
 
-        client.upload("test-key", b"hello").unwrap();
-        assert!(client.exists("test-key").unwrap());
+        client
+            .upload("test-key", b"hello")
+            .expect("operation should succeed");
+        assert!(client.exists("test-key").expect("operation should succeed"));
 
-        client.delete("test-key").unwrap();
-        assert!(!client.exists("test-key").unwrap());
+        client.delete("test-key").expect("operation should succeed");
+        assert!(!client.exists("test-key").expect("operation should succeed"));
     }
 
     #[test]
@@ -508,11 +532,13 @@ mod tests {
             ..Default::default()
         };
 
-        let client = CloudStorageFactory::create_client(&config).unwrap();
+        let client = CloudStorageFactory::create_client(&config).expect("operation should succeed");
 
         // Test that we can use the client
-        client.upload("test", b"data").unwrap();
-        let downloaded = client.download("test").unwrap();
+        client
+            .upload("test", b"data")
+            .expect("operation should succeed");
+        let downloaded = client.download("test").expect("operation should succeed");
         assert_eq!(downloaded, b"data");
     }
 
@@ -548,26 +574,32 @@ mod tests {
     #[test]
     fn test_file_upload_download() {
         let client = MockCloudStorageClient::new();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = tempfile::tempdir().expect("operation should succeed");
         let file_path = temp_dir.path().join("test.txt");
 
         // Create test file
-        fs::write(&file_path, b"test content").unwrap();
+        fs::write(&file_path, b"test content").expect("operation should succeed");
 
         // Upload file
         let url = client
-            .upload_file("test.txt", file_path.to_str().unwrap())
-            .unwrap();
+            .upload_file(
+                "test.txt",
+                file_path.to_str().expect("operation should succeed"),
+            )
+            .expect("operation should succeed");
         assert_eq!(url, "mock://bucket/test.txt");
 
         // Download file
         let download_path = temp_dir.path().join("downloaded.txt");
         client
-            .download_file("test.txt", download_path.to_str().unwrap())
-            .unwrap();
+            .download_file(
+                "test.txt",
+                download_path.to_str().expect("operation should succeed"),
+            )
+            .expect("operation should succeed");
 
         // Verify content
-        let downloaded_content = fs::read(&download_path).unwrap();
+        let downloaded_content = fs::read(&download_path).expect("operation should succeed");
         assert_eq!(downloaded_content, b"test content");
     }
 
@@ -576,11 +608,18 @@ mod tests {
         let client = MockCloudStorageClient::new();
 
         // Upload test files
-        client.upload("data/file1.txt", b"hello").unwrap();
-        client.upload("data/file2.csv", b"world").unwrap();
-        client.upload("data/file3.txt", b"test").unwrap();
+        client
+            .upload("data/file1.txt", b"hello")
+            .expect("operation should succeed");
+        client
+            .upload("data/file2.csv", b"world")
+            .expect("operation should succeed");
+        client
+            .upload("data/file3.txt", b"test")
+            .expect("operation should succeed");
 
-        let metrics = CloudStorageUtils::calculate_storage_metrics(&client, "data/").unwrap();
+        let metrics = CloudStorageUtils::calculate_storage_metrics(&client, "data/")
+            .expect("operation should succeed");
 
         assert_eq!(metrics.total_objects, 3);
         assert_eq!(metrics.total_size_bytes, 14); // 5 + 5 + 4
@@ -591,34 +630,45 @@ mod tests {
     #[test]
     fn test_batch_upload() {
         let client = MockCloudStorageClient::new();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = tempfile::tempdir().expect("operation should succeed");
 
         // Create test files
         let file1_path = temp_dir.path().join("file1.txt");
         let file2_path = temp_dir.path().join("file2.txt");
-        fs::write(&file1_path, b"content1").unwrap();
-        fs::write(&file2_path, b"content2").unwrap();
+        fs::write(&file1_path, b"content1").expect("operation should succeed");
+        fs::write(&file2_path, b"content2").expect("operation should succeed");
 
         let files = vec![
             (
-                file1_path.to_str().unwrap().to_string(),
+                file1_path
+                    .to_str()
+                    .expect("operation should succeed")
+                    .to_string(),
                 "batch/file1.txt".to_string(),
             ),
             (
-                file2_path.to_str().unwrap().to_string(),
+                file2_path
+                    .to_str()
+                    .expect("operation should succeed")
+                    .to_string(),
                 "batch/file2.txt".to_string(),
             ),
         ];
 
-        let results = CloudStorageUtils::batch_upload(&client, &files).unwrap();
+        let results =
+            CloudStorageUtils::batch_upload(&client, &files).expect("operation should succeed");
 
         assert_eq!(results.len(), 2);
         assert_eq!(results[0], "mock://bucket/batch/file1.txt");
         assert_eq!(results[1], "mock://bucket/batch/file2.txt");
 
         // Verify uploads
-        let content1 = client.download("batch/file1.txt").unwrap();
-        let content2 = client.download("batch/file2.txt").unwrap();
+        let content1 = client
+            .download("batch/file1.txt")
+            .expect("operation should succeed");
+        let content2 = client
+            .download("batch/file2.txt")
+            .expect("operation should succeed");
         assert_eq!(content1, b"content1");
         assert_eq!(content2, b"content2");
     }

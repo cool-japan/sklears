@@ -589,7 +589,7 @@ pub fn quantile_simd(data: &mut [f32], quantile: f32) -> f32 {
     assert!(!data.is_empty(), "Data cannot be empty");
 
     // Sort the data first
-    data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     if quantile == 0.0 {
         return data[0];

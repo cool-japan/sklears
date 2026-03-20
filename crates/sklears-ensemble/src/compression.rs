@@ -381,7 +381,7 @@ impl EnsembleCompressor {
         }
 
         // Sort by performance and keep top models
-        model_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        model_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_indices: Vec<usize> = model_scores
             .into_iter()
@@ -806,7 +806,7 @@ impl EnsemblePruner {
         }
 
         // Sort by performance
-        model_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        model_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Select top performers that meet diversity criteria
         let mut selected = Vec::new();
@@ -967,7 +967,7 @@ impl BayesianEnsembleOptimizer {
         }
 
         // Sort by performance and take top ensemble_size models
-        model_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        model_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         let selected_models: Vec<&T> = model_scores
             .iter()
             .take(ensemble_size)
@@ -1175,7 +1175,7 @@ impl SimpleGaussianProcess {
             }
 
             if !distances.is_empty() {
-                distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 self.length_scale = distances[distances.len() / 2].max(0.1);
             }
 
@@ -1305,7 +1305,9 @@ mod tests {
         let y_val = Array1::zeros(10);
 
         let mut compressor = EnsembleCompressor::ensemble_pruning(0.5, 0.9);
-        let compressed = compressor.compress(&ensemble, &x_val, &y_val).unwrap();
+        let compressed = compressor
+            .compress(&ensemble, &x_val, &y_val)
+            .expect("operation should succeed");
 
         assert_eq!(compressed.models.len(), 2); // 50% compression
         assert_eq!(
@@ -1323,7 +1325,9 @@ mod tests {
         let x_val = Array2::zeros((10, 5));
         let y_val = Array1::zeros(10);
 
-        let compressed = compressor.compress(&ensemble, &x_val, &y_val).unwrap();
+        let compressed = compressor
+            .compress(&ensemble, &x_val, &y_val)
+            .expect("operation should succeed");
 
         assert_eq!(compressed.models.len(), 1);
         assert_eq!(
@@ -1405,7 +1409,7 @@ mod tests {
         let mut optimizer = BayesianEnsembleOptimizer::new(config, 42);
         let optimal_size = optimizer
             .optimize_ensemble_size(&ensemble, &x_val, &y_val)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should find some reasonable ensemble size
         assert!(optimal_size >= 1);
@@ -1429,7 +1433,9 @@ mod tests {
         let y_val = Array1::zeros(15);
 
         let mut compressor = EnsembleCompressor::bayesian_optimization(0.6, 8, Some(123));
-        let compressed = compressor.compress(&ensemble, &x_val, &y_val).unwrap();
+        let compressed = compressor
+            .compress(&ensemble, &x_val, &y_val)
+            .expect("operation should succeed");
 
         assert_eq!(
             compressed.metadata.strategy,
@@ -1439,7 +1445,7 @@ mod tests {
         assert!(compressed.models.len() >= 1);
 
         // Should have compression statistics
-        let stats = compressor.stats().unwrap();
+        let stats = compressor.stats().expect("operation should succeed");
         assert!(stats.compression_ratio >= 0.0);
         assert!(stats.compression_ratio <= 1.0);
     }
@@ -1449,18 +1455,21 @@ mod tests {
         let mut gp = SimpleGaussianProcess::new(0.01);
 
         // Test with no training data
-        let x_test = Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).unwrap();
-        let (mean, std) = gp.predict(&x_test).unwrap();
+        let x_test = Array2::from_shape_vec((2, 1), vec![1.0, 2.0])
+            .expect("shape and data length should match");
+        let (mean, std) = gp.predict(&x_test).expect("prediction should succeed");
         assert_eq!(mean.len(), 2);
         assert_eq!(std.len(), 2);
 
         // Train with some data
-        let x_train = Array2::from_shape_vec((3, 1), vec![0.0, 1.0, 2.0]).unwrap();
+        let x_train = Array2::from_shape_vec((3, 1), vec![0.0, 1.0, 2.0])
+            .expect("shape and data length should match");
         let y_train = Array1::from_vec(vec![0.0, 1.0, 4.0]);
-        gp.fit(&x_train, &y_train).unwrap();
+        gp.fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         // Test prediction
-        let (mean, std) = gp.predict(&x_test).unwrap();
+        let (mean, std) = gp.predict(&x_test).expect("prediction should succeed");
         assert_eq!(mean.len(), 2);
         assert_eq!(std.len(), 2);
 
@@ -1490,9 +1499,14 @@ mod tests {
         optimizer.update_best(3, 0.8);
 
         // Test acquisition function computation
-        optimizer.fit_surrogate_model().unwrap();
-        let x_test = Array2::from_shape_vec((1, 1), vec![4.0]).unwrap();
-        let acquisition = optimizer.compute_acquisition(&x_test).unwrap();
+        optimizer
+            .fit_surrogate_model()
+            .expect("operation should succeed");
+        let x_test =
+            Array2::from_shape_vec((1, 1), vec![4.0]).expect("shape and data length should match");
+        let acquisition = optimizer
+            .compute_acquisition(&x_test)
+            .expect("operation should succeed");
 
         // Should be finite
         assert!(acquisition.is_finite());

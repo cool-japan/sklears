@@ -170,7 +170,7 @@ impl AdversarialGraphLearning {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             for &(neighbor, dist) in distances.iter().take(self.k_neighbors) {
                 let weight = (-dist / (2.0 * self.max_perturbation.powi(2))).exp();
                 adjacency[[i, neighbor]] = weight;
@@ -217,7 +217,7 @@ impl AdversarialGraphLearning {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             for &(neighbor, dist) in distances.iter().take(self.k_neighbors) {
                 let weight = (-dist).exp();
                 adjacency[[i, neighbor]] = weight;
@@ -433,7 +433,7 @@ impl AdversarialGraphLearning {
 
         for j in 0..n_features {
             let mut column: Vec<f64> = features.column(j).to_vec();
-            column.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            column.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let median_idx = column.len() / 2;
             robust_mean[j] = if column.len() % 2 == 0 {
@@ -462,7 +462,7 @@ impl AdversarialGraphLearning {
                 .map(|&x| (x - robust_mean[j]).abs())
                 .collect();
 
-            deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let mad = deviations[deviations.len() / 2] * 1.4826; // Scale factor for normal distribution
 
             robust_cov[[j, j]] = mad * mad;
@@ -526,7 +526,7 @@ impl AdversarialGraphLearning {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             for &(neighbor, dist) in distances.iter().take(self.k_neighbors) {
                 let weight = (-dist).exp();
                 adjacency[[i, neighbor]] = weight;
@@ -614,7 +614,7 @@ mod tests {
         let result = agl.fit_robust(features.view(), None);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
 
         // Check that diagonal is zero
@@ -636,7 +636,7 @@ mod tests {
         let result = agl.fit_robust(features.view(), None);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
     }
 
@@ -656,7 +656,7 @@ mod tests {
         let result = agl.apply_attack(features.view(), &attack);
         assert!(result.is_ok());
 
-        let attacked_features = result.unwrap();
+        let attacked_features = result.expect("operation should succeed");
         assert_eq!(attacked_features.dim(), features.dim());
 
         // Check that features have been perturbed
@@ -703,7 +703,9 @@ mod tests {
             [100.0, 200.0] // Outlier
         ];
 
-        let robust_mean = agl.compute_robust_mean(features.view()).unwrap();
+        let robust_mean = agl
+            .compute_robust_mean(features.view())
+            .expect("operation should succeed");
 
         // Robust mean should be closer to median than arithmetic mean
         assert!(robust_mean[0] < 10.0); // Should not be heavily influenced by outlier
@@ -720,7 +722,7 @@ mod tests {
 
         let robustness = agl
             .evaluate_robustness(&original_graph, &attacked_graph)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(robustness > 0.0);
         assert!(robustness < 1.0);
     }
@@ -737,7 +739,7 @@ mod tests {
         let result = agl.fit_robust(features.view(), None);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
     }
 

@@ -411,7 +411,9 @@ mod tests {
 
         let documents = vec!["I am happy!".to_string(), "This is sad.".to_string()];
 
-        let features = union.extract_union(&documents).unwrap();
+        let features = union
+            .extract_union(&documents)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 2);
         assert_eq!(features.ncols(), 14 + 14); // emotion (14) + emotion (14)
@@ -435,7 +437,9 @@ mod tests {
 
         let documents = vec!["I am happy!".to_string()];
 
-        let features = union.extract_union(&documents).unwrap();
+        let features = union
+            .extract_union(&documents)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 1);
         assert_eq!(features.ncols(), 14 + 14);
@@ -447,10 +451,12 @@ mod tests {
             (2, 5),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let selector = IndexFeatureSelector::new(vec![0, 2, 4]);
-        let selected = selector.select_features(&features).unwrap();
+        let selected = selector
+            .select_features(&features)
+            .expect("operation should succeed");
 
         assert_eq!(selected.nrows(), 2);
         assert_eq!(selected.ncols(), 3);

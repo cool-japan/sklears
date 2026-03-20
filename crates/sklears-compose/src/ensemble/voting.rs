@@ -172,7 +172,7 @@ impl Fit<ArrayView2<'_, Float>, Option<&ArrayView1<'_, Float>>> for VotingClassi
 
             // Extract unique classes
             let mut classes: Vec<f64> = y_values.to_vec();
-            classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             classes.dedup();
             let classes = Array1::from(classes);
 

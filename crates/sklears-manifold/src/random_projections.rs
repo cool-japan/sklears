@@ -5,7 +5,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
 use sklears_core::{
@@ -346,7 +346,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for FastJohnsonLindenstrauss<Untrained> {
         // Create random diagonal matrix with +1 or -1 entries
         let mut diagonal_matrix = Array1::zeros(padded_size);
         for elem in diagonal_matrix.iter_mut() {
-            *elem = if rng.gen::<bool>() { 1.0 } else { -1.0 };
+            *elem = if rng.random::<bool>() { 1.0 } else { -1.0 };
         }
 
         // Scaling factor for distance preservation
@@ -549,7 +549,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for RandomProjection<Untrained> {
             let prob_negative = 1.0 / (2.0 * s);
 
             for elem in projection_matrix.iter_mut() {
-                let rand_val: f64 = rng.gen();
+                let rand_val: f64 = rng.random();
                 if rand_val < prob_positive {
                     *elem = s.sqrt();
                 } else if rand_val < prob_positive + prob_negative {
@@ -721,7 +721,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseRandomProjection<Untrained> {
         let prob_zero = 1.0 - prob_positive - prob_negative;
 
         for elem in projection_matrix.iter_mut() {
-            let rand_val: f64 = rng.gen();
+            let rand_val: f64 = rng.random();
             if rand_val < prob_positive {
                 *elem = s.sqrt();
             } else if rand_val < prob_positive + prob_negative {

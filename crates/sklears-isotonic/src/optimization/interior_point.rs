@@ -415,7 +415,9 @@ mod tests {
         let weights = Array1::ones(4);
         let regressor = InteriorPointIsotonicRegressor::new().increasing(true);
 
-        let feasible_point = regressor.initialize_feasible_point(&y, &weights).unwrap();
+        let feasible_point = regressor
+            .initialize_feasible_point(&y, &weights)
+            .expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..feasible_point.len() {
@@ -458,7 +460,7 @@ mod tests {
         let result = regressor.compute_barrier_derivatives(&x, &y, &weights, mu);
         assert!(result.is_ok());
 
-        let (gradient, hessian) = result.unwrap();
+        let (gradient, hessian) = result.expect("operation should succeed");
         assert_eq!(gradient.len(), 3);
         assert_eq!(hessian.shape(), &[3, 3]);
     }
@@ -469,7 +471,7 @@ mod tests {
         let result = isotonic_regression_interior_point(&y, None, true);
 
         assert!(result.is_ok());
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..solution.len() {
@@ -484,7 +486,7 @@ mod tests {
         let result = regressor.solve(&y, None);
 
         assert!(result.is_ok());
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
 
         // Check decreasing monotonicity
         for i in 1..solution.len() {
@@ -501,7 +503,7 @@ mod tests {
         let result = regressor.solve_newton_system(&hessian, &gradient);
         assert!(result.is_ok());
 
-        let delta = result.unwrap();
+        let delta = result.expect("operation should succeed");
         assert_eq!(delta.len(), 2);
     }
 }

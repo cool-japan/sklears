@@ -569,15 +569,15 @@ impl PatternCoordinationManager {
         }
 
         let session_id = format!("{}_session_{}", self.coordinator_id, Instant::now().elapsed().as_nanos());
-        *self.session_start_time.write().unwrap() = Some(Instant::now());
+        *self.session_start_time.write().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
 
         // Initialize all subsystem sessions
-        self.coordination_engine.write().unwrap().initialize_session(&session_id)?;
-        self.pattern_execution.write().unwrap().initialize_session(&session_id)?;
-        self.optimization_engine.write().unwrap().initialize_session(&session_id)?;
-        self.prediction_models.write().unwrap().initialize_session(&session_id)?;
-        self.knowledge_management.write().unwrap().initialize_session(&session_id)?;
-        self.communication_system.write().unwrap().initialize_session(&session_id)?;
+        self.coordination_engine.write().unwrap_or_else(|e| e.into_inner()).initialize_session(&session_id)?;
+        self.pattern_execution.write().unwrap_or_else(|e| e.into_inner()).initialize_session(&session_id)?;
+        self.optimization_engine.write().unwrap_or_else(|e| e.into_inner()).initialize_session(&session_id)?;
+        self.prediction_models.write().unwrap_or_else(|e| e.into_inner()).initialize_session(&session_id)?;
+        self.knowledge_management.write().unwrap_or_else(|e| e.into_inner()).initialize_session(&session_id)?;
+        self.communication_system.write().unwrap_or_else(|e| e.into_inner()).initialize_session(&session_id)?;
 
         Ok(session_id)
     }
@@ -620,13 +620,13 @@ impl PatternCoordinationManager {
         };
 
         // Register active coordination
-        self.active_coordinations.write().unwrap().insert(coordination_id.clone(), coordination_session);
+        self.active_coordinations.write().unwrap_or_else(|e| e.into_inner()).insert(coordination_id.clone(), coordination_session);
 
         // Phase 1: Analysis and Planning
         let analysis_result = self.analyze_coordination_requirements(pattern_ids, context).await?;
 
         // Phase 2: Conflict Detection and Resolution
-        let conflicts = self.coordination_engine.read().unwrap().detect_conflicts(pattern_ids)?;
+        let conflicts = self.coordination_engine.read().unwrap_or_else(|e| e.into_inner()).detect_conflicts(pattern_ids)?;
         let resolution_results = if !conflicts.is_empty() {
             self.resolve_conflicts_comprehensive(&conflicts, context).await?
         } else {
@@ -634,23 +634,23 @@ impl PatternCoordinationManager {
         };
 
         // Phase 3: Resource Optimization
-        let optimization_result = self.optimization_engine.read().unwrap().optimize_coordination(&analysis_result)?;
+        let optimization_result = self.optimization_engine.read().unwrap_or_else(|e| e.into_inner()).optimize_coordination(&analysis_result)?;
 
         // Phase 4: Predictive Planning
-        let prediction_result = self.prediction_models.read().unwrap().predict_coordination_outcome(&analysis_result)?;
+        let prediction_result = self.prediction_models.read().unwrap_or_else(|e| e.into_inner()).predict_coordination_outcome(&analysis_result)?;
 
         // Phase 5: Execution Orchestration
         let execution_result = self.execute_coordinated_patterns(pattern_ids, context, &optimization_result).await?;
 
         // Phase 6: Knowledge Capture
-        self.knowledge_management.write().unwrap().capture_coordination_experience(
+        self.knowledge_management.write().unwrap_or_else(|e| e.into_inner()).capture_coordination_experience(
             &coordination_id,
             &execution_result,
             &analysis_result
         )?;
 
         // Update coordination session
-        let mut session = self.active_coordinations.write().unwrap()
+        let mut session = self.active_coordinations.write().unwrap_or_else(|e| e.into_inner())
             .get_mut(&coordination_id)
             .ok_or("Coordination session not found")?
             .clone();
@@ -689,10 +689,10 @@ impl PatternCoordinationManager {
         context: &ExecutionContext,
     ) -> SklResult<CoordinationAnalysisResult> {
         // Comprehensive analysis combining all engines
-        let engine_analysis = self.coordination_engine.read().unwrap().analyze_patterns(pattern_ids)?;
-        let resource_analysis = self.optimization_engine.read().unwrap().analyze_resource_requirements(pattern_ids)?;
-        let performance_prediction = self.prediction_models.read().unwrap().predict_performance(pattern_ids)?;
-        let historical_insights = self.knowledge_management.read().unwrap().get_coordination_insights(pattern_ids)?;
+        let engine_analysis = self.coordination_engine.read().unwrap_or_else(|e| e.into_inner()).analyze_patterns(pattern_ids)?;
+        let resource_analysis = self.optimization_engine.read().unwrap_or_else(|e| e.into_inner()).analyze_resource_requirements(pattern_ids)?;
+        let performance_prediction = self.prediction_models.read().unwrap_or_else(|e| e.into_inner()).predict_performance(pattern_ids)?;
+        let historical_insights = self.knowledge_management.read().unwrap_or_else(|e| e.into_inner()).get_coordination_insights(pattern_ids)?;
 
         Ok(CoordinationAnalysisResult {
             pattern_compatibility: engine_analysis.compatibility_score,
@@ -723,7 +723,7 @@ impl PatternCoordinationManager {
                 stakeholder_priorities: HashMap::new(),
             };
 
-            let resolution = self.coordination_engine.read().unwrap()
+            let resolution = self.coordination_engine.read().unwrap_or_else(|e| e.into_inner())
                 .resolve_conflict(conflict, &resolution_context)?;
 
             resolutions.push(resolution);
@@ -751,7 +751,7 @@ impl PatternCoordinationManager {
         };
 
         // Execute through orchestrator
-        self.pattern_execution.read().unwrap().orchestrate(&execution_plan)
+        self.pattern_execution.read().unwrap_or_else(|e| e.into_inner()).orchestrate(&execution_plan)
     }
 
     /// Shutdown coordination session
@@ -761,15 +761,15 @@ impl PatternCoordinationManager {
         }
 
         // Shutdown all subsystem sessions
-        self.coordination_engine.write().unwrap().shutdown_session()?;
-        self.pattern_execution.write().unwrap().shutdown_session()?;
-        self.optimization_engine.write().unwrap().shutdown_session()?;
-        self.prediction_models.write().unwrap().shutdown_session()?;
-        self.knowledge_management.write().unwrap().shutdown_session()?;
-        self.communication_system.write().unwrap().shutdown_session()?;
+        self.coordination_engine.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
+        self.pattern_execution.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
+        self.optimization_engine.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
+        self.prediction_models.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
+        self.knowledge_management.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
+        self.communication_system.write().unwrap_or_else(|e| e.into_inner()).shutdown_session()?;
 
         // Clear session state
-        *self.session_start_time.write().unwrap() = None;
+        *self.session_start_time.write().unwrap_or_else(|e| e.into_inner()) = None;
         self.is_coordinating.store(false, Ordering::SeqCst);
 
         Ok(())
@@ -777,9 +777,9 @@ impl PatternCoordinationManager {
 
     /// Get comprehensive coordination health status
     pub async fn get_coordination_health(&self) -> SklResult<CoordinationHealthStatus> {
-        let health_monitor = self.health_monitor.read().unwrap();
-        let coordination_state = self.coordination_state.lock().unwrap();
-        let active_count = self.active_coordinations.read().unwrap().len();
+        let health_monitor = self.health_monitor.read().unwrap_or_else(|e| e.into_inner());
+        let coordination_state = self.coordination_state.lock().unwrap_or_else(|e| e.into_inner());
+        let active_count = self.active_coordinations.read().unwrap_or_else(|e| e.into_inner()).len();
 
         Ok(CoordinationHealthStatus {
             overall_health: health_monitor.overall_health,
@@ -795,13 +795,13 @@ impl PatternCoordinationManager {
 
     /// Get current performance metrics
     async fn get_current_performance_metrics(&self) -> SklResult<CoordinationPerformanceMetrics> {
-        let metrics_collector = self.coordination_metrics.lock().unwrap();
+        let metrics_collector = self.coordination_metrics.lock().unwrap_or_else(|e| e.into_inner());
         Ok(metrics_collector.metrics.performance_metrics.clone())
     }
 
     /// Get coordination uptime
     fn get_coordination_uptime(&self) -> Duration {
-        if let Some(start_time) = *self.session_start_time.read().unwrap() {
+        if let Some(start_time) = *self.session_start_time.read().unwrap_or_else(|e| e.into_inner()) {
             start_time.elapsed()
         } else {
             Duration::ZERO
@@ -932,18 +932,18 @@ impl PatternCoordinator for PatternCoordinationManager {
         };
 
         if let Some(conflict) = conflicts.first() {
-            self.coordination_engine.read().unwrap().resolve_conflict(conflict, &context)
+            self.coordination_engine.read().unwrap_or_else(|e| e.into_inner()).resolve_conflict(conflict, &context)
         } else {
             Err("No conflicts to resolve".into())
         }
     }
 
     fn create_execution_plan(&self, patterns: &[PatternExecutionRequest]) -> SklResult<ExecutionPlan> {
-        self.coordination_engine.read().unwrap().create_execution_plan(patterns)
+        self.coordination_engine.read().unwrap_or_else(|e| e.into_inner()).create_execution_plan(patterns)
     }
 
     fn monitor_coordination(&self, coordination_id: &str) -> SklResult<CoordinationStatus> {
-        if let Some(coordination) = self.active_coordinations.read().unwrap().get(coordination_id) {
+        if let Some(coordination) = self.active_coordinations.read().unwrap_or_else(|e| e.into_inner()).get(coordination_id) {
             Ok(coordination.coordination_status.clone())
         } else {
             Err(format!("Coordination {} not found", coordination_id).into())
@@ -951,7 +951,7 @@ impl PatternCoordinator for PatternCoordinationManager {
     }
 
     fn cancel_coordination(&self, coordination_id: &str) -> SklResult<()> {
-        if let Some(mut coordination) = self.active_coordinations.write().unwrap().get_mut(coordination_id) {
+        if let Some(mut coordination) = self.active_coordinations.write().unwrap_or_else(|e| e.into_inner()).get_mut(coordination_id) {
             coordination.coordination_status = CoordinationStatus::Cancelled;
             Ok(())
         } else {
@@ -960,15 +960,15 @@ impl PatternCoordinator for PatternCoordinationManager {
     }
 
     fn get_coordination_metrics(&self) -> SklResult<CoordinationMetrics> {
-        Ok(self.coordination_metrics.lock().unwrap().metrics.clone())
+        Ok(self.coordination_metrics.lock().unwrap_or_else(|e| e.into_inner()).metrics.clone())
     }
 
     fn register_coordination_policy(&mut self, policy: CoordinationPolicy) -> SklResult<String> {
-        self.coordination_engine.write().unwrap().register_policy(policy)
+        self.coordination_engine.write().unwrap_or_else(|e| e.into_inner()).register_policy(policy)
     }
 
     fn update_pattern_priorities(&mut self, priorities: HashMap<String, PatternPriority>) -> SklResult<()> {
-        self.coordination_engine.write().unwrap().update_priorities(priorities)
+        self.coordination_engine.write().unwrap_or_else(|e| e.into_inner()).update_priorities(priorities)
     }
 }
 

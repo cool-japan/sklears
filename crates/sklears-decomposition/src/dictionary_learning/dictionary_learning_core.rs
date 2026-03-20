@@ -4,7 +4,7 @@
 //! that comply with SciRS2 Policy for matrix decomposition algorithms.
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::{
@@ -127,7 +127,7 @@ impl Fit<Array2<Float>, ()> for DictionaryLearning<Untrained> {
 
         for i in 0..self.config.n_components {
             for j in 0..n_features {
-                components[[i, j]] = rng.gen::<Float>() - 0.5;
+                components[[i, j]] = rng.random::<Float>() - 0.5;
             }
         }
 
@@ -371,7 +371,7 @@ mod tests {
                 4.1, 5.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Create and fit dictionary learning model
         let config = DictionaryLearningConfig {
@@ -384,10 +384,12 @@ mod tests {
         };
 
         let model = DictionaryLearning::new(config);
-        let fitted_model = model.fit(&x, &()).unwrap();
+        let fitted_model = model.fit(&x, &()).expect("model fitting should succeed");
 
         // Test transform
-        let codes = fitted_model.transform(&x).unwrap();
+        let codes = fitted_model
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Check dimensions
         assert_eq!(codes.nrows(), 10); // n_samples
@@ -401,15 +403,19 @@ mod tests {
     #[test]
     fn test_dictionary_learning_dimension_validation() {
         // Create a simple dataset
-        let x_train = Array2::from_shape_vec((5, 3), vec![1.0; 15]).unwrap();
-        let x_test = Array2::from_shape_vec((3, 4), vec![1.0; 12]).unwrap();
+        let x_train = Array2::from_shape_vec((5, 3), vec![1.0; 15])
+            .expect("shape and data length should match");
+        let x_test = Array2::from_shape_vec((3, 4), vec![1.0; 12])
+            .expect("shape and data length should match");
 
         let config = DictionaryLearningConfig {
             n_components: 2, // Less than n_features (3)
             ..Default::default()
         };
         let model = DictionaryLearning::new(config);
-        let fitted_model = model.fit(&x_train, &()).unwrap();
+        let fitted_model = model
+            .fit(&x_train, &())
+            .expect("model fitting should succeed");
 
         // Should fail due to dimension mismatch (x_test has 4 features, but model expects 3)
         let result = fitted_model.transform(&x_test);
@@ -455,7 +461,7 @@ mod tests {
                 2.0, 4.0, 3.0, 3.0, 4.0, 2.0, 3.0, 3.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Configure dictionary learning with reasonable parameters
         let config = DictionaryLearningConfig {
@@ -468,7 +474,7 @@ mod tests {
         };
 
         let model = DictionaryLearning::new(config);
-        let fitted_model = model.fit(&x, &()).unwrap();
+        let fitted_model = model.fit(&x, &()).expect("model fitting should succeed");
 
         // Check that dictionary was learned
         let components = fitted_model.components();
@@ -490,7 +496,9 @@ mod tests {
         }
 
         // Check that transform produces reasonable sparse codes
-        let codes = fitted_model.transform(&x).unwrap();
+        let codes = fitted_model
+            .transform(&x)
+            .expect("transformation should succeed");
         assert_eq!(codes.nrows(), 20);
         assert_eq!(codes.ncols(), 4);
 

@@ -299,7 +299,9 @@ impl MultiTaskKernelRidgeRegression<Untrained> {
         match &self.task_regularization {
             TaskRegularization::L2 { beta } => {
                 // Apply additional regularization penalty
-                let mean_weight = all_weights.mean_axis(Axis(1)).unwrap();
+                let mean_weight = all_weights
+                    .mean_axis(Axis(1))
+                    .expect("operation should succeed");
                 for mut col in all_weights.axis_iter_mut(Axis(1)) {
                     let diff = &col.to_owned() - &mean_weight;
                     col.scaled_add(-beta, &diff);
@@ -483,15 +485,19 @@ mod tests {
         };
 
         let mtkrr = MultiTaskKernelRidgeRegression::new(approximation).alpha(0.1);
-        let fitted = mtkrr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = mtkrr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.shape(), &[4, 2]);
         assert_eq!(fitted.n_tasks(), 2);
 
         // Test individual task prediction
-        let task0_pred = fitted.predict_task(&x, 0).unwrap();
-        let task1_pred = fitted.predict_task(&x, 1).unwrap();
+        let task0_pred = fitted
+            .predict_task(&x, 0)
+            .expect("operation should succeed");
+        let task1_pred = fitted
+            .predict_task(&x, 1)
+            .expect("operation should succeed");
 
         assert_eq!(task0_pred.len(), 4);
         assert_eq!(task1_pred.len(), 4);
@@ -516,19 +522,19 @@ mod tests {
             .alpha(0.1)
             .task_regularization(TaskRegularization::L2 { beta: 0.1 });
 
-        let fitted = mtkrr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = mtkrr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.shape(), &[3, 2]);
 
         // With L2 regularization, task weights should be similar
-        let weights = fitted.weights().unwrap();
+        let weights = fitted.weights().expect("operation should succeed");
         let task0_weights = weights.column(0);
         let task1_weights = weights.column(1);
         let weight_diff = (&task0_weights - &task1_weights)
             .mapv(|x| x.abs())
             .mean()
-            .unwrap();
+            .expect("operation should succeed");
 
         // Tasks should have similar weights due to regularization
         assert!(weight_diff < 1.0);
@@ -559,8 +565,8 @@ mod tests {
                 .solver(solver)
                 .alpha(0.1);
 
-            let fitted = mtkrr.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = mtkrr.fit(&x, &y).expect("operation should succeed");
+            let predictions = fitted.predict(&x).expect("operation should succeed");
 
             assert_eq!(predictions.shape(), &[3, 2]);
         }
@@ -578,8 +584,8 @@ mod tests {
         };
 
         let mtkrr = MultiTaskKernelRidgeRegression::new(approximation).alpha(0.1);
-        let fitted = mtkrr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = mtkrr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.shape(), &[3, 1]);
         assert_eq!(fitted.n_tasks(), 1);
@@ -598,14 +604,14 @@ mod tests {
         let mtkrr1 = MultiTaskKernelRidgeRegression::new(approximation.clone())
             .alpha(0.1)
             .random_state(42);
-        let fitted1 = mtkrr1.fit(&x, &y).unwrap();
-        let pred1 = fitted1.predict(&x).unwrap();
+        let fitted1 = mtkrr1.fit(&x, &y).expect("operation should succeed");
+        let pred1 = fitted1.predict(&x).expect("operation should succeed");
 
         let mtkrr2 = MultiTaskKernelRidgeRegression::new(approximation)
             .alpha(0.1)
             .random_state(42);
-        let fitted2 = mtkrr2.fit(&x, &y).unwrap();
-        let pred2 = fitted2.predict(&x).unwrap();
+        let fitted2 = mtkrr2.fit(&x, &y).expect("operation should succeed");
+        let pred2 = fitted2.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred1.shape(), pred2.shape());
         for i in 0..pred1.nrows() {

@@ -173,7 +173,7 @@ fn demo_memory_mapped_storage() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Sample 100 first 3 features: {:?}",
-        &sample_100.as_slice().unwrap()[..3]
+        &sample_100.as_slice().expect("sampling should succeed")[..3]
     );
     println!(
         "Batch access (50 samples): {} x {}",
@@ -249,14 +249,14 @@ fn demo_zero_copy_views() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nSample data from views:");
     println!(
         "Original sample 100: {:?}",
-        &view.sample(100)?.as_slice().unwrap()[..3]
+        &view.sample(100)?.as_slice().expect("sampling should succeed")[..3]
     );
 
     if filtered.n_samples() > 10 {
         let filtered_sample = filtered.sample(10)?;
         println!(
             "Filtered sample 10: {:?}",
-            &filtered_sample.as_slice().unwrap()[..3]
+            &filtered_sample.as_slice().expect("sampling should succeed")[..3]
         );
     }
 

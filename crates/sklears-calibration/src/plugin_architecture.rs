@@ -116,7 +116,7 @@ impl PluginRegistry {
         
         // Check for name conflicts
         {
-            let plugins = self.plugins.read().unwrap();
+            let plugins = self.plugins.read()?;
             if plugins.contains_key(&plugin_name) {
                 return Err(SklearsError::InvalidInput(
                     format!("Plugin '{}' is already registered", plugin_name)
@@ -127,17 +127,17 @@ impl PluginRegistry {
         // Register dependencies
         {
             let dependencies = {
-                let plugin_guard = plugin.lock().unwrap();
+                let plugin_guard = plugin.lock()?;
                 plugin_guard.dependencies()
             };
             
-            self.dependencies.write().unwrap().insert(plugin_name.clone(), dependencies);
+            self.dependencies.write()?.insert(plugin_name.clone(), dependencies);
         }
 
         // Store plugin and metadata
         {
-            self.plugins.write().unwrap().insert(plugin_name.clone(), plugin);
-            self.metadata.write().unwrap().insert(plugin_name.clone(), metadata);
+            self.plugins.write()?.insert(plugin_name.clone(), plugin);
+            self.metadata.write()?.insert(plugin_name.clone(), metadata);
         }
 
         Ok(())
@@ -147,7 +147,7 @@ impl PluginRegistry {
     pub fn unregister_plugin(&self, name: &str) -> Result<()> {
         // Check if plugin exists
         {
-            let plugins = self.plugins.read().unwrap();
+            let plugins = self.plugins.read()?;
             if !plugins.contains_key(name) {
                 return Err(SklearsError::InvalidInput(
                     format!("Plugin '{}' is not registered", name)
@@ -157,18 +157,18 @@ impl PluginRegistry {
 
         // Cleanup plugin
         {
-            let plugins = self.plugins.read().unwrap();
+            let plugins = self.plugins.read()?;
             if let Some(plugin) = plugins.get(name) {
-                let mut plugin_guard = plugin.lock().unwrap();
+                let mut plugin_guard = plugin.lock()?;
                 plugin_guard.cleanup()?;
             }
         }
 
         // Remove from registry
         {
-            self.plugins.write().unwrap().remove(name);
-            self.metadata.write().unwrap().remove(name);
-            self.dependencies.write().unwrap().remove(name);
+            self.plugins.write()?.remove(name);
+            self.metadata.write()?.remove(name);
+            self.dependencies.write()?.remove(name);
         }
 
         Ok(())
@@ -176,13 +176,13 @@ impl PluginRegistry {
 
     /// Get available plugins
     pub fn list_plugins(&self) -> Vec<PluginMetadata> {
-        let metadata = self.metadata.read().unwrap();
+        let metadata = self.metadata.read().expect("rwlock should not be poisoned");
         metadata.values().cloned().collect()
     }
 
     /// Get plugin by name
     pub fn get_plugin(&self, name: &str) -> Option<Arc<Mutex<dyn CalibrationPlugin>>> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = self.plugins.read().expect("rwlock should not be poisoned");
         plugins.get(name).cloned()
     }
 
@@ -193,13 +193,13 @@ impl PluginRegistry {
                 format!("Plugin '{}' not found", plugin_name)
             ))?;
 
-        let plugin_guard = plugin.lock().unwrap();
+        let plugin_guard = plugin.lock()?;
         plugin_guard.create_calibrator()
     }
 
     /// Enable plugin
     pub fn enable_plugin(&self, name: &str) -> Result<()> {
-        let mut metadata = self.metadata.write().unwrap();
+        let mut metadata = self.metadata.write()?;
         if let Some(meta) = metadata.get_mut(name) {
             meta.is_enabled = true;
             Ok(())
@@ -212,7 +212,7 @@ impl PluginRegistry {
 
     /// Disable plugin
     pub fn disable_plugin(&self, name: &str) -> Result<()> {
-        let mut metadata = self.metadata.write().unwrap();
+        let mut metadata = self.metadata.write()?;
         if let Some(meta) = metadata.get_mut(name) {
             meta.is_enabled = false;
             Ok(())
@@ -225,7 +225,7 @@ impl PluginRegistry {
 
     /// Resolve plugin dependencies
     pub fn resolve_dependencies(&self, plugin_name: &str) -> Result<Vec<String>> {
-        let dependencies = self.dependencies.read().unwrap();
+        let dependencies = self.dependencies.read()?;
         let mut resolved = Vec::new();
         let mut visited = std::collections::HashSet::new();
         
@@ -267,13 +267,13 @@ impl PluginRegistry {
 
     /// Register a hook
     pub fn register_hook(&self, hook_type: HookType, hook: Arc<dyn Hook>) {
-        let mut hooks = self.hooks.write().unwrap();
+        let mut hooks = self.hooks.write().expect("rwlock should not be poisoned");
         hooks.entry(hook_type).or_insert_with(Vec::new).push(hook);
     }
 
     /// Execute hooks
     pub fn execute_hooks(&self, hook_type: HookType, context: &HookContext) -> Result<()> {
-        let hooks = self.hooks.read().unwrap();
+        let hooks = self.hooks.read()?;
         if let Some(hook_list) = hooks.get(&hook_type) {
             for hook in hook_list {
                 hook.execute(context)?;
@@ -284,19 +284,19 @@ impl PluginRegistry {
 
     /// Register custom metric
     pub fn register_metric(&self, name: String, metric: Arc<dyn CustomMetric>) {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().expect("rwlock should not be poisoned");
         metrics.insert(name, metric);
     }
 
     /// Get custom metric
     pub fn get_metric(&self, name: &str) -> Option<Arc<dyn CustomMetric>> {
-        let metrics = self.metrics.read().unwrap();
+        let metrics = self.metrics.read().expect("rwlock should not be poisoned");
         metrics.get(name).cloned()
     }
 
     /// List custom metrics
     pub fn list_metrics(&self) -> Vec<String> {
-        let metrics = self.metrics.read().unwrap();
+        let metrics = self.metrics.read().expect("rwlock should not be poisoned");
         metrics.keys().cloned().collect()
     }
 }
@@ -870,13 +870,13 @@ mod tests {
             is_enabled: true,
         };
 
-        registry.register_plugin(plugin, metadata).unwrap();
+        registry.register_plugin(plugin, metadata).expect("operation should succeed");
 
         let plugins = registry.list_plugins();
         assert_eq!(plugins.len(), 1);
         assert_eq!(plugins[0].name, "test_plugin");
 
-        let calibrator = registry.create_calibrator("test_plugin").unwrap();
+        let calibrator = registry.create_calibrator("test_plugin").expect("operation should succeed");
         assert!(calibrator.as_ref() as *const _ != std::ptr::null());
     }
 
@@ -888,7 +888,7 @@ mod tests {
         registry.register_hook(HookType::PreFit, hook);
 
         let context = HookContext::new(HookType::PreFit, "test_plugin".to_string());
-        registry.execute_hooks(HookType::PreFit, &context).unwrap();
+        registry.execute_hooks(HookType::PreFit, &context).expect("operation should succeed");
     }
 
     #[test]
@@ -901,8 +901,8 @@ mod tests {
         let predictions = Array1::from(vec![0.1, 0.7, 0.9]);
         let targets = Array1::from(vec![0, 1, 1]);
 
-        let metric = registry.get_metric("brier_score").unwrap();
-        let score = metric.compute(&predictions, &targets).unwrap();
+        let metric = registry.get_metric("brier_score").expect("operation should succeed");
+        let score = metric.compute(&predictions, &targets).expect("operation should succeed");
         assert!(score >= 0.0);
     }
 
@@ -924,8 +924,8 @@ mod tests {
         let targets = Array1::from(vec![0, 0, 1, 1]);
 
         // Fit and predict
-        pipeline.fit(&probabilities, &targets).unwrap();
-        let predictions = pipeline.predict(&probabilities).unwrap();
+        pipeline.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = pipeline.predict(&probabilities).expect("predict should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -956,13 +956,13 @@ mod tests {
 
         // Setup dependencies: A -> B -> C
         {
-            let mut deps = registry.dependencies.write().unwrap();
+            let mut deps = registry.dependencies.write().expect("rwlock should not be poisoned");
             deps.insert("A".to_string(), vec!["B".to_string()]);
             deps.insert("B".to_string(), vec!["C".to_string()]);
             deps.insert("C".to_string(), vec![]);
         }
 
-        let resolved = registry.resolve_dependencies("A").unwrap();
+        let resolved = registry.resolve_dependencies("A").expect("operation should succeed");
         assert_eq!(resolved, vec!["C", "B", "A"]);
     }
 
@@ -989,8 +989,8 @@ mod tests {
         let probabilities = Array1::from(vec![0.1, 0.3, 0.7, 0.9]);
         let targets = Array1::from(vec![0, 0, 1, 1]);
 
-        pipeline.fit(&probabilities, &targets).unwrap();
-        let predictions = pipeline.predict(&probabilities).unwrap();
+        pipeline.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = pipeline.predict(&probabilities).expect("predict should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
     }

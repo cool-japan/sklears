@@ -288,7 +288,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseFactorModel<Untrained> {
         }
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean;
 
         // Initialize factor loadings and factors
@@ -366,7 +370,8 @@ impl SparseFactorModel<Untrained> {
                     }
                 }
 
-                let uniform_factors = Uniform::new(-1.0, 1.0).unwrap();
+                let uniform_factors = Uniform::new(-1.0, 1.0)
+                    .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
                 let factors =
                     Array2::from_shape_fn((n_samples, k), |_| uniform_factors.sample(rng));
                 Ok((loadings, factors))
@@ -375,7 +380,8 @@ impl SparseFactorModel<Untrained> {
             SparseInitialization::ICA => self.initialize_ica(x, rng),
             SparseInitialization::DictionaryLearning => self.initialize_dictionary_learning(x, rng),
             SparseInitialization::SparseRandom => {
-                let uniform_small = Uniform::new(-0.1, 0.1).unwrap();
+                let uniform_small = Uniform::new(-0.1, 0.1)
+                    .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
                 let loadings =
                     Array2::from_shape_fn((n_features, k), |_| uniform_small.sample(rng));
                 let factors = Array2::from_shape_fn((n_samples, k), |_| uniform_small.sample(rng));
@@ -395,7 +401,8 @@ impl SparseFactorModel<Untrained> {
         let (n_samples, n_features) = x.dim();
         let k = self.config.n_factors;
 
-        let uniform_loadings = Uniform::new(-1.0, 1.0).unwrap();
+        let uniform_loadings =
+            Uniform::new(-1.0, 1.0).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let loadings = Array2::from_shape_fn((n_features, k), |_| uniform_loadings.sample(rng));
         let factors = x.dot(&loadings);
 

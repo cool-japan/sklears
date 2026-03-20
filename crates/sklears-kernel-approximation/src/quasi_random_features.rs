@@ -129,7 +129,7 @@ impl Fit<Array2<Float>, ()> for QuasiRandomRBFSampler<Untrained> {
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Generate quasi-random weights
@@ -437,8 +437,8 @@ mod tests {
             .sequence_type(QuasiRandomSequence::Sobol)
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 10]);
 
@@ -464,8 +464,8 @@ mod tests {
                 .sequence_type(*seq_type)
                 .random_state(42);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.shape(), &[2, 20]);
         }
@@ -485,11 +485,11 @@ mod tests {
             .sequence_type(QuasiRandomSequence::Halton)
             .random_state(123);
 
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
 
-        let features1 = fitted1.transform(&x).unwrap();
-        let features2 = fitted2.transform(&x).unwrap();
+        let features1 = fitted1.transform(&x).expect("operation should succeed");
+        let features2 = fitted2.transform(&x).expect("operation should succeed");
 
         for (f1, f2) in features1.iter().zip(features2.iter()) {
             assert_abs_diff_eq!(f1, f2, epsilon = 1e-10);
@@ -558,11 +558,11 @@ mod tests {
 
         let sampler_high = QuasiRandomRBFSampler::new(100).gamma(10.0).random_state(42);
 
-        let fitted_low = sampler_low.fit(&x, &()).unwrap();
-        let fitted_high = sampler_high.fit(&x, &()).unwrap();
+        let fitted_low = sampler_low.fit(&x, &()).expect("operation should succeed");
+        let fitted_high = sampler_high.fit(&x, &()).expect("operation should succeed");
 
-        let features_low = fitted_low.transform(&x).unwrap();
-        let features_high = fitted_high.transform(&x).unwrap();
+        let features_low = fitted_low.transform(&x).expect("operation should succeed");
+        let features_high = fitted_high.transform(&x).expect("operation should succeed");
 
         // Different gamma values should produce different features
         assert!(features_low != features_high);
@@ -579,7 +579,9 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
-        let fitted = sampler.fit(&x_train, &()).unwrap();
+        let fitted = sampler
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         assert!(fitted.transform(&x_test).is_err());
     }
 

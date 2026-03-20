@@ -412,7 +412,9 @@ impl GpuCCA {
     }
 
     fn center_data(&self, data: &Array2<f64>) -> GpuResult<Array2<f64>> {
-        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("mean_axis requires non-empty array");
         let mut centered = data.clone();
         for mut row in centered.rows_mut() {
             row -= &mean;
@@ -630,7 +632,9 @@ mod tests {
         let a = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
         let b = arr2(&[[5.0, 6.0], [7.0, 8.0]]);
 
-        let result = ops.matmul(&a, &b).unwrap();
+        let result = ops
+            .matmul(&a, &b)
+            .expect("matrix multiplication should succeed");
 
         // Check result dimensions
         assert_eq!(result.dim(), (2, 2));
@@ -653,7 +657,9 @@ mod tests {
         let a_batch = vec![a1, a2];
         let b_batch = vec![b1, b2];
 
-        let results = ops.batch_matmul(&a_batch, &b_batch).unwrap();
+        let results = ops
+            .batch_matmul(&a_batch, &b_batch)
+            .expect("matrix multiplication should succeed");
 
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].dim(), (2, 2));
@@ -671,14 +677,14 @@ mod tests {
         let cca = GpuCCA::new(2);
         let x = Array2::from_shape_simple_fn((100, 5), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_simple_fn((100, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
-        let fitted = cca.fit(&x, &y).unwrap();
+        let fitted = cca.fit(&x, &y).expect("fit should succeed");
 
         // Check output dimensions
         assert_eq!(fitted.x_weights.dim(), (5, 2));
@@ -691,25 +697,27 @@ mod tests {
         let cca = GpuCCA::new(1);
         let x_train = Array2::from_shape_simple_fn((50, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_train = Array2::from_shape_simple_fn((50, 2), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
-        let fitted = cca.fit(&x_train, &y_train).unwrap();
+        let fitted = cca.fit(&x_train, &y_train).expect("fit should succeed");
 
         let x_test = Array2::from_shape_simple_fn((10, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_test = Array2::from_shape_simple_fn((10, 2), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
-        let (x_transformed, y_transformed) = fitted.transform(&x_test, &y_test).unwrap();
+        let (x_transformed, y_transformed) = fitted
+            .transform(&x_test, &y_test)
+            .expect("transform should succeed");
 
         // Check output dimensions
         assert_eq!(x_transformed.dim(), (10, 1));

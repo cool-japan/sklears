@@ -294,8 +294,14 @@ impl SparseIsotonicRegression<Untrained> {
 
 impl Predict<Array1<Float>, Array1<Float>> for SparseIsotonicRegression<Trained> {
     fn predict(&self, x: &Array1<Float>) -> Result<Array1<Float>> {
-        let sparse_indices = self.sparse_indices_.as_ref().unwrap();
-        let sparse_values = self.sparse_values_.as_ref().unwrap();
+        let sparse_indices = self
+            .sparse_indices_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let sparse_values = self
+            .sparse_values_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if sparse_indices.is_empty() {
             return Ok(Array1::zeros(x.len()));
@@ -357,8 +363,14 @@ impl SparseIsotonicRegression<Trained> {
         x: &Array1<Float>,
         interpolation_method: &str,
     ) -> Result<Array1<Float>> {
-        let sparse_indices = self.sparse_indices_.as_ref().unwrap();
-        let sparse_values = self.sparse_values_.as_ref().unwrap();
+        let sparse_indices = self
+            .sparse_indices_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let sparse_values = self
+            .sparse_values_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if sparse_indices.is_empty() {
             return Ok(Array1::zeros(x.len()));
@@ -470,7 +482,7 @@ mod tests {
             .increasing(true)
             .sparsity_threshold(1e-3);
 
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that only non-zero elements were stored
         assert!(fitted.nnz() < x.len());
@@ -483,8 +495,8 @@ mod tests {
         let y = array![0.0, 0.0, 0.0];
         let regressor = SparseIsotonicRegression::new();
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(fitted.nnz(), 0);
         assert_eq!(predictions, array![0.0, 0.0, 0.0]);
@@ -496,9 +508,9 @@ mod tests {
         let y = array![0.0, 1.0, 0.0, 4.0, 0.0];
         let regressor = SparseIsotonicRegression::new().increasing(true);
 
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
         let x_test = array![0.0, 1.5, 3.0];
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(predictions[0], 0.0); // Zero input should give zero output
@@ -511,7 +523,9 @@ mod tests {
         let weights = array![1.0, 10.0, 1.0, 1.0]; // High weight on second point
 
         let regressor = SparseIsotonicRegression::new().increasing(true);
-        let fitted = regressor.fit_weighted(&x, &y, Some(&weights)).unwrap();
+        let fitted = regressor
+            .fit_weighted(&x, &y, Some(&weights))
+            .expect("operation should succeed");
 
         assert!(fitted.nnz() > 0);
     }
@@ -524,8 +538,8 @@ mod tests {
             .increasing(true)
             .y_bounds(Some(1.0), Some(2.0));
 
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // All predictions should be within bounds
         for &pred in predictions.iter() {
@@ -540,7 +554,7 @@ mod tests {
         let y = array![0.0, 1.0, 0.0, 2.0, 0.0, 3.0];
         let regressor = SparseIsotonicRegression::new();
 
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
 
         let sparsity_ratio = fitted.sparsity_ratio(x.len());
         let memory_reduction = fitted.memory_reduction_factor(x.len());
@@ -555,18 +569,18 @@ mod tests {
         let y = array![1.0, 2.0, 3.0];
         let regressor = SparseIsotonicRegression::new();
 
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
         let x_test = array![1.5, 2.5];
 
         let pred_nearest = fitted
             .predict_with_interpolation(&x_test, "nearest")
-            .unwrap();
+            .expect("operation should succeed");
         let pred_linear = fitted
             .predict_with_interpolation(&x_test, "linear")
-            .unwrap();
+            .expect("operation should succeed");
         let pred_constant = fitted
             .predict_with_interpolation(&x_test, "constant")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(pred_nearest.len(), 2);
         assert_eq!(pred_linear.len(), 2);
@@ -582,7 +596,7 @@ mod tests {
         let y = array![1.0, 2.0];
         let regressor = SparseIsotonicRegression::new();
 
-        let fitted = regressor.fit(&x, &y).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
         let result = fitted.predict_with_interpolation(&x, "invalid_method");
 
         assert!(result.is_err());
@@ -596,7 +610,7 @@ mod tests {
         let result = sparse_isotonic_regression(&x, &y, true, Some(1e-8));
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 

@@ -52,7 +52,7 @@ impl DataEnrichmentEngine {
 
         // Update performance metrics
         {
-            let mut monitor = self.performance_monitor.write().unwrap();
+            let mut monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             monitor.record_enrichment_operation(
                 strategy_id.to_string(),
                 Utc::now().signed_duration_since(start_time),
@@ -112,7 +112,7 @@ impl DataEnrichmentEngine {
 
             // Check cache first
             let cached_result = {
-                let cache = self.enrichment_cache.read().unwrap();
+                let cache = self.enrichment_cache.read().unwrap_or_else(|e| e.into_inner());
                 cache.get_lookup_result(&config.lookup_service_id, &lookup_key)
             };
 
@@ -124,7 +124,7 @@ impl DataEnrichmentEngine {
 
                 // Cache result
                 {
-                    let mut cache = self.enrichment_cache.write().unwrap();
+                    let mut cache = self.enrichment_cache.write().unwrap_or_else(|e| e.into_inner());
                     cache.store_lookup_result(config.lookup_service_id.clone(), lookup_key.clone(), result.clone());
                 }
 

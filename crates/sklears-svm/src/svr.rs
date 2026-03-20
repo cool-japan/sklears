@@ -215,15 +215,21 @@ impl SVR<Trained> {
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = x.dim();
 
-        if n_features != self.n_features_in_.unwrap() {
+        if n_features
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.unwrap(),
+                expected: self
+                    .n_features_in_
+                    .expect("n_features_in_ not available - model not fitted"),
                 actual: n_features,
             });
         }
 
         let kernel_type = self.kernel_.as_ref().expect("Kernel should be available");
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel = create_kernel(kernel_type.clone())?;
         let support_vectors = self.support_vectors();
         let dual_coef = self.dual_coef();
         let intercept = self.intercept();
@@ -425,7 +431,12 @@ mod tests {
         let x = array![[1.0], [2.0], [3.0], [4.0], [5.0],];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // Linear relationship: y = 2*x
 
-        let svr = SVR::new().linear().c(1.0).epsilon(0.1).fit(&x, &y).unwrap();
+        let svr = SVR::new()
+            .linear()
+            .c(1.0)
+            .epsilon(0.1)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Check fitted attributes
         assert!(svr.support_vectors().nrows() > 0);
@@ -433,7 +444,7 @@ mod tests {
 
         // Test prediction
         let x_test = array![[3.0]];
-        let predictions = svr.predict(&x_test).unwrap();
+        let predictions = svr.predict(&x_test).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 1);
         // Note: exact prediction depends on support vector selection
@@ -449,7 +460,7 @@ mod tests {
             .c(1.0)
             .epsilon(0.1)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(svr.support_vectors().nrows() > 0);
     }
@@ -459,11 +470,15 @@ mod tests {
         let x = array![[1.0], [2.0], [3.0],];
         let y = array![1.0, 2.0, 3.0];
 
-        let epsilon_svr = EpsilonSVR::new().epsilon(0.5).c(1.0).fit(&x, &y).unwrap();
+        let epsilon_svr = EpsilonSVR::new()
+            .epsilon(0.5)
+            .c(1.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         assert!(epsilon_svr.support_vectors().nrows() > 0);
 
-        let predictions = epsilon_svr.predict(&x).unwrap();
+        let predictions = epsilon_svr.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
     }
 

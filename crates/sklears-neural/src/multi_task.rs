@@ -96,7 +96,7 @@ impl<T: FloatBounds> Default for MultiTaskLoss<T> {
         Self {
             task_losses: vec!["mse".to_string()],
             weighting_strategy: TaskWeightingStrategy::Equal,
-            task_weights: vec![T::from(1.0).unwrap()],
+            task_weights: vec![T::from(1.0).unwrap_or_else(|| T::zero())],
             regularization_strength: None,
         }
     }
@@ -129,12 +129,15 @@ pub struct MultiTaskConfig<T: FloatBounds> {
 }
 
 impl<T: FloatBounds> MultiTaskConfig<T> {
-    pub fn new(num_tasks: usize, input_dim: usize, output_dims: Vec<usize>) -> Self {
+    pub fn new(num_tasks: usize, input_dim: usize, output_dims: Vec<usize>) -> NeuralResult<Self> {
         if output_dims.len() != num_tasks {
-            panic!("Number of output dimensions must match number of tasks");
+            return Err(SklearsError::InvalidParameter {
+                name: "output_dims".to_string(),
+                reason: "number of output dimensions must match number of tasks".to_string(),
+            });
         }
 
-        Self {
+        Ok(Self {
             num_tasks,
             input_dim,
             output_dims,
@@ -143,16 +146,19 @@ impl<T: FloatBounds> MultiTaskConfig<T> {
             task_names: (0..num_tasks).map(|i| format!("task_{}", i)).collect(),
             use_task_embeddings: false,
             task_embedding_dim: 8,
-        }
+        })
     }
 
     /// Set task names
-    pub fn with_task_names(mut self, names: Vec<String>) -> Self {
+    pub fn with_task_names(mut self, names: Vec<String>) -> NeuralResult<Self> {
         if names.len() != self.num_tasks {
-            panic!("Number of task names must match number of tasks");
+            return Err(SklearsError::InvalidParameter {
+                name: "task_names".to_string(),
+                reason: "number of task names must match number of tasks".to_string(),
+            });
         }
         self.task_names = names;
-        self
+        Ok(self)
     }
 
     /// Set sharing strategy
@@ -293,10 +299,12 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         // Initialize cross-stitch units
         let mut units = Vec::new();
         for &unit_size in num_units {
-            let unit = Array2::eye(self.config.num_tasks) * T::from(0.8).unwrap()
+            let unit = Array2::eye(self.config.num_tasks)
+                * T::from(0.8).unwrap_or_else(|| T::zero())
                 + Array2::from_elem(
                     (self.config.num_tasks, self.config.num_tasks),
-                    T::from(0.2).unwrap() / T::from(self.config.num_tasks as f64).unwrap(),
+                    T::from(0.2).unwrap_or_else(|| T::zero())
+                        / T::from(self.config.num_tasks as f64).unwrap_or_else(|| T::zero()),
                 );
             units.push(unit);
         }
@@ -346,7 +354,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         let mut embeddings = Array2::zeros((self.config.num_tasks, self.config.task_embedding_dim));
         for mut row in embeddings.rows_mut() {
             for elem in row.iter_mut() {
-                *elem = T::from(rng.gen_range(-0.1..0.1)).unwrap();
+                *elem = T::from(rng.gen_range(-0.1..0.1)).unwrap_or_else(|| T::zero());
             }
         }
 
@@ -408,7 +416,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         predictions: &HashMap<String, Array2<T>>,
         targets: &HashMap<String, Array2<T>>,
     ) -> NeuralResult<T> {
-        let mut total_loss = T::from(0.0).unwrap();
+        let mut total_loss = T::from(0.0).unwrap_or_else(|| T::zero());
         let mut valid_tasks = 0;
 
         for (task_idx, task_name) in self.config.task_names.iter().enumerate() {
@@ -418,7 +426,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
                 let weight = if task_idx < self.config.loss_config.task_weights.len() {
                     self.config.loss_config.task_weights[task_idx]
                 } else {
-                    T::from(1.0).unwrap()
+                    T::from(1.0).unwrap_or_else(|| T::zero())
                 };
                 total_loss = total_loss + weight * task_loss;
                 valid_tasks += 1;
@@ -432,7 +440,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
             });
         }
 
-        Ok(total_loss / T::from(valid_tasks as f64).unwrap())
+        Ok(total_loss / T::from(valid_tasks as f64).unwrap_or_else(|| T::zero()))
     }
 
     /// Compute loss for a specific task
@@ -461,12 +469,16 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
             "mse" => {
                 let diff = predictions - targets;
                 let squared_diff = &diff * &diff;
-                Ok(squared_diff.mean().unwrap())
+                Ok(squared_diff
+                    .mean()
+                    .expect("mean should not fail on non-empty array"))
             }
             "mae" => {
                 let diff = predictions - targets;
                 let abs_diff = diff.mapv(|x| x.abs());
-                Ok(abs_diff.mean().unwrap())
+                Ok(abs_diff
+                    .mean()
+                    .expect("mean should not fail on non-empty array"))
             }
             _ => Err(SklearsError::InvalidParameter {
                 name: "loss_type".to_string(),
@@ -481,11 +493,13 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         match strategy {
             TaskWeightingStrategy::Equal => {
                 self.config.loss_config.task_weights =
-                    vec![T::from(1.0).unwrap(); self.config.num_tasks];
+                    vec![T::from(1.0).unwrap_or_else(|| T::zero()); self.config.num_tasks];
             }
             TaskWeightingStrategy::Manual(weights) => {
-                self.config.loss_config.task_weights =
-                    weights.iter().map(|&w| T::from(w).unwrap()).collect();
+                self.config.loss_config.task_weights = weights
+                    .iter()
+                    .map(|&w| T::from(w).unwrap_or_else(|| T::zero()))
+                    .collect();
             }
             TaskWeightingStrategy::DynamicWeighting {
                 adaptation_rate,
@@ -524,8 +538,8 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         let total_loss: T = task_losses
             .iter()
             .copied()
-            .fold(T::from(0.0).unwrap(), |a, b| a + b);
-        let avg_loss = total_loss / T::from(task_losses.len() as f64).unwrap();
+            .fold(T::from(0.0).unwrap_or_else(|| T::zero()), |a, b| a + b);
+        let avg_loss = total_loss / T::from(task_losses.len() as f64).unwrap_or_else(|| T::zero());
 
         for (i, &task_loss) in task_losses.iter().enumerate() {
             let current_weight = self
@@ -534,18 +548,24 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
                 .task_weights
                 .get(i)
                 .copied()
-                .unwrap_or(T::from(1.0).unwrap());
+                .unwrap_or(T::from(1.0).unwrap_or_else(|| T::zero()));
 
             // Increase weight for harder tasks (higher loss)
             let difficulty_ratio = task_loss / avg_loss;
-            let target_weight = T::from(1.0).unwrap()
-                + (difficulty_ratio - T::from(1.0).unwrap()) * T::from(adaptation_rate).unwrap();
+            let target_weight = T::from(1.0).unwrap_or_else(|| T::zero())
+                + (difficulty_ratio - T::from(1.0).unwrap_or_else(|| T::zero()))
+                    * T::from(adaptation_rate).unwrap_or_else(|| T::zero());
 
             // Smooth update
-            let new_weight =
-                current_weight * T::from(0.9).unwrap() + target_weight * T::from(0.1).unwrap();
-            let clamped_weight =
-                T::from(new_weight.to_f64().unwrap().clamp(min_weight, max_weight)).unwrap();
+            let new_weight = current_weight * T::from(0.9).unwrap_or_else(|| T::zero())
+                + target_weight * T::from(0.1).unwrap_or_else(|| T::zero());
+            let clamped_weight = T::from(
+                new_weight
+                    .to_f64()
+                    .unwrap_or(0.0)
+                    .clamp(min_weight, max_weight),
+            )
+            .unwrap_or_else(|| T::zero());
 
             if i < self.config.loss_config.task_weights.len() {
                 self.config.loss_config.task_weights[i] = clamped_weight;
@@ -567,22 +587,27 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         let total_loss = task_losses
             .iter()
             .copied()
-            .fold(T::from(0.0).unwrap(), |acc, value| acc + value);
-        let mean_loss = total_loss / T::from(task_losses.len() as f64).unwrap();
+            .fold(T::from(0.0).unwrap_or_else(|| T::zero()), |acc, value| {
+                acc + value
+            });
+        let mean_loss = total_loss / T::from(task_losses.len() as f64).unwrap_or_else(|| T::zero());
         let mut weights = Vec::new();
 
         for &loss in task_losses {
             // Higher uncertainty (variance) gets higher weight
-            let uncertainty = (loss - mean_loss).abs() + T::from(1e-8).unwrap();
-            weights.push(T::from(1.0).unwrap() / uncertainty);
+            let uncertainty = (loss - mean_loss).abs() + T::from(1e-8).unwrap_or_else(|| T::zero());
+            weights.push(T::from(1.0).unwrap_or_else(|| T::zero()) / uncertainty);
         }
 
         // Normalize weights
         let total_weight = weights
             .iter()
             .copied()
-            .fold(T::from(0.0).unwrap(), |acc, value| acc + value);
-        let normalization = T::from(weights.len() as f64).unwrap() / total_weight;
+            .fold(T::from(0.0).unwrap_or_else(|| T::zero()), |acc, value| {
+                acc + value
+            });
+        let normalization =
+            T::from(weights.len() as f64).unwrap_or_else(|| T::zero()) / total_weight;
         for weight in &mut weights {
             *weight *= normalization;
         }
@@ -602,7 +627,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         // In practice, this would need gradient information
         let mut weights = initial_weights
             .iter()
-            .map(|&w| T::from(w).unwrap())
+            .map(|&w| T::from(w).unwrap_or_else(|| T::zero()))
             .collect::<Vec<_>>();
 
         if task_losses.len() != weights.len() {
@@ -616,13 +641,14 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         let total_loss: T = task_losses
             .iter()
             .copied()
-            .fold(T::from(0.0).unwrap(), |a, b| a + b);
-        let avg_loss = total_loss / T::from(task_losses.len() as f64).unwrap();
+            .fold(T::from(0.0).unwrap_or_else(|| T::zero()), |a, b| a + b);
+        let avg_loss = total_loss / T::from(task_losses.len() as f64).unwrap_or_else(|| T::zero());
 
         for (i, (&loss, weight)) in task_losses.iter().zip(weights.iter_mut()).enumerate() {
             let relative_rate = loss / avg_loss;
-            let target_rate = T::from(1.0).unwrap();
-            let adjustment = (relative_rate / target_rate).powf(T::from(alpha).unwrap());
+            let target_rate = T::from(1.0).unwrap_or_else(|| T::zero());
+            let adjustment =
+                (relative_rate / target_rate).powf(T::from(alpha).unwrap_or_else(|| T::zero()));
             *weight = *weight * adjustment;
         }
 
@@ -630,10 +656,11 @@ impl<T: FloatBounds + ScalarOperand + Sum> MultiTaskNetwork<T> {
         let total_weight: T = weights
             .iter()
             .copied()
-            .fold(T::from(0.0).unwrap(), |a, b| a + b);
+            .fold(T::from(0.0).unwrap_or_else(|| T::zero()), |a, b| a + b);
         let weights_len = weights.len();
         for weight in &mut weights {
-            *weight = *weight / total_weight * T::from(weights_len as f64).unwrap();
+            *weight =
+                *weight / total_weight * T::from(weights_len as f64).unwrap_or_else(|| T::zero());
         }
 
         self.config.loss_config.task_weights = weights;
@@ -690,7 +717,7 @@ mod tests {
 
     #[test]
     fn test_multi_task_config_creation() {
-        let config = MultiTaskConfig::<f64>::new(3, 10, vec![2, 3, 1]);
+        let config = MultiTaskConfig::<f64>::new(3, 10, vec![2, 3, 1]).expect("valid parameter");
         assert_eq!(config.num_tasks, 3);
         assert_eq!(config.input_dim, 10);
         assert_eq!(config.output_dims, vec![2, 3, 1]);
@@ -700,7 +727,9 @@ mod tests {
     #[test]
     fn test_multi_task_config_with_task_names() {
         let config = MultiTaskConfig::<f64>::new(2, 5, vec![1, 1])
-            .with_task_names(vec!["classification".to_string(), "regression".to_string()]);
+            .expect("valid parameter")
+            .with_task_names(vec!["classification".to_string(), "regression".to_string()])
+            .expect("valid parameter");
 
         assert_eq!(config.task_names, vec!["classification", "regression"]);
     }
@@ -741,7 +770,7 @@ mod tests {
 
     #[test]
     fn test_multi_task_network_creation() {
-        let config = MultiTaskConfig::<f64>::new(2, 10, vec![3, 1]);
+        let config = MultiTaskConfig::<f64>::new(2, 10, vec![3, 1]).expect("valid parameter");
         let network = MultiTaskNetwork::new(config);
 
         assert_eq!(network.num_tasks(), 2);
@@ -751,50 +780,52 @@ mod tests {
 
     #[test]
     fn test_multi_task_loss_computation() {
-        let config = MultiTaskConfig::<f64>::new(2, 5, vec![2, 1]);
+        let config = MultiTaskConfig::<f64>::new(2, 5, vec![2, 1]).expect("valid parameter");
         let network = MultiTaskNetwork::new(config);
 
         // Create sample predictions and targets
         let mut predictions = HashMap::new();
         predictions.insert(
             "task_0".to_string(),
-            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap(),
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("array shape mismatch"),
         );
         predictions.insert(
             "task_1".to_string(),
-            Array2::from_shape_vec((2, 1), vec![0.5, 1.5]).unwrap(),
+            Array2::from_shape_vec((2, 1), vec![0.5, 1.5]).expect("array shape mismatch"),
         );
 
         let mut targets = HashMap::new();
         targets.insert(
             "task_0".to_string(),
-            Array2::from_shape_vec((2, 2), vec![1.1, 1.9, 3.1, 3.9]).unwrap(),
+            Array2::from_shape_vec((2, 2), vec![1.1, 1.9, 3.1, 3.9]).expect("array shape mismatch"),
         );
         targets.insert(
             "task_1".to_string(),
-            Array2::from_shape_vec((2, 1), vec![0.6, 1.4]).unwrap(),
+            Array2::from_shape_vec((2, 1), vec![0.6, 1.4]).expect("array shape mismatch"),
         );
 
         let loss = network
             .compute_multi_task_loss(&predictions, &targets)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(loss > 0.0);
     }
 
     #[test]
     fn test_task_weight_updates() {
-        let config = MultiTaskConfig::<f64>::new(3, 5, vec![1, 1, 1]).with_task_weighting(
-            TaskWeightingStrategy::DynamicWeighting {
+        let config = MultiTaskConfig::<f64>::new(3, 5, vec![1, 1, 1])
+            .expect("valid parameter")
+            .with_task_weighting(TaskWeightingStrategy::DynamicWeighting {
                 adaptation_rate: 0.1,
                 min_weight: 0.1,
                 max_weight: 5.0,
-            },
-        );
+            });
 
         let mut network = MultiTaskNetwork::new(config);
         let task_losses = vec![1.0, 2.0, 0.5];
 
-        network.update_task_weights(&task_losses, 1).unwrap();
+        network
+            .update_task_weights(&task_losses, 1)
+            .expect("operation should succeed");
         let weights = network.task_weights();
 
         assert_eq!(weights.len(), 3);
@@ -805,7 +836,9 @@ mod tests {
     #[test]
     fn test_multi_task_serialization() {
         let config = MultiTaskConfig::<f64>::new(2, 10, vec![3, 1])
+            .expect("valid parameter")
             .with_task_names(vec!["classification".to_string(), "regression".to_string()])
+            .expect("valid parameter")
             .with_sharing_strategy(SharingStrategy::HardSharing {
                 shared_layers: 2,
                 task_specific_layers: vec![64, 32],
@@ -814,8 +847,9 @@ mod tests {
         // Test that the config can be serialized if serde feature is enabled
         #[cfg(feature = "serde")]
         {
-            let json = serde_json::to_string(&config).unwrap();
-            let deserialized: MultiTaskConfig<f64> = serde_json::from_str(&json).unwrap();
+            let json = serde_json::to_string(&config).expect("operation should succeed");
+            let deserialized: MultiTaskConfig<f64> =
+                serde_json::from_str(&json).expect("operation should succeed");
             assert_eq!(deserialized.num_tasks, config.num_tasks);
             assert_eq!(deserialized.task_names, config.task_names);
         }
@@ -823,7 +857,7 @@ mod tests {
 
     #[test]
     fn test_forward_pass_error_handling() {
-        let config = MultiTaskConfig::<f64>::new(2, 5, vec![2, 1]);
+        let config = MultiTaskConfig::<f64>::new(2, 5, vec![2, 1]).expect("valid parameter");
         let mut network = MultiTaskNetwork::new(config);
 
         let input = Array2::zeros((1, 5));

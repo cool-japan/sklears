@@ -45,7 +45,7 @@ impl LoadBalancingAlgorithm for ResourceAwareBalancer {
                     .partial_cmp(&b.utilization.overall_utilization)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .unwrap();
+            .unwrap_or_default();
         Ok(Some(backend.id.clone()))
     }
     fn update_state(

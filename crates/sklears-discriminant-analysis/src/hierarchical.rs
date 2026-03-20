@@ -646,8 +646,8 @@ impl HierarchicalDiscriminantAnalysis {
                 class: hierarchy.classes[0],
             })
         } else {
-            let left = hierarchy.left.as_ref().unwrap();
-            let right = hierarchy.right.as_ref().unwrap();
+            let left = hierarchy.left.as_ref().expect("value not available");
+            let right = hierarchy.right.as_ref().expect("value not available");
 
             let left_classes = left.leaf_classes();
             let right_classes = right.leaf_classes();
@@ -843,8 +843,8 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1, 2, 2, 2];
 
         let hda = HierarchicalDiscriminantAnalysis::new();
-        let fitted = hda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 9);
         assert_eq!(fitted.classes().len(), 3);
@@ -863,8 +863,10 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let hda = HierarchicalDiscriminantAnalysis::new();
-        let fitted = hda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (6, 3));
 
@@ -881,8 +883,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let hda = HierarchicalDiscriminantAnalysis::new().discriminant_type("qda");
-        let fitted = hda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -894,8 +896,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let hda = HierarchicalDiscriminantAnalysis::new().min_samples_split(3);
-        let fitted = hda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -948,8 +950,8 @@ mod tests {
             .hierarchy_method("manual")
             .manual_hierarchy(root);
 
-        let fitted = hda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 3);
@@ -970,8 +972,8 @@ mod tests {
         let criteria = ["fisher_ratio", "information_gain"];
         for criterion in &criteria {
             let hda = HierarchicalDiscriminantAnalysis::new().split_criterion(criterion);
-            let fitted = hda.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 6);
             assert_eq!(fitted.classes().len(), 3);

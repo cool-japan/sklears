@@ -90,9 +90,9 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             *class_counts.entry(risk_level).or_insert(0) += 1;
         }
 
-        let total_samples = T::from(risk_labels.len()).unwrap();
+        let total_samples = T::from(risk_labels.len()).expect("operation should succeed");
         for (&risk_level, &count) in class_counts.iter() {
-            let prior = T::from(count).unwrap() / total_samples;
+            let prior = T::from(count).expect("operation should succeed") / total_samples;
             self.priors.insert(risk_level, prior);
         }
 
@@ -170,7 +170,7 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
     /// Calculate volatility from returns
     fn calculate_volatility_from_returns(&self, returns: &[T]) -> T {
         let variance = self.calculate_variance(returns);
-        variance.sqrt() * T::from(252.0).unwrap().sqrt() // Annualized
+        variance.sqrt() * T::from(252.0).expect("operation should succeed").sqrt() // Annualized
     }
 
     /// Calculate Value at Risk
@@ -180,13 +180,13 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
         }
 
         let mut sorted_returns = returns.to_vec();
-        sorted_returns.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_returns.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let percentile_index = ((T::one() - self.params.var_confidence)
-            * T::from(sorted_returns.len()).unwrap())
+            * T::from(sorted_returns.len()).expect("operation should succeed"))
         .floor()
         .to_usize()
-        .unwrap();
+        .expect("operation should succeed");
         let percentile_index = percentile_index.min(sorted_returns.len() - 1);
 
         Ok(-sorted_returns[percentile_index]) // VaR is typically positive
@@ -319,9 +319,9 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
 
     /// Gaussian probability density function
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
-        let two_pi = T::from(2.0 * std::f64::consts::PI).unwrap();
+        let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).unwrap() * variance);
+        let exponent = -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 
@@ -331,26 +331,26 @@ impl<T: Float + Default + Display + Debug + for<'a> std::iter::Sum<&'a T> + std:
             return T::zero();
         }
         let sum: T = values.iter().sum();
-        sum / T::from(values.len()).unwrap()
+        sum / T::from(values.len()).expect("operation should succeed")
     }
 
     /// Calculate variance of a vector
     fn calculate_variance(&self, values: &[T]) -> T {
         if values.len() < 2 {
-            return T::from(0.01).unwrap(); // Small default variance
+            return T::from(0.01).expect("operation should succeed"); // Small default variance
         }
         let mean = self.calculate_mean(values);
         let sum_squared_diff: T = values.iter().map(|&x| (x - mean).powi(2)).sum();
-        sum_squared_diff / T::from(values.len() - 1).unwrap()
+        sum_squared_diff / T::from(values.len() - 1).expect("operation should succeed")
     }
 }
 
 impl<T: Float> Default for RiskAssessmentParams<T> {
     fn default() -> Self {
         Self {
-            var_confidence: T::from(0.95).unwrap(),
-            risk_free_rate: T::from(0.02).unwrap(),
-            benchmark_threshold: T::from(0.7).unwrap(),
+            var_confidence: T::from(0.95).expect("operation should succeed"),
+            risk_free_rate: T::from(0.02).expect("operation should succeed"),
+            benchmark_threshold: T::from(0.7).expect("operation should succeed"),
         }
     }
 }
@@ -368,7 +368,7 @@ mod tests {
         // Create sample return data
         let returns =
             Array2::from_shape_vec((10, 5), (0..50).map(|i| (i as f64 - 25.0) * 0.01).collect())
-                .unwrap();
+                .expect("operation should succeed");
         let risk_labels = vec![
             RiskLevel::Low,
             RiskLevel::Medium,

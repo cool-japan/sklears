@@ -453,7 +453,9 @@ impl StreamingCovariance {
             .sample_buffer
             .as_mut()
             .ok_or_else(|| SklearsError::InvalidInput("Buffer not initialized".to_string()))?;
-        let max_samples = self.max_samples.unwrap();
+        let max_samples = self
+            .max_samples
+            .ok_or_else(|| SklearsError::NumericalError("max_samples not set".into()))?;
 
         // Add new sample
         buffer.push_back(sample.to_owned());
@@ -499,7 +501,10 @@ impl StreamingCovariance {
     }
 
     fn recompute_from_buffer(&mut self) -> Result<(), SklearsError> {
-        let buffer = self.sample_buffer.as_ref().unwrap();
+        let buffer = self
+            .sample_buffer
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let n_samples = buffer.len();
 
         if n_samples == 0 {
@@ -630,7 +635,11 @@ impl MemoryEfficientCovariance {
         let mut mean_sum = Array1::zeros(n_features);
 
         for chunk in chunks {
-            let chunk_mean = chunk.mean_axis(Axis(0)).unwrap();
+            let chunk_mean = chunk.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             let chunk_size = chunk.nrows();
             mean_sum = mean_sum + chunk_mean * chunk_size as f64;
         }
@@ -816,7 +825,11 @@ impl SIMDCovariance {
         let (n_samples, n_features) = x.dim();
 
         // Compute mean
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
 
         // Center data
         let centered = x - &mean.clone().insert_axis(Axis(0));
@@ -890,7 +903,9 @@ impl DistributedCovariance {
                 let worker_samples = end - start;
 
                 // Compute local statistics
-                let local_mean = worker_data.mean_axis(Axis(0)).unwrap();
+                let local_mean = worker_data
+                    .mean_axis(Axis(0))
+                    .expect("mean computation should succeed for non-empty array");
                 let local_sum = worker_data.sum_axis(Axis(0));
                 let centered = worker_data.to_owned() - &local_mean.insert_axis(Axis(0));
                 let local_cov_sum = centered.t().dot(&centered);
@@ -933,7 +948,11 @@ impl DistributedCovariance {
         let (n_samples, n_features) = x.dim();
         let features_per_worker = n_features / self.n_workers;
 
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean.clone().insert_axis(Axis(0));
 
         let covariance = centered.t().dot(&centered) / (n_samples - 1) as f64;
@@ -946,7 +965,11 @@ impl DistributedCovariance {
     ) -> Result<Array2<f64>, SklearsError> {
         // Use existing block computation from parallel implementation
         let parallel_cov = ParallelCovariance::new().block_size(1000);
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         parallel_cov.block_parallel_covariance(x, &mean)
     }
 }

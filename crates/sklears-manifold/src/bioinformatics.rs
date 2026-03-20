@@ -90,7 +90,7 @@ impl GenomicManifoldAnalysis<Untrained> {
             GenomicNormalization::None => Ok(data.clone()),
             GenomicNormalization::Log2 => Ok(data.mapv(|x| (x + 1.0).log2())),
             GenomicNormalization::ZScore => {
-                let mean = data.mean_axis(Axis(0)).unwrap();
+                let mean = data.mean_axis(Axis(0)).expect("operation should succeed");
                 let std = data.std_axis(Axis(0), 0.0);
                 let mut normalized = Array2::zeros(data.dim());
                 for (i, mut row) in normalized.axis_iter_mut(Axis(0)).enumerate() {
@@ -126,7 +126,7 @@ impl GenomicManifoldAnalysis<Untrained> {
     fn compute_genomic_embedding(&self, data: &Array2<f64>) -> SklResult<Array2<f64>> {
         match &self.embedding_method {
             GenomicEmbeddingMethod::PCA => {
-                let mean = data.mean_axis(Axis(0)).unwrap();
+                let mean = data.mean_axis(Axis(0)).expect("operation should succeed");
                 let centered = data - &mean.insert_axis(Axis(0));
 
                 let (_, _, vt) = centered
@@ -144,7 +144,7 @@ impl GenomicManifoldAnalysis<Untrained> {
                 let n_samples = data.nrows();
 
                 // Initialize with PCA
-                let mean = data.mean_axis(Axis(0)).unwrap();
+                let mean = data.mean_axis(Axis(0)).expect("operation should succeed");
                 let centered = data - &mean.insert_axis(Axis(0));
                 let (_, _, vt) = centered
                     .svd(false)
@@ -179,7 +179,7 @@ impl GenomicManifoldAnalysis<Untrained> {
                 min_dist,
             } => {
                 // Simplified UMAP (use PCA as placeholder)
-                let mean = data.mean_axis(Axis(0)).unwrap();
+                let mean = data.mean_axis(Axis(0)).expect("operation should succeed");
                 let centered = data - &mean.insert_axis(Axis(0));
                 let (_, _, vt) = centered
                     .svd(false)
@@ -270,7 +270,9 @@ impl Fit<Array2<f64>, ()> for GenomicManifoldAnalysis<Untrained> {
 
         let normalized = self.normalize_data(x)?;
 
-        let gene_mean = normalized.mean_axis(Axis(0)).unwrap();
+        let gene_mean = normalized
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
         let gene_std = normalized.std_axis(Axis(0), 0.0);
 
         let genomic_manifold = self.compute_genomic_embedding(&normalized)?;
@@ -488,7 +490,7 @@ impl ProteinStructureManifold<TrainedProteinStructure> {
             }
         }
 
-        features.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+        features.sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
         features.truncate(n_features);
         features
     }
@@ -521,7 +523,7 @@ impl Fit<Vec<Array2<f64>>, ()> for ProteinStructureManifold<Untrained> {
             }
         }
 
-        let mean_structure = data.mean_axis(Axis(0)).unwrap();
+        let mean_structure = data.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = &data - &mean_structure.clone().insert_axis(Axis(0));
 
         // Compute manifold embedding using PCA
@@ -688,7 +690,7 @@ impl PhylogeneticEmbedding<TrainedPhylogenetic> {
             .map(|i| (i, self.state.distance_matrix[[taxon_idx, i]]))
             .collect();
 
-        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         neighbors.truncate(k);
 
         Ok(neighbors)
@@ -721,9 +723,9 @@ impl Fit<Array2<f64>, ()> for PhylogeneticEmbedding<Untrained> {
         }
 
         // Double centering
-        let row_mean = gram.mean_axis(Axis(1)).unwrap();
-        let col_mean = gram.mean_axis(Axis(0)).unwrap();
-        let total_mean = gram.mean().unwrap();
+        let row_mean = gram.mean_axis(Axis(1)).expect("operation should succeed");
+        let col_mean = gram.mean_axis(Axis(0)).expect("operation should succeed");
+        let total_mean = gram.mean().expect("operation should succeed");
 
         for i in 0..n {
             for j in 0..n {
@@ -745,7 +747,7 @@ impl Fit<Array2<f64>, ()> for PhylogeneticEmbedding<Untrained> {
             .enumerate()
             .filter(|(_, &val)| val > 1e-10)
             .collect();
-        eigen_pairs.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+        eigen_pairs.sort_by(|a, b| b.1.partial_cmp(a.1).expect("operation should succeed"));
 
         // Build embedding
         let n_comp = self.n_components.min(eigen_pairs.len());
@@ -941,7 +943,7 @@ impl SingleCellTrajectory<TrainedSingleCellTrajectory> {
             .map(|i| (i, self.state.pseudotime[i]))
             .collect();
 
-        cell_order.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        cell_order.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         cell_order.into_iter().map(|(idx, _)| idx).collect()
     }
@@ -959,7 +961,7 @@ impl Fit<Array2<f64>, ()> for SingleCellTrajectory<Untrained> {
             )));
         }
 
-        let gene_mean = x.mean_axis(Axis(0)).unwrap();
+        let gene_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &gene_mean.clone().insert_axis(Axis(0));
 
         // Compute trajectory embedding using PCA
@@ -1081,7 +1083,7 @@ impl MetabolicPathwayManifold<TrainedMetabolicPathway> {
             })
             .collect();
 
-        pathway_importance.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        pathway_importance.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         pathway_importance.truncate(n_pathways);
 
         pathway_importance
@@ -1116,7 +1118,7 @@ impl Fit<Array2<f64>, ()> for MetabolicPathwayManifold<Untrained> {
             )));
         }
 
-        let mean_flux = x.mean_axis(Axis(0)).unwrap();
+        let mean_flux = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean_flux.clone().insert_axis(Axis(0));
 
         // Compute pathway embedding using PCA
@@ -1169,8 +1171,12 @@ mod tests {
             .with_n_components(10)
             .with_normalization(GenomicNormalization::ZScore);
 
-        let fitted = genomic_model.fit(&genomic_data, &()).unwrap();
-        let projected = fitted.project_genomic_data(&genomic_data.view()).unwrap();
+        let fitted = genomic_model
+            .fit(&genomic_data, &())
+            .expect("operation should succeed");
+        let projected = fitted
+            .project_genomic_data(&genomic_data.view())
+            .expect("operation should succeed");
 
         assert_eq!(projected.nrows(), n_samples);
         assert_eq!(projected.ncols(), 10);
@@ -1197,10 +1203,14 @@ mod tests {
             .with_n_components(5)
             .with_representation(ProteinRepresentation::ContactMap);
 
-        let fitted = protein_model.fit(&structures, &()).unwrap();
+        let fitted = protein_model
+            .fit(&structures, &())
+            .expect("operation should succeed");
 
         let test_structure = &structures[0];
-        let projected = fitted.project_structure(&test_structure.view()).unwrap();
+        let projected = fitted
+            .project_structure(&test_structure.view())
+            .expect("operation should succeed");
         assert_eq!(projected.len(), 5);
     }
 
@@ -1222,9 +1232,11 @@ mod tests {
             .with_n_components(3)
             .with_distance_method(PhylogeneticDistance::JukesCantor);
 
-        let fitted = phylo_model.fit(&dist_matrix, &()).unwrap();
+        let fitted = phylo_model
+            .fit(&dist_matrix, &())
+            .expect("operation should succeed");
 
-        let embedding = fitted.taxon_embedding(0).unwrap();
+        let embedding = fitted.taxon_embedding(0).expect("operation should succeed");
         assert_eq!(embedding.len(), 3);
     }
 
@@ -1241,9 +1253,11 @@ mod tests {
             .with_n_components(20)
             .with_trajectory_method(TrajectoryMethod::DiffusionPseudotime);
 
-        let fitted = trajectory_model.fit(&cell_data, &()).unwrap();
+        let fitted = trajectory_model
+            .fit(&cell_data, &())
+            .expect("operation should succeed");
 
-        let pseudotime = fitted.cell_pseudotime(0).unwrap();
+        let pseudotime = fitted.cell_pseudotime(0).expect("operation should succeed");
         assert!(pseudotime >= 0.0 && pseudotime <= 1.0);
     }
 
@@ -1260,10 +1274,14 @@ mod tests {
             .with_n_components(15)
             .with_pathway_representation(PathwayRepresentation::NetworkTopology);
 
-        let fitted = pathway_model.fit(&metabolic_data, &()).unwrap();
+        let fitted = pathway_model
+            .fit(&metabolic_data, &())
+            .expect("operation should succeed");
 
         let test_state = metabolic_data.row(0);
-        let projected = fitted.project_metabolic_state(&test_state).unwrap();
+        let projected = fitted
+            .project_metabolic_state(&test_state)
+            .expect("operation should succeed");
         assert_eq!(projected.len(), 15);
     }
 
@@ -1273,7 +1291,9 @@ mod tests {
             Array2::from_shape_fn((15, 80), |(i, j)| i as f64 * 2.0 + j as f64 * 0.2);
 
         let genomic_model = GenomicManifoldAnalysis::new(80).with_n_components(8);
-        let fitted = genomic_model.fit(&genomic_data, &()).unwrap();
+        let fitted = genomic_model
+            .fit(&genomic_data, &())
+            .expect("operation should succeed");
 
         let diff_genes = fitted.differential_genes(0.5);
         assert!(diff_genes.len() > 0);
@@ -1291,9 +1311,13 @@ mod tests {
         });
 
         let phylo_model = PhylogeneticEmbedding::new(n_taxa).with_n_components(4);
-        let fitted = phylo_model.fit(&dist_matrix, &()).unwrap();
+        let fitted = phylo_model
+            .fit(&dist_matrix, &())
+            .expect("operation should succeed");
 
-        let neighbors = fitted.nearest_neighbors(0, 3).unwrap();
+        let neighbors = fitted
+            .nearest_neighbors(0, 3)
+            .expect("operation should succeed");
         assert_eq!(neighbors.len(), 3);
     }
 
@@ -1302,7 +1326,9 @@ mod tests {
         let cell_data = Array2::from_shape_fn((25, 100), |(i, j)| i as f64 + j as f64 * 0.1);
 
         let trajectory_model = SingleCellTrajectory::new(100).with_n_components(10);
-        let fitted = trajectory_model.fit(&cell_data, &()).unwrap();
+        let fitted = trajectory_model
+            .fit(&cell_data, &())
+            .expect("operation should succeed");
 
         let ordered = fitted.ordered_cells();
         assert_eq!(ordered.len(), 25);
@@ -1314,7 +1340,9 @@ mod tests {
             Array2::from_shape_fn((20, 120), |(i, j)| i as f64 * 1.5 + j as f64 * 0.25);
 
         let pathway_model = MetabolicPathwayManifold::new(120).with_n_components(12);
-        let fitted = pathway_model.fit(&metabolic_data, &()).unwrap();
+        let fitted = pathway_model
+            .fit(&metabolic_data, &())
+            .expect("operation should succeed");
 
         let key_pathways = fitted.key_pathways(5);
         assert_eq!(key_pathways.len(), 5);
@@ -1341,11 +1369,13 @@ mod tests {
         let structures = vec![struct1.clone(), struct2.clone()];
 
         let protein_model = ProteinStructureManifold::new(n_residues).with_n_components(4);
-        let fitted = protein_model.fit(&structures, &()).unwrap();
+        let fitted = protein_model
+            .fit(&structures, &())
+            .expect("operation should succeed");
 
         let similarity = fitted
             .structural_similarity(&struct1.view(), &struct2.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(similarity >= 0.0 && similarity <= 1.0);
     }
 }

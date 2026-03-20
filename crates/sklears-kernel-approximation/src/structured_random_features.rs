@@ -9,7 +9,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::StandardNormal;
 use sklears_core::{
@@ -279,19 +279,20 @@ impl Fit<Array2<Float>, ()> for StructuredRandomFeatures<Untrained> {
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Generate structured transform matrix
         let structured_transform = self.generate_structured_matrix(n_features, &mut rng)?;
 
         // Generate random weights for mixing
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
         let random_weights =
             Array2::from_shape_fn((n_features, self.n_components), |_| rng.sample(normal));
 
         // Generate random offset for phase
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let random_offset = Array1::from_shape_fn(self.n_components, |_| rng.sample(uniform));
 
         Ok(StructuredRandomFeatures {
@@ -335,7 +336,7 @@ impl StructuredRandomFeatures<Untrained> {
         // Generate random signs for each entry
         for i in 0..n_features {
             for j in 0..n_features {
-                matrix[[i, j]] = if rng.gen::<bool>() { 1.0 } else { -1.0 };
+                matrix[[i, j]] = if rng.random::<bool>() { 1.0 } else { -1.0 };
             }
         }
 
@@ -623,23 +624,23 @@ impl Fit<Array2<Float>, ()> for StructuredRFFHadamard<Untrained> {
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Generate random signs for Hadamard transforms
         let mut random_signs = Array2::zeros((self.n_components, n_features));
         for i in 0..self.n_components {
             for j in 0..n_features {
-                random_signs[[i, j]] = if rng.gen::<bool>() { 1.0 } else { -1.0 };
+                random_signs[[i, j]] = if rng.random::<bool>() { 1.0 } else { -1.0 };
             }
         }
 
         // Generate Gaussian weights
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let gaussian_weights = Array1::from_shape_fn(n_features, |_| rng.sample(normal));
 
         // Generate random offsets
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let random_offset = Array1::from_shape_fn(self.n_components, |_| rng.sample(uniform));
 
         Ok(StructuredRFFHadamard {
@@ -725,8 +726,8 @@ mod tests {
         ];
 
         let srf = StructuredRandomFeatures::new(8).gamma(0.5);
-        let fitted = srf.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = srf.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[3, 8]);
     }
@@ -738,33 +739,40 @@ mod tests {
         // Test Hadamard
         let hadamard_srf =
             StructuredRandomFeatures::new(4).structured_matrix(StructuredMatrix::Hadamard);
-        let hadamard_fitted = hadamard_srf.fit(&x, &()).unwrap();
-        let hadamard_result = hadamard_fitted.transform(&x).unwrap();
+        let hadamard_fitted = hadamard_srf.fit(&x, &()).expect("operation should succeed");
+        let hadamard_result = hadamard_fitted
+            .transform(&x)
+            .expect("operation should succeed");
         assert_eq!(hadamard_result.shape(), &[2, 4]);
 
         // Test DCT
         let dct_srf = StructuredRandomFeatures::new(4).structured_matrix(StructuredMatrix::DCT);
-        let dct_fitted = dct_srf.fit(&x, &()).unwrap();
-        let dct_result = dct_fitted.transform(&x).unwrap();
+        let dct_fitted = dct_srf.fit(&x, &()).expect("operation should succeed");
+        let dct_result = dct_fitted.transform(&x).expect("operation should succeed");
         assert_eq!(dct_result.shape(), &[2, 4]);
 
         // Test Circulant
         let circulant_srf =
             StructuredRandomFeatures::new(4).structured_matrix(StructuredMatrix::Circulant);
-        let circulant_fitted = circulant_srf.fit(&x, &()).unwrap();
-        let circulant_result = circulant_fitted.transform(&x).unwrap();
+        let circulant_fitted = circulant_srf
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let circulant_result = circulant_fitted
+            .transform(&x)
+            .expect("operation should succeed");
         assert_eq!(circulant_result.shape(), &[2, 4]);
     }
 
     #[test]
     fn test_fast_walsh_hadamard_transform() {
         let data = array![1.0, 2.0, 3.0, 4.0];
-        let result = FastWalshHadamardTransform::transform(data).unwrap();
+        let result = FastWalshHadamardTransform::transform(data).expect("operation should succeed");
         assert_eq!(result.len(), 4);
 
         // Test with 2D array
         let data_2d = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
-        let result_2d = FastWalshHadamardTransform::transform_rows(data_2d).unwrap();
+        let result_2d =
+            FastWalshHadamardTransform::transform_rows(data_2d).expect("operation should succeed");
         assert_eq!(result_2d.shape(), &[2, 4]);
     }
 
@@ -773,8 +781,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]];
 
         let srf_h = StructuredRFFHadamard::new(6).gamma(0.5);
-        let fitted = srf_h.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = srf_h.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[2, 6]);
     }
@@ -791,17 +799,20 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]];
 
         let srf1 = StructuredRandomFeatures::new(8).random_state(42);
-        let fitted1 = srf1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = srf1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let srf2 = StructuredRandomFeatures::new(8).random_state(42);
-        let fitted2 = srf2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = srf2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         assert_eq!(result1.shape(), result2.shape());
         for i in 0..result1.len() {
             assert!(
-                (result1.as_slice().unwrap()[i] - result2.as_slice().unwrap()[i]).abs() < 1e-10
+                (result1.as_slice().expect("operation should succeed")[i]
+                    - result2.as_slice().expect("operation should succeed")[i])
+                    .abs()
+                    < 1e-10
             );
         }
     }
@@ -811,12 +822,12 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]];
 
         let srf_low = StructuredRandomFeatures::new(4).gamma(0.1);
-        let fitted_low = srf_low.fit(&x, &()).unwrap();
-        let result_low = fitted_low.transform(&x).unwrap();
+        let fitted_low = srf_low.fit(&x, &()).expect("operation should succeed");
+        let result_low = fitted_low.transform(&x).expect("operation should succeed");
 
         let srf_high = StructuredRandomFeatures::new(4).gamma(10.0);
-        let fitted_high = srf_high.fit(&x, &()).unwrap();
-        let result_high = fitted_high.transform(&x).unwrap();
+        let fitted_high = srf_high.fit(&x, &()).expect("operation should succeed");
+        let result_high = fitted_high.transform(&x).expect("operation should succeed");
 
         assert_eq!(result_low.shape(), result_high.shape());
         // Results should be different with different gamma values

@@ -541,7 +541,7 @@ where
         }
 
         // Sort by distance and take k nearest neighbors
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k = self.config.k_neighbors.min(n_validation);
         let neighbor_indices: Vec<usize> = distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
@@ -614,7 +614,7 @@ where
                 let best_idx = competence_scores
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0);
                 vec![best_idx]
@@ -625,7 +625,7 @@ where
                     .enumerate()
                     .map(|(idx, &score)| (idx, score))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
                 indexed_scores
                     .iter()
                     .take(*k)

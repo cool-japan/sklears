@@ -810,7 +810,9 @@ mod tests {
         let kernel = ARDRBF::new(length_scales);
 
         let x = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
-        let k_matrix = kernel.compute_kernel_matrix(&x, None).unwrap();
+        let k_matrix = kernel
+            .compute_kernel_matrix(&x, None)
+            .expect("operation should succeed");
 
         assert_eq!(k_matrix.dim(), (3, 3));
         // Diagonal should be 1.0
@@ -849,7 +851,9 @@ mod tests {
         let mut kernel = ARDRBF::new(length_scales);
 
         let new_params = vec![2.0, 3.0];
-        kernel.set_params(&new_params).unwrap();
+        kernel
+            .set_params(&new_params)
+            .expect("operation should succeed");
 
         assert_eq!(kernel.get_params(), vec![2.0, 3.0]);
     }

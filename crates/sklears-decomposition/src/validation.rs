@@ -517,7 +517,11 @@ impl ValidationFramework {
         };
 
         // Normality test on residuals (simplified Shapiro-Wilk approximation)
-        let normality_p_value = self.approximate_normality_test(&residuals.as_slice().unwrap());
+        let normality_p_value = self.approximate_normality_test(
+            &residuals
+                .as_slice()
+                .expect("slice operation should succeed"),
+        );
 
         // Perform significance tests
         let mut hypothesis_tests = Vec::new();
@@ -871,19 +875,23 @@ mod tests {
         // Valid matrix
         let valid_matrix =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
-        let result = framework.validate_input_matrix(&valid_matrix).unwrap();
+        let result = framework
+            .validate_input_matrix(&valid_matrix)
+            .expect("operation should succeed");
         assert!(result.is_valid);
         assert_eq!(result.shape, (3, 3));
         assert_eq!(result.finite_values, 9);
         assert_eq!(result.nan_values, 0);
 
         // Matrix with NaN
-        let invalid_matrix =
-            Array2::from_shape_vec((2, 2), vec![1.0, Float::NAN, 3.0, 4.0]).unwrap();
+        let invalid_matrix = Array2::from_shape_vec((2, 2), vec![1.0, Float::NAN, 3.0, 4.0])
+            .expect("shape and data length should match");
 
-        let result = framework.validate_input_matrix(&invalid_matrix).unwrap();
+        let result = framework
+            .validate_input_matrix(&invalid_matrix)
+            .expect("operation should succeed");
         assert!(!result.is_valid);
         assert_eq!(result.nan_values, 1);
     }
@@ -897,7 +905,7 @@ mod tests {
 
         let result = framework
             .validate_parameters(DecompositionAlgorithm::PCA, &params, (10, 5))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.is_valid);
         assert_eq!(result.algorithm, DecompositionAlgorithm::PCA);
@@ -906,7 +914,7 @@ mod tests {
         params.insert("n_components".to_string(), ParameterValue::Integer(0));
         let result = framework
             .validate_parameters(DecompositionAlgorithm::PCA, &params, (10, 5))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!result.is_valid);
     }
@@ -917,15 +925,15 @@ mod tests {
 
         let original =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let reconstructed =
             Array2::from_shape_vec((3, 3), vec![1.1, 2.1, 3.1, 3.9, 5.1, 5.9, 7.1, 7.9, 9.1])
-                .unwrap();
+                .expect("operation should succeed");
 
         let result = framework
             .statistical_validation(&original, &reconstructed)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(result.r_squared >= 0.0);
         assert!(result.r_squared <= 1.0);
         assert!(result.mse >= 0.0);
@@ -942,7 +950,7 @@ mod tests {
 
         let result = framework
             .performance_validation(execution_time, memory_usage, matrix_size)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.execution_time > 0.0);
         assert_eq!(result.memory_usage_bytes, memory_usage);
@@ -1002,7 +1010,9 @@ mod tests {
         };
 
         let validator = CrossValidator::new(cv_config);
-        let result = validator.validate_decomposition(&data, 3).unwrap();
+        let result = validator
+            .validate_decomposition(&data, 3)
+            .expect("operation should succeed");
 
         assert_eq!(result.fold_scores.len(), 5);
         // Scores can be negative if reconstruction error exceeds data norm
@@ -1027,7 +1037,9 @@ mod tests {
         };
 
         let validator = BootstrapValidator::new(config);
-        let result = validator.validate_stability(&data, 3).unwrap();
+        let result = validator
+            .validate_stability(&data, 3)
+            .expect("operation should succeed");
 
         assert_eq!(result.bootstrap_scores.len(), 10);
         assert!(result.confidence_interval.0 <= result.mean_score);
@@ -1050,7 +1062,9 @@ mod tests {
         };
 
         let tester = PermutationTester::new(config);
-        let result = tester.test_significance(&data, 3).unwrap();
+        let result = tester
+            .test_significance(&data, 3)
+            .expect("operation should succeed");
 
         assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
         assert!(result.permutation_scores.len() == 10);
@@ -1073,7 +1087,9 @@ mod tests {
         };
 
         let analyzer = StabilityAnalyzer::new(config);
-        let result = analyzer.analyze_stability(&data, 3).unwrap();
+        let result = analyzer
+            .analyze_stability(&data, 3)
+            .expect("operation should succeed");
 
         assert!(result.stability_score >= 0.0 && result.stability_score <= 1.0);
         assert_eq!(result.similarity_scores.len(), 10);
@@ -1096,7 +1112,9 @@ mod tests {
         };
 
         let selector = AutoParameterSelector::new(config);
-        let result = selector.select_optimal_parameters(&data).unwrap();
+        let result = selector
+            .select_optimal_parameters(&data)
+            .expect("operation should succeed");
 
         assert!(result.optimal_n_components > 0 && result.optimal_n_components <= 8);
         assert!(!result.parameter_scores.is_empty());
@@ -1203,8 +1221,10 @@ impl CrossValidator {
             }
 
             // Reconstruct test data
-            let test_centered =
-                &test_data - &train_data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+            let test_centered = &test_data
+                - &train_data
+                    .mean_axis(scirs2_core::ndarray::Axis(0))
+                    .expect("array should have elements for mean computation");
             let test_transformed = test_centered.dot(&components.t());
             let test_reconstructed = test_transformed.dot(&components);
 
@@ -1233,14 +1253,14 @@ impl CrossValidator {
         let best_fold = fold_scores
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
         let worst_fold = fold_scores
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -1364,7 +1384,7 @@ impl BootstrapValidator {
 
         // Sort scores for confidence interval calculation
         let mut sorted_scores = bootstrap_scores.clone();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Compute confidence interval
         let alpha = 1.0 - self.config.confidence_level;
@@ -1645,7 +1665,7 @@ impl StabilityAnalyzer {
         // Perform stability analysis with perturbations
         for _iter in 0..self.config.n_perturbations {
             // Add Gaussian noise to data
-            let normal_dist = Normal::new(0.0, noise_std as f64).unwrap();
+            let normal_dist = Normal::new(0.0, noise_std as f64).expect("operation should succeed");
             let noise =
                 Array2::from_shape_fn(data.dim(), |_| normal_dist.sample(&mut rng) as Float);
             let perturbed_data = data + &noise;

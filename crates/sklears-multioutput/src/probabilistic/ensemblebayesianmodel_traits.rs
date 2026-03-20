@@ -135,7 +135,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
                     for j in 0..n_outputs {
                         let mut values: Vec<Float> =
                             all_predictions.iter().map(|pred| pred[[i, j]]).collect();
-                        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let median = if values.len() % 2 == 0 {
                             (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                         } else {

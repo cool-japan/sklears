@@ -952,7 +952,7 @@ mod tests {
         let result = cross_validate_isotonic(&x, &y, 5, LossFunction::SquaredLoss, true);
         assert!(result.is_ok());
 
-        let cv_results = result.unwrap();
+        let cv_results = result.expect("operation should succeed");
         assert_eq!(cv_results.fold_metrics.len(), 5);
         // R-squared can be negative if the model performs poorly
         // Just check that we got valid results
@@ -967,7 +967,7 @@ mod tests {
         let result = bootstrap_validate_isotonic(&x, &y, 10, LossFunction::SquaredLoss, true);
         assert!(result.is_ok());
 
-        let bootstrap_results = result.unwrap();
+        let bootstrap_results = result.expect("operation should succeed");
         assert!(!bootstrap_results.is_empty());
     }
 
@@ -980,7 +980,7 @@ mod tests {
         let result = grid_search_isotonic(&x, &y, grid, 3);
         assert!(result.is_ok());
 
-        let search_results = result.unwrap();
+        let search_results = result.expect("operation should succeed");
         assert!(!search_results.cv_results.is_empty());
         assert!(!search_results.best_params.is_empty());
     }
@@ -995,7 +995,7 @@ mod tests {
             learning_curve_isotonic(&x, &y, train_sizes, 3, LossFunction::SquaredLoss, true);
         assert!(result.is_ok());
 
-        let curve_results = result.unwrap();
+        let curve_results = result.expect("operation should succeed");
         assert_eq!(curve_results.train_sizes.len(), 3);
         assert_eq!(curve_results.train_scores.len(), 3);
         assert_eq!(curve_results.validation_scores.len(), 3);
@@ -1010,7 +1010,7 @@ mod tests {
         let metrics = framework.compute_validation_metrics(&predicted, &actual);
         assert!(metrics.is_ok());
 
-        let metrics = metrics.unwrap();
+        let metrics = metrics.expect("operation should succeed");
         assert!(metrics.mse > 0.0);
         assert!(metrics.mae > 0.0);
         assert!(metrics.rmse > 0.0);
@@ -1026,11 +1026,11 @@ mod tests {
         let kfold_splits =
             framework.generate_cv_splits(10, &CrossValidationStrategy::KFold { k: 5 });
         assert!(kfold_splits.is_ok());
-        assert_eq!(kfold_splits.unwrap().len(), 5);
+        assert_eq!(kfold_splits.expect("operation should succeed").len(), 5);
 
         // Test leave-one-out
         let loo_splits = framework.generate_cv_splits(5, &CrossValidationStrategy::LeaveOneOut);
         assert!(loo_splits.is_ok());
-        assert_eq!(loo_splits.unwrap().len(), 5);
+        assert_eq!(loo_splits.expect("operation should succeed").len(), 5);
     }
 }

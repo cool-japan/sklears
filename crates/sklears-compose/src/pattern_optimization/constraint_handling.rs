@@ -274,7 +274,7 @@ impl Default for ConstraintOptimizer {
                 "constraint_{}",
                 SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             penalty_methods: HashMap::new(),

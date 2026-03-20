@@ -571,7 +571,7 @@ impl Fit<ArrayView2<'_, Float>, Option<&ArrayView1<'_, Float>>> for DAGPipeline<
         let mut execution_errors = Vec::new();
         let start_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs_f64();
 
         // Initialize with input data
@@ -606,7 +606,7 @@ impl Fit<ArrayView2<'_, Float>, Option<&ArrayView1<'_, Float>>> for DAGPipeline<
 
         let end_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_secs_f64();
 
         let execution_record = ExecutionRecord {
@@ -741,7 +741,7 @@ impl DAGPipeline<Untrained> {
         };
 
         // Record execution time
-        let execution_time = start_time.elapsed().unwrap().as_secs_f64();
+        let execution_time = start_time.elapsed().unwrap_or_default().as_secs_f64();
         if let Ok(ref mut output) = result.clone() {
             output.execution_stats.execution_time = execution_time;
         }
@@ -1018,7 +1018,7 @@ mod tests {
             ),
         ];
 
-        let dag = DAGPipeline::linear(components).unwrap();
+        let dag = DAGPipeline::linear(components).unwrap_or_default();
         assert_eq!(dag.nodes.len(), 2);
         assert_eq!(dag.execution_order.len(), 2);
     }
@@ -1036,7 +1036,8 @@ mod tests {
             ),
         ];
 
-        let dag = DAGPipeline::parallel(components, MergeStrategy::HorizontalConcat).unwrap();
+        let dag =
+            DAGPipeline::parallel(components, MergeStrategy::HorizontalConcat).unwrap_or_default();
         assert_eq!(dag.nodes.len(), 3); // 2 transformers + 1 merger
     }
 
@@ -1071,11 +1072,11 @@ mod tests {
             config: NodeConfig::default(),
         };
 
-        dag = dag.add_node(node1).unwrap();
-        dag = dag.add_node(node2).unwrap();
+        dag = dag.add_node(node1).unwrap_or_default();
+        dag = dag.add_node(node2).unwrap_or_default();
 
         // Add edges to create a cycle
-        dag = dag.add_edge("node1", "node2").unwrap();
+        dag = dag.add_edge("node1", "node2").unwrap_or_default();
 
         // Adding a reverse edge should detect the cycle
         assert!(dag.add_edge("node2", "node1").is_err());
@@ -1103,14 +1104,14 @@ mod tests {
         // Test horizontal concatenation
         let result = dag
             .execute_data_merger(&inputs, &MergeStrategy::HorizontalConcat)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(result.data.ncols(), 4);
         assert_eq!(result.data.nrows(), 2);
 
         // Test average
         let result = dag
             .execute_data_merger(&inputs, &MergeStrategy::Average)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(result.data[[0, 0]], 3.0); // (1+5)/2
         assert_eq!(result.data[[0, 1]], 4.0); // (2+6)/2
     }

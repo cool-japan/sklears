@@ -401,7 +401,9 @@ impl TemporalDiscriminantAnalysis<Untrained> {
             .into_shape((n_samples * n_time_steps, n_features))?;
 
         // Compute means and standard deviations
-        let means = flattened.mean_axis(Axis(0)).unwrap();
+        let means = flattened
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
         let stds = flattened.std_axis(Axis(0), 0.0);
 
         // Avoid division by zero
@@ -504,7 +506,9 @@ impl TemporalDiscriminantAnalysis<Untrained> {
         let (n_features, window_size) = window_data.dim();
 
         match &self.config.aggregation_method {
-            AggregationMethod::Mean => Ok(window_data.mean_axis(Axis(1)).unwrap()),
+            AggregationMethod::Mean => Ok(window_data
+                .mean_axis(Axis(1))
+                .expect("mean should not fail on non-empty array")),
             AggregationMethod::WeightedMean { decay_rate } => {
                 let mut weighted_features = Array1::zeros(n_features);
                 let mut total_weight = 0.0;
@@ -557,7 +561,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
                 let mut medians = Array1::zeros(n_features);
                 for f in 0..n_features {
                     let mut values: Vec<Float> = window_data.row(f).to_vec();
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                     medians[f] = if values.len() % 2 == 0 {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
@@ -577,7 +581,9 @@ impl TemporalDiscriminantAnalysis<Untrained> {
         }
 
         let x_mean = (n - 1.0) / 2.0;
-        let y_mean = values.mean().unwrap();
+        let y_mean = values
+            .mean()
+            .expect("mean should not fail on non-empty array");
 
         let mut numerator = 0.0;
         let mut denominator = 0.0;
@@ -617,8 +623,10 @@ impl TemporalDiscriminantAnalysis<Untrained> {
                 // Fit AR model (simplified - just use lagged values as features)
                 for lag in 1..=order {
                     if n_time_steps > lag {
-                        let lagged_mean =
-                            time_series.slice(s![..n_time_steps - lag]).mean().unwrap();
+                        let lagged_mean = time_series
+                            .slice(s![..n_time_steps - lag])
+                            .mean()
+                            .expect("mean should not fail on non-empty array");
                         features[[sample_idx, feature_idx]] = lagged_mean;
                         feature_idx += 1;
                     }
@@ -690,7 +698,7 @@ impl TemporalDiscriminantAnalysis<Untrained> {
 
                 // Discretize into states based on quantiles
                 let mut values: Vec<Float> = time_series.to_vec();
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                 let mut state_counts = vec![0; n_states];
 
@@ -866,8 +874,14 @@ impl TemporalDiscriminantAnalysis<Untrained> {
                     return Ok(0.0);
                 }
 
-                let early_avg = time_series.slice(s![..*window]).mean().unwrap();
-                let late_avg = time_series.slice(s![n - window..]).mean().unwrap();
+                let early_avg = time_series
+                    .slice(s![..*window])
+                    .mean()
+                    .expect("mean should not fail on non-empty array");
+                let late_avg = time_series
+                    .slice(s![n - window..])
+                    .mean()
+                    .expect("mean should not fail on non-empty array");
 
                 Ok((late_avg - early_avg) / n as Float)
             }
@@ -888,7 +902,9 @@ impl TemporalDiscriminantAnalysis<Untrained> {
         let mut seasonal_variance = 0.0;
         let mut total_variance = 0.0;
 
-        let overall_mean = time_series.mean().unwrap();
+        let overall_mean = time_series
+            .mean()
+            .expect("mean should not fail on non-empty array");
 
         // Compute seasonal means
         let mut seasonal_means = vec![0.0; period];
@@ -1187,7 +1203,10 @@ impl Estimator for TemporalDiscriminantAnalysis<Trained> {
 impl Predict<Array3<Float>, Array1<i32>> for TemporalDiscriminantAnalysis<Trained> {
     fn predict(&self, x: &Array3<Float>) -> Result<Array1<i32>> {
         let probas = self.predict_proba(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
 
         let mut predictions = Vec::new();
         for row in probas.axis_iter(Axis(0)) {
@@ -1195,7 +1214,7 @@ impl Predict<Array3<Float>, Array1<i32>> for TemporalDiscriminantAnalysis<Traine
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions.push(classes[max_idx]);
         }
@@ -1207,7 +1226,10 @@ impl Predict<Array3<Float>, Array1<i32>> for TemporalDiscriminantAnalysis<Traine
 impl PredictProba<Array3<Float>, Array2<Float>> for TemporalDiscriminantAnalysis<Trained> {
     fn predict_proba(&self, x: &Array3<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features, n_time_steps) = x.dim();
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
         let n_classes = classes.len();
 
         if Some(n_features) != self.n_features_ || Some(n_time_steps) != self.n_time_steps_ {
@@ -1235,8 +1257,14 @@ impl PredictProba<Array3<Float>, Array2<Float>> for TemporalDiscriminantAnalysis
         // Extract temporal features
         let temporal_features = self.extract_temporal_features(&standardized_x)?;
 
-        let temporal_means = self.temporal_means_.as_ref().unwrap();
-        let temporal_patterns = self.temporal_patterns_.as_ref().unwrap();
+        let temporal_means = self
+            .temporal_means_
+            .as_ref()
+            .expect("temporal_means_ not available - model not fitted");
+        let temporal_patterns = self
+            .temporal_patterns_
+            .as_ref()
+            .expect("temporal_patterns_ not available - model not fitted");
 
         let mut probabilities = Array2::zeros((n_samples, n_classes));
 
@@ -1270,7 +1298,10 @@ impl PredictProba<Array3<Float>, Array2<Float>> for TemporalDiscriminantAnalysis
 
 impl Transform<Array3<Float>, Array2<Float>> for TemporalDiscriminantAnalysis<Trained> {
     fn transform(&self, x: &Array3<Float>) -> Result<Array2<Float>> {
-        let temporal_components = self.temporal_components_.as_ref().unwrap();
+        let temporal_components = self
+            .temporal_components_
+            .as_ref()
+            .expect("temporal_components_ not available - model not fitted");
 
         // Standardize if needed
         let (n_samples, n_features, n_time_steps) = x.dim();
@@ -1326,32 +1357,44 @@ impl TemporalDiscriminantAnalysis<Trained> {
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get temporal patterns
     pub fn temporal_patterns(&self) -> &[TemporalPattern] {
-        self.temporal_patterns_.as_ref().unwrap()
+        self.temporal_patterns_
+            .as_ref()
+            .expect("temporal_patterns_ not available - model not fitted")
     }
 
     /// Get temporal components
     pub fn temporal_components(&self) -> &Array2<Float> {
-        self.temporal_components_.as_ref().unwrap()
+        self.temporal_components_
+            .as_ref()
+            .expect("temporal_components_ not available - model not fitted")
     }
 
     /// Get temporal means for each class
     pub fn temporal_means(&self) -> &Array2<Float> {
-        self.temporal_means_.as_ref().unwrap()
+        self.temporal_means_
+            .as_ref()
+            .expect("temporal_means_ not available - model not fitted")
     }
 
     /// Get temporal covariances for each class
     pub fn temporal_covariances(&self) -> &[Array2<Float>] {
-        self.temporal_covariances_.as_ref().unwrap()
+        self.temporal_covariances_
+            .as_ref()
+            .expect("temporal_covariances_ not available - model not fitted")
     }
 
     /// Get trend coefficients
     pub fn trend_coefficients(&self) -> &Array2<Float> {
-        self.trend_coefficients_.as_ref().unwrap()
+        self.trend_coefficients_
+            .as_ref()
+            .expect("trend_coefficients_ not available - model not fitted")
     }
 
     /// Get seasonal components (if available)
@@ -1381,12 +1424,14 @@ impl TemporalDiscriminantAnalysis<Trained> {
 
     /// Get number of features
     pub fn n_features(&self) -> usize {
-        self.n_features_.unwrap()
+        self.n_features_
+            .expect("n_features_ not available - model not fitted")
     }
 
     /// Get number of time steps
     pub fn n_time_steps(&self) -> usize {
-        self.n_time_steps_.unwrap()
+        self.n_time_steps_
+            .expect("n_time_steps_ not available - model not fitted")
     }
 }
 
@@ -1416,7 +1461,7 @@ mod tests {
                 10.9, 11.9, 12.9, 13.9, 14.9,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let tda = TemporalDiscriminantAnalysis::new()
@@ -1424,8 +1469,8 @@ mod tests {
             .window_overlap(2)
             .temporal_method(TemporalMethod::SlidingWindow);
 
-        let fitted = tda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = tda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -1444,15 +1489,17 @@ mod tests {
                 12.1, 13.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let tda = TemporalDiscriminantAnalysis::new()
             .window_size(6) // Set window size smaller than time series length (8)
             .temporal_method(TemporalMethod::Autoregressive { order: 3 });
 
-        let fitted = tda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = tda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -1472,15 +1519,15 @@ mod tests {
                 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1]);
 
         let tda = TemporalDiscriminantAnalysis::new()
             .window_size(5) // Set window size smaller than time series length (6)
             .n_temporal_components(Some(1));
 
-        let fitted = tda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = tda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.nrows(), 2);
         assert!(transformed.ncols() >= 1);
@@ -1495,7 +1542,7 @@ mod tests {
                 9.0, 10.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1]);
 
         let methods = vec![
@@ -1512,8 +1559,8 @@ mod tests {
                 .aggregation_method(method)
                 .temporal_method(TemporalMethod::SlidingWindow);
 
-            let fitted = tda.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = tda.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 2);
             assert_eq!(fitted.classes().len(), 2);
@@ -1529,14 +1576,14 @@ mod tests {
                 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, // Linear decreasing trend
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1]);
 
         let tda = TemporalDiscriminantAnalysis::new()
             .window_size(6) // Set window size smaller than time series length (8)
             .trend_method(TrendMethod::Linear);
 
-        let fitted = tda.fit(&x, &y).unwrap();
+        let fitted = tda.fit(&x, &y).expect("model fitting should succeed");
         let trend_coefficients = fitted.trend_coefficients();
 
         assert_eq!(trend_coefficients.nrows(), 2);
@@ -1557,14 +1604,14 @@ mod tests {
                 10.0, 20.0, 30.0, 40.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1]);
 
         let tda = TemporalDiscriminantAnalysis::new()
             .window_size(3) // Set window size smaller than time series length (4)
             .standardize_temporal(true);
 
-        let fitted = tda.fit(&x, &y).unwrap();
+        let fitted = tda.fit(&x, &y).expect("model fitting should succeed");
 
         // Should fit successfully even with very different scales
         assert_eq!(fitted.classes().len(), 2);

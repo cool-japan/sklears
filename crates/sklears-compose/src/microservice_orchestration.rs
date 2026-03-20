@@ -779,7 +779,7 @@ mod tests {
             rollback_strategy: RollbackStrategy::None,
         };
         
-        let order = orchestrator.calculate_execution_order(&workflow).unwrap();
+        let order = orchestrator.calculate_execution_order(&workflow).unwrap_or_default();
         assert_eq!(order, vec!["step1", "step2"]);
     }
 

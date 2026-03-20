@@ -513,8 +513,9 @@ mod tests {
     #[test]
     fn test_json_serialization() {
         let config = ModelSelectionConfig::default();
-        let json = serde_json::to_string(&config).unwrap();
-        let deserialized: ModelSelectionConfig = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&config).expect("operation should succeed");
+        let deserialized: ModelSelectionConfig =
+            serde_json::from_str(&json).expect("operation should succeed");
 
         assert_eq!(
             config.cross_validation.method,
@@ -532,7 +533,7 @@ mod tests {
         let template_config = ModelSelectionConfig::default();
         manager
             .register_template("test".to_string(), template_config)
-            .unwrap();
+            .expect("operation should succeed");
 
         let mut overrides = HashMap::new();
         overrides.insert(
@@ -544,7 +545,9 @@ mod tests {
             serde_json::Value::from(200),
         );
 
-        let config = manager.from_template("test", overrides).unwrap();
+        let config = manager
+            .from_template("test", overrides)
+            .expect("operation should succeed");
         assert_eq!(config.cross_validation.n_folds, 10);
         assert_eq!(config.optimization.max_iter, 200);
     }
@@ -556,10 +559,14 @@ mod tests {
         assert!(manager.get_template("grid_search").is_some());
         assert!(manager.get_template("bayesian").is_some());
 
-        let grid_template = manager.get_template("grid_search").unwrap();
+        let grid_template = manager
+            .get_template("grid_search")
+            .expect("operation should succeed");
         assert_eq!(grid_template.optimization.method, "grid_search");
 
-        let bayesian_template = manager.get_template("bayesian").unwrap();
+        let bayesian_template = manager
+            .get_template("bayesian")
+            .expect("operation should succeed");
         assert_eq!(bayesian_template.optimization.method, "bayesian");
         assert!(bayesian_template.optimization.early_stopping.is_some());
     }

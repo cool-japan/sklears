@@ -263,8 +263,12 @@ mod tests {
         let (scores, targets) = create_monotonic_data();
 
         // Our implementation
-        let isotonic = IsotonicCalibrator::new().fit(&scores, &targets).unwrap();
-        let our_predictions = isotonic.predict_proba(&scores).unwrap();
+        let isotonic = IsotonicCalibrator::new()
+            .fit(&scores, &targets)
+            .expect("fit should succeed");
+        let our_predictions = isotonic
+            .predict_proba(&scores)
+            .expect("predict_proba should succeed");
 
         // Reference implementation
         let target_floats: Array1<Float> = targets.mapv(|x| x as Float);
@@ -286,8 +290,12 @@ mod tests {
         let (scores, targets) = create_test_data();
 
         // Our implementation
-        let sigmoid = SigmoidCalibrator::new().fit(&scores, &targets).unwrap();
-        let our_predictions = sigmoid.predict_proba(&scores).unwrap();
+        let sigmoid = SigmoidCalibrator::new()
+            .fit(&scores, &targets)
+            .expect("fit should succeed");
+        let our_predictions = sigmoid
+            .predict_proba(&scores)
+            .expect("predict_proba should succeed");
 
         // Reference implementation
         let (a, b) = reference_sigmoid_calibration(&scores, &targets);
@@ -316,8 +324,10 @@ mod tests {
         // Our implementation
         let histogram = HistogramBinningCalibrator::new(n_bins)
             .fit(&scores, &targets)
-            .unwrap();
-        let our_predictions = histogram.predict_proba(&scores).unwrap();
+            .expect("operation should succeed");
+        let our_predictions = histogram
+            .predict_proba(&scores)
+            .expect("predict_proba should succeed");
 
         // Reference implementation
         let (bin_boundaries, bin_probs) = reference_histogram_binning(&scores, &targets, n_bins);
@@ -355,8 +365,10 @@ mod tests {
         // Our implementation
         let temp_scaling = TemperatureScalingCalibrator::new()
             .fit(&scores, &targets)
-            .unwrap();
-        let our_predictions = temp_scaling.predict_proba(&scores).unwrap();
+            .expect("operation should succeed");
+        let our_predictions = temp_scaling
+            .predict_proba(&scores)
+            .expect("predict_proba should succeed");
 
         // Just test that our temperature scaling produces valid outputs
         // (Different optimization algorithms can produce different results)
@@ -371,7 +383,11 @@ mod tests {
         // Should maintain reasonable ordering for sorted inputs
         let sorted_indices: Vec<usize> = (0..scores.len()).collect();
         let mut sorted_by_score = sorted_indices.clone();
-        sorted_by_score.sort_by(|&i, &j| scores[i].partial_cmp(&scores[j]).unwrap());
+        sorted_by_score.sort_by(|&i, &j| {
+            scores[i]
+                .partial_cmp(&scores[j])
+                .expect("comparison should succeed for non-NaN values")
+        });
 
         // Check if generally monotonic (allowing some flexibility)
         let mut increasing_count = 0;
@@ -394,8 +410,12 @@ mod tests {
         let bandwidth = 0.2;
 
         // Our implementation
-        let kde = KDECalibrator::new().fit(&scores, &targets).unwrap();
-        let our_predictions = kde.predict_proba(&scores).unwrap();
+        let kde = KDECalibrator::new()
+            .fit(&scores, &targets)
+            .expect("fit should succeed");
+        let our_predictions = kde
+            .predict_proba(&scores)
+            .expect("predict_proba should succeed");
 
         // Reference implementation
         let reference_predictions = reference_kde_gaussian(&scores, &targets, &scores, bandwidth);
@@ -423,8 +443,13 @@ mod tests {
         ];
 
         for mut method in methods {
-            method.as_mut().fit(&scores, &targets).unwrap();
-            let predictions = method.predict_proba(&scores).unwrap();
+            method
+                .as_mut()
+                .fit(&scores, &targets)
+                .expect("fit should succeed");
+            let predictions = method
+                .predict_proba(&scores)
+                .expect("predict_proba should succeed");
 
             // For sorted scores, isotonic should be monotonic
             if std::any::type_name::<dyn CalibrationEstimator>().contains("Isotonic") {
@@ -456,14 +481,22 @@ mod tests {
         let isotonic2 = IsotonicCalibrator::new();
 
         // Original scores
-        let isotonic1_fitted = isotonic1.fit(&scores, &targets).unwrap();
-        let predictions1 = isotonic1_fitted.predict_proba(&scores).unwrap();
+        let isotonic1_fitted = isotonic1
+            .fit(&scores, &targets)
+            .expect("fit should succeed");
+        let predictions1 = isotonic1_fitted
+            .predict_proba(&scores)
+            .expect("predict_proba should succeed");
 
         // Affine transformed scores (for isotonic, this should give similar ranking)
         let transformed_scores = scores.mapv(|x| 2.0 * x + 0.1);
-        let isotonic2_fitted = isotonic2.fit(&transformed_scores, &targets).unwrap();
+        let isotonic2_fitted = isotonic2
+            .fit(&transformed_scores, &targets)
+            .expect("fit should succeed");
         let transformed_test = scores.mapv(|x| 2.0 * x + 0.1);
-        let predictions2 = isotonic2_fitted.predict_proba(&transformed_test).unwrap();
+        let predictions2 = isotonic2_fitted
+            .predict_proba(&transformed_test)
+            .expect("predict_proba should succeed");
 
         // Isotonic should be invariant to monotonic transformations of input
         let rank_correlation = compute_rank_correlation(&predictions1, &predictions2);
@@ -480,8 +513,12 @@ mod tests {
         let zeros = Array1::zeros(10);
         let targets = Array1::from(vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
 
-        let sigmoid = SigmoidCalibrator::new().fit(&zeros, &targets).unwrap();
-        let predictions = sigmoid.predict_proba(&zeros).unwrap();
+        let sigmoid = SigmoidCalibrator::new()
+            .fit(&zeros, &targets)
+            .expect("fit should succeed");
+        let predictions = sigmoid
+            .predict_proba(&zeros)
+            .expect("predict_proba should succeed");
 
         // All predictions should be the same (and equal to the base rate)
         let base_rate = 0.5; // 5 out of 10 are positive
@@ -494,8 +531,12 @@ mod tests {
 
         // Test with all ones
         let ones = Array1::ones(10);
-        let sigmoid2 = SigmoidCalibrator::new().fit(&ones, &targets).unwrap();
-        let predictions2 = sigmoid2.predict_proba(&ones).unwrap();
+        let sigmoid2 = SigmoidCalibrator::new()
+            .fit(&ones, &targets)
+            .expect("fit should succeed");
+        let predictions2 = sigmoid2
+            .predict_proba(&ones)
+            .expect("predict_proba should succeed");
 
         for &pred in predictions2.iter() {
             assert!(
@@ -511,8 +552,12 @@ mod tests {
         let scores = Array1::from(vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]);
         let targets = Array1::from(vec![0, 0, 0, 1, 0, 1, 1, 1]);
 
-        let sigmoid = SigmoidCalibrator::new().fit(&scores, &targets).unwrap();
-        let predictions = sigmoid.predict_proba(&scores).unwrap();
+        let sigmoid = SigmoidCalibrator::new()
+            .fit(&scores, &targets)
+            .expect("fit should succeed");
+        let predictions = sigmoid
+            .predict_proba(&scores)
+            .expect("predict_proba should succeed");
 
         // Basic validity checks
         for &pred in predictions.iter() {
@@ -542,12 +587,18 @@ mod tests {
         // Simple Spearman rank correlation approximation
         let mut pairs: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&a, &b)| (a, b)).collect();
-        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        pairs.sort_by(|a, b| {
+            a.0.partial_cmp(&b.0)
+                .expect("comparison should succeed for non-NaN values")
+        });
 
         let mut rank_diff_sum = 0.0;
         for i in 0..n {
             let rank_x = i as Float;
-            let rank_y = pairs.iter().position(|(_, b)| *b == pairs[i].1).unwrap() as Float;
+            let rank_y = pairs
+                .iter()
+                .position(|(_, b)| *b == pairs[i].1)
+                .expect("element should be found") as Float;
             rank_diff_sum += (rank_x - rank_y).powi(2);
         }
 

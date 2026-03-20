@@ -74,3 +74,6 @@ crates/sklears-compose/bin/
 
 # Jupyter Notebook
 .ipynb_checkpoints/
+
+# Rustc ICE dumps
+rustc-ice-*.txt

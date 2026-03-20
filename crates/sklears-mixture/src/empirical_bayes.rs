@@ -6,7 +6,7 @@
 
 use crate::common::CovarianceType;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -571,7 +571,7 @@ impl EmpiricalBayesGMM<Untrained> {
         // Initialize means with k-means++ style initialization
         let mut mu_mean: Array2<Float> = Array2::zeros((self.n_components, n_features));
         for k in 0..self.n_components {
-            let idx = rng.gen_range(0..n_samples);
+            let idx = rng.random_range(0..n_samples);
             mu_mean.row_mut(k).assign(&X.row(idx));
         }
 
@@ -1474,7 +1474,9 @@ mod tests {
             .max_hyperparameter_iter(3)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 2);
         assert!(fitted.n_iter() > 0);
         assert!(fitted.marginal_log_likelihood().is_finite());
@@ -1507,7 +1509,9 @@ mod tests {
                 .max_hyperparameter_iter(2)
                 .random_state(42);
 
-            let fitted = model.fit(&X.view(), &()).unwrap();
+            let fitted = model
+                .fit(&X.view(), &())
+                .expect("model fitting should succeed");
             assert_eq!(fitted.n_components, 2);
         }
     }
@@ -1530,8 +1534,12 @@ mod tests {
             .max_hyperparameter_iter(2)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let labels = fitted.predict(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let labels = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(labels.len(), 6);
         // Check that labels are in valid range
@@ -1551,8 +1559,12 @@ mod tests {
             .max_hyperparameter_iter(2)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -1583,7 +1595,9 @@ mod tests {
             .max_hyperparameter_iter(2)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         let hyperparams = fitted.estimated_hyperparameters();
         assert!(hyperparams.alpha_concentration > 0.0);
@@ -1610,7 +1624,9 @@ mod tests {
             .max_hyperparameter_iter(2)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         // Check weights
         let weights = fitted.weights();
@@ -1653,7 +1669,9 @@ mod tests {
             .max_hyperparameter_iter(2)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         let hyperparams = fitted.estimated_hyperparameters();
         assert!(hyperparams.alpha_concentration >= 0.5);
@@ -1673,8 +1691,10 @@ mod tests {
             .max_hyperparameter_iter(2)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let score = fitted.score(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let score = fitted.score(&X.view()).expect("operation should succeed");
 
         // Score should be finite
         assert!(score.is_finite());
@@ -1691,8 +1711,12 @@ mod tests {
             .max_hyperparameter_iter(2)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let bic = fitted.bayesian_information_criterion(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let bic = fitted
+            .bayesian_information_criterion(&X.view())
+            .expect("operation should succeed");
 
         // BIC should be finite
         assert!(bic.is_finite());

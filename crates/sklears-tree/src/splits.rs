@@ -613,7 +613,9 @@ fn compute_monte_carlo_test(
 
     for _ in 0..n_permutations {
         // Shuffle target values using Fisher-Yates algorithm
-        let target_slice = permuted_target.as_slice_mut().unwrap();
+        let target_slice = permuted_target
+            .as_slice_mut()
+            .expect("slice operation should succeed");
         for i in (1..target_slice.len()).rev() {
             let j = rng.gen_range(0..=i);
             target_slice.swap(i, j);
@@ -661,7 +663,7 @@ fn find_best_split_point(
 
     // Find unique sorted values
     let mut values: Vec<f64> = feature_values.to_vec();
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     values.dedup();
 
     if values.len() < 2 {

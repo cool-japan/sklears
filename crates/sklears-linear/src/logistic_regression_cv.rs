@@ -272,7 +272,7 @@ impl Fit<Array2<f64>, Array1<f64>> for LogisticRegressionCV<Untrained> {
 
         // Get unique classes
         let mut classes = y.to_vec();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup();
         let classes = Array1::from_vec(classes);
 
@@ -489,9 +489,9 @@ impl Predict<Array2<f64>, Array1<f64>> for LogisticRegressionCV<Trained> {
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?)
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    ?;
                 predictions[i] = classes[max_idx];
             }
         }
@@ -538,7 +538,7 @@ impl PredictProba<Array2<f64>, Array2<f64>> for LogisticRegressionCV<Trained> {
             let mut proba = Array2::zeros((n_samples, classes.len()));
             for i in 0..n_samples {
                 let row = decision.row(i);
-                let max_val = *row.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+                let max_val = *row.iter().max_by(|a, b| a.partial_cmp(b).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?).ok_or_else(|| SklearsError::NumericalError("operation should succeed".into()))?;
                 let exp_sum: f64 = row.iter().map(|&v| (v - max_val).exp()).sum();
 
                 for j in 0..classes.len() {
@@ -615,17 +615,17 @@ mod tests {
             .cs(vec![0.1, 1.0, 10.0])
             .build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that we found a best C
         assert!(trained.cs().contains(&trained.best_c()));
 
         // Check predictions
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Check probabilities
-        let proba = trained.predict_proba(&x).unwrap();
+        let proba = trained.predict_proba(&x).expect("operation should succeed");
         assert_eq!(proba.shape(), &[6, 2]);
 
         // Probabilities should sum to 1
@@ -655,17 +655,17 @@ mod tests {
             .cs(vec![0.1, 1.0, 10.0])
             .build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that we have 2 classes
         assert_eq!(trained.classes().len(), 2);
 
         // Check predictions
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 9);
 
         // Check probabilities
-        let proba = trained.predict_proba(&x).unwrap();
+        let proba = trained.predict_proba(&x).expect("operation should succeed");
         assert_eq!(proba.shape(), &[9, 2]);
 
         // Probabilities should sum to 1
@@ -690,7 +690,7 @@ mod tests {
         // Don't specify cs, should use default 10 values
         let model = LogisticRegressionCV::builder().cv(3).build();
 
-        let trained = model.fit(&x, &y).unwrap();
+        let trained = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Should have 10 C values by default
         assert_eq!(trained.cs().len(), 10);

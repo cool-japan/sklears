@@ -207,7 +207,9 @@ mod tests {
             .n_fft(256)
             .sample_rate(250.0);
 
-        let features = extractor.extract_features(&signal.view()).unwrap();
+        let features = extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert!(features.len() > 0);
         assert!(features.iter().all(|&x| x.is_finite()));
     }
@@ -220,7 +222,9 @@ mod tests {
             .order(5)
             .method("yule_walker".to_string());
 
-        let features = extractor.extract_features(&signal.view()).unwrap();
+        let features = extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert_eq!(features.len(), 5);
         assert!(features.iter().all(|&x| x.is_finite()));
     }
@@ -233,7 +237,9 @@ mod tests {
 
         let extractor = PhaseBasedExtractor::new().n_fft(256).hop_length(128);
 
-        let features = extractor.extract_features(&signal.view()).unwrap();
+        let features = extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert!(features.len() > 0);
         assert!(features.iter().all(|&x| x.is_finite()));
     }
@@ -248,7 +254,9 @@ mod tests {
             .wavelet("haar".to_string())
             .levels(4);
 
-        let features = extractor.extract_features(&signal.view()).unwrap();
+        let features = extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert!(features.len() <= 5); // 4 detail + 1 approximation
         assert!(features.iter().all(|&x| x.is_finite()));
     }
@@ -263,7 +271,9 @@ mod tests {
             .frequency_range(8.0, 12.0)
             .sample_rate(250.0);
 
-        let features = filter.extract_features(&signal.view()).unwrap();
+        let features = filter
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         assert_eq!(features.len(), 3); // RMS, peak, ZCR
         assert!(features.iter().all(|&x| x.is_finite()));
     }
@@ -280,7 +290,9 @@ mod tests {
             .include_temporal(true)
             .sample_rate(250.0);
 
-        let features = extractor.extract_features(&signal.view()).unwrap();
+        let features = extractor
+            .extract_features(&signal.view())
+            .expect("operation should succeed");
         let expected_count = extractor.feature_count();
         assert_eq!(features.len(), expected_count);
         assert!(features.iter().all(|&x| x.is_finite()));
@@ -291,7 +303,8 @@ mod tests {
         let signal1 = Array1::from_iter((0..100).map(|i| (i as f64 * 0.1).sin()));
         let signal2 = Array1::from_iter((0..100).map(|i| (i as f64 * 0.1 + 0.5).sin()));
 
-        let correlation = cross_correlate(&signal1.view(), &signal2.view()).unwrap();
+        let correlation =
+            cross_correlate(&signal1.view(), &signal2.view()).expect("operation should succeed");
         assert_eq!(correlation.len(), signal1.len() + signal2.len() - 1);
         assert!(correlation.iter().all(|&x| x.is_finite()));
     }
@@ -300,7 +313,7 @@ mod tests {
     fn test_apply_window() {
         let signal = Array1::ones(128);
 
-        let windowed = apply_window(&signal.view(), "hanning").unwrap();
+        let windowed = apply_window(&signal.view(), "hanning").expect("operation should succeed");
         assert_eq!(windowed.len(), signal.len());
         assert!(windowed[0] < windowed[64]); // Window should taper at edges
         assert!(windowed.iter().all(|&x| x.is_finite()));

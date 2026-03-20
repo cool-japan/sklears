@@ -90,7 +90,11 @@ fn bench_sentiment_features(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
             let analyzer = SentimentAnalyzer::new();
             b.iter(|| {
-                black_box(analyzer.extract_features(&documents).unwrap());
+                black_box(
+                    analyzer
+                        .extract_features(&documents)
+                        .expect("operation should succeed"),
+                );
             });
         });
     }
@@ -130,7 +134,11 @@ fn bench_emotion_features(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
             let detector = EmotionDetector::new();
             b.iter(|| {
-                black_box(detector.extract_features(&documents).unwrap());
+                black_box(
+                    detector
+                        .extract_features(&documents)
+                        .expect("operation should succeed"),
+                );
             });
         });
     }
@@ -178,7 +186,11 @@ fn bench_aspect_features(c: &mut Criterion) {
                 "product".to_string(),
             ]);
             b.iter(|| {
-                black_box(analyzer.extract_features(&documents).unwrap());
+                black_box(
+                    analyzer
+                        .extract_features(&documents)
+                        .expect("operation should succeed"),
+                );
             });
         });
     }
@@ -197,8 +209,14 @@ fn bench_count_vectorizer(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
             b.iter(|| {
                 let vectorizer = CountVectorizer::new();
-                let fitted = vectorizer.fit(&documents, &()).unwrap();
-                black_box(fitted.transform(&documents).unwrap());
+                let fitted = vectorizer
+                    .fit(&documents, &())
+                    .expect("operation should succeed");
+                black_box(
+                    fitted
+                        .transform(&documents)
+                        .expect("operation should succeed"),
+                );
             });
         });
     }
@@ -217,8 +235,14 @@ fn bench_tfidf_vectorizer(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
             b.iter(|| {
                 let vectorizer = TfidfVectorizer::new();
-                let fitted = vectorizer.fit(&documents, &()).unwrap();
-                black_box(fitted.transform(&documents).unwrap());
+                let fitted = vectorizer
+                    .fit(&documents, &())
+                    .expect("operation should succeed");
+                black_box(
+                    fitted
+                        .transform(&documents)
+                        .expect("operation should succeed"),
+                );
             });
         });
     }

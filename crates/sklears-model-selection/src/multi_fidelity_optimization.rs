@@ -7,8 +7,8 @@
 
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -418,14 +418,23 @@ impl MultiFidelityOptimizer {
                 evaluations.push(evaluation.clone());
 
                 if self.update_best(&evaluation) {
-                    convergence_curve.push(self.current_best.as_ref().unwrap().score);
+                    convergence_curve.push(
+                        self.current_best
+                            .as_ref()
+                            .expect("operation should succeed")
+                            .score,
+                    );
                 } else if let Some(best) = &self.current_best {
                     convergence_curve.push(best.score);
                 }
             }
 
             // Keep top 1/eta configurations
-            evaluations.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+            evaluations.sort_by(|a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .expect("operation should succeed")
+            });
             let keep_count = (configurations.len() as Float / eta).max(1.0) as usize;
 
             configurations = evaluations
@@ -484,7 +493,12 @@ impl MultiFidelityOptimizer {
 
             self.evaluation_history.push(evaluation.clone());
             if self.update_best(&evaluation) {
-                convergence_curve.push(self.current_best.as_ref().unwrap().score);
+                convergence_curve.push(
+                    self.current_best
+                        .as_ref()
+                        .expect("operation should succeed")
+                        .score,
+                );
             } else if let Some(best) = &self.current_best {
                 convergence_curve.push(best.score);
             }
@@ -507,7 +521,12 @@ impl MultiFidelityOptimizer {
 
             self.evaluation_history.push(evaluation.clone());
             if self.update_best(&evaluation) {
-                convergence_curve.push(self.current_best.as_ref().unwrap().score);
+                convergence_curve.push(
+                    self.current_best
+                        .as_ref()
+                        .expect("operation should succeed")
+                        .score,
+                );
             } else if let Some(best) = &self.current_best {
                 convergence_curve.push(best.score);
             }
@@ -577,14 +596,23 @@ impl MultiFidelityOptimizer {
                     evaluations.push(evaluation.clone());
 
                     if self.update_best(&evaluation) {
-                        convergence_curve.push(self.current_best.as_ref().unwrap().score);
+                        convergence_curve.push(
+                            self.current_best
+                                .as_ref()
+                                .expect("operation should succeed")
+                                .score,
+                        );
                     } else if let Some(best) = &self.current_best {
                         convergence_curve.push(best.score);
                     }
                 }
 
                 // Keep top configurations
-                evaluations.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+                evaluations.sort_by(|a, b| {
+                    b.score
+                        .partial_cmp(&a.score)
+                        .expect("operation should succeed")
+                });
                 configurations = evaluations
                     .iter()
                     .take(n_i)
@@ -685,7 +713,12 @@ impl MultiFidelityOptimizer {
 
             self.evaluation_history.push(evaluation.clone());
             if self.update_best(&evaluation) {
-                convergence_curve.push(self.current_best.as_ref().unwrap().score);
+                convergence_curve.push(
+                    self.current_best
+                        .as_ref()
+                        .expect("operation should succeed")
+                        .score,
+                );
             } else if let Some(best) = &self.current_best {
                 convergence_curve.push(best.score);
             }
@@ -743,7 +776,12 @@ impl MultiFidelityOptimizer {
 
                 self.evaluation_history.push(evaluation.clone());
                 if self.update_best(&evaluation) {
-                    convergence_curve.push(self.current_best.as_ref().unwrap().score);
+                    convergence_curve.push(
+                        self.current_best
+                            .as_ref()
+                            .expect("operation should succeed")
+                            .score,
+                    );
                 } else if let Some(best) = &self.current_best {
                     convergence_curve.push(best.score);
                 }
@@ -780,7 +818,7 @@ impl MultiFidelityOptimizer {
         let mut config = HashMap::new();
 
         for (i, &(low, high)) in parameter_bounds.iter().enumerate() {
-            let value = self.rng.gen_range(low..high + 1.0);
+            let value = self.rng.random_range(low..high + 1.0);
             config.insert(format!("param_{}", i), value);
         }
 
@@ -1112,7 +1150,7 @@ mod tests {
 
         let result =
             multi_fidelity_optimize(mock_evaluation_function, &parameter_bounds, Some(config))
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(result.best_score >= 0.0);
         assert!(result.total_cost > 0.0);
@@ -1131,7 +1169,7 @@ mod tests {
             &HashMap::from([("param_0".to_string(), 0.5)]),
             &low_fidelity,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(evaluation.cost, 1.0);
     }
@@ -1161,7 +1199,7 @@ mod tests {
 
         let result =
             multi_fidelity_optimize(mock_evaluation_function, &parameter_bounds, Some(config))
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(result.best_score >= 0.0);
         assert!(!result.fidelity_usage.is_empty());

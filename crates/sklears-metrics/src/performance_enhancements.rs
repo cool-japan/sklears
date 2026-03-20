@@ -810,8 +810,8 @@ impl PrefetchingMetricsComputer {
             return crate::regression::mean_absolute_error(y_true, y_pred);
         }
 
-        let true_slice = y_true.as_slice().unwrap();
-        let pred_slice = y_pred.as_slice().unwrap();
+        let true_slice = y_true.as_slice().expect("operation should succeed");
+        let pred_slice = y_pred.as_slice().expect("operation should succeed");
         let len = true_slice.len();
         let mut sum = 0.0;
 
@@ -960,8 +960,9 @@ mod tests {
 
         let result = computer
             .adaptive_mean_absolute_error(&y_true, &y_pred)
-            .unwrap();
-        let expected = crate::regression::mean_absolute_error(&y_true, &y_pred).unwrap();
+            .expect("operation should succeed");
+        let expected = crate::regression::mean_absolute_error(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_relative_eq!(result, expected, epsilon = 1e-10);
     }
@@ -996,7 +997,8 @@ mod tests {
         let vector = array![1.0, 2.0];
         let mut result = array![0.0, 0.0];
 
-        CacheOptimizedMatrixOps::cache_friendly_matvec(&matrix, &vector, &mut result, 2).unwrap();
+        CacheOptimizedMatrixOps::cache_friendly_matvec(&matrix, &vector, &mut result, 2)
+            .expect("operation should succeed");
 
         assert_relative_eq!(result[0], 5.0, epsilon = 1e-10); // 1*1 + 2*2
         assert_relative_eq!(result[1], 11.0, epsilon = 1e-10); // 3*1 + 4*2
@@ -1010,8 +1012,11 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y_pred = array![1.1, 1.9, 3.1, 3.9, 5.1];
 
-        let result = computer.prefetching_mae(&y_true, &y_pred).unwrap();
-        let expected = crate::regression::mean_absolute_error(&y_true, &y_pred).unwrap();
+        let result = computer
+            .prefetching_mae(&y_true, &y_pred)
+            .expect("operation should succeed");
+        let expected = crate::regression::mean_absolute_error(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_relative_eq!(result, expected, epsilon = 1e-10);
     }
@@ -1024,8 +1029,11 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y_pred = array![1.1, 1.9, 3.1, 3.9, 5.1];
 
-        let result = computer.optimized_mae(&y_true, &y_pred).unwrap();
-        let expected = crate::regression::mean_absolute_error(&y_true, &y_pred).unwrap();
+        let result = computer
+            .optimized_mae(&y_true, &y_pred)
+            .expect("operation should succeed");
+        let expected = crate::regression::mean_absolute_error(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_relative_eq!(result, expected, epsilon = 1e-10);
     }

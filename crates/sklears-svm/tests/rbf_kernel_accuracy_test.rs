@@ -10,7 +10,7 @@ use sklears_svm::svc::SVC;
 /// Generate non-linearly separable dataset (XOR-like pattern)
 fn generate_xor_dataset(n_samples: usize, seed: u64) -> (Array2<f64>, Array1<f64>) {
     let mut rng = seeded_rng(seed);
-    let dist = Uniform::new(-0.5, 0.5).unwrap();
+    let dist = Uniform::new(-0.5, 0.5).expect("operation should succeed");
 
     let samples_per_quadrant = n_samples / 4;
     let mut x = Array2::zeros((n_samples, 2));

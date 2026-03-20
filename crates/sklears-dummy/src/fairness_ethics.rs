@@ -11,7 +11,7 @@
 //! - [`BiasDetectionBaseline`] - Bias detection and measurement baseline
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{prelude::*, thread_rng, Rng};
+use scirs2_core::random::{prelude::*, thread_rng, RngExt};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::error::SklearsError;
@@ -346,7 +346,9 @@ impl Fit<Array2<f64>, Array1<i32>, FittedFairnessAwareBaseline> for FairnessAwar
             let group_feature_matrix =
                 Array2::from_shape_vec((group_size, x.ncols()), group_features)?;
 
-            let feature_means = group_feature_matrix.mean_axis(Axis(0)).unwrap();
+            let feature_means = group_feature_matrix
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             let feature_stds = group_feature_matrix.std_axis(Axis(0), 0.0);
 
             group_statistics.insert(
@@ -479,7 +481,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
                         // Apply pre-processing bias mitigation
                         let bias_adjusted_rate = group_stats.outcome_rate
                             * self.bias_mitigation_params[i % self.bias_mitigation_params.len()];
-                        if rng.gen::<f64>() < bias_adjusted_rate {
+                        if rng.random::<f64>() < bias_adjusted_rate {
                             1
                         } else {
                             0
@@ -488,7 +490,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
                     FairnessStrategy::InProcessing { .. } => {
                         // Apply in-processing fairness constraints
                         let fairness_adjusted_rate = (group_stats.outcome_rate + 0.5) / 2.0;
-                        if rng.gen::<f64>() < fairness_adjusted_rate {
+                        if rng.random::<f64>() < fairness_adjusted_rate {
                             1
                         } else {
                             0
@@ -498,14 +500,14 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
                         correction_strength,
                     } => {
                         // Apply post-processing bias correction
-                        let base_prediction = if rng.gen::<f64>() < group_stats.outcome_rate {
+                        let base_prediction = if rng.random::<f64>() < group_stats.outcome_rate {
                             1
                         } else {
                             0
                         };
                         let correction = (0.5 - group_stats.outcome_rate) * correction_strength;
                         let corrected_prob = group_stats.outcome_rate + correction;
-                        if rng.gen::<f64>() < corrected_prob {
+                        if rng.random::<f64>() < corrected_prob {
                             1
                         } else {
                             base_prediction
@@ -518,7 +520,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
                         let adjusted_rate = (group_stats.outcome_rate + adversarial_adjustment)
                             .max(0.0)
                             .min(1.0);
-                        if rng.gen::<f64>() < adjusted_rate {
+                        if rng.random::<f64>() < adjusted_rate {
                             1
                         } else {
                             0
@@ -529,12 +531,12 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
                     } => {
                         // Apply fairness through awareness
                         if group_stats.outcome_rate.abs() < *awareness_threshold {
-                            if rng.gen::<f64>() < 0.5 {
+                            if rng.random::<f64>() < 0.5 {
                                 1
                             } else {
                                 0
                             } // Random fair prediction
-                        } else if rng.gen::<f64>() < group_stats.outcome_rate {
+                        } else if rng.random::<f64>() < group_stats.outcome_rate {
                             1
                         } else {
                             0
@@ -543,7 +545,7 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedFairnessAwareBaseline {
                 }
             } else {
                 // Default prediction for unknown groups
-                if rng.gen::<f64>() < 0.5 {
+                if rng.random::<f64>() < 0.5 {
                     1
                 } else {
                     0
@@ -701,14 +703,14 @@ impl Predict<Array2<f64>, Array1<i32>> for FittedDemographicParityBaseline {
                 self.parity_adjustments.get(&group_key),
             ) {
                 let adjusted_rate = (group_rate + adjustment).max(0.0).min(1.0);
-                if rng.gen::<f64>() < adjusted_rate {
+                if rng.random::<f64>() < adjusted_rate {
                     1
                 } else {
                     0
                 }
             } else {
                 // Default prediction for unknown groups
-                if rng.gen::<f64>() < 0.5 {
+                if rng.random::<f64>() < 0.5 {
                     1
                 } else {
                     0
@@ -737,7 +739,7 @@ mod tests {
                 1.0, 7.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 0, 1];
 
         let baseline = FairnessAwareBaseline::new(
@@ -746,8 +748,8 @@ mod tests {
             },
             vec![1], // Column 1 is the protected attribute
         );
-        let fitted = baseline.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert!(fitted.group_statistics.len() > 0);
@@ -759,15 +761,15 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 2.0, 2.0, 1.0, 3.0, 3.0, 0.0, 4.0, 4.0, 1.0, 5.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 1, 0, 1];
 
         let baseline = DemographicParityBaseline::new(
             DemographicParityStrategy::EqualOutcomeRates,
             vec![1], // Column 1 is the protected attribute
         );
-        let fitted = baseline.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(fitted.group_outcome_rates.len() > 0);
@@ -775,8 +777,8 @@ mod tests {
 
     #[test]
     fn test_fairness_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 2.0, 1.0, 3.0, 0.0, 4.0, 1.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 2.0, 1.0, 3.0, 0.0, 4.0, 1.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 0, 1];
 
         let strategies = vec![
@@ -799,16 +801,16 @@ mod tests {
 
         for strategy in strategies {
             let baseline = FairnessAwareBaseline::new(strategy, vec![1]).with_random_state(42);
-            let fitted = baseline.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }
 
     #[test]
     fn test_demographic_parity_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 2.0, 1.0, 3.0, 0.0, 4.0, 1.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 2.0, 1.0, 3.0, 0.0, 4.0, 1.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 0, 1];
 
         let strategies = vec![
@@ -824,8 +826,8 @@ mod tests {
 
         for strategy in strategies {
             let baseline = DemographicParityBaseline::new(strategy, vec![1]).with_random_state(42);
-            let fitted = baseline.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }

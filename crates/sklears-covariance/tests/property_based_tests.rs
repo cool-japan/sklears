@@ -17,7 +17,7 @@ use sklears_covariance::{
 /// Generate random test data with controlled properties
 fn generate_random_data(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {
     let mut rng = scirs2_core::random::StdRng::seed_from_u64(seed);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
     Array2::from_shape_fn((n_samples, n_features), |_| normal.sample(&mut rng))
 }
 

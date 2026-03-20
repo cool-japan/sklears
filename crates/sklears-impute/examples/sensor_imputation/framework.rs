@@ -665,7 +665,7 @@ impl SensorImputationFramework {
     fn sensor_fusion(&self, values: &[f64]) -> Result<f64, ImputationError> {
         // Simple fusion strategy: median of valid readings
         let mut sorted_values = values.to_vec();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         if sorted_values.len() % 2 == 0 {
             let mid = sorted_values.len() / 2;

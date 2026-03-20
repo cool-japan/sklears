@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::rand_prelude::SliceRandom;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, Rng, RngExt};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -471,7 +471,7 @@ impl RandomForestImputer<Untrained> {
         if self.bootstrap {
             // Bootstrap sampling
             sample_indices = (0..n_samples)
-                .map(|_| rng.gen_range(0..n_samples))
+                .map(|_| rng.random_range(0..n_samples))
                 .collect();
         }
 
@@ -548,8 +548,8 @@ impl RandomForestImputer<Untrained> {
             return Ok(node_index);
         }
 
-        let feature_idx = best_feature.unwrap();
-        let threshold = best_threshold.unwrap();
+        let feature_idx = best_feature.expect("operation should succeed");
+        let threshold = best_threshold.expect("operation should succeed");
 
         // Split samples
         let (left_indices, right_indices) =
@@ -646,7 +646,7 @@ impl RandomForestImputer<Untrained> {
                 .iter()
                 .map(|&i| data.features[[i, feature_idx]])
                 .collect();
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             feature_values.dedup_by(|a, b| (*a - *b).abs() < 1e-8);
 
             if feature_values.len() < 2 {

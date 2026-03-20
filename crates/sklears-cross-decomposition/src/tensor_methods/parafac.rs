@@ -30,7 +30,7 @@ use super::common::{TensorInitMethod, Trained, Untrained};
 ///
 /// let tensor = Array3::zeros((20, 15, 10));
 /// let parafac = ParafacDecomposition::new(5);
-/// let fitted = parafac.fit(&tensor, &()).unwrap();
+/// let fitted = parafac.fit(&tensor, &()).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ParafacDecomposition<State = Untrained> {
@@ -137,7 +137,10 @@ impl Fit<Array3<Float>, ()> for ParafacDecomposition<Untrained> {
         let shape = tensor.shape();
 
         // Validate n_factors
-        let min_dim = shape.iter().min().unwrap();
+        let min_dim = shape
+            .iter()
+            .min()
+            .ok_or(SklearsError::InvalidInput("empty collection".to_string()))?;
         if self.n_factors > *min_dim {
             return Err(SklearsError::InvalidInput(format!(
                 "n_factors ({}) cannot exceed minimum tensor dimension ({})",
@@ -147,7 +150,7 @@ impl Fit<Array3<Float>, ()> for ParafacDecomposition<Untrained> {
 
         // Center tensor if requested
         let (tensor_centered, mean_tensor) = if self.center {
-            let mean = tensor.mean().unwrap();
+            let mean = tensor.mean().unwrap_or_default();
             let centered = tensor - mean;
             (centered, Some(ArrayD::from_elem(IxDyn(&[]), mean)))
         } else {
@@ -354,7 +357,12 @@ impl ParafacDecomposition<Untrained> {
 
     /// Reconstruct tensor from PARAFAC factors
     fn reconstruct_parafac_tensor(&self, factors: &[Array2<Float>]) -> Result<Array3<Float>> {
-        let original_shape = self.original_shape_.as_ref().unwrap();
+        let original_shape = self
+            .original_shape_
+            .as_ref()
+            .ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
         let mut reconstructed =
             Array3::zeros((original_shape[0], original_shape[1], original_shape[2]));
 
@@ -429,26 +437,32 @@ impl ParafacDecomposition<Untrained> {
 impl ParafacDecomposition<Trained> {
     /// Get the factor matrices
     pub fn factor_matrices(&self) -> &Vec<Array2<Float>> {
-        self.factor_matrices_.as_ref().unwrap()
+        self.factor_matrices_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the explained variance
     pub fn explained_variance(&self) -> Float {
-        self.explained_variance_.unwrap()
+        self.explained_variance_
+            .expect("value should be set after fitting")
     }
 
     /// Get the reconstruction error
     pub fn reconstruction_error(&self) -> Float {
-        self.reconstruction_error_.unwrap()
+        self.reconstruction_error_
+            .expect("value should be set after fitting")
     }
 
     /// Get the factor correlations
     pub fn factor_correlations(&self) -> &Array2<Float> {
-        self.factor_correlations_.as_ref().unwrap()
+        self.factor_correlations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 }

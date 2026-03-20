@@ -781,7 +781,9 @@ mod tests {
         let config = EigenConfig::default();
         let solver = StableEigen::new(config);
 
-        let result = solver.decompose(matrix.view()).unwrap();
+        let result = solver
+            .decompose(matrix.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.eigenvalues.len(), 2);
         assert_eq!(result.eigenvectors.shape(), &[2, 2]);
@@ -809,11 +811,13 @@ mod tests {
         };
         let solver = StableEigen::new(config);
 
-        let result = solver.decompose(ill_conditioned.view()).unwrap();
+        let result = solver
+            .decompose(ill_conditioned.view())
+            .expect("operation should succeed");
         assert!(result.condition_number.is_some());
         // The test should pass if condition monitoring is working, regardless of exact value
         // since the preprocessing might normalize the condition number
-        assert!(result.condition_number.unwrap() > 0.0);
+        assert!(result.condition_number.expect("operation should succeed") > 0.0);
     }
 
     #[test]
@@ -824,7 +828,7 @@ mod tests {
 
         let result = solver
             .decompose_with_rank_detection(rank_deficient.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should detect rank 1 and return only 1 eigenvalue/eigenvector
         assert_eq!(result.eigenvalues.len(), 1);
@@ -835,7 +839,8 @@ mod tests {
         // Simple Laplacian matrix (path graph with 3 nodes)
         let laplacian = array![[1.0, -1.0, 0.0], [-1.0, 2.0, -1.0], [0.0, -1.0, 1.0]];
 
-        let result = ManifoldEigen::laplacian_eigen(laplacian.view(), 2).unwrap();
+        let result =
+            ManifoldEigen::laplacian_eigen(laplacian.view(), 2).expect("operation should succeed");
 
         // Should have 2 components (smallest non-zero eigenvalues)
         assert_eq!(result.eigenvalues.len(), 2);
@@ -852,7 +857,9 @@ mod tests {
         let config = EigenConfig::default();
         let solver = StableEigen::new(config);
 
-        let result = solver.decompose(matrix.view()).unwrap();
+        let result = solver
+            .decompose(matrix.view())
+            .expect("operation should succeed");
 
         // Check that accuracy metrics are reasonable
         assert!(result.accuracy_metrics.max_residual < 1e-10);

@@ -77,10 +77,12 @@ impl BenchmarkResult {
         let std = variance.sqrt();
 
         let mut sorted_latencies = latencies_ms.clone();
-        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let min = *sorted_latencies.first().unwrap();
-        let max = *sorted_latencies.last().unwrap();
+        let min = *sorted_latencies
+            .first()
+            .expect("collection should not be empty");
+        let max = *sorted_latencies.last().expect("empty collection");
         let median = sorted_latencies[sorted_latencies.len() / 2];
 
         // Throughput: samples per second
@@ -153,15 +155,17 @@ impl BenchmarkSuite {
         self.results.iter().max_by(|a, b| {
             a.throughput_samples_per_sec
                 .partial_cmp(&b.throughput_samples_per_sec)
-                .unwrap()
+                .expect("value should be present")
         })
     }
 
     /// Get best latency result
     pub fn best_latency(&self) -> Option<&BenchmarkResult> {
-        self.results
-            .iter()
-            .min_by(|a, b| a.mean_latency_ms.partial_cmp(&b.mean_latency_ms).unwrap())
+        self.results.iter().min_by(|a, b| {
+            a.mean_latency_ms
+                .partial_cmp(&b.mean_latency_ms)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     /// Print summary
@@ -469,7 +473,7 @@ mod tests {
         suite.add_result(result1);
         suite.add_result(result2);
 
-        let best = suite.best_throughput().unwrap();
+        let best = suite.best_throughput().expect("operation should succeed");
         assert_eq!(best.batch_size, 16); // Higher throughput
     }
 
@@ -483,7 +487,7 @@ mod tests {
         suite.add_result(result1);
         suite.add_result(result2);
 
-        let best = suite.best_latency().unwrap();
+        let best = suite.best_latency().expect("operation should succeed");
         assert_eq!(best.batch_size, 16); // Lower latency
     }
 

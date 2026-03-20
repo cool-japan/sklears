@@ -587,7 +587,7 @@ impl HotReloadConfig {
             let new_config = Config::from_file(&self.file_path)?;
 
             {
-                let mut config = self.config.write().unwrap();
+                let mut config = self.config.write().expect("operation should succeed");
                 *config = new_config;
             }
 
@@ -820,10 +820,12 @@ mod tests {
         }
         "#;
 
-        let mut temp_file = NamedTempFile::with_suffix(".json").unwrap();
-        temp_file.write_all(json_content.as_bytes()).unwrap();
+        let mut temp_file = NamedTempFile::with_suffix(".json").expect("operation should succeed");
+        temp_file
+            .write_all(json_content.as_bytes())
+            .expect("operation should succeed");
 
-        let config = Config::from_file(temp_file.path()).unwrap();
+        let config = Config::from_file(temp_file.path()).expect("operation should succeed");
 
         assert_eq!(config.get_string("database.host", ""), "localhost");
         assert_eq!(config.get_i64("database.port", 0), 5432);
@@ -879,7 +881,7 @@ mod tests {
             args,
             config: Config::new(),
         };
-        parser.parse().unwrap();
+        parser.parse().expect("operation should succeed");
 
         let config = parser.get_config();
         assert_eq!(config.get_string("host", ""), "localhost");

@@ -278,7 +278,9 @@ impl TrainedRobustDiscriminantAnalysis {
         }
 
         // Initialize with sample mean
-        let mut robust_mean = data.mean_axis(Axis(0)).unwrap();
+        let mut robust_mean = data
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
         let mut prev_mean = robust_mean.clone();
 
         // Iteratively reweighted least squares
@@ -390,7 +392,7 @@ impl TrainedRobustDiscriminantAnalysis {
         }
 
         // Sort by distance
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Keep only the non-trimmed fraction
         let n_keep = ((1.0 - self.config.trimming_fraction) * n_samples as Float) as usize;
@@ -731,7 +733,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedRobustDiscriminantAnalysis {
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -828,8 +830,8 @@ mod tests {
             .estimator_type(MEstimatorType::Huber { k: 1.345 })
             .trimming_fraction(0.25);
 
-        let fitted = rda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.classes().len(), 2);
@@ -850,8 +852,8 @@ mod tests {
         let rda =
             RobustDiscriminantAnalysis::new().estimator_type(MEstimatorType::Tukey { c: 4.685 });
 
-        let fitted = rda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -868,8 +870,10 @@ mod tests {
             c: 8.0,
         });
 
-        let fitted = rda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -892,8 +896,8 @@ mod tests {
 
         let rda = RobustDiscriminantAnalysis::new().n_components(Some(1));
 
-        let fitted = rda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 1));
     }
@@ -912,7 +916,7 @@ mod tests {
         let y = array![0, 0, 0, 0, 1, 1, 1];
 
         let rda = RobustDiscriminantAnalysis::new();
-        let fitted = rda.fit(&x, &y).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
         let outlier_scores = fitted.outlier_scores();
 
         assert_eq!(outlier_scores.len(), 7);
@@ -938,7 +942,7 @@ mod tests {
 
         let rda = RobustDiscriminantAnalysis::new().trimming_fraction(0.2); // Trim 20%
 
-        let fitted = rda.fit(&x, &y).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
         let trimmed_indices = fitted.trimmed_indices();
 
         // Should keep approximately 80% of samples
@@ -955,8 +959,8 @@ mod tests {
         let rda =
             RobustDiscriminantAnalysis::new().estimator_type(MEstimatorType::Andrews { c: 1.339 });
 
-        let fitted = rda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -978,8 +982,8 @@ mod tests {
             .adaptive_threshold(true)
             .bootstrap_samples(50);
 
-        let fitted = rda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = rda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);

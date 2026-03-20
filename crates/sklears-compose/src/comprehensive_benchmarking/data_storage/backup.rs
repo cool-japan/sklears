@@ -39,7 +39,7 @@ impl DataStorageEngine {
         let backend = self.storage_backends.get(backend_id)
             .ok_or_else(|| DataStorageError::BackendNotFound(backend_id.to_string()))?;
 
-        let backend_lock = backend.read().unwrap();
+        let backend_lock = backend.read().unwrap_or_else(|e| e.into_inner());
 
         if !matches!(backend_lock.status, BackendStatus::Online) {
             return Err(DataStorageError::BackendUnavailable(backend_id.to_string()));
@@ -68,7 +68,7 @@ impl DataStorageEngine {
         let backend = self.storage_backends.get(backend_id)
             .ok_or_else(|| DataStorageError::BackendNotFound(backend_id.to_string()))?;
 
-        let backend_lock = backend.read().unwrap();
+        let backend_lock = backend.read().unwrap_or_else(|e| e.into_inner());
         self.execute_retrieval_operation(&backend_lock, storage_key)
     }
 

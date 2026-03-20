@@ -249,7 +249,7 @@ impl RegressionDetector {
             let trend_analysis = self.analyze_metric_trend(&metric_results)?;
 
             if self.is_negative_trend(&trend_analysis) {
-                let latest_result = metric_results.last().unwrap();
+                let latest_result = metric_results.last().unwrap_or_default();
 
                 let regression = DetectedRegression {
                     regression_id: self.generate_regression_id(&latest_result.benchmark_id, &metric_name),
@@ -257,7 +257,7 @@ impl RegressionDetector {
                     metric_name: metric_name.clone(),
                     regression_type: RegressionType::TrendDegradation,
                     severity: self.assess_trend_severity(&trend_analysis),
-                    current_value: *latest_result.metrics.get(&metric_name).unwrap(),
+                    current_value: *latest_result.metrics.get(&metric_name).unwrap_or_default(),
                     expected_value: trend_analysis.expected_value,
                     degradation_percentage: trend_analysis.degradation_rate * 100.0,
                     detection_confidence: trend_analysis.confidence,
@@ -448,11 +448,11 @@ impl RegressionDetector {
 
     // Utility methods
     fn generate_report_id(&self) -> String {
-        format!("reg_report_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis())
+        format!("reg_report_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_monitoring_id(&self) -> String {
-        format!("mon_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis())
+        format!("mon_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_regression_id(&self, benchmark_id: &str, metric_name: &str) -> String {
@@ -464,7 +464,7 @@ impl RegressionDetector {
     }
 
     fn generate_analysis_id(&self) -> String {
-        format!("rca_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis())
+        format!("rca_{}", SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_cache_key(&self, results: &[BenchmarkResult]) -> String {
@@ -1613,7 +1613,7 @@ impl RegressionDetector {
 
     fn deduplicate_and_rank_regressions(&self, mut regressions: Vec<DetectedRegression>) -> Result<Vec<DetectedRegression>, RegressionError> {
         // Remove duplicates and sort by confidence
-        regressions.sort_by(|a, b| b.detection_confidence.partial_cmp(&a.detection_confidence).unwrap());
+        regressions.sort_by(|a, b| b.detection_confidence.partial_cmp(&a.detection_confidence).unwrap_or(std::cmp::Ordering::Equal));
         regressions.dedup_by(|a, b| a.regression_id == b.regression_id);
         Ok(regressions)
     }
@@ -1721,7 +1721,7 @@ mod tests {
             },
         };
 
-        let assessment = detector.assess_regression_severity(&[critical_regression]).unwrap();
+        let assessment = detector.assess_regression_severity(&[critical_regression]).unwrap_or_default();
         assert_eq!(assessment.critical_regressions, 1);
         assert!(matches!(assessment.overall_severity, OverallRegressionSeverity::Critical));
     }

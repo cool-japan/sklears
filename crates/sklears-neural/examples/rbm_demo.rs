@@ -149,7 +149,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Show top 10 strongest connections
         let mut weight_indices: Vec<_> =
             (0..weights.len()).map(|j| (j, weights[j].abs())).collect();
-        weight_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        weight_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         print!("   Top connections: ");
         for &(feat_idx, _weight_abs) in weight_indices.iter().take(5) {

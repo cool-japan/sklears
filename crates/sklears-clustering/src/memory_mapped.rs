@@ -290,7 +290,7 @@ impl MemoryMappedDistanceMatrix {
         }
 
         // Sort by distance and take k nearest
-        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         neighbors.truncate(k);
 
         Ok(neighbors)
@@ -329,7 +329,7 @@ impl MemoryMappedDistanceMatrix {
         }
 
         // Sort by distance
-        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         Ok(neighbors)
     }
@@ -431,13 +431,22 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mmap_matrix = MemoryMappedDistanceMatrix::new(4, config).unwrap();
-        mmap_matrix.compute_distances(&data).unwrap();
+        let mut mmap_matrix =
+            MemoryMappedDistanceMatrix::new(4, config).expect("operation should succeed");
+        mmap_matrix
+            .compute_distances(&data)
+            .expect("operation should succeed");
 
         // Test distance computation
-        let dist_01 = mmap_matrix.get_distance(0, 1).unwrap();
-        let dist_02 = mmap_matrix.get_distance(0, 2).unwrap();
-        let dist_03 = mmap_matrix.get_distance(0, 3).unwrap();
+        let dist_01 = mmap_matrix
+            .get_distance(0, 1)
+            .expect("operation should succeed");
+        let dist_02 = mmap_matrix
+            .get_distance(0, 2)
+            .expect("operation should succeed");
+        let dist_03 = mmap_matrix
+            .get_distance(0, 3)
+            .expect("operation should succeed");
 
         // Verify expected distances
         assert!((dist_01 - 1.0).abs() < 1e-6); // Distance between (0,0) and (1,0)
@@ -445,7 +454,9 @@ mod tests {
         assert!((dist_03 - 2.0_f64.sqrt()).abs() < 1e-6); // Distance between (0,0) and (1,1)
 
         // Test symmetry
-        let dist_10 = mmap_matrix.get_distance(1, 0).unwrap();
+        let dist_10 = mmap_matrix
+            .get_distance(1, 0)
+            .expect("operation should succeed");
         assert!((dist_01 - dist_10).abs() < 1e-10);
     }
 
@@ -454,11 +465,16 @@ mod tests {
         let data = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [10.0, 10.0],];
 
         let config = MemoryMappedConfig::default();
-        let mut mmap_matrix = MemoryMappedDistanceMatrix::new(4, config).unwrap();
-        mmap_matrix.compute_distances(&data).unwrap();
+        let mut mmap_matrix =
+            MemoryMappedDistanceMatrix::new(4, config).expect("operation should succeed");
+        mmap_matrix
+            .compute_distances(&data)
+            .expect("operation should succeed");
 
         // Get 2 nearest neighbors of point 0
-        let neighbors = mmap_matrix.get_k_nearest_neighbors(0, 2).unwrap();
+        let neighbors = mmap_matrix
+            .get_k_nearest_neighbors(0, 2)
+            .expect("operation should succeed");
 
         assert_eq!(neighbors.len(), 2);
 
@@ -474,11 +490,16 @@ mod tests {
         let data = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [10.0, 10.0],];
 
         let config = MemoryMappedConfig::default();
-        let mut mmap_matrix = MemoryMappedDistanceMatrix::new(4, config).unwrap();
-        mmap_matrix.compute_distances(&data).unwrap();
+        let mut mmap_matrix =
+            MemoryMappedDistanceMatrix::new(4, config).expect("operation should succeed");
+        mmap_matrix
+            .compute_distances(&data)
+            .expect("operation should succeed");
 
         // Get neighbors within radius 1.5 of point 0
-        let neighbors = mmap_matrix.get_neighbors_within_radius(0, 1.5).unwrap();
+        let neighbors = mmap_matrix
+            .get_neighbors_within_radius(0, 1.5)
+            .expect("operation should succeed");
 
         // Should include points 1 and 2 but not 3
         assert_eq!(neighbors.len(), 2);
@@ -491,7 +512,8 @@ mod tests {
     #[test]
     fn test_memory_stats() {
         let config = MemoryMappedConfig::default();
-        let mmap_matrix = MemoryMappedDistanceMatrix::new(100, config).unwrap();
+        let mmap_matrix =
+            MemoryMappedDistanceMatrix::new(100, config).expect("operation should succeed");
 
         let stats = mmap_matrix.memory_stats();
         assert_eq!(stats.n_samples, 100);
@@ -503,7 +525,8 @@ mod tests {
     #[test]
     fn test_indices_to_linear() {
         let config = MemoryMappedConfig::default();
-        let mmap_matrix = MemoryMappedDistanceMatrix::new(5, config).unwrap();
+        let mmap_matrix =
+            MemoryMappedDistanceMatrix::new(5, config).expect("operation should succeed");
 
         // Test a few specific index conversions
         // For n=5, upper triangle indices should be:
@@ -524,10 +547,13 @@ mod tests {
         let data = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0],];
 
         let config = MemoryMappedConfig::default();
-        let mut mmap_matrix = MemoryMappedDistanceMatrix::new(3, config).unwrap();
-        mmap_matrix.compute_distances(&data).unwrap();
+        let mut mmap_matrix =
+            MemoryMappedDistanceMatrix::new(3, config).expect("operation should succeed");
+        mmap_matrix
+            .compute_distances(&data)
+            .expect("operation should succeed");
 
-        let array_matrix = mmap_matrix.to_array().unwrap();
+        let array_matrix = mmap_matrix.to_array().expect("operation should succeed");
 
         assert_eq!(array_matrix.shape(), &[3, 3]);
 

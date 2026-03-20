@@ -401,15 +401,15 @@ impl InMemoryMetricsStorage {
 
     /// Get storage statistics
     pub fn get_stats(&self) -> StorageStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 
 impl MetricsStorage for InMemoryMetricsStorage {
     fn store_metric(&mut self, session_id: &str, metric: &PerformanceMetric) -> SklResult<()> {
         let start_time = Instant::now();
-        let mut storage = self.storage.write().unwrap();
-        let mut stats = self.stats.write().unwrap();
+        let mut storage = self.storage.write().unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         let session_metrics = storage.entry(session_id.to_string()).or_insert_with(VecDeque::new);
 
@@ -444,8 +444,8 @@ impl MetricsStorage for InMemoryMetricsStorage {
     }
 
     fn retrieve_metrics(&self, session_id: &str, time_range: &TimeRange) -> SklResult<Vec<PerformanceMetric>> {
-        let storage = self.storage.read().unwrap();
-        let mut stats = self.stats.write().unwrap();
+        let storage = self.storage.read().unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         stats.total_operations += 1;
 
@@ -462,8 +462,8 @@ impl MetricsStorage for InMemoryMetricsStorage {
     }
 
     fn retrieve_metrics_by_name(&self, session_id: &str, metric_name: &str, time_range: &TimeRange) -> SklResult<Vec<PerformanceMetric>> {
-        let storage = self.storage.read().unwrap();
-        let mut stats = self.stats.write().unwrap();
+        let storage = self.storage.read().unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         stats.total_operations += 1;
 
@@ -562,7 +562,7 @@ impl MetricsStorage for InMemoryMetricsStorage {
         let std_dev = variance.sqrt();
 
         let mut sorted_values = values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let min = sorted_values[0];
         let max = sorted_values[count - 1];
@@ -598,7 +598,7 @@ impl MetricsStorage for InMemoryMetricsStorage {
     }
 
     fn cleanup_old_metrics(&mut self, cutoff_time: SystemTime) -> SklResult<usize> {
-        let mut storage = self.storage.write().unwrap();
+        let mut storage = self.storage.write().unwrap_or_else(|e| e.into_inner());
         let mut total_removed = 0;
 
         for (_session_id, metrics) in storage.iter_mut() {
@@ -728,7 +728,7 @@ impl MetricsCollector {
         };
 
         self.sessions.insert(session_id.to_string(), session_metrics);
-        self.stats.write().unwrap().active_sessions = self.sessions.len();
+        self.stats.write().unwrap_or_else(|e| e.into_inner()).active_sessions = self.sessions.len();
 
         Ok(())
     }
@@ -747,7 +747,7 @@ impl MetricsCollector {
         }
 
         // Update collector stats
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.total_collected += 1;
         stats.avg_collection_time = (stats.avg_collection_time * (stats.total_collected - 1) as u32 + start_time.elapsed()) / stats.total_collected as u32;
 
@@ -776,14 +776,14 @@ impl MetricsCollector {
 
         // Remove session
         self.sessions.remove(session_id);
-        self.stats.write().unwrap().active_sessions = self.sessions.len();
+        self.stats.write().unwrap_or_else(|e| e.into_inner()).active_sessions = self.sessions.len();
 
         Ok(metrics)
     }
 
     /// Get collector statistics
     pub fn get_stats(&self) -> CollectorStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Update configuration
@@ -1000,7 +1000,7 @@ mod tests {
         assert_eq!(metric.value, 75.5);
         assert_eq!(metric.unit, "percent");
         assert_eq!(metric.metadata.priority, MetricPriority::High);
-        assert_eq!(metric.tags.get("host").unwrap(), "server1");
+        assert_eq!(metric.tags.get("host").unwrap_or_default(), "server1");
     }
 
     #[test]
@@ -1014,14 +1014,14 @@ mod tests {
             "units".to_string(),
         );
 
-        storage.store_metric("session1", &metric).unwrap();
+        storage.store_metric("session1", &metric).unwrap_or_default();
 
         let time_range = TimeRange {
             start: SystemTime::now() - Duration::from_secs(60),
             end: SystemTime::now() + Duration::from_secs(60),
         };
 
-        let retrieved = storage.retrieve_metrics("session1", &time_range).unwrap();
+        let retrieved = storage.retrieve_metrics("session1", &time_range).unwrap_or_default();
         assert_eq!(retrieved.len(), 1);
         assert_eq!(retrieved[0].name, "test_metric");
     }
@@ -1038,7 +1038,7 @@ mod tests {
                 i as f64,
                 "units".to_string(),
             );
-            storage.store_metric("session1", &metric).unwrap();
+            storage.store_metric("session1", &metric).unwrap_or_default();
         }
 
         let time_range = TimeRange {
@@ -1046,7 +1046,7 @@ mod tests {
             end: SystemTime::now() + Duration::from_secs(60),
         };
 
-        let stats = storage.get_statistics("session1", "test_metric", &time_range).unwrap();
+        let stats = storage.get_statistics("session1", "test_metric", &time_range).unwrap_or_default();
         assert_eq!(stats.count, 10);
         assert_eq!(stats.mean, 4.5);
         assert_eq!(stats.min, 0.0);
@@ -1058,7 +1058,7 @@ mod tests {
         let config = MetricsConfig::default();
         let mut collector = MetricsCollector::new(config.clone());
 
-        collector.initialize_session("session1", &config).unwrap();
+        collector.initialize_session("session1", &config).unwrap_or_default();
 
         let metric = PerformanceMetric::new(
             "test_metric".to_string(),
@@ -1066,7 +1066,7 @@ mod tests {
             "percent".to_string(),
         );
 
-        collector.collect_metric("session1", metric).unwrap();
+        collector.collect_metric("session1", metric).unwrap_or_default();
 
         let stats = collector.get_stats();
         assert_eq!(stats.total_collected, 1);

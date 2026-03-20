@@ -9,13 +9,19 @@
 //!
 //! This module is part of sklears, providing scikit-learn compatible
 //! machine learning algorithms in Rust.
+//!
+//! ## Known Limitations
+//!
+//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `boundary_adjustment` - Boundary adjustment discriminant analysis with Fit/Predict/Score traits
 
 // #![warn(missing_docs)]
 
 pub mod adaptive_discriminant;
 // pub mod async_optimization; // Temporarily disabled - needs error type fixes
 pub mod bayesian_discriminant;
-// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score traits
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod boundary_adjustment;
 pub mod canonical_discriminant;
 pub mod cost_sensitive_discriminant_analysis;
@@ -77,7 +83,7 @@ pub use bayesian_discriminant::{
     BayesianDiscriminantAnalysis, BayesianDiscriminantAnalysisConfig, InferenceMethod,
     PosteriorParameters, PriorType, TrainedBayesianDiscriminantAnalysis,
 };
-// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score traits
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use boundary_adjustment::{
 //     BoundaryAdjustmentConfig, BoundaryAdjustmentDiscriminantAnalysis, BoundaryAdjustmentMethod,
 //     DensityKernel, OptimizationCriterion, SearchMethod,

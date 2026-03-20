@@ -118,7 +118,7 @@ impl EnsembleStatistics {
         stats.confidence = 1.0 - variance; // Simple confidence measure
 
         // Calculate diversity as variance across predictors
-        let row_means: Array1<Float> = predictions.mean_axis(Axis(1)).unwrap();
+        let row_means: Array1<Float> = predictions.mean_axis(Axis(1)).unwrap_or_default();
         stats.diversity = row_means.var(0.0);
 
         stats

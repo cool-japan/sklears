@@ -166,7 +166,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Generate noisy binary classification data with overlapping classes
 fn generate_noisy_data(n_samples: usize) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     // Create overlapping classes with significant noise
     let mut x = Array2::zeros((n_samples, 3));

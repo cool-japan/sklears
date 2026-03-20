@@ -1,7 +1,7 @@
 use crate::random::get_rng;
 use crate::{UtilsError, UtilsResult};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::StandardNormal;
 
 #[allow(clippy::too_many_arguments)]
@@ -47,7 +47,7 @@ pub fn make_classification(
 
     // Shuffle class labels
     for i in (1..n_samples).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.random_range(0..=i);
         y.swap(i, j);
     }
 
@@ -71,7 +71,7 @@ pub fn make_classification(
     for j in 0..n_redundant {
         let feat_idx = n_informative + j;
         let base_feat = j % n_informative;
-        let coeff = rng.gen_range(-1.0..1.0);
+        let coeff = rng.random_range(-1.0..1.0);
 
         for i in 0..n_samples {
             x[[i, feat_idx]] =
@@ -90,8 +90,8 @@ pub fn make_classification(
     if flip_y > 0.0 {
         let n_flip = (n_samples as f64 * flip_y) as usize;
         for _ in 0..n_flip {
-            let idx = rng.gen_range(0..n_samples);
-            y[idx] = rng.gen_range(0..n_classes as i32);
+            let idx = rng.random_range(0..n_samples);
+            y[idx] = rng.random_range(0..n_classes as i32);
         }
     }
 
@@ -171,7 +171,7 @@ pub fn make_blobs(
     let mut cluster_centers = Array2::<f64>::zeros((n_centers, n_features));
     for i in 0..n_centers {
         for j in 0..n_features {
-            cluster_centers[[i, j]] = rng.gen_range(center_box.0..center_box.1);
+            cluster_centers[[i, j]] = rng.random_range(center_box.0..center_box.1);
         }
     }
 
@@ -201,7 +201,7 @@ pub fn make_blobs(
 
     // Shuffle the samples
     for i in (1..n_samples).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.random_range(0..=i);
 
         // Swap labels
         y.swap(i, j);
@@ -242,7 +242,7 @@ pub fn make_circles(
 
     // Generate outer circle
     for i in 0..n_outer {
-        let angle = 2.0 * std::f64::consts::PI * rng.gen::<f64>();
+        let angle = 2.0 * std::f64::consts::PI * rng.random::<f64>();
         x[[i, 0]] = angle.cos() + rng.sample::<f64, _>(StandardNormal) * noise;
         x[[i, 1]] = angle.sin() + rng.sample::<f64, _>(StandardNormal) * noise;
         y[i] = 0;
@@ -251,7 +251,7 @@ pub fn make_circles(
     // Generate inner circle
     for i in 0..n_inner {
         let idx = n_outer + i;
-        let angle = 2.0 * std::f64::consts::PI * rng.gen::<f64>();
+        let angle = 2.0 * std::f64::consts::PI * rng.random::<f64>();
         x[[idx, 0]] = factor * angle.cos() + rng.sample::<f64, _>(StandardNormal) * noise;
         x[[idx, 1]] = factor * angle.sin() + rng.sample::<f64, _>(StandardNormal) * noise;
         y[idx] = 1;
@@ -280,8 +280,8 @@ pub fn make_moons(
     // Generate first moon (upper moon)
     for i in 0..n_samples_per_class + remainder {
         let angle = std::f64::consts::PI * (i as f64) / (n_samples_per_class as f64);
-        x[[i, 0]] = angle.cos() + noise * rng.gen::<f64>() * 2.0 - noise;
-        x[[i, 1]] = angle.sin() + noise * rng.gen::<f64>() * 2.0 - noise;
+        x[[i, 0]] = angle.cos() + noise * rng.random::<f64>() * 2.0 - noise;
+        x[[i, 1]] = angle.sin() + noise * rng.random::<f64>() * 2.0 - noise;
         y[i] = 0;
     }
 
@@ -289,8 +289,8 @@ pub fn make_moons(
     for i in 0..n_samples_per_class {
         let idx = i + n_samples_per_class + remainder;
         let angle = std::f64::consts::PI * (i as f64) / (n_samples_per_class as f64);
-        x[[idx, 0]] = 1.0 - angle.cos() + noise * rng.gen::<f64>() * 2.0 - noise;
-        x[[idx, 1]] = 1.0 - angle.sin() - 0.5 + noise * rng.gen::<f64>() * 2.0 - noise;
+        x[[idx, 0]] = 1.0 - angle.cos() + noise * rng.random::<f64>() * 2.0 - noise;
+        x[[idx, 1]] = 1.0 - angle.sin() - 0.5 + noise * rng.random::<f64>() * 2.0 - noise;
         y[idx] = 1;
     }
 
@@ -334,8 +334,8 @@ pub fn make_sparse_classification(
     let n_zeros = (total_elements as f64 * sparsity) as usize;
 
     for _ in 0..n_zeros {
-        let row = rng.gen_range(0..n_samples);
-        let col = rng.gen_range(0..n_features);
+        let row = rng.random_range(0..n_samples);
+        let col = rng.random_range(0..n_features);
         x[[row, col]] = 0.0;
     }
 
@@ -379,7 +379,7 @@ pub fn make_multilabel_classification(
             if available_labels.is_empty() {
                 break;
             }
-            let idx = rng.gen_range(0..available_labels.len());
+            let idx = rng.random_range(0..available_labels.len());
             let label = available_labels.remove(idx);
             y[[i, label]] = 1;
         }
@@ -455,7 +455,7 @@ pub fn make_gaussian_quantiles(
     }
 
     // Sort by norm and assign classes based on quantiles
-    norms.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    norms.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     let samples_per_class = n_samples / n_classes;
     let remainder = n_samples % n_classes;
@@ -487,7 +487,8 @@ mod tests {
 
     #[test]
     fn test_make_classification() {
-        let (x, y) = make_classification(100, 5, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
+        let (x, y) = make_classification(100, 5, 3, None, None, 0.0, 1.0, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(x.shape(), &[100, 5]);
         assert_eq!(y.len(), 100);
@@ -499,7 +500,8 @@ mod tests {
 
     #[test]
     fn test_make_regression() {
-        let (x, y) = make_regression(50, 3, Some(2), 0.1, 5.0, Some(42)).unwrap();
+        let (x, y) =
+            make_regression(50, 3, Some(2), 0.1, 5.0, Some(42)).expect("operation should succeed");
 
         assert_eq!(x.shape(), &[50, 3]);
         assert_eq!(y.len(), 50);
@@ -507,7 +509,8 @@ mod tests {
 
     #[test]
     fn test_make_blobs() {
-        let (x, y) = make_blobs(60, 2, Some(3), 1.0, (-10.0, 10.0), Some(42)).unwrap();
+        let (x, y) = make_blobs(60, 2, Some(3), 1.0, (-10.0, 10.0), Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(x.shape(), &[60, 2]);
         assert_eq!(y.len(), 60);
@@ -519,7 +522,7 @@ mod tests {
 
     #[test]
     fn test_make_circles() {
-        let (x, y) = make_circles(100, 0.1, 0.5, Some(42)).unwrap();
+        let (x, y) = make_circles(100, 0.1, 0.5, Some(42)).expect("operation should succeed");
 
         assert_eq!(x.shape(), &[100, 2]);
         assert_eq!(y.len(), 100);
@@ -533,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_make_moons() {
-        let (x, y) = make_moons(100, 0.1, Some(42)).unwrap();
+        let (x, y) = make_moons(100, 0.1, Some(42)).expect("operation should succeed");
 
         assert_eq!(x.shape(), &[100, 2]);
         assert_eq!(y.len(), 100);
@@ -547,7 +550,8 @@ mod tests {
 
     #[test]
     fn test_make_sparse_classification() {
-        let (x, y) = make_sparse_classification(50, 10, 2, Some(5), 0.3, Some(42)).unwrap();
+        let (x, y) = make_sparse_classification(50, 10, 2, Some(5), 0.3, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(x.shape(), &[50, 10]);
         assert_eq!(y.len(), 50);
@@ -559,7 +563,8 @@ mod tests {
 
     #[test]
     fn test_make_multilabel_classification() {
-        let (x, y) = make_multilabel_classification(30, 5, 4, 2, Some(42)).unwrap();
+        let (x, y) = make_multilabel_classification(30, 5, 4, 2, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(x.shape(), &[30, 5]);
         assert_eq!(y.shape(), &[30, 4]);
@@ -573,7 +578,7 @@ mod tests {
 
     #[test]
     fn test_make_hastie_10_2() {
-        let (x, y) = make_hastie_10_2(100, Some(42)).unwrap();
+        let (x, y) = make_hastie_10_2(100, Some(42)).expect("operation should succeed");
 
         assert_eq!(x.shape(), &[100, 10]);
         assert_eq!(y.len(), 100);
@@ -587,7 +592,8 @@ mod tests {
 
     #[test]
     fn test_make_gaussian_quantiles() {
-        let (x, y) = make_gaussian_quantiles(60, 3, 3, 0.0, 1.0, Some(42)).unwrap();
+        let (x, y) = make_gaussian_quantiles(60, 3, 3, 0.0, 1.0, Some(42))
+            .expect("operation should succeed");
 
         assert_eq!(x.shape(), &[60, 3]);
         assert_eq!(y.len(), 60);

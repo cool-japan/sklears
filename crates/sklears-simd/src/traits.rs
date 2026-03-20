@@ -554,7 +554,7 @@ mod tests {
         let op = MockVectorAdd;
         let input = vec![1.0, 2.0, 3.0, 4.0];
 
-        let result = op.execute(&input).unwrap();
+        let result = op.execute(&input).expect("operation should succeed");
         assert_eq!(result, vec![2.0, 3.0, 4.0, 5.0]);
 
         assert_eq!(op.name(), "mock_vector_add");

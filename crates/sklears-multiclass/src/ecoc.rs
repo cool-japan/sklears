@@ -449,7 +449,7 @@ impl<C> ECOCClassifier<C, Untrained> {
                 }
 
                 if best_min_distance >= target_distance {
-                    return Ok(best_matrix.unwrap());
+                    return Ok(best_matrix.expect("operation should succeed"));
                 }
             }
 
@@ -595,7 +595,7 @@ where
             .map(|bit_idx| {
                 // Create binary labels based on code matrix
                 let binary_y: Array1<Float> = y.mapv(|label| {
-                    let class_idx = classes.iter().position(|&c| c == label).unwrap();
+                    let class_idx = classes.iter().position(|&c| c == label).expect("operation should succeed");
                     if code_matrix[[class_idx, bit_idx]] == 1 {
                         1.0
                     } else {

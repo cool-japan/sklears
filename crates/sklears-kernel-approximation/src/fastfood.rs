@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -124,7 +124,7 @@ impl Fit<Array2<Float>, ()> for FastfoodTransform<Untrained> {
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Find the smallest power of 2 that is >= n_features
@@ -141,7 +141,7 @@ impl Fit<Array2<Float>, ()> for FastfoodTransform<Untrained> {
         let permutation = self.generate_random_permutation(padded_dim * n_blocks, &mut rng);
 
         // Generate random phase offsets
-        let uniform = RandUniform::new(0.0, 2.0 * PI).unwrap();
+        let uniform = RandUniform::new(0.0, 2.0 * PI).expect("operation should succeed");
         let random_offset = Array1::from_shape_fn(self.n_components, |_| rng.sample(uniform));
 
         Ok(FastfoodTransform {
@@ -164,7 +164,7 @@ impl FastfoodTransform<Untrained> {
     fn generate_random_scaling(&self, size: usize, rng: &mut RealStdRng) -> Array1<Float> {
         let mut scaling = Array1::zeros(size);
         for i in 0..size {
-            scaling[i] = if rng.gen::<bool>() { 1.0 } else { -1.0 };
+            scaling[i] = if rng.random::<bool>() { 1.0 } else { -1.0 };
         }
         scaling
     }
@@ -454,8 +454,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]];
 
         let fastfood = FastfoodTransform::new(8).gamma(0.5);
-        let fitted = fastfood.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = fastfood.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[3, 8]);
     }
@@ -465,8 +465,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 4.0, 5.0]];
 
         let fastfood = FastfoodTransform::new(4).gamma(1.0);
-        let fitted = fastfood.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = fastfood.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[2, 4]);
     }
@@ -477,8 +477,10 @@ mod tests {
 
         let kernel_params = FastfoodKernelParams::Rbf { gamma: 0.5 };
         let fastfood_kernel = FastfoodKernel::new(6, kernel_params);
-        let fitted = fastfood_kernel.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = fastfood_kernel
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[2, 6]);
     }
@@ -488,12 +490,12 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]];
 
         let fastfood1 = FastfoodTransform::new(8).random_state(42);
-        let fitted1 = fastfood1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = fastfood1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let fastfood2 = FastfoodTransform::new(8).random_state(42);
-        let fitted2 = fastfood2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = fastfood2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         assert_eq!(result1.shape(), result2.shape());
         for (a, b) in result1.iter().zip(result2.iter()) {
@@ -506,12 +508,14 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]];
 
         let fastfood_low = FastfoodTransform::new(4).gamma(0.1);
-        let fitted_low = fastfood_low.fit(&x, &()).unwrap();
-        let result_low = fitted_low.transform(&x).unwrap();
+        let fitted_low = fastfood_low.fit(&x, &()).expect("operation should succeed");
+        let result_low = fitted_low.transform(&x).expect("operation should succeed");
 
         let fastfood_high = FastfoodTransform::new(4).gamma(10.0);
-        let fitted_high = fastfood_high.fit(&x, &()).unwrap();
-        let result_high = fitted_high.transform(&x).unwrap();
+        let fitted_high = fastfood_high
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let result_high = fitted_high.transform(&x).expect("operation should succeed");
 
         assert_eq!(result_low.shape(), result_high.shape());
         // Results should be different with different gamma values
@@ -531,8 +535,8 @@ mod tests {
         ];
 
         let fastfood = FastfoodTransform::new(16).gamma(0.1);
-        let fitted = fastfood.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = fastfood.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[2, 16]);
     }
@@ -542,8 +546,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0]];
 
         let fastfood = FastfoodTransform::new(8).gamma(1.0);
-        let fitted = fastfood.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = fastfood.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[1, 8]);
     }
@@ -554,16 +558,16 @@ mod tests {
         let x = array![[1.0], [2.0]];
 
         let fastfood = FastfoodTransform::new(2).gamma(1.0);
-        let fitted = fastfood.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = fastfood.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[2, 2]);
 
         // Test with many components
         let x2 = array![[1.0, 2.0], [3.0, 4.0]];
         let fastfood2 = FastfoodTransform::new(32).gamma(0.5);
-        let fitted2 = fastfood2.fit(&x2, &()).unwrap();
-        let transformed2 = fitted2.transform(&x2).unwrap();
+        let fitted2 = fastfood2.fit(&x2, &()).expect("operation should succeed");
+        let transformed2 = fitted2.transform(&x2).expect("operation should succeed");
 
         assert_eq!(transformed2.shape(), &[2, 32]);
     }

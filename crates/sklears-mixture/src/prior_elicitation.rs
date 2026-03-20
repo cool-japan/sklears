@@ -5,7 +5,7 @@
 //! automatic prior selection based on data characteristics, and prior validation tools.
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use sklears_core::error::Result as SklResult;
 use std::collections::HashMap;
 
@@ -377,7 +377,9 @@ impl PriorElicitationEngine {
         let (n_samples, n_features) = X.dim();
 
         // Compute basic statistics
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let var = X.var_axis(Axis(0), 0.0);
         let std = var.mapv(f64::sqrt);
 
@@ -394,10 +396,10 @@ impl PriorElicitationEngine {
                 distances.push(dist);
             }
         }
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let min_distance = distances[0];
-        let max_distance = *distances.last().unwrap();
+        let max_distance = *distances.last().expect("collection should not be empty");
         let median_distance = distances[distances.len() / 2];
 
         // Estimate number of natural clusters using simple heuristics
@@ -872,7 +874,9 @@ impl PriorElicitationEngine {
         quality_score *= 1.0 - (invalid_count as f64) / (n_samples * n_features) as f64;
 
         // Simple outlier detection
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let std = X.var_axis(Axis(0), 0.0).mapv(f64::sqrt);
 
         let mut outlier_count = 0;
@@ -896,7 +900,9 @@ impl PriorElicitationEngine {
 
     fn compute_empirical_covariance(&self, X: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, n_features) = X.dim();
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         let mut cov = Array2::zeros((n_features, n_features));
         for i in 0..n_samples {
@@ -930,7 +936,7 @@ impl PriorElicitationEngine {
 
         // Initialize centroids randomly
         for i in 0..k {
-            let idx = rng.gen_range(0..n_samples);
+            let idx = rng.random_range(0..n_samples);
             centroids.slice_mut(s![i, ..]).assign(&X.slice(s![idx, ..]));
         }
 
@@ -1018,10 +1024,10 @@ impl PriorElicitationEngine {
     ) -> UserPreferences {
         // Simulate user preferences for demonstration
         UserPreferences {
-            prefer_balanced_clusters: rng.gen_bool(0.7),
-            expected_separation_factor: 1.0 + rng.gen::<f64>(),
-            confidence_in_priors: 0.5 + rng.gen::<f64>() * 0.5,
-            robustness_preference: rng.gen_bool(0.6),
+            prefer_balanced_clusters: rng.random_bool(0.7),
+            expected_separation_factor: 1.0 + rng.random::<f64>(),
+            confidence_in_priors: 0.5 + rng.random::<f64>() * 0.5,
+            robustness_preference: rng.random_bool(0.6),
         }
     }
 
@@ -1189,7 +1195,7 @@ impl PriorElicitationEngine {
 
         for j in 0..n_features {
             let mut column: Vec<f64> = X.column(j).to_vec();
-            column.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            column.sort_by(|a, b| a.partial_cmp(b).expect("matrix indexing should be valid"));
 
             let q25_idx = (n_samples as f64 * 0.25) as usize;
             let q50_idx = (n_samples as f64 * 0.50) as usize;
@@ -1394,7 +1400,9 @@ mod tests {
             .elicitation_method(ElicitationMethod::Automatic)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.method, ElicitationMethod::Automatic);
         assert_eq!(result.prior_specification.weight_concentration.len(), 2);
@@ -1432,7 +1440,9 @@ mod tests {
             .elicitation_method(ElicitationMethod::Reference)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.method, ElicitationMethod::Reference);
 
@@ -1467,7 +1477,9 @@ mod tests {
             .elicitation_method(ElicitationMethod::EmpiricalBayes)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.method, ElicitationMethod::EmpiricalBayes);
         assert_eq!(result.prior_specification.weight_concentration.len(), 2);
@@ -1490,12 +1502,16 @@ mod tests {
             .elicitation_method(ElicitationMethod::MomentMatching)
             .target_effective_sample_size(5.0);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.method, ElicitationMethod::MomentMatching);
 
         // Check that means are based on data moments
-        let data_mean = X.mean_axis(Axis(0)).unwrap();
+        let data_mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         for k in 0..2 {
             for j in 0..2 {
                 assert_abs_diff_eq!(
@@ -1518,7 +1534,9 @@ mod tests {
             .use_robust_estimation(true)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.method, ElicitationMethod::QuantileMatching);
         assert_eq!(result.prior_specification.weight_concentration.len(), 2);
@@ -1533,7 +1551,9 @@ mod tests {
             .n_components(2)
             .elicitation_method(ElicitationMethod::MaximumEntropy);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.method, ElicitationMethod::MaximumEntropy);
 
@@ -1557,7 +1577,9 @@ mod tests {
             .interactive_mode(true)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.method, ElicitationMethod::Interactive);
         assert_eq!(result.prior_specification.weight_concentration.len(), 2);
@@ -1575,7 +1597,9 @@ mod tests {
             .max_prior_data_conflict(0.8)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         // Check quality metrics
         assert!(result.quality_metrics.information_content >= 0.0);
@@ -1608,7 +1632,9 @@ mod tests {
             .add_domain_constraint(constraint)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.prior_specification.weight_concentration.len(), 2);
         assert!(!result.recommendations.is_empty());
@@ -1628,7 +1654,9 @@ mod tests {
             .target_effective_sample_size(10.0)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         // Check that weight concentration reflects expected sizes
         let total_concentration: f64 = result.prior_specification.weight_concentration.sum();
@@ -1652,7 +1680,9 @@ mod tests {
             .max_prior_data_conflict(0.1) // Low threshold
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         // Should generate recommendations due to weak priors and model mismatch
         assert!(!result.recommendations.is_empty());
@@ -1678,7 +1708,9 @@ mod tests {
             .target_effective_sample_size(5.0)
             .random_state(42);
 
-        let result = engine.elicit_priors(&X.view()).unwrap();
+        let result = engine
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
         let prior_spec = &result.prior_specification;
 
         // Validate dimensions
@@ -1724,7 +1756,9 @@ mod tests {
             .use_robust_estimation(true)
             .random_state(42);
 
-        let result_robust = engine_robust.elicit_priors(&X.view()).unwrap();
+        let result_robust = engine_robust
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         let engine_normal = PriorElicitationEngine::new()
             .n_components(2)
@@ -1732,7 +1766,9 @@ mod tests {
             .use_robust_estimation(false)
             .random_state(42);
 
-        let result_normal = engine_normal.elicit_priors(&X.view()).unwrap();
+        let result_normal = engine_normal
+            .elicit_priors(&X.view())
+            .expect("operation should succeed");
 
         // Both should succeed and have valid robustness scores
         // The robust estimation flag doesn't currently affect robustness score calculation

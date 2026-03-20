@@ -44,7 +44,7 @@ fn find_k_nearest_neighbors(distances: &Array2<Float>, k: usize) -> Vec<Vec<usiz
             .map(|j| (j, distances[(i, j)]))
             .collect();
 
-        indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         let k_neighbors: Vec<usize> = indexed_distances
             .into_iter()
@@ -98,7 +98,7 @@ pub fn trustworthiness(
             .filter(|&j| i != j)
             .map(|j| (j, orig_distances[(i, j)]))
             .collect();
-        indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         for (rank, (idx, _)) in indexed_distances.iter().enumerate() {
             rank_map.insert(*idx, rank + 1);
@@ -166,7 +166,7 @@ pub fn continuity(
             .filter(|&j| i != j)
             .map(|j| (j, emb_distances[(i, j)]))
             .collect();
-        indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         for (rank, (idx, _)) in indexed_distances.iter().enumerate() {
             rank_map.insert(*idx, rank + 1);
@@ -340,7 +340,7 @@ pub fn mean_relative_rank_error(
             .filter(|&j| i != j)
             .map(|j| (j, orig_distances[(i, j)]))
             .collect();
-        orig_pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        orig_pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         let mut orig_rank_map = HashMap::new();
         for (rank, (idx, _)) in orig_pairs.iter().enumerate() {
@@ -352,7 +352,7 @@ pub fn mean_relative_rank_error(
             .filter(|&j| i != j)
             .map(|j| (j, emb_distances[(i, j)]))
             .collect();
-        emb_pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        emb_pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         let mut emb_rank_map = HashMap::new();
         for (rank, (idx, _)) in emb_pairs.iter().enumerate() {
@@ -362,8 +362,8 @@ pub fn mean_relative_rank_error(
         // Compute rank differences
         for j in 0..n {
             if i != j {
-                let orig_rank = *orig_rank_map.get(&j).unwrap() as Float;
-                let emb_rank = *emb_rank_map.get(&j).unwrap() as Float;
+                let orig_rank = *orig_rank_map.get(&j).expect("operation should succeed") as Float;
+                let emb_rank = *emb_rank_map.get(&j).expect("operation should succeed") as Float;
                 let n_minus_1 = (n - 1) as Float;
 
                 total_error += (orig_rank - emb_rank).abs() / n_minus_1;

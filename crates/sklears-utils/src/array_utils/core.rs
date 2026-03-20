@@ -156,7 +156,7 @@ pub fn array_concatenate<T: Clone>(arrays: &[Array1<T>]) -> UtilsResult<Array1<T
 
     let mut result = Vec::new();
     for array in arrays {
-        result.extend_from_slice(array.as_slice().unwrap());
+        result.extend_from_slice(array.as_slice().expect("operation should succeed"));
     }
 
     Ok(Array1::from_vec(result))
@@ -166,7 +166,8 @@ pub fn array_concatenate<T: Clone>(arrays: &[Array1<T>]) -> UtilsResult<Array1<T
 pub fn array_resize<T: Clone + Zero>(array: &Array1<T>, new_size: usize) -> Array1<T> {
     let mut result = vec![T::zero(); new_size];
     let copy_size = array.len().min(new_size);
-    result[..copy_size].clone_from_slice(&array.as_slice().unwrap()[..copy_size]);
+    result[..copy_size]
+        .clone_from_slice(&array.as_slice().expect("operation should succeed")[..copy_size]);
     Array1::from_vec(result)
 }
 

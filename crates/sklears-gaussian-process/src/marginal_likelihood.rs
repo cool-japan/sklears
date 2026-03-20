@@ -144,7 +144,11 @@ impl MarginalLikelihoodOptimizer {
             let kernel_params = exp_params.slice(s![..n_params - 1]).to_owned();
             let sigma_n_current = exp_params[n_params - 1];
 
-            kernel.set_params(kernel_params.as_slice().unwrap())?;
+            kernel.set_params(
+                kernel_params
+                    .as_slice()
+                    .expect("slice operation should succeed"),
+            )?;
 
             // Compute log marginal likelihood and gradients
             let (lml, grad) =
@@ -189,7 +193,11 @@ impl MarginalLikelihoodOptimizer {
                     let kernel_params_new = exp_params_new.slice(s![..n_params - 1]).to_owned();
                     let sigma_n_new = exp_params_new[n_params - 1];
 
-                    kernel.set_params(kernel_params_new.as_slice().unwrap())?;
+                    kernel.set_params(
+                        kernel_params_new
+                            .as_slice()
+                            .expect("slice operation should succeed"),
+                    )?;
                     if let Ok((lml_new, _)) = self.compute_log_marginal_likelihood_and_gradients(
                         X,
                         y,
@@ -211,7 +219,11 @@ impl MarginalLikelihoodOptimizer {
         // Set final parameters
         let exp_params = params.mapv(|x| x.exp());
         let kernel_params = exp_params.slice(s![..n_params - 1]).to_owned();
-        kernel.set_params(kernel_params.as_slice().unwrap())?;
+        kernel.set_params(
+            kernel_params
+                .as_slice()
+                .expect("slice operation should succeed"),
+        )?;
 
         let final_lml = lml_history.last().copied().unwrap_or(f64::NEG_INFINITY);
 
@@ -582,8 +594,8 @@ mod tests {
     use super::*;
     use crate::kernels::RBF;
     use approx::assert_abs_diff_eq;
-    // SciRS2 Policy - Use scirs2_core::ndarray for array operations (RC.1+)
-    // Note: array! macro is available in scirs2_core::ndarray as of v0.1.0-RC.1
+    // SciRS2 Policy - Use scirs2_core::ndarray for array operations
+    // Note: array! macro is available in scirs2_core::ndarray
     use scirs2_core::ndarray::array;
 
     #[test]
@@ -593,7 +605,8 @@ mod tests {
         let y = array![1.0, 4.0, 9.0, 16.0];
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
-        let lml = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.1).unwrap();
+        let lml = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.1)
+            .expect("operation should succeed");
         assert!(lml.is_finite());
         assert!(lml < 0.0); // Log marginal likelihood is typically negative
     }
@@ -605,9 +618,10 @@ mod tests {
         let y = array![1.0, 4.0, 9.0, 16.0];
         let kernel: Box<dyn Kernel> = Box::new(RBF::new(1.0));
 
-        let lml_stable =
-            log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.1).unwrap();
-        let lml_standard = log_marginal_likelihood(&X.view(), &y.view(), &kernel, 0.1).unwrap();
+        let lml_stable = log_marginal_likelihood_stable(&X.view(), &y.view(), &kernel, 0.1)
+            .expect("operation should succeed");
+        let lml_standard = log_marginal_likelihood(&X.view(), &y.view(), &kernel, 0.1)
+            .expect("operation should succeed");
 
         // Both methods should give similar results for well-conditioned problems
         assert_abs_diff_eq!(lml_stable, lml_standard, epsilon = 1e-10);

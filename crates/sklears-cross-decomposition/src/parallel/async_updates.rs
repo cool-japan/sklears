@@ -125,7 +125,7 @@ impl BoundedAsyncCoordinator {
 
     /// Submit an asynchronous update
     pub fn submit_update(&self, gradient: Array1<Float>, worker_id: usize) {
-        let version = *self.version.lock().unwrap();
+        let version = *self.version.lock().expect("mutex should not be poisoned");
 
         let update = AsyncUpdate {
             gradient,
@@ -133,15 +133,24 @@ impl BoundedAsyncCoordinator {
             worker_id,
         };
 
-        let mut queue = self.update_queue.lock().unwrap();
+        let mut queue = self
+            .update_queue
+            .lock()
+            .expect("mutex should not be poisoned");
         queue.push_back(update);
     }
 
     /// Process pending updates
     pub fn process_updates(&self) -> usize {
-        let mut queue = self.update_queue.lock().unwrap();
-        let mut params = self.parameters.lock().unwrap();
-        let mut version = self.version.lock().unwrap();
+        let mut queue = self
+            .update_queue
+            .lock()
+            .expect("mutex should not be poisoned");
+        let mut params = self
+            .parameters
+            .lock()
+            .expect("mutex should not be poisoned");
+        let mut version = self.version.lock().expect("mutex should not be poisoned");
 
         let mut num_processed = 0;
 
@@ -167,12 +176,15 @@ impl BoundedAsyncCoordinator {
 
     /// Get current parameters (thread-safe)
     pub fn get_parameters(&self) -> Array1<Float> {
-        self.parameters.lock().unwrap().clone()
+        self.parameters
+            .lock()
+            .expect("mutex should not be poisoned")
+            .clone()
     }
 
     /// Get current version
     pub fn get_version(&self) -> usize {
-        *self.version.lock().unwrap()
+        *self.version.lock().expect("mutex should not be poisoned")
     }
 }
 
@@ -261,8 +273,11 @@ impl AsyncCoordinateDescent {
 
     /// Update a single coordinate asynchronously
     pub fn update_coordinate(&self, coord: usize, gradient_coord: Float, read_version: usize) {
-        let mut x = self.current_x.lock().unwrap();
-        let mut versions = self.coord_versions.lock().unwrap();
+        let mut x = self.current_x.lock().expect("mutex should not be poisoned");
+        let mut versions = self
+            .coord_versions
+            .lock()
+            .expect("mutex should not be poisoned");
 
         // Check staleness
         let staleness = versions[coord] - read_version;
@@ -281,12 +296,18 @@ impl AsyncCoordinateDescent {
 
     /// Get current solution (thread-safe)
     pub fn get_solution(&self) -> Array1<Float> {
-        self.current_x.lock().unwrap().clone()
+        self.current_x
+            .lock()
+            .expect("mutex should not be poisoned")
+            .clone()
     }
 
     /// Get coordinate versions
     pub fn get_versions(&self) -> Vec<usize> {
-        self.coord_versions.lock().unwrap().clone()
+        self.coord_versions
+            .lock()
+            .expect("mutex should not be poisoned")
+            .clone()
     }
 }
 
@@ -543,8 +564,14 @@ mod tests {
         assert!(results.convergence_history.len() > 0);
 
         // Final objective should be smaller than initial
-        let final_obj = results.convergence_history.last().unwrap();
-        let initial_obj = results.convergence_history.first().unwrap();
+        let final_obj = results
+            .convergence_history
+            .last()
+            .expect("collection should not be empty");
+        let initial_obj = results
+            .convergence_history
+            .first()
+            .expect("collection should not be empty");
         assert!(final_obj < initial_obj);
     }
 

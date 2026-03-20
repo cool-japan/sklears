@@ -23,8 +23,8 @@ pub fn concordance_correlation_coefficient(
         return Err(MetricsError::EmptyInput);
     }
 
-    let mean_true = y_true.mean().unwrap();
-    let mean_pred = y_pred.mean().unwrap();
+    let mean_true = y_true.mean().expect("operation should succeed");
+    let mean_pred = y_pred.mean().expect("operation should succeed");
 
     let var_true =
         y_true.iter().map(|x| (x - mean_true).powi(2)).sum::<f64>() / (y_true.len() - 1) as f64;
@@ -137,7 +137,7 @@ pub fn relative_error_metrics(
     let max_rel_error = relative_errors.iter().fold(0.0f64, |a, &b| a.max(b));
 
     let mut sorted_errors = relative_errors;
-    sorted_errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let n = sorted_errors.len();
     let median_rel_error = if n % 2 == 0 {
         (sorted_errors[n / 2 - 1] + sorted_errors[n / 2]) / 2.0
@@ -158,7 +158,8 @@ mod tests {
     fn test_concordance_correlation_coefficient() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let ccc = concordance_correlation_coefficient(&y_true, &y_pred).unwrap();
+        let ccc = concordance_correlation_coefficient(&y_true, &y_pred)
+            .expect("operation should succeed");
         assert!((ccc - 1.0).abs() < 0.01);
     }
 
@@ -166,7 +167,7 @@ mod tests {
     fn test_mean_bias_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 3.1]; // Systematic overestimation
-        let mbe = mean_bias_error(&y_true, &y_pred).unwrap();
+        let mbe = mean_bias_error(&y_true, &y_pred).expect("operation should succeed");
         assert!((mbe - 0.1).abs() < f64::EPSILON);
     }
 
@@ -174,7 +175,8 @@ mod tests {
     fn test_relative_error_metrics() {
         let y_true = array![1.0, 2.0, 4.0];
         let y_pred = array![1.1, 2.2, 4.4];
-        let (mean_rel, max_rel, median_rel) = relative_error_metrics(&y_true, &y_pred).unwrap();
+        let (mean_rel, max_rel, median_rel) =
+            relative_error_metrics(&y_true, &y_pred).expect("operation should succeed");
 
         assert!(mean_rel > 0.0);
         assert!(max_rel > 0.0);

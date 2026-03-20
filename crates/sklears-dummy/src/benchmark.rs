@@ -11,7 +11,7 @@
 //! - Theoretical lower bounds for performance evaluation
 
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit, traits::Predict};
 use std::collections::HashMap;
 
@@ -163,7 +163,7 @@ impl BenchmarkClassifier {
 
             // Try different thresholds
             let mut values: Vec<_> = feature_values.iter().cloned().collect();
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             for i in 0..values.len() - 1 {
                 let threshold = (values[i] + values[i + 1]) / 2.0;
@@ -210,7 +210,7 @@ impl BenchmarkClassifier {
         let mut stumps = Vec::new();
 
         for _ in 0..n_stumps {
-            let feature_idx = rng.gen_range(0..n_features);
+            let feature_idx = rng.random_range(0..n_features);
             let feature_values = x.column(feature_idx);
 
             let min_val = feature_values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
@@ -218,8 +218,8 @@ impl BenchmarkClassifier {
                 .iter()
                 .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
 
-            let threshold = rng.gen_range(min_val..max_val + 1.0);
-            let prediction = rng.gen_range(0..2);
+            let threshold = rng.random_range(min_val..max_val + 1.0);
+            let prediction = rng.random_range(0..2);
 
             stumps.push((feature_idx, threshold, prediction));
         }
@@ -264,7 +264,7 @@ impl Predict<Array2<f64>, Array1<i32>> for TrainedBenchmarkClassifier {
 
                 let total_count: usize = self.class_counts.values().sum();
                 for i in 0..n_samples {
-                    let rand_val = rng.gen_range(0..total_count);
+                    let rand_val = rng.random_range(0..total_count);
                     let mut cumsum = 0;
                     for (&class, &count) in &self.class_counts {
                         cumsum += count;
@@ -416,7 +416,7 @@ impl Fit<Array2<f64>, Array1<f64>> for BenchmarkRegressor {
         let mean_value = y.mean().unwrap_or(0.0);
 
         let mut sorted_y = y.to_vec();
-        sorted_y.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_y.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_value = if sorted_y.len() % 2 == 0 {
             let mid = sorted_y.len() / 2;
             (sorted_y[mid - 1] + sorted_y[mid]) / 2.0
@@ -609,41 +609,47 @@ mod tests {
 
     #[test]
     fn test_zero_rule_classifier() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 0]; // Class 0 is most frequent
 
         let classifier = BenchmarkClassifier::new(BenchmarkStrategy::ZeroRule);
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions, array![0, 0, 0, 0]);
     }
 
     #[test]
     fn test_one_rule_classifier() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 1];
 
         let classifier = BenchmarkClassifier::new(BenchmarkStrategy::OneRule);
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_benchmark_regressor() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let regressor = BenchmarkRegressor::new(BenchmarkStrategy::ZeroRule);
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
-        let expected_mean = y.mean().unwrap();
+        let expected_mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
         for pred in predictions.iter() {
             assert!((pred - expected_mean).abs() < 1e-10);
         }
@@ -651,12 +657,13 @@ mod tests {
 
     #[test]
     fn test_linear_trend_regressor() {
-        let x = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0]; // Perfect linear trend
 
         let regressor = BenchmarkRegressor::new(BenchmarkStrategy::LinearTrend);
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         // Should approximate the linear trend
@@ -695,15 +702,19 @@ mod tests {
 
     #[test]
     fn test_nearest_neighbor_baseline() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 0];
 
         let classifier = BenchmarkClassifier::new(BenchmarkStrategy::NearestNeighbor);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Test point closest to first training point
-        let test_x = Array2::from_shape_vec((1, 2), vec![1.1, 1.1]).unwrap();
-        let predictions = fitted.predict(&test_x).unwrap();
+        let test_x = Array2::from_shape_vec((1, 2), vec![1.1, 1.1])
+            .expect("shape and data length should match");
+        let predictions = fitted.predict(&test_x).expect("prediction should succeed");
 
         assert_eq!(predictions[0], 0); // Should predict class of nearest neighbor
     }

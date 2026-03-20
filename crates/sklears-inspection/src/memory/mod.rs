@@ -187,7 +187,7 @@ mod integration_tests {
                     &cache_config,
                 )
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(importances.len(), 2);
 
@@ -207,7 +207,7 @@ mod integration_tests {
 
         let explanation = shared_manager
             .create_explanation("integration_test".to_string(), importances, None, metadata)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(explanation.feature_importance().len(), 2);
         assert_eq!(explanation.metadata().model_type, "TestModel");
@@ -215,9 +215,10 @@ mod integration_tests {
 
     #[test]
     fn test_storage_integration() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let storage_config = MemoryMapConfig::default();
-        let storage = MemoryMappedStorage::new(temp_dir.path(), storage_config).unwrap();
+        let storage = MemoryMappedStorage::new(temp_dir.path(), storage_config)
+            .expect("operation should succeed");
 
         // Create test data
         let feature_importance = array![0.8, 0.2];
@@ -226,11 +227,15 @@ mod integration_tests {
         // Store data
         let result = storage
             .store_explanation_results("storage_test", &feature_importance, Some(&shap_values))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Load data back
-        let loaded_importance = storage.load_feature_importance(&result).unwrap();
-        let loaded_shap = storage.load_shap_values(&result).unwrap();
+        let loaded_importance = storage
+            .load_feature_importance(&result)
+            .expect("operation should succeed");
+        let loaded_shap = storage
+            .load_shap_values(&result)
+            .expect("operation should succeed");
 
         // Verify data integrity
         assert_eq!(loaded_importance.len(), feature_importance.len());
@@ -267,7 +272,7 @@ mod integration_tests {
             3,        // n_repeats
             Some(42), // random_state
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(importances.len(), 2);
         assert!(importances.iter().any(|&x| x.abs() > 0.0));
@@ -298,14 +303,14 @@ mod integration_tests {
         // First access - should be miss
         let _result1 = cache
             .get_or_compute_feature_importance(&key, || Ok(array![0.5, 0.3]))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Second access - should be hit
         let _result2 = cache
             .get_or_compute_feature_importance(&key, || {
                 Ok(array![0.1, 0.9]) // Different values - should not be computed
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats = cache.get_statistics();
         assert_eq!(stats.hits, 1);

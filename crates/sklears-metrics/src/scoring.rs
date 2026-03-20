@@ -371,17 +371,17 @@ mod tests {
     #[test]
     fn test_get_scorer() {
         // Test classification scorers
-        let accuracy_scorer = get_scorer("accuracy").unwrap();
+        let accuracy_scorer = get_scorer("accuracy").expect("operation should succeed");
         assert_eq!(accuracy_scorer.name, "accuracy");
         assert!(accuracy_scorer.config.greater_is_better);
         assert!(!accuracy_scorer.config.needs_proba);
 
         // Test regression scorers
-        let r2_scorer = get_scorer("r2").unwrap();
+        let r2_scorer = get_scorer("r2").expect("operation should succeed");
         assert_eq!(r2_scorer.name, "r2");
         assert!(r2_scorer.config.greater_is_better);
 
-        let mse_scorer = get_scorer("neg_mean_squared_error").unwrap();
+        let mse_scorer = get_scorer("neg_mean_squared_error").expect("operation should succeed");
         assert_eq!(mse_scorer.name, "neg_mean_squared_error");
         assert!(mse_scorer.config.greater_is_better);
 
@@ -402,22 +402,22 @@ mod tests {
     #[test]
     fn test_check_scoring() {
         // Test with explicit scorer
-        let scorer = check_scoring(Some("f1"), true).unwrap();
+        let scorer = check_scoring(Some("f1"), true).expect("operation should succeed");
         assert_eq!(scorer.name, "f1");
 
         // Test default for classifier
-        let scorer = check_scoring(None, true).unwrap();
+        let scorer = check_scoring(None, true).expect("operation should succeed");
         assert_eq!(scorer.name, "accuracy");
 
         // Test default for regressor
-        let scorer = check_scoring(None, false).unwrap();
+        let scorer = check_scoring(None, false).expect("operation should succeed");
         assert_eq!(scorer.name, "r2");
     }
 
     #[test]
     fn test_check_multimetric_scoring() {
         let metrics = vec!["accuracy", "precision", "recall"];
-        let scorers = check_multimetric_scoring(&metrics).unwrap();
+        let scorers = check_multimetric_scoring(&metrics).expect("operation should succeed");
 
         assert_eq!(scorers.len(), 3);
         assert!(scorers.contains_key("accuracy"));

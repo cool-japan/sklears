@@ -215,15 +215,15 @@ fn create_gaussian_mixture_data() -> Array2<f64> {
     let mut data = Vec::new();
 
     // Component 1: mean=[0,0], cov=[[0.5,0],[0,0.5]]
-    let normal1_x = Normal::new(0.0, 0.7).unwrap();
-    let normal1_y = Normal::new(0.0, 0.7).unwrap();
+    let normal1_x = Normal::new(0.0, 0.7).expect("operation should succeed");
+    let normal1_y = Normal::new(0.0, 0.7).expect("operation should succeed");
     for _ in 0..100 {
         data.push([normal1_x.sample(&mut rng), normal1_y.sample(&mut rng)]);
     }
 
     // Component 2: mean=[5,0], cov=[[1,0.5],[0.5,1]]
-    let normal2_x = Normal::new(5.0, 1.0).unwrap();
-    let normal2_y = Normal::new(0.0, 1.0).unwrap();
+    let normal2_x = Normal::new(5.0, 1.0).expect("operation should succeed");
+    let normal2_y = Normal::new(0.0, 1.0).expect("operation should succeed");
     for _ in 0..150 {
         let x = normal2_x.sample(&mut rng);
         let y = normal2_y.sample(&mut rng) + 0.3 * (x - 5.0); // Add correlation
@@ -231,13 +231,14 @@ fn create_gaussian_mixture_data() -> Array2<f64> {
     }
 
     // Component 3: mean=[2.5,4], cov=[[0.8,0],[0,0.3]]
-    let normal3_x = Normal::new(2.5, 0.9).unwrap();
-    let normal3_y = Normal::new(4.0, 0.55).unwrap();
+    let normal3_x = Normal::new(2.5, 0.9).expect("operation should succeed");
+    let normal3_y = Normal::new(4.0, 0.55).expect("operation should succeed");
     for _ in 0..75 {
         data.push([normal3_x.sample(&mut rng), normal3_y.sample(&mut rng)]);
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }
 
 /// Create data with overlapping clusters
@@ -249,17 +250,18 @@ fn create_overlapping_clusters() -> Array2<f64> {
     let mut data = Vec::new();
 
     // Cluster 1: centered at (0, 0)
-    let normal1 = Normal::new(0.0, 1.5).unwrap();
+    let normal1 = Normal::new(0.0, 1.5).expect("operation should succeed");
     for _ in 0..200 {
         data.push([normal1.sample(&mut rng), normal1.sample(&mut rng)]);
     }
 
     // Cluster 2: centered at (2, 0) - overlapping with cluster 1
-    let normal2_x = Normal::new(2.0, 1.5).unwrap();
-    let normal2_y = Normal::new(0.0, 1.5).unwrap();
+    let normal2_x = Normal::new(2.0, 1.5).expect("operation should succeed");
+    let normal2_y = Normal::new(0.0, 1.5).expect("operation should succeed");
     for _ in 0..200 {
         data.push([normal2_x.sample(&mut rng), normal2_y.sample(&mut rng)]);
     }
 
-    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect()).unwrap()
+    Array2::from_shape_vec((data.len(), 2), data.into_iter().flatten().collect())
+        .expect("shape and data length should match")
 }

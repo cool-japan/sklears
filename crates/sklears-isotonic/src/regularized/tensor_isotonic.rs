@@ -18,7 +18,7 @@
 //! use scirs2_core::ndarray::{Array1, Array2};
 //!
 //! // Create 2D tensor data
-//! let tensor_data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+//! let tensor_data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("valid array shape");
 //! let target = Array1::from(vec![1.0, 3.0, 5.0]);
 //!
 //! // Create tensor isotonic regression model
@@ -28,8 +28,8 @@
 //!     .separable(true);
 //!
 //! // Fit and predict
-//! let fitted = model.fit(&tensor_data, &target).unwrap();
-//! let predictions = fitted.predict(&tensor_data).unwrap();
+//! let fitted = model.fit(&tensor_data, &target).expect("model fitting should succeed");
+//! let predictions = fitted.predict(&tensor_data).expect("prediction should succeed");
 //! ```
 
 use scirs2_core::ndarray::{Array1, Array2};
@@ -416,7 +416,10 @@ impl Predict<Array1<Float>, Array1<Float>> for TensorIsotonicRegression<Trained>
                     operation: "predict".to_string(),
                 })?;
 
-        let tensor_shape = self.tensor_shape_.as_ref().unwrap();
+        let tensor_shape = self
+            .tensor_shape_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if tensor_data.len() != tensor_shape[0] {
             return Err(SklearsError::InvalidInput(format!(
@@ -440,7 +443,10 @@ impl Predict<Array2<Float>, Array1<Float>> for TensorIsotonicRegression<Trained>
                     operation: "predict".to_string(),
                 })?;
 
-        let tensor_shape = self.tensor_shape_.as_ref().unwrap();
+        let tensor_shape = self
+            .tensor_shape_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let shape = tensor_data.shape();
 
         if shape.len() != tensor_shape.len() {
@@ -482,7 +488,7 @@ impl Predict<Array2<Float>, Array1<Float>> for TensorIsotonicRegression<Trained>
 /// use sklears_isotonic::regularized::tensor_isotonic::tensor_isotonic_regression;
 /// use scirs2_core::ndarray::{Array1, Array2};
 ///
-/// let tensor_data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+/// let tensor_data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])?;
 /// let target = Array1::from(vec![1.0, 3.0, 5.0]);
 ///
 /// let fitted = tensor_isotonic_regression(
@@ -491,7 +497,7 @@ impl Predict<Array2<Float>, Array1<Float>> for TensorIsotonicRegression<Trained>
 ///     vec![0], // monotonic along axis 0
 ///     vec![true], // increasing
 ///     true // separable
-/// ).unwrap();
+/// )?;
 /// ```
 pub fn tensor_isotonic_regression(
     tensor_data: &Array2<Float>,
@@ -521,8 +527,10 @@ mod tests {
         let target = Array1::from(vec![2.0, 1.0, 4.0, 3.0, 6.0]);
 
         let model = TensorIsotonicRegression::new();
-        let fitted = model.fit(&data, &target).unwrap();
-        let predictions = fitted.predict(&data).unwrap();
+        let fitted = model
+            .fit(&data, &target)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&data).expect("prediction should succeed");
 
         // Check that predictions are monotonic
         for i in 1..predictions.len() {
@@ -540,8 +548,10 @@ mod tests {
             .axis_increasing(vec![true])
             .separable(true);
 
-        let fitted = model.fit(&data, &target).unwrap();
-        let predictions = fitted.predict(&data).unwrap();
+        let fitted = model
+            .fit(&data, &target)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&data).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 3);
     }
@@ -558,8 +568,10 @@ mod tests {
             .max_iterations(10)
             .tolerance(1e-3);
 
-        let fitted = model.fit(&data, &target).unwrap();
-        let predictions = fitted.predict(&data).unwrap();
+        let fitted = model
+            .fit(&data, &target)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&data).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 3);
     }
@@ -569,8 +581,8 @@ mod tests {
         let data = array![[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]];
         let target = Array1::from(vec![1.0, 3.0, 2.0]);
 
-        let predictions =
-            tensor_isotonic_regression(&data, &target, vec![0], vec![true], true).unwrap();
+        let predictions = tensor_isotonic_regression(&data, &target, vec![0], vec![true], true)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
     }

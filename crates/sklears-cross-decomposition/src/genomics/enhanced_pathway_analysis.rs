@@ -9,7 +9,7 @@ use crate::genomics::pathway_analysis::{
 use crate::multi_omics::GenomicsError;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::ndarray_ext::stats;
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
 use sklears_core::types::Float;
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -414,8 +414,8 @@ impl EnhancedPathwayAnalysis {
                 // Higher probability of connection for smaller indices (scale-free property)
                 let connection_prob = 0.3 / (1.0 + (i + j) as Float * 0.1);
 
-                if rng.gen::<Float>() < connection_prob {
-                    let confidence = 0.5 + rng.gen::<Float>() * 0.5; // Random confidence between 0.5 and 1.0
+                if rng.random::<Float>() < connection_prob {
+                    let confidence = 0.5 + rng.random::<Float>() * 0.5; // Random confidence between 0.5 and 1.0
                     adjacency[[i, j]] = 1.0;
                     adjacency[[j, i]] = 1.0; // Symmetric network
                     confidence_scores[[i, j]] = confidence;
@@ -770,7 +770,8 @@ impl EnhancedPathwayAnalysis {
 
             // Convert scores to ranks
             let mut sorted_pathways: Vec<(String, Float)> = pathway_scores.into_iter().collect();
-            sorted_pathways.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            sorted_pathways
+                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
             let mut ranks = HashMap::new();
             for (rank, (pathway_name, _)) in sorted_pathways.iter().enumerate() {
@@ -968,7 +969,7 @@ impl EnhancedPathwayAnalysis {
                 features.push(pathway_scores.iter().sum::<Float>() / pathway_scores.len() as Float);
 
                 // Standard deviation
-                let mean = features.last().unwrap();
+                let mean = features.last().copied().unwrap_or(0.0);
                 let variance = pathway_scores
                     .iter()
                     .map(|&x| (x - mean) * (x - mean))
@@ -980,13 +981,13 @@ impl EnhancedPathwayAnalysis {
                 features.push(
                     *pathway_scores
                         .iter()
-                        .max_by(|a, b| a.partial_cmp(b).unwrap())
+                        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                         .unwrap_or(&0.0),
                 );
                 features.push(
                     *pathway_scores
                         .iter()
-                        .min_by(|a, b| a.partial_cmp(b).unwrap())
+                        .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                         .unwrap_or(&0.0),
                 );
             }
@@ -1127,7 +1128,7 @@ impl EnhancedPathwayAnalysis {
 
                 for scores in integration_scores {
                     for (i, &score) in scores.iter().enumerate() {
-                        if rng.gen::<Float>() < 0.8 {
+                        if rng.random::<Float>() < 0.8 {
                             // Bootstrap sampling with replacement
                             let belongs_to_pathway = match pathway_name {
                                 "Pathway_A" => i < 3,
@@ -1190,7 +1191,7 @@ mod tests {
         let result = analyzer.analyze_pathways(&integration_scores, None, None);
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert!(!results.enrichment_pvalues.is_empty());
         assert!(!results.consensus_scores.is_empty());
     }
@@ -1198,12 +1199,14 @@ mod tests {
     #[test]
     fn test_network_propagation() {
         let analyzer = EnhancedPathwayAnalysis::new();
-        let network = analyzer.create_mock_ppi_network().unwrap();
+        let network = analyzer
+            .create_mock_ppi_network()
+            .expect("operation should succeed");
 
         let initial_scores = array![1.0, 0.5, 0.0, 0.0, 0.0];
         let propagated = analyzer
             .network_propagation(&initial_scores, &network)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(propagated.len(), initial_scores.len());
         // Score should have propagated to neighbors
@@ -1232,10 +1235,10 @@ mod tests {
         let result = analyzer.analyze_pathways(&integration_scores, Some(time_points.view()), None);
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert!(results.temporal_dynamics.is_some());
 
-        let temporal_dynamics = results.temporal_dynamics.unwrap();
+        let temporal_dynamics = results.temporal_dynamics.expect("operation should succeed");
         assert!(!temporal_dynamics.is_empty());
 
         for (_, dynamics) in temporal_dynamics {
@@ -1287,7 +1290,7 @@ mod tests {
         let result = analyzer.analyze_pathways(&integration_scores, None, None);
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert!(!results.uncertainty_estimates.is_empty());
 
         // All uncertainty estimates should be non-negative
@@ -1308,7 +1311,7 @@ mod tests {
         let result = analyzer.analyze_pathways(&integration_scores, None, None);
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert!(!results.pathway_interactions.is_empty());
 
         // All correlation values should be between 0 and 1 (absolute values)

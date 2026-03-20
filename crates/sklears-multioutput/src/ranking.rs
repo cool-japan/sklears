@@ -178,8 +178,13 @@ impl IndependentLabelPrediction<Untrained> {
         let (n_samples, n_features) = x.dim();
 
         // Compute feature statistics for normalization
-        let feature_means = x.mean_axis(Axis(0)).unwrap();
-        let feature_stds = x.mapv(|val| val * val).mean_axis(Axis(0)).unwrap()
+        let feature_means = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
+        let feature_stds = x
+            .mapv(|val| val * val)
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation")
             - &feature_means.mapv(|mean| mean * mean);
         let feature_stds = feature_stds.mapv(|var| (var.max(1e-10)).sqrt());
 

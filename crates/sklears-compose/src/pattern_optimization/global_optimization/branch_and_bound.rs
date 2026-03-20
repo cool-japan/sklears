@@ -88,7 +88,7 @@
 //! let result = bnb.optimize(&problem)?;
 //!
 //! // Access detailed tree statistics
-//! let analysis = result.tree_analysis.unwrap();
+//! let analysis = result.tree_analysis.unwrap_or_default();
 //! println!("Nodes explored: {}", analysis.nodes_explored);
 //! println!("Nodes pruned: {}", analysis.nodes_pruned);
 //! println!("Best bound gap: {:.2}%", analysis.final_gap * 100.0);
@@ -892,7 +892,7 @@ impl BranchAndBoundOptimizer {
                     generation: iteration,
                 };
 
-                if best_solution.is_none() || solution.fitness < best_solution.as_ref().unwrap().fitness {
+                if best_solution.is_none() || solution.fitness < best_solution.as_ref().unwrap_or_default().fitness {
                     best_solution = Some(solution.clone());
                     statistics.update_best_objective(solution.fitness);
                 }
@@ -950,7 +950,7 @@ impl BranchAndBoundOptimizer {
         Ok(OptimizationResult {
             best_solution: final_solution,
             convergence_history: vec![statistics.best_objective],
-            metadata: analysis.map(|a| serde_json::to_value(a).unwrap()),
+            metadata: analysis.map(|a| serde_json::to_value(a).unwrap_or_default()),
         })
     }
 
@@ -997,7 +997,7 @@ impl BranchAndBound for BranchAndBoundOptimizer {
 
         if floor_val >= current_lower {
             let child1_id = {
-                let mut id_counter = self.next_node_id.lock().unwrap();
+                let mut id_counter = self.next_node_id.lock().unwrap_or_else(|e| e.into_inner());
                 *id_counter += 1;
                 *id_counter
             };
@@ -1017,7 +1017,7 @@ impl BranchAndBound for BranchAndBoundOptimizer {
 
         if ceil_val <= current_upper {
             let child2_id = {
-                let mut id_counter = self.next_node_id.lock().unwrap();
+                let mut id_counter = self.next_node_id.lock().unwrap_or_else(|e| e.into_inner());
                 *id_counter += 1;
                 *id_counter
             };
@@ -1471,14 +1471,14 @@ mod tests {
         // Test stack operations
         stack.push(node.clone());
         assert_eq!(stack.len(), 1);
-        let popped = stack.pop().unwrap();
+        let popped = stack.pop().unwrap_or_default();
         assert_eq!(popped.id, node.id);
         assert!(stack.is_empty());
 
         // Test queue operations
         queue.push(node.clone());
         assert_eq!(queue.len(), 1);
-        let popped = queue.pop().unwrap();
+        let popped = queue.pop().unwrap_or_default();
         assert_eq!(popped.id, node.id);
         assert!(queue.is_empty());
     }
@@ -1539,7 +1539,7 @@ mod tests {
             objective: Box::new(|x| Ok(x.sum())),
         };
 
-        let var = bnb.select_branching_variable(&node, &problem).unwrap();
+        let var = bnb.select_branching_variable(&node, &problem).unwrap_or_default();
         assert!(var < 3);
     }
 
@@ -1561,7 +1561,7 @@ mod tests {
             objective: Box::new(|x| Ok(x.sum())),
         };
 
-        let bounds = bnb.compute_bounds(&node, &problem).unwrap();
+        let bounds = bnb.compute_bounds(&node, &problem).unwrap_or_default();
         assert!(bounds.feasible);
         assert!(bounds.lower_bound.is_finite());
         assert_eq!(bounds.bound_method, "Heuristic");

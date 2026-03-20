@@ -129,7 +129,7 @@ impl MemoryLeakDetector {
             self.snapshots.remove(0);
         }
 
-        self.snapshots.last().unwrap()
+        self.snapshots.last().expect("empty collection")
     }
 
     /// Get all memory snapshots
@@ -161,13 +161,25 @@ impl MemoryLeakDetector {
         let resident_memories: Vec<u64> =
             self.snapshots.iter().map(|s| s.resident_memory).collect();
 
-        let min_virtual = *virtual_memories.iter().min().unwrap();
-        let max_virtual = *virtual_memories.iter().max().unwrap();
+        let min_virtual = *virtual_memories
+            .iter()
+            .min()
+            .expect("collection should not be empty");
+        let max_virtual = *virtual_memories
+            .iter()
+            .max()
+            .expect("collection should not be empty");
         let avg_virtual =
             virtual_memories.iter().sum::<u64>() as f64 / virtual_memories.len() as f64;
 
-        let min_resident = *resident_memories.iter().min().unwrap();
-        let max_resident = *resident_memories.iter().max().unwrap();
+        let min_resident = *resident_memories
+            .iter()
+            .min()
+            .expect("collection should not be empty");
+        let max_resident = *resident_memories
+            .iter()
+            .max()
+            .expect("collection should not be empty");
         let avg_resident =
             resident_memories.iter().sum::<u64>() as f64 / resident_memories.len() as f64;
 

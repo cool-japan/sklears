@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{seq::SliceRandom, Rng, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, RngExt, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -166,7 +166,7 @@ impl Fit<Array2<Float>, ()> for StochasticManifoldLearning {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         // Initialize embedding randomly
@@ -560,7 +560,7 @@ impl StochasticManifoldLearning {
                 .map(|j| (distances[[i, j]], j))
                 .collect();
 
-            dist_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            dist_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             let k_neighbors: Vec<usize> = dist_indices
                 .into_iter()
@@ -612,7 +612,7 @@ impl FittedStochasticManifoldLearning {
             .assign(&self.embedding);
 
         // Initialize new embeddings randomly
-        let mut rng = StdRng::seed_from_u64(thread_rng().gen());
+        let mut rng = StdRng::seed_from_u64(thread_rng().random());
         for i in 0..n_new_samples {
             for j in 0..self.n_components {
                 extended_embedding[[self.embedding.nrows() + i, j]] =
@@ -709,7 +709,7 @@ impl FittedStochasticManifoldLearning {
 ///
 /// let embedding = streaming.get_embedding();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct StreamingManifoldLearning {
     n_components: usize,
     buffer_size: usize,
@@ -738,7 +738,7 @@ impl StreamingManifoldLearning {
             data_buffer: VecDeque::new(),
             embedding_buffer: VecDeque::new(),
             update_count: 0,
-            rng: StdRng::seed_from_u64(thread_rng().gen()),
+            rng: StdRng::seed_from_u64(thread_rng().random()),
         }
     }
 
@@ -923,8 +923,8 @@ mod tests {
             .batch_size(2)
             .n_epochs(10)
             .random_state(42);
-        let fitted = sml.fit(&data, &()).unwrap();
-        let embedding = fitted.transform(&data).unwrap();
+        let fitted = sml.fit(&data, &()).expect("operation should succeed");
+        let embedding = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(embedding.shape(), &[4, 2]);
         assert!(embedding.iter().all(|&x| x.is_finite()));
@@ -942,8 +942,8 @@ mod tests {
                 .batch_size(2)
                 .n_epochs(5)
                 .random_state(42);
-            let fitted = sml.fit(&data, &()).unwrap();
-            let embedding = fitted.transform(&data).unwrap();
+            let fitted = sml.fit(&data, &()).expect("operation should succeed");
+            let embedding = fitted.transform(&data).expect("operation should succeed");
 
             assert_eq!(embedding.shape(), &[4, 2]);
             assert!(embedding.iter().all(|&x| x.is_finite()));
@@ -958,7 +958,7 @@ mod tests {
             .batch_size(2)
             .n_epochs(5)
             .random_state(42);
-        let fitted = sml.fit(&data, &()).unwrap();
+        let fitted = sml.fit(&data, &()).expect("operation should succeed");
 
         assert_eq!(fitted.loss_history().len(), 5);
         assert!(fitted.loss_history().iter().all(|&x| x.is_finite()));
@@ -973,10 +973,12 @@ mod tests {
         let sml = StochasticManifoldLearning::new(2)
             .batch_size(2)
             .random_state(42);
-        let mut fitted = sml.fit(&data, &()).unwrap();
+        let mut fitted = sml.fit(&data, &()).expect("operation should succeed");
 
         let original_size = fitted.embedding().nrows();
-        fitted.partial_fit(&new_data).unwrap();
+        fitted
+            .partial_fit(&new_data)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.embedding().nrows(), original_size + 2);
         assert!(fitted.embedding().iter().all(|&x| x.is_finite()));
@@ -987,12 +989,16 @@ mod tests {
         let mut streaming = StreamingManifoldLearning::new(2, 10);
 
         let batch1 = array![[1.0, 2.0], [3.0, 4.0]];
-        streaming.partial_fit(&batch1).unwrap();
+        streaming
+            .partial_fit(&batch1)
+            .expect("operation should succeed");
 
         assert_eq!(streaming.buffer_size_current(), 2);
 
         let batch2 = array![[5.0, 6.0], [7.0, 8.0]];
-        streaming.partial_fit(&batch2).unwrap();
+        streaming
+            .partial_fit(&batch2)
+            .expect("operation should succeed");
 
         assert_eq!(streaming.buffer_size_current(), 4);
 
@@ -1008,7 +1014,9 @@ mod tests {
         // Add more points than buffer size
         let batch = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0]];
 
-        streaming.partial_fit(&batch).unwrap();
+        streaming
+            .partial_fit(&batch)
+            .expect("operation should succeed");
 
         // Buffer should be limited to buffer_size
         assert_eq!(streaming.buffer_size_current(), 3);
@@ -1027,10 +1035,14 @@ mod tests {
             .random_state(42);
 
         let batch1 = array![[1.0, 2.0]];
-        streaming.partial_fit(&batch1).unwrap();
+        streaming
+            .partial_fit(&batch1)
+            .expect("operation should succeed");
 
         let batch2 = array![[3.0, 4.0]];
-        streaming.partial_fit(&batch2).unwrap();
+        streaming
+            .partial_fit(&batch2)
+            .expect("operation should succeed");
 
         // Should trigger an update
         assert_eq!(streaming.buffer_size_current(), 2);

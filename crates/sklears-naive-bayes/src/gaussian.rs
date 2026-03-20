@@ -172,10 +172,17 @@ impl Fit<Array2<Float>, Array1<i32>> for GaussianNB<Untrained> {
 impl GaussianNB<Trained> {
     /// Compute the unnormalized posterior log probability of X
     fn joint_log_likelihood(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
-        let theta = self.theta_.as_ref().unwrap();
-        let var = self.var_.as_ref().unwrap();
-        let class_prior = self.class_prior_.as_ref().unwrap();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let theta = self.theta_.as_ref().expect("operation should succeed");
+        let var = self.var_.as_ref().expect("operation should succeed");
+        let class_prior = self
+            .class_prior_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let n_samples = x.nrows();
 
         let mut joint_log_likelihood = Array2::zeros((n_samples, n_classes));
@@ -211,14 +218,14 @@ impl GaussianNB<Trained> {
 impl Predict<Array2<Float>, Array1<i32>> for GaussianNB<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
         let log_prob = self.joint_log_likelihood(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Find the class with maximum log probability for each sample
         Ok(log_prob.map_axis(Axis(1), |row| {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             classes[max_idx]
@@ -230,7 +237,11 @@ impl PredictProba<Array2<Float>, Array2<f64>> for GaussianNB<Trained> {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
         let log_prob = self.joint_log_likelihood(x)?;
         let n_samples = x.nrows();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut proba = Array2::zeros((n_samples, n_classes));
 
         // Normalize to get probabilities
@@ -273,17 +284,19 @@ impl Score<Array2<Float>, Array1<i32>> for GaussianNB<Trained> {
 
 impl NaiveBayesMixin for GaussianNB<Trained> {
     fn class_log_prior(&self) -> &Array1<f64> {
-        self.class_prior_.as_ref().unwrap()
+        self.class_prior_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     fn feature_log_prob(&self) -> &Array2<f64> {
         // For Gaussian NB, this would be the log of the Gaussian PDF parameters
         // Not typically used directly, but we can return theta_ as a proxy
-        self.theta_.as_ref().unwrap()
+        self.theta_.as_ref().expect("operation should succeed")
     }
 
     fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 }
 
@@ -316,7 +329,7 @@ impl ProbabilisticModel for GaussianNB<Trained> {
             let class_idx = self
                 .classes_
                 .as_ref()
-                .unwrap()
+                .expect("operation should succeed")
                 .iter()
                 .position(|&c| c == true_class)
                 .ok_or_else(|| {
@@ -330,8 +343,16 @@ impl ProbabilisticModel for GaussianNB<Trained> {
     }
 
     fn get_n_parameters(&self) -> usize {
-        let n_classes = self.classes_.as_ref().unwrap().len();
-        let n_features = self.theta_.as_ref().unwrap().ncols();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
+        let n_features = self
+            .theta_
+            .as_ref()
+            .expect("operation should succeed")
+            .ncols();
 
         // Parameters: class priors + means + variances for each class-feature combination
         (n_classes - 1) + n_classes * n_features * 2
@@ -367,14 +388,17 @@ mod tests {
         ];
         let y = array![0, 0, 0, 0, 1, 1, 1, 1];
 
-        let model = GaussianNB::new().var_smoothing(1e-9).fit(&x, &y).unwrap();
+        let model = GaussianNB::new()
+            .var_smoothing(1e-9)
+            .fit(&x, &y)
+            .expect("operation should succeed");
 
         // Test predictions
-        let predictions = Predict::predict(&model, &x).unwrap();
+        let predictions = Predict::predict(&model, &x).expect("operation should succeed");
         assert_eq!(predictions, y);
 
         // Test score
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("operation should succeed");
         assert_eq!(score, 1.0);
     }
 
@@ -383,8 +407,10 @@ mod tests {
         let x = array![[1.0, 1.0], [2.0, 2.0], [-1.0, -1.0], [-2.0, -2.0]];
         let y = array![0, 0, 1, 1];
 
-        let model = GaussianNB::new().fit(&x, &y).unwrap();
-        let proba = PredictProba::predict_proba(&model, &x).unwrap();
+        let model = GaussianNB::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
+        let proba = PredictProba::predict_proba(&model, &x).expect("operation should succeed");
 
         // Check that probabilities sum to 1
         for i in 0..x.nrows() {
@@ -408,10 +434,13 @@ mod tests {
 
         // Set custom priors
         let priors = array![0.3, 0.7];
-        let model = GaussianNB::new().priors(priors).fit(&x, &y).unwrap();
+        let model = GaussianNB::new()
+            .priors(priors)
+            .fit(&x, &y)
+            .expect("operation should succeed");
 
         // The model should still work with custom priors
-        let predictions = Predict::predict(&model, &x).unwrap();
+        let predictions = Predict::predict(&model, &x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
     }
 
@@ -431,10 +460,14 @@ mod tests {
         ];
         let y = array![0, 0, 0, 0, 1, 1, 1, 1];
 
-        let mut model = GaussianNB::new().fit(&x, &y).unwrap();
+        let mut model = GaussianNB::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
 
         // Test log likelihood calculation
-        let log_likelihood = model.log_likelihood(&x, &y).unwrap();
+        let log_likelihood = model
+            .log_likelihood(&x, &y)
+            .expect("operation should succeed");
         assert!(log_likelihood < 0.0); // Log likelihood should be negative
 
         // Test number of parameters calculation
@@ -444,7 +477,9 @@ mod tests {
 
         // Test model criticism with information criteria
         let validator = ProbabilisticValidator::new(crate::validation::CVStrategy::KFold(3));
-        let criticism_results = validator.model_criticism(&x, &y, &mut model).unwrap();
+        let criticism_results = validator
+            .model_criticism(&x, &y, &mut model)
+            .expect("operation should succeed");
 
         // Check that AIC and BIC are computed and reasonable
         assert!(criticism_results.aic > 0.0);

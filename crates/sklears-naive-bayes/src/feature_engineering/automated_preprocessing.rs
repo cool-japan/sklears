@@ -369,7 +369,7 @@ impl AutomatedPreprocessingPipeline {
 
 impl Default for AutomatedPreprocessingPipeline {
     fn default() -> Self {
-        Self::new(AutoPipelineConfig::default()).unwrap()
+        Self::new(AutoPipelineConfig::default()).expect("operation should succeed")
     }
 }
 
@@ -1289,16 +1289,20 @@ mod tests {
     #[test]
     fn test_automated_preprocessing_pipeline() {
         let config = AutoPipelineConfig::default();
-        let mut pipeline = AutomatedPreprocessingPipeline::new(config).unwrap();
+        let mut pipeline =
+            AutomatedPreprocessingPipeline::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((20, 5), (0..100).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 5), (0..100).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 10].into_iter().chain(vec![1.0; 10]).collect());
 
         assert!(pipeline.build_pipeline(&x.view(), Some(&y.view())).is_ok());
         assert!(pipeline.is_fitted());
         assert!(!pipeline.pipeline_steps().is_empty());
 
-        let transformed = pipeline.transform(&x.view()).unwrap();
+        let transformed = pipeline
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert!(transformed.dim().0 > 0);
     }
 
@@ -1306,7 +1310,8 @@ mod tests {
     fn test_pipeline_optimizer() {
         let mut optimizer = PipelineOptimizer::new("grid_search".to_string());
 
-        let x = Array2::from_shape_vec((15, 4), (0..60).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((15, 4), (0..60).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 8].into_iter().chain(vec![1.0; 7]).collect());
 
         let candidates = vec![
@@ -1316,7 +1321,7 @@ mod tests {
 
         let best = optimizer
             .optimize(&x.view(), Some(&y.view()), &candidates)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(!best.is_empty());
         assert!(optimizer.optimization_results().contains_key("best_score"));
     }
@@ -1330,8 +1335,11 @@ mod tests {
             "add_feature_selection".to_string(),
         );
 
-        let x = Array2::from_shape_vec((12, 6), (0..72).map(|i| i as f64).collect()).unwrap();
-        let workflow = automation.execute_automation(&x.view(), None).unwrap();
+        let x = Array2::from_shape_vec((12, 6), (0..72).map(|i| i as f64).collect())
+            .expect("operation should succeed");
+        let workflow = automation
+            .execute_automation(&x.view(), None)
+            .expect("operation should succeed");
 
         assert!(!workflow.is_empty());
         assert_eq!(automation.workflow_history().len(), 1);
@@ -1352,34 +1360,43 @@ mod tests {
                 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
             ],
         )
-        .unwrap();
-        let result = workflow.execute(&x.view()).unwrap();
+        .expect("operation should succeed");
+        let result = workflow
+            .execute(&x.view())
+            .expect("operation should succeed");
         assert_eq!(result.dim(), x.dim());
     }
 
     #[test]
     fn test_automated_ml_pipeline() {
         let config = AutoPipelineConfig::default();
-        let mut pipeline = AutomatedMLPipeline::new(config).unwrap();
+        let mut pipeline = AutomatedMLPipeline::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((16, 4), (0..64).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((16, 4), (0..64).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 8].into_iter().chain(vec![1.0; 8]).collect());
 
         assert!(pipeline.fit(&x.view(), &y.view()).is_ok());
         assert!(pipeline.is_trained());
         assert!(!pipeline.model_selection_results().is_empty());
 
-        let transformed = pipeline.transform(&x.view()).unwrap();
+        let transformed = pipeline
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert!(transformed.dim().0 > 0);
     }
 
     #[test]
     fn test_pipeline_analyzer() {
         let config = AutoPipelineConfig::default();
-        let mut pipeline = AutomatedPreprocessingPipeline::new(config).unwrap();
+        let mut pipeline =
+            AutomatedPreprocessingPipeline::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
-        pipeline.build_pipeline(&x.view(), None).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("operation should succeed");
+        pipeline
+            .build_pipeline(&x.view(), None)
+            .expect("operation should succeed");
 
         let mut analyzer = PipelineAnalyzer::new();
         assert!(analyzer.analyze_pipeline_performance(&pipeline).is_ok());
@@ -1394,8 +1411,11 @@ mod tests {
         optimizer
             .add_workflow_template(vec!["scaling".to_string(), "feature_selection".to_string()]);
 
-        let x = Array2::from_shape_vec((12, 4), (0..48).map(|i| i as f64).collect()).unwrap();
-        let best = optimizer.optimize_workflow(&x.view(), None).unwrap();
+        let x = Array2::from_shape_vec((12, 4), (0..48).map(|i| i as f64).collect())
+            .expect("operation should succeed");
+        let best = optimizer
+            .optimize_workflow(&x.view(), None)
+            .expect("operation should succeed");
 
         assert!(!best.is_empty());
         assert!(optimizer.optimization_results().contains_key("best_score"));
@@ -1408,7 +1428,9 @@ mod tests {
         let mut characteristics = HashMap::new();
         characteristics.insert("n_features".to_string(), 1500.0);
 
-        let adapted = pipeline.adapt_pipeline(0.6, &characteristics).unwrap();
+        let adapted = pipeline
+            .adapt_pipeline(0.6, &characteristics)
+            .expect("operation should succeed");
         assert!(!adapted.is_empty());
         assert!(!pipeline.adaptation_history().is_empty());
     }
@@ -1423,7 +1445,9 @@ mod tests {
         let mut characteristics = HashMap::new();
         characteristics.insert("n_samples".to_string(), 500.0);
 
-        let recommendation = automation.recommend_pipeline(&characteristics).unwrap();
+        let recommendation = automation
+            .recommend_pipeline(&characteristics)
+            .expect("operation should succeed");
         assert!(!recommendation.is_empty());
 
         automation.add_automation_rule(

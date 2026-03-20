@@ -12,6 +12,7 @@
 
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2, Array3, Axis, ScalarOperand};
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, CoreRandom, Normal, Rng};
 use sklears_core::{error::SklearsError, types::FloatBounds};
 
@@ -688,7 +689,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENASController<T> {
             let probs = exp_logits.mapv(|x| x / sum_exp);
 
             // Sample operation based on probabilities
-            let rand_val: f64 = rng.gen();
+            let rand_val: f64 = rng.random();
             let mut cumsum = 0.0;
             let mut selected_op_idx = 0;
 
@@ -837,7 +838,12 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
         self.controller.update(&log_probs, reward)?;
 
         // Update best architecture
-        if self.best_reward.is_none() || reward > self.best_reward.unwrap() {
+        if self.best_reward.is_none()
+            || reward
+                > self
+                    .best_reward
+                    .expect("best_reward not available - model not fitted")
+        {
             self.best_architecture = Some(architecture.clone());
             self.best_reward = Some(reward);
         }
@@ -955,7 +961,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> ENAS<T> {
                                 for k in start..end {
                                     sum = sum + output[[i, k]];
                                 }
-                                sum / T::from(end - start).unwrap()
+                                sum / T::from(end - start).unwrap_or_else(|| T::zero())
                             })
                         } else {
                             Array2::from_shape_fn((output.nrows(), self.out_features), |(i, j)| {
@@ -1010,7 +1016,8 @@ mod tests {
     #[test]
     fn test_mixed_operation_creation() {
         let ops = OperationType::all_operations();
-        let mixed_op: MixedOperation<f64> = MixedOperation::new(10, 16, ops).unwrap();
+        let mixed_op: MixedOperation<f64> =
+            MixedOperation::new(10, 16, ops).expect("construction should succeed");
 
         assert_eq!(mixed_op.in_features, 10);
         assert_eq!(mixed_op.out_features, 16);
@@ -1020,10 +1027,11 @@ mod tests {
     #[test]
     fn test_mixed_operation_forward() {
         let ops = vec![OperationType::Skip, OperationType::SepConv3x3];
-        let mixed_op: MixedOperation<f64> = MixedOperation::new(8, 8, ops).unwrap();
+        let mixed_op: MixedOperation<f64> =
+            MixedOperation::new(8, 8, ops).expect("construction should succeed");
 
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
-        let output = mixed_op.forward(&x).unwrap();
+        let output = mixed_op.forward(&x).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (4, 8));
     }
@@ -1031,7 +1039,8 @@ mod tests {
     #[test]
     fn test_mixed_operation_argmax() {
         let ops = OperationType::all_operations();
-        let mut mixed_op: MixedOperation<f64> = MixedOperation::new(8, 8, ops).unwrap();
+        let mut mixed_op: MixedOperation<f64> =
+            MixedOperation::new(8, 8, ops).expect("construction should succeed");
 
         // Set specific alpha values
         mixed_op.alpha[0] = 0.1;
@@ -1043,7 +1052,7 @@ mod tests {
 
     #[test]
     fn test_darts_cell_creation() {
-        let cell: DARTSCell<f64> = DARTSCell::new(10, 16, 3).unwrap();
+        let cell: DARTSCell<f64> = DARTSCell::new(10, 16, 3).expect("construction should succeed");
 
         assert_eq!(cell.n_nodes, 3);
         assert_eq!(cell.in_features, 10);
@@ -1053,16 +1062,16 @@ mod tests {
 
     #[test]
     fn test_darts_cell_forward() {
-        let cell: DARTSCell<f64> = DARTSCell::new(8, 12, 2).unwrap();
+        let cell: DARTSCell<f64> = DARTSCell::new(8, 12, 2).expect("construction should succeed");
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
 
-        let output = cell.forward(&x).unwrap();
+        let output = cell.forward(&x).expect("forward pass should succeed");
         assert_eq!(output.dim(), (4, 12));
     }
 
     #[test]
     fn test_darts_cell_discrete_architecture() {
-        let cell: DARTSCell<f64> = DARTSCell::new(8, 8, 2).unwrap();
+        let cell: DARTSCell<f64> = DARTSCell::new(8, 8, 2).expect("construction should succeed");
         let arch = cell.get_discrete_architecture();
 
         assert_eq!(arch.len(), 2); // 2 nodes
@@ -1072,7 +1081,8 @@ mod tests {
 
     #[test]
     fn test_darts_creation() {
-        let darts: DARTS<f64> = DARTS::new(10, 16, 3, 6, 0.001, 0.01).unwrap();
+        let darts: DARTS<f64> =
+            DARTS::new(10, 16, 3, 6, 0.001, 0.01).expect("construction should succeed");
 
         assert_eq!(darts.n_cells, 6);
         assert!(darts.num_parameters() > 0);
@@ -1080,16 +1090,18 @@ mod tests {
 
     #[test]
     fn test_darts_forward() {
-        let darts: DARTS<f64> = DARTS::new(8, 12, 2, 3, 0.001, 0.01).unwrap();
+        let darts: DARTS<f64> =
+            DARTS::new(8, 12, 2, 3, 0.001, 0.01).expect("construction should succeed");
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
 
-        let output = darts.forward(&x).unwrap();
+        let output = darts.forward(&x).expect("forward pass should succeed");
         assert_eq!(output.dim(), (4, 12));
     }
 
     #[test]
     fn test_darts_get_architecture() {
-        let darts: DARTS<f64> = DARTS::new(8, 8, 2, 3, 0.001, 0.01).unwrap();
+        let darts: DARTS<f64> =
+            DARTS::new(8, 8, 2, 3, 0.001, 0.01).expect("construction should succeed");
         let arch = darts.get_architecture();
 
         assert_eq!(arch.n_cells, 3);
@@ -1147,8 +1159,10 @@ mod tests {
     fn test_progressive_nas_add_operation() {
         let mut pnas: ProgressiveNAS<f64> = ProgressiveNAS::new(8, 12, 3);
 
-        pnas.add_operation(OperationType::Skip).unwrap();
-        pnas.add_operation(OperationType::SepConv3x3).unwrap();
+        pnas.add_operation(OperationType::Skip)
+            .expect("operation should succeed");
+        pnas.add_operation(OperationType::SepConv3x3)
+            .expect("operation should succeed");
 
         assert_eq!(pnas.architecture.len(), 2);
         assert_eq!(pnas.current_position, 2);
@@ -1158,11 +1172,13 @@ mod tests {
     fn test_progressive_nas_forward() {
         let mut pnas: ProgressiveNAS<f64> = ProgressiveNAS::new(8, 12, 3);
 
-        pnas.add_operation(OperationType::SepConv3x3).unwrap();
-        pnas.add_operation(OperationType::Skip).unwrap();
+        pnas.add_operation(OperationType::SepConv3x3)
+            .expect("operation should succeed");
+        pnas.add_operation(OperationType::Skip)
+            .expect("operation should succeed");
 
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
-        let output = pnas.forward(&x).unwrap();
+        let output = pnas.forward(&x).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (4, 12));
     }
@@ -1171,8 +1187,10 @@ mod tests {
     fn test_progressive_nas_max_length() {
         let mut pnas: ProgressiveNAS<f64> = ProgressiveNAS::new(8, 8, 2);
 
-        pnas.add_operation(OperationType::Skip).unwrap();
-        pnas.add_operation(OperationType::SepConv3x3).unwrap();
+        pnas.add_operation(OperationType::Skip)
+            .expect("operation should succeed");
+        pnas.add_operation(OperationType::SepConv3x3)
+            .expect("operation should succeed");
 
         // Should fail when exceeding max length
         let result = pnas.add_operation(OperationType::MaxPool3x3);
@@ -1183,8 +1201,10 @@ mod tests {
     fn test_progressive_nas_progress() {
         let mut pnas: ProgressiveNAS<f64> = ProgressiveNAS::new(8, 8, 5);
 
-        pnas.add_operation(OperationType::Skip).unwrap();
-        pnas.add_operation(OperationType::SepConv3x3).unwrap();
+        pnas.add_operation(OperationType::Skip)
+            .expect("operation should succeed");
+        pnas.add_operation(OperationType::SepConv3x3)
+            .expect("operation should succeed");
 
         let (current, max) = pnas.get_progress();
         assert_eq!(current, 2);
@@ -1193,7 +1213,8 @@ mod tests {
 
     #[test]
     fn test_enas_controller_creation() {
-        let controller: ENASController<f64> = ENASController::new(16, 5, 8, 0.001).unwrap();
+        let controller: ENASController<f64> =
+            ENASController::new(16, 5, 8, 0.001).expect("construction should succeed");
 
         assert_eq!(controller.hidden_size, 16);
         assert_eq!(controller.num_layers, 5);
@@ -1203,9 +1224,12 @@ mod tests {
 
     #[test]
     fn test_enas_controller_sample() {
-        let mut controller: ENASController<f64> = ENASController::new(16, 3, 8, 0.001).unwrap();
+        let mut controller: ENASController<f64> =
+            ENASController::new(16, 3, 8, 0.001).expect("construction should succeed");
 
-        let (architecture, log_probs) = controller.sample_architecture().unwrap();
+        let (architecture, log_probs) = controller
+            .sample_architecture()
+            .expect("operation should succeed");
 
         assert_eq!(architecture.len(), 3);
         assert_eq!(log_probs.dim(), (1, 3));
@@ -1213,9 +1237,12 @@ mod tests {
 
     #[test]
     fn test_enas_controller_update() {
-        let mut controller: ENASController<f64> = ENASController::new(16, 3, 8, 0.001).unwrap();
+        let mut controller: ENASController<f64> =
+            ENASController::new(16, 3, 8, 0.001).expect("construction should succeed");
 
-        let (_, log_probs) = controller.sample_architecture().unwrap();
+        let (_, log_probs) = controller
+            .sample_architecture()
+            .expect("operation should succeed");
         let reward = 0.8;
 
         let result = controller.update(&log_probs, reward);
@@ -1224,7 +1251,8 @@ mod tests {
 
     #[test]
     fn test_enas_creation() {
-        let enas: ENAS<f64> = ENAS::new(10, 16, 32, 5, 0.001, 100).unwrap();
+        let enas: ENAS<f64> =
+            ENAS::new(10, 16, 32, 5, 0.001, 100).expect("construction should succeed");
 
         assert_eq!(enas.in_features, 10);
         assert_eq!(enas.out_features, 16);
@@ -1234,9 +1262,10 @@ mod tests {
 
     #[test]
     fn test_enas_search_step() {
-        let mut enas: ENAS<f64> = ENAS::new(8, 12, 16, 3, 0.01, 50).unwrap();
+        let mut enas: ENAS<f64> =
+            ENAS::new(8, 12, 16, 3, 0.01, 50).expect("construction should succeed");
 
-        let (architecture, reward) = enas.search_step().unwrap();
+        let (architecture, reward) = enas.search_step().expect("operation should succeed");
 
         assert_eq!(architecture.len(), 3);
         assert!(reward > 0.0 || reward < 0.0 || reward == 0.0); // Just check it's a valid number
@@ -1244,7 +1273,8 @@ mod tests {
 
     #[test]
     fn test_enas_forward() {
-        let enas: ENAS<f64> = ENAS::new(8, 12, 16, 3, 0.01, 50).unwrap();
+        let enas: ENAS<f64> =
+            ENAS::new(8, 12, 16, 3, 0.01, 50).expect("construction should succeed");
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
         let architecture = vec![
             OperationType::Skip,
@@ -1252,33 +1282,37 @@ mod tests {
             OperationType::MaxPool3x3,
         ];
 
-        let output = enas.forward(&x, &architecture).unwrap();
+        let output = enas
+            .forward(&x, &architecture)
+            .expect("forward pass should succeed");
         assert_eq!(output.dim(), (4, 12));
     }
 
     #[test]
     fn test_enas_best_architecture() {
-        let mut enas: ENAS<f64> = ENAS::new(8, 8, 16, 3, 0.01, 10).unwrap();
+        let mut enas: ENAS<f64> =
+            ENAS::new(8, 8, 16, 3, 0.01, 10).expect("construction should succeed");
 
         // Initially no best architecture
         assert!(enas.get_best_architecture().is_none());
         assert!(enas.get_best_reward().is_none());
 
         // After search step, should have a best architecture
-        let _ = enas.search_step().unwrap();
+        let _ = enas.search_step().expect("operation should succeed");
         assert!(enas.get_best_architecture().is_some());
         assert!(enas.get_best_reward().is_some());
     }
 
     #[test]
     fn test_enas_progress() {
-        let mut enas: ENAS<f64> = ENAS::new(8, 8, 16, 3, 0.01, 10).unwrap();
+        let mut enas: ENAS<f64> =
+            ENAS::new(8, 8, 16, 3, 0.01, 10).expect("construction should succeed");
 
         let (current, total) = enas.get_progress();
         assert_eq!(current, 0);
         assert_eq!(total, 10);
 
-        enas.search_step().unwrap();
+        enas.search_step().expect("operation should succeed");
         let (current, total) = enas.get_progress();
         assert_eq!(current, 1);
         assert_eq!(total, 10);

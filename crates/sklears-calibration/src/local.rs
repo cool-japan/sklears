@@ -433,12 +433,12 @@ mod tests {
 
         let calibrator = LocalKNNCalibrator::new(3)
             .fit_with_features(&features, &probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_features = array![[2.5, 3.5], [4.5, 5.5]];
         let calibrated = calibrator
             .predict_proba_with_features(&test_features)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -454,12 +454,12 @@ mod tests {
 
         let calibrator = LocalBinningCalibrator::new(3)
             .fit_with_features(&features, &probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_features = array![[2.5, 3.5], [4.5, 5.5]];
         let calibrated = calibrator
             .predict_proba_with_features(&test_features)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -473,10 +473,14 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 1];
 
         let mut calibrator = LocalKNNCalibrator::new(3);
-        calibrator.fit(&probabilities, &y_true).unwrap();
+        calibrator
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
 
         let test_probabilities = array![0.2, 0.8];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -499,12 +503,12 @@ mod tests {
             let calibrator = LocalKNNCalibrator::new(2)
                 .distance_metric(metric)
                 .fit_with_features(&features, &probabilities, &y_true)
-                .unwrap();
+                .expect("operation should succeed");
 
             let test_features = array![[2.5, 3.5]];
             let calibrated = calibrator
                 .predict_proba_with_features(&test_features)
-                .unwrap();
+                .expect("operation should succeed");
 
             assert_eq!(calibrated.len(), 1);
             assert!(calibrated[0] >= 0.0 && calibrated[0] <= 1.0);
@@ -526,12 +530,12 @@ mod tests {
             let calibrator = LocalKNNCalibrator::new(2)
                 .weighting(weighting)
                 .fit_with_features(&features, &probabilities, &y_true)
-                .unwrap();
+                .expect("operation should succeed");
 
             let test_features = array![[2.5, 3.5]];
             let calibrated = calibrator
                 .predict_proba_with_features(&test_features)
-                .unwrap();
+                .expect("operation should succeed");
 
             assert_eq!(calibrated.len(), 1);
             assert!(calibrated[0] >= 0.0 && calibrated[0] <= 1.0);

@@ -104,7 +104,10 @@ impl WorkStealingThreadPool {
             self.condvar.notify_one();
         } else {
             // Fallback to shared queue
-            let mut shared = self.shared_queue.lock().unwrap();
+            let mut shared = self
+                .shared_queue
+                .lock()
+                .expect("mutex should not be poisoned");
             shared.push_back(Box::new(task));
             drop(shared);
             self.condvar.notify_all();
@@ -131,7 +134,8 @@ impl WorkStealingThreadPool {
             self.execute(move || {
                 let result = task();
                 {
-                    let mut results_guard = results_clone.lock().unwrap();
+                    let mut results_guard =
+                        results_clone.lock().expect("mutex should not be poisoned");
                     // Ensure results vector has enough space
                     if results_guard.len() <= i {
                         results_guard.resize_with(i + 1, || unsafe { std::mem::zeroed() });
@@ -148,7 +152,7 @@ impl WorkStealingThreadPool {
         }
 
         // Extract results
-        let results_guard = results.lock().unwrap();
+        let results_guard = results.lock().expect("mutex should not be poisoned");
         let mut final_results = Vec::with_capacity(results_guard.len());
         for item in results_guard.iter() {
             // This is safe because we know all tasks completed
@@ -207,7 +211,7 @@ impl WorkerThread {
                     work();
                 } else {
                     // No work available, wait for notification
-                    let _guard = shared_queue.lock().unwrap();
+                    let _guard = shared_queue.lock().expect("mutex should not be poisoned");
                     let _ = condvar.wait_timeout(_guard, std::time::Duration::from_millis(10));
                 }
             }
@@ -357,7 +361,8 @@ impl OptimizedMatrixOps {
 
                     // Update global result with lock
                     {
-                        let mut result_guard = result_ref.lock().unwrap();
+                        let mut result_guard =
+                            result_ref.lock().expect("mutex should not be poisoned");
                         for i in 0..(i_end - i_start) {
                             for j in 0..(j_end - j_start) {
                                 result_guard[[i_start + i, j_start + j]] = local_result[[i, j]];
@@ -374,7 +379,7 @@ impl OptimizedMatrixOps {
         pool.execute_parallel(tasks);
 
         // Extract final result
-        let final_result = result.lock().unwrap().clone();
+        let final_result = result.lock().expect("mutex should not be poisoned").clone();
         Ok(final_result)
     }
 
@@ -499,7 +504,7 @@ impl Default for OptimizedMatrixOps {
 ///     .n_threads(4)
 ///     .block_size(25);
 ///
-/// let (eigenvalues, eigenvectors) = solver.solve(&matrix).unwrap();
+/// let (eigenvalues, eigenvectors) = solver.solve(&matrix).expect("operation should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ParallelEigenSolver {
@@ -657,13 +662,14 @@ impl ParallelEigenSolver {
                             }
                         }
 
-                        let mut pairs_guard = pairs_clone.lock().unwrap();
+                        let mut pairs_guard =
+                            pairs_clone.lock().expect("mutex should not be poisoned");
                         pairs_guard.extend(local_pairs);
                     });
                 }
             });
 
-            let pairs_vec = pairs.lock().unwrap().clone();
+            let pairs_vec = pairs.lock().expect("mutex should not be poisoned").clone();
 
             if pairs_vec.is_empty() {
                 break; // Converged
@@ -968,7 +974,9 @@ impl ParallelEigenSolver {
                 let top_left_owned = top_left.clone();
                 s.spawn(move || {
                     if let Ok((evals, evecs)) = self.solve_divide_conquer(&top_left_owned) {
-                        let mut results_guard = results_clone.lock().unwrap();
+                        let Ok(mut results_guard) = results_clone.lock() else {
+                            return;
+                        };
                         results_guard.push((0, evals, evecs));
                     }
                 });
@@ -980,14 +988,19 @@ impl ParallelEigenSolver {
                 let bottom_right_owned = bottom_right.clone();
                 s.spawn(move || {
                     if let Ok((evals, evecs)) = self.solve_divide_conquer(&bottom_right_owned) {
-                        let mut results_guard = results_clone.lock().unwrap();
+                        let Ok(mut results_guard) = results_clone.lock() else {
+                            return;
+                        };
                         results_guard.push((1, evals, evecs));
                     }
                 });
             }
         });
 
-        let results_vec = results.lock().unwrap().clone();
+        let results_vec = results
+            .lock()
+            .expect("mutex should not be poisoned")
+            .clone();
 
         if results_vec.len() != 2 {
             return Err(SklearsError::InvalidInput(
@@ -1119,7 +1132,7 @@ impl ParallelEigenSolver {
             eigenvalues[j]
                 .abs()
                 .partial_cmp(&eigenvalues[i].abs())
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Reorder eigenvalues
@@ -1452,7 +1465,8 @@ impl ParallelMatrixOps {
                     }
 
                     // Apply all updates in a single critical section
-                    let mut result_guard = result_clone.lock().unwrap();
+                    let mut result_guard =
+                        result_clone.lock().expect("mutex should not be poisoned");
                     for (row, col, val) in local_updates {
                         result_guard[[row, col]] = val;
                     }
@@ -1462,8 +1476,8 @@ impl ParallelMatrixOps {
 
         // Extract final result from Arc<Mutex>
         match Arc::try_unwrap(result) {
-            Ok(mutex) => mutex.into_inner().unwrap(),
-            Err(arc) => arc.lock().unwrap().clone(),
+            Ok(mutex) => mutex.into_inner().expect("operation should succeed"),
+            Err(arc) => arc.lock().expect("mutex should not be poisoned").clone(),
         }
     }
 }
@@ -1494,14 +1508,14 @@ mod tests {
 
         let result_clone = result.clone();
         pool.execute(move || {
-            let mut val = result_clone.lock().unwrap();
+            let mut val = result_clone.lock().expect("mutex should not be poisoned");
             *val += 1;
         });
 
         // Wait a bit for task completion
         std::thread::sleep(std::time::Duration::from_millis(100));
 
-        let final_result = *result.lock().unwrap();
+        let final_result = *result.lock().expect("mutex should not be poisoned");
         assert_eq!(final_result, 1);
     }
 
@@ -1547,7 +1561,9 @@ mod tests {
         let b = array![[2.0, 0.0], [1.0, 2.0]];
 
         let ops = OptimizedMatrixOps::new();
-        let result = ops.block_matmul(&a, &b).unwrap();
+        let result = ops
+            .block_matmul(&a, &b)
+            .expect("matrix multiplication should succeed");
 
         let expected = array![[4.0, 4.0], [10.0, 8.0]];
 
@@ -1562,7 +1578,9 @@ mod tests {
         let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
         let b = array![[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]];
 
-        let result = ops.block_matmul(&a, &b).unwrap();
+        let result = ops
+            .block_matmul(&a, &b)
+            .expect("matrix multiplication should succeed");
 
         // Expected: [[58, 64], [139, 154]]
         let expected = array![[58.0, 64.0], [139.0, 154.0]];
@@ -1576,7 +1594,9 @@ mod tests {
         let a = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let b = array![2.0, 3.0, 4.0, 5.0, 6.0];
 
-        let result = ops.simd_dot_product(&a, &b).unwrap();
+        let result = ops
+            .simd_dot_product(&a, &b)
+            .expect("operation should succeed");
         let expected = 1.0 * 2.0 + 2.0 * 3.0 + 3.0 * 4.0 + 4.0 * 5.0 + 5.0 * 6.0;
 
         assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
@@ -1588,7 +1608,9 @@ mod tests {
         let a = array![1.0, 2.0, 3.0];
         let b = array![4.0, 5.0, 6.0];
 
-        let result = ops.simd_dot_product(&a, &b).unwrap();
+        let result = ops
+            .simd_dot_product(&a, &b)
+            .expect("operation should succeed");
         let expected = a.dot(&b);
 
         assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
@@ -1618,7 +1640,7 @@ mod tests {
         let result = solver.solve(&matrix);
         assert!(result.is_ok());
 
-        let (eigenvalues, eigenvectors) = result.unwrap();
+        let (eigenvalues, eigenvectors) = result.expect("operation should succeed");
         assert_eq!(eigenvalues.len(), 2);
         assert_eq!(eigenvectors.dim(), (2, 2));
 
@@ -1729,8 +1751,12 @@ mod tests {
         let a = Array2::from_shape_fn((10, 8), |(i, j)| (i + j) as f64);
         let b = Array2::from_shape_fn((8, 12), |(i, j)| (i * 2 + j) as f64);
 
-        let parallel_result = parallel_ops.block_matmul(&a, &b).unwrap();
-        let sequential_result = sequential_ops.block_matmul(&a, &b).unwrap();
+        let parallel_result = parallel_ops
+            .block_matmul(&a, &b)
+            .expect("matrix multiplication should succeed");
+        let sequential_result = sequential_ops
+            .block_matmul(&a, &b)
+            .expect("matrix multiplication should succeed");
 
         // Results should be identical regardless of parallelization
         assert_abs_diff_eq!(parallel_result, sequential_result, epsilon = 1e-10);

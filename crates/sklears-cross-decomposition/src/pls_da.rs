@@ -33,8 +33,8 @@ use std::marker::PhantomData;
 /// let y = array![0, 1, 0, 1];
 ///
 /// let pls_da = PLSDA::new(1);
-/// let fitted = pls_da.fit(&X, &y).unwrap();
-/// let predictions = fitted.predict(&X).unwrap();
+/// let fitted = pls_da.fit(&X, &y).expect("fit should succeed");
+/// let predictions = fitted.predict(&X).expect("predict should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct PLSDA<State = Untrained> {
@@ -164,8 +164,12 @@ impl Fit<Array2<Float>, Array1<usize>> for PLSDA<Untrained> {
         }
 
         // Center and scale data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y_dummy.mean_axis(Axis(0)).unwrap();
+        let x_mean = x
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
+        let y_mean = y_dummy
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
         let mut y_centered = y_dummy.clone() - &y_mean.view().insert_axis(Axis(0));
@@ -301,11 +305,21 @@ impl Fit<Array2<Float>, Array1<usize>> for PLSDA<Untrained> {
 
 impl Predict<Array2<Float>, Array1<usize>> for PLSDA<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<usize>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let coef = self.coef_.as_ref().unwrap();
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let coef = self.coef_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let classes = self.classes_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -330,7 +344,7 @@ impl Predict<Array2<Float>, Array1<usize>> for PLSDA<Trained> {
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0);
                 classes[max_idx]
@@ -343,9 +357,15 @@ impl Predict<Array2<Float>, Array1<usize>> for PLSDA<Trained> {
 
 impl Transform<Array2<Float>> for PLSDA<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let x_rotations = self.x_rotations_.as_ref().unwrap();
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_rotations = self.x_rotations_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -366,10 +386,18 @@ impl Transform<Array2<Float>> for PLSDA<Trained> {
 impl PLSDA<Trained> {
     /// Predict class probabilities
     pub fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let coef = self.coef_.as_ref().unwrap();
-        let y_mean = self.y_mean_.as_ref().unwrap();
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let coef = self.coef_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -401,42 +429,58 @@ impl PLSDA<Trained> {
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<usize> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X weights
     pub fn x_weights(&self) -> &Array2<Float> {
-        self.x_weights_.as_ref().unwrap()
+        self.x_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y weights
     pub fn y_weights(&self) -> &Array2<Float> {
-        self.y_weights_.as_ref().unwrap()
+        self.y_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X loadings
     pub fn x_loadings(&self) -> &Array2<Float> {
-        self.x_loadings_.as_ref().unwrap()
+        self.x_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y loadings
     pub fn y_loadings(&self) -> &Array2<Float> {
-        self.y_loadings_.as_ref().unwrap()
+        self.y_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the regression coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X scores
     pub fn x_scores(&self) -> &Array2<Float> {
-        self.x_scores_.as_ref().unwrap()
+        self.x_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y scores
     pub fn y_scores(&self) -> &Array2<Float> {
-        self.y_scores_.as_ref().unwrap()
+        self.y_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 }
 
@@ -461,8 +505,8 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let pls_da = PLSDA::new(2);
-        let fitted = pls_da.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = pls_da.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
 
         assert_eq!(predictions.len(), 6);
 
@@ -480,9 +524,11 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let pls_da = PLSDA::new(1);
-        let fitted = pls_da.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
-        let probabilities = fitted.predict_proba(&x).unwrap();
+        let fitted = pls_da.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
+        let probabilities = fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(probabilities.shape(), &[4, 2]);
@@ -506,8 +552,8 @@ mod tests {
         let y = array![0, 1, 0, 1];
 
         let pls_da = PLSDA::new(2);
-        let fitted = pls_da.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = pls_da.fit(&x, &y).expect("fit should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.shape(), &[4, 2]);
     }
@@ -519,8 +565,8 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let pls_da = PLSDA::new(1).scale(false);
-        let fitted = pls_da.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = pls_da.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -532,10 +578,10 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let pls_da = PLSDA::new(1);
-        let fitted = pls_da.fit(&x, &y).unwrap();
+        let fitted = pls_da.fit(&x, &y).expect("fit should succeed");
 
         // Should be able to separate well-separated classes
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("predict should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 0);
         assert_eq!(predictions[2], 1);
@@ -664,7 +710,7 @@ mod tests {
                 let probabilities = fitted.predict_proba(&x)?;
                 for i in 0..n_samples {
                     let predicted_class = predictions[i];
-                    let class_idx = fitted.classes().iter().position(|&c| c == predicted_class).unwrap();
+                    let class_idx = fitted.classes().iter().position(|&c| c == predicted_class).expect("element should be found");
                     let confidence = probabilities[[i, class_idx]];
                     prop_assert!(confidence > 0.5, "Low confidence: {}", confidence);
                 }

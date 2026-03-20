@@ -709,7 +709,9 @@ mod tests {
     fn test_dashboard_state() {
         let config = DashboardConfig::default();
         let dashboard = Dashboard::new(config);
-        let state = dashboard.get_dashboard_state().unwrap();
+        let state = dashboard
+            .get_dashboard_state()
+            .expect("operation should succeed");
 
         assert_eq!(state.config.title, "Model Inspection Dashboard");
         assert!(state.recent_data.is_empty());
@@ -730,7 +732,7 @@ mod tests {
     fn test_html_generation() {
         let config = DashboardConfig::default();
         let dashboard = Dashboard::new(config);
-        let html = dashboard.generate_html().unwrap();
+        let html = dashboard.generate_html().expect("operation should succeed");
 
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("Model Inspection Dashboard"));

@@ -1159,7 +1159,7 @@ impl FaultDetectionEngine {
 
     /// Initialize the detection engine
     pub fn initialize(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = EngineStatus::Starting;
         state.status = EngineStatus::Running;
         Ok(())
@@ -1167,7 +1167,7 @@ impl FaultDetectionEngine {
 
     /// Start the detection engine
     pub fn start(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         if state.status != EngineStatus::Stopped {
             return Err(SklearsError::InvalidState(
                 "Engine not in stopped state".to_string()
@@ -1179,7 +1179,7 @@ impl FaultDetectionEngine {
 
     /// Stop the detection engine
     pub fn stop(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = EngineStatus::Stopping;
         state.status = EngineStatus::Stopped;
         Ok(())
@@ -1192,20 +1192,20 @@ impl FaultDetectionEngine {
 
     /// Add detector to the engine
     pub fn add_detector(&self, name: String, detector: Box<dyn FaultDetector>) {
-        let mut detectors = self.detectors.write().unwrap();
+        let mut detectors = self.detectors.write().unwrap_or_else(|e| e.into_inner());
         detectors.insert(name, detector);
     }
 
     /// Remove detector from the engine
     pub fn remove_detector(&self, name: &str) -> SklResult<()> {
-        let mut detectors = self.detectors.write().unwrap();
+        let mut detectors = self.detectors.write().unwrap_or_else(|e| e.into_inner());
         detectors.remove(name);
         Ok(())
     }
 
     /// Process detection data
     pub fn process_detection_data(&self, data: &DetectionData) -> SklResult<Vec<FaultReport>> {
-        let detectors = self.detectors.read().unwrap();
+        let detectors = self.detectors.read().unwrap_or_else(|e| e.into_inner());
         let mut all_faults = Vec::new();
 
         for (name, detector) in detectors.iter() {
@@ -1251,7 +1251,7 @@ impl FaultDetectionEngine {
 
     /// Update detection statistics
     fn update_statistics(&self, faults: &[FaultReport]) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.statistics.total_faults += faults.len() as u64;
         state.last_detection = Some(SystemTime::now());
 
@@ -1266,7 +1266,7 @@ impl FaultDetectionEngine {
 
     /// Store fault history
     fn store_fault_history(&self, faults: &[FaultReport]) -> SklResult<()> {
-        let mut history = self.fault_history.write().unwrap();
+        let mut history = self.fault_history.write().unwrap_or_else(|e| e.into_inner());
 
         for fault in faults {
             history.push_back(fault.clone());
@@ -1280,7 +1280,7 @@ impl FaultDetectionEngine {
 
     /// Get engine statistics
     pub fn get_statistics(&self) -> DetectionStatistics {
-        self.state.read().unwrap().statistics.clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).statistics.clone()
     }
 }
 
@@ -1351,7 +1351,7 @@ mod tests {
     #[test]
     fn test_fault_detection_engine_creation() {
         let engine = FaultDetectionEngine::new();
-        let state = engine.state.read().unwrap();
+        let state = engine.state.read().unwrap_or_else(|e| e.into_inner());
         assert_eq!(state.status, EngineStatus::Stopped);
         assert_eq!(state.statistics.total_faults, 0);
     }

@@ -5,7 +5,7 @@
 
 use crate::{UtilsError, UtilsResult};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::collections::HashMap;
 
 /// Cross-validation split information
@@ -127,7 +127,7 @@ impl StratifiedKFold {
 
     fn shuffle_indices(indices: &mut [usize], rng: &mut StdRng) {
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.random_range(0..=i);
             indices.swap(i, j);
         }
     }
@@ -299,7 +299,7 @@ impl GroupKFold {
             for (fold_id, groups_in_fold) in group_folds.iter().enumerate() {
                 let indices: Vec<usize> = groups_in_fold
                     .iter()
-                    .flat_map(|g| group_to_indices.get(g).unwrap())
+                    .flat_map(|g| group_to_indices.get(g).expect("operation should succeed"))
                     .copied()
                     .collect();
 
@@ -369,11 +369,18 @@ impl LeaveOneGroupOut {
 
         for &test_group in &unique_groups {
             let mut train = Vec::new();
-            let test = group_to_indices.get(&test_group).unwrap().clone();
+            let test = group_to_indices
+                .get(&test_group)
+                .expect("operation should succeed")
+                .clone();
 
             for &group in &unique_groups {
                 if group != test_group {
-                    train.extend(group_to_indices.get(&group).unwrap());
+                    train.extend(
+                        group_to_indices
+                            .get(&group)
+                            .expect("operation should succeed"),
+                    );
                 }
             }
 
@@ -397,8 +404,8 @@ mod tests {
     #[test]
     fn test_stratified_kfold_basic() {
         let y = vec![0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2];
-        let skf = StratifiedKFold::new(3, false, Some(42)).unwrap();
-        let splits = skf.split(&y).unwrap();
+        let skf = StratifiedKFold::new(3, false, Some(42)).expect("operation should succeed");
+        let splits = skf.split(&y).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -414,8 +421,8 @@ mod tests {
     #[test]
     fn test_stratified_kfold_all_samples_used() {
         let y = vec![0, 0, 1, 1, 2, 2];
-        let skf = StratifiedKFold::new(2, false, None).unwrap();
-        let splits = skf.split(&y).unwrap();
+        let skf = StratifiedKFold::new(2, false, None).expect("operation should succeed");
+        let splits = skf.split(&y).expect("operation should succeed");
 
         assert_eq!(splits.len(), 2);
 
@@ -430,8 +437,8 @@ mod tests {
 
     #[test]
     fn test_time_series_split_basic() {
-        let tscv = TimeSeriesSplit::new(3, Some(2), 0).unwrap();
-        let splits = tscv.split(10).unwrap();
+        let tscv = TimeSeriesSplit::new(3, Some(2), 0).expect("operation should succeed");
+        let splits = tscv.split(10).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -447,14 +454,14 @@ mod tests {
 
     #[test]
     fn test_time_series_split_with_gap() {
-        let tscv = TimeSeriesSplit::new(2, Some(2), 1).unwrap();
-        let splits = tscv.split(10).unwrap();
+        let tscv = TimeSeriesSplit::new(2, Some(2), 1).expect("operation should succeed");
+        let splits = tscv.split(10).expect("operation should succeed");
 
         for split in &splits {
             // Check gap is maintained
             if !split.train.is_empty() && !split.test.is_empty() {
-                let train_max = *split.train.iter().max().unwrap();
-                let test_min = *split.test.iter().min().unwrap();
+                let train_max = *split.train.iter().max().expect("operation should succeed");
+                let test_min = *split.test.iter().min().expect("operation should succeed");
                 assert!(test_min > train_max); // Gap of at least 1
             }
         }
@@ -463,8 +470,8 @@ mod tests {
     #[test]
     fn test_group_kfold_basic() {
         let groups = vec![0, 0, 1, 1, 2, 2, 3, 3];
-        let gkf = GroupKFold::new(2).unwrap();
-        let splits = gkf.split(&groups).unwrap();
+        let gkf = GroupKFold::new(2).expect("operation should succeed");
+        let splits = gkf.split(&groups).expect("operation should succeed");
 
         assert_eq!(splits.len(), 2);
 
@@ -484,7 +491,7 @@ mod tests {
     fn test_leave_one_group_out() {
         let groups = vec![0, 0, 1, 1, 2, 2];
         let logo = LeaveOneGroupOut::new();
-        let splits = logo.split(&groups).unwrap();
+        let splits = logo.split(&groups).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3); // 3 unique groups
 
@@ -500,13 +507,13 @@ mod tests {
     #[test]
     fn test_stratified_kfold_error_too_few_samples() {
         let y = vec![0, 1]; // Only 2 samples
-        let skf = StratifiedKFold::new(3, false, None).unwrap();
+        let skf = StratifiedKFold::new(3, false, None).expect("operation should succeed");
         assert!(skf.split(&y).is_err());
     }
 
     #[test]
     fn test_time_series_split_error_insufficient_samples() {
-        let tscv = TimeSeriesSplit::new(5, Some(10), 0).unwrap();
+        let tscv = TimeSeriesSplit::new(5, Some(10), 0).expect("operation should succeed");
         assert!(tscv.split(20).is_err());
     }
 }

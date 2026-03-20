@@ -1146,20 +1146,20 @@ mod tests {
 
         buffer
             .add_sample(Array1::from_vec(vec![1.0, 2.0]), 0, 1)
-            .unwrap();
+            .expect("operation should succeed");
         buffer
             .add_sample(Array1::from_vec(vec![3.0, 4.0]), 1, 2)
-            .unwrap();
+            .expect("operation should succeed");
         buffer
             .add_sample(Array1::from_vec(vec![5.0, 6.0]), 0, 3)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(buffer.len(), 3);
 
         // Adding one more should remove the oldest
         buffer
             .add_sample(Array1::from_vec(vec![7.0, 8.0]), 1, 4)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(buffer.len(), 3);
 
         let (features, labels) = buffer.get_recent_samples(2);
@@ -1173,14 +1173,14 @@ mod tests {
 
         // Add normal error rates
         for _ in 0..10 {
-            detector.update(0.05).unwrap();
+            detector.update(0.05).expect("operation should succeed");
         }
 
         assert!(!detector.is_drift_detected());
 
         // Add high error rates
         for _ in 0..5 {
-            detector.update(0.3).unwrap();
+            detector.update(0.3).expect("operation should succeed");
         }
 
         assert!(detector.is_drift_detected());
@@ -1227,8 +1227,8 @@ mod tests {
         online_nb.set_feature_types(vec![FeatureType::Continuous, FeatureType::Continuous]);
 
         // Initialize with some data
-        let X_init =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X_init = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y_init = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(online_nb.initialize(&X_init, &y_init).is_ok());
@@ -1239,12 +1239,17 @@ mod tests {
         assert!(online_nb.partial_fit(&new_sample, 0).is_ok());
 
         // Test prediction
-        let prediction = online_nb.predict_single(&new_sample).unwrap();
+        let prediction = online_nb
+            .predict_single(&new_sample)
+            .expect("operation should succeed");
         assert!(online_nb.classes.contains(&prediction));
 
         // Test batch prediction
-        let X_test = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
-        let predictions = online_nb.predict(&X_test).unwrap();
+        let X_test = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
+        let predictions = online_nb
+            .predict(&X_test)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -1259,7 +1264,8 @@ mod tests {
         online_nb.set_feature_types(vec![FeatureType::Continuous]);
 
         // Initialize
-        let X_init = Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).unwrap();
+        let X_init =
+            Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).expect("operation should succeed");
         let y_init = Array1::from_vec(vec![0, 1]);
 
         assert!(online_nb.initialize(&X_init, &y_init).is_ok());
@@ -1268,7 +1274,9 @@ mod tests {
         for i in 0..50 {
             let sample = Array1::from_vec(vec![10.0 + i as f64 * 0.1]);
             let label = if i % 2 == 0 { 0 } else { 1 };
-            online_nb.partial_fit(&sample, label).unwrap();
+            online_nb
+                .partial_fit(&sample, label)
+                .expect("operation should succeed");
         }
 
         // Model should adapt to new distribution
@@ -1287,8 +1295,8 @@ mod tests {
         online_nb.set_feature_types(vec![FeatureType::Continuous, FeatureType::Continuous]);
 
         // Initialize with clean data
-        let X_init =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X_init = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y_init = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(online_nb.initialize(&X_init, &y_init).is_ok());
@@ -1296,7 +1304,9 @@ mod tests {
         // Add samples that should cause prediction errors (concept drift)
         for _ in 0..20 {
             let sample = Array1::from_vec(vec![1.0, 1.0]); // Should be class 0
-            online_nb.partial_fit(&sample, 1).unwrap(); // But we label it as class 1
+            online_nb
+                .partial_fit(&sample, 1)
+                .expect("operation should succeed"); // But we label it as class 1
         }
 
         // Drift might be detected (depending on threshold and implementation details)
@@ -1313,13 +1323,16 @@ mod tests {
 
         online_nb.set_feature_types(vec![FeatureType::Continuous]);
 
-        let X_init = Array2::from_shape_vec((4, 1), vec![1.0, 1.1, 2.0, 2.1]).unwrap();
+        let X_init = Array2::from_shape_vec((4, 1), vec![1.0, 1.1, 2.0, 2.1])
+            .expect("operation should succeed");
         let y_init = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(online_nb.initialize(&X_init, &y_init).is_ok());
 
         let test_sample = Array1::from_vec(vec![1.5]);
-        let probabilities = online_nb.predict_proba_single(&test_sample).unwrap();
+        let probabilities = online_nb
+            .predict_proba_single(&test_sample)
+            .expect("operation should succeed");
 
         assert_eq!(probabilities.len(), 2);
 
@@ -1341,7 +1354,7 @@ mod tests {
                 2.3, 2.3, 2.4, 2.4,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
 
         let mut chunk_iter = MemoryChunkIterator::new(X, y, 3);
@@ -1350,28 +1363,43 @@ mod tests {
         assert_eq!(chunk_iter.estimated_total_samples(), Some(10));
 
         // Test first chunk
-        let chunk1 = chunk_iter.next_chunk().unwrap().unwrap();
+        let chunk1 = chunk_iter
+            .next_chunk()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert_eq!(chunk1.0.nrows(), 3);
         assert_eq!(chunk1.1.len(), 3);
         assert_eq!(chunk1.1[0], 0);
 
         // Test second chunk
-        let chunk2 = chunk_iter.next_chunk().unwrap().unwrap();
+        let chunk2 = chunk_iter
+            .next_chunk()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert_eq!(chunk2.0.nrows(), 3);
         assert_eq!(chunk2.1.len(), 3);
 
         // Test third chunk
-        let chunk3 = chunk_iter.next_chunk().unwrap().unwrap();
+        let chunk3 = chunk_iter
+            .next_chunk()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert_eq!(chunk3.0.nrows(), 3);
         assert_eq!(chunk3.1.len(), 3);
 
         // Test fourth chunk (partial)
-        let chunk4 = chunk_iter.next_chunk().unwrap().unwrap();
+        let chunk4 = chunk_iter
+            .next_chunk()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert_eq!(chunk4.0.nrows(), 1);
         assert_eq!(chunk4.1.len(), 1);
 
         // Test no more chunks
-        assert!(chunk_iter.next_chunk().unwrap().is_none());
+        assert!(chunk_iter
+            .next_chunk()
+            .expect("operation should succeed")
+            .is_none());
     }
 
     #[test]
@@ -1392,7 +1420,7 @@ mod tests {
                 2.2, 2.2, 2.3, 2.3, 2.4, 2.4, 2.5, 2.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]);
 
         let chunk_iter = MemoryChunkIterator::new(X, y, 3);
@@ -1402,8 +1430,11 @@ mod tests {
         assert!(out_of_core_nb.is_fitted());
 
         // Test prediction
-        let test_X = Array2::from_shape_vec((2, 2), vec![1.2, 1.2, 2.2, 2.2]).unwrap();
-        let predictions = out_of_core_nb.predict(&test_X).unwrap();
+        let test_X = Array2::from_shape_vec((2, 2), vec![1.2, 1.2, 2.2, 2.2])
+            .expect("operation should succeed");
+        let predictions = out_of_core_nb
+            .predict(&test_X)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
 
         // Check statistics
@@ -1459,8 +1490,8 @@ mod tests {
         out_of_core_nb_batch.set_feature_types(vec![FeatureType::Continuous]);
 
         // Create test data
-        let X =
-            Array2::from_shape_vec((8, 1), vec![1.0, 1.1, 1.2, 1.3, 2.0, 2.1, 2.2, 2.3]).unwrap();
+        let X = Array2::from_shape_vec((8, 1), vec![1.0, 1.1, 1.2, 1.3, 2.0, 2.1, 2.2, 2.3])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         let chunk_iter_partial = MemoryChunkIterator::new(X.clone(), y.clone(), 4);
@@ -1478,7 +1509,7 @@ mod tests {
         assert!(out_of_core_nb_batch.is_fitted());
 
         // Both should be able to make predictions
-        let test_X = Array2::from_shape_vec((1, 1), vec![1.5]).unwrap();
+        let test_X = Array2::from_shape_vec((1, 1), vec![1.5]).expect("operation should succeed");
         assert!(out_of_core_nb_partial.predict(&test_X).is_ok());
         assert!(out_of_core_nb_batch.predict(&test_X).is_ok());
     }

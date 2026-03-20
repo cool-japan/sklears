@@ -191,7 +191,7 @@ impl PersistentHomologyExtractor {
         }
 
         // Sort edges by weight
-        edges.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        edges.sort_by(|a, b| a.2.partial_cmp(&b.2).expect("operation should succeed"));
 
         // Create filtration steps
         let mut filtration = Vec::new();
@@ -221,7 +221,11 @@ impl PersistentHomologyExtractor {
         }
 
         // Sort by filtration value
-        filtration.sort_by(|a, b| a.filtration_value.partial_cmp(&b.filtration_value).unwrap());
+        filtration.sort_by(|a, b| {
+            a.filtration_value
+                .partial_cmp(&b.filtration_value)
+                .expect("operation should succeed")
+        });
 
         Ok(filtration)
     }
@@ -1301,8 +1305,9 @@ impl SimplicialComplexExtractor {
         if !vertex_depths.is_empty() {
             let depths: Vec<usize> = vertex_depths.values().cloned().collect();
             measures.push(depths.iter().sum::<usize>() as Float / depths.len() as Float); // Mean depth
-            measures.push(*depths.iter().max().unwrap() as Float); // Max depth
-            measures.push(*depths.iter().min().unwrap() as Float); // Min depth
+            measures.push(*depths.iter().max().expect("operation should succeed") as Float); // Max depth
+            measures.push(*depths.iter().min().expect("operation should succeed") as Float);
+        // Min depth
         } else {
             measures.extend(vec![0.0, 0.0, 0.0]);
         }

@@ -510,8 +510,8 @@ impl PerformanceRegressionTester {
             mean,
             median,
             std_dev,
-            min: *sorted_times.first().unwrap(),
-            max: *sorted_times.last().unwrap(),
+            min: sorted_times.first().copied().unwrap_or_default(),
+            max: sorted_times.last().copied().unwrap_or_default(),
             p95: sorted_times[p95_idx.min(times.len() - 1)],
             p99: sorted_times[p99_idx.min(times.len() - 1)],
             samples: times.to_vec(),
@@ -866,8 +866,16 @@ impl ReportSummary {
         let (start_time, end_time) = if results.is_empty() {
             (Utc::now(), Utc::now())
         } else {
-            let start = results.iter().map(|r| r.timestamp).min().unwrap();
-            let end = results.iter().map(|r| r.timestamp).max().unwrap();
+            let start = results
+                .iter()
+                .map(|r| r.timestamp)
+                .min()
+                .unwrap_or_default();
+            let end = results
+                .iter()
+                .map(|r| r.timestamp)
+                .max()
+                .unwrap_or_default();
             (start, end)
         };
 
@@ -1021,7 +1029,7 @@ mod tests {
         let result = tester.benchmark_component(&test_function, 42, &context, "test_multiply");
         assert!(result.is_ok());
 
-        let benchmark_result = result.unwrap();
+        let benchmark_result = result.expect("operation should succeed");
         assert_eq!(benchmark_result.test_case, "test_multiply");
         assert!(!benchmark_result.metrics.execution_time.samples.is_empty());
     }

@@ -1216,7 +1216,7 @@ mod tests {
         let result = formatter.format_message(
             "User {name} has {action}",
             &context,
-        ).unwrap();
+        ).unwrap_or_default();
 
         assert_eq!(result, "User John has logged in");
     }
@@ -1237,6 +1237,6 @@ mod tests {
         let template = cache.get("template1");
         assert!(template.is_some());
         assert_eq!(cache.statistics.cache_hits, 1);
-        assert_eq!(template.unwrap().access_count, 1);
+        assert_eq!(template.unwrap_or_default().access_count, 1);
     }
 }

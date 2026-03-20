@@ -830,26 +830,32 @@ mod tests {
 
         let ari = validator
             .adjusted_rand_index(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((ari - 1.0).abs() < 1e-10);
 
         let nmi = validator
             .normalized_mutual_information(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((nmi - 1.0).abs() < 1e-10);
 
-        let v_measure = validator.v_measure(&true_labels, &pred_labels).unwrap();
+        let v_measure = validator
+            .v_measure(&true_labels, &pred_labels)
+            .expect("operation should succeed");
         assert!((v_measure - 1.0).abs() < 1e-10);
 
         let fm = validator
             .fowlkes_mallows_index(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((fm - 1.0).abs() < 1e-10);
 
-        let jaccard = validator.jaccard_index(&true_labels, &pred_labels).unwrap();
+        let jaccard = validator
+            .jaccard_index(&true_labels, &pred_labels)
+            .expect("operation should succeed");
         assert!((jaccard - 1.0).abs() < 1e-10);
 
-        let purity = validator.purity_score(&true_labels, &pred_labels).unwrap();
+        let purity = validator
+            .purity_score(&true_labels, &pred_labels)
+            .expect("operation should succeed");
         assert!((purity - 1.0).abs() < 1e-10);
     }
 
@@ -863,20 +869,22 @@ mod tests {
 
         let ari = validator
             .adjusted_rand_index(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(ari >= -1.0 && ari <= 1.0);
 
         let nmi = validator
             .normalized_mutual_information(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(nmi >= 0.0 && nmi <= 1.0);
 
-        let v_measure = validator.v_measure(&true_labels, &pred_labels).unwrap();
+        let v_measure = validator
+            .v_measure(&true_labels, &pred_labels)
+            .expect("operation should succeed");
         assert!(v_measure >= 0.0 && v_measure <= 1.0);
 
         let fm = validator
             .fowlkes_mallows_index(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(fm >= 0.0 && fm <= 1.0);
     }
 
@@ -889,7 +897,7 @@ mod tests {
 
         let metrics = validator
             .external_validation(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!((metrics.adjusted_rand_index - 1.0).abs() < 1e-10);
         assert!((metrics.normalized_mutual_info - 1.0).abs() < 1e-10);
@@ -919,7 +927,7 @@ mod tests {
 
         let (homogeneity, completeness) = validator
             .homogeneity_completeness(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((homogeneity - 1.0).abs() < 1e-10);
         assert!((completeness - 1.0).abs() < 1e-10);
 
@@ -929,7 +937,7 @@ mod tests {
 
         let (homogeneity, completeness) = validator
             .homogeneity_completeness(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(homogeneity > 0.9); // High homogeneity
         assert!(completeness < 0.5); // Low completeness
     }
@@ -943,7 +951,7 @@ mod tests {
 
         let confusion = validator
             .compute_confusion_matrix(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(confusion.total_samples(), 6);
         assert_eq!(confusion.matrix.len(), 3); // 3 true clusters
@@ -982,7 +990,7 @@ mod tests {
         let single_pred = vec![0];
         let ari = validator
             .adjusted_rand_index(&single_true, &single_pred)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((ari - 1.0).abs() < 1e-10);
 
         // Mismatched lengths
@@ -1001,7 +1009,7 @@ mod tests {
 
         let contingency = validator
             .build_contingency_table(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check specific entries
         assert_eq!(contingency.get(&(0, 1)), Some(&2)); // True cluster 0 -> Pred cluster 1
@@ -1035,7 +1043,7 @@ mod tests {
 
         let (assignment, accuracy) = validator
             .find_optimal_assignment(&true_labels, &pred_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(assignment.len(), 3);
         assert_eq!(accuracy, 1.0); // Should achieve perfect accuracy with optimal assignment

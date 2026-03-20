@@ -154,12 +154,12 @@ impl VotingClassifier<Untrained> {
 impl VotingClassifier<Trained> {
     /// Get the classes discovered during training
     pub fn classes(&self) -> &Array1<Float> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of features seen during training
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_.expect("operation should succeed")
     }
 
     /// Get the estimators in the ensemble
@@ -465,7 +465,7 @@ impl VotingClassifier<Trained> {
         Ok(simd_hard_voting_weighted(
             &all_predictions,
             &weights,
-            classes.as_slice().unwrap(),
+            classes.as_slice().expect("slice operation should succeed"),
         ))
     }
 
@@ -514,7 +514,7 @@ impl VotingClassifier<Trained> {
         Ok(simd_hard_voting_weighted(
             &all_predictions,
             &weights,
-            classes.as_slice().unwrap(),
+            classes.as_slice().expect("slice operation should succeed"),
         ))
     }
 
@@ -600,7 +600,7 @@ impl VotingClassifier<Trained> {
         Ok(simd_hard_voting_weighted(
             &all_predictions,
             &performances,
-            classes.as_slice().unwrap(),
+            classes.as_slice().expect("slice operation should succeed"),
         ))
     }
 
@@ -795,7 +795,7 @@ impl Fit<Array2<Float>, Array1<Float>> for VotingClassifier<Untrained> {
 
         // Discover unique classes
         let mut classes: Vec<Float> = y.iter().cloned().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         classes.dedup();
         let classes_array = Array1::from_vec(classes);
 

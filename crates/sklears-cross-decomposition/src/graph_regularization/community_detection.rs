@@ -255,7 +255,11 @@ impl CommunityDetector {
         // Simple heuristic assignment based on node degrees
         let sorted_indices: Vec<usize> = {
             let mut indices: Vec<usize> = (0..n).collect();
-            indices.sort_by(|&i, &j| degrees[i].partial_cmp(&degrees[j]).unwrap());
+            indices.sort_by(|&i, &j| {
+                degrees[i]
+                    .partial_cmp(&degrees[j])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             indices
         };
 
@@ -312,7 +316,7 @@ impl CommunityDetector {
                 // Choose most frequent label
                 if let Some((&best_label, _)) = label_counts
                     .iter()
-                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
                 {
                     if best_label != assignments[node] {
                         assignments[node] = best_label;

@@ -192,7 +192,7 @@ impl<M: MonotonicityType> TypeSafeIsotonicRegression<M, Unfitted> {
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -239,8 +239,8 @@ impl<M: MonotonicityType> TypeSafeIsotonicRegression<M, Unfitted> {
 impl<M: MonotonicityType> TypeSafeIsotonicRegression<M, Fitted> {
     /// Predict values at given points (only available for fitted models)
     pub fn predict(&self, x: &Array1<Float>) -> Result<Array1<Float>, SklearsError> {
-        let fitted_x = self.fitted_x.as_ref().unwrap(); // Safe because of type system
-        let fitted_values = self.fitted_values.as_ref().unwrap(); // Safe because of type system
+        let fitted_x = self.fitted_x.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?; // Safe because of type system
+        let fitted_values = self.fitted_values.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?; // Safe because of type system
 
         let mut predictions = Array1::zeros(x.len());
 
@@ -253,12 +253,12 @@ impl<M: MonotonicityType> TypeSafeIsotonicRegression<M, Fitted> {
 
     /// Get fitted values (only available for fitted models)
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values.as_ref().unwrap() // Safe because of type system
+        self.fitted_values.as_ref().expect("value should be present") // Safe because of type system
     }
 
     /// Get fitted x values (only available for fitted models)
     pub fn fitted_x(&self) -> &Array1<Float> {
-        self.fitted_x.as_ref().unwrap() // Safe because of type system
+        self.fitted_x.as_ref().expect("value should be present") // Safe because of type system
     }
 
     /// Convert to different monotonicity constraint (requires refitting)
@@ -445,7 +445,7 @@ impl<M: MonotonicityType, const N: usize> FixedSizeIsotonicRegression<M, Unfitte
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -493,8 +493,8 @@ impl<M: MonotonicityType, const N: usize> FixedSizeIsotonicRegression<M, Unfitte
 impl<M: MonotonicityType, const N: usize> FixedSizeIsotonicRegression<M, Fitted, N> {
     /// Predict values at given points (fixed-size)
     pub fn predict(&self, x: &[Float; N]) -> Result<[Float; N], SklearsError> {
-        let fitted_x = self.fitted_x.as_ref().unwrap(); // Safe because of type system
-        let fitted_values = self.fitted_values.as_ref().unwrap(); // Safe because of type system
+        let fitted_x = self.fitted_x.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?; // Safe because of type system
+        let fitted_values = self.fitted_values.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?; // Safe because of type system
 
         let mut predictions = [0.0; N];
 
@@ -507,12 +507,12 @@ impl<M: MonotonicityType, const N: usize> FixedSizeIsotonicRegression<M, Fitted,
 
     /// Get fitted values (fixed-size)
     pub fn fitted_values(&self) -> &[Float; N] {
-        self.fitted_values.as_ref().unwrap() // Safe because of type system
+        self.fitted_values.as_ref().expect("value should be present") // Safe because of type system
     }
 
     /// Get fitted x values (fixed-size)
     pub fn fitted_x(&self) -> &[Float; N] {
-        self.fitted_x.as_ref().unwrap() // Safe because of type system
+        self.fitted_x.as_ref().expect("value should be present") // Safe because of type system
     }
 
     /// Linear interpolation for prediction
@@ -724,9 +724,9 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0]; // Non-monotonic
 
         let model = increasing_isotonic_regression();
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -743,9 +743,9 @@ mod tests {
         let y = array![5.0, 3.0, 4.0, 2.0, 1.0]; // Non-monotonic
 
         let model = decreasing_isotonic_regression();
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are decreasing
         for i in 0..predictions.len() - 1 {
@@ -760,9 +760,9 @@ mod tests {
 
         let model: FixedSizeIsotonicRegression<Increasing, Unfitted, 5> =
             fixed_size_increasing_isotonic_regression();
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -807,7 +807,7 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
 
         let model = increasing_isotonic_regression();
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Convert to decreasing constraint (requires refitting)
         let new_model: TypeSafeIsotonicRegression<Decreasing, Unfitted> =
@@ -817,8 +817,8 @@ mod tests {
         // let _ = new_model.predict(&x); // This would not compile
 
         // Must refit with new constraint
-        let refitted_model = new_model.fit(&x, &y).unwrap();
-        let predictions = refitted_model.predict(&x).unwrap();
+        let refitted_model = new_model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = refitted_model.predict(&x).expect("prediction should succeed");
 
         // Should now be decreasing
         for i in 0..predictions.len() - 1 {
@@ -840,8 +840,8 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let _ = fitted_model.predict(&x).unwrap(); // This should compile
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let _ = fitted_model.predict(&x).expect("prediction should succeed"); // This should compile
     }
 
     #[test]

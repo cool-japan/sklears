@@ -536,9 +536,10 @@ mod tests {
 
     #[test]
     fn test_component_visualization_creation() {
-        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9]).unwrap();
-        let scores =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9])
+            .expect("shape and data length should match");
+        let scores = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5])
+            .expect("shape and data length should match");
         let explained_variance = Array1::from_vec(vec![2.0, 1.0]);
 
         let viz = ComponentVisualization::new(loadings, scores, explained_variance);
@@ -550,13 +551,16 @@ mod tests {
 
     #[test]
     fn test_loading_plot_data() {
-        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9]).unwrap();
-        let scores =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9])
+            .expect("shape and data length should match");
+        let scores = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5])
+            .expect("shape and data length should match");
         let explained_variance = Array1::from_vec(vec![2.0, 1.0]);
 
         let viz = ComponentVisualization::new(loadings, scores, explained_variance);
-        let loading_plot = viz.loading_plot_data(0, 1).unwrap();
+        let loading_plot = viz
+            .loading_plot_data(0, 1)
+            .expect("operation should succeed");
 
         assert_eq!(loading_plot.x_loadings.len(), 3);
         assert_eq!(loading_plot.y_loadings.len(), 3);
@@ -570,9 +574,10 @@ mod tests {
 
     #[test]
     fn test_feature_importance() {
-        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9]).unwrap();
-        let scores =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9])
+            .expect("shape and data length should match");
+        let scores = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5])
+            .expect("shape and data length should match");
         let explained_variance = Array1::from_vec(vec![2.0, 1.0]);
 
         let viz = ComponentVisualization::new(loadings, scores, explained_variance);
@@ -587,9 +592,10 @@ mod tests {
 
     #[test]
     fn test_top_features_per_component() {
-        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9]).unwrap();
-        let scores =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9])
+            .expect("shape and data length should match");
+        let scores = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5])
+            .expect("shape and data length should match");
         let explained_variance = Array1::from_vec(vec![2.0, 1.0]);
 
         let viz = ComponentVisualization::new(loadings, scores, explained_variance);
@@ -602,9 +608,10 @@ mod tests {
 
     #[test]
     fn test_component_contributions() {
-        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9]).unwrap();
-        let scores =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9])
+            .expect("shape and data length should match");
+        let scores = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5])
+            .expect("shape and data length should match");
         let explained_variance = Array1::from_vec(vec![2.0, 1.0]);
 
         let viz = ComponentVisualization::new(loadings, scores, explained_variance);
@@ -624,7 +631,7 @@ mod tests {
                 0.05, 0.1, 0.8, 0.4, 0.1, 0.02, 0.01, 0.1, 0.7, 0.6,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let scores = Array2::zeros((10, 5));
         let explained_variance = Array1::from_vec(vec![3.0, 2.0, 1.5, 0.8, 0.2]);
 
@@ -644,10 +651,11 @@ mod tests {
 
     #[test]
     fn test_decomposition_visualizer() {
-        let components =
-            Array2::from_shape_vec((2, 3), vec![0.8, 0.6, 0.1, 0.2, 0.5, 0.9]).unwrap();
+        let components = Array2::from_shape_vec((2, 3), vec![0.8, 0.6, 0.1, 0.2, 0.5, 0.9])
+            .expect("shape and data length should match");
         let transformed_data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5])
+                .expect("shape and data length should match");
         let explained_variance = Array1::from_vec(vec![2.0, 1.0]);
 
         let viz = DecompositionVisualizer::pca_visualization(
@@ -663,13 +671,14 @@ mod tests {
 
     #[test]
     fn test_biplot_data() {
-        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9]).unwrap();
-        let scores =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5]).unwrap();
+        let loadings = Array2::from_shape_vec((3, 2), vec![0.8, 0.2, 0.6, 0.5, 0.1, 0.9])
+            .expect("shape and data length should match");
+        let scores = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 0.5, 1.5, 2.5, 3.5])
+            .expect("shape and data length should match");
         let explained_variance = Array1::from_vec(vec![2.0, 1.0]);
 
         let viz = ComponentVisualization::new(loadings, scores, explained_variance);
-        let biplot = viz.biplot_data(0, 1).unwrap();
+        let biplot = viz.biplot_data(0, 1).expect("operation should succeed");
 
         assert_eq!(biplot.x_scores.len(), 4);
         assert_eq!(biplot.y_scores.len(), 4);

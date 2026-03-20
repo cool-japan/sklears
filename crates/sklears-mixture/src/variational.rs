@@ -5,7 +5,7 @@
 
 use crate::common::CovarianceType;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -340,7 +340,7 @@ impl VariationalBayesianGMM<Untrained> {
             let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
 
             // First mean: pick random sample
-            let idx = rng.gen_range(0..n_samples);
+            let idx = rng.random_range(0..n_samples);
             means.row_mut(0).assign(&X.row(idx));
 
             // Subsequent means: pick samples far from existing means
@@ -772,7 +772,9 @@ mod tests {
             .max_iter(10)
             .random_state(42);
 
-        let fitted = vbgmm.fit(&X.view(), &()).unwrap();
+        let fitted = vbgmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         assert!(fitted.converged() || fitted.n_iter() == 10);
         assert!(fitted.effective_components() <= 3);
@@ -789,8 +791,12 @@ mod tests {
             .max_iter(20)
             .random_state(42);
 
-        let fitted = vbgmm.fit(&X.view(), &()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = vbgmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let predictions = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         // Should cluster into two groups

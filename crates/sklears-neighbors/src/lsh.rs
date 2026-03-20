@@ -64,7 +64,8 @@ impl LshIndex {
         let mut projection_matrix = Array2::zeros((num_hashes, dimension));
         use scirs2_core::random::*;
         let mut rng = thread_rng();
-        let normal = scirs2_core::random::essentials::Normal::new(0.0, 1.0).unwrap();
+        let normal = scirs2_core::random::essentials::Normal::new(0.0, 1.0)
+            .expect("operation should succeed");
 
         for i in 0..num_hashes {
             for j in 0..dimension {
@@ -161,7 +162,7 @@ impl LshIndex {
             ));
         }
 
-        let data = self.data.as_ref().unwrap();
+        let data = self.data.as_ref().expect("operation should succeed");
 
         // Hash the query point
         let query_hashes = self.hash_point(query_point)?;
@@ -195,7 +196,8 @@ impl LshIndex {
             .collect();
 
         // Sort by distance and return top-k
-        candidate_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        candidate_distances
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let result: Vec<usize> = candidate_distances
             .into_iter()
@@ -217,7 +219,7 @@ impl LshIndex {
             ));
         }
 
-        let data = self.data.as_ref().unwrap();
+        let data = self.data.as_ref().expect("operation should succeed");
         let neighbor_indices = self.query(query_point)?;
 
         let mut result = Vec::new();
@@ -407,7 +409,7 @@ impl Predict<Features, Array1<Int>> for LshKNeighborsClassifier<sklears_core::tr
             return Err(NeighborsError::EmptyInput.into());
         }
 
-        let y_train = self.y_train.as_ref().unwrap();
+        let y_train = self.y_train.as_ref().expect("operation should succeed");
         let mut predictions = scirs2_core::ndarray::Array1::zeros(x.nrows());
 
         for (i, query_point) in x.axis_iter(Axis(0)).enumerate() {
@@ -448,13 +450,15 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut lsh_index = LshIndex::new_random_projection(2, 4, 3, 2);
-        lsh_index.fit(&data).unwrap();
+        lsh_index.fit(&data).expect("operation should succeed");
 
         let query = array![1.0, 0.0, 0.0];
-        let neighbors = lsh_index.query(&query.view()).unwrap();
+        let neighbors = lsh_index
+            .query(&query.view())
+            .expect("operation should succeed");
 
         assert!(!neighbors.is_empty());
         assert!(neighbors.len() <= 2);
@@ -470,13 +474,15 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut lsh_index = LshIndex::new_minhash(2, 4, 2);
-        lsh_index.fit(&data).unwrap();
+        lsh_index.fit(&data).expect("operation should succeed");
 
         let query = array![1.0, 0.0, 0.0];
-        let neighbors = lsh_index.query(&query.view()).unwrap();
+        let neighbors = lsh_index
+            .query(&query.view())
+            .expect("operation should succeed");
 
         assert!(!neighbors.is_empty());
         assert!(neighbors.len() <= 2);
@@ -495,11 +501,11 @@ mod tests {
                 5.2, 5.2, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 0, 1, 1, 1];
 
         let classifier = LshKNeighborsClassifier::new_random_projection(3, 2, 4, 2);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         let x_test = Array2::from_shape_vec(
             (2, 2),
@@ -508,9 +514,9 @@ mod tests {
                 5.05, 5.05, // Should be class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = fitted.predict(&x_test).unwrap();
+        let predictions = fitted.predict(&x_test).expect("operation should succeed");
 
         // With LSH, results are approximate, so we just check that we get valid predictions
         assert_eq!(predictions.len(), 2);

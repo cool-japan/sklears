@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use scirs2_core::Distribution;
 use sklears_clustering::{
     AgglomerativeClustering, GaussianMixture, KMeans, KMeansConfig, PredictProba, DBSCAN, HDBSCAN,
@@ -33,14 +33,15 @@ fn generate_noisy_clusters(
             let mut point = Vec::new();
             for feature_id in 0..n_features {
                 let center = if feature_id == 0 { center_offset } else { 0.0 };
-                let normal = Normal::new(center, noise_level).unwrap();
+                let normal = Normal::new(center, noise_level).expect("operation should succeed");
                 point.push(normal.sample(&mut rng));
             }
             data.extend(point);
         }
     }
 
-    Array2::from_shape_vec((n_clusters * n_samples_per_cluster, n_features), data).unwrap()
+    Array2::from_shape_vec((n_clusters * n_samples_per_cluster, n_features), data)
+        .expect("operation should succeed")
 }
 
 /// Add random outliers to existing data
@@ -59,7 +60,8 @@ fn add_outliers(data: Array2<Float>, n_outliers: usize, outlier_magnitude: Float
     }
 
     if !outlier_data.is_empty() {
-        let outliers = Array2::from_shape_vec((n_outliers, n_features), outlier_data).unwrap();
+        let outliers = Array2::from_shape_vec((n_outliers, n_features), outlier_data)
+            .expect("operation should succeed");
         let mut combined_data = Array2::zeros((n_samples + n_outliers, n_features));
         combined_data.slice_mut(s![..n_samples, ..]).assign(&data);
         combined_data
@@ -380,7 +382,7 @@ mod imbalanced_clusters {
             ]);
         }
 
-        let data = Array2::from_shape_vec((125, 2), data).unwrap();
+        let data = Array2::from_shape_vec((125, 2), data).expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 3,
@@ -445,7 +447,7 @@ mod imbalanced_clusters {
             ]);
         }
 
-        let data = Array2::from_shape_vec((83, 2), data).unwrap();
+        let data = Array2::from_shape_vec((83, 2), data).expect("operation should succeed");
 
         let agg = AgglomerativeClustering::new().n_clusters(2);
 
@@ -490,7 +492,7 @@ mod edge_cases {
             (5, 2),
             vec![0.0, 0.0, 10.0, 10.0, 20.0, 20.0, 30.0, 30.0, 40.0, 40.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 5,
@@ -518,7 +520,8 @@ mod edge_cases {
     #[test]
     fn test_identical_points() {
         // All points are identical
-        let data = Array2::from_shape_vec((10, 2), vec![1.0; 20]).unwrap();
+        let data =
+            Array2::from_shape_vec((10, 2), vec![1.0; 20]).expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 1,
@@ -605,7 +608,7 @@ mod edge_cases {
             ]);
         }
 
-        let data = Array2::from_shape_vec((60, 2), data).unwrap();
+        let data = Array2::from_shape_vec((60, 2), data).expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 2,

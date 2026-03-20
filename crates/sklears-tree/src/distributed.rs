@@ -1007,7 +1007,7 @@ mod tests {
         let x = Array2::zeros((100, 5));
         let y = Array1::zeros(100);
 
-        let tasks = trainer.create_training_tasks(&x, &y).unwrap();
+        let tasks = trainer.create_training_tasks(&x, &y).expect("operation should succeed");
         assert_eq!(tasks.len(), 3); // One task per worker
 
         // Check tree distribution

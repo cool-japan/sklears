@@ -143,21 +143,33 @@ mod tests {
         let k_train = arr2(&[[1.0, 2.0, 3.0], [2.0, 4.0, 6.0], [3.0, 6.0, 9.0]]);
 
         let centerer = KernelCenterer::new();
-        let fitted = centerer.fit(&k_train, &()).unwrap();
+        let fitted = centerer
+            .fit(&k_train, &())
+            .expect("model fitting should succeed");
 
         // Transform the training kernel itself
-        let k_centered = fitted.transform(&k_train).unwrap();
+        let k_centered = fitted
+            .transform(&k_train)
+            .expect("transformation should succeed");
 
         // Check that the centered kernel has zero mean
-        let mean = k_centered.mean().unwrap();
+        let mean = k_centered
+            .mean()
+            .expect("array should have elements for mean computation");
         assert_abs_diff_eq!(mean, 0.0, epsilon = 1e-10);
 
         // Check row and column means are zero
         for i in 0..k_centered.nrows() {
-            let row_mean = k_centered.row(i).mean().unwrap();
+            let row_mean = k_centered
+                .row(i)
+                .mean()
+                .expect("array should have elements for mean computation");
             assert_abs_diff_eq!(row_mean, 0.0, epsilon = 1e-10);
 
-            let col_mean = k_centered.column(i).mean().unwrap();
+            let col_mean = k_centered
+                .column(i)
+                .mean()
+                .expect("array should have elements for mean computation");
             assert_abs_diff_eq!(col_mean, 0.0, epsilon = 1e-10);
         }
     }
@@ -171,8 +183,12 @@ mod tests {
         let k_test = arr2(&[[1.5, 3.0], [2.5, 5.0], [3.5, 7.0]]);
 
         let centerer = KernelCenterer::new();
-        let fitted = centerer.fit(&k_train, &()).unwrap();
-        let k_test_centered = fitted.transform(&k_test).unwrap();
+        let fitted = centerer
+            .fit(&k_train, &())
+            .expect("model fitting should succeed");
+        let k_test_centered = fitted
+            .transform(&k_test)
+            .expect("transformation should succeed");
 
         // Verify shape
         assert_eq!(k_test_centered.shape(), &[3, 2]);

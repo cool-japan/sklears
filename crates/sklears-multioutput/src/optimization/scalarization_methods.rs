@@ -356,7 +356,7 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>> for ScalarizationOptimize
         let mut rng = thread_rng();
 
         // Initialize parameters
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         let mut parameters = Array1::<Float>::zeros(n_features * n_objectives);
         for i in 0..(n_features * n_objectives) {
             parameters[i] = rng.sample(normal_dist);

@@ -1193,7 +1193,7 @@ mod tests {
         if let Some(rule_id) = rule_ids.first() {
             reporter
                 .update_rule_status(rule_id, ComplianceStatus::Compliant)
-                .unwrap();
+                .expect("operation should succeed");
             assert_eq!(reporter.rules[rule_id].status, ComplianceStatus::Compliant);
         }
 
@@ -1206,7 +1206,7 @@ mod tests {
                 Some("Test Author".to_string()),
                 None,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(report.title, "Test Report");
         assert!(!report.frameworks.is_empty());

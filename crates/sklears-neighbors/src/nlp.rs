@@ -573,7 +573,8 @@ impl DocumentSimilaritySearch {
         }
 
         // Sort by similarity (descending) and take top k
-        similarities_with_indices.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        similarities_with_indices
+            .sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
         let k_results = k.min(similarities_with_indices.len());
 
         let mut results = Vec::new();
@@ -651,7 +652,8 @@ impl DocumentSimilaritySearch {
         }
 
         // Sort and return results
-        similarities_with_indices.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        similarities_with_indices
+            .sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
         let k_results = k.min(similarities_with_indices.len());
 
         let mut results = Vec::new();
@@ -802,7 +804,7 @@ impl WordEmbeddingSearch {
         }
 
         // Sort by similarity and return top k
-        similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
         let k_results = k.min(similarities.len());
 
         let mut results = Vec::new();
@@ -978,7 +980,7 @@ impl SentenceSimilaritySearch {
         }
 
         // Sort by similarity and return top k
-        similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        similarities.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
         let k_results = k.min(similarities.len());
 
         let mut results = Vec::new();
@@ -1059,12 +1061,16 @@ mod tests {
             "natural language processing".to_string(),
         ];
 
-        let features = extractor.fit_transform(&documents).unwrap();
+        let features = extractor
+            .fit_transform(&documents)
+            .expect("operation should succeed");
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
 
         // Test single document transform
-        let query_features = extractor.transform("machine learning").unwrap();
+        let query_features = extractor
+            .transform("machine learning")
+            .expect("operation should succeed");
         assert_eq!(query_features.len(), features.ncols());
     }
 
@@ -1078,9 +1084,13 @@ mod tests {
             "natural language processing analyzes text".to_string(),
         ];
 
-        search.build_index_from_documents(&documents).unwrap();
+        search
+            .build_index_from_documents(&documents)
+            .expect("operation should succeed");
 
-        let results = search.search_by_text("machine learning", 2).unwrap();
+        let results = search
+            .search_by_text("machine learning", 2)
+            .expect("operation should succeed");
         assert_eq!(results.len(), 2);
         assert!(results[0].similarity >= results[1].similarity);
 
@@ -1101,9 +1111,13 @@ mod tests {
             ("cat".to_string(), Array1::from_vec(vec![0.0, 1.0, 0.0])),
         ];
 
-        search.load_embeddings(word_vectors).unwrap();
+        search
+            .load_embeddings(word_vectors)
+            .expect("operation should succeed");
 
-        let similar_words = search.find_similar_words("king", 2).unwrap();
+        let similar_words = search
+            .find_similar_words("king", 2)
+            .expect("operation should succeed");
         assert_eq!(similar_words.len(), 2);
 
         // Should find queen as most similar to king
@@ -1138,7 +1152,9 @@ mod tests {
             ),
         ];
 
-        search.load_word_embeddings(word_vectors).unwrap();
+        search
+            .load_word_embeddings(word_vectors)
+            .expect("operation should succeed");
 
         let sentences = vec![
             "machine learning".to_string(),
@@ -1146,11 +1162,13 @@ mod tests {
             "unrelated sentence".to_string(),
         ];
 
-        search.build_index_from_sentences(&sentences).unwrap();
+        search
+            .build_index_from_sentences(&sentences)
+            .expect("operation should succeed");
 
         let results = search
             .search_similar_sentences("machine learning", 2)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(!results.is_empty());
 
         // First result should be identical or very similar
@@ -1174,12 +1192,16 @@ mod tests {
             "machine learning applications".to_string(),
         ];
 
-        preprocessor.build_vocabulary(&documents).unwrap();
+        preprocessor
+            .build_vocabulary(&documents)
+            .expect("operation should succeed");
 
         assert_eq!(preprocessor.vocab_size(), 5);
 
         // Should contain frequent terms
-        let vocab = preprocessor.get_vocabulary().unwrap();
+        let vocab = preprocessor
+            .get_vocabulary()
+            .expect("operation should succeed");
         assert!(vocab.contains_key("machine"));
         assert!(vocab.contains_key("learning"));
     }

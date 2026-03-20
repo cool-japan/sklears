@@ -380,7 +380,7 @@ impl MetaLearningEngine {
         }
 
         // Sort by similarity and take top k
-        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         similarities.truncate(k_neighbors);
 
         if similarities.is_empty() {
@@ -524,9 +524,9 @@ impl MetaLearningEngine {
             .max_by(|a, b| {
                 a.performance_score
                     .partial_cmp(&b.performance_score)
-                    .unwrap()
+                    .expect("operation should succeed")
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         for (param_name, param_value) in &best_record.hyperparameters {
             adapted_hyperparameters.insert(param_name.clone(), param_value.clone());
@@ -1066,7 +1066,7 @@ mod tests {
 
         let similarity = engine
             .calculate_similarity(&dataset1, &dataset2, &SimilarityMetric::Cosine)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(similarity >= 0.0 && similarity <= 1.0);
     }
 
@@ -1076,7 +1076,9 @@ mod tests {
         let engine = MetaLearningEngine::new(config);
 
         let dataset = create_sample_dataset_characteristics();
-        let features = engine.extract_features(&dataset).unwrap();
+        let features = engine
+            .extract_features(&dataset)
+            .expect("operation should succeed");
 
         assert!(features.len() > 0);
     }

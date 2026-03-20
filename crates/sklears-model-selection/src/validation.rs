@@ -44,7 +44,10 @@ fn compute_score_for_classification_val(
         "accuracy" => Ok(accuracy_score(y_true, y_pred)?),
         _ => {
             let scorer = get_scorer(metric_name)?;
-            scorer.score(y_true.as_slice().unwrap(), y_pred.as_slice().unwrap())
+            scorer.score(
+                y_true.as_slice().expect("operation should succeed"),
+                y_pred.as_slice().expect("operation should succeed"),
+            )
         }
     }
 }
@@ -171,7 +174,10 @@ where
             }
             Scoring::Scorer(scorer) => {
                 let y_pred = fitted.predict(&x_test)?;
-                scorer.score_float(y_test.as_slice().unwrap(), y_pred.as_slice().unwrap())?
+                scorer.score_float(
+                    y_test.as_slice().expect("operation should succeed"),
+                    y_pred.as_slice().expect("operation should succeed"),
+                )?
             }
             Scoring::MultiMetric(_) => {
                 return Err(SklearsError::InvalidInput(
@@ -206,7 +212,10 @@ where
                 }
                 Scoring::Scorer(scorer) => {
                     let y_pred = fitted.predict(&x_train)?;
-                    scorer.score_float(y_train.as_slice().unwrap(), y_pred.as_slice().unwrap())?
+                    scorer.score_float(
+                        y_train.as_slice().expect("operation should succeed"),
+                        y_pred.as_slice().expect("operation should succeed"),
+                    )?
                 }
                 Scoring::MultiMetric(_metrics) => {
                     // For multi-metric, just use the first metric for now
@@ -432,7 +441,10 @@ where
                 }
                 Scoring::Scorer(scorer) => {
                     let y_pred = fitted.predict(&x_train)?;
-                    scorer.score_float(y_train.as_slice().unwrap(), y_pred.as_slice().unwrap())?
+                    scorer.score_float(
+                        y_train.as_slice().expect("operation should succeed"),
+                        y_pred.as_slice().expect("operation should succeed"),
+                    )?
                 }
                 Scoring::MultiMetric(_metrics) => {
                     // For multi-metric, just use the first metric for now
@@ -463,7 +475,10 @@ where
                 }
                 Scoring::Scorer(scorer) => {
                     let y_pred = fitted.predict(&x_test)?;
-                    scorer.score_float(y_test.as_slice().unwrap(), y_pred.as_slice().unwrap())?
+                    scorer.score_float(
+                        y_test.as_slice().expect("operation should succeed"),
+                        y_pred.as_slice().expect("operation should succeed"),
+                    )?
                 }
                 Scoring::MultiMetric(_metrics) => {
                     // For multi-metric, just use the first metric for now
@@ -659,7 +674,10 @@ where
                 }
                 Scoring::Scorer(scorer) => {
                     let y_pred = fitted.predict(&x_train)?;
-                    scorer.score_float(y_train.as_slice().unwrap(), y_pred.as_slice().unwrap())?
+                    scorer.score_float(
+                        y_train.as_slice().expect("operation should succeed"),
+                        y_pred.as_slice().expect("operation should succeed"),
+                    )?
                 }
                 Scoring::MultiMetric(_metrics) => {
                     // For multi-metric, just use the first metric for now
@@ -690,7 +708,10 @@ where
                 }
                 Scoring::Scorer(scorer) => {
                     let y_pred = fitted.predict(&x_test)?;
-                    scorer.score_float(y_test.as_slice().unwrap(), y_pred.as_slice().unwrap())?
+                    scorer.score_float(
+                        y_test.as_slice().expect("operation should succeed"),
+                        y_pred.as_slice().expect("operation should succeed"),
+                    )?
                 }
                 Scoring::MultiMetric(_metrics) => {
                     // For multi-metric, just use the first metric for now
@@ -1057,7 +1078,8 @@ mod tests {
         let estimator = MockEstimator;
         let cv = KFold::new(3);
 
-        let scores = cross_val_score(estimator, &x, &y, &cv, None, None).unwrap();
+        let scores =
+            cross_val_score(estimator, &x, &y, &cv, None, None).expect("operation should succeed");
 
         assert_eq!(scores.len(), 3);
         // All scores should be negative (since we're predicting mean)
@@ -1074,7 +1096,8 @@ mod tests {
         let estimator = MockEstimator;
         let cv = KFold::new(3);
 
-        let predictions = cross_val_predict(estimator, &x, &y, &cv, None).unwrap();
+        let predictions =
+            cross_val_predict(estimator, &x, &y, &cv, None).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 6);
         // Each prediction should be the mean of the training fold
@@ -1110,7 +1133,7 @@ mod tests {
             None,
             None, // Use default confidence level
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(result.train_sizes.len(), 3);
@@ -1123,8 +1146,11 @@ mod tests {
         assert_eq!(result.train_sizes[2], 10); // 100% of 10 = 10
 
         // Training scores should generally be better than test scores for our mock estimator
-        let mean_train_score = result.train_scores.mean().unwrap();
-        let mean_test_score = result.test_scores.mean().unwrap();
+        let mean_train_score = result
+            .train_scores
+            .mean()
+            .expect("operation should succeed");
+        let mean_test_score = result.test_scores.mean().expect("operation should succeed");
         // Our mock estimator predicts the mean, so training should be perfect
         assert!(mean_train_score >= mean_test_score);
 
@@ -1178,7 +1204,7 @@ mod tests {
             None,
             None, // Use default confidence level
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(result.param_values.len(), 3);
@@ -1190,12 +1216,15 @@ mod tests {
 
         // For our mock estimator, all parameter values should give similar results
         let train_score_std = {
-            let mean = result.train_scores.mean().unwrap();
+            let mean = result
+                .train_scores
+                .mean()
+                .expect("operation should succeed");
             let variance = result
                 .train_scores
                 .mapv(|x| (x - mean).powi(2))
                 .mean()
-                .unwrap();
+                .expect("operation should succeed");
             variance.sqrt()
         };
 
@@ -1245,7 +1274,7 @@ mod tests {
             estimator, &x, &y, &cv, None, // Use default train sizes
             None, None, // Use default confidence level
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Should use default sizes: 10%, 30%, 50%, 70%, 90%, 100%
         assert_eq!(result.train_sizes.len(), 6);
@@ -1275,7 +1304,7 @@ mod tests {
             Some(42),
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Check that we got reasonable results
         assert!(result.pvalue >= 0.0 && result.pvalue <= 1.0);
@@ -1342,7 +1371,7 @@ mod tests {
             param_config,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(result.outer_scores.len(), 3); // 3 outer folds

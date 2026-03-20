@@ -412,7 +412,7 @@ impl Fit for AnomalyDetectorTransformer {
     type Fitted = Self;
 
     fn fit(mut self, x: &Self::Input, _y: Option<&Self::Target>) -> SklResult<Self::Fitted> {
-        let mean = x.mean().unwrap();
+        let mean = x.mean().unwrap_or_default();
         let variance = x.iter().map(|&val| (val - mean).powi(2)).sum::<Float>() / x.len() as Float;
         let std = variance.sqrt();
 

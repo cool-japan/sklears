@@ -5,8 +5,8 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
+use scirs2_core::RngExt;
 use scirs2_core::SliceRandomExt;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
@@ -176,7 +176,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MetricLearning<Untrained>
                 for i in 0..n_features {
                     for j in 0..n_features {
                         if i != j {
-                            m[[i, j]] += rng.gen_range(-0.01..0.01);
+                            m[[i, j]] += rng.random_range(-0.01..0.01);
                         }
                     }
                 }
@@ -252,7 +252,11 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for MetricLearning<Untrained>
 
             // Sort eigenvectors by eigenvalues (descending)
             let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-            indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+            indices.sort_by(|&i, &j| {
+                eigenvalues[j]
+                    .partial_cmp(&eigenvalues[i])
+                    .expect("operation should succeed")
+            });
 
             let mut transform = Array2::zeros((n_features, self.n_components));
             for (i, &idx) in indices.iter().take(self.n_components).enumerate() {
@@ -303,7 +307,7 @@ impl MetricLearning<Untrained> {
 
         for _ in 0..target_triplets {
             // Select anchor
-            let anchor_idx = rng.gen_range(0..n_samples);
+            let anchor_idx = rng.random_range(0..n_samples);
             let anchor_label = y[anchor_idx];
 
             // Select positive (same label as anchor)
@@ -312,7 +316,7 @@ impl MetricLearning<Untrained> {
                 continue; // Skip if not enough positive samples
             }
             let positive_idx = loop {
-                let idx = positive_candidates[rng.gen_range(0..positive_candidates.len())];
+                let idx = positive_candidates[rng.random_range(0..positive_candidates.len())];
                 if idx != anchor_idx {
                     break idx;
                 }
@@ -329,7 +333,7 @@ impl MetricLearning<Untrained> {
                 continue; // Skip if no negative samples available
             }
 
-            let negative_idx = negative_candidates[rng.gen_range(0..negative_candidates.len())];
+            let negative_idx = negative_candidates[rng.random_range(0..negative_candidates.len())];
 
             triplets.push((anchor_idx, positive_idx, negative_idx));
         }
@@ -535,7 +539,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for ContrastiveLearning<Untra
         let mut embedding_matrix = Array2::zeros((n_features, self.n_components));
         for i in 0..n_features {
             for j in 0..self.n_components {
-                embedding_matrix[[i, j]] = rng.gen_range(-0.1..0.1);
+                embedding_matrix[[i, j]] = rng.random_range(-0.1..0.1);
             }
         }
 
@@ -641,8 +645,8 @@ impl ContrastiveLearning<Untrained> {
         let max_negative = n_positive * 2; // Limit negative pairs
 
         for _ in 0..max_negative {
-            let i = rng.gen_range(0..n_samples);
-            let j = rng.gen_range(0..n_samples);
+            let i = rng.random_range(0..n_samples);
+            let j = rng.random_range(0..n_samples);
 
             if i != j && y[i] != y[j] {
                 pairs.push((i, j, false));
@@ -814,7 +818,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for TripletLoss<Untrained> {
         let mut embedding_matrix = Array2::zeros((n_features, self.n_components));
         for i in 0..n_features {
             for j in 0..self.n_components {
-                embedding_matrix[[i, j]] = rng.gen_range(-0.1..0.1);
+                embedding_matrix[[i, j]] = rng.random_range(-0.1..0.1);
             }
         }
 
@@ -915,7 +919,7 @@ impl TripletLoss<Untrained> {
                 let target_triplets = (n_samples * 2).min(1000);
 
                 for _ in 0..target_triplets {
-                    let anchor_idx = rng.gen_range(0..n_samples);
+                    let anchor_idx = rng.random_range(0..n_samples);
                     let anchor_label = y[anchor_idx];
 
                     // Select positive
@@ -924,7 +928,8 @@ impl TripletLoss<Untrained> {
                         continue;
                     }
                     let positive_idx = loop {
-                        let idx = positive_candidates[rng.gen_range(0..positive_candidates.len())];
+                        let idx =
+                            positive_candidates[rng.random_range(0..positive_candidates.len())];
                         if idx != anchor_idx {
                             break idx;
                         }
@@ -942,7 +947,7 @@ impl TripletLoss<Untrained> {
                     }
 
                     let negative_idx =
-                        negative_candidates[rng.gen_range(0..negative_candidates.len())];
+                        negative_candidates[rng.random_range(0..negative_candidates.len())];
                     triplets.push((anchor_idx, positive_idx, negative_idx));
                 }
             }
@@ -982,7 +987,7 @@ impl TripletLoss<Untrained> {
                         // Select random positive
                         let positive_idx = loop {
                             let idx =
-                                positive_candidates[rng.gen_range(0..positive_candidates.len())];
+                                positive_candidates[rng.random_range(0..positive_candidates.len())];
                             if idx != anchor_idx {
                                 break idx;
                             }
@@ -1189,14 +1194,14 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, i32>> for SiameseNetworks<Untrained
             let limit = (6.0 / (input_size + output_size) as f64).sqrt();
             let mut weight = Array2::zeros((input_size, output_size));
             for elem in weight.iter_mut() {
-                *elem = rng.gen_range(-limit..limit);
+                *elem = rng.random_range(-limit..limit);
             }
             weights.push(weight);
 
             // Initialize biases to small random values
             let mut bias = Array1::zeros(output_size);
             for elem in bias.iter_mut() {
-                *elem = rng.gen_range(-0.01..0.01);
+                *elem = rng.random_range(-0.01..0.01);
             }
             biases.push(bias);
         }
@@ -1322,8 +1327,8 @@ impl SiameseNetworks<Untrained> {
         let max_attempts = n_positive * 10;
 
         for _ in 0..max_attempts {
-            let i = rng.gen_range(0..n_samples);
-            let j = rng.gen_range(0..n_samples);
+            let i = rng.random_range(0..n_samples);
+            let j = rng.random_range(0..n_samples);
 
             if i != j && y[i] != y[j] {
                 pairs.push((i, j, false));
@@ -1356,7 +1361,7 @@ impl SiameseNetworks<Untrained> {
             let z = weight.t().dot(&current) + bias;
 
             // Apply ReLU activation (except for the last layer)
-            if weight == weights.last().unwrap() {
+            if weight == weights.last().expect("operation should succeed") {
                 // No activation for output layer
                 current = z;
             } else {
@@ -1577,8 +1582,12 @@ mod tests {
             .n_iter(10)
             .random_state(42);
 
-        let fitted = metric_learner.fit(&x.view(), &y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = metric_learner
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1594,8 +1603,12 @@ mod tests {
             .n_iter(10)
             .random_state(42);
 
-        let fitted = contrastive.fit(&x.view(), &y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = contrastive
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1611,8 +1624,12 @@ mod tests {
             .n_iter(10)
             .random_state(42);
 
-        let fitted = triplet.fit(&x.view(), &y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = triplet
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1633,8 +1650,12 @@ mod tests {
             .n_iter(10)
             .random_state(42);
 
-        let fitted = metric_learner.fit(&x.view(), &y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = metric_learner
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1651,8 +1672,12 @@ mod tests {
             .n_iter(5)
             .random_state(42);
 
-        let fitted = siamese.fit(&x.view(), &y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = siamese
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1671,8 +1696,12 @@ mod tests {
             .n_iter(5)
             .random_state(42);
 
-        let fitted_euclidean = siamese_euclidean.fit(&x.view(), &y.view()).unwrap();
-        let transformed_euclidean = fitted_euclidean.transform(&x.view()).unwrap();
+        let fitted_euclidean = siamese_euclidean
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed_euclidean = fitted_euclidean
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed_euclidean.shape(), [4, 2]);
         assert!(transformed_euclidean.iter().all(|&x| x.is_finite()));
@@ -1685,8 +1714,12 @@ mod tests {
             .n_iter(5)
             .random_state(42);
 
-        let fitted_cosine = siamese_cosine.fit(&x.view(), &y.view()).unwrap();
-        let transformed_cosine = fitted_cosine.transform(&x.view()).unwrap();
+        let fitted_cosine = siamese_cosine
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed_cosine = fitted_cosine
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed_cosine.shape(), [4, 2]);
         assert!(transformed_cosine.iter().all(|&x| x.is_finite()));
@@ -1704,8 +1737,12 @@ mod tests {
             .n_iter(5)
             .random_state(42);
 
-        let fitted_random = triplet_random.fit(&x.view(), &y.view()).unwrap();
-        let transformed_random = fitted_random.transform(&x.view()).unwrap();
+        let fitted_random = triplet_random
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed_random = fitted_random
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed_random.shape(), [4, 2]);
         assert!(transformed_random.iter().all(|&x| x.is_finite()));
@@ -1717,8 +1754,12 @@ mod tests {
             .n_iter(5)
             .random_state(42);
 
-        let fitted_hard = triplet_hard.fit(&x.view(), &y.view()).unwrap();
-        let transformed_hard = fitted_hard.transform(&x.view()).unwrap();
+        let fitted_hard = triplet_hard
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let transformed_hard = fitted_hard
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed_hard.shape(), [4, 2]);
         assert!(transformed_hard.iter().all(|&x| x.is_finite()));
@@ -1751,15 +1792,31 @@ mod tests {
             .n_iter(5)
             .random_state(42);
 
-        let fitted_metric = metric_learner.fit(&x.view(), &y.view()).unwrap();
-        let fitted_contrastive = contrastive.fit(&x.view(), &y.view()).unwrap();
-        let fitted_triplet = triplet.fit(&x.view(), &y.view()).unwrap();
-        let fitted_siamese = siamese.fit(&x.view(), &y.view()).unwrap();
+        let fitted_metric = metric_learner
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let fitted_contrastive = contrastive
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let fitted_triplet = triplet
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
+        let fitted_siamese = siamese
+            .fit(&x.view(), &y.view())
+            .expect("operation should succeed");
 
-        let transformed_metric = fitted_metric.transform(&x.view()).unwrap();
-        let transformed_contrastive = fitted_contrastive.transform(&x.view()).unwrap();
-        let transformed_triplet = fitted_triplet.transform(&x.view()).unwrap();
-        let transformed_siamese = fitted_siamese.transform(&x.view()).unwrap();
+        let transformed_metric = fitted_metric
+            .transform(&x.view())
+            .expect("operation should succeed");
+        let transformed_contrastive = fitted_contrastive
+            .transform(&x.view())
+            .expect("operation should succeed");
+        let transformed_triplet = fitted_triplet
+            .transform(&x.view())
+            .expect("operation should succeed");
+        let transformed_siamese = fitted_siamese
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         // All should have correct shape
         assert_eq!(transformed_metric.shape(), [4, 2]);

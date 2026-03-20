@@ -16,7 +16,7 @@
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{RandNormal, Rng};
+use scirs2_core::random::{RandNormal, Rng, RngExt};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -239,7 +239,7 @@ impl MultiObjectiveOptimizer<Untrained> {
         for _ in 0..self.config.population_size {
             // Random parameters (weights and bias)
             let param_size = n_features * n_outputs + n_outputs;
-            let normal_dist = RandNormal::new(0.0, 1.0).unwrap();
+            let normal_dist = RandNormal::new(0.0, 1.0).expect("operation should succeed");
             let mut parameters = Array1::<Float>::zeros(param_size);
             for i in 0..param_size {
                 parameters[i] = rng.sample(normal_dist);
@@ -276,7 +276,7 @@ impl MultiObjectiveOptimizer<Untrained> {
                 .slice(s![..weights_size])
                 .to_owned()
                 .into_shape((n_features, n_outputs))
-                .unwrap();
+                .expect("operation should succeed");
             let bias = solution.parameters.slice(s![weights_size..]).to_owned();
 
             // Make predictions
@@ -439,7 +439,7 @@ impl MultiObjectiveOptimizer<Untrained> {
             indices.sort_by(|&i, &j| {
                 population[i].objectives[obj_idx]
                     .partial_cmp(&population[j].objectives[obj_idx])
-                    .unwrap()
+                    .expect("operation should succeed")
             });
 
             // Set boundary points to infinite distance
@@ -539,10 +539,10 @@ impl MultiObjectiveOptimizer<Untrained> {
         let mut child1 = parent1.clone();
         let mut child2 = parent2.clone();
 
-        if rng.gen::<Float>() < self.config.crossover_rate {
+        if rng.random::<Float>() < self.config.crossover_rate {
             // Uniform crossover
             for i in 0..parent1.parameters.len() {
-                if rng.gen::<Float>() < 0.5 {
+                if rng.random::<Float>() < 0.5 {
                     child1.parameters[i] = parent2.parameters[i];
                     child2.parameters[i] = parent1.parameters[i];
                 }
@@ -559,7 +559,7 @@ impl MultiObjectiveOptimizer<Untrained> {
         rng: &mut scirs2_core::random::CoreRandom,
     ) -> SklResult<()> {
         for param in solution.parameters.iter_mut() {
-            if rng.gen::<Float>() < self.config.mutation_rate {
+            if rng.random::<Float>() < self.config.mutation_rate {
                 let mutation = rng.gen_range(-0.1..0.1);
                 *param += mutation;
             }
@@ -629,7 +629,7 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>>
             .slice(s![..weights_size])
             .to_owned()
             .into_shape((n_features, n_outputs))
-            .unwrap();
+            .expect("operation should succeed");
         let bias = best_solution
             .parameters
             .slice(s![weights_size..weights_size + n_outputs])

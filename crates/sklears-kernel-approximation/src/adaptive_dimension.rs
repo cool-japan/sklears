@@ -370,8 +370,12 @@ impl AdaptiveRBFSampler {
             };
 
             // Compute similarity between validation and training features
-            let train_mean = train_features.mean_axis(Axis(0)).unwrap();
-            let val_mean = val_features.mean_axis(Axis(0)).unwrap();
+            let train_mean = train_features
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
+            let val_mean = val_features
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
             let diff = &train_mean - &val_mean;
             let similarity = 1.0 / (1.0 + diff.dot(&diff).sqrt());
 
@@ -388,7 +392,7 @@ impl AdaptiveRBFSampler {
     ) -> Result<f64> {
         // Simplified reconstruction error - assumes we can approximate original features
         // This is a placeholder for more sophisticated error computation
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let x_transformed_projected =
             x_transformed.sum_axis(Axis(1)) / x_transformed.ncols() as f64;
 
@@ -585,8 +589,8 @@ mod tests {
 
     #[test]
     fn test_adaptive_rbf_sampler_basic() {
-        let x =
-            Array2::from_shape_vec((50, 5), (0..250).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 5), (0..250).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let config = AdaptiveDimensionConfig {
             min_features: 10,
@@ -598,8 +602,8 @@ mod tests {
 
         let sampler = AdaptiveRBFSampler::new().gamma(0.5).config(config);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 50);
         assert!(transformed.ncols() >= 10);
@@ -613,8 +617,8 @@ mod tests {
 
     #[test]
     fn test_dimension_selection_error_tolerance() {
-        let x =
-            Array2::from_shape_vec((40, 4), (0..160).map(|i| i as f64 * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((40, 4), (0..160).map(|i| i as f64 * 0.05).collect())
+            .expect("operation should succeed");
 
         let config = AdaptiveDimensionConfig {
             min_features: 5,
@@ -628,7 +632,9 @@ mod tests {
 
         let sampler = AdaptiveRBFSampler::new().gamma(1.0).config(config);
 
-        let result = sampler.select_dimension(&x).unwrap();
+        let result = sampler
+            .select_dimension(&x)
+            .expect("operation should succeed");
 
         assert!(result.optimal_dimension >= 5);
         assert!(result.optimal_dimension <= 25);
@@ -638,7 +644,8 @@ mod tests {
 
     #[test]
     fn test_dimension_selection_quality_efficiency() {
-        let x = Array2::from_shape_vec((30, 3), (0..90).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((30, 3), (0..90).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let config = AdaptiveDimensionConfig {
             min_features: 5,
@@ -654,7 +661,9 @@ mod tests {
 
         let sampler = AdaptiveRBFSampler::new().gamma(0.8).config(config);
 
-        let result = sampler.select_dimension(&x).unwrap();
+        let result = sampler
+            .select_dimension(&x)
+            .expect("operation should succeed");
 
         assert!(result.optimal_dimension >= 5);
         assert!(result.optimal_dimension <= 20);
@@ -667,8 +676,8 @@ mod tests {
 
     #[test]
     fn test_dimension_selection_elbow_method() {
-        let x =
-            Array2::from_shape_vec((60, 6), (0..360).map(|i| i as f64 * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((60, 6), (0..360).map(|i| i as f64 * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = AdaptiveDimensionConfig {
             min_features: 10,
@@ -682,7 +691,9 @@ mod tests {
 
         let sampler = AdaptiveRBFSampler::new().gamma(0.3).config(config);
 
-        let result = sampler.select_dimension(&x).unwrap();
+        let result = sampler
+            .select_dimension(&x)
+            .expect("operation should succeed");
 
         assert!(result.optimal_dimension >= 10);
         assert!(result.optimal_dimension <= 40);
@@ -694,38 +705,40 @@ mod tests {
 
     #[test]
     fn test_quality_metrics() {
-        let x =
-            Array2::from_shape_vec((25, 4), (0..100).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((25, 4), (0..100).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let sampler = AdaptiveRBFSampler::new().gamma(1.0);
 
         // Test kernel alignment
         let rbf = RBFSampler::new(15).gamma(1.0);
-        let fitted_rbf = rbf.fit(&x, &()).unwrap();
-        let x_transformed = fitted_rbf.transform(&x).unwrap();
+        let fitted_rbf = rbf.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted_rbf.transform(&x).expect("operation should succeed");
 
         let alignment = sampler
             .compute_kernel_alignment(&x, &x_transformed)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(alignment >= 0.0);
         assert!(alignment <= 1.0);
 
         // Test effective rank
-        let eff_rank = sampler.compute_effective_rank(&x_transformed).unwrap();
+        let eff_rank = sampler
+            .compute_effective_rank(&x_transformed)
+            .expect("operation should succeed");
         assert!(eff_rank > 0.0);
         assert!(eff_rank <= x_transformed.ncols() as f64);
 
         // Test reconstruction error
         let recon_error = sampler
             .compute_reconstruction_error(&x, &x_transformed)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(recon_error >= 0.0);
     }
 
     #[test]
     fn test_adaptive_sampler_reproducibility() {
-        let x =
-            Array2::from_shape_vec((40, 5), (0..200).map(|i| i as f64 * 0.08).collect()).unwrap();
+        let x = Array2::from_shape_vec((40, 5), (0..200).map(|i| i as f64 * 0.08).collect())
+            .expect("operation should succeed");
 
         let config = AdaptiveDimensionConfig {
             min_features: 10,
@@ -740,8 +753,12 @@ mod tests {
 
         let sampler2 = AdaptiveRBFSampler::new().gamma(0.5).config(config);
 
-        let result1 = sampler1.select_dimension(&x).unwrap();
-        let result2 = sampler2.select_dimension(&x).unwrap();
+        let result1 = sampler1
+            .select_dimension(&x)
+            .expect("operation should succeed");
+        let result2 = sampler2
+            .select_dimension(&x)
+            .expect("operation should succeed");
 
         assert_eq!(result1.optimal_dimension, result2.optimal_dimension);
 
@@ -755,8 +772,8 @@ mod tests {
 
     #[test]
     fn test_dimension_selection_result() {
-        let x =
-            Array2::from_shape_vec((35, 3), (0..105).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((35, 3), (0..105).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let config = AdaptiveDimensionConfig {
             min_features: 5,
@@ -768,7 +785,7 @@ mod tests {
 
         let sampler = AdaptiveRBFSampler::new().gamma(0.7).config(config);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
         let result = fitted.selection_result();
 
         // Verify all required fields are present

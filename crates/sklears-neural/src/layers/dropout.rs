@@ -9,7 +9,7 @@ use super::{Layer, LayerConfig};
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use sklears_core::{
     error::SklearsError,
     types::FloatBounds,
@@ -29,7 +29,8 @@ pub struct DropoutConfig<T: FloatBounds> {
 impl<T: FloatBounds> Default for DropoutConfig<T> {
     fn default() -> Self {
         Self {
-            rate: T::from(0.5).unwrap_or_else(|| T::one() / T::from(2).unwrap()),
+            rate: T::from(0.5)
+                .unwrap_or_else(|| T::one() / T::from(2).unwrap_or_else(|| T::zero())),
             seed: None,
         }
     }
@@ -51,14 +52,18 @@ impl<T: FloatBounds> ConfigValidation for DropoutConfig<T> {
     fn validate_config(&self) -> sklears_core::error::Result<()> {
         self.validate()?;
 
-        if self.rate > T::from(0.8).unwrap_or_else(|| T::one() * T::from(0.8).unwrap()) {
+        if self.rate
+            > T::from(0.8).unwrap_or_else(|| T::one() * T::from(0.8).unwrap_or_else(|| T::zero()))
+        {
             log::warn!(
                 "High dropout rate ({:.2}) may hurt model performance",
                 self.rate.to_f64().unwrap_or(0.0)
             );
         }
 
-        if self.rate < T::from(0.1).unwrap_or_else(|| T::one() / T::from(10).unwrap()) {
+        if self.rate
+            < T::from(0.1).unwrap_or_else(|| T::one() / T::from(10).unwrap_or_else(|| T::zero()))
+        {
             log::warn!(
                 "Low dropout rate ({:.2}) may not provide sufficient regularization",
                 self.rate.to_f64().unwrap_or(0.0)
@@ -144,7 +149,7 @@ impl<T: FloatBounds> Dropout<T> {
         let scale = T::one() / keep_prob;
 
         Array2::from_shape_fn(shape, |_| {
-            if rng.gen::<f64>() < keep_prob.to_f64().unwrap_or(1.0) {
+            if rng.random::<f64>() < keep_prob.to_f64().unwrap_or(1.0) {
                 scale
             } else {
                 T::zero()
@@ -229,7 +234,9 @@ mod tests {
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // During inference, output should be identical to input
-        let output = dropout.forward(&input, false).unwrap();
+        let output = dropout
+            .forward(&input, false)
+            .expect("forward pass should succeed");
         assert_arrays_close(&output, &input, 1e-10);
         assert!(dropout.cached_mask.is_none());
     }
@@ -242,7 +249,9 @@ mod tests {
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // With rate=0, output should be identical to input even in training
-        let output = dropout.forward(&input, true).unwrap();
+        let output = dropout
+            .forward(&input, true)
+            .expect("forward pass should succeed");
         assert_arrays_close(&output, &input, 1e-10);
         assert!(dropout.cached_mask.is_none());
     }
@@ -255,7 +264,9 @@ mod tests {
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // With rate=1, output should be all zeros
-        let output = dropout.forward(&input, true).unwrap();
+        let output = dropout
+            .forward(&input, true)
+            .expect("forward pass should succeed");
         let expected = Array2::zeros(input.dim());
         assert_arrays_close(&output, &expected, 1e-10);
         assert!(dropout.cached_mask.is_some());
@@ -268,7 +279,9 @@ mod tests {
 
         let input = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
-        let output = dropout.forward(&input, true).unwrap();
+        let output = dropout
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check that mask was cached
         assert!(dropout.cached_mask.is_some());
@@ -277,7 +290,10 @@ mod tests {
         assert_eq!(output.dim(), input.dim());
 
         // With scaling, non-zero outputs should be 2x the input (since keep_prob=0.5)
-        let mask = dropout.cached_mask.as_ref().unwrap();
+        let mask = dropout
+            .cached_mask
+            .as_ref()
+            .expect("operation should succeed");
         for i in 0..input.nrows() {
             for j in 0..input.ncols() {
                 if mask[[i, j]] > 0.0 {
@@ -297,15 +313,22 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0]];
 
         // Forward pass
-        dropout.forward(&input, true).unwrap();
+        dropout
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Backward pass
         let grad_output = array![[1.0, 1.0], [1.0, 1.0]];
 
-        let grad_input = dropout.backward(&grad_output).unwrap();
+        let grad_input = dropout
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Gradients should be scaled by the same mask
-        let mask = dropout.cached_mask.as_ref().unwrap();
+        let mask = dropout
+            .cached_mask
+            .as_ref()
+            .expect("operation should succeed");
         let expected_grad = &grad_output * mask;
         assert_arrays_close(&grad_input, &expected_grad, 1e-10);
     }
@@ -318,7 +341,9 @@ mod tests {
         // Backward pass without forward pass (no cached mask)
         let grad_output = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let grad_input = dropout.backward(&grad_output).unwrap();
+        let grad_input = dropout
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Should pass gradients through unchanged
         assert_arrays_close(&grad_input, &grad_output, 1e-10);
@@ -355,7 +380,9 @@ mod tests {
         let mut dropout = Dropout::new(0.5);
 
         let input = array![[1.0, 2.0], [3.0, 4.0]];
-        dropout.forward(&input, true).unwrap();
+        dropout
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check that mask is cached
         assert!(dropout.cached_mask.is_some());
@@ -379,8 +406,12 @@ mod tests {
             [9.0, 10.0, 11.0, 12.0]
         ];
 
-        let output1 = dropout1.forward(&input, true).unwrap();
-        let output2 = dropout2.forward(&input, true).unwrap();
+        let output1 = dropout1
+            .forward(&input, true)
+            .expect("forward pass should succeed");
+        let output2 = dropout2
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Should produce identical outputs with same seed
         assert_arrays_close(&output1, &output2, 1e-10);
@@ -398,7 +429,9 @@ mod tests {
         let num_trials = 1000;
 
         for _ in 0..num_trials {
-            let output = dropout.forward(&input, true).unwrap();
+            let output = dropout
+                .forward(&input, true)
+                .expect("forward pass should succeed");
             total_sum += output.sum();
         }
 

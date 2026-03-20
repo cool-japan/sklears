@@ -328,7 +328,7 @@ where
 
         // Calculate median
         let mut sorted_targets = y.to_vec();
-        sorted_targets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_targets.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let target_median = if sorted_targets.len() % 2 == 0 {
             let mid = sorted_targets.len() / 2;
             (sorted_targets[mid - 1] + sorted_targets[mid]) / 2.0
@@ -1087,7 +1087,7 @@ mod tests {
         // Valid probability
         let prob = Probability::new_f64(0.5);
         assert!(prob.is_ok());
-        assert_eq!(prob.unwrap().get_f64(), 0.5);
+        assert_eq!(prob.expect("operation should succeed").get_f64(), 0.5);
 
         // Invalid probability
         let invalid_prob = Probability::new_f64(1.5);
@@ -1096,7 +1096,7 @@ mod tests {
         // Valid positive integer
         let pos_int = PositiveInt::new_i32(42);
         assert!(pos_int.is_ok());
-        assert_eq!(pos_int.unwrap().get(), 42);
+        assert_eq!(pos_int.expect("index should be valid").get(), 42);
 
         // Invalid positive integer
         let invalid_int = PositiveInt::new_i32(-1);
@@ -1132,15 +1132,15 @@ mod tests {
         // Can't predict without fitting - this is ensured by the type system
         // fitted.predict() would require a TypeSafeFittedClassifier
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 1];
 
-        let fitted = untrained.fit(&x, &y).unwrap();
+        let fitted = untrained.fit(&x, &y).expect("model fitting should succeed");
         let predictions = fitted.predict(&x);
 
         assert!(predictions.is_ok());
-        assert_eq!(predictions.unwrap().len(), 4);
+        assert_eq!(predictions.expect("operation should succeed").len(), 4);
     }
 
     #[test]

@@ -844,14 +844,14 @@ mod tests {
     #[test]
     fn test_chi_squared_test_creation() {
         let config = TestingConfig::default();
-        let test = ChiSquaredTest::new(config).unwrap();
+        let test = ChiSquaredTest::new(config).expect("operation should succeed");
         assert!(test.contingency_tables().is_none());
     }
 
     #[test]
     fn test_anova_test_creation() {
         let config = TestingConfig::default();
-        let test = ANOVATest::new(config).unwrap();
+        let test = ANOVATest::new(config).expect("operation should succeed");
         assert!(test.group_statistics().is_none());
     }
 
@@ -859,14 +859,16 @@ mod tests {
     fn test_mutual_information_test_creation() {
         let config = TestingConfig::default();
         let discrete_features = vec![0, 2, 3];
-        let test = MutualInformationTest::new(config, discrete_features.clone()).unwrap();
+        let test = MutualInformationTest::new(config, discrete_features.clone())
+            .expect("operation should succeed");
         assert_eq!(test.discrete_features(), &discrete_features);
     }
 
     #[test]
     fn test_correlation_test_creation() {
         let config = TestingConfig::default();
-        let test = CorrelationTest::new(config, "pearson".to_string()).unwrap();
+        let test =
+            CorrelationTest::new(config, "pearson".to_string()).expect("operation should succeed");
         assert_eq!(test.method(), "pearson");
 
         // Test invalid method
@@ -881,7 +883,7 @@ mod tests {
             "Mean not equal to zero".to_string(),
             0.05,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(test.test_type(), StatisticalTest::TTest);
         assert_eq!(test.null_hypothesis(), "Mean equals zero");

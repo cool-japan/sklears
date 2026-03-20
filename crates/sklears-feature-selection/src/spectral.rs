@@ -176,7 +176,7 @@ impl LaplacianScoreSelector<Untrained> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(neighbor, dist) in distances.iter().take(k) {
                 // Use Gaussian weight
@@ -333,9 +333,12 @@ impl<T> Fit<Array2<Float>, T> for LaplacianScoreSelector<Untrained> {
 
 impl Transform<Array2<Float>> for LaplacianScoreSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -350,8 +353,11 @@ impl Transform<Array2<Float>> for LaplacianScoreSelector<Trained> {
 
 impl SelectorMixin for LaplacianScoreSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -362,7 +368,10 @@ impl SelectorMixin for LaplacianScoreSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -372,19 +381,24 @@ impl SelectorMixin for LaplacianScoreSelector<Trained> {
 
 impl FeatureSelector for LaplacianScoreSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl LaplacianScoreSelector<Trained> {
     /// Get the Laplacian scores for all features
     pub fn scores(&self) -> &Array1<Float> {
-        self.scores_.as_ref().unwrap()
+        self.scores_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -604,9 +618,12 @@ impl<T> Fit<Array2<Float>, T> for SpectralFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for SpectralFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -621,8 +638,11 @@ impl Transform<Array2<Float>> for SpectralFeatureSelector<Trained> {
 
 impl SelectorMixin for SpectralFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -633,7 +653,10 @@ impl SelectorMixin for SpectralFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -643,24 +666,33 @@ impl SelectorMixin for SpectralFeatureSelector<Trained> {
 
 impl FeatureSelector for SpectralFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl SpectralFeatureSelector<Trained> {
     /// Get the feature cluster assignments
     pub fn feature_clusters(&self) -> &Array1<usize> {
-        self.feature_clusters_.as_ref().unwrap()
+        self.feature_clusters_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the cluster representatives
     pub fn cluster_representatives(&self) -> &[usize] {
-        self.cluster_representatives_.as_ref().unwrap()
+        self.cluster_representatives_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -847,7 +879,7 @@ impl ManifoldFeatureSelector<Untrained> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(neighbor, _dist) in distances.iter().take(self.n_neighbors) {
                 adjacency[[i, neighbor]] = 1.0;
@@ -918,9 +950,13 @@ impl ManifoldFeatureSelector<Untrained> {
 
         // Double centering
         let mut centered = Array2::zeros((n_points, n_points));
-        let row_means: Array1<Float> = distances.mean_axis(Axis(1)).unwrap();
-        let col_means: Array1<Float> = distances.mean_axis(Axis(0)).unwrap();
-        let grand_mean = distances.mean().unwrap();
+        let row_means: Array1<Float> = distances
+            .mean_axis(Axis(1))
+            .expect("operation should succeed");
+        let col_means: Array1<Float> = distances
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
+        let grand_mean = distances.mean().expect("operation should succeed");
 
         for i in 0..n_points {
             for j in 0..n_points {
@@ -956,7 +992,7 @@ impl ManifoldFeatureSelector<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for (k, &(neighbor, _)) in distances.iter().take(self.n_neighbors).enumerate() {
                 neighbors[[i, k]] = neighbor;
@@ -1024,7 +1060,7 @@ impl ManifoldFeatureSelector<Untrained> {
                 original_distances.push((i, dist));
             }
         }
-        original_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        original_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Find neighbors in embedding space
         let mut embedding_distances: Vec<(usize, Float)> = Vec::new();
@@ -1034,7 +1070,8 @@ impl ManifoldFeatureSelector<Untrained> {
                 embedding_distances.push((i, dist));
             }
         }
-        embedding_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        embedding_distances
+            .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Compute neighborhood preservation
         let k = self.n_neighbors.min(n_points - 1);
@@ -1131,9 +1168,12 @@ impl<T> Fit<Array2<Float>, T> for ManifoldFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for ManifoldFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -1148,8 +1188,11 @@ impl Transform<Array2<Float>> for ManifoldFeatureSelector<Trained> {
 
 impl SelectorMixin for ManifoldFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -1160,7 +1203,10 @@ impl SelectorMixin for ManifoldFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1170,24 +1216,31 @@ impl SelectorMixin for ManifoldFeatureSelector<Trained> {
 
 impl FeatureSelector for ManifoldFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl ManifoldFeatureSelector<Trained> {
     /// Get the manifold embedding
     pub fn embedding(&self) -> &Array2<Float> {
-        self.embedding_.as_ref().unwrap()
+        self.embedding_.as_ref().expect("operation should succeed")
     }
 
     /// Get the feature scores
     pub fn feature_scores(&self) -> &Array1<Float> {
-        self.feature_scores_.as_ref().unwrap()
+        self.feature_scores_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -1399,9 +1452,12 @@ impl Fit<Array2<Float>, Array1<Float>> for KernelFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for KernelFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -1416,8 +1472,11 @@ impl Transform<Array2<Float>> for KernelFeatureSelector<Trained> {
 
 impl SelectorMixin for KernelFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -1428,7 +1487,10 @@ impl SelectorMixin for KernelFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1438,19 +1500,26 @@ impl SelectorMixin for KernelFeatureSelector<Trained> {
 
 impl FeatureSelector for KernelFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl KernelFeatureSelector<Trained> {
     /// Get the kernel scores
     pub fn kernel_scores(&self) -> &Array1<Float> {
-        self.kernel_scores_.as_ref().unwrap()
+        self.kernel_scores_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -1487,16 +1556,20 @@ mod tests {
             .k(5)
             .graph_method(GraphConstructionMethod::KNN { k: 5 });
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 5);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 5);
         assert_eq!(transformed.nrows(), features.nrows());
 
         // Test support
-        let support = trained.get_support().unwrap();
+        let support = trained.get_support().expect("operation should succeed");
         assert_eq!(support.len(), features.ncols());
         assert_eq!(support.iter().filter(|&&x| x).count(), 5);
     }
@@ -1507,11 +1580,15 @@ mod tests {
 
         let selector = SpectralFeatureSelector::new().k(4).n_clusters(3);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 4);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 4);
         assert_eq!(transformed.nrows(), features.nrows());
 
@@ -1534,7 +1611,9 @@ mod tests {
         for method in methods {
             let selector = LaplacianScoreSelector::new().k(3).graph_method(method);
 
-            let trained = selector.fit(&features, &target).unwrap();
+            let trained = selector
+                .fit(&features, &target)
+                .expect("operation should succeed");
             assert_eq!(trained.n_features_out(), 3);
 
             let scores = trained.scores();
@@ -1569,16 +1648,20 @@ mod tests {
             .n_neighbors(3)
             .manifold_method(ManifoldMethod::LaplacianEigenmap { n_components: 2 });
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 4);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 4);
         assert_eq!(transformed.nrows(), features.nrows());
 
         // Test support
-        let support = trained.get_support().unwrap();
+        let support = trained.get_support().expect("operation should succeed");
         assert_eq!(support.len(), features.ncols());
         assert_eq!(support.iter().filter(|&&x| x).count(), 4);
 
@@ -1600,7 +1683,9 @@ mod tests {
         for method in methods {
             let selector = ManifoldFeatureSelector::new().k(3).manifold_method(method);
 
-            let trained = selector.fit(&features, &target).unwrap();
+            let trained = selector
+                .fit(&features, &target)
+                .expect("operation should succeed");
             assert_eq!(trained.n_features_out(), 3);
 
             let scores = trained.feature_scores();
@@ -1617,16 +1702,20 @@ mod tests {
             .k(5)
             .kernel(KernelType::RBF { gamma: 0.5 });
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 5);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 5);
         assert_eq!(transformed.nrows(), features.nrows());
 
         // Test support
-        let support = trained.get_support().unwrap();
+        let support = trained.get_support().expect("operation should succeed");
         assert_eq!(support.len(), features.ncols());
         assert_eq!(support.iter().filter(|&&x| x).count(), 5);
 
@@ -1657,7 +1746,9 @@ mod tests {
         for kernel in kernels {
             let selector = KernelFeatureSelector::new().k(3).kernel(kernel);
 
-            let trained = selector.fit(&features, &target).unwrap();
+            let trained = selector
+                .fit(&features, &target)
+                .expect("operation should succeed");
             assert_eq!(trained.n_features_out(), 3);
 
             let scores = trained.kernel_scores();

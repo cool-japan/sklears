@@ -464,7 +464,7 @@ impl Optics<Untrained> {
             distances.push(distance);
         }
 
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         Ok(distances[self.config.min_samples - 1])
     }
 
@@ -477,7 +477,9 @@ impl Optics<Untrained> {
         core_idx: usize,
         neighbors: &[usize],
     ) -> Result<()> {
-        let core_distance = points[core_idx].core_distance.unwrap();
+        let core_distance = points[core_idx]
+            .core_distance
+            .expect("operation should succeed");
         let core_point = x.row(core_idx);
 
         for &neighbor_idx in neighbors {
@@ -490,7 +492,10 @@ impl Optics<Untrained> {
             let new_reachability = core_distance.max(distance);
 
             if points[neighbor_idx].reachability_distance.is_none()
-                || new_reachability < points[neighbor_idx].reachability_distance.unwrap()
+                || new_reachability
+                    < points[neighbor_idx]
+                        .reachability_distance
+                        .expect("operation should succeed")
             {
                 points[neighbor_idx].reachability_distance = Some(new_reachability);
                 seeds.push(SeedItem {
@@ -521,7 +526,7 @@ impl Optics<Untrained> {
                             current_cluster = Some(cluster_id);
                             cluster_id += 1;
                         }
-                        labels[entry.index] = current_cluster.unwrap();
+                        labels[entry.index] = current_cluster.expect("operation should succeed");
                     } else {
                         current_cluster = None;
                         // Keep as noise (-1)
@@ -742,7 +747,7 @@ mod tests {
             .min_samples(2)
             .cluster_method(ClusterMethod::Threshold(1.0))
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         let ordering = model.ordering();
@@ -798,7 +803,7 @@ mod tests {
                 .min_samples(2)
                 .metric(metric)
                 .fit(&data, &())
-                .unwrap();
+                .expect("operation should succeed");
 
             let labels = model.labels();
             assert_eq!(labels.len(), 3);
@@ -828,7 +833,7 @@ mod tests {
                 .min_samples(2)
                 .cluster_method(method)
                 .fit(&data, &())
-                .unwrap();
+                .expect("operation should succeed");
 
             let labels = model.labels();
             assert_eq!(labels.len(), 6);
@@ -848,7 +853,7 @@ mod tests {
             .max_eps(1.0)
             .min_samples(2)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let core_indices = model.core_sample_indices();
 
@@ -874,7 +879,7 @@ mod tests {
             .max_eps(2.0)
             .min_samples(2)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let reachability_distances = model.reachability_distances();
         let core_distances = model.core_distances();
@@ -885,7 +890,7 @@ mod tests {
         // Some points should have finite reachability distances
         let finite_reachability = reachability_distances
             .iter()
-            .filter(|&&d| d.is_some() && d.unwrap().is_finite())
+            .filter(|&&d| d.is_some() && d.expect("operation should succeed").is_finite())
             .count();
 
         assert!(finite_reachability > 0);

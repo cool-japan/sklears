@@ -883,7 +883,7 @@ impl MeasureTheoreticCalibrator {
         let wasserstein_distance = self
             .optimal_transport
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .wasserstein_distance;
 
         // Initialize Levy process
@@ -965,11 +965,17 @@ mod tests {
 
         let result = calibrator
             .compute_radon_nikodym(&predictions, &targets)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 3);
         assert!(calibrator.radon_nikodym.is_some());
-        assert!(calibrator.radon_nikodym.as_ref().unwrap().exists);
+        assert!(
+            calibrator
+                .radon_nikodym
+                .as_ref()
+                .expect("value should be set after fitting")
+                .exists
+        );
     }
 
     #[test]
@@ -979,14 +985,24 @@ mod tests {
         let new_pred = Array1::from_vec(vec![0.4, 0.6, 0.8]);
         let new_target = Array1::from_vec(vec![0.35, 0.55, 0.75]);
 
-        calibrator.initialize_martingale(&initial).unwrap();
+        calibrator
+            .initialize_martingale(&initial)
+            .expect("operation should succeed");
         let updated = calibrator
             .update_martingale(&new_pred, &new_target)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(updated.len(), 3);
         assert!(calibrator.martingale.is_some());
-        assert_eq!(calibrator.martingale.as_ref().unwrap().sequence.len(), 2);
+        assert_eq!(
+            calibrator
+                .martingale
+                .as_ref()
+                .expect("value should be set after fitting")
+                .sequence
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -994,12 +1010,22 @@ mod tests {
         let mut calibrator = MeasureTheoreticCalibrator::new();
         let predictions = Array1::from_vec(vec![0.2, 0.5, 0.8]);
 
-        calibrator.initialize_ergodic_system(&predictions).unwrap();
-        let result = calibrator.apply_ergodic_theorem(&predictions, 50).unwrap();
+        calibrator
+            .initialize_ergodic_system(&predictions)
+            .expect("operation should succeed");
+        let result = calibrator
+            .apply_ergodic_theorem(&predictions, 50)
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 3);
         assert!(calibrator.ergodic_system.is_some());
-        assert!(calibrator.ergodic_system.as_ref().unwrap().is_ergodic);
+        assert!(
+            calibrator
+                .ergodic_system
+                .as_ref()
+                .expect("value should be set after fitting")
+                .is_ergodic
+        );
     }
 
     #[test]
@@ -1009,7 +1035,7 @@ mod tests {
 
         let result = calibrator
             .compute_hausdorff_calibration(&predictions, 1.5)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 5);
         let sum: f64 = result.sum();
@@ -1025,7 +1051,7 @@ mod tests {
 
         let result = calibrator
             .compute_optimal_transport(&predictions, &targets)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 3);
         assert!(calibrator.optimal_transport.is_some());
@@ -1033,7 +1059,7 @@ mod tests {
             calibrator
                 .optimal_transport
                 .as_ref()
-                .unwrap()
+                .expect("operation should succeed")
                 .wasserstein_distance
                 >= 0.0
         );
@@ -1044,10 +1070,12 @@ mod tests {
         let mut calibrator = MeasureTheoreticCalibrator::new();
         let predictions = Array1::from_vec(vec![0.3, 0.5, 0.7]);
 
-        calibrator.initialize_levy_process(0.0, 0.1, 0.05).unwrap();
+        calibrator
+            .initialize_levy_process(0.0, 0.1, 0.05)
+            .expect("operation should succeed");
         let result = calibrator
             .apply_levy_calibration(&predictions, 0.1)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 3);
         for &val in result.iter() {
@@ -1061,8 +1089,12 @@ mod tests {
         let mut calibrator = MeasureTheoreticCalibrator::new();
         let function = Array1::from_vec(vec![0.1, 0.3, 0.5, 0.7, 0.9]);
 
-        calibrator.initialize_sobolev_space(2.0, 1, 1).unwrap();
-        let norm = calibrator.compute_sobolev_norm(&function).unwrap();
+        calibrator
+            .initialize_sobolev_space(2.0, 1, 1)
+            .expect("operation should succeed");
+        let norm = calibrator
+            .compute_sobolev_norm(&function)
+            .expect("operation should succeed");
 
         assert!(norm > 0.0);
         assert!(calibrator.sobolev_space.is_some());
@@ -1076,7 +1108,7 @@ mod tests {
 
         let result = calibrator
             .analyze_measure_theoretic_calibration(&predictions, &targets)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.density_quality >= 0.0 && result.density_quality <= 1.0);
         assert!(result.martingale_convergence >= 0.0 && result.martingale_convergence <= 1.0);

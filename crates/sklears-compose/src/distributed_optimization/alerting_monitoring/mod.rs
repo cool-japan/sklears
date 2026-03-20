@@ -421,7 +421,7 @@ impl AlertingMonitoringSystem {
     /// Start the alerting and monitoring system
     pub fn start(&self) -> AlertingMonitoringResult<()> {
         // Update system status
-        *self.system_status.write().unwrap() = SystemStatus::Healthy;
+        *self.system_status.write().unwrap_or_else(|e| e.into_inner()) = SystemStatus::Healthy;
 
         // Start all subsystems
         self.start_alert_management()?;
@@ -446,7 +446,7 @@ impl AlertingMonitoringSystem {
 
     /// Stop the alerting and monitoring system
     pub fn stop(&self) -> AlertingMonitoringResult<()> {
-        *self.system_status.write().unwrap() = SystemStatus::Down;
+        *self.system_status.write().unwrap_or_else(|e| e.into_inner()) = SystemStatus::Down;
 
         // Stop all subsystems gracefully
         // Implementation would stop all managers and clean up resources
@@ -456,71 +456,71 @@ impl AlertingMonitoringSystem {
 
     /// Get the current system status
     pub fn get_system_status(&self) -> SystemStatus {
-        self.system_status.read().unwrap().clone()
+        self.system_status.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get current performance metrics
     pub fn get_performance_metrics(&self) -> SystemPerformanceMetrics {
-        self.performance_metrics.read().unwrap().clone()
+        self.performance_metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get health check results for all components
     pub fn get_health_check_results(&self) -> HashMap<String, HealthCheckResult> {
-        self.health_check_results.read().unwrap().clone()
+        self.health_check_results.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Add an alert rule to the system
     pub fn add_alert_rule(&self, rule: alert_management::AlertRule) -> AlertingMonitoringResult<()> {
-        let alert_manager = self.alert_manager.write().unwrap();
+        let alert_manager = self.alert_manager.write().unwrap_or_else(|e| e.into_inner());
         alert_manager.add_alert_rule(rule)?;
         Ok(())
     }
 
     /// Add a notification channel
     pub fn add_notification_channel(&self, channel: notification_channels::NotificationChannel) -> AlertingMonitoringResult<()> {
-        let notification_manager = self.notification_manager.write().unwrap();
+        let notification_manager = self.notification_manager.write().unwrap_or_else(|e| e.into_inner());
         notification_manager.add_channel(channel)?;
         Ok(())
     }
 
     /// Add an escalation policy
     pub fn add_escalation_policy(&self, policy: escalation_policies::EscalationPolicy) -> AlertingMonitoringResult<()> {
-        let escalation_manager = self.escalation_manager.write().unwrap();
+        let escalation_manager = self.escalation_manager.write().unwrap_or_else(|e| e.into_inner());
         escalation_manager.add_policy(policy)?;
         Ok(())
     }
 
     /// Add a correlation rule
     pub fn add_correlation_rule(&self, rule: correlation_engine::CorrelationRule) -> AlertingMonitoringResult<()> {
-        let correlation_engine = self.correlation_engine.write().unwrap();
+        let correlation_engine = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
         correlation_engine.add_rule(rule)?;
         Ok(())
     }
 
     /// Create a dashboard
     pub fn create_dashboard(&self, dashboard: monitoring_dashboard::Dashboard) -> AlertingMonitoringResult<()> {
-        let dashboard_manager = self.dashboard_manager.write().unwrap();
+        let dashboard_manager = self.dashboard_manager.write().unwrap_or_else(|e| e.into_inner());
         dashboard_manager.create_dashboard(dashboard)?;
         Ok(())
     }
 
     /// Register a metric definition
     pub fn register_metric(&self, metric: metrics_collection::MetricDefinition) -> AlertingMonitoringResult<()> {
-        let metrics_manager = self.metrics_manager.write().unwrap();
+        let metrics_manager = self.metrics_manager.write().unwrap_or_else(|e| e.into_inner());
         metrics_manager.register_metric(metric)?;
         Ok(())
     }
 
     /// Create a backup configuration
     pub fn create_backup_config(&self, config: data_persistence::BackupConfiguration) -> AlertingMonitoringResult<String> {
-        let persistence_manager = self.persistence_manager.write().unwrap();
+        let persistence_manager = self.persistence_manager.write().unwrap_or_else(|e| e.into_inner());
         let config_id = persistence_manager.create_backup_config(config)?;
         Ok(config_id)
     }
 
     /// Create a real-time stream
     pub fn create_stream(&self, config: real_time_monitoring::StreamConfiguration) -> AlertingMonitoringResult<()> {
-        let realtime_manager = self.realtime_manager.write().unwrap();
+        let realtime_manager = self.realtime_manager.write().unwrap_or_else(|e| e.into_inner());
         realtime_manager.create_stream(config)?;
         Ok(())
     }
@@ -528,7 +528,7 @@ impl AlertingMonitoringSystem {
     /// Process an incoming event
     pub fn process_event(&self, event: correlation_engine::CorrelationEvent) -> AlertingMonitoringResult<()> {
         // Send event to correlation engine
-        let correlation_engine = self.correlation_engine.write().unwrap();
+        let correlation_engine = self.correlation_engine.write().unwrap_or_else(|e| e.into_inner());
         correlation_engine.process_event(event)?;
 
         // Update performance metrics
@@ -539,16 +539,16 @@ impl AlertingMonitoringSystem {
 
     /// Get alerts by status
     pub fn get_alerts_by_status(&self, status: alert_management::AlertState) -> AlertingMonitoringResult<Vec<alert_management::ActiveAlert>> {
-        let alert_manager = self.alert_manager.read().unwrap();
+        let alert_manager = self.alert_manager.read().unwrap_or_else(|e| e.into_inner());
         let alerts = alert_manager.get_alerts_by_status(status)?;
         Ok(alerts)
     }
 
     /// Get system statistics
     pub fn get_system_statistics(&self) -> AlertingMonitoringResult<SystemStatistics> {
-        let alert_manager = self.alert_manager.read().unwrap();
-        let notification_manager = self.notification_manager.read().unwrap();
-        let metrics_manager = self.metrics_manager.read().unwrap();
+        let alert_manager = self.alert_manager.read().unwrap_or_else(|e| e.into_inner());
+        let notification_manager = self.notification_manager.read().unwrap_or_else(|e| e.into_inner());
+        let metrics_manager = self.metrics_manager.read().unwrap_or_else(|e| e.into_inner());
 
         let stats = SystemStatistics {
             total_alerts: alert_manager.get_total_alert_count()?,
@@ -617,7 +617,7 @@ impl AlertingMonitoringSystem {
 
     fn update_performance_metrics(&self) {
         // Implementation would update the performance metrics
-        let mut metrics = self.performance_metrics.write().unwrap();
+        let mut metrics = self.performance_metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.events_per_second += 1.0; // Simplified example
     }
 

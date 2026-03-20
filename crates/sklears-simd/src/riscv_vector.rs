@@ -565,7 +565,7 @@ mod tests {
         let x = vec![1.0, 2.0, 3.0, 4.0];
         let y = vec![2.0, 3.0, 4.0, 5.0];
 
-        let result = RiscVVectorOps::dot_product(&x, &y).unwrap();
+        let result = RiscVVectorOps::dot_product(&x, &y).expect("operation should succeed");
         assert_eq!(result, 40.0); // 1*2 + 2*3 + 3*4 + 4*5
     }
 
@@ -574,7 +574,7 @@ mod tests {
         let x = vec![1.0, 2.0, 3.0];
         let y = vec![4.0, 5.0, 6.0];
 
-        let result = RiscVVectorOps::add(&x, &y).unwrap();
+        let result = RiscVVectorOps::add(&x, &y).expect("operation should succeed");
         assert_eq!(result, vec![5.0, 7.0, 9.0]);
     }
 
@@ -582,7 +582,7 @@ mod tests {
     fn test_riscv_scale() {
         let vector = vec![1.0, 2.0, 3.0];
 
-        let result = RiscVVectorOps::scale(&vector, 2.0).unwrap();
+        let result = RiscVVectorOps::scale(&vector, 2.0).expect("operation should succeed");
         assert_eq!(result, vec![2.0, 4.0, 6.0]);
     }
 
@@ -590,7 +590,7 @@ mod tests {
     fn test_riscv_sum() {
         let vector = vec![1.0, 2.0, 3.0, 4.0];
 
-        let result = RiscVVectorOps::sum(&vector).unwrap();
+        let result = RiscVVectorOps::sum(&vector).expect("operation should succeed");
         assert_eq!(result, 10.0);
     }
 
@@ -598,8 +598,8 @@ mod tests {
     fn test_riscv_max_min() {
         let vector = vec![3.0, 1.0, 4.0, 1.0, 5.0];
 
-        let max_result = RiscVVectorOps::max(&vector).unwrap();
-        let min_result = RiscVVectorOps::min(&vector).unwrap();
+        let max_result = RiscVVectorOps::max(&vector).expect("operation should succeed");
+        let min_result = RiscVVectorOps::min(&vector).expect("operation should succeed");
 
         assert_eq!(max_result, 5.0);
         assert_eq!(min_result, 1.0);
@@ -609,7 +609,7 @@ mod tests {
     fn test_riscv_norm() {
         let vector = vec![3.0, 4.0, 0.0];
 
-        let result = RiscVVectorOps::norm(&vector).unwrap();
+        let result = RiscVVectorOps::norm(&vector).expect("operation should succeed");
         assert!((result - 5.0).abs() < 1e-6);
     }
 
@@ -617,7 +617,7 @@ mod tests {
     fn test_riscv_relu() {
         let input = vec![-1.0, 0.0, 1.0, 2.0];
 
-        let result = RiscVActivations::relu(&input).unwrap();
+        let result = RiscVActivations::relu(&input).expect("operation should succeed");
         assert_eq!(result, vec![0.0, 0.0, 1.0, 2.0]);
     }
 
@@ -625,7 +625,7 @@ mod tests {
     fn test_riscv_sigmoid() {
         let input = vec![0.0, 1.0, -1.0];
 
-        let result = RiscVActivations::sigmoid(&input).unwrap();
+        let result = RiscVActivations::sigmoid(&input).expect("operation should succeed");
 
         // Check approximate values
         assert!((result[0] - 0.5).abs() < 0.01); // sigmoid(0) ≈ 0.5
@@ -638,7 +638,8 @@ mod tests {
         let x = vec![0.0, 0.0];
         let y = vec![3.0, 4.0];
 
-        let result = RiscVDistanceOps::euclidean_distance(&x, &y).unwrap();
+        let result =
+            RiscVDistanceOps::euclidean_distance(&x, &y).expect("operation should succeed");
         assert!((result - 5.0).abs() < 1e-6);
     }
 
@@ -647,7 +648,8 @@ mod tests {
         let x = vec![1.0, 2.0];
         let y = vec![4.0, 6.0];
 
-        let result = RiscVDistanceOps::manhattan_distance(&x, &y).unwrap();
+        let result =
+            RiscVDistanceOps::manhattan_distance(&x, &y).expect("operation should succeed");
         assert_eq!(result, 7.0); // |1-4| + |2-6| = 3 + 4 = 7
     }
 
@@ -694,7 +696,7 @@ mod tests {
         let b = vec![2.0, 3.0, 4.0, 5.0];
         let c = vec![1.0, 1.0, 1.0, 1.0];
 
-        let result = RiscVVectorOps::fma(&a, &b, &c).unwrap();
+        let result = RiscVVectorOps::fma(&a, &b, &c).expect("operation should succeed");
         let expected = vec![3.0, 7.0, 13.0, 21.0]; // a[i] * b[i] + c[i]
 
         assert_eq!(result, expected);
@@ -714,7 +716,8 @@ mod tests {
         let matrix = vec![vec![1.0, 2.0], vec![3.0, 4.0], vec![5.0, 6.0]];
         let vector = vec![2.0, 3.0];
 
-        let result = RiscVVectorOps::matvec_multiply(&matrix, &vector).unwrap();
+        let result =
+            RiscVVectorOps::matvec_multiply(&matrix, &vector).expect("operation should succeed");
         let expected = vec![8.0, 18.0, 28.0]; // [1*2+2*3, 3*2+4*3, 5*2+6*3]
 
         assert_eq!(result, expected);
@@ -732,7 +735,7 @@ mod tests {
     fn test_riscv_normalize() {
         let vector = vec![3.0, 4.0, 0.0];
 
-        let result = RiscVVectorOps::normalize(&vector).unwrap();
+        let result = RiscVVectorOps::normalize(&vector).expect("operation should succeed");
         let expected_norm = (3.0_f32.powi(2) + 4.0_f32.powi(2)).sqrt(); // 5.0
         let expected = vec![3.0 / expected_norm, 4.0 / expected_norm, 0.0];
 
@@ -745,7 +748,7 @@ mod tests {
     fn test_riscv_normalize_zero_vector() {
         let vector = vec![0.0, 0.0, 0.0];
 
-        let result = RiscVVectorOps::normalize(&vector).unwrap();
+        let result = RiscVVectorOps::normalize(&vector).expect("operation should succeed");
         let expected = vec![0.0, 0.0, 0.0];
 
         assert_eq!(result, expected);
@@ -782,9 +785,9 @@ mod tests {
         let x: Vec<f32> = (0..size).map(|i| i as f32).collect();
         let y: Vec<f32> = (0..size).map(|i| (i + 1) as f32).collect();
 
-        let dot_result = RiscVVectorOps::dot_product(&x, &y).unwrap();
-        let add_result = RiscVVectorOps::add(&x, &y).unwrap();
-        let scale_result = RiscVVectorOps::scale(&x, 2.0).unwrap();
+        let dot_result = RiscVVectorOps::dot_product(&x, &y).expect("operation should succeed");
+        let add_result = RiscVVectorOps::add(&x, &y).expect("operation should succeed");
+        let scale_result = RiscVVectorOps::scale(&x, 2.0).expect("operation should succeed");
 
         // Verify some basic properties
         assert!(dot_result > 0.0);

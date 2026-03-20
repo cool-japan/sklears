@@ -185,7 +185,8 @@ impl LocallyLinearDiscriminantAnalysis {
                     }
 
                     // Sort by distance and take k nearest neighbors
-                    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    distances
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
                     for (neighbor_idx, _) in distances.iter().take(self.config.n_neighbors) {
                         neighbors[[i, *neighbor_idx]] = true;
                     }
@@ -219,7 +220,8 @@ impl LocallyLinearDiscriminantAnalysis {
                         }
                     }
 
-                    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    distances
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
                     // Adaptive k based on distance distribution
                     let k_adaptive = if distances.len() > 10 {
@@ -392,7 +394,7 @@ impl LocallyLinearDiscriminantAnalysis {
 
         // If supervised, incorporate class information
         let final_cost_matrix = if self.config.supervised && y.is_some() {
-            let y = y.unwrap();
+            let y = y.expect("value should be present");
             let mut supervised_cost = cost_matrix.clone();
 
             // Encourage points of the same class to be close in embedding
@@ -521,7 +523,9 @@ impl LocallyLinearDiscriminantAnalysis {
         }
 
         // Compute between-class scatter matrix
-        let overall_mean = embedding.mean_axis(Axis(0)).unwrap();
+        let overall_mean = embedding
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
         let mut sb = Array2::<Float>::zeros((n_components, n_components));
 
         for (class_idx, &class_label) in classes.iter().enumerate() {
@@ -570,7 +574,7 @@ impl LocallyLinearDiscriminantAnalysis {
             }
 
             // Sort and take k nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             let k = self.config.n_neighbors.min(distances.len());
 
             // Compute reconstruction weights for new point
@@ -829,8 +833,8 @@ mod tests {
             .n_neighbors(2)
             .n_components(Some(1));
 
-        let fitted = llda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = llda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -845,8 +849,10 @@ mod tests {
             .n_neighbors(1)
             .supervised(true);
 
-        let fitted = llda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = llda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -871,8 +877,8 @@ mod tests {
             .n_neighbors(2)
             .n_components(Some(2));
 
-        let fitted = llda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = llda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 2));
     }
@@ -890,8 +896,8 @@ mod tests {
                 .n_neighbors(1)
                 .epsilon(2.0);
 
-            let fitted = llda.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = llda.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert_eq!(fitted.classes().len(), 2);
@@ -911,8 +917,8 @@ mod tests {
                 .n_neighbors(1)
                 .reg_param(0.1);
 
-            let fitted = llda.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = llda.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert_eq!(fitted.classes().len(), 2);
@@ -928,8 +934,8 @@ mod tests {
             .supervised(false)
             .n_neighbors(1);
 
-        let fitted = llda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = llda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);

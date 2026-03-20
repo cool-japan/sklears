@@ -1,6 +1,6 @@
 use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{seeded_rng, Rng};
+use scirs2_core::random::{seeded_rng, Rng, RngExt};
 use sklears_core::prelude::{Fit, Predict, SklearsError};
 use sklears_core::traits::Score;
 use sklears_model_selection::*;
@@ -101,10 +101,12 @@ mod convergence_tests {
         param_space.add_float_param("y", -10.0, 10.0);
 
         // Create synthetic data
-        let _x: Array2<f64> =
-            Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let _y: Array1<f64> =
-            Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
+        let _x: Array2<f64> = Array2::from_shape_fn((100, 2), |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
+        let _y: Array1<f64> = Array1::from_shape_fn(100, |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
 
         // Create grid search with high resolution
         let config_fn = |mut estimator: MockEstimator,
@@ -156,10 +158,12 @@ mod convergence_tests {
         param_space.add_float_param("y", -5.0, 5.0);
 
         // Create synthetic data
-        let _x: Array2<f64> =
-            Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let _y: Array1<f64> =
-            Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
+        let _x: Array2<f64> = Array2::from_shape_fn((100, 2), |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
+        let _y: Array1<f64> = Array1::from_shape_fn(100, |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
 
         // Create simplified Bayesian optimization test
         // Note: Actual BayesSearchCV implementation may vary
@@ -181,10 +185,12 @@ mod convergence_tests {
         param_space.add_float_param("y", -5.0, 5.0);
 
         // Create synthetic data
-        let _x: Array2<f64> =
-            Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let _y: Array1<f64> =
-            Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
+        let _x: Array2<f64> = Array2::from_shape_fn((100, 2), |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
+        let _y: Array1<f64> = Array1::from_shape_fn(100, |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
 
         // Create simplified evolutionary algorithm test
         // Note: Actual EvolutionarySearchCV implementation may vary
@@ -205,10 +211,12 @@ mod convergence_tests {
         param_space.add_float_param("y", -3.0, 3.0);
 
         // Create synthetic data
-        let _x: Array2<f64> =
-            Array2::from_shape_fn((100, 2), |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
-        let _y: Array1<f64> =
-            Array1::from_shape_fn(100, |_| rng.sample(Normal::new(0.0, 1.0).unwrap()));
+        let _x: Array2<f64> = Array2::from_shape_fn((100, 2), |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
+        let _y: Array1<f64> = Array1::from_shape_fn(100, |_| {
+            rng.sample(Normal::new(0.0, 1.0).expect("operation should succeed"))
+        });
 
         // Create simplified bandit optimization test
         // Note: Actual BanditOptimization implementation may vary

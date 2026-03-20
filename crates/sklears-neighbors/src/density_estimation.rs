@@ -143,7 +143,7 @@ impl KNeighborsDensityEstimator {
                     let query = X.slice(s![i..i + 1, ..]).to_owned();
                     let (distances_opt, _) =
                         fitted_nn.kneighbors(&query, Some(self.k + 1), true)?;
-                    let distances = distances_opt.unwrap();
+                    let distances = distances_opt.expect("operation should succeed");
                     // Use k-th neighbor distance as bandwidth (excluding self)
                     bandwidths[i] = distances[[0, self.k]];
                 }
@@ -178,7 +178,7 @@ impl KNeighborsDensityEstimator {
 
     /// Compute standard deviation for bandwidth calculation
     fn compute_std_dev(&self, X: &ArrayView2<Float>) -> Float {
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X.mean_axis(Axis(0)).expect("operation should succeed");
         let mut variance = 0.0;
         let n = X.nrows() as Float;
 
@@ -355,7 +355,7 @@ impl LocalDensityEstimator {
             let query = X_query.slice(s![i..i + 1, ..]);
             let (distances_opt, _) =
                 nn_model.kneighbors(&query.to_owned(), Some(self.k + 1), true)?;
-            let distances = distances_opt.unwrap();
+            let distances = distances_opt.expect("operation should succeed");
 
             // Get k-th nearest neighbor distance
             let k_distance = distances[[0, self.k - 1]];
@@ -987,14 +987,14 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 5.0, 5.0, 5.1, 5.1, 5.2, 5.2],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let kde = KNeighborsDensityEstimator::new(3)
             .with_kernel(KernelType::Gaussian)
             .with_bandwidth_method(BandwidthMethod::KthNeighbor);
 
-        let fitted = kde.fit(&X, &()).unwrap();
-        let densities = fitted.predict(&X).unwrap();
+        let fitted = kde.fit(&X, &()).expect("operation should succeed");
+        let densities = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(densities.len(), 6);
         // Density should be positive
@@ -1006,12 +1006,12 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_local_density_estimator() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+            .expect("operation should succeed");
 
         let lde = LocalDensityEstimator::new(2);
-        let fitted = lde.fit(&X, &()).unwrap();
-        let densities = fitted.predict(&X).unwrap();
+        let fitted = lde.fit(&X, &()).expect("operation should succeed");
+        let densities = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(densities.len(), 4);
         for &density in densities.iter() {
@@ -1022,15 +1022,15 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_variable_bandwidth_kde() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+            .expect("operation should succeed");
 
         let vb_kde = VariableBandwidthKDE::new(2)
             .with_alpha(0.5)
             .with_kernel(KernelType::Gaussian);
 
-        let fitted = vb_kde.fit(&X, &()).unwrap();
-        let densities = fitted.predict(&X).unwrap();
+        let fitted = vb_kde.fit(&X, &()).expect("operation should succeed");
+        let densities = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(densities.len(), 4);
         for &density in densities.iter() {
@@ -1061,19 +1061,21 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_bandwidth_methods() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
 
         // Test fixed bandwidth
         let kde_fixed =
             KNeighborsDensityEstimator::new(2).with_bandwidth_method(BandwidthMethod::Fixed(1.0));
-        let fitted = kde_fixed.fit(&X, &()).unwrap();
+        let fitted = kde_fixed.fit(&X, &()).expect("operation should succeed");
         assert!(fitted.bandwidths.is_some());
 
         // Test Silverman's rule
         let kde_silverman =
             KNeighborsDensityEstimator::new(2).with_bandwidth_method(BandwidthMethod::Silverman);
-        let fitted = kde_silverman.fit(&X, &()).unwrap();
+        let fitted = kde_silverman
+            .fit(&X, &())
+            .expect("operation should succeed");
         assert!(fitted.bandwidths.is_some());
     }
 
@@ -1089,14 +1091,14 @@ mod tests {
                 5.0, 5.0, 5.1, 5.1, 5.2, 5.0, 5.0, 5.2,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let clustering = DensityBasedClustering::new(2, 0.01)
             .with_min_cluster_size(2)
             .with_connection_radius(2.0);
 
-        let fitted = clustering.fit(&X, &()).unwrap();
-        let labels = fitted.predict(&X).unwrap();
+        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
+        let labels = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(labels.len(), 8);
 
@@ -1124,15 +1126,17 @@ mod tests {
                 1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 5.0, 5.0, 5.1, 5.1, 10.0, 10.0, // Isolated point
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Test with different kernel types
         let clustering_gaussian = DensityBasedClustering::new(2, 0.01)
             .with_kernel(KernelType::Gaussian)
             .with_connection_radius(2.0);
 
-        let fitted = clustering_gaussian.fit(&X, &()).unwrap();
-        let labels = fitted.predict(&X).unwrap();
+        let fitted = clustering_gaussian
+            .fit(&X, &())
+            .expect("operation should succeed");
+        let labels = fitted.predict(&X).expect("operation should succeed");
         assert_eq!(labels.len(), 6);
 
         // Test with Epanechnikov kernel
@@ -1140,8 +1144,10 @@ mod tests {
             .with_kernel(KernelType::Epanechnikov)
             .with_connection_radius(2.0);
 
-        let fitted = clustering_epan.fit(&X, &()).unwrap();
-        let labels = fitted.predict(&X).unwrap();
+        let fitted = clustering_epan
+            .fit(&X, &())
+            .expect("operation should succeed");
+        let labels = fitted.predict(&X).expect("operation should succeed");
         assert_eq!(labels.len(), 6);
     }
 
@@ -1149,12 +1155,13 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_density_based_clustering_edge_cases() {
         // Test with minimal data
-        let X = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
 
         let clustering = DensityBasedClustering::new(1, 0.001).with_min_cluster_size(1);
 
-        let fitted = clustering.fit(&X, &()).unwrap();
-        let labels = fitted.predict(&X).unwrap();
+        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
+        let labels = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(labels.len(), 3);
 
@@ -1168,13 +1175,13 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_density_based_clustering_identical_points() {
         // Test with identical points
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         let clustering = DensityBasedClustering::new(2, 0.001).with_connection_radius(0.1);
 
-        let fitted = clustering.fit(&X, &()).unwrap();
-        let labels = fitted.predict(&X).unwrap();
+        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
+        let labels = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(labels.len(), 4);
 
@@ -1189,20 +1196,20 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_density_based_clustering_accessors() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
 
         let clustering = DensityBasedClustering::new(2, 0.01);
-        let fitted = clustering.fit(&X, &()).unwrap();
+        let fitted = clustering.fit(&X, &()).expect("operation should succeed");
 
         // Test accessor methods
         assert!(fitted.labels().is_some());
         assert!(fitted.n_clusters().is_some());
         assert!(fitted.densities().is_some());
 
-        let labels = fitted.labels().unwrap();
-        let n_clusters = fitted.n_clusters().unwrap();
-        let densities = fitted.densities().unwrap();
+        let labels = fitted.labels().expect("operation should succeed");
+        let n_clusters = fitted.n_clusters().expect("operation should succeed");
+        let densities = fitted.densities().expect("operation should succeed");
 
         assert_eq!(labels.len(), 4);
         assert_eq!(densities.len(), 4);

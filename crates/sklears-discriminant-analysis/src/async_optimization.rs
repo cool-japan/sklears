@@ -184,8 +184,8 @@ impl AsyncDiscriminantOptimizer {
 
     /// Initialize parameters for discriminant analysis
     pub fn initialize_parameters(&self, n_features: usize, n_classes: usize) -> Result<()> {
-        let mut parameters = self.parameters.write().unwrap();
-        let mut velocity = self.velocity.write().unwrap();
+        let mut parameters = self.parameters.write().expect("lock not poisoned");
+        let mut velocity = self.velocity.write().expect("lock not poisoned");
 
         // Initialize class means (centroids)
         let class_means = Array2::zeros((n_classes, n_features));
@@ -219,7 +219,7 @@ impl AsyncDiscriminantOptimizer {
         config: LinearDiscriminantAnalysisConfig,
     ) -> Result<HashMap<String, Array2<Float>>> {
         let (n_samples, n_features) = X.dim();
-        let n_classes = y.iter().max().unwrap() + 1;
+        let n_classes = y.iter().max().expect("collection should not be empty") + 1;
 
         // Initialize parameters
         self.initialize_parameters(n_features, n_classes)?;
@@ -275,7 +275,7 @@ impl AsyncDiscriminantOptimizer {
 
             for iteration in 0..config.max_iterations {
                 // Acquire semaphore permit
-                let _permit = semaphore.acquire().await.unwrap();
+                let _permit = semaphore.acquire().await.expect("value should be present");
 
                 // Generate random batch
                 let batch_indices: Vec<usize> = (0..config.batch_size)
@@ -298,7 +298,7 @@ impl AsyncDiscriminantOptimizer {
                 // Send parameter update message
                 tx.send(OptimizationMessage::ParameterUpdate {
                     worker_id,
-                    parameters: parameters.read().unwrap().clone(),
+                    parameters: parameters.read().expect("lock not poisoned").clone(),
                     gradient: gradients,
                     loss,
                 })
@@ -362,7 +362,7 @@ impl AsyncDiscriminantOptimizer {
                             Some(OptimizationMessage::CheckConvergence { current_loss, .. }) => {
                                 let converged = Self::check_convergence(&state, &config, current_loss).await?;
                                 if converged {
-                                    let final_params = parameters.read().unwrap().clone();
+                                    let final_params = parameters.read().expect("lock not poisoned").clone();
                                     return Ok(final_params);
                                 }
                             }
@@ -384,7 +384,7 @@ impl AsyncDiscriminantOptimizer {
                 }
             }
 
-            let final_params = parameters.read().unwrap().clone();
+            let final_params = parameters.read().expect("lock not poisoned").clone();
             Ok(final_params)
         })
     }
@@ -400,7 +400,7 @@ impl AsyncDiscriminantOptimizer {
         loss: Float,
     ) -> Result<()> {
         let current_lr = {
-            let state_read = state.read().unwrap();
+            let state_read = state.read().expect("lock not poisoned");
             let base_lr = config.learning_rate;
             let decay_factor = config
                 .learning_rate_decay
@@ -410,8 +410,8 @@ impl AsyncDiscriminantOptimizer {
 
         // Update parameters with momentum
         {
-            let mut params = parameters.write().unwrap();
-            let mut vel = velocity.write().unwrap();
+            let mut params = parameters.write().expect("lock not poisoned");
+            let mut vel = velocity.write().expect("lock not poisoned");
 
             for (param_name, gradient) in gradients.iter() {
                 if let (Some(param), Some(velocity_param)) =
@@ -428,7 +428,7 @@ impl AsyncDiscriminantOptimizer {
 
         // Update optimization state
         {
-            let mut state_write = state.write().unwrap();
+            let mut state_write = state.write().expect("lock not poisoned");
             state_write.previous_loss = state_write.current_loss;
             state_write.current_loss = loss;
             state_write.iteration += 1;
@@ -463,7 +463,7 @@ impl AsyncDiscriminantOptimizer {
         config: &AsyncOptimizationConfig,
         current_loss: Float,
     ) -> Result<bool> {
-        let state_read = state.read().unwrap();
+        let state_read = state.read().expect("lock not poisoned");
 
         // Check loss convergence
         if state_read.iteration > 10 {
@@ -497,7 +497,7 @@ impl AsyncDiscriminantOptimizer {
             return Ok(());
         }
 
-        let mut state_write = state.write().unwrap();
+        let mut state_write = state.write().expect("lock not poisoned");
 
         // Simple adaptive strategy: reduce learning rate if loss is not decreasing
         if state_write.loss_history.len() >= 10 {
@@ -522,12 +522,12 @@ impl AsyncDiscriminantOptimizer {
         y_batch: &Array1<usize>,
         parameters: &Arc<RwLock<HashMap<String, Array2<Float>>>>,
     ) -> Result<HashMap<String, Array2<Float>>> {
-        let params = parameters.read().unwrap();
+        let params = parameters.read().expect("lock not poisoned");
         let mut gradients = HashMap::new();
 
         // Get current parameters
-        let class_means = params.get("class_means").unwrap();
-        let covariance = params.get("covariance").unwrap();
+        let class_means = params.get("class_means").expect("key not found");
+        let covariance = params.get("covariance").expect("key not found");
 
         let (batch_size, n_features) = X_batch.dim();
         let n_classes = class_means.nrows();
@@ -573,10 +573,10 @@ impl AsyncDiscriminantOptimizer {
         y_batch: &Array1<usize>,
         parameters: &Arc<RwLock<HashMap<String, Array2<Float>>>>,
     ) -> Result<Float> {
-        let params = parameters.read().unwrap();
+        let params = parameters.read().expect("lock not poisoned");
 
-        let class_means = params.get("class_means").unwrap();
-        let covariance = params.get("covariance").unwrap();
+        let class_means = params.get("class_means").expect("key not found");
+        let covariance = params.get("covariance").expect("key not found");
 
         let mut total_loss = 0.0;
 
@@ -619,7 +619,7 @@ impl AsyncDiscriminantOptimizer {
 
     /// Get current optimization statistics
     pub fn get_optimization_stats(&self) -> OptimizationStats {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().expect("lock not poisoned");
 
         OptimizationStats {
             iteration: state.iteration,
@@ -656,7 +656,7 @@ impl AsyncDiscriminantOptimizer {
         config: QuadraticDiscriminantAnalysisConfig,
     ) -> Result<HashMap<String, Array2<Float>>> {
         let (n_samples, n_features) = X.dim();
-        let n_classes = y.iter().max().unwrap() + 1;
+        let n_classes = y.iter().max().expect("collection should not be empty") + 1;
 
         // Initialize parameters for QDA (each class has its own covariance)
         self.initialize_qda_parameters(n_features, n_classes)?;
@@ -692,8 +692,8 @@ impl AsyncDiscriminantOptimizer {
 
     /// Initialize QDA-specific parameters
     fn initialize_qda_parameters(&self, n_features: usize, n_classes: usize) -> Result<()> {
-        let mut parameters = self.parameters.write().unwrap();
-        let mut velocity = self.velocity.write().unwrap();
+        let mut parameters = self.parameters.write().expect("lock not poisoned");
+        let mut velocity = self.velocity.write().expect("lock not poisoned");
 
         // Initialize class means
         let class_means = Array2::zeros((n_classes, n_features));
@@ -737,7 +737,7 @@ impl AsyncDiscriminantOptimizer {
             let mut rng = fastrand::Rng::new();
 
             for iteration in 0..config.max_iterations {
-                let _permit = semaphore.acquire().await.unwrap();
+                let _permit = semaphore.acquire().await.expect("value should be present");
 
                 let batch_indices: Vec<usize> = (0..config.batch_size)
                     .map(|_| rng.usize(0..X.nrows()))
@@ -756,7 +756,7 @@ impl AsyncDiscriminantOptimizer {
 
                 tx.send(OptimizationMessage::ParameterUpdate {
                     worker_id,
-                    parameters: parameters.read().unwrap().clone(),
+                    parameters: parameters.read().expect("lock not poisoned").clone(),
                     gradient: gradients,
                     loss,
                 })
@@ -877,7 +877,7 @@ impl AsyncDiscriminantAnalysis {
 
     /// Check if training has converged
     pub fn has_converged(&self) -> bool {
-        self.optimizer.state.read().unwrap().converged
+        self.optimizer.state.read().expect("lock not poisoned").converged
     }
 }
 
@@ -961,7 +961,7 @@ mod tests {
         let result = optimizer.initialize_parameters(4, 3);
         assert!(result.is_ok());
 
-        let params = optimizer.parameters.read().unwrap();
+        let params = optimizer.parameters.read().expect("operation should succeed");
         assert!(params.contains_key("class_means"));
         assert!(params.contains_key("covariance"));
         assert!(params.contains_key("priors"));

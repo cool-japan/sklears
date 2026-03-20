@@ -259,7 +259,7 @@ impl Fit<Array2<Float>, Array1<Float>> for ElasticNetCV<Untrained> {
             // Sort alphas in descending order for better warm start performance
             // (start with most regularized, move to less regularized)
             let mut sorted_alphas = alphas.clone();
-            sorted_alphas.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            sorted_alphas.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
 
             for &alpha in &sorted_alphas {
                 let _elastic_net = if self.config.warm_start && previous_coef.is_some() {
@@ -536,14 +536,14 @@ mod tests {
             .alphas(vec![0.001, 0.01, 0.1, 1.0])
             .l1_ratios(vec![0.1, 0.5, 0.9])
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // First coefficient should be close to 2
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 0.2);
 
         // Test prediction
         let x_test = array![[9.0, 0.0], [10.0, 0.0]];
-        let y_pred = model.predict(&x_test).unwrap();
+        let y_pred = model.predict(&x_test).expect("prediction should succeed");
         assert_abs_diff_eq!(y_pred[0], 18.0, epsilon = 0.5);
         assert_abs_diff_eq!(y_pred[1], 20.0, epsilon = 0.5);
     }
@@ -576,7 +576,7 @@ mod tests {
             .cv(3)
             .max_iter(500)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that l1_ratio is not at extremes (pure Ridge or pure Lasso)
         let l1_ratio = model.l1_ratio();
@@ -601,10 +601,10 @@ mod tests {
             .cv(3)
             .store_cv_values(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that CV values were stored
-        let cv_values = model.cv_values().unwrap();
+        let cv_values = model.cv_values().expect("operation should succeed");
         assert_eq!(cv_values.shape(), &[3, 3]); // 3 alphas, 3 folds
     }
 }

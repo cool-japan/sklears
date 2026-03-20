@@ -529,21 +529,23 @@ mod tests {
         // Should not stop before min_iterations
         for i in 0..5 {
             // Provide improving scores initially to avoid early patience trigger
-            monitor.update(1.0 + i as f64 * 0.02).unwrap();
+            monitor
+                .update(1.0 + i as f64 * 0.02)
+                .expect("operation should succeed");
             assert!(!monitor.should_stop(), "Should not stop at iteration {}", i);
         }
 
         // Add scores without improvement
-        monitor.update(1.0).unwrap(); // No improvement
+        monitor.update(1.0).expect("operation should succeed"); // No improvement
         assert!(!monitor.should_stop());
 
-        monitor.update(0.99).unwrap(); // Worse
+        monitor.update(0.99).expect("operation should succeed"); // Worse
         assert!(!monitor.should_stop());
 
-        monitor.update(0.98).unwrap(); // Worse
+        monitor.update(0.98).expect("operation should succeed"); // Worse
         assert!(!monitor.should_stop());
 
-        monitor.update(0.97).unwrap(); // Worse - should trigger early stopping
+        monitor.update(0.97).expect("operation should succeed"); // Worse - should trigger early stopping
         assert!(monitor.should_stop());
     }
 
@@ -561,24 +563,24 @@ mod tests {
         );
 
         // Rapid improvement
-        monitor.update(1.0).unwrap();
-        monitor.update(1.1).unwrap();
-        monitor.update(1.2).unwrap();
+        monitor.update(1.0).expect("operation should succeed");
+        monitor.update(1.1).expect("operation should succeed");
+        monitor.update(1.2).expect("operation should succeed");
         assert!(!monitor.should_stop()); // Good improvement rate
 
         // Fill the window with consistently slow improvement
         // Starting from 1.2, add small increments that result in overall rate < 0.01
-        monitor.update(1.2001).unwrap(); // Very small improvement
-        monitor.update(1.2002).unwrap(); // Very small improvement
-        monitor.update(1.2003).unwrap(); // Very small improvement
-                                         // Now the window is [1.1, 1.2, 1.2001, 1.2002, 1.2003]
-                                         // Improvement rate = (1.2003 - 1.1) / 1.1 = 0.0913... > 0.01, still too high
+        monitor.update(1.2001).expect("operation should succeed"); // Very small improvement
+        monitor.update(1.2002).expect("operation should succeed"); // Very small improvement
+        monitor.update(1.2003).expect("operation should succeed"); // Very small improvement
+                                                                   // Now the window is [1.1, 1.2, 1.2001, 1.2002, 1.2003]
+                                                                   // Improvement rate = (1.2003 - 1.1) / 1.1 = 0.0913... > 0.01, still too high
 
         // Need to replace the good improvement scores in the window
-        monitor.update(1.2003).unwrap(); // No improvement
-        monitor.update(1.2003).unwrap(); // No improvement
-                                         // Now window is [1.2, 1.2001, 1.2002, 1.2003, 1.2003]
-                                         // Improvement rate = (1.2003 - 1.2) / 1.2 = 0.00025 < 0.01
+        monitor.update(1.2003).expect("operation should succeed"); // No improvement
+        monitor.update(1.2003).expect("operation should succeed"); // No improvement
+                                                                   // Now window is [1.2, 1.2001, 1.2002, 1.2003, 1.2003]
+                                                                   // Improvement rate = (1.2003 - 1.2) / 1.2 = 0.00025 < 0.01
         assert!(monitor.should_stop()); // Should stop with poor improvement rate
     }
 
@@ -598,9 +600,9 @@ mod tests {
 
         let mut monitor = EarlyStoppingMonitor::new(strategy, config);
 
-        monitor.update(1.0).unwrap();
-        monitor.update(1.0001).unwrap(); // Tiny improvement
-        monitor.update(1.0002).unwrap(); // Tiny improvement
+        monitor.update(1.0).expect("operation should succeed");
+        monitor.update(1.0001).expect("operation should succeed"); // Tiny improvement
+        monitor.update(1.0002).expect("operation should succeed"); // Tiny improvement
 
         // Should stop due to low improvement rate, even though patience hasn't run out
         assert!(monitor.should_stop());
@@ -611,9 +613,9 @@ mod tests {
         let config = EarlyStoppingConfig::default();
         let mut monitor = EarlyStoppingMonitor::new(EarlyStoppingStrategy::Patience, config);
 
-        monitor.update(1.0).unwrap();
-        monitor.update(1.1).unwrap();
-        monitor.update(1.05).unwrap();
+        monitor.update(1.0).expect("operation should succeed");
+        monitor.update(1.1).expect("operation should succeed");
+        monitor.update(1.05).expect("operation should succeed");
 
         let metrics = monitor.convergence_metrics();
         assert!(metrics.improvement_rate.is_finite());
@@ -645,7 +647,9 @@ mod tests {
 
         // Good progress should increase patience
         for i in 0..10 {
-            adaptive.update_adaptive(1.0 + i as f64 * 0.2).unwrap();
+            adaptive
+                .update_adaptive(1.0 + i as f64 * 0.2)
+                .expect("operation should succeed");
         }
 
         assert!(adaptive.monitor().config.patience > 10); // Should have increased
@@ -664,10 +668,10 @@ mod tests {
 
         let mut monitor = EarlyStoppingMonitor::new(EarlyStoppingStrategy::Patience, config);
 
-        assert!(!monitor.on_iteration(1.0).unwrap()); // iteration 1: best = 1.0, patience = 0
-        assert!(!monitor.on_iteration(1.0).unwrap()); // iteration 2: no improvement, patience = 1
-        assert!(!monitor.on_iteration(0.9).unwrap()); // iteration 3: no improvement, patience = 2
-        assert!(monitor.on_iteration(0.8).unwrap()); // iteration 4: no improvement, patience = 3, should stop (patience_counter > 2)
+        assert!(!monitor.on_iteration(1.0).expect("operation should succeed")); // iteration 1: best = 1.0, patience = 0
+        assert!(!monitor.on_iteration(1.0).expect("operation should succeed")); // iteration 2: no improvement, patience = 1
+        assert!(!monitor.on_iteration(0.9).expect("operation should succeed")); // iteration 3: no improvement, patience = 2
+        assert!(monitor.on_iteration(0.8).expect("operation should succeed")); // iteration 4: no improvement, patience = 3, should stop (patience_counter > 2)
 
         assert_eq!(monitor.best_score(), 1.0);
         assert!(monitor.convergence_info().contains("Best: 1.000000"));

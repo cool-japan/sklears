@@ -809,23 +809,34 @@ impl AdvancedSentimentAnalyzer {
         let positive_words = self
             .lexicon
             .get_positive_words(language)
-            .unwrap_or_else(|| self.lexicon.get_positive_words(Language::English).unwrap());
+            .unwrap_or_else(|| {
+                self.lexicon
+                    .get_positive_words(Language::English)
+                    .expect("operation should succeed")
+            });
         let negative_words = self
             .lexicon
             .get_negative_words(language)
-            .unwrap_or_else(|| self.lexicon.get_negative_words(Language::English).unwrap());
-        let boosters = self
-            .lexicon
-            .get_boosters(language)
-            .unwrap_or_else(|| self.lexicon.get_boosters(Language::English).unwrap());
-        let dampeners = self
-            .lexicon
-            .get_dampeners(language)
-            .unwrap_or_else(|| self.lexicon.get_dampeners(Language::English).unwrap());
-        let negations = self
-            .lexicon
-            .get_negations(language)
-            .unwrap_or_else(|| self.lexicon.get_negations(Language::English).unwrap());
+            .unwrap_or_else(|| {
+                self.lexicon
+                    .get_negative_words(Language::English)
+                    .expect("operation should succeed")
+            });
+        let boosters = self.lexicon.get_boosters(language).unwrap_or_else(|| {
+            self.lexicon
+                .get_boosters(Language::English)
+                .expect("operation should succeed")
+        });
+        let dampeners = self.lexicon.get_dampeners(language).unwrap_or_else(|| {
+            self.lexicon
+                .get_dampeners(Language::English)
+                .expect("operation should succeed")
+        });
+        let negations = self.lexicon.get_negations(language).unwrap_or_else(|| {
+            self.lexicon
+                .get_negations(Language::English)
+                .expect("operation should succeed")
+        });
 
         // Analyze sentiment with intensity modifiers
         let mut sentiment_scores: Vec<f64> = Vec::new();
@@ -1125,7 +1136,9 @@ mod tests {
             "This is okay".to_string(),
         ];
 
-        let features = analyzer.extract_features(&documents).unwrap();
+        let features = analyzer
+            .extract_features(&documents)
+            .expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert_eq!(features.ncols(), 12);

@@ -733,7 +733,7 @@ impl NLPPipeline {
 
         // Update statistics
         {
-            let mut stats = self.stats.write().unwrap();
+            let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
             stats.texts_processed += 1;
             stats.total_processing_time += processing_time;
             stats.avg_processing_time = stats.total_processing_time / stats.texts_processed as u32;
@@ -764,12 +764,12 @@ impl NLPPipeline {
     /// Get processing statistics
     #[must_use]
     pub fn get_stats(&self) -> ProcessingStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Reset statistics
     pub fn reset_stats(&self) {
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         *stats = ProcessingStats::default();
     }
 }
@@ -1460,7 +1460,7 @@ mod tests {
         let normalizer = TextNormalizer::new(config);
         let result = normalizer
             .process_text("Hello, World! This is a test.")
-            .unwrap();
+            .unwrap_or_default();
 
         assert!(!result.contains(","));
         assert!(!result.contains("!"));
@@ -1484,12 +1484,14 @@ mod tests {
             "hello peace".to_string(),
         ];
 
-        extractor.fit(&documents).unwrap();
+        extractor.fit(&documents).unwrap_or_default();
 
         assert!(extractor.fitted);
         assert!(extractor.vocabulary.len() > 0);
 
-        let features = extractor.extract_features("hello world").unwrap();
+        let features = extractor
+            .extract_features("hello world")
+            .unwrap_or_default();
         assert_eq!(features.len(), extractor.vocabulary.len());
     }
 
@@ -1497,14 +1499,22 @@ mod tests {
     fn test_sentiment_analyzer() {
         let analyzer = SentimentAnalyzer::new();
 
-        let positive_result = analyzer.analyze("This is a great product!").unwrap();
-        let negative_result = analyzer.analyze("This is terrible and awful.").unwrap();
+        let positive_result = analyzer
+            .analyze("This is a great product!")
+            .expect("operation should succeed");
+        let negative_result = analyzer
+            .analyze("This is terrible and awful.")
+            .expect("operation should succeed");
 
         assert_eq!(positive_result.analysis_type, "sentiment");
         assert_eq!(negative_result.analysis_type, "sentiment");
 
-        let positive_sentiment = positive_result.result["sentiment"].as_str().unwrap();
-        let negative_sentiment = negative_result.result["sentiment"].as_str().unwrap();
+        let positive_sentiment = positive_result.result["sentiment"]
+            .as_str()
+            .unwrap_or_default();
+        let negative_sentiment = negative_result.result["sentiment"]
+            .as_str()
+            .unwrap_or_default();
 
         assert_eq!(positive_sentiment, "positive");
         assert_eq!(negative_sentiment, "negative");
@@ -1518,9 +1528,18 @@ mod tests {
         let spanish_text = "Hola, ¿cómo estás hoy?";
         let french_text = "Bonjour, comment ça va aujourd'hui?"; // Added 'ça' which contains 'ç'
 
-        assert_eq!(detector.detect_language(english_text).unwrap(), "en");
-        assert_eq!(detector.detect_language(spanish_text).unwrap(), "es");
-        assert_eq!(detector.detect_language(french_text).unwrap(), "fr");
+        assert_eq!(
+            detector.detect_language(english_text).unwrap_or_default(),
+            "en"
+        );
+        assert_eq!(
+            detector.detect_language(spanish_text).unwrap_or_default(),
+            "es"
+        );
+        assert_eq!(
+            detector.detect_language(french_text).unwrap_or_default(),
+            "fr"
+        );
     }
 
     #[test]
@@ -1529,7 +1548,7 @@ mod tests {
 
         let result = analyzer
             .analyze("John Smith works at Microsoft in Seattle.")
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.analysis_type, "named_entity_recognition");
         assert!(result.result["entities"].is_array());
@@ -1539,7 +1558,9 @@ mod tests {
     fn test_conversational_ai() {
         let mut ai = ConversationalAI::new();
 
-        let response = ai.process_input("Hello, how are you?").unwrap();
+        let response = ai
+            .process_input("Hello, how are you?")
+            .expect("operation should succeed");
 
         assert!(!response.response.is_empty());
         assert!(response.confidence > 0.0);
@@ -1577,7 +1598,9 @@ mod tests {
         pipeline.add_preprocessor(normalizer);
         pipeline.add_analyzer(analyzer);
 
-        let result = pipeline.process_text("This is a great example!").unwrap();
+        let result = pipeline
+            .process_text("This is a great example!")
+            .expect("operation should succeed");
 
         assert!(!result.original_text.is_empty());
         assert!(!result.processed_text.is_empty());

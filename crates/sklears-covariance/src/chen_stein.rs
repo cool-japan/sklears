@@ -50,7 +50,7 @@ pub struct ChenSteinCovarianceConfig {
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let cs = ChenSteinCovariance::new();
-/// let fitted = cs.fit(&X.view(), &()).unwrap();
+/// let fitted = cs.fit(&X.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// let shrinkage = fitted.get_shrinkage();
 /// ```
@@ -307,10 +307,12 @@ mod tests {
         ];
 
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let covariance = fitted.get_covariance();
-        let precision = fitted.get_precision().unwrap();
+        let precision = fitted.get_precision().expect("operation should succeed");
         let shrinkage = fitted.get_shrinkage();
 
         // Check dimensions
@@ -342,7 +344,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let covariance = fitted.get_covariance();
         let shrinkage = fitted.get_shrinkage();
@@ -370,7 +374,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let estimator = ChenSteinCovariance::new().store_precision(false);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert!(fitted.get_precision().is_none());
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
@@ -381,7 +387,9 @@ mod tests {
         let x = array![[0.0, 1.0], [1.0, 0.0], [-1.0, 0.0], [0.0, -1.0]];
 
         let estimator = ChenSteinCovariance::new().assume_centered(true);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let location = fitted.get_location();
         let covariance = fitted.get_covariance();
@@ -401,9 +409,13 @@ mod tests {
         let x_test = array![[2.0, 3.0], [6.0, 7.0]];
 
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x_train.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x_train.view(), &())
+            .expect("model fitting should succeed");
 
-        let distances = fitted.mahalanobis_distance(&x_test.view()).unwrap();
+        let distances = fitted
+            .mahalanobis_distance(&x_test.view())
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         for &dist in distances.iter() {
@@ -423,7 +435,9 @@ mod tests {
         ];
 
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let covariance = fitted.get_covariance();
         let shrinkage = fitted.get_shrinkage();
@@ -442,7 +456,9 @@ mod tests {
         let x = array![[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0], [5.0, 5.0]];
 
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let covariance = fitted.get_covariance();
         let shrinkage = fitted.get_shrinkage();
@@ -461,9 +477,13 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
-        let (cs_shrinkage, _lw_shrinkage) = fitted.compare_with_ledoit_wolf(&x.view()).unwrap();
+        let (cs_shrinkage, _lw_shrinkage) = fitted
+            .compare_with_ledoit_wolf(&x.view())
+            .expect("operation should succeed");
 
         // Just check that Chen-Stein shrinkage is valid
         assert!(cs_shrinkage >= 0.0);
@@ -482,7 +502,9 @@ mod tests {
         // Test with valid minimal data
         let x = array![[1.0, 2.0], [3.0, 4.0]];
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
     }
 
@@ -497,7 +519,9 @@ mod tests {
 
         for x in test_cases {
             let estimator = ChenSteinCovariance::new();
-            let fitted = estimator.fit(&x.view(), &()).unwrap();
+            let fitted = estimator
+                .fit(&x.view(), &())
+                .expect("model fitting should succeed");
             let shrinkage = fitted.get_shrinkage();
 
             assert!(

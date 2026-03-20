@@ -494,11 +494,19 @@ mod tests {
         let model = TheilSenRegressor::new()
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should find slope of 2 and intercept of 0
-        assert_abs_diff_eq!(model.coef().unwrap()[0], 2.0, epsilon = 0.1);
-        assert_abs_diff_eq!(model.intercept().unwrap(), 0.0, epsilon = 0.1);
+        assert_abs_diff_eq!(
+            model.coef().expect("operation should succeed")[0],
+            2.0,
+            epsilon = 0.1
+        );
+        assert_abs_diff_eq!(
+            model.intercept().expect("intercept should be available"),
+            0.0,
+            epsilon = 0.1
+        );
     }
 
     #[test]
@@ -519,10 +527,10 @@ mod tests {
         let model = TheilSenRegressor::new()
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should be robust to outliers and find approximately slope of 2
-        let coef = model.coef().unwrap();
+        let coef = model.coef().expect("operation should succeed");
         assert!(coef[0] > 1.5 && coef[0] < 2.5);
     }
 
@@ -534,9 +542,12 @@ mod tests {
         let model = TheilSenRegressor::new()
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.intercept().unwrap(), 0.0);
+        assert_eq!(
+            model.intercept().expect("intercept should be available"),
+            0.0
+        );
     }
 
     #[test]
@@ -548,10 +559,10 @@ mod tests {
             .random_state(42)
             .n_subsamples(3)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should find coefficients close to [1, 2]
-        let coef = model.coef().unwrap();
+        let coef = model.coef().expect("operation should succeed");
         assert_abs_diff_eq!(coef[0], 1.0, epsilon = 0.5);
         assert_abs_diff_eq!(coef[1], 2.0, epsilon = 0.5);
     }
@@ -566,7 +577,7 @@ mod tests {
             [100.0, 100.0], // outlier
         ];
 
-        let median = spatial_median(&points, 100, 1e-6).unwrap();
+        let median = spatial_median(&points, 100, 1e-6).expect("operation should succeed");
 
         // Spatial median should be less affected by the outlier than the mean
         assert!(median[0] < 20.0 && median[1] < 20.0);

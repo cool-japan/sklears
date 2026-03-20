@@ -120,7 +120,7 @@ impl ApproximateKNN {
                 }
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
                 let weight = (-dist.powi(2) / 2.0).exp();
@@ -162,7 +162,7 @@ impl ApproximateKNN {
                 })
                 .collect();
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
                 let weight = (-dist.powi(2) / 2.0).exp();
@@ -274,7 +274,7 @@ impl ApproximateKNN {
                 })
                 .collect();
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
                 let weight = (-dist.powi(2) / 2.0).exp();
@@ -679,7 +679,7 @@ mod tests {
         let result = approx_knn.fit(&X.view());
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (4, 4));
 
         // Check symmetry
@@ -703,7 +703,8 @@ mod tests {
         for i in 0..100 {
             X_vec.push(vec![i as f64, (i * 2) as f64]);
         }
-        let X = Array2::from_shape_vec((100, 2), X_vec.into_iter().flatten().collect()).unwrap();
+        let X = Array2::from_shape_vec((100, 2), X_vec.into_iter().flatten().collect())
+            .expect("operation should succeed");
 
         let approx_knn = ApproximateKNN::new()
             .k_neighbors(5)
@@ -713,7 +714,7 @@ mod tests {
         let result = approx_knn.fit(&X.view());
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (100, 100));
 
         // Check that each row has reasonable number of non-zero entries
@@ -744,7 +745,7 @@ mod tests {
         let result = asc.fit_predict(&X.view());
         assert!(result.is_ok());
 
-        let labels = result.unwrap();
+        let labels = result.expect("operation should succeed");
         assert_eq!(labels.len(), 6);
 
         // Check that labels are valid
@@ -758,7 +759,9 @@ mod tests {
         let adjacency = array![[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]];
 
         let asc = ApproximateSpectralClustering::new().normalized(false);
-        let laplacian = asc.compute_laplacian(&adjacency).unwrap();
+        let laplacian = asc
+            .compute_laplacian(&adjacency)
+            .expect("operation should succeed");
 
         // Check Laplacian properties for unnormalized case
         assert_eq!(laplacian[[0, 0]], 1.0); // degree of node 0
@@ -767,7 +770,9 @@ mod tests {
 
         // Test normalized Laplacian
         let asc_norm = ApproximateSpectralClustering::new().normalized(true);
-        let norm_laplacian = asc_norm.compute_laplacian(&adjacency).unwrap();
+        let norm_laplacian = asc_norm
+            .compute_laplacian(&adjacency)
+            .expect("operation should succeed");
 
         // Diagonal should be 1 for normalized Laplacian
         assert_abs_diff_eq!(norm_laplacian[[0, 0]], 1.0, epsilon = 1e-10);
@@ -783,7 +788,7 @@ mod tests {
         let result = asc.qr_decomposition(&matrix);
         assert!(result.is_ok());
 
-        let Q = result.unwrap();
+        let Q = result.expect("operation should succeed");
         assert_eq!(Q.dim(), matrix.dim());
 
         // Check that columns are orthonormal (approximately)

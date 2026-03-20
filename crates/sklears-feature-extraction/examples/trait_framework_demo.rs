@@ -41,7 +41,9 @@ fn main() {
 
     // Use polymorphically through trait
     println!("\n📊 Emotion Detection:");
-    let emotion_features = emotion_detector.extract_features(&documents).unwrap();
+    let emotion_features = emotion_detector
+        .extract_features(&documents)
+        .expect("operation should succeed");
     println!(
         "  Shape: {} x {}",
         emotion_features.nrows(),
@@ -49,11 +51,16 @@ fn main() {
     );
     println!(
         "  Feature names: {:?}",
-        emotion_detector.feature_names().unwrap()[0..3].to_vec()
+        emotion_detector
+            .feature_names()
+            .expect("operation should succeed")[0..3]
+            .to_vec()
     );
 
     println!("\n📊 Sentiment Analysis:");
-    let sentiment_features = sentiment_analyzer.extract_features(&documents).unwrap();
+    let sentiment_features = sentiment_analyzer
+        .extract_features(&documents)
+        .expect("operation should succeed");
     println!(
         "  Shape: {} x {}",
         sentiment_features.nrows(),
@@ -61,11 +68,15 @@ fn main() {
     );
     println!(
         "  Feature names: {:?}",
-        sentiment_analyzer.feature_names().unwrap()
+        sentiment_analyzer
+            .feature_names()
+            .expect("operation should succeed")
     );
 
     println!("\n📊 Aspect-Based Sentiment:");
-    let aspect_features = aspect_analyzer.extract_features(&documents).unwrap();
+    let aspect_features = aspect_analyzer
+        .extract_features(&documents)
+        .expect("operation should succeed");
     println!(
         "  Shape: {} x {}",
         aspect_features.nrows(),
@@ -73,7 +84,9 @@ fn main() {
     );
     println!(
         "  Feature names: {:?}",
-        aspect_analyzer.feature_names().unwrap()
+        aspect_analyzer
+            .feature_names()
+            .expect("operation should succeed")
     );
 
     // ========================================================================
@@ -110,10 +123,14 @@ fn main() {
     println!("-------------------");
 
     println!("\nEmotionDetector metadata:");
-    let feature_types = emotion_detector.feature_types().unwrap();
+    let feature_types = emotion_detector
+        .feature_types()
+        .expect("operation should succeed");
     println!("  Feature types (first 5): {:?}", &feature_types[0..5]);
 
-    let descriptions = emotion_detector.feature_descriptions().unwrap();
+    let descriptions = emotion_detector
+        .feature_descriptions()
+        .expect("operation should succeed");
     println!("  Descriptions (first 3):");
     for (i, desc) in descriptions.iter().take(3).enumerate() {
         println!("    [{}]: {}", i, desc);
@@ -126,12 +143,16 @@ fn main() {
     println!("---------------------------------");
 
     println!("\nEmotionDetector vocabulary:");
-    let vocab = emotion_detector.vocabulary().unwrap();
+    let vocab = emotion_detector
+        .vocabulary()
+        .expect("operation should succeed");
     println!("  Vocabulary size: {}", vocab.len());
     println!("  Sample words: {:?}", &vocab[0..5.min(vocab.len())]);
 
     println!("\nAspectAnalyzer vocabulary:");
-    let aspect_vocab = aspect_analyzer.vocabulary().unwrap();
+    let aspect_vocab = aspect_analyzer
+        .vocabulary()
+        .expect("operation should succeed");
     println!("  Aspects: {:?}", aspect_vocab);
 
     // ========================================================================
@@ -152,7 +173,9 @@ fn main() {
     println!("  Number of extractors: {}", union.n_extractors());
     println!("  Extractor names: {:?}", union.extractor_names());
 
-    let combined_features = union.extract_union(&documents).unwrap();
+    let combined_features = union
+        .extract_union(&documents)
+        .expect("operation should succeed");
     println!("\nCombined features:");
     println!(
         "  Shape: {} x {}",
@@ -183,7 +206,9 @@ fn main() {
     println!("  Number of extractors: {}", weighted_union.n_extractors());
     println!("  Weights: {:?}", weighted_union.weights());
 
-    let weighted_features = weighted_union.extract_union(&documents).unwrap();
+    let weighted_features = weighted_union
+        .extract_union(&documents)
+        .expect("operation should succeed");
     println!("\nWeighted features:");
     println!(
         "  Shape: {} x {}",
@@ -213,7 +238,9 @@ fn main() {
     println!("--------------------");
 
     // Extract features
-    let all_features = emotion_detector.extract_features(&documents).unwrap();
+    let all_features = emotion_detector
+        .extract_features(&documents)
+        .expect("operation should succeed");
     println!(
         "\nOriginal features: {} x {}",
         all_features.nrows(),
@@ -222,7 +249,9 @@ fn main() {
 
     // Select specific features (e.g., only emotion scores, skip one-hot)
     let selector = IndexFeatureSelector::new(vec![0, 1, 2, 3, 4, 5, 12, 13]);
-    let selected_features = selector.select_features(&all_features).unwrap();
+    let selected_features = selector
+        .select_features(&all_features)
+        .expect("operation should succeed");
 
     println!(
         "Selected features: {} x {}",
@@ -257,7 +286,9 @@ fn main() {
     println!("\nSentiment scores with different neutral thresholds:");
     for (i, config) in configs.iter().enumerate() {
         let analyzer = base_analyzer.with_config(config.clone());
-        let features = analyzer.extract_features(&documents).unwrap();
+        let features = analyzer
+            .extract_features(&documents)
+            .expect("operation should succeed");
 
         println!(
             "\n  Config {}: threshold = {:.1}",
@@ -293,13 +324,19 @@ fn main() {
         .add_aspects(vec!["food".to_string(), "service".to_string()]);
 
     // Extract features
-    let emotion_result = emotion.extract_features(&[review.to_string()]).unwrap();
-    let sentiment_result = sentiment.extract_features(&[review.to_string()]).unwrap();
-    let aspect_result = aspects.extract_features(&[review.to_string()]).unwrap();
+    let emotion_result = emotion
+        .extract_features(&[review.to_string()])
+        .expect("operation should succeed");
+    let sentiment_result = sentiment
+        .extract_features(&[review.to_string()])
+        .expect("operation should succeed");
+    let aspect_result = aspects
+        .extract_features(&[review.to_string()])
+        .expect("operation should succeed");
 
     println!("\nMulti-level analysis:");
     println!("  📊 Emotion scores:");
-    let emotion_names = emotion.feature_names().unwrap();
+    let emotion_names = emotion.feature_names().expect("operation should succeed");
     for i in 0..6 {
         if emotion_result[[0, i]] > 0.0 {
             println!("    {}: {:.2}", emotion_names[i], emotion_result[[0, i]]);

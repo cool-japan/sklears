@@ -141,7 +141,9 @@ impl MixtureDiscriminantAnalysis<Untrained> {
             };
 
             let component_samples = class_data.slice(s![start_idx..end_idx, ..]);
-            let component_mean = component_samples.mean_axis(Axis(0)).unwrap();
+            let component_mean = component_samples
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
             means.row_mut(k).assign(&component_mean);
         }
 
@@ -460,7 +462,7 @@ impl Predict<Array2<Float>, Array1<i32>> for MixtureDiscriminantAnalysis<Trained
                     .iter()
                     .enumerate()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
+                    .expect("value should be present")
                     .0;
                 classes[max_idx]
             })

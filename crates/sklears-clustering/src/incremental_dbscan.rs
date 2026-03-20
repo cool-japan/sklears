@@ -630,12 +630,16 @@ mod tests {
 
         // Add first batch
         let x1 = array![[0.0, 0.0], [0.1, 0.1], [0.2, 0.0],];
-        model.partial_fit(&x1.view()).unwrap();
+        model
+            .partial_fit(&x1.view())
+            .expect("operation should succeed");
         assert!(model.n_clusters() >= 1);
 
         // Add second batch
         let x2 = array![[5.0, 5.0], [5.1, 5.1], [5.2, 5.0],];
-        model.partial_fit(&x2.view()).unwrap();
+        model
+            .partial_fit(&x2.view())
+            .expect("operation should succeed");
         assert!(model.n_clusters() >= 1);
     }
 
@@ -653,11 +657,15 @@ mod tests {
             [5.2, 5.0],
         ];
 
-        model.partial_fit(&x.view()).unwrap();
+        model
+            .partial_fit(&x.view())
+            .expect("operation should succeed");
 
         let test_data = array![[0.05, 0.05], [5.05, 5.05],];
 
-        let labels = model.predict(&test_data.view()).unwrap();
+        let labels = model
+            .predict(&test_data.view())
+            .expect("operation should succeed");
         assert_eq!(labels.len(), 2);
     }
 
@@ -671,7 +679,9 @@ mod tests {
         // Add points that exceed window size
         for i in 0..6 {
             let point = array![[i as Float, 0.0]];
-            model.partial_fit(&point.view()).unwrap();
+            model
+                .partial_fit(&point.view())
+                .expect("operation should succeed");
         }
 
         // Should only keep the most recent points
@@ -688,7 +698,9 @@ mod tests {
         // Add more points than memory limit
         for i in 0..8 {
             let point = array![[i as Float, 0.0]];
-            model.partial_fit(&point.view()).unwrap();
+            model
+                .partial_fit(&point.view())
+                .expect("operation should succeed");
         }
 
         // Should respect memory limit
@@ -709,7 +721,9 @@ mod tests {
 
             let x = array![[0.0, 0.0], [0.5, 0.5], [1.0, 1.0],];
 
-            model.partial_fit(&x.view()).unwrap();
+            model
+                .partial_fit(&x.view())
+                .expect("operation should succeed");
             assert!(model.n_clusters() >= 0);
         }
     }
@@ -728,7 +742,9 @@ mod tests {
             [5.2, 5.0],
         ];
 
-        model.partial_fit(&x.view()).unwrap();
+        model
+            .partial_fit(&x.view())
+            .expect("operation should succeed");
         let stats = model.cluster_stats();
 
         // Should have statistics for each cluster

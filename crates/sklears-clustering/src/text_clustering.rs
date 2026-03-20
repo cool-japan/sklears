@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::Distribution;
 use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 // Normal distribution via scirs2_core::random::RandNormal
 use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result, SklearsError};
@@ -135,7 +136,8 @@ impl SphericalKMeans {
         match self.config.init {
             SphericalInit::Random => {
                 let mut centroids = Array2::<f64>::zeros((self.config.n_clusters, n_features));
-                let normal = scirs2_core::random::RandNormal::new(0.0, 1.0).unwrap();
+                let normal = scirs2_core::random::RandNormal::new(0.0, 1.0)
+                    .expect("operation should succeed");
                 for mut centroid in centroids.rows_mut() {
                     // Generate random vector and normalize
                     for j in 0..n_features {
@@ -153,7 +155,7 @@ impl SphericalKMeans {
                 let mut centroids = Array2::<f64>::zeros((self.config.n_clusters, n_features));
                 let mut selected_indices = Vec::new();
                 for _ in 0..self.config.n_clusters {
-                    selected_indices.push(rng.gen_range(0..n_samples));
+                    selected_indices.push(rng.random_range(0..n_samples));
                 }
 
                 for (i, &idx) in selected_indices.iter().enumerate() {
@@ -174,7 +176,7 @@ impl SphericalKMeans {
         let mut centroids = Array2::<f64>::zeros((self.config.n_clusters, n_features));
 
         // Choose first centroid randomly
-        let first_idx = rng.gen_range(0..n_samples);
+        let first_idx = rng.random_range(0..n_samples);
         centroids.row_mut(0).assign(&X.row(first_idx));
 
         // Choose remaining centroids
@@ -283,7 +285,8 @@ impl SphericalKMeans {
             } else {
                 // Reinitialize empty cluster randomly
                 let mut rng = thread_rng(); // Use thread-local RNG
-                let normal = scirs2_core::random::RandNormal::new(0.0, 1.0).unwrap();
+                let normal = scirs2_core::random::RandNormal::new(0.0, 1.0)
+                    .expect("operation should succeed");
                 for j in 0..n_features {
                     centroids[[k, j]] = normal.sample(&mut rng);
                 }
@@ -600,7 +603,7 @@ mod tests {
                 0.1, 0.9, 0.2, 0.8,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = SphericalKMeansConfig {
             n_clusters: 2,
@@ -613,7 +616,9 @@ mod tests {
 
         let clusterer = SphericalKMeans::new(config);
         let dummy_y = Array1::<f64>::zeros(X.nrows());
-        let fitted = clusterer.fit(&X, &dummy_y).unwrap();
+        let fitted = clusterer
+            .fit(&X, &dummy_y)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 6);
         assert!(fitted.n_iterations <= 100);
@@ -631,7 +636,8 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_spherical_kmeans_predict() {
         let X_train =
-            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, -1.0])
+                .expect("operation should succeed");
 
         let config = SphericalKMeansConfig {
             n_clusters: 2,
@@ -641,11 +647,14 @@ mod tests {
 
         let clusterer = SphericalKMeans::new(config);
         let dummy_y = Array1::<f64>::zeros(X_train.nrows());
-        let fitted = clusterer.fit(&X_train, &dummy_y).unwrap();
+        let fitted = clusterer
+            .fit(&X_train, &dummy_y)
+            .expect("operation should succeed");
 
-        let X_test = Array2::from_shape_vec((2, 2), vec![0.9, 0.1, -0.1, 0.9]).unwrap();
+        let X_test = Array2::from_shape_vec((2, 2), vec![0.9, 0.1, -0.1, 0.9])
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X_test).unwrap();
+        let predictions = fitted.predict(&X_test).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -661,7 +670,7 @@ mod tests {
                 0.0, 1.0, 3.0, // Doc 4: focused on terms 1,2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = DocumentClusteringConfig {
             spherical_config: SphericalKMeansConfig {
@@ -676,7 +685,9 @@ mod tests {
         };
 
         let doc_clusterer = DocumentClustering::new(config);
-        let result = doc_clusterer.fit_predict(&tf_matrix).unwrap();
+        let result = doc_clusterer
+            .fit_predict(&tf_matrix)
+            .expect("operation should succeed");
 
         assert_eq!(result.labels.len(), 4);
         assert!(result.inertia >= 0.0);
@@ -692,7 +703,7 @@ mod tests {
                 0.0, 5.0, 12.0, // Should normalize to [0.0, 5/13, 12/13]
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = SphericalKMeansConfig::default();
         let clusterer = SphericalKMeans::new(config);

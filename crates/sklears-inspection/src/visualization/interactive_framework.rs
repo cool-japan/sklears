@@ -191,7 +191,10 @@ mod tests {
         visualizer.set_plot_config(plot_id.clone(), updated_config);
         assert_eq!(visualizer.plot_count(), 1);
         assert_eq!(
-            visualizer.get_plot_config("test_plot").unwrap().title,
+            visualizer
+                .get_plot_config("test_plot")
+                .expect("operation should succeed")
+                .title,
             "Updated Title"
         );
 

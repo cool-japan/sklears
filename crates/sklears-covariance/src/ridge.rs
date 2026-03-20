@@ -49,7 +49,7 @@ pub struct RidgeCovarianceConfig {
 /// let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let estimator = RidgeCovariance::new().alpha(0.1);
-/// let fitted = estimator.fit(&x.view(), &()).unwrap();
+/// let fitted = estimator.fit(&x.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// ```
 #[derive(Debug, Clone)]

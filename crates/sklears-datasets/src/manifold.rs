@@ -43,7 +43,7 @@ pub fn make_swiss_roll(
 
         // Add noise if specified
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             for j in 0..3 {
                 x[[i, j]] += rng.sample(noise_dist);
             }
@@ -86,7 +86,7 @@ pub fn make_s_curve(
 
         // Add noise if specified
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             for j in 0..3 {
                 x[[i, j]] += rng.sample(noise_dist);
             }
@@ -134,7 +134,7 @@ pub fn make_biclusters(
     // Initialize data matrix with noise
     let mut data = Array2::zeros((n_rows, n_cols));
     if noise > 0.0 {
-        let noise_dist = Normal::new(0.0, noise).unwrap();
+        let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
         for i in 0..n_rows {
             for j in 0..n_cols {
                 data[[i, j]] = rng.sample(noise_dist);
@@ -256,7 +256,7 @@ pub fn make_checkerboard(
     // Initialize data matrix with noise
     let mut data = Array2::zeros((n_rows, n_cols));
     if noise > 0.0 {
-        let noise_dist = Normal::new(0.0, noise).unwrap();
+        let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
         for i in 0..n_rows {
             for j in 0..n_cols {
                 data[[i, j]] = rng.sample(noise_dist);

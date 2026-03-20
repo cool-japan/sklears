@@ -324,7 +324,10 @@ impl FeatureSelector {
             });
         }
 
-        let selection_result = self.selection_result.as_ref().unwrap();
+        let selection_result = self
+            .selection_result
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.is_empty() {
             return Ok(Vec::new());
@@ -933,7 +936,7 @@ mod tests {
         let result = selector.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select 2 features
         assert_eq!(transformed[0].len(), 2);
@@ -952,7 +955,7 @@ mod tests {
         let result = selector.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select 50% of features (2 out of 4)
         assert_eq!(transformed[0].len(), 2);
@@ -967,7 +970,7 @@ mod tests {
         let result = selector.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should remove low-variance features
         assert!(transformed[0].len() <= 4);
@@ -990,7 +993,7 @@ mod tests {
         let result = selector.fit_transform(&x, &y);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
 
         // Should select at most 2 features
         assert!(transformed[0].len() <= 2);
@@ -1001,9 +1004,11 @@ mod tests {
         let mut selector = FeatureSelector::new();
         let (x, y) = create_sample_data();
 
-        selector.fit(&x, &y).unwrap();
+        selector.fit(&x, &y).expect("model fitting should succeed");
 
-        let scores = selector.get_feature_scores().unwrap();
+        let scores = selector
+            .get_feature_scores()
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 4); // 4 original features
 
         // Scores should be computed for all features
@@ -1017,9 +1022,9 @@ mod tests {
         let mut selector = FeatureSelector::new();
         let (x, y) = create_sample_data();
 
-        selector.fit(&x, &y).unwrap();
+        selector.fit(&x, &y).expect("model fitting should succeed");
 
-        let ranking = selector.get_ranking().unwrap();
+        let ranking = selector.get_ranking().expect("operation should succeed");
         assert_eq!(ranking.len(), 4); // 4 original features
 
         // Rankings should be unique
@@ -1033,7 +1038,9 @@ mod tests {
         let selector = FeatureSelector::new();
         let (x, _) = create_sample_data();
 
-        let normalized = selector.normalize_features(&x).unwrap();
+        let normalized = selector
+            .normalize_features(&x)
+            .expect("operation should succeed");
 
         // Check that features are approximately normalized
         for feature_idx in 0..4 {

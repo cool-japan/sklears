@@ -32,9 +32,9 @@ pub struct GradientCheckConfig<T: Float> {
 impl<T: Float> Default for GradientCheckConfig<T> {
     fn default() -> Self {
         Self {
-            epsilon: T::from(1e-7).unwrap(),
-            relative_tolerance: T::from(1e-5).unwrap(),
-            absolute_tolerance: T::from(1e-8).unwrap(),
+            epsilon: T::from(1e-7).unwrap_or_else(|| T::zero()),
+            relative_tolerance: T::from(1e-5).unwrap_or_else(|| T::zero()),
+            absolute_tolerance: T::from(1e-8).unwrap_or_else(|| T::zero()),
             use_centered_differences: true,
             max_params_to_check: Some(100),
             random_seed: Some(42),
@@ -116,7 +116,7 @@ impl<T: FloatBounds + ScalarOperand> LossFunction<T> for MeanSquaredError<T> {
     ) -> Result<T, SklearsError> {
         let diff = predictions - targets;
         let squared_diff = diff.mapv(|x| x * x);
-        let mse = squared_diff.sum() / T::from(predictions.len()).unwrap();
+        let mse = squared_diff.sum() / T::from(predictions.len()).unwrap_or_else(|| T::zero());
         Ok(mse)
     }
 
@@ -126,7 +126,8 @@ impl<T: FloatBounds + ScalarOperand> LossFunction<T> for MeanSquaredError<T> {
         targets: &Array2<T>,
     ) -> Result<Array2<T>, SklearsError> {
         let diff = predictions - targets;
-        let factor = T::from(2.0).unwrap() / T::from(predictions.len()).unwrap();
+        let factor = T::from(2.0).unwrap_or_else(|| T::zero())
+            / T::from(predictions.len()).unwrap_or_else(|| T::zero());
         Ok(diff * factor)
     }
 }
@@ -151,11 +152,12 @@ impl<T: FloatBounds + ScalarOperand> LossFunction<T> for CrossEntropyLoss<T> {
         predictions: &Array2<T>,
         targets: &Array2<T>,
     ) -> Result<T, SklearsError> {
-        let epsilon = T::from(1e-15).unwrap();
+        let epsilon = T::from(1e-15).unwrap_or_else(|| T::zero());
         let clipped_preds = predictions.mapv(|x| x.max(epsilon).min(T::one() - epsilon));
 
         let log_preds = clipped_preds.mapv(|x| x.ln());
-        let loss = -(targets * log_preds).sum() / T::from(predictions.nrows()).unwrap();
+        let loss = -(targets * log_preds).sum()
+            / T::from(predictions.nrows()).unwrap_or_else(|| T::zero());
         Ok(loss)
     }
 
@@ -164,10 +166,11 @@ impl<T: FloatBounds + ScalarOperand> LossFunction<T> for CrossEntropyLoss<T> {
         predictions: &Array2<T>,
         targets: &Array2<T>,
     ) -> Result<Array2<T>, SklearsError> {
-        let epsilon = T::from(1e-15).unwrap();
+        let epsilon = T::from(1e-15).unwrap_or_else(|| T::zero());
         let clipped_preds = predictions.mapv(|x| x.max(epsilon).min(T::one() - epsilon));
 
-        let grad = -(targets / clipped_preds) / T::from(predictions.nrows()).unwrap();
+        let grad =
+            -(targets / clipped_preds) / T::from(predictions.nrows()).unwrap_or_else(|| T::zero());
         Ok(grad)
     }
 }
@@ -229,8 +232,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         let num_to_check = std::cmp::min(10, 100); // Simplified
 
         for i in 0..num_to_check {
-            let analytical_grad = T::from(0.1).unwrap(); // Placeholder
-            let numerical_grad = T::from(0.101).unwrap(); // Placeholder
+            let analytical_grad = T::from(0.1).unwrap_or_else(|| T::zero()); // Placeholder
+            let numerical_grad = T::from(0.101).unwrap_or_else(|| T::zero()); // Placeholder
 
             let abs_error = (analytical_grad - numerical_grad).abs();
             let rel_error = if numerical_grad.abs() > T::zero() {
@@ -261,8 +264,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
             });
         }
 
-        let avg_rel_error = sum_rel_error / T::from(num_to_check).unwrap();
-        let avg_abs_error = sum_abs_error / T::from(num_to_check).unwrap();
+        let avg_rel_error = sum_rel_error / T::from(num_to_check).unwrap_or_else(|| T::zero());
+        let avg_abs_error = sum_abs_error / T::from(num_to_check).unwrap_or_else(|| T::zero());
 
         Ok(GradientCheckResults {
             all_passed: num_passed == num_to_check,
@@ -297,7 +300,10 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         // For demonstration, we'll create some dummy gradients
         // In practice, this would be the actual backpropagation implementation
         for i in 0..10 {
-            let grad = Array1::from_vec(vec![T::from(i as f64 * 0.1).unwrap(); 10]);
+            let grad = Array1::from_vec(vec![
+                T::from(i as f64 * 0.1).unwrap_or_else(|| T::zero());
+                10
+            ]);
             gradients.push(grad);
         }
 
@@ -360,7 +366,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         param_idx: usize,
     ) -> Result<T, SklearsError> {
         // Get current parameter value
-        let original_param = T::from(0.5).unwrap(); // Placeholder
+        let original_param = T::from(0.5).unwrap_or_else(|| T::zero()); // Placeholder
 
         // Compute loss with parameter + epsilon
         // (This is simplified - in practice you'd modify the actual network parameters)
@@ -386,7 +392,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         )?;
 
         // Centered difference
-        let grad = (loss_plus - loss_minus) / (T::from(2.0).unwrap() * self.config.epsilon);
+        let grad = (loss_plus - loss_minus)
+            / (T::from(2.0).unwrap_or_else(|| T::zero()) * self.config.epsilon);
         Ok(grad)
     }
 
@@ -401,7 +408,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         param_idx: usize,
     ) -> Result<T, SklearsError> {
         // Get current parameter value
-        let original_param = T::from(0.5).unwrap(); // Placeholder
+        let original_param = T::from(0.5).unwrap_or_else(|| T::zero()); // Placeholder
 
         // Compute original loss
         let original_loss = self.compute_loss_with_perturbed_param(
@@ -517,13 +524,13 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive> GradientChecker<T> {
         }
 
         let avg_rel_error = if total_checked > 0 {
-            sum_rel_error / T::from(total_checked).unwrap()
+            sum_rel_error / T::from(total_checked).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
 
         let avg_abs_error = if total_checked > 0 {
-            sum_abs_error / T::from(total_checked).unwrap()
+            sum_abs_error / T::from(total_checked).unwrap_or_else(|| T::zero())
         } else {
             T::zero()
         };
@@ -652,13 +659,19 @@ mod tests {
     fn test_mse_loss_function() {
         let mse = MeanSquaredError::<f32>::new();
 
-        let predictions = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let targets = Array2::from_shape_vec((2, 2), vec![1.1, 1.9, 3.1, 3.9]).unwrap();
+        let predictions =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("array shape mismatch");
+        let targets =
+            Array2::from_shape_vec((2, 2), vec![1.1, 1.9, 3.1, 3.9]).expect("array shape mismatch");
 
-        let loss = mse.compute_loss(&predictions, &targets).unwrap();
+        let loss = mse
+            .compute_loss(&predictions, &targets)
+            .expect("operation should succeed");
         assert!(loss > 0.0);
 
-        let gradient = mse.compute_gradient(&predictions, &targets).unwrap();
+        let gradient = mse
+            .compute_gradient(&predictions, &targets)
+            .expect("operation should succeed");
         assert_eq!(gradient.dim(), predictions.dim());
     }
 
@@ -666,13 +679,19 @@ mod tests {
     fn test_cross_entropy_loss_function() {
         let ce = CrossEntropyLoss::<f32>::new();
 
-        let predictions = Array2::from_shape_vec((2, 2), vec![0.8, 0.2, 0.3, 0.7]).unwrap();
-        let targets = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
+        let predictions =
+            Array2::from_shape_vec((2, 2), vec![0.8, 0.2, 0.3, 0.7]).expect("array shape mismatch");
+        let targets =
+            Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).expect("array shape mismatch");
 
-        let loss = ce.compute_loss(&predictions, &targets).unwrap();
+        let loss = ce
+            .compute_loss(&predictions, &targets)
+            .expect("operation should succeed");
         assert!(loss > 0.0);
 
-        let gradient = ce.compute_gradient(&predictions, &targets).unwrap();
+        let gradient = ce
+            .compute_gradient(&predictions, &targets)
+            .expect("operation should succeed");
         assert_eq!(gradient.dim(), predictions.dim());
     }
 
@@ -799,12 +818,13 @@ mod tests {
         let checker = GradientChecker::new(config);
 
         let mut layer = DenseLayer::<f32>::new(5, 3, Some(Activation::Relu));
-        let inputs = Array2::from_shape_vec((2, 5), vec![1.0; 10]).unwrap();
-        let output_grads = Array2::from_shape_vec((2, 3), vec![0.1; 6]).unwrap();
+        let inputs = Array2::from_shape_vec((2, 5), vec![1.0; 10]).expect("array shape mismatch");
+        let output_grads =
+            Array2::from_shape_vec((2, 3), vec![0.1; 6]).expect("array shape mismatch");
 
         let results = checker
             .check_layer_gradients(&mut layer, &inputs, &output_grads)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(results.num_checked > 0);
         // Note: This is a simplified test since the actual gradient checking is not fully implemented
     }

@@ -1426,7 +1426,7 @@ mod tests {
         let handle = scheduler.schedule_task(task);
         assert!(handle.is_ok());
 
-        let handle = handle.unwrap();
+        let handle = handle.expect("operation should succeed");
         assert_eq!(handle.priority, TaskPriority::Normal);
         assert_eq!(handle.state, TaskState::Queued);
 

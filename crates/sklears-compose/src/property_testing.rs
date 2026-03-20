@@ -70,13 +70,13 @@ impl PropertyTestGenerator {
     #[must_use]
     pub fn generate_matrix(&self, n_samples: usize, n_features: usize) -> Array2<f64> {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(self.seed);
         let (min_val, max_val) = self.value_range;
 
         Array2::from_shape_fn((n_samples, n_features), |_| {
-            rng.gen_range(min_val..max_val + 1.0)
+            rng.random_range(min_val..max_val + 1.0)
         })
     }
 
@@ -84,12 +84,12 @@ impl PropertyTestGenerator {
     #[must_use]
     pub fn generate_targets(&self, n_samples: usize) -> Array1<f64> {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(self.seed + 1);
         let (min_val, max_val) = self.value_range;
 
-        Array1::from_shape_fn(n_samples, |_| rng.gen_range(min_val..max_val + 1.0))
+        Array1::from_shape_fn(n_samples, |_| rng.random_range(min_val..max_val + 1.0))
     }
 
     /// Generate classification targets
@@ -100,11 +100,11 @@ impl PropertyTestGenerator {
         n_classes: usize,
     ) -> Array1<usize> {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(self.seed + 2);
 
-        Array1::from_shape_fn(n_samples, |_| rng.gen_range(0..n_classes))
+        Array1::from_shape_fn(n_samples, |_| rng.random_range(0..n_classes))
     }
 }
 

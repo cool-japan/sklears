@@ -124,7 +124,7 @@ impl CrossTaskTransferLearning<Untrained> {
         let mut rng = thread_rng();
 
         // Initialize weights
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
 
         let mut source_weights = Array2::<Float>::zeros((n_features, n_source_tasks));
         for i in 0..n_features {
@@ -370,21 +370,22 @@ impl DomainAdaptation<Untrained> {
         // Initialize networks
         let hidden_dim = (n_features + n_tasks) / 2;
         let mut feature_extractor = Array2::<Float>::zeros((n_features, hidden_dim));
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..n_features {
             for j in 0..hidden_dim {
                 feature_extractor[[i, j]] = rng.sample(normal_dist);
             }
         }
         let mut classifier = Array2::<Float>::zeros((hidden_dim, n_tasks));
-        let classifier_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let classifier_normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..hidden_dim {
             for j in 0..n_tasks {
                 classifier[[i, j]] = rng.sample(classifier_normal_dist);
             }
         }
         let mut domain_discriminator = Array2::<Float>::zeros((hidden_dim, 1));
-        let discriminator_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let discriminator_normal_dist =
+            RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..hidden_dim {
             domain_discriminator[[i, 0]] = rng.sample(discriminator_normal_dist);
         }
@@ -614,7 +615,7 @@ impl ProgressiveTransferLearning<Untrained> {
 
         // Initialize shared weights
         let mut shared_weights = Array2::<Float>::zeros((n_features, n_features));
-        let shared_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let shared_normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..n_features {
             for j in 0..n_features {
                 shared_weights[[i, j]] = rng.sample(shared_normal_dist);
@@ -629,7 +630,7 @@ impl ProgressiveTransferLearning<Untrained> {
 
             // Initialize task-specific weights
             let mut task_weight = Array2::<Float>::zeros((n_features, 1));
-            let task_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+            let task_normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
             for i in 0..n_features {
                 task_weight[[i, 0]] = rng.sample(task_normal_dist);
             }
@@ -842,7 +843,7 @@ impl ContinualLearning<Untrained> {
         let mut rng = thread_rng();
 
         let mut weights = Array2::<Float>::zeros((n_features, n_tasks));
-        let weights_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let weights_normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..n_features {
             for j in 0..n_tasks {
                 weights[[i, j]] = rng.sample(weights_normal_dist);
@@ -1059,14 +1060,14 @@ impl KnowledgeDistillation<Untrained> {
         let mut rng = thread_rng();
 
         let mut student_weights = Array2::<Float>::zeros((n_features, n_tasks));
-        let student_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let student_normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..n_features {
             for j in 0..n_tasks {
                 student_weights[[i, j]] = rng.sample(student_normal_dist);
             }
         }
         let mut teacher_weights = Array2::<Float>::zeros((n_features, n_tasks));
-        let teacher_normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let teacher_normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..n_features {
             for j in 0..n_tasks {
                 teacher_weights[[i, j]] = rng.sample(teacher_normal_dist);
@@ -1177,12 +1178,16 @@ mod tests {
                 &target_X.view(),
                 &target_y.view(),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = trained.predict(&target_X.view()).unwrap();
+        let predictions = trained
+            .predict(&target_X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (2, 2));
 
-        let source_predictions = trained.predict_from_source(&target_X.view()).unwrap();
+        let source_predictions = trained
+            .predict_from_source(&target_X.view())
+            .expect("operation should succeed");
         assert_eq!(source_predictions.dim(), (2, 2));
     }
 
@@ -1226,15 +1231,21 @@ mod tests {
                 &target_X.view(),
                 &target_y.view(),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = trained.predict(&target_X.view()).unwrap();
+        let predictions = trained
+            .predict(&target_X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (2, 1));
 
-        let features = trained.extract_features(&target_X.view()).unwrap();
+        let features = trained
+            .extract_features(&target_X.view())
+            .expect("operation should succeed");
         assert_eq!(features.ncols(), 1); // Hidden dimension
 
-        let domain_pred = trained.predict_domain(&target_X.view()).unwrap();
+        let domain_pred = trained
+            .predict_domain(&target_X.view())
+            .expect("operation should succeed");
         assert_eq!(domain_pred.len(), 2);
     }
 
@@ -1255,9 +1266,13 @@ mod tests {
             .max_iter(100)
             .random_state(Some(42));
 
-        let trained = transfer.fit(&X.view(), &y.view(), None).unwrap();
+        let trained = transfer
+            .fit(&X.view(), &y.view(), None)
+            .expect("model fitting should succeed");
 
-        let predictions = trained.predict(&X.view()).unwrap();
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (4, 3));
 
         // Check that we have weights for all tasks
@@ -1276,7 +1291,7 @@ mod tests {
         let custom_order = vec![2, 0, 1]; // Start with task 2, then 0, then 1
         let trained = transfer
             .fit(&X.view(), &y.view(), Some(custom_order.clone()))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(trained.task_order(), &custom_order);
     }
@@ -1307,9 +1322,13 @@ mod tests {
             .max_iter(100)
             .random_state(Some(42));
 
-        let trained = continual.fit(&tasks_X, &tasks_y).unwrap();
+        let trained = continual
+            .fit(&tasks_X, &tasks_y)
+            .expect("model fitting should succeed");
 
-        let predictions = trained.predict(&X1.view()).unwrap();
+        let predictions = trained
+            .predict(&X1.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (2, 2));
 
         // Check that we have weights for both tasks
@@ -1347,9 +1366,11 @@ mod tests {
 
         let trained = distillation
             .fit(&X.view(), &y.view(), &teacher_predictions.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = trained.predict(&X.view()).unwrap();
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (3, 2));
 
         // Check that we have student and teacher weights

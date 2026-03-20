@@ -159,16 +159,19 @@ impl ParameterSpace {
         for param_def in &self.parameters {
             let value = match param_def {
                 ParameterDef::Continuous { low, high, .. } => {
-                    ParameterValue::Float(rng.gen_range(*low..*high))
+                    ParameterValue::Float(rng.random_range(*low..*high))
                 }
                 ParameterDef::Integer { low, high, .. } => {
-                    ParameterValue::Integer(rng.gen_range(*low..*high))
+                    ParameterValue::Integer(rng.random_range(*low..*high))
                 }
                 ParameterDef::Categorical { choices, .. } => {
-                    let choice = choices.as_slice().choose(rng).unwrap();
+                    let choice = choices
+                        .as_slice()
+                        .choose(rng)
+                        .expect("operation should succeed");
                     ParameterValue::String(choice.clone())
                 }
-                ParameterDef::Boolean { .. } => ParameterValue::Boolean(rng.gen_bool(0.5)),
+                ParameterDef::Boolean { .. } => ParameterValue::Boolean(rng.random_bool(0.5)),
             };
             parameters.push(value);
         }
@@ -183,16 +186,19 @@ impl ParameterSpace {
         for param_def in &self.parameters {
             let value = match param_def {
                 ParameterDef::Continuous { low, high, .. } => {
-                    ParameterValue::Float(rng.gen_range(*low..*high))
+                    ParameterValue::Float(rng.random_range(*low..*high))
                 }
                 ParameterDef::Integer { low, high, .. } => {
-                    ParameterValue::Integer(rng.gen_range(*low..*high))
+                    ParameterValue::Integer(rng.random_range(*low..*high))
                 }
                 ParameterDef::Categorical { choices, .. } => {
-                    let choice = choices.as_slice().choose(rng).unwrap();
+                    let choice = choices
+                        .as_slice()
+                        .choose(rng)
+                        .expect("operation should succeed");
                     ParameterValue::String(choice.clone())
                 }
-                ParameterDef::Boolean { .. } => ParameterValue::Boolean(rng.gen_bool(0.5)),
+                ParameterDef::Boolean { .. } => ParameterValue::Boolean(rng.random_bool(0.5)),
             };
             parameters.push(value);
         }
@@ -203,25 +209,28 @@ impl ParameterSpace {
     /// Mutate an individual
     pub fn mutate(&self, individual: &mut Individual, rng: &mut StdRng, mutation_rate: f64) {
         for (i, param_def) in self.parameters.iter().enumerate() {
-            if rng.gen_bool(mutation_rate) {
+            if rng.random_bool(mutation_rate) {
                 match param_def {
                     ParameterDef::Continuous { low, high, .. } => {
                         // Gaussian mutation
                         if let ParameterValue::Float(ref mut val) = individual.parameters[i] {
                             let range = high - low;
                             let stddev = range * 0.1; // 10% of range as std deviation
-                            let noise: f64 = rng.gen_range(-stddev..stddev);
+                            let noise: f64 = rng.random_range(-stddev..stddev);
                             *val = (*val + noise).clamp(*low, *high);
                         }
                     }
                     ParameterDef::Integer { low, high, .. } => {
                         // Random integer in range
                         individual.parameters[i] =
-                            ParameterValue::Integer(rng.gen_range(*low..*high));
+                            ParameterValue::Integer(rng.random_range(*low..*high));
                     }
                     ParameterDef::Categorical { choices, .. } => {
                         // Random choice
-                        let choice = choices.as_slice().choose(rng).unwrap();
+                        let choice = choices
+                            .as_slice()
+                            .choose(rng)
+                            .expect("operation should succeed");
                         individual.parameters[i] = ParameterValue::String(choice.clone());
                     }
                     ParameterDef::Boolean { .. } => {
@@ -253,7 +262,7 @@ impl ParameterSpace {
                     if let (ParameterValue::Float(val1), ParameterValue::Float(val2)) =
                         (&parent1.parameters[i], &parent2.parameters[i])
                     {
-                        let alpha = rng.gen_range(0.0..1.0);
+                        let alpha = rng.random_range(0.0..1.0);
                         let child1_val = alpha * val1 + (1.0 - alpha) * val2;
                         let child2_val = alpha * val2 + (1.0 - alpha) * val1;
                         child1_params.push(ParameterValue::Float(child1_val));
@@ -262,7 +271,7 @@ impl ParameterSpace {
                 }
                 _ => {
                     // Uniform crossover for discrete parameters
-                    if rng.gen_bool(0.5) {
+                    if rng.random_bool(0.5) {
                         child1_params.push(parent1.parameters[i].clone());
                         child2_params.push(parent2.parameters[i].clone());
                     } else {
@@ -372,7 +381,7 @@ where
             b.fitness
                 .unwrap_or(f64::NEG_INFINITY)
                 .partial_cmp(&a.fitness.unwrap_or(f64::NEG_INFINITY))
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         tournament[0]
@@ -406,7 +415,7 @@ where
                 b.fitness
                     .unwrap_or(f64::NEG_INFINITY)
                     .partial_cmp(&a.fitness.unwrap_or(f64::NEG_INFINITY))
-                    .unwrap()
+                    .expect("operation should succeed")
             });
 
             // Track best individual
@@ -433,7 +442,7 @@ where
                 let parent2 = self.tournament_selection(&population, &mut rng);
 
                 // Crossover
-                let (mut child1, mut child2) = if rng.gen_bool(self.config.crossover_rate) {
+                let (mut child1, mut child2) = if rng.random_bool(self.config.crossover_rate) {
                     self.parameter_space.crossover(parent1, parent2, &mut rng)
                 } else {
                     (parent1.clone(), parent2.clone())
@@ -641,8 +650,14 @@ where
                 // Sort by objective
                 let mut front_sorted = front.to_vec();
                 front_sorted.sort_by(|&a, &b| {
-                    let fitness_a = &population[a].multi_fitness.as_ref().unwrap()[obj];
-                    let fitness_b = &population[b].multi_fitness.as_ref().unwrap()[obj];
+                    let fitness_a = &population[a]
+                        .multi_fitness
+                        .as_ref()
+                        .expect("operation should succeed")[obj];
+                    let fitness_b = &population[b]
+                        .multi_fitness
+                        .as_ref()
+                        .expect("operation should succeed")[obj];
                     fitness_a
                         .partial_cmp(fitness_b)
                         .unwrap_or(std::cmp::Ordering::Equal)
@@ -653,11 +668,14 @@ where
                 population[front_sorted[front_size - 1]].crowding_distance = Some(f64::INFINITY);
 
                 // Calculate crowding distance for internal points
-                let obj_min = population[front_sorted[0]].multi_fitness.as_ref().unwrap()[obj];
+                let obj_min = population[front_sorted[0]]
+                    .multi_fitness
+                    .as_ref()
+                    .expect("operation should succeed")[obj];
                 let obj_max = population[front_sorted[front_size - 1]]
                     .multi_fitness
                     .as_ref()
-                    .unwrap()[obj];
+                    .expect("operation should succeed")[obj];
                 let obj_range = obj_max - obj_min;
 
                 if obj_range > 0.0 {
@@ -666,11 +684,11 @@ where
                         let prev_fitness = population[front_sorted[i - 1]]
                             .multi_fitness
                             .as_ref()
-                            .unwrap()[obj];
+                            .expect("operation should succeed")[obj];
                         let next_fitness = population[front_sorted[i + 1]]
                             .multi_fitness
                             .as_ref()
-                            .unwrap()[obj];
+                            .expect("operation should succeed")[obj];
 
                         let distance = population[current_idx].crowding_distance.unwrap_or(0.0);
                         population[current_idx].crowding_distance =
@@ -758,7 +776,7 @@ where
                 let parent2 = self.nsga_tournament_selection(&population, &mut rng);
 
                 // Crossover
-                let (mut child1, mut child2) = if rng.gen_bool(self.config.crossover_rate) {
+                let (mut child1, mut child2) = if rng.random_bool(self.config.crossover_rate) {
                     self.parameter_space.crossover(parent1, parent2, &mut rng)
                 } else {
                     (parent1.clone(), parent2.clone())
@@ -826,7 +844,10 @@ where
             println!(
                 "Generation {}: Pareto front size = {}",
                 generation,
-                pareto_history.last().unwrap().len()
+                pareto_history
+                    .last()
+                    .expect("operation should succeed")
+                    .len()
             );
         }
 
@@ -873,7 +894,7 @@ where
                     .partial_cmp(&a.crowding_distance.unwrap_or(0.0))
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .unwrap()
+            .expect("operation should succeed")
     }
 }
 
@@ -1034,7 +1055,7 @@ where
         }
 
         let mut best_individual = population[0].clone();
-        let mut best_fitness = population[0].fitness.unwrap();
+        let mut best_fitness = population[0].fitness.expect("operation should succeed");
 
         // Evolution loop
         for _generation in 0..self.n_generations {
@@ -1043,7 +1064,11 @@ where
 
             // Elitism: keep best individuals
             let elite_size = (self.population_size as f64 * 0.1) as usize;
-            population.sort_by(|a, b| b.fitness.partial_cmp(&a.fitness).unwrap());
+            population.sort_by(|a, b| {
+                b.fitness
+                    .partial_cmp(&a.fitness)
+                    .expect("operation should succeed")
+            });
             new_population.extend_from_slice(&population[..elite_size]);
 
             // Generate offspring
@@ -1053,17 +1078,17 @@ where
                 let parent2 = self.tournament_selection(&population, &mut rng);
 
                 // Crossover
-                let (mut child1, mut child2) = if rng.gen::<f64>() < self.crossover_rate {
+                let (mut child1, mut child2) = if rng.random::<f64>() < self.crossover_rate {
                     self.parameter_space.crossover(parent1, parent2, &mut rng)
                 } else {
                     (parent1.clone(), parent2.clone())
                 };
 
                 // Mutation
-                if rng.gen::<f64>() < self.mutation_rate {
+                if rng.random::<f64>() < self.mutation_rate {
                     self.parameter_space.mutate(&mut child1, &mut rng, 0.1);
                 }
-                if rng.gen::<f64>() < self.mutation_rate {
+                if rng.random::<f64>() < self.mutation_rate {
                     self.parameter_space.mutate(&mut child2, &mut rng, 0.1);
                 }
 
@@ -1081,7 +1106,7 @@ where
 
             // Update best individual
             for individual in &population {
-                let fitness = individual.fitness.unwrap();
+                let fitness = individual.fitness.expect("operation should succeed");
                 if fitness > best_fitness {
                     best_fitness = fitness;
                     best_individual = individual.clone();
@@ -1143,8 +1168,12 @@ where
 
         tournament
             .into_iter()
-            .max_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap())
-            .unwrap()
+            .max_by(|a, b| {
+                a.fitness
+                    .partial_cmp(&b.fitness)
+                    .expect("operation should succeed")
+            })
+            .expect("operation should succeed")
     }
 }
 

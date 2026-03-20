@@ -537,7 +537,7 @@ impl MultiOutputRegression {
 
         // Apply SVD to get reduced rank approximation
         let svd = SVD::new(W_full, true, true);
-        let (u, singular_values, vt) = (svd.u.unwrap(), svd.singular_values, svd.v_t.unwrap());
+        let (u, singular_values, vt) = (svd.u?, svd.singular_values, svd.v_t?);
 
         // Truncate to desired rank
         let u_truncated = u.columns(0, rank);
@@ -861,7 +861,7 @@ mod tests {
         let predictions = model.predict(&X);
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.nrows(), X.nrows());
         assert_eq!(pred.ncols(), Y.ncols());
     }
@@ -944,11 +944,11 @@ mod tests {
         };
         let mut model = MultiOutputRegression::new(config);
 
-        model.fit(&X, &Y).unwrap();
+        model.fit(&X, &Y).expect("model fitting should succeed");
         let correlations = model.target_correlations();
         assert!(correlations.is_some());
 
-        let corr_matrix = correlations.unwrap();
+        let corr_matrix = correlations.expect("operation should succeed");
         assert_eq!(corr_matrix.nrows(), Y.ncols());
         assert_eq!(corr_matrix.ncols(), Y.ncols());
 
@@ -984,16 +984,16 @@ mod tests {
         let (X, Y) = create_test_data();
         let mut model = MultiOutputRegression::ridge(0.1);
 
-        model.fit(&X, &Y).unwrap();
+        model.fit(&X, &Y).expect("model fitting should succeed");
 
         // Test with same dimensions
-        let predictions = model.predict(&X).unwrap();
+        let predictions = model.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.nrows(), X.nrows());
         assert_eq!(predictions.ncols(), Y.ncols());
 
         // Test with different number of samples
         let X_new = DMatrix::from_row_slice(3, 3, &[1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0]);
-        let predictions_new = model.predict(&X_new).unwrap();
+        let predictions_new = model.predict(&X_new).expect("prediction should succeed");
         assert_eq!(predictions_new.nrows(), 3);
         assert_eq!(predictions_new.ncols(), Y.ncols());
     }

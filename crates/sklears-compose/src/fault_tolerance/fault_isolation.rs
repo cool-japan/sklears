@@ -475,13 +475,13 @@ impl FaultIsolationSystem {
 
     /// Register component for isolation management
     pub async fn register_component(&self, component: ComponentInfo) {
-        let mut components = self.components.write().unwrap();
+        let mut components = self.components.write().unwrap_or_else(|e| e.into_inner());
         components.insert(component.component_id.clone(), component);
     }
 
     /// Add dependency relationship between components
     pub async fn add_dependency(&self, dependency: Dependency) {
-        let mut deps = self.dependencies.write().unwrap();
+        let mut deps = self.dependencies.write().unwrap_or_else(|e| e.into_inner());
         deps.push(dependency);
     }
 
@@ -492,7 +492,7 @@ impl FaultIsolationSystem {
 
         // Check if component exists
         {
-            let components = self.components.read().unwrap();
+            let components = self.components.read().unwrap_or_else(|e| e.into_inner());
             if !components.contains_key(component_id) {
                 return Err(IsolationError::ComponentNotFound {
                     component_id: component_id.to_string(),
@@ -528,7 +528,7 @@ impl FaultIsolationSystem {
 
         // Register active isolation
         {
-            let mut active = self.active_isolations.write().unwrap();
+            let mut active = self.active_isolations.write().unwrap_or_else(|e| e.into_inner());
             active.insert(isolation_id.clone(), context.clone());
         }
 
@@ -552,7 +552,7 @@ impl FaultIsolationSystem {
 
         // Remove from active isolations if completed
         {
-            let mut active = self.active_isolations.write().unwrap();
+            let mut active = self.active_isolations.write().unwrap_or_else(|e| e.into_inner());
             active.remove(&isolation_id);
         }
 
@@ -897,7 +897,7 @@ impl FaultIsolationSystem {
 
         // Update rollback metrics
         {
-            let mut metrics = self.metrics.write().unwrap();
+            let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
             if metrics.total_isolations > 0 {
                 let total_time = metrics.average_rollback_time * (metrics.total_isolations - 1) as u32 + rollback_result.execution_time;
                 metrics.average_rollback_time = total_time / metrics.total_isolations as u32;
@@ -911,7 +911,7 @@ impl FaultIsolationSystem {
 
     /// Assess impact of isolating a component
     async fn assess_isolation_impact(&self, component_id: &str, dependencies: &[Dependency]) -> f64 {
-        let components = self.components.read().unwrap();
+        let components = self.components.read().unwrap_or_else(|e| e.into_inner());
         let total_components = components.len() as f64;
 
         if total_components == 0.0 {
@@ -944,7 +944,7 @@ impl FaultIsolationSystem {
 
     /// Get component dependencies
     async fn get_component_dependencies(&self, component_id: &str) -> Vec<Dependency> {
-        let deps = self.dependencies.read().unwrap();
+        let deps = self.dependencies.read().unwrap_or_else(|e| e.into_inner());
         deps.iter()
             .filter(|d| d.source_component == component_id || d.target_component == component_id)
             .cloned()
@@ -998,7 +998,7 @@ impl FaultIsolationSystem {
 
     /// Update component status
     async fn update_component_status(&self, component_id: &str, status: ComponentStatus) {
-        let mut components = self.components.write().unwrap();
+        let mut components = self.components.write().unwrap_or_else(|e| e.into_inner());
         if let Some(component) = components.get_mut(component_id) {
             component.status = status;
             component.last_update = Instant::now();
@@ -1007,7 +1007,7 @@ impl FaultIsolationSystem {
 
     /// Create system state snapshot
     async fn create_system_snapshot(&self) -> SystemStateSnapshot {
-        let components = self.components.read().unwrap();
+        let components = self.components.read().unwrap_or_else(|e| e.into_inner());
 
         SystemStateSnapshot {
             snapshot_id: Uuid::new_v4().to_string(),
@@ -1030,7 +1030,7 @@ impl FaultIsolationSystem {
 
     /// Record isolation event
     async fn record_event(&self, event: IsolationEvent) {
-        let mut history = self.event_history.write().unwrap();
+        let mut history = self.event_history.write().unwrap_or_else(|e| e.into_inner());
         history.push_back(event);
         if history.len() > 100 { // Keep last 100 events
             history.pop_front();
@@ -1039,7 +1039,7 @@ impl FaultIsolationSystem {
 
     /// Update isolation metrics
     async fn update_isolation_metrics(&self, result: &IsolationResult, strategy: &IsolationStrategy, duration: Duration) {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
 
         metrics.total_isolations += 1;
         if result.success {
@@ -1068,10 +1068,10 @@ impl FaultIsolationSystem {
 
     /// Get current metrics
     pub async fn get_metrics(&self) -> IsolationMetrics {
-        let mut metrics = self.metrics.read().unwrap().clone();
+        let mut metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone();
 
         // Update active isolations count
-        let active = self.active_isolations.read().unwrap();
+        let active = self.active_isolations.read().unwrap_or_else(|e| e.into_inner());
         metrics.active_isolations = active.len() as u32;
 
         metrics
@@ -1082,7 +1082,7 @@ impl FaultIsolationSystem {
         let mut status = HashMap::new();
         status.insert("system_id".to_string(), self.system_id.clone());
 
-        let components = self.components.read().unwrap();
+        let components = self.components.read().unwrap_or_else(|e| e.into_inner());
         let total_components = components.len();
         let healthy_components = components.values()
             .filter(|c| c.status == ComponentStatus::Healthy)
@@ -1100,7 +1100,7 @@ impl FaultIsolationSystem {
             status.insert("health_percentage".to_string(), format!("{:.1}", health_percentage));
         }
 
-        let active = self.active_isolations.read().unwrap();
+        let active = self.active_isolations.read().unwrap_or_else(|e| e.into_inner());
         status.insert("active_isolations".to_string(), active.len().to_string());
 
         let metrics = self.get_metrics().await;
@@ -1135,9 +1135,9 @@ mod tests {
 
         system.register_component(component).await;
 
-        let components = system.components.read().unwrap();
+        let components = system.components.read().unwrap_or_else(|e| e.into_inner());
         assert!(components.contains_key("test_component"));
-        assert_eq!(components.get("test_component").unwrap().status, ComponentStatus::Healthy);
+        assert_eq!(components.get("test_component").unwrap_or_default().status, ComponentStatus::Healthy);
     }
 
     #[tokio::test]
@@ -1190,14 +1190,14 @@ mod tests {
         let result = system.isolate_component("faulty_component", Some(fault_info)).await;
         assert!(result.is_ok());
 
-        let isolation_result = result.unwrap();
+        let isolation_result = result.unwrap_or_default();
         assert!(isolation_result.success);
         assert!(!isolation_result.actions_taken.is_empty());
         assert_eq!(isolation_result.affected_components.len(), 1);
 
         // Verify component status was updated
-        let components = system.components.read().unwrap();
-        let component = components.get("faulty_component").unwrap();
+        let components = system.components.read().unwrap_or_else(|e| e.into_inner());
+        let component = components.get("faulty_component").unwrap_or_default();
         assert_eq!(component.status, ComponentStatus::Isolated);
     }
 
@@ -1224,13 +1224,13 @@ mod tests {
         let result = system.rollback_isolation("isolated_component").await;
         assert!(result.is_ok());
 
-        let rollback_result = result.unwrap();
+        let rollback_result = result.unwrap_or_default();
         assert!(rollback_result.success);
         assert!(!rollback_result.actions_taken.is_empty());
 
         // Verify component status was updated
-        let components = system.components.read().unwrap();
-        let component = components.get("isolated_component").unwrap();
+        let components = system.components.read().unwrap_or_else(|e| e.into_inner());
+        let component = components.get("isolated_component").unwrap_or_default();
         assert_eq!(component.status, ComponentStatus::Healthy);
     }
 
@@ -1330,9 +1330,9 @@ mod tests {
         system.register_component(isolated_component).await;
 
         let health = system.get_health_status().await;
-        assert_eq!(health.get("total_components").unwrap(), "2");
-        assert_eq!(health.get("healthy_components").unwrap(), "1");
-        assert_eq!(health.get("isolated_components").unwrap(), "1");
-        assert_eq!(health.get("health_percentage").unwrap(), "50.0");
+        assert_eq!(health.get("total_components").unwrap_or_default(), "2");
+        assert_eq!(health.get("healthy_components").unwrap_or_default(), "1");
+        assert_eq!(health.get("isolated_components").unwrap_or_default(), "1");
+        assert_eq!(health.get("health_percentage").unwrap_or_default(), "50.0");
     }
 }

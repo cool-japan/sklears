@@ -57,7 +57,7 @@ impl OptimizationLoadBalancer {
     /// Initialize load balancer with nodes
     pub fn initialize(&mut self, nodes: &[NodeInfo]) -> SklResult<()> {
         // Initialize worker loads using SIMD optimization
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         match simd_accelerator.initialize_worker_loads(nodes) {
             Ok(loads) => {
                 self.worker_loads = loads;
@@ -73,13 +73,13 @@ impl OptimizationLoadBalancer {
 
         // Initialize prediction engine
         {
-            let mut prediction_engine = self.prediction_engine.lock().unwrap();
+            let mut prediction_engine = self.prediction_engine.lock().unwrap_or_else(|e| e.into_inner());
             prediction_engine.initialize_models(nodes)?;
         }
 
         // Initialize adaptive controller
         {
-            let mut adaptive_controller = self.adaptive_controller.lock().unwrap();
+            let mut adaptive_controller = self.adaptive_controller.lock().unwrap_or_else(|e| e.into_inner());
             adaptive_controller.initialize_control_parameters(nodes)?;
         }
 
@@ -90,12 +90,12 @@ impl OptimizationLoadBalancer {
     pub fn distribute_workload(&mut self, workload: &WorkloadDistributionRequest) -> SklResult<WorkloadDistributionPlan> {
         // Use adaptive controller to select optimal strategy
         let strategy = {
-            let adaptive_controller = self.adaptive_controller.lock().unwrap();
+            let adaptive_controller = self.adaptive_controller.lock().unwrap_or_else(|e| e.into_inner());
             adaptive_controller.select_optimal_strategy(&self.worker_loads, workload)?
         };
 
         // Use SIMD-accelerated load balancing
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         let distribution_plan = match strategy {
             LoadBalancingStrategy::WeightedRoundRobin => {
                 simd_accelerator.weighted_round_robin_distribution(&self.worker_loads, workload)?
@@ -107,12 +107,12 @@ impl OptimizationLoadBalancer {
                 simd_accelerator.capacity_aware_distribution(&self.worker_loads, workload)?
             },
             LoadBalancingStrategy::PredictiveLoad => {
-                let prediction_engine = self.prediction_engine.lock().unwrap();
+                let prediction_engine = self.prediction_engine.lock().unwrap_or_else(|e| e.into_inner());
                 let predictions = prediction_engine.predict_future_loads(&self.worker_loads, Duration::from_secs(300))?;
                 simd_accelerator.predictive_distribution(&self.worker_loads, workload, &predictions)?
             },
             LoadBalancingStrategy::EnergyAware => {
-                let energy_optimizer = self.energy_optimizer.lock().unwrap();
+                let energy_optimizer = self.energy_optimizer.lock().unwrap_or_else(|e| e.into_inner());
                 let energy_costs = energy_optimizer.calculate_energy_costs(&self.worker_loads)?;
                 simd_accelerator.energy_aware_distribution(&self.worker_loads, workload, &energy_costs)?
             },
@@ -135,7 +135,7 @@ impl OptimizationLoadBalancer {
         }
 
         // Check if rebalancing is needed using SIMD
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         let imbalance_metrics = simd_accelerator.calculate_load_imbalance(&self.worker_loads)?;
 
         if imbalance_metrics.max_imbalance > self.imbalance_tolerance {
@@ -151,7 +151,7 @@ impl OptimizationLoadBalancer {
 
         // Update performance metrics
         {
-            let mut monitor = self.performance_monitor.lock().unwrap();
+            let mut monitor = self.performance_monitor.lock().unwrap_or_else(|e| e.into_inner());
             monitor.update_performance_metrics(&self.worker_loads, &imbalance_metrics)?;
         }
 
@@ -169,7 +169,7 @@ impl OptimizationLoadBalancer {
         self.worker_loads.remove(failed_node);
 
         // Use SIMD for optimal redistribution
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         let redistribution_plan = simd_accelerator.compute_failure_redistribution(
             &self.worker_loads,
             &failed_workload,
@@ -184,7 +184,7 @@ impl OptimizationLoadBalancer {
 
         // Trigger auto-scaling if needed
         {
-            let mut auto_scaling = self.auto_scaling_manager.lock().unwrap();
+            let mut auto_scaling = self.auto_scaling_manager.lock().unwrap_or_else(|e| e.into_inner());
             auto_scaling.evaluate_scaling_needs(&self.worker_loads, ScalingTrigger::NodeFailure)?;
         }
 
@@ -193,8 +193,8 @@ impl OptimizationLoadBalancer {
 
     /// Optimize resource allocation using SIMD algorithms
     pub fn optimize_resource_allocation(&mut self) -> SklResult<ResourceOptimizationResult> {
-        let resource_optimizer = self.resource_optimizer.lock().unwrap();
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let resource_optimizer = self.resource_optimizer.lock().unwrap_or_else(|e| e.into_inner());
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel resource optimization
         let optimization_result = simd_accelerator.optimize_resource_distribution(
@@ -213,8 +213,8 @@ impl OptimizationLoadBalancer {
 
     /// Predict future load distribution using SIMD-accelerated ML models
     pub fn predict_future_load(&self, time_horizon: Duration) -> SklResult<LoadPrediction> {
-        let prediction_engine = self.prediction_engine.lock().unwrap();
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let prediction_engine = self.prediction_engine.lock().unwrap_or_else(|e| e.into_inner());
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for accelerated prediction computation
         let load_trends = simd_accelerator.extract_load_trends(&self.worker_loads, &self.allocation_history)?;
@@ -225,8 +225,8 @@ impl OptimizationLoadBalancer {
 
     /// Auto-scale cluster based on load patterns
     pub fn auto_scale_cluster(&mut self) -> SklResult<AutoScalingResult> {
-        let mut auto_scaling = self.auto_scaling_manager.lock().unwrap();
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let mut auto_scaling = self.auto_scaling_manager.lock().unwrap_or_else(|e| e.into_inner());
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel scaling analysis
         let scaling_metrics = simd_accelerator.analyze_scaling_requirements(&self.worker_loads)?;
@@ -260,8 +260,8 @@ impl OptimizationLoadBalancer {
 
     /// Get comprehensive load balancing metrics
     pub fn get_load_balancing_metrics(&self) -> SklResult<LoadBalancingMetrics> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
-        let monitor = self.performance_monitor.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
+        let monitor = self.performance_monitor.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel metrics calculation
         let load_distribution = simd_accelerator.calculate_load_distribution_metrics(&self.worker_loads)?;
@@ -280,7 +280,7 @@ impl OptimizationLoadBalancer {
 
     /// Calculate overall load balancing quality
     fn calculate_load_balancing_quality(&self) -> SklResult<f64> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for quality calculation
         let quality_factors = simd_accelerator.calculate_quality_factors(&self.worker_loads)?;
@@ -390,7 +390,7 @@ impl OptimizationLoadBalancer {
 
         if loads.len() >= 8 {
             // Use SIMD for imbalance calculation
-            let simd_accelerator = self.simd_accelerator.lock().unwrap();
+            let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
             simd_accelerator.calculate_load_variance(&loads)
         } else {
             // Fallback calculation
@@ -723,7 +723,7 @@ impl LoadBalancingSimdAccelerator {
         }
 
         Ok(WorkloadDistributionPlan {
-            plan_id: format!("plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()),
+            plan_id: format!("plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()),
             request_id: request.request_id.clone(),
             assignments,
             total_workers_used: assignments.len(),
@@ -763,7 +763,7 @@ impl LoadBalancingSimdAccelerator {
         }
 
         Ok(WorkloadDistributionPlan {
-            plan_id: format!("lc_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()),
+            plan_id: format!("lc_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()),
             request_id: request.request_id.clone(),
             assignments,
             total_workers_used: assignments.len(),
@@ -810,7 +810,7 @@ impl LoadBalancingSimdAccelerator {
         }
 
         Ok(WorkloadDistributionPlan {
-            plan_id: format!("ca_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()),
+            plan_id: format!("ca_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()),
             request_id: request.request_id.clone(),
             assignments,
             total_workers_used: assignments.len(),
@@ -858,7 +858,7 @@ impl LoadBalancingSimdAccelerator {
         }
 
         Ok(WorkloadDistributionPlan {
-            plan_id: format!("pred_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()),
+            plan_id: format!("pred_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()),
             request_id: request.request_id.clone(),
             assignments,
             total_workers_used: assignments.len(),
@@ -901,7 +901,7 @@ impl LoadBalancingSimdAccelerator {
         }
 
         Ok(WorkloadDistributionPlan {
-            plan_id: format!("energy_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()),
+            plan_id: format!("energy_plan_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()),
             request_id: request.request_id.clone(),
             assignments,
             total_workers_used: assignments.len(),
@@ -952,7 +952,7 @@ impl LoadBalancingSimdAccelerator {
         }
 
         let mut sorted_loads = loads.to_vec();
-        sorted_loads.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_loads.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = sorted_loads.len() as f64;
         let sum = sorted_loads.iter().sum::<f64>();
@@ -1006,7 +1006,7 @@ impl LoadBalancingSimdAccelerator {
         }
 
         Ok(RebalancingPlan {
-            plan_id: format!("rebalance_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()),
+            plan_id: format!("rebalance_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()),
             operations,
             estimated_improvement: imbalance.max_imbalance * 0.5,
             execution_time: Duration::from_secs(10),

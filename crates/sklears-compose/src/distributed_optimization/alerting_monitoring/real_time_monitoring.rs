@@ -1347,14 +1347,14 @@ impl RealTimeMonitoringManager {
 
     /// Create a new stream
     pub fn create_stream(&self, config: StreamConfiguration) -> RealTimeResult<()> {
-        let mut streams = self.streams.write().unwrap();
+        let mut streams = self.streams.write().unwrap_or_else(|e| e.into_inner());
         streams.insert(config.stream_id.clone(), config);
         Ok(())
     }
 
     /// Subscribe to a stream
     pub fn subscribe(&self, subscription: StreamSubscription) -> RealTimeResult<()> {
-        let mut subscriptions = self.subscriptions.write().unwrap();
+        let mut subscriptions = self.subscriptions.write().unwrap_or_else(|e| e.into_inner());
         subscriptions.insert(subscription.subscription_id.clone(), subscription);
         Ok(())
     }
@@ -1362,13 +1362,13 @@ impl RealTimeMonitoringManager {
     /// Publish event to stream
     pub fn publish_event(&self, stream_id: &str, event: RealTimeEvent) -> RealTimeResult<()> {
         // Validate stream exists
-        let streams = self.streams.read().unwrap();
+        let streams = self.streams.read().unwrap_or_else(|e| e.into_inner());
         if !streams.contains_key(stream_id) {
             return Err(RealTimeError::StreamError(format!("Stream not found: {}", stream_id)));
         }
 
         // Route event
-        let event_router = self.event_router.read().unwrap();
+        let event_router = self.event_router.read().unwrap_or_else(|e| e.into_inner());
         event_router.route_event(stream_id, event)?;
 
         Ok(())
@@ -1376,13 +1376,13 @@ impl RealTimeMonitoringManager {
 
     /// Process analytics
     pub fn process_analytics(&self, stream_id: &str) -> RealTimeResult<Vec<AnalyticsResult>> {
-        let analytics_engine = self.analytics_engine.read().unwrap();
+        let analytics_engine = self.analytics_engine.read().unwrap_or_else(|e| e.into_inner());
         analytics_engine.process_stream(stream_id)
     }
 
     /// Get stream metrics
     pub fn get_stream_metrics(&self, stream_id: &str) -> RealTimeResult<StreamMetrics> {
-        let connection_manager = self.connection_manager.read().unwrap();
+        let connection_manager = self.connection_manager.read().unwrap_or_else(|e| e.into_inner());
         connection_manager.get_stream_metrics(stream_id)
     }
 }

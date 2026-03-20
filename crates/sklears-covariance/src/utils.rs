@@ -274,7 +274,11 @@ where
     // Check symmetry
     for i in 0..n_rows {
         for j in 0..n_cols {
-            if (matrix[[i, j]] - matrix[[j, i]]).abs() > F::from(1e-12).unwrap() {
+            if (matrix[[i, j]] - matrix[[j, i]]).abs()
+                > F::from(1e-12).ok_or_else(|| {
+                    SklearsError::NumericalError("numeric conversion failed".into())
+                })?
+            {
                 properties.is_symmetric = false;
                 break;
             }
@@ -439,7 +443,10 @@ where
         }
         norm = norm.sqrt();
 
-        if norm.abs() < F::from(1e-12).unwrap() {
+        if norm.abs()
+            < F::from(1e-12)
+                .ok_or_else(|| SklearsError::NumericalError("numeric conversion failed".into()))?
+        {
             return Ok(F::zero());
         }
 
@@ -497,7 +504,7 @@ where
         let trace = (0..n_features)
             .map(|i| sample_cov[[i, i]])
             .fold(F::zero(), |acc, x| acc + x);
-        let avg_var = trace / F::from(n_features).unwrap();
+        let avg_var = trace / F::from(n_features).expect("operation should succeed");
 
         let mut identity = Array2::zeros((n_features, n_features));
         for i in 0..n_features {
@@ -508,9 +515,10 @@ where
 
     // Adaptive shrinkage intensity based on sample size
     let shrinkage_intensity = if n_samples > n_features {
-        F::from(n_features as f64 / (n_samples as f64 + n_features as f64)).unwrap()
+        F::from(n_features as f64 / (n_samples as f64 + n_features as f64))
+            .expect("operation should succeed")
     } else {
-        F::from(0.8).unwrap() // High shrinkage for small sample sizes
+        F::from(0.8).expect("operation should succeed") // High shrinkage for small sample sizes
     };
 
     // Shrunk covariance = (1 - λ) * sample_cov + λ * target
@@ -637,7 +645,7 @@ impl CovarianceBenchmark {
         let total_duration = start.elapsed();
 
         // Compute statistics
-        times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mean = times.iter().sum::<f64>() / times.len() as f64;
         let median = times[times.len() / 2];
         let min = times[0];
@@ -745,7 +753,8 @@ mod tests {
     fn test_spectral_radius_estimate() {
         // Simple 2x2 matrix with known eigenvalues
         let matrix = array![[3.0, 1.0], [1.0, 2.0]];
-        let spectral_radius = spectral_radius_estimate(&matrix, 10).unwrap();
+        let spectral_radius =
+            spectral_radius_estimate(&matrix, 10).expect("operation should succeed");
 
         // The largest eigenvalue should be approximately 3.618 (golden ratio + 2.5)
         assert!(spectral_radius > 3.0);
@@ -753,7 +762,8 @@ mod tests {
 
         // Identity matrix should have spectral radius ≈ 1
         let identity = array![[1.0, 0.0], [0.0, 1.0]];
-        let identity_radius = spectral_radius_estimate(&identity, 10).unwrap();
+        let identity_radius =
+            spectral_radius_estimate(&identity, 10).expect("operation should succeed");
         assert_abs_diff_eq!(identity_radius, 1.0, epsilon = 0.1);
     }
 
@@ -778,7 +788,8 @@ mod tests {
         let n_samples = 10;
 
         // Test with default target
-        let shrunk = adaptive_shrinkage(&sample_cov, n_samples, None).unwrap();
+        let shrunk =
+            adaptive_shrinkage(&sample_cov, n_samples, None).expect("operation should succeed");
         assert_eq!(shrunk.shape(), [2, 2]);
 
         // Shrunk covariance should be closer to identity-like structure
@@ -792,7 +803,8 @@ mod tests {
 
         // Test with custom target
         let target = array![[1.0, 0.0], [0.0, 1.0]];
-        let shrunk_custom = adaptive_shrinkage(&sample_cov, n_samples, Some(&target)).unwrap();
+        let shrunk_custom = adaptive_shrinkage(&sample_cov, n_samples, Some(&target))
+            .expect("operation should succeed");
         assert_eq!(shrunk_custom.shape(), [2, 2]);
     }
 
@@ -894,7 +906,10 @@ mod tests {
 
         // Test empty matrix spectral radius
         let empty_matrix = Array2::<f64>::zeros((0, 0));
-        assert_eq!(spectral_radius_estimate(&empty_matrix, 10).unwrap(), 0.0);
+        assert_eq!(
+            spectral_radius_estimate(&empty_matrix, 10).expect("operation should succeed"),
+            0.0
+        );
     }
 
     #[test]

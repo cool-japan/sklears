@@ -13,7 +13,7 @@ use sklears_core::{
 use std::marker::PhantomData;
 
 // Import from scirs2
-use scirs2_cluster::meanshift::{mean_shift, MeanShiftOptions};
+use scirs2_cluster::meanshift::{mean_shift, KernelType as MsKernelType, MeanShiftOptions};
 
 /// Bandwidth estimation methods for Mean Shift
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -240,14 +240,14 @@ impl<X, Y> MeanShift<X, Y> {
             }
 
             // Sort and get k-th nearest neighbor distance
-            point_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            point_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             if let Some(&kth_dist) = point_distances.get(k - 1) {
                 distances.push(kth_dist);
             }
         }
 
         // Use median of k-th nearest neighbor distances
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_idx = distances.len() / 2;
         Ok(distances[median_idx])
     }
@@ -282,7 +282,7 @@ impl<X, Y> MeanShift<X, Y> {
             }
 
             // Sort and get k-th nearest neighbor distance
-            distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             if let Some(&kth_dist) = distances.get(k - 1) {
                 // Local density estimation (inverse of volume)
                 let volume = kth_dist.powf(data.ncols() as f64);
@@ -306,7 +306,7 @@ impl<X, Y> MeanShift<X, Y> {
 
         // Use global bandwidth scaled by median adaptive factor
         let global_bandwidth = self.scott_bandwidth(data)?;
-        adaptive_bandwidths.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        adaptive_bandwidths.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_idx = adaptive_bandwidths.len() / 2;
         let median_factor = adaptive_bandwidths[median_idx];
 
@@ -353,6 +353,8 @@ impl<X: Send + Sync, Y: Send + Sync> Fit<ArrayView2<'_, Float>, ArrayView1<'_, F
             min_bin_freq: self.config.min_bin_freq,
             cluster_all: self.config.cluster_all,
             max_iter: self.config.max_iter,
+            kernel: MsKernelType::Gaussian,
+            bandwidth_estimator: Default::default(),
         };
 
         // Run mean shift using scirs2
@@ -417,7 +419,7 @@ mod tests {
         let model: MeanShift = MeanShift::new()
             .bandwidth(2.0)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.n_clusters() > 0);
         assert_eq!(model.labels().len(), x.nrows());
@@ -438,7 +440,7 @@ mod tests {
         let model_scott: MeanShift = MeanShift::new()
             .bandwidth_method(BandwidthMethod::Scott)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model_scott.n_clusters() > 0);
         assert_eq!(model_scott.labels().len(), x.nrows());
@@ -447,7 +449,7 @@ mod tests {
         let model_silverman: MeanShift = MeanShift::new()
             .bandwidth_method(BandwidthMethod::Silverman)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model_silverman.n_clusters() > 0);
         assert_eq!(model_silverman.labels().len(), x.nrows());
@@ -456,7 +458,7 @@ mod tests {
         let model_knn: MeanShift = MeanShift::new()
             .bandwidth_method(BandwidthMethod::KNearestNeighbors { k: 3 })
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model_knn.n_clusters() > 0);
         assert_eq!(model_knn.labels().len(), x.nrows());
@@ -476,19 +478,25 @@ mod tests {
         let model: MeanShift = MeanShift::new();
 
         // Test Scott's bandwidth
-        let scott_bw = model.scott_bandwidth(&x).unwrap();
+        let scott_bw = model.scott_bandwidth(&x).expect("operation should succeed");
         assert!(scott_bw > 0.0);
 
         // Test Silverman's bandwidth
-        let silverman_bw = model.silverman_bandwidth(&x).unwrap();
+        let silverman_bw = model
+            .silverman_bandwidth(&x)
+            .expect("operation should succeed");
         assert!(silverman_bw > 0.0);
 
         // Test k-NN bandwidth
-        let knn_bw = model.knn_bandwidth(&x, 2).unwrap();
+        let knn_bw = model
+            .knn_bandwidth(&x, 2)
+            .expect("operation should succeed");
         assert!(knn_bw > 0.0);
 
         // Test local adaptive bandwidth
-        let adaptive_bw = model.local_adaptive_bandwidth(&x, 2, 0.5).unwrap();
+        let adaptive_bw = model
+            .local_adaptive_bandwidth(&x, 2, 0.5)
+            .expect("operation should succeed");
         assert!(adaptive_bw > 0.0);
     }
 
@@ -508,9 +516,13 @@ mod tests {
 
         let model: MeanShift = MeanShift::new();
 
-        let scott_bw = model.scott_bandwidth(&x).unwrap();
-        let silverman_bw = model.silverman_bandwidth(&x).unwrap();
-        let knn_bw = model.knn_bandwidth(&x, 3).unwrap();
+        let scott_bw = model.scott_bandwidth(&x).expect("operation should succeed");
+        let silverman_bw = model
+            .silverman_bandwidth(&x)
+            .expect("operation should succeed");
+        let knn_bw = model
+            .knn_bandwidth(&x, 3)
+            .expect("operation should succeed");
 
         // All methods should produce positive bandwidths
         assert!(scott_bw > 0.0);

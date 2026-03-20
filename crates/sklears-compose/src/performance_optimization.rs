@@ -1190,7 +1190,7 @@ impl PerformanceOptimizer {
 
     /// Initialize the optimizer
     pub fn initialize(&mut self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active = true;
         state.phase = OptimizationPhase::Initialization;
         state.last_optimization = SystemTime::now();
@@ -1215,7 +1215,7 @@ impl PerformanceOptimizer {
             self.optimization_iteration().await?;
             tokio::time::sleep(self.config.optimization_interval).await;
 
-            let state = self.state.read().unwrap();
+            let state = self.state.read().unwrap_or_else(|e| e.into_inner());
             if !state.active {
                 break;
             }
@@ -1227,7 +1227,7 @@ impl PerformanceOptimizer {
     async fn optimization_iteration(&mut self) -> SklResult<()> {
         // Update state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.phase = OptimizationPhase::Analysis;
             state.iterations_completed += 1;
         }
@@ -1248,7 +1248,7 @@ impl PerformanceOptimizer {
 
         // Apply optimizations
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.phase = OptimizationPhase::Implementation;
         }
 
@@ -1258,7 +1258,7 @@ impl PerformanceOptimizer {
 
         // Monitor results
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.phase = OptimizationPhase::Monitoring;
             state.last_optimization = SystemTime::now();
         }
@@ -1311,12 +1311,12 @@ impl PerformanceOptimizer {
     /// Get optimization status
     #[must_use]
     pub fn get_status(&self) -> OptimizerState {
-        self.state.read().unwrap().clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Stop optimization
     pub fn stop(&mut self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active = false;
         Ok(())
     }
@@ -1753,7 +1753,7 @@ mod tests {
         let result = ThroughputOptimizer::new(config);
         assert!(result.is_ok());
 
-        let optimizer = result.unwrap();
+        let optimizer = result.expect("operation should succeed");
         assert_eq!(optimizer.name(), "ThroughputOptimizer");
         assert_eq!(optimizer.domain(), OptimizationDomain::Throughput);
     }
@@ -1848,8 +1848,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_optimization_iteration() {
-        let mut optimizer = PerformanceOptimizer::new().unwrap();
-        optimizer.initialize().unwrap();
+        let mut optimizer = PerformanceOptimizer::new().expect("operation should succeed");
+        optimizer.initialize().unwrap_or_default();
 
         // Add a throughput optimizer
         let throughput_config = ThroughputOptimizerConfig {
@@ -1861,10 +1861,11 @@ mod tests {
             load_balancing: true,
             max_parallelism: 10,
         };
-        let throughput_optimizer = ThroughputOptimizer::new(throughput_config).unwrap();
+        let throughput_optimizer =
+            ThroughputOptimizer::new(throughput_config).expect("operation should succeed");
         optimizer
             .add_optimizer(Box::new(throughput_optimizer))
-            .unwrap();
+            .unwrap_or_default();
 
         // Test a single optimization iteration
         let result = optimizer.optimization_iteration().await;

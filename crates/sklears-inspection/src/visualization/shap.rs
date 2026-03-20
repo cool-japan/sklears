@@ -191,7 +191,7 @@ mod tests {
             &config,
             ShapPlotType::Summary,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.shap_values.shape(), &[2, 3]);
         assert_eq!(plot.feature_names.len(), 3);
@@ -227,7 +227,7 @@ mod tests {
             (0, 1, 2),
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.x_values.len(), 2);
         assert_eq!(plot.y_values.len(), 2);

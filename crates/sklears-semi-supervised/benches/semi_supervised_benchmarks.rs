@@ -56,7 +56,9 @@ fn bench_label_propagation(c: &mut Criterion) {
 
         // Benchmark prediction
         let lp = LabelPropagation::new().n_neighbors(5).max_iter(10);
-        let fitted = lp.fit(&X.view(), &y.view()).unwrap();
+        let fitted = lp
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("predict", n_samples), n_samples, |b, _| {
             b.iter(|| {
@@ -147,7 +149,9 @@ fn bench_method_comparison(c: &mut Criterion) {
     group.bench_function("label_propagation", |b| {
         b.iter(|| {
             let lp = LabelPropagation::new().n_neighbors(5).max_iter(10);
-            let fitted = lp.fit(&X.view(), &y.view()).unwrap();
+            let fitted = lp
+                .fit(&X.view(), &y.view())
+                .expect("operation should succeed");
             let _ = fitted.predict(&X.view());
         });
     });
@@ -155,7 +159,9 @@ fn bench_method_comparison(c: &mut Criterion) {
     group.bench_function("label_spreading", |b| {
         b.iter(|| {
             let ls = LabelSpreading::new().n_neighbors(5).alpha(0.2).max_iter(10);
-            let fitted = ls.fit(&X.view(), &y.view()).unwrap();
+            let fitted = ls
+                .fit(&X.view(), &y.view())
+                .expect("operation should succeed");
             let _ = fitted.predict(&X.view());
         });
     });
@@ -163,7 +169,9 @@ fn bench_method_comparison(c: &mut Criterion) {
     group.bench_function("self_training", |b| {
         b.iter(|| {
             let st = SelfTrainingClassifier::new().threshold(0.75).max_iter(5);
-            let fitted = st.fit(&X.view(), &y.view()).unwrap();
+            let fitted = st
+                .fit(&X.view(), &y.view())
+                .expect("operation should succeed");
             let _ = fitted.predict(&X.view());
         });
     });
@@ -184,7 +192,9 @@ fn bench_scalability(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     let lp = LabelPropagation::new().n_neighbors(5).max_iter(5);
-                    let fitted = lp.fit(&X.view(), &y.view()).unwrap();
+                    let fitted = lp
+                        .fit(&X.view(), &y.view())
+                        .expect("operation should succeed");
                     let _ = fitted.predict(&X.view());
                 });
             },

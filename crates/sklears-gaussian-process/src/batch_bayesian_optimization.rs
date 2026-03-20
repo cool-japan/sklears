@@ -332,7 +332,7 @@ impl BatchBayesianOptimizer {
             let hallucinated_value = prediction[[0]];
 
             // Update the optimizer with the hallucinated observation
-            let new_X = Array2::from_shape_vec((1, next_point.len()), next_point.to_vec()).unwrap();
+            let new_X = Array2::from_shape_vec((1, next_point.len()), next_point.to_vec()).expect("shape and data length should match");
             let new_y = Array1::from_vec(vec![hallucinated_value]);
             current_optimizer.add_observation(&new_X, &new_y)?;
         }
@@ -439,7 +439,7 @@ impl BatchBayesianOptimizer {
             acquisition_values[i] = acq_value;
 
             // Add observation with the constant liar value
-            let new_X = Array2::from_shape_vec((1, next_point.len()), next_point.to_vec()).unwrap();
+            let new_X = Array2::from_shape_vec((1, next_point.len()), next_point.to_vec()).expect("shape and data length should match");
             let new_y = Array1::from_vec(vec![liar_value]);
             current_optimizer.add_observation(&new_X, &new_y)?;
         }
@@ -896,13 +896,13 @@ mod tests {
 
         let euclidean = optimizer
             .compute_distance(&point1, &point2, &DistanceMetric::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
         let manhattan = optimizer
             .compute_distance(&point1, &point2, &DistanceMetric::Manhattan)
-            .unwrap();
+            .expect("operation should succeed");
         let cosine = optimizer
             .compute_distance(&point1, &point2, &DistanceMetric::Cosine)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(euclidean > 0.0);
         assert!(manhattan > 0.0);
@@ -914,7 +914,7 @@ mod tests {
         let optimizer = BatchBayesianOptimizer::builder().batch_size(3).build();
 
         let bounds = array![[0.0, 1.0], [-1.0, 1.0]];
-        let batch = optimizer.generate_random_batch(&bounds, 3).unwrap();
+        let batch = optimizer.generate_random_batch(&bounds, 3).expect("operation should succeed");
 
         assert_eq!(batch.shape(), &[3, 2]);
 
@@ -934,14 +934,14 @@ mod tests {
 
         let diversity = optimizer
             .compute_diversity_score(&batch, &DistanceMetric::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(diversity > 0.0);
 
         // Single point should have zero diversity
         let single_point = array![[0.0, 0.0]];
         let single_diversity = optimizer
             .compute_diversity_score(&single_point, &DistanceMetric::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(single_diversity, 0.0);
     }
 
@@ -1070,14 +1070,14 @@ mod tests {
 
         let penalty = optimizer
             .compute_diversity_penalty(&point, &existing_points, &DistanceMetric::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(penalty > 0.0);
 
         // Empty existing points should give zero penalty
         let empty_points = Array2::zeros((0, 2));
         let zero_penalty = optimizer
             .compute_diversity_penalty(&point, &empty_points, &DistanceMetric::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(zero_penalty, 0.0);
     }
 }

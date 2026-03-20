@@ -5,8 +5,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use std::f64::consts::PI;
 pub struct BenchmarkDatasets;
 
@@ -47,8 +47,8 @@ impl BenchmarkDatasets {
         let mut colors = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let t: f64 = 1.5 * PI * (1.0 + 2.0 * rng.gen::<f64>());
-            let height: f64 = 21.0 * rng.gen::<f64>();
+            let t: f64 = 1.5 * PI * (1.0 + 2.0 * rng.random::<f64>());
+            let height: f64 = 21.0 * rng.random::<f64>();
 
             data[[i, 0]] = t * t.cos() + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);
             data[[i, 1]] = height + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);
@@ -82,8 +82,8 @@ impl BenchmarkDatasets {
         let mut colors = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let t: f64 = 3.0 * PI * rng.gen::<f64>();
-            let height: f64 = 2.0 * rng.gen::<f64>();
+            let t: f64 = 3.0 * PI * rng.random::<f64>();
+            let height: f64 = 2.0 * rng.random::<f64>();
 
             data[[i, 0]] = t.sin() + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);
             data[[i, 1]] = height + noise * rng.sample::<f64, _>(scirs2_core::StandardNormal);
@@ -122,8 +122,8 @@ impl BenchmarkDatasets {
         let mut colors = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let x = rng.gen_range(-3.0..3.0);
-            let y = rng.gen_range(-3.0..3.0);
+            let x = rng.random_range(-3.0..3.0);
+            let y = rng.random_range(-3.0..3.0);
 
             // Twin peaks function
             let z = 3.0_f64 * (1.0_f64 - x).powi(2) * (-x.powi(2) - (y + 1.0_f64).powi(2)).exp()
@@ -167,8 +167,8 @@ impl BenchmarkDatasets {
 
         for i in 0..n_samples {
             // Generate points on sphere, but exclude a section
-            let mut phi = rng.gen_range(0.0..2.0 * PI);
-            let mut theta = rng.gen_range(0.0..PI);
+            let mut phi = rng.random_range(0.0..2.0 * PI);
+            let mut theta = rng.random_range(0.0..PI);
 
             // Remove a "slice" from the sphere
             while phi > PI / 4.0
@@ -176,8 +176,8 @@ impl BenchmarkDatasets {
                 && theta > PI / 3.0
                 && theta < 2.0 * PI / 3.0
             {
-                phi = rng.gen_range(0.0..2.0 * PI);
-                theta = rng.gen_range(0.0..PI);
+                phi = rng.random_range(0.0..2.0 * PI);
+                theta = rng.random_range(0.0..PI);
             }
 
             let radius = 1.0 + noise * 0.1 * rng.sample::<f64, _>(scirs2_core::StandardNormal);
@@ -221,8 +221,8 @@ impl BenchmarkDatasets {
         let mut colors = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let u = rng.gen_range(0.0..2.0 * PI); // Parameter along the strip
-            let v = rng.gen_range(-1.0..1.0); // Parameter across the strip
+            let u = rng.random_range(0.0..2.0 * PI); // Parameter along the strip
+            let v = rng.random_range(-1.0..1.0); // Parameter across the strip
 
             let radius = 1.0 + v * (u / 2.0).cos();
 
@@ -269,8 +269,8 @@ impl BenchmarkDatasets {
         let mut colors = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
-            let u = rng.gen_range(0.0..2.0 * PI); // Major angle
-            let v = rng.gen_range(0.0..2.0 * PI); // Minor angle
+            let u = rng.random_range(0.0..2.0 * PI); // Major angle
+            let v = rng.random_range(0.0..2.0 * PI); // Minor angle
 
             let x = (major_radius + minor_radius * v.cos()) * u.cos();
             let y = (major_radius + minor_radius * v.cos()) * u.sin();
@@ -423,8 +423,8 @@ impl BenchmarkDatasets {
                 // Generate sphere
                 let mut data = Array2::zeros((n_samples, 3));
                 for i in 0..n_samples {
-                    let phi = rng.gen_range(0.0..2.0 * PI);
-                    let theta = rng.gen_range(0.0..PI);
+                    let phi = rng.random_range(0.0..2.0 * PI);
+                    let theta = rng.random_range(0.0..PI);
 
                     data[[i, 0]] = theta.sin() * phi.cos();
                     data[[i, 1]] = theta.sin() * phi.sin();
@@ -500,7 +500,7 @@ impl PerformanceEvaluator {
                     orig_distances.push((dist, j));
                 }
             }
-            orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            orig_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let orig_neighbors: Vec<usize> =
                 orig_distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
@@ -513,7 +513,8 @@ impl PerformanceEvaluator {
                     embed_distances.push((dist, j));
                 }
             }
-            embed_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            embed_distances
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let embed_neighbors: Vec<usize> = embed_distances
                 .iter()
                 .take(k)
@@ -757,8 +758,8 @@ mod tests {
     #[test]
     fn test_trustworthiness_perfect_embedding() {
         // Create identical embeddings - should have perfect trustworthiness
-        let original =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]).unwrap();
+        let original = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0])
+            .expect("operation should succeed");
         let embedded = original.clone();
 
         let trust = PerformanceEvaluator::trustworthiness(&original, &embedded, 2);

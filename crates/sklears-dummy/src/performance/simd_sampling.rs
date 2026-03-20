@@ -68,7 +68,7 @@ pub fn simd_weighted_sampling(weights: &[f64], n_samples: usize) -> Vec<usize> {
         let target = sample * total_weight;
         // Binary search for the index
         let index = cumulative_weights
-            .binary_search_by(|&x| x.partial_cmp(&target).unwrap())
+            .binary_search_by(|&x| x.partial_cmp(&target).expect("operation should succeed"))
             .unwrap_or_else(|x| x);
         indices.push(index.min(weights.len() - 1));
     }

@@ -1179,7 +1179,7 @@ mod tests {
         let X = arr2(&[[1.0, 2.0], [2.0, 4.0], [3.0, 6.0], [4.0, 8.0]]);
         let y = arr1(&[1.0, 2.0, 3.0, 4.0]);
 
-        let fitted = engineer.fit(&X, &y).unwrap();
+        let fitted = engineer.fit(&X, &y).expect("model fitting should succeed");
         assert!(!fitted.selected_features().is_empty());
         assert!(!fitted.feature_names().is_empty());
     }
@@ -1188,14 +1188,16 @@ mod tests {
     fn test_mathematical_functions() {
         let arr = arr1(&[1.0, 2.0, 3.0, 4.0]);
 
-        let sqrt_result = apply_math_function(&arr, MathFunction::Sqrt).unwrap();
+        let sqrt_result =
+            apply_math_function(&arr, MathFunction::Sqrt).expect("operation should succeed");
         let expected_sqrt = arr1(&[1.0, 2.0_f64.sqrt(), 3.0_f64.sqrt(), 2.0]);
 
         for (a, b) in sqrt_result.iter().zip(expected_sqrt.iter()) {
             assert_relative_eq!(a, b, epsilon = 1e-10);
         }
 
-        let square_result = apply_math_function(&arr, MathFunction::Square).unwrap();
+        let square_result =
+            apply_math_function(&arr, MathFunction::Square).expect("operation should succeed");
         let expected_square = arr1(&[1.0, 4.0, 9.0, 16.0]);
 
         for (a, b) in square_result.iter().zip(expected_square.iter()) {
@@ -1208,11 +1210,11 @@ mod tests {
         let x = arr1(&[1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = arr1(&[2.0, 4.0, 6.0, 8.0, 10.0]); // Perfect positive correlation
 
-        let corr = calculate_correlation(&x, &y).unwrap();
+        let corr = calculate_correlation(&x, &y).expect("operation should succeed");
         assert_relative_eq!(corr, 1.0, epsilon = 1e-10);
 
         let z = arr1(&[5.0, 4.0, 3.0, 2.0, 1.0]); // Perfect negative correlation
-        let corr_neg = calculate_correlation(&x, &z).unwrap();
+        let corr_neg = calculate_correlation(&x, &z).expect("operation should succeed");
         assert_relative_eq!(corr_neg, -1.0, epsilon = 1e-10);
     }
 
@@ -1220,13 +1222,19 @@ mod tests {
     fn test_feature_scaling() {
         let X = arr2(&[[1.0, 10.0], [2.0, 20.0], [3.0, 30.0]]);
 
-        let scaled = scale_features(&X).unwrap();
+        let scaled = scale_features(&X).expect("operation should succeed");
 
         // Check that each column has approximately zero mean and unit variance
         for i in 0..scaled.ncols() {
             let col = scaled.column(i);
-            let mean = col.mean().unwrap();
-            let std = col.mapv(|x| (x - mean).powi(2)).mean().unwrap().sqrt();
+            let mean = col
+                .mean()
+                .expect("array should have elements for mean computation");
+            let std = col
+                .mapv(|x| (x - mean).powi(2))
+                .mean()
+                .expect("array should have elements for mean computation")
+                .sqrt();
 
             assert_relative_eq!(mean, 0.0, epsilon = 1e-10);
             assert_relative_eq!(std, 1.0, epsilon = 1e-10);
@@ -1243,11 +1251,15 @@ mod tests {
         let X_train = arr2(&[[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]]);
         let y_train = arr1(&[1.0, 2.0, 3.0]);
 
-        let fitted = engineer.fit(&X_train, &y_train).unwrap();
+        let fitted = engineer
+            .fit(&X_train, &y_train)
+            .expect("model fitting should succeed");
 
         let X_test = arr2(&[[4.0, 8.0], [5.0, 10.0]]);
 
-        let result = fitted.transform(&X_test).unwrap();
+        let result = fitted
+            .transform(&X_test)
+            .expect("transformation should succeed");
         assert_eq!(result.nrows(), 2);
         assert!(!result.is_empty());
     }
@@ -1257,7 +1269,8 @@ mod tests {
         // Test empty arrays
         let config = AutoFeatureConfig::new();
         let engineer = AutoFeatureEngineer::new(config);
-        let empty_X = Array2::from_shape_vec((0, 0), vec![]).unwrap();
+        let empty_X =
+            Array2::from_shape_vec((0, 0), vec![]).expect("shape and data length should match");
         let empty_y = Array1::from_vec(vec![]);
         assert!(engineer.fit(&empty_X, &empty_y).is_err());
 

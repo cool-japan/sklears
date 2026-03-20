@@ -222,7 +222,7 @@ mod tests {
     #[cfg(not(feature = "gpu"))]
     fn test_gpu_not_available_without_feature() {
         let config = GpuConfig::default();
-        let mut ctx = GpuContext::new(config).unwrap();
+        let mut ctx = GpuContext::new(config).expect("operation should succeed");
         assert!(ctx.initialize().is_err());
         assert!(!ctx.is_available());
     }
@@ -235,7 +235,7 @@ mod tests {
             async_operations: false,
             memory_pool_mb: 2048,
         };
-        let ctx = GpuContext::new(config).unwrap();
+        let ctx = GpuContext::new(config).expect("operation should succeed");
         assert_eq!(ctx.config().device_id, 1);
         assert_eq!(ctx.config().max_batch_size, 5000);
         assert!(!ctx.config().async_operations);

@@ -1,8 +1,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::traits::{Fit, Predict, Untrained};
 use sklears_dummy::{
     ClassifierStrategy, DummyClassifier, DummyRegressor, OnlineClassificationStrategy,
@@ -62,21 +62,21 @@ fn bench_dummy_regressor_fit(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("mean", size), size, |b, &_| {
             b.iter(|| {
                 let regressor = DummyRegressor::new(RegressorStrategy::Mean);
-                black_box(regressor.fit(&x, &y).unwrap());
+                black_box(regressor.fit(&x, &y).expect("model fitting should succeed"));
             });
         });
 
         group.bench_with_input(BenchmarkId::new("median", size), size, |b, &_| {
             b.iter(|| {
                 let regressor = DummyRegressor::new(RegressorStrategy::Median);
-                black_box(regressor.fit(&x, &y).unwrap());
+                black_box(regressor.fit(&x, &y).expect("model fitting should succeed"));
             });
         });
 
         group.bench_with_input(BenchmarkId::new("quantile", size), size, |b, &_| {
             b.iter(|| {
                 let regressor = DummyRegressor::new(RegressorStrategy::Quantile(0.75));
-                black_box(regressor.fit(&x, &y).unwrap());
+                black_box(regressor.fit(&x, &y).expect("model fitting should succeed"));
             });
         });
 
@@ -86,7 +86,7 @@ fn bench_dummy_regressor_fit(c: &mut Criterion) {
                     mean: Some(0.0),
                     std: Some(1.0),
                 });
-                black_box(regressor.fit(&x, &y).unwrap());
+                black_box(regressor.fit(&x, &y).expect("model fitting should succeed"));
             });
         });
     }
@@ -107,32 +107,44 @@ fn bench_dummy_regressor_predict(c: &mut Criterion) {
         // Pre-fit models
         let mean_fitted = DummyRegressor::new(RegressorStrategy::Mean)
             .fit(&x_train, &y_train)
-            .unwrap();
+            .expect("operation should succeed");
         let median_fitted = DummyRegressor::new(RegressorStrategy::Median)
             .fit(&x_train, &y_train)
-            .unwrap();
+            .expect("operation should succeed");
         let normal_fitted = DummyRegressor::new(RegressorStrategy::Normal {
             mean: Some(0.0),
             std: Some(1.0),
         })
         .fit(&x_train, &y_train)
-        .unwrap();
+        .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("mean", size), size, |b, &_| {
             b.iter(|| {
-                black_box(mean_fitted.predict(&x_test).unwrap());
+                black_box(
+                    mean_fitted
+                        .predict(&x_test)
+                        .expect("prediction should succeed"),
+                );
             });
         });
 
         group.bench_with_input(BenchmarkId::new("median", size), size, |b, &_| {
             b.iter(|| {
-                black_box(median_fitted.predict(&x_test).unwrap());
+                black_box(
+                    median_fitted
+                        .predict(&x_test)
+                        .expect("prediction should succeed"),
+                );
             });
         });
 
         group.bench_with_input(BenchmarkId::new("normal", size), size, |b, &_| {
             b.iter(|| {
-                black_box(normal_fitted.predict(&x_test).unwrap());
+                black_box(
+                    normal_fitted
+                        .predict(&x_test)
+                        .expect("prediction should succeed"),
+                );
             });
         });
     }
@@ -152,21 +164,33 @@ fn bench_dummy_classifier_fit(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("most_frequent", size), size, |b, &_| {
             b.iter(|| {
                 let classifier = DummyClassifier::new(ClassifierStrategy::MostFrequent);
-                black_box(classifier.fit(&x, &y).unwrap());
+                black_box(
+                    classifier
+                        .fit(&x, &y)
+                        .expect("model fitting should succeed"),
+                );
             });
         });
 
         group.bench_with_input(BenchmarkId::new("stratified", size), size, |b, &_| {
             b.iter(|| {
                 let classifier = DummyClassifier::new(ClassifierStrategy::Stratified);
-                black_box(classifier.fit(&x, &y).unwrap());
+                black_box(
+                    classifier
+                        .fit(&x, &y)
+                        .expect("model fitting should succeed"),
+                );
             });
         });
 
         group.bench_with_input(BenchmarkId::new("uniform", size), size, |b, &_| {
             b.iter(|| {
                 let classifier = DummyClassifier::new(ClassifierStrategy::Uniform);
-                black_box(classifier.fit(&x, &y).unwrap());
+                black_box(
+                    classifier
+                        .fit(&x, &y)
+                        .expect("model fitting should succeed"),
+                );
             });
         });
     }
@@ -187,29 +211,41 @@ fn bench_dummy_classifier_predict(c: &mut Criterion) {
         // Pre-fit models
         let most_frequent_fitted = DummyClassifier::new(ClassifierStrategy::MostFrequent)
             .fit(&x_train, &y_train)
-            .unwrap();
+            .expect("operation should succeed");
         let stratified_fitted = DummyClassifier::new(ClassifierStrategy::Stratified)
             .fit(&x_train, &y_train)
-            .unwrap();
+            .expect("operation should succeed");
         let uniform_fitted = DummyClassifier::new(ClassifierStrategy::Uniform)
             .fit(&x_train, &y_train)
-            .unwrap();
+            .expect("operation should succeed");
 
         group.bench_with_input(BenchmarkId::new("most_frequent", size), size, |b, &_| {
             b.iter(|| {
-                black_box(most_frequent_fitted.predict(&x_test).unwrap());
+                black_box(
+                    most_frequent_fitted
+                        .predict(&x_test)
+                        .expect("prediction should succeed"),
+                );
             });
         });
 
         group.bench_with_input(BenchmarkId::new("stratified", size), size, |b, &_| {
             b.iter(|| {
-                black_box(stratified_fitted.predict(&x_test).unwrap());
+                black_box(
+                    stratified_fitted
+                        .predict(&x_test)
+                        .expect("prediction should succeed"),
+                );
             });
         });
 
         group.bench_with_input(BenchmarkId::new("uniform", size), size, |b, &_| {
             b.iter(|| {
-                black_box(uniform_fitted.predict(&x_test).unwrap());
+                black_box(
+                    uniform_fitted
+                        .predict(&x_test)
+                        .expect("prediction should succeed"),
+                );
             });
         });
     }
@@ -233,7 +269,9 @@ fn bench_online_learning(c: &mut Criterion) {
                         drift_detection: None,
                     });
                 for &target in y.iter() {
-                    regressor.partial_fit(target).unwrap();
+                    regressor
+                        .partial_fit(target)
+                        .expect("operation should succeed");
                     black_box(());
                 }
             });
@@ -244,7 +282,9 @@ fn bench_online_learning(c: &mut Criterion) {
                 let mut regressor: OnlineDummyRegressor<Untrained> =
                     OnlineDummyRegressor::new(OnlineStrategy::EWMA { alpha: 0.1 });
                 for &target in y.iter() {
-                    regressor.partial_fit(target).unwrap();
+                    regressor
+                        .partial_fit(target)
+                        .expect("operation should succeed");
                     black_box(());
                 }
             });
@@ -258,7 +298,9 @@ fn bench_online_learning(c: &mut Criterion) {
                     let mut regressor: OnlineDummyRegressor<Untrained> =
                         OnlineDummyRegressor::new(OnlineStrategy::ForgettingFactor { lambda: 0.9 });
                     for &target in y.iter() {
-                        regressor.partial_fit(target).unwrap();
+                        regressor
+                            .partial_fit(target)
+                            .expect("operation should succeed");
                         black_box(());
                     }
                 });
@@ -330,7 +372,9 @@ fn bench_memory_usage(c: &mut Criterion) {
                         .with_window_strategy(sklears_dummy::WindowStrategy::FixedWindow(size));
 
                     for &target in y.iter() {
-                        regressor.partial_fit(target).unwrap();
+                        regressor
+                            .partial_fit(target)
+                            .expect("operation should succeed");
                         black_box(());
                     }
                 });
@@ -349,7 +393,9 @@ fn bench_memory_usage(c: &mut Criterion) {
                         });
 
                     for &target in y.iter() {
-                        regressor.partial_fit(target).unwrap();
+                        regressor
+                            .partial_fit(target)
+                            .expect("operation should succeed");
                         black_box(());
                     }
                 });
@@ -375,8 +421,8 @@ fn bench_feature_scaling(c: &mut Criterion) {
             |b, &_| {
                 b.iter(|| {
                     let regressor = DummyRegressor::new(RegressorStrategy::Mean);
-                    let fitted = regressor.fit(&x, &y).unwrap();
-                    black_box(fitted.predict(&x).unwrap());
+                    let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+                    black_box(fitted.predict(&x).expect("prediction should succeed"));
                 });
             },
         );
@@ -397,7 +443,7 @@ fn bench_batch_vs_online(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("batch_mean", size), size, |b, &_| {
             b.iter(|| {
                 let regressor = DummyRegressor::new(RegressorStrategy::Mean);
-                black_box(regressor.fit(&x, &y).unwrap());
+                black_box(regressor.fit(&x, &y).expect("model fitting should succeed"));
             });
         });
 
@@ -408,7 +454,9 @@ fn bench_batch_vs_online(c: &mut Criterion) {
                         drift_detection: None,
                     });
                 for &target in y.iter() {
-                    regressor.partial_fit(target).unwrap();
+                    regressor
+                        .partial_fit(target)
+                        .expect("operation should succeed");
                     black_box(());
                 }
             });
@@ -437,7 +485,9 @@ fn bench_drift_detection(c: &mut Criterion) {
                             drift_detection: None,
                         });
                     for &target in y.iter() {
-                        regressor.partial_fit(target).unwrap();
+                        regressor
+                            .partial_fit(target)
+                            .expect("operation should succeed");
                         black_box(());
                     }
                 });
@@ -454,7 +504,9 @@ fn bench_drift_detection(c: &mut Criterion) {
                             drift_detection: Some(sklears_dummy::DriftDetectionMethod::ADWIN),
                         });
                     for &target in y.iter() {
-                        regressor.partial_fit(target).unwrap();
+                        regressor
+                            .partial_fit(target)
+                            .expect("operation should succeed");
                         black_box(());
                     }
                 });
@@ -471,7 +523,9 @@ fn bench_drift_detection(c: &mut Criterion) {
                             drift_detection: Some(sklears_dummy::DriftDetectionMethod::PageHinkley),
                         });
                     for &target in y.iter() {
-                        regressor.partial_fit(target).unwrap();
+                        regressor
+                            .partial_fit(target)
+                            .expect("operation should succeed");
                         black_box(());
                     }
                 });

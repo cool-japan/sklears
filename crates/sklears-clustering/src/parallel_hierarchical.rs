@@ -131,7 +131,10 @@ impl ParallelClusteringState {
 
     /// Get the number of active clusters
     pub fn num_active_clusters(&self) -> usize {
-        self.active_clusters.read().unwrap().len()
+        self.active_clusters
+            .read()
+            .expect("operation should succeed")
+            .len()
     }
 
     /// Merge two clusters
@@ -141,9 +144,18 @@ impl ParallelClusteringState {
         cluster_b: usize,
         distance: Float,
     ) -> Result<usize> {
-        let mut clusters = self.active_clusters.write().unwrap();
-        let mut next_id = self.next_cluster_id.lock().unwrap();
-        let mut linkage = self.linkage_matrix.lock().unwrap();
+        let mut clusters = self
+            .active_clusters
+            .write()
+            .expect("operation should succeed");
+        let mut next_id = self
+            .next_cluster_id
+            .lock()
+            .expect("operation should succeed");
+        let mut linkage = self
+            .linkage_matrix
+            .lock()
+            .expect("operation should succeed");
 
         // Get cluster members
         let members_a = clusters.remove(&cluster_a).ok_or_else(|| {
@@ -372,7 +384,10 @@ impl<State: Send + Sync> ParallelHierarchicalClustering<State> {
 
         // Compute distance matrix in parallel
         let distance_matrix = self.compute_distance_matrix_parallel(x)?;
-        *state.distance_matrix.write().unwrap() = distance_matrix;
+        *state
+            .distance_matrix
+            .write()
+            .expect("operation should succeed") = distance_matrix;
 
         // Perform hierarchical clustering with parallel updates
         let target_clusters = self.config.base_config.n_clusters.unwrap_or(1);
@@ -393,7 +408,10 @@ impl<State: Send + Sync> ParallelHierarchicalClustering<State> {
         let labels = self.extract_labels(&state, n_samples)?;
 
         // Extract linkage matrix
-        let linkage_data = state.linkage_matrix.lock().unwrap();
+        let linkage_data = state
+            .linkage_matrix
+            .lock()
+            .expect("operation should succeed");
         let n_merges = linkage_data.len();
         let mut linkage_matrix = Array2::zeros((n_merges, 4));
         for (i, merge) in linkage_data.iter().enumerate() {
@@ -410,8 +428,14 @@ impl<State: Send + Sync> ParallelHierarchicalClustering<State> {
         &self,
         state: &ParallelClusteringState,
     ) -> Result<(usize, usize, Float)> {
-        let clusters = state.active_clusters.read().unwrap();
-        let distance_matrix = state.distance_matrix.read().unwrap();
+        let clusters = state
+            .active_clusters
+            .read()
+            .expect("operation should succeed");
+        let distance_matrix = state
+            .distance_matrix
+            .read()
+            .expect("operation should succeed");
 
         let cluster_ids: Vec<usize> = clusters.keys().cloned().collect();
         let n_clusters = cluster_ids.len();
@@ -513,7 +537,10 @@ impl<State: Send + Sync> ParallelHierarchicalClustering<State> {
         state: &ParallelClusteringState,
         n_samples: usize,
     ) -> Result<Array1<usize>> {
-        let clusters = state.active_clusters.read().unwrap();
+        let clusters = state
+            .active_clusters
+            .read()
+            .expect("operation should succeed");
         let mut labels = Array1::zeros(n_samples);
 
         for (cluster_id, members) in clusters.iter().enumerate() {
@@ -665,16 +692,16 @@ mod tests {
             .metric(Metric::Euclidean)
             .num_threads(2)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.labels().is_ok());
         assert!(model.linkage_matrix().is_ok());
-        assert_eq!(model.get_n_clusters().unwrap(), 2);
+        assert_eq!(model.get_n_clusters().expect("operation should succeed"), 2);
 
-        let labels = model.labels().unwrap();
+        let labels = model.labels().expect("operation should succeed");
         assert_eq!(labels.len(), 6);
 
-        let linkage_matrix = model.linkage_matrix().unwrap();
+        let linkage_matrix = model.linkage_matrix().expect("operation should succeed");
         assert_eq!(linkage_matrix.nrows(), 4); // n_samples - n_clusters = 6 - 2 = 4 merges
         assert_eq!(linkage_matrix.ncols(), 4);
     }
@@ -688,10 +715,12 @@ mod tests {
             .n_clusters(2)
             .num_threads(2)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![[0.5, 0.5], [2.5, 2.5]];
-        let predictions = model.predict(&test_data.view()).unwrap();
+        let predictions = model
+            .predict(&test_data.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
     }
@@ -736,12 +765,17 @@ mod tests {
         assert_eq!(state.num_active_clusters(), 4);
 
         // Test merging clusters
-        let new_cluster_id = state.merge_clusters(0, 1, 1.5).unwrap();
+        let new_cluster_id = state
+            .merge_clusters(0, 1, 1.5)
+            .expect("operation should succeed");
         assert_eq!(state.num_active_clusters(), 3);
         assert_eq!(new_cluster_id, 4);
 
         // Check linkage matrix
-        let linkage = state.linkage_matrix.lock().unwrap();
+        let linkage = state
+            .linkage_matrix
+            .lock()
+            .expect("operation should succeed");
         assert_eq!(linkage.len(), 1);
         assert_eq!(linkage[0], [0.0, 1.0, 1.5, 2.0]);
     }
@@ -760,7 +794,7 @@ mod tests {
         let model = ParallelHierarchicalClustering::<Untrained>::new()
             .n_clusters(2)
             .fit_parallel_with_config(&x.view(), &y.view(), &parallel_config)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.labels().is_ok());
         assert_eq!(model.config.parallel_config.num_threads, Some(2));

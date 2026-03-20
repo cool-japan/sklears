@@ -5,7 +5,7 @@
 //! for sampling from high-dimensional posterior distributions in Bayesian mixture models.
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
-use scirs2_core::random::{thread_rng, Distribution, RandNormal, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, Distribution, RandNormal, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -250,7 +250,7 @@ impl NUTSSampler {
             .exp()
             .min(1.0);
 
-            let accept = rng.gen::<f64>() < accept_prob;
+            let accept = rng.random::<f64>() < accept_prob;
 
             if accept {
                 current_position = tree_result.proposal.position.clone();
@@ -408,7 +408,7 @@ impl NUTSSampler {
             tree_depth = depth;
 
             // Choose direction: forward or backward
-            let direction = if rng.gen::<f64>() < 0.5 { 1.0 } else { -1.0 };
+            let direction = if rng.random::<f64>() < 0.5 { 1.0 } else { -1.0 };
 
             // Build subtree in chosen direction
             let subtree = self.build_subtree(
@@ -441,7 +441,7 @@ impl NUTSSampler {
             // Update proposal with probability proportional to number of proposals
             let accept_prob =
                 subtree.n_proposals as f64 / (tree_state.n_proposals + subtree.n_proposals) as f64;
-            if rng.gen::<f64>() < accept_prob {
+            if rng.random::<f64>() < accept_prob {
                 tree_state.proposal = subtree.proposal;
             }
 
@@ -529,12 +529,13 @@ impl NUTSSampler {
 
             // Combine subtrees
             let total_proposals = left_subtree.n_proposals + right_subtree.n_proposals;
-            let proposal =
-                if rng.gen::<f64>() < (right_subtree.n_proposals as f64 / total_proposals as f64) {
-                    right_subtree.proposal
-                } else {
-                    left_subtree.proposal
-                };
+            let proposal = if rng.random::<f64>()
+                < (right_subtree.n_proposals as f64 / total_proposals as f64)
+            {
+                right_subtree.proposal
+            } else {
+                left_subtree.proposal
+            };
 
             Ok(TreeState {
                 left_node: if direction > 0.0 {
@@ -787,7 +788,7 @@ impl NUTSResult {
         let mut weight_intervals = Array2::zeros((n_components, 2));
         for k in 0..n_components {
             let mut values: Vec<f64> = self.weights_samples.column(k).to_vec();
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let lower_idx = ((alpha / 2.0) * values.len() as f64) as usize;
             let upper_idx = ((1.0 - alpha / 2.0) * values.len() as f64) as usize;
             weight_intervals[[k, 0]] = values[lower_idx];
@@ -801,7 +802,7 @@ impl NUTSResult {
                 let mut values: Vec<f64> = (0..self.means_samples.shape()[0])
                     .map(|i| self.means_samples[[i, k, j]])
                     .collect();
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let lower_idx = ((alpha / 2.0) * values.len() as f64) as usize;
                 let upper_idx = ((1.0 - alpha / 2.0) * values.len() as f64) as usize;
                 mean_intervals[[k, j, 0]] = values[lower_idx];
@@ -832,7 +833,7 @@ mod tests {
             .max_tree_depth(3)
             .random_state(42);
 
-        let result = nuts.sample(&X.view()).unwrap();
+        let result = nuts.sample(&X.view()).expect("sampling should succeed");
 
         assert_eq!(result.weights_samples.shape(), &[10, 2]);
         assert_eq!(result.means_samples.shape(), &[10, 2, 2]);
@@ -875,16 +876,19 @@ mod tests {
             .n_warmup(2)
             .random_state(42);
 
-        let result = nuts.sample(&X.view()).unwrap();
+        let result = nuts.sample(&X.view()).expect("sampling should succeed");
 
         // Test posterior means computation
-        let (mean_weights, mean_means, mean_covariances) = result.posterior_means().unwrap();
+        let (mean_weights, mean_means, mean_covariances) =
+            result.posterior_means().expect("operation should succeed");
         assert_eq!(mean_weights.len(), 1);
         assert_eq!(mean_means.shape(), &[1, 1]);
         assert_eq!(mean_covariances.len(), 1);
 
         // Test credible intervals
-        let (weight_intervals, mean_intervals) = result.credible_intervals(0.05).unwrap();
+        let (weight_intervals, mean_intervals) = result
+            .credible_intervals(0.05)
+            .expect("operation should succeed");
         assert_eq!(weight_intervals.shape(), &[1, 2]);
         assert_eq!(mean_intervals.shape(), &[1, 1, 2]);
     }

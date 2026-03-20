@@ -531,17 +531,17 @@ impl Fit<Array2<f64>, ()> for SimdRBFSampler {
         let mut rng = if let Some(seed) = self.random_seed {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Generate random weights
         let random_weights = Array2::from_shape_fn((self.n_components, n_features), |_| {
-            rng.sample(rand_distr::RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap())
+            rng.sample(rand_distr::RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed"))
         });
 
         // Generate random offsets
         let random_offsets = Array1::from_shape_fn(self.n_components, |_| {
-            rng.sample(rand_distr::RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap())
+            rng.sample(rand_distr::RandUniform::new(0.0, 2.0 * std::f64::consts::PI).expect("operation should succeed"))
         });
 
         let normalization = (2.0 / self.n_components as f64).sqrt();
@@ -578,8 +578,8 @@ impl SimdBenchmarks {
         use std::time::Instant;
 
         let mut rng = thread_rng();
-        let a: Array1<f64> = Array1::from_shape_fn(size, |_| rng.gen_range(-1.0..1.0));
-        let b: Array1<f64> = Array1::from_shape_fn(size, |_| rng.gen_range(-1.0..1.0));
+        let a: Array1<f64> = Array1::from_shape_fn(size, |_| rng.random_range(-1.0..1.0));
+        let b: Array1<f64> = Array1::from_shape_fn(size, |_| rng.random_range(-1.0..1.0));
 
         // Benchmark regular dot product
         let start = Instant::now();
@@ -605,16 +605,17 @@ impl SimdBenchmarks {
         n_components: usize,
     ) -> (f64, f64) {
         use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
         use std::time::Instant;
 
         let mut rng = thread_rng();
 
         let x: Array2<f64> =
-            Array2::from_shape_fn((n_samples, n_features), |_| rng.gen_range(-1.0..1.0));
+            Array2::from_shape_fn((n_samples, n_features), |_| rng.random_range(-1.0..1.0));
         let weights: Array2<f64> =
-            Array2::from_shape_fn((n_components, n_features), |_| rng.gen_range(-1.0..1.0));
+            Array2::from_shape_fn((n_components, n_features), |_| rng.random_range(-1.0..1.0));
         let offsets: Array1<f64> =
-            Array1::from_shape_fn(n_components, |_| rng.gen_range(0.0..std::f64::consts::TAU));
+            Array1::from_shape_fn(n_components, |_| rng.random_range(0.0..std::f64::consts::TAU));
         let normalization = (2.0 / n_components as f64).sqrt();
 
         // Benchmark regular implementation
@@ -673,7 +674,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let vector = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
         let regular_result = matrix.dot(&vector);
@@ -716,11 +717,11 @@ mod tests {
 
     #[test]
     fn test_simd_rbf_sampler() {
-        let x = Array2::from_shape_vec((5, 3), (0..15).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((5, 3), (0..15).map(|i| i as f64).collect()).expect("operation should succeed");
 
         let sampler = SimdRBFSampler::new(10).gamma(0.5).random_seed(42);
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let result = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let result = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(result.shape(), &[5, 10]);
 
@@ -732,8 +733,8 @@ mod tests {
 
     #[test]
     fn test_simd_rbf_kernel_matrix() {
-        let x1 = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let x2 = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 7.0, 8.0]).unwrap();
+        let x1 = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("operation should succeed");
+        let x2 = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 7.0, 8.0]).expect("operation should succeed");
         let gamma = 0.5;
 
         let result = SimdOptimizations::simd_rbf_kernel_matrix(x1.view(), x2.view(), gamma);
@@ -772,17 +773,17 @@ mod tests {
 
     #[test]
     fn test_simd_rbf_features_consistency() {
-        let x = Array2::from_shape_vec((10, 5), (0..50).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 5), (0..50).map(|i| i as f64 * 0.1).collect()).expect("operation should succeed");
 
         // Create SIMD sampler
         let simd_sampler = SimdRBFSampler::new(20).gamma(0.8).random_seed(42);
-        let fitted_simd = simd_sampler.fit(&x, &()).unwrap();
-        let simd_result = fitted_simd.transform(&x).unwrap();
+        let fitted_simd = simd_sampler.fit(&x, &()).expect("operation should succeed");
+        let simd_result = fitted_simd.transform(&x).expect("operation should succeed");
 
         // Create regular sampler with same parameters
         let regular_sampler = crate::RBFSampler::new(20).gamma(0.8).random_state(42);
-        let fitted_regular = regular_sampler.fit(&x, &()).unwrap();
-        let regular_result = fitted_regular.transform(&x).unwrap();
+        let fitted_regular = regular_sampler.fit(&x, &()).expect("operation should succeed");
+        let regular_result = fitted_regular.transform(&x).expect("operation should succeed");
 
         // Results should be very similar (allowing for minor numerical differences)
         assert_eq!(simd_result.shape(), regular_result.shape());

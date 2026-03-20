@@ -18,7 +18,7 @@ where
 
     // Calculate mean
     let sum = array.iter().fold(T::zero(), |acc, &x| acc + x);
-    let mean = sum / T::from(array.len()).unwrap();
+    let mean = sum / T::from(array.len()).expect("operation should succeed");
 
     // Calculate standard deviation
     let variance = array
@@ -28,11 +28,11 @@ where
             diff * diff
         })
         .fold(T::zero(), |acc, x| acc + x)
-        / T::from(array.len() - 1).unwrap();
+        / T::from(array.len() - 1).expect("operation should succeed");
 
     let std = variance.sqrt();
 
-    if std.abs() < T::from(1e-10).unwrap() {
+    if std.abs() < T::from(1e-10).expect("operation should succeed") {
         return Err(UtilsError::InvalidParameter(
             "Standard deviation too small for standardization".to_string(),
         ));
@@ -70,7 +70,7 @@ where
 
     let range = max_val - min_val;
 
-    if range.abs() < T::from(1e-10).unwrap() {
+    if range.abs() < T::from(1e-10).expect("operation should succeed") {
         // All values are the same, set to zero
         for x in array.iter_mut() {
             *x = T::zero();

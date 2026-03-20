@@ -325,7 +325,7 @@ mod tests {
             state.update(i as f64, 0.01);
         }
 
-        let recent = state.recent_loss(5).unwrap();
+        let recent = state.recent_loss(5).expect("operation should succeed");
         // Average of [5, 6, 7, 8, 9] = 7.0
         assert!((recent - 7.0).abs() < 1e-10);
     }
@@ -350,10 +350,16 @@ mod tests {
         let classes = vec![0, 1];
 
         let state = ModelState::new(weights, biases, classes);
-        manager.initialize(state).unwrap();
+        manager.initialize(state).expect("operation should succeed");
 
         assert!(manager.update_state(0.5).is_ok());
-        assert_eq!(manager.current_state().unwrap().n_iterations, 1);
+        assert_eq!(
+            manager
+                .current_state()
+                .expect("operation should succeed")
+                .n_iterations,
+            1
+        );
     }
 
     #[test]
@@ -364,7 +370,7 @@ mod tests {
         let classes = vec![0, 1];
 
         let state = ModelState::new(weights, biases, classes);
-        manager.initialize(state).unwrap();
+        manager.initialize(state).expect("operation should succeed");
 
         assert!(manager.checkpoint().is_ok());
         assert_eq!(manager.num_checkpoints(), 1);
@@ -378,14 +384,20 @@ mod tests {
         let classes = vec![0, 1];
 
         let state = ModelState::new(weights, biases, classes);
-        manager.initialize(state).unwrap();
+        manager.initialize(state).expect("operation should succeed");
 
-        manager.checkpoint().unwrap();
-        manager.update_state(0.5).unwrap();
+        manager.checkpoint().expect("operation should succeed");
+        manager.update_state(0.5).expect("operation should succeed");
 
         // Restore checkpoint
         assert!(manager.restore_checkpoint().is_ok());
-        assert_eq!(manager.current_state().unwrap().n_iterations, 0);
+        assert_eq!(
+            manager
+                .current_state()
+                .expect("operation should succeed")
+                .n_iterations,
+            0
+        );
     }
 
     #[test]
@@ -402,15 +414,25 @@ mod tests {
 
         let mut state = ModelState::new(weights, biases, classes);
         state.learning_rate = 1.0;
-        manager.initialize(state).unwrap();
+        manager.initialize(state).expect("operation should succeed");
 
         // First update (no decay)
-        manager.update_state(0.5).unwrap();
-        assert_eq!(manager.current_learning_rate().unwrap(), 1.0);
+        manager.update_state(0.5).expect("operation should succeed");
+        assert_eq!(
+            manager
+                .current_learning_rate()
+                .expect("operation should succeed"),
+            1.0
+        );
 
         // Second update (triggers decay)
-        manager.update_state(0.4).unwrap();
-        assert_eq!(manager.current_learning_rate().unwrap(), 0.5);
+        manager.update_state(0.4).expect("operation should succeed");
+        assert_eq!(
+            manager
+                .current_learning_rate()
+                .expect("operation should succeed"),
+            0.5
+        );
     }
 
     #[test]
@@ -421,10 +443,12 @@ mod tests {
         let classes = vec![0, 1];
 
         let state = ModelState::new(weights, biases, classes);
-        manager.initialize(state).unwrap();
-        manager.update_state(0.5).unwrap();
+        manager.initialize(state).expect("operation should succeed");
+        manager.update_state(0.5).expect("operation should succeed");
 
-        let progress = manager.training_progress().unwrap();
+        let progress = manager
+            .training_progress()
+            .expect("operation should succeed");
         assert_eq!(progress.iterations, 1);
         assert!(progress.recent_loss.is_some());
     }

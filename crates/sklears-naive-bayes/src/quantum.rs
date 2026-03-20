@@ -380,10 +380,10 @@ impl<
             *class_counts.entry(label).or_insert(0) += 1;
         }
 
-        let total_samples = T::from(labels.len()).unwrap();
+        let total_samples = T::from(labels.len()).expect("operation should succeed");
         let mut class_priors = HashMap::new();
         for (&class_id, &count) in class_counts.iter() {
-            let prior = T::from(count).unwrap() / total_samples;
+            let prior = T::from(count).expect("operation should succeed") / total_samples;
             class_priors.insert(class_id, prior);
         }
 
@@ -428,7 +428,9 @@ impl<
             // Add rotation gates for angle encoding
             let rotation_gate = QuantumGate {
                 gate_type: GateType::RotationY,
-                gate_params: vec![T::from(std::f64::consts::PI / 4.0).unwrap()],
+                gate_params: vec![
+                    T::from(std::f64::consts::PI / 4.0).expect("operation should succeed")
+                ],
                 target_qubits: vec![qubit_idx],
                 control_qubits: vec![],
             };
@@ -491,17 +493,19 @@ impl<
         let num_samples = features.nrows();
 
         // Calculate quantum speedup factor
-        let classical_complexity = T::from(num_features * num_samples).unwrap();
-        let quantum_complexity = T::from(self.num_qubits.pow(2)).unwrap();
+        let classical_complexity =
+            T::from(num_features * num_samples).expect("operation should succeed");
+        let quantum_complexity = T::from(self.num_qubits.pow(2)).expect("operation should succeed");
         let speedup_factor = classical_complexity / quantum_complexity;
 
         // Calculate quantum memory advantage
-        let classical_memory = T::from(num_features * num_samples).unwrap();
-        let quantum_memory = T::from(self.num_qubits).unwrap();
+        let classical_memory =
+            T::from(num_features * num_samples).expect("operation should succeed");
+        let quantum_memory = T::from(self.num_qubits).expect("operation should succeed");
         let memory_advantage = classical_memory / quantum_memory;
 
         // Estimate quantum accuracy improvement (theoretical)
-        let accuracy_improvement = T::from(1.2).unwrap(); // Placeholder
+        let accuracy_improvement = T::from(1.2).expect("operation should succeed"); // Placeholder
 
         // Calculate quantum entanglement measure
         let entanglement_measure = self.calculate_entanglement_entropy()?;
@@ -548,7 +552,7 @@ impl<
             }
         }
 
-        Ok(coherence / T::from(self.quantum_priors.len()).unwrap())
+        Ok(coherence / T::from(self.quantum_priors.len()).expect("operation should succeed"))
     }
 
     /// Predict using quantum measurement
@@ -685,7 +689,7 @@ impl<
         quantum_state: &mut QuantumState<T>,
         target_qubits: &[usize],
     ) -> Result<(), QuantumError> {
-        let sqrt_2 = T::from(std::f64::consts::SQRT_2).unwrap();
+        let sqrt_2 = T::from(std::f64::consts::SQRT_2).expect("operation should succeed");
         let inv_sqrt_2 = T::one() / sqrt_2;
 
         for &qubit in target_qubits {
@@ -819,8 +823,8 @@ impl<
         }
 
         let angle = params[0];
-        let cos_half = (angle / T::from(2.0).unwrap()).cos();
-        let sin_half = (angle / T::from(2.0).unwrap()).sin();
+        let cos_half = (angle / T::from(2.0).expect("operation should succeed")).cos();
+        let sin_half = (angle / T::from(2.0).expect("operation should succeed")).sin();
 
         for &qubit in target_qubits {
             if qubit >= self.num_qubits {
@@ -867,8 +871,8 @@ impl<
         }
 
         let angle = params[0];
-        let cos_half = (angle / T::from(2.0).unwrap()).cos();
-        let sin_half = (angle / T::from(2.0).unwrap()).sin();
+        let cos_half = (angle / T::from(2.0).expect("operation should succeed")).cos();
+        let sin_half = (angle / T::from(2.0).expect("operation should succeed")).sin();
 
         for &qubit in target_qubits {
             if qubit >= self.num_qubits {
@@ -915,7 +919,7 @@ impl<
         }
 
         let angle = params[0];
-        let half_angle = angle / T::from(2.0).unwrap();
+        let half_angle = angle / T::from(2.0).expect("operation should succeed");
 
         for &qubit in target_qubits {
             if qubit >= self.num_qubits {
@@ -1044,7 +1048,9 @@ impl<
 impl<T: Float> Default for QuantumCircuitParams<T> {
     fn default() -> Self {
         Self {
-            rotation_angles: vec![T::from(std::f64::consts::PI / 4.0).unwrap()],
+            rotation_angles: vec![
+                T::from(std::f64::consts::PI / 4.0).expect("operation should succeed")
+            ],
             noise_model: QuantumNoiseModel::default(),
             error_correction: QuantumErrorCorrection::default(),
             decoherence: QuantumDecoherence::default(),
@@ -1055,11 +1061,11 @@ impl<T: Float> Default for QuantumCircuitParams<T> {
 impl<T: Float> Default for QuantumNoiseModel<T> {
     fn default() -> Self {
         Self {
-            depolarization_rate: T::from(0.001).unwrap(),
-            amplitude_damping_rate: T::from(0.001).unwrap(),
-            phase_damping_rate: T::from(0.001).unwrap(),
-            bit_flip_rate: T::from(0.001).unwrap(),
-            phase_flip_rate: T::from(0.001).unwrap(),
+            depolarization_rate: T::from(0.001).expect("operation should succeed"),
+            amplitude_damping_rate: T::from(0.001).expect("operation should succeed"),
+            phase_damping_rate: T::from(0.001).expect("operation should succeed"),
+            bit_flip_rate: T::from(0.001).expect("operation should succeed"),
+            phase_flip_rate: T::from(0.001).expect("operation should succeed"),
         }
     }
 }
@@ -1068,8 +1074,8 @@ impl<T: Float> Default for QuantumErrorCorrection<T> {
     fn default() -> Self {
         Self {
             error_code: ErrorCorrectionCode::SurfaceCode,
-            syndrome_threshold: T::from(0.1).unwrap(),
-            correction_probability: T::from(0.99).unwrap(),
+            syndrome_threshold: T::from(0.1).expect("operation should succeed"),
+            correction_probability: T::from(0.99).expect("operation should succeed"),
         }
     }
 }
@@ -1077,9 +1083,9 @@ impl<T: Float> Default for QuantumErrorCorrection<T> {
 impl<T: Float> Default for QuantumDecoherence<T> {
     fn default() -> Self {
         Self {
-            t1_time: T::from(100.0).unwrap(), // microseconds
-            t2_time: T::from(50.0).unwrap(),  // microseconds
-            coupling_strength: T::from(0.01).unwrap(),
+            t1_time: T::from(100.0).expect("operation should succeed"), // microseconds
+            t2_time: T::from(50.0).expect("operation should succeed"),  // microseconds
+            coupling_strength: T::from(0.01).expect("operation should succeed"),
         }
     }
 }
@@ -1119,7 +1125,7 @@ impl<T: Float> Default for AngleEncoding<T> {
     fn default() -> Self {
         Self {
             rotation_axis: RotationAxis::Y,
-            angle_scaling: T::from(std::f64::consts::PI).unwrap(),
+            angle_scaling: T::from(std::f64::consts::PI).expect("operation should succeed"),
         }
     }
 }
@@ -1204,7 +1210,7 @@ pub struct QuantumMetropolisHastings<T: Float> {
 impl<T: Float + Default> Default for QuantumRejectionSampling<T> {
     fn default() -> Self {
         Self {
-            acceptance_probability: T::from(0.8).unwrap(),
+            acceptance_probability: T::from(0.8).expect("operation should succeed"),
             max_iterations: 1000,
         }
     }
@@ -1214,7 +1220,7 @@ impl<T: Float + Default> Default for QuantumImportanceSampling<T> {
     fn default() -> Self {
         Self {
             importance_weights: vec![T::one(); 100],
-            effective_sample_size: T::from(100.0).unwrap(),
+            effective_sample_size: T::from(100.0).expect("operation should succeed"),
         }
     }
 }
@@ -1227,7 +1233,7 @@ impl<T: Float + Default> Default for QuantumMetropolisHastings<T> {
                 num_qubits: 2,
                 normalization: T::one(),
             },
-            acceptance_rate: T::from(0.5).unwrap(),
+            acceptance_rate: T::from(0.5).expect("operation should succeed"),
             burn_in_period: 1000,
         }
     }
@@ -1304,7 +1310,7 @@ impl<
             quantum_component: QuantumNaiveBayes::new(num_qubits),
             hybrid_params: HybridParams {
                 mixing_ratio,
-                quantum_threshold: T::from(0.1).unwrap(),
+                quantum_threshold: T::from(0.1).expect("operation should succeed"),
                 optimization_params: HybridOptimizationParams::default(),
             },
         }
@@ -1340,9 +1346,9 @@ impl<
             *class_counts.entry(label).or_insert(0) += 1;
         }
 
-        let total_samples = T::from(labels.len()).unwrap();
+        let total_samples = T::from(labels.len()).expect("operation should succeed");
         for (&class_id, &count) in class_counts.iter() {
-            let prior = T::from(count).unwrap() / total_samples;
+            let prior = T::from(count).expect("operation should succeed") / total_samples;
             self.classical_component
                 .classical_priors
                 .insert(class_id, prior);
@@ -1388,7 +1394,7 @@ impl<
         let mut best_mixing_ratio = self.hybrid_params.mixing_ratio;
 
         for i in 0..10 {
-            let mixing_ratio = T::from(i as f64 / 10.0).unwrap();
+            let mixing_ratio = T::from(i as f64 / 10.0).expect("operation should succeed");
             self.hybrid_params.mixing_ratio = mixing_ratio;
 
             let accuracy = self.cross_validate_accuracy(features, labels)?;
@@ -1419,7 +1425,7 @@ impl<
             let predictions = self.predict_internal(&feature_dvector)?;
             let predicted_class = predictions
                 .into_iter()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(class, _)| class)
                 .unwrap_or(0);
 
@@ -1428,7 +1434,10 @@ impl<
             }
         }
 
-        Ok(T::from(correct_predictions).unwrap() / T::from(total_predictions).unwrap())
+        Ok(
+            T::from(correct_predictions).expect("operation should succeed")
+                / T::from(total_predictions).expect("operation should succeed"),
+        )
     }
 
     /// Predict using hybrid approach
@@ -1500,9 +1509,10 @@ impl<
 
     /// Gaussian probability density function
     fn gaussian_pdf(&self, x: T, mean: T, variance: T) -> T {
-        let two_pi = T::from(2.0 * std::f64::consts::PI).unwrap();
+        let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let coefficient = T::one() / (two_pi * variance).sqrt();
-        let exponent = -((x - mean).powi(2)) / (T::from(2.0).unwrap() * variance);
+        let exponent =
+            -((x - mean).powi(2)) / (T::from(2.0).expect("operation should succeed") * variance);
         coefficient * exponent.exp()
     }
 
@@ -1512,26 +1522,26 @@ impl<
             return T::zero();
         }
         let sum: T = values.iter().cloned().sum();
-        sum / T::from(values.len()).unwrap()
+        sum / T::from(values.len()).expect("operation should succeed")
     }
 
     /// Calculate variance
     fn calculate_variance(&self, values: &[T]) -> T {
         if values.len() < 2 {
-            return T::from(0.01).unwrap();
+            return T::from(0.01).expect("operation should succeed");
         }
         let mean = self.calculate_mean(values);
         let sum_squared_diff: T = values.iter().map(|&x| (x - mean).powi(2)).sum();
-        sum_squared_diff / T::from(values.len() - 1).unwrap()
+        sum_squared_diff / T::from(values.len() - 1).expect("operation should succeed")
     }
 }
 
 impl<T: Float> Default for HybridOptimizationParams<T> {
     fn default() -> Self {
         Self {
-            learning_rate: T::from(0.01).unwrap(),
-            regularization: T::from(0.001).unwrap(),
-            convergence_tolerance: T::from(1e-6).unwrap(),
+            learning_rate: T::from(0.01).expect("operation should succeed"),
+            regularization: T::from(0.001).expect("operation should succeed"),
+            convergence_tolerance: T::from(1e-6).expect("operation should succeed"),
         }
     }
 }
@@ -1561,7 +1571,7 @@ mod tests {
         let quantum_state = classifier.create_quantum_state_from_prior(prior);
         assert!(quantum_state.is_ok());
 
-        let state = quantum_state.unwrap();
+        let state = quantum_state.expect("operation should succeed");
         assert_eq!(state.num_qubits, 2);
         assert_eq!(state.amplitudes.len(), 4);
     }
@@ -1599,7 +1609,7 @@ mod tests {
         let quantum_state = classifier.encode_features_to_quantum_state(&features);
         assert!(quantum_state.is_ok());
 
-        let state = quantum_state.unwrap();
+        let state = quantum_state.expect("operation should succeed");
         assert_eq!(state.num_qubits, 3);
         assert_eq!(state.amplitudes.len(), 8);
     }
@@ -1621,7 +1631,7 @@ mod tests {
         let measurement_result = classifier.measure_quantum_state(&quantum_state);
         assert!(measurement_result.is_ok());
 
-        let probabilities = measurement_result.unwrap();
+        let probabilities = measurement_result.expect("operation should succeed");
         assert_eq!(probabilities.len(), 4);
     }
 
@@ -1629,8 +1639,8 @@ mod tests {
     fn test_quantum_naive_bayes_fitting() {
         let mut classifier = QuantumNaiveBayes::<f64>::new(2);
 
-        let features =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let features = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let result = classifier.fit(&features, &labels);
@@ -1644,8 +1654,8 @@ mod tests {
     fn test_quantum_prediction() {
         let mut classifier = QuantumNaiveBayes::<f64>::new(2);
 
-        let features =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let features = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let _ = classifier.fit(&features, &labels);
@@ -1654,7 +1664,7 @@ mod tests {
         let prediction = classifier.predict(&test_features);
         assert!(prediction.is_ok());
 
-        let probabilities = prediction.unwrap();
+        let probabilities = prediction.expect("operation should succeed");
         assert!(probabilities.contains_key(&0));
         assert!(probabilities.contains_key(&1));
     }
@@ -1663,8 +1673,8 @@ mod tests {
     fn test_hybrid_quantum_classical_nb() {
         let mut classifier = HybridQuantumClassicalNB::<f64>::new(2, 0.5);
 
-        let features =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let features = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let result = classifier.fit(&features, &labels);
@@ -1674,7 +1684,7 @@ mod tests {
         let prediction = classifier.predict(&test_features);
         assert!(prediction.is_ok());
 
-        let probabilities = prediction.unwrap();
+        let probabilities = prediction.expect("operation should succeed");
         assert!(probabilities.contains_key(&0));
         assert!(probabilities.contains_key(&1));
     }
@@ -1690,7 +1700,7 @@ mod tests {
                 16.0, 17.0, 18.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let _ = classifier.fit(&features, &labels);

@@ -12,7 +12,7 @@
 //! - Performance reporting utilities
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::error::SklearsError;
 use std::collections::HashMap;
 
@@ -291,7 +291,7 @@ impl ComparativeAnalyzer {
         ranking.sort_by(|&a, &b| {
             performance_scores[b]
                 .partial_cmp(&performance_scores[a])
-                .unwrap()
+                .expect("operation should succeed")
         });
         let best_model_index = ranking[0];
 
@@ -399,7 +399,7 @@ impl ComparativeAnalyzer {
     ) -> Result<f64, SklearsError> {
         let mut combined: Vec<(f64, usize)> = group_a.iter().map(|&x| (x, 0)).collect();
         combined.extend(group_b.iter().map(|&x| (x, 1)));
-        combined.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        combined.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let mut rank_sum_a = 0.0;
         for (rank, (_, group)) in combined.iter().enumerate() {
@@ -438,7 +438,7 @@ impl ComparativeAnalyzer {
         for _ in 0..n_permutations {
             // Shuffle the combined data
             for i in (1..combined.len()).rev() {
-                let j = rng.gen_range(0..i + 1);
+                let j = rng.random_range(0..i + 1);
                 combined.swap(i, j);
             }
 
@@ -474,10 +474,10 @@ impl ComparativeAnalyzer {
         for _ in 0..n_bootstrap {
             // Bootstrap sample from each group
             let boot_a: Vec<f64> = (0..group_a.len())
-                .map(|_| group_a[rng.gen_range(0..group_a.len())])
+                .map(|_| group_a[rng.random_range(0..group_a.len())])
                 .collect();
             let boot_b: Vec<f64> = (0..group_b.len())
-                .map(|_| group_b[rng.gen_range(0..group_b.len())])
+                .map(|_| group_b[rng.random_range(0..group_b.len())])
                 .collect();
 
             let boot_mean_a = boot_a.iter().sum::<f64>() / boot_a.len() as f64;
@@ -485,7 +485,7 @@ impl ComparativeAnalyzer {
             bootstrap_diffs.push(boot_mean_a - boot_mean_b);
         }
 
-        bootstrap_diffs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        bootstrap_diffs.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let std_bootstrap = {
             let mean_bootstrap = bootstrap_diffs.iter().sum::<f64>() / bootstrap_diffs.len() as f64;
             let variance = bootstrap_diffs
@@ -831,7 +831,7 @@ impl ComparativeAnalyzer {
                     a.significance_test
                         .p_value
                         .partial_cmp(&b.significance_test.p_value)
-                        .unwrap()
+                        .expect("operation should succeed")
                 });
                 for (i, comparison) in comparisons.iter_mut().enumerate() {
                     let corrected_alpha = self.alpha_level / (n_comparisons - i) as f64;
@@ -847,7 +847,7 @@ impl ComparativeAnalyzer {
                     a.significance_test
                         .p_value
                         .partial_cmp(&b.significance_test.p_value)
-                        .unwrap()
+                        .expect("operation should succeed")
                 });
                 for (i, comparison) in comparisons.iter_mut().enumerate() {
                     let corrected_alpha = self.alpha_level * (i + 1) as f64 / n_comparisons as f64;
@@ -864,7 +864,7 @@ impl ComparativeAnalyzer {
                     a.significance_test
                         .p_value
                         .partial_cmp(&b.significance_test.p_value)
-                        .unwrap()
+                        .expect("operation should succeed")
                 });
                 for (i, comparison) in comparisons.iter_mut().enumerate() {
                     let corrected_alpha =
@@ -915,7 +915,7 @@ impl ComparativeAnalyzer {
         let overall_best_model = mean_scores
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(i, _)| i)
             .unwrap_or(0);
 
@@ -1135,7 +1135,7 @@ mod tests {
                 SignificanceTest::TTest,
                 EffectSizeMeasure::CohensD,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
         assert!(!result.statistic.is_nan());
@@ -1150,7 +1150,7 @@ mod tests {
 
         let result = analyzer
             .effect_size(&group_a, &group_b, EffectSizeMeasure::CohensD)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.value < 0.0); // group_a has lower mean
                                      // Check the actual Cohen's d value - it should be around -1.26 for this data
@@ -1168,7 +1168,9 @@ mod tests {
         let group_a = array![1.0, 2.0, 3.0];
         let group_b = array![4.0, 5.0, 6.0];
 
-        let delta = analyzer.cliffs_delta(&group_a, &group_b).unwrap();
+        let delta = analyzer
+            .cliffs_delta(&group_a, &group_b)
+            .expect("operation should succeed");
         assert_eq!(delta, -1.0); // All values in group_a are less than group_b
     }
 
@@ -1181,7 +1183,9 @@ mod tests {
             array![0.75, 0.77, 0.73, 0.76, 0.74],
         ];
 
-        let result = analyzer.compare_models(model_names, cv_scores).unwrap();
+        let result = analyzer
+            .compare_models(model_names, cv_scores)
+            .expect("operation should succeed");
 
         assert_eq!(result.model_names.len(), 2);
         assert_eq!(result.performance_scores.len(), 2);
@@ -1204,7 +1208,7 @@ mod tests {
                 },
                 EffectSizeMeasure::CohensD,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
     }
@@ -1222,7 +1226,7 @@ mod tests {
                 ConfidenceIntervalType::TDistribution,
                 0.95,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(lower < upper);
         // The mean difference should be negative (group_a has lower mean)

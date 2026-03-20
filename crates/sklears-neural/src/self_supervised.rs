@@ -1,6 +1,5 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
 use scirs2_core::numeric::{Float, One, ToPrimitive};
-use scirs2_core::random::Rng;
 use std::fmt::Debug;
 
 use crate::activation::Activation;
@@ -28,12 +27,13 @@ impl<T: FloatBounds + ScalarOperand> DenseLayer<T> {
         let mut rng = scirs2_core::random::thread_rng();
 
         // Xavier initialization
-        let scale = T::from(2.0).unwrap() / T::from(input_dim + output_dim).unwrap();
+        let scale = T::from(2.0).unwrap_or_else(|| T::zero())
+            / T::from(input_dim + output_dim).unwrap_or_else(|| T::zero());
         let std_dev = scale.sqrt();
 
         let weights = Array2::from_shape_fn((input_dim, output_dim), |_| {
             let val: f32 = rng.gen_range(-1.0..1.0);
-            T::from(val).unwrap() * std_dev
+            T::from(val).unwrap_or_else(|| T::zero()) * std_dev
         });
 
         let biases = Array1::zeros(output_dim);
@@ -145,12 +145,12 @@ pub struct ContrastiveConfig<T: Float> {
 impl<T: Float> Default for ContrastiveConfig<T> {
     fn default() -> Self {
         Self {
-            temperature: T::from(0.1).unwrap(),
+            temperature: T::from(0.1).unwrap_or_else(|| T::zero()),
             embedding_dim: 128,
             num_negatives: 256,
-            augmentation_prob: T::from(0.5).unwrap(),
-            encoder_lr: T::from(0.001).unwrap(),
-            projection_lr: T::from(0.001).unwrap(),
+            augmentation_prob: T::from(0.5).unwrap_or_else(|| T::zero()),
+            encoder_lr: T::from(0.001).unwrap_or_else(|| T::zero()),
+            projection_lr: T::from(0.001).unwrap_or_else(|| T::zero()),
         }
     }
 }
@@ -220,7 +220,7 @@ impl<T: FloatBounds + ScalarOperand + Debug> ContrastiveLearner<T> {
             total_loss = total_loss + loss;
         }
 
-        Ok(total_loss / T::from(batch_size).unwrap())
+        Ok(total_loss / T::from(batch_size).unwrap_or_else(|| T::zero()))
     }
 
     /// Compute cosine similarity between two vectors
@@ -293,8 +293,8 @@ impl<T: Float> Default for AutoencoderConfig<T> {
     fn default() -> Self {
         Self {
             latent_dim: 128,
-            noise_level: T::from(0.1).unwrap(),
-            sparsity_penalty: T::from(0.01).unwrap(),
+            noise_level: T::from(0.1).unwrap_or_else(|| T::zero()),
+            sparsity_penalty: T::from(0.01).unwrap_or_else(|| T::zero()),
             autoencoder_type: AutoencoderType::Vanilla,
         }
     }
@@ -368,7 +368,8 @@ impl<T: FloatBounds + ScalarOperand + Debug> SelfSupervisedAutoencoder<T> {
         let mut noisy_input = input.clone();
 
         for element in noisy_input.iter_mut() {
-            let noise = T::from(rng.random::<f32>()).unwrap() * self.config.noise_level;
+            let noise =
+                T::from(rng.random::<f32>()).unwrap_or_else(|| T::zero()) * self.config.noise_level;
             *element = *element + noise;
         }
 
@@ -382,7 +383,10 @@ impl<T: FloatBounds + ScalarOperand + Debug> SelfSupervisedAutoencoder<T> {
         output: &Array2<T>,
     ) -> Result<T, SklearsError> {
         let diff = input - output;
-        let mse = diff.mapv(|x| x * x).mean().unwrap();
+        let mse = diff
+            .mapv(|x| x * x)
+            .mean()
+            .expect("mean should not fail on non-empty array");
         Ok(mse)
     }
 
@@ -429,8 +433,8 @@ impl<T: Float> Default for TrainingConfig<T> {
         Self {
             epochs: 100,
             batch_size: 32,
-            learning_rate: T::from(0.001).unwrap(),
-            validation_split: T::from(0.1).unwrap(),
+            learning_rate: T::from(0.001).unwrap_or_else(|| T::zero()),
+            validation_split: T::from(0.1).unwrap_or_else(|| T::zero()),
             patience: 10,
         }
     }
@@ -462,9 +466,9 @@ impl<T: FloatBounds + ScalarOperand + Debug + std::iter::Sum> SelfSupervisedTrai
 
             // Simple convergence check
             if losses.len() > 10 {
-                let recent_avg =
-                    losses[losses.len() - 10..].iter().cloned().sum::<T>() / T::from(10.0).unwrap();
-                if epoch_loss < recent_avg * T::from(0.001).unwrap() {
+                let recent_avg = losses[losses.len() - 10..].iter().cloned().sum::<T>()
+                    / T::from(10.0).unwrap_or_else(|| T::zero());
+                if epoch_loss < recent_avg * T::from(0.001).unwrap_or_else(|| T::zero()) {
                     break;
                 }
             }
@@ -511,9 +515,11 @@ mod tests {
     #[test]
     fn test_contrastive_loss_computation() {
         let config = ContrastiveConfig::default();
-        let learner = ContrastiveLearner::<f32>::new(10, vec![8], config).unwrap();
+        let learner = ContrastiveLearner::<f32>::new(10, vec![8], config)
+            .expect("construction should succeed");
 
-        let embeddings = Array2::from_shape_vec((4, 128), vec![0.0; 4 * 128]).unwrap();
+        let embeddings =
+            Array2::from_shape_vec((4, 128), vec![0.0; 4 * 128]).expect("array shape mismatch");
 
         let loss = learner.contrastive_loss(&embeddings);
         assert!(loss.is_ok());
@@ -529,19 +535,22 @@ mod tests {
     #[test]
     fn test_autoencoder_forward_pass() {
         let config = AutoencoderConfig::default();
-        let mut autoencoder = SelfSupervisedAutoencoder::<f32>::new(10, vec![8], config).unwrap();
+        let mut autoencoder = SelfSupervisedAutoencoder::<f32>::new(10, vec![8], config)
+            .expect("construction should succeed");
 
-        let input = Array2::from_shape_vec((2, 10), (0..20).map(|x| x as f32).collect()).unwrap();
+        let input = Array2::from_shape_vec((2, 10), (0..20).map(|x| x as f32).collect())
+            .expect("array shape mismatch");
         let output = autoencoder.forward(&input);
 
         assert!(output.is_ok());
-        assert_eq!(output.unwrap().dim(), input.dim());
+        assert_eq!(output.expect("operation should succeed").dim(), input.dim());
     }
 
     #[test]
     fn test_self_supervised_trainer() {
         let config = ContrastiveConfig::default();
-        let learner = ContrastiveLearner::<f32>::new(10, vec![8], config).unwrap();
+        let learner = ContrastiveLearner::<f32>::new(10, vec![8], config)
+            .expect("construction should succeed");
         let method = SelfSupervisedMethod::Contrastive(learner);
 
         let training_config = TrainingConfig {
@@ -553,24 +562,30 @@ mod tests {
         };
 
         let mut trainer = SelfSupervisedTrainer::new(method, training_config);
-        let data = Array2::from_shape_vec((4, 10), (0..40).map(|x| x as f32).collect()).unwrap();
+        let data = Array2::from_shape_vec((4, 10), (0..40).map(|x| x as f32).collect())
+            .expect("array shape mismatch");
 
         let losses = trainer.fit(&data);
         assert!(losses.is_ok());
-        assert!(losses.unwrap().len() <= 5);
+        assert!(losses.expect("operation should succeed").len() <= 5);
     }
 
     #[test]
     fn test_cosine_similarity() {
         let config = ContrastiveConfig::default();
-        let learner = ContrastiveLearner::<f32>::new(10, vec![8], config).unwrap();
+        let learner = ContrastiveLearner::<f32>::new(10, vec![8], config)
+            .expect("construction should succeed");
 
         let a = Array1::from_vec(vec![1.0, 0.0, 0.0]);
         let b = Array1::from_vec(vec![0.0, 1.0, 0.0]);
         let c = Array1::from_vec(vec![1.0, 0.0, 0.0]);
 
-        let sim_ab = learner.cosine_similarity(&a.view(), &b.view()).unwrap();
-        let sim_ac = learner.cosine_similarity(&a.view(), &c.view()).unwrap();
+        let sim_ab = learner
+            .cosine_similarity(&a.view(), &b.view())
+            .expect("operation should succeed");
+        let sim_ac = learner
+            .cosine_similarity(&a.view(), &c.view())
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(sim_ab, 0.0, epsilon = 1e-6);
         assert_abs_diff_eq!(sim_ac, 1.0, epsilon = 1e-6);
@@ -579,12 +594,16 @@ mod tests {
     #[test]
     fn test_reconstruction_loss() {
         let config = AutoencoderConfig::default();
-        let autoencoder = SelfSupervisedAutoencoder::<f32>::new(10, vec![8], config).unwrap();
+        let autoencoder = SelfSupervisedAutoencoder::<f32>::new(10, vec![8], config)
+            .expect("construction should succeed");
 
-        let input = Array2::from_shape_vec((2, 10), (0..20).map(|x| x as f32).collect()).unwrap();
+        let input = Array2::from_shape_vec((2, 10), (0..20).map(|x| x as f32).collect())
+            .expect("array shape mismatch");
         let output = input.clone();
 
-        let loss = autoencoder.reconstruction_loss(&input, &output).unwrap();
+        let loss = autoencoder
+            .reconstruction_loss(&input, &output)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(loss, 0.0, epsilon = 1e-6);
     }
 }

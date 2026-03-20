@@ -291,7 +291,7 @@ impl ReportingVisualizationCoordinator {
     pub async fn initialize_system(&self, config: CoordinatorConfiguration) -> Result<()> {
         // Store configuration
         {
-            let mut coordinator_config = self.coordinator_config.write().unwrap();
+            let mut coordinator_config = self.coordinator_config.write().unwrap_or_else(|e| e.into_inner());
             *coordinator_config = config.clone();
         }
 
@@ -371,13 +371,13 @@ impl ReportingVisualizationCoordinator {
 
         // Apply theme and styling
         {
-            let styling_engine = self.styling_engine.read().unwrap();
+            let styling_engine = self.styling_engine.read().unwrap_or_else(|e| e.into_inner());
             styling_engine.apply_theme(&request.theme_id, styling_engine::ThemeScope::Dashboard).await?;
         }
 
         // Create dashboard instance
         let dashboard_response = {
-            let mut dashboard_manager = self.dashboard_manager.write().unwrap();
+            let mut dashboard_manager = self.dashboard_manager.write().unwrap_or_else(|e| e.into_inner());
             dashboard_manager.create_dashboard(DashboardRequest {
                 id: dashboard_id.clone(),
                 configuration: request.configuration,
@@ -389,7 +389,7 @@ impl ReportingVisualizationCoordinator {
 
         // Setup web interface endpoints
         let access_info = {
-            let mut web_interface = self.web_interface.write().unwrap();
+            let mut web_interface = self.web_interface.write().unwrap_or_else(|e| e.into_inner());
             web_interface.setup_dashboard_endpoints(&dashboard_id).await?
         };
 
@@ -419,7 +419,7 @@ impl ReportingVisualizationCoordinator {
 
         // Create and validate template
         let validation_results = {
-            let mut template_manager = self.template_manager.write().unwrap();
+            let mut template_manager = self.template_manager.write().unwrap_or_else(|e| e.into_inner());
             template_manager.create_template(TemplateRequest {
                 id: template_id.clone(),
                 specification: request.template_spec,
@@ -467,7 +467,7 @@ impl ReportingVisualizationCoordinator {
 
         // Collect cross-system metrics
         let metrics = {
-            let metrics_collector = self.metrics_collector.read().unwrap();
+            let metrics_collector = self.metrics_collector.read().unwrap_or_else(|e| e.into_inner());
             metrics_collector.get_comprehensive_metrics().await?
         };
 
@@ -488,7 +488,7 @@ impl ReportingVisualizationCoordinator {
 
         // Coordinate resource optimization
         let resource_optimization = {
-            let resource_coordinator = self.resource_coordinator.read().unwrap();
+            let resource_coordinator = self.resource_coordinator.read().unwrap_or_else(|e| e.into_inner());
             resource_coordinator.optimize_resource_allocation().await?
         };
 
@@ -515,13 +515,13 @@ impl ReportingVisualizationCoordinator {
     pub async fn shutdown_system(&self) -> Result<()> {
         // Stop event coordination
         {
-            let mut event_coordinator = self.event_coordinator.write().unwrap();
+            let mut event_coordinator = self.event_coordinator.write().unwrap_or_else(|e| e.into_inner());
             event_coordinator.shutdown().await?;
         }
 
         // Stop resource coordination
         {
-            let mut resource_coordinator = self.resource_coordinator.write().unwrap();
+            let mut resource_coordinator = self.resource_coordinator.write().unwrap_or_else(|e| e.into_inner());
             resource_coordinator.shutdown().await?;
         }
 
@@ -530,7 +530,7 @@ impl ReportingVisualizationCoordinator {
 
         // Final metrics collection
         {
-            let mut metrics_collector = self.metrics_collector.write().unwrap();
+            let mut metrics_collector = self.metrics_collector.write().unwrap_or_else(|e| e.into_inner());
             metrics_collector.final_metrics_export().await?;
         }
 
@@ -554,67 +554,67 @@ impl ReportingVisualizationCoordinator {
 
     /// Start system monitoring
     async fn start_system_monitoring(&self) -> Result<()> {
-        let mut metrics_collector = self.metrics_collector.write().unwrap();
+        let mut metrics_collector = self.metrics_collector.write().unwrap_or_else(|e| e.into_inner());
         metrics_collector.start_monitoring().await
     }
 
     /// Initialize event coordination
     async fn initialize_event_coordination(&self) -> Result<()> {
-        let mut event_coordinator = self.event_coordinator.write().unwrap();
+        let mut event_coordinator = self.event_coordinator.write().unwrap_or_else(|e| e.into_inner());
         event_coordinator.initialize().await
     }
 
     /// Start resource coordination
     async fn start_resource_coordination(&self) -> Result<()> {
-        let mut resource_coordinator = self.resource_coordinator.write().unwrap();
+        let mut resource_coordinator = self.resource_coordinator.write().unwrap_or_else(|e| e.into_inner());
         resource_coordinator.start().await
     }
 
     /// Allocate workflow resources
     async fn allocate_workflow_resources(&self, request: &ComprehensiveReportRequest) -> Result<()> {
-        let resource_coordinator = self.resource_coordinator.read().unwrap();
+        let resource_coordinator = self.resource_coordinator.read().unwrap_or_else(|e| e.into_inner());
         resource_coordinator.allocate_workflow_resources(&request.id).await
     }
 
     /// Generate report content
     async fn generate_report_content(&self, spec: &ReportSpecification) -> Result<GeneratedReport> {
-        let report_generator = self.report_generator.read().unwrap();
+        let report_generator = self.report_generator.read().unwrap_or_else(|e| e.into_inner());
         report_generator.generate_report(spec.clone()).await
     }
 
     /// Create visualizations
     async fn create_visualizations(&self, spec: &VisualizationSpecification, report: &GeneratedReport) -> Result<Vec<RenderedVisualization>> {
-        let visualization_engine = self.visualization_engine.read().unwrap();
+        let visualization_engine = self.visualization_engine.read().unwrap_or_else(|e| e.into_inner());
         visualization_engine.create_visualizations(spec.clone(), report).await
     }
 
     /// Apply styling
     async fn apply_styling(&self, spec: &StylingSpecification) -> Result<StylingInfo> {
-        let styling_engine = self.styling_engine.read().unwrap();
+        let styling_engine = self.styling_engine.read().unwrap_or_else(|e| e.into_inner());
         styling_engine.apply_styling(spec.clone()).await
     }
 
     /// Create integrated dashboard
     async fn create_integrated_dashboard(&self, spec: &DashboardSpecification, report: &GeneratedReport, visualizations: &[RenderedVisualization]) -> Result<DashboardInstance> {
-        let dashboard_manager = self.dashboard_manager.read().unwrap();
+        let dashboard_manager = self.dashboard_manager.read().unwrap_or_else(|e| e.into_inner());
         dashboard_manager.create_integrated_dashboard(spec.clone(), report, visualizations).await
     }
 
     /// Execute exports
     async fn execute_exports(&self, spec: &ExportSpecification, report: &GeneratedReport, visualizations: &[RenderedVisualization]) -> Result<Vec<ExportResult>> {
-        let export_manager = self.export_manager.read().unwrap();
+        let export_manager = self.export_manager.read().unwrap_or_else(|e| e.into_inner());
         export_manager.execute_exports(spec.clone(), report, visualizations).await
     }
 
     /// Execute distribution
     async fn execute_distribution(&self, spec: &DistributionSpecification, export_results: &[ExportResult]) -> Result<Vec<DistributionJobResult>> {
-        let distribution_manager = self.distribution_manager.read().unwrap();
+        let distribution_manager = self.distribution_manager.read().unwrap_or_else(|e| e.into_inner());
         distribution_manager.execute_distribution(spec.clone(), export_results).await
     }
 
     /// Collect workflow metrics
     async fn collect_workflow_metrics(&self, request_id: &str, duration: Duration) -> Result<WorkflowMetrics> {
-        let metrics_collector = self.metrics_collector.read().unwrap();
+        let metrics_collector = self.metrics_collector.read().unwrap_or_else(|e| e.into_inner());
         metrics_collector.collect_workflow_metrics(request_id, duration).await
     }
 
@@ -626,7 +626,7 @@ impl ReportingVisualizationCoordinator {
 
     /// Release workflow resources
     async fn release_workflow_resources(&self, request_id: &str) -> Result<()> {
-        let resource_coordinator = self.resource_coordinator.read().unwrap();
+        let resource_coordinator = self.resource_coordinator.read().unwrap_or_else(|e| e.into_inner());
         resource_coordinator.release_workflow_resources(request_id).await
     }
 

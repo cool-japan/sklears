@@ -799,7 +799,7 @@ impl ADWINDetector {
 
         // If variance becomes too high, consider it drift and shrink window
         if variance > 0.1 && self.window.len() > self.min_window_size {
-            let removed = self.window.pop_front().unwrap();
+            let removed = self.window.pop_front().expect("operation should succeed");
             self.total_sum -= removed;
             self.sum_squares -= removed * removed;
         }
@@ -895,8 +895,8 @@ impl StatisticalDriftTests {
         let mut ref_sorted: Vec<Float> = self.reference_samples.iter().copied().collect();
         let mut recent_sorted: Vec<Float> = self.recent_samples.iter().copied().collect();
 
-        ref_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        recent_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        ref_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+        recent_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Compute empirical CDFs and find maximum difference
         let mut max_diff: Float = 0.0;
@@ -909,7 +909,7 @@ impl StatisticalDriftTests {
             .chain(recent_sorted.iter())
             .copied()
             .collect();
-        all_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        all_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         all_values.dedup();
 
         for value in &all_values {
@@ -1051,7 +1051,7 @@ mod tests {
         let data_point = PerformanceDataPoint {
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs(),
             metrics,
             sample_size: 100,
@@ -1075,14 +1075,16 @@ mod tests {
         let data_point = PerformanceDataPoint {
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs(),
             metrics,
             sample_size: 100,
             metadata: HashMap::new(),
         };
 
-        monitor.add_measurement(data_point).unwrap();
+        monitor
+            .add_measurement(data_point)
+            .expect("operation should succeed");
 
         assert_eq!(monitor.performance_history.len(), 1);
         assert_eq!(monitor.sample_count, 100);
@@ -1121,17 +1123,21 @@ mod tests {
             let data_point = PerformanceDataPoint {
                 timestamp: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
                 metrics,
                 sample_size: 10,
                 metadata: HashMap::new(),
             };
 
-            monitor.add_measurement(data_point).unwrap();
+            monitor
+                .add_measurement(data_point)
+                .expect("operation should succeed");
         }
 
-        let health = monitor.assess_health_status().unwrap();
+        let health = monitor
+            .assess_health_status()
+            .expect("operation should succeed");
         assert!(matches!(
             health,
             ModelHealth::Warning | ModelHealth::Critical | ModelHealth::Failed
@@ -1191,17 +1197,21 @@ mod tests {
             let data_point = PerformanceDataPoint {
                 timestamp: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
                 metrics,
                 sample_size: 10,
                 metadata: HashMap::new(),
             };
 
-            monitor.add_measurement(data_point).unwrap();
+            monitor
+                .add_measurement(data_point)
+                .expect("operation should succeed");
         }
 
-        let trend = monitor.analyze_performance_trend().unwrap();
+        let trend = monitor
+            .analyze_performance_trend()
+            .expect("operation should succeed");
         assert!(trend.direction < 0.0); // Should detect negative trend
     }
 
@@ -1225,17 +1235,21 @@ mod tests {
             let data_point = PerformanceDataPoint {
                 timestamp: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .as_secs(),
                 metrics: metrics.clone(),
                 sample_size: 10,
                 metadata: HashMap::new(),
             };
 
-            monitor.add_measurement(data_point).unwrap();
+            monitor
+                .add_measurement(data_point)
+                .expect("operation should succeed");
         }
 
-        let indicators = monitor.compute_degradation_indicators().unwrap();
+        let indicators = monitor
+            .compute_degradation_indicators()
+            .expect("operation should succeed");
         assert!(indicators.accuracy_drop > 0.0);
         assert!(indicators.latency_increase > 0.0);
         assert!(indicators.degradation_score > 0.0);
@@ -1291,7 +1305,7 @@ mod tests {
                 &drift_results,
                 &degradation_indicators,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!recommendations.is_empty());
         assert!(recommendations.contains(&RecommendedAction::Retrain));

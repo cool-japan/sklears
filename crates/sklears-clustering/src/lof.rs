@@ -137,7 +137,7 @@ impl Fit<Array2<Float>, ()> for LOF<Untrained> {
             Some(t) => t,
             None => {
                 let mut sorted_scores = lof_scores.to_vec();
-                sorted_scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
+                sorted_scores.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
                 let contamination_idx =
                     ((1.0 - self.config.contamination) * n_samples as f64) as usize;
                 sorted_scores[contamination_idx.min(n_samples - 1)]
@@ -229,7 +229,7 @@ impl LOF<Untrained> {
         }
 
         // Sort by distance
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Get k-nearest neighbors
         let k = self.config.n_neighbors.min(distances.len());
@@ -341,7 +341,7 @@ impl LOF<Trained> {
             distances.push((dist, i));
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k = self.config.n_neighbors.min(distances.len());
         let k_neighbors: Vec<usize> = distances.iter().take(k).map(|(_, idx)| *idx).collect();
 
@@ -432,7 +432,7 @@ mod tests {
             .n_neighbors(3)
             .contamination(0.25) // Expect 25% outliers
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let outliers = model.predict_outliers();
         let lof_scores = model.lof_scores();
@@ -453,7 +453,10 @@ mod tests {
         // Train on normal data
         let train_data = array![[0.0, 0.0], [0.1, 0.1], [0.2, 0.0], [0.0, 0.2], [0.1, 0.2],];
 
-        let model = LOF::new().n_neighbors(3).fit(&train_data, &()).unwrap();
+        let model = LOF::new()
+            .n_neighbors(3)
+            .fit(&train_data, &())
+            .expect("operation should succeed");
 
         // Test on new data including outliers
         let test_data = array![
@@ -461,7 +464,7 @@ mod tests {
             [5.0, 5.0],   // Outlier
         ];
 
-        let lof_scores = model.predict(&test_data).unwrap();
+        let lof_scores = model.predict(&test_data).expect("operation should succeed");
 
         // Outlier should have higher LOF score
         assert!(lof_scores[1] > lof_scores[0]);
@@ -485,7 +488,7 @@ mod tests {
                 .n_neighbors(2)
                 .metric(metric)
                 .fit(&data, &())
-                .unwrap();
+                .expect("operation should succeed");
 
             let lof_scores = model.lof_scores();
             // Last point should be detected as outlier regardless of metric

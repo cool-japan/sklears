@@ -877,12 +877,12 @@ mod tests {
             .learning_rate(0.1)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.centroids().is_ok());
         assert!(model.weights().is_ok());
 
-        let centroids = model.centroids().unwrap();
+        let centroids = model.centroids().expect("operation should succeed");
         assert_eq!(centroids.nrows(), 2);
         assert_eq!(centroids.ncols(), 2);
     }
@@ -897,13 +897,15 @@ mod tests {
             .learning_rate(0.1)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test partial fit with new point
         let new_point = array![0.5, 0.5];
-        model.partial_fit(&new_point.view()).unwrap();
+        model
+            .partial_fit(&new_point.view())
+            .expect("operation should succeed");
 
-        let centroids = model.centroids().unwrap();
+        let centroids = model.centroids().expect("operation should succeed");
         assert_eq!(centroids.nrows(), 2);
     }
 
@@ -916,11 +918,13 @@ mod tests {
             .max_clusters(2)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![[0.1, 0.1], [0.9, 0.9],];
 
-        let predictions = model.predict(&test_data.view()).unwrap();
+        let predictions = model
+            .predict(&test_data.view())
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -935,11 +939,11 @@ mod tests {
             .merge_threshold(0.3)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.micro_clusters().is_ok());
 
-        let micro_clusters = model.micro_clusters().unwrap();
+        let micro_clusters = model.micro_clusters().expect("operation should succeed");
         assert!(!micro_clusters.is_empty());
         assert!(micro_clusters.len() <= 3);
     }
@@ -954,16 +958,20 @@ mod tests {
             .creation_threshold(0.5)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test partial fit with new points
         let new_point1 = array![0.2, 0.2];
         let new_point2 = array![2.0, 2.0];
 
-        model.partial_fit(&new_point1.view()).unwrap();
-        model.partial_fit(&new_point2.view()).unwrap();
+        model
+            .partial_fit(&new_point1.view())
+            .expect("operation should succeed");
+        model
+            .partial_fit(&new_point2.view())
+            .expect("operation should succeed");
 
-        let micro_clusters = model.micro_clusters().unwrap();
+        let micro_clusters = model.micro_clusters().expect("operation should succeed");
         assert!(!micro_clusters.is_empty());
     }
 
@@ -977,14 +985,16 @@ mod tests {
             .max_clusters(2)
             .random_state(42)
             .fit(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.centroids().is_ok());
         assert_eq!(model.current_window_size(), 3);
 
         // Test partial fit
         let new_point = array![2.0, 2.0];
-        model.partial_fit(&new_point.view()).unwrap();
+        model
+            .partial_fit(&new_point.view())
+            .expect("operation should succeed");
 
         // Window should still be size 3 (slides)
         assert_eq!(model.current_window_size(), 3);

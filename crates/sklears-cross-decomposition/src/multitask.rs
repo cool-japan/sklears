@@ -146,7 +146,7 @@ impl MultiTaskCCA {
                 if let Some(max_idx) = eigvals
                     .iter()
                     .enumerate()
-                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
                 {
                     shared_wx
@@ -1310,12 +1310,14 @@ mod tests {
 
     #[test]
     fn test_multi_task_cca_fit() {
-        let x1 = Array2::from_shape_vec((20, 5), (0..100).map(|x| x as f64).collect()).unwrap();
-        let y1 =
-            Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64 * 1.5).collect()).unwrap();
-        let x2 = Array2::from_shape_vec((20, 5), (50..150).map(|x| x as f64).collect()).unwrap();
-        let y2 =
-            Array2::from_shape_vec((20, 3), (30..90).map(|x| x as f64 * 1.2).collect()).unwrap();
+        let x1 = Array2::from_shape_vec((20, 5), (0..100).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let y1 = Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64 * 1.5).collect())
+            .expect("shape should match data length");
+        let x2 = Array2::from_shape_vec((20, 5), (50..150).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let y2 = Array2::from_shape_vec((20, 3), (30..90).map(|x| x as f64 * 1.2).collect())
+            .expect("shape should match data length");
 
         let mt_cca = MultiTaskCCA::new(2, 0.1, 0.5);
         let result = mt_cca.fit_multi_task(&[x1, x2], &[y1, y2]);
@@ -1324,9 +1326,12 @@ mod tests {
 
     #[test]
     fn test_shared_component_analysis_fit() {
-        let data1 = Array2::from_shape_vec((30, 6), (0..180).map(|x| x as f64).collect()).unwrap();
-        let data2 = Array2::from_shape_vec((30, 6), (20..200).map(|x| x as f64).collect()).unwrap();
-        let data3 = Array2::from_shape_vec((30, 6), (10..190).map(|x| x as f64).collect()).unwrap();
+        let data1 = Array2::from_shape_vec((30, 6), (0..180).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let data2 = Array2::from_shape_vec((30, 6), (20..200).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let data3 = Array2::from_shape_vec((30, 6), (10..190).map(|x| x as f64).collect())
+            .expect("shape should match data length");
 
         let sca = SharedComponentAnalysis::new(2, 1, 0.01);
         let result = sca.fit_datasets(&[data1, data2, data3]);
@@ -1343,14 +1348,14 @@ mod tests {
 
     #[test]
     fn test_transfer_learning_cca_fit() {
-        let source_x =
-            Array2::from_shape_vec((20, 4), (0..80).map(|x| x as f64).collect()).unwrap();
-        let source_y =
-            Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64 * 1.1).collect()).unwrap();
-        let target_x =
-            Array2::from_shape_vec((15, 4), (10..70).map(|x| x as f64).collect()).unwrap();
-        let target_y =
-            Array2::from_shape_vec((15, 3), (5..50).map(|x| x as f64 * 1.2).collect()).unwrap();
+        let source_x = Array2::from_shape_vec((20, 4), (0..80).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let source_y = Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64 * 1.1).collect())
+            .expect("shape should match data length");
+        let target_x = Array2::from_shape_vec((15, 4), (10..70).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let target_y = Array2::from_shape_vec((15, 3), (5..50).map(|x| x as f64 * 1.2).collect())
+            .expect("shape should match data length");
 
         let tl_cca = TransferLearningCCA::new(2, 0.1, 0.3);
         let result = tl_cca.fit_transfer(&source_x, &source_y, &target_x, &target_y);
@@ -1367,14 +1372,14 @@ mod tests {
 
     #[test]
     fn test_domain_adaptation_cca_fit() {
-        let source_x =
-            Array2::from_shape_vec((25, 5), (0..125).map(|x| x as f64).collect()).unwrap();
-        let source_y =
-            Array2::from_shape_vec((25, 3), (0..75).map(|x| x as f64 * 0.9).collect()).unwrap();
-        let target_x =
-            Array2::from_shape_vec((20, 5), (15..115).map(|x| x as f64).collect()).unwrap();
-        let target_y =
-            Array2::from_shape_vec((20, 3), (10..70).map(|x| x as f64 * 1.1).collect()).unwrap();
+        let source_x = Array2::from_shape_vec((25, 5), (0..125).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let source_y = Array2::from_shape_vec((25, 3), (0..75).map(|x| x as f64 * 0.9).collect())
+            .expect("shape should match data length");
+        let target_x = Array2::from_shape_vec((20, 5), (15..115).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let target_y = Array2::from_shape_vec((20, 3), (10..70).map(|x| x as f64 * 1.1).collect())
+            .expect("shape should match data length");
 
         let da_cca = DomainAdaptationCCA::new(2, 0.05, 0.4);
         let result = da_cca.fit_domains(&source_x, &source_y, &target_x, &target_y);
@@ -1392,13 +1397,14 @@ mod tests {
 
     #[test]
     fn test_few_shot_cca_meta_train() {
-        let task1_x = Array2::from_shape_vec((15, 4), (0..60).map(|x| x as f64).collect()).unwrap();
-        let task1_y =
-            Array2::from_shape_vec((15, 3), (0..45).map(|x| x as f64 * 1.1).collect()).unwrap();
-        let task2_x =
-            Array2::from_shape_vec((15, 4), (10..70).map(|x| x as f64).collect()).unwrap();
-        let task2_y =
-            Array2::from_shape_vec((15, 3), (5..50).map(|x| x as f64 * 0.9).collect()).unwrap();
+        let task1_x = Array2::from_shape_vec((15, 4), (0..60).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let task1_y = Array2::from_shape_vec((15, 3), (0..45).map(|x| x as f64 * 1.1).collect())
+            .expect("shape should match data length");
+        let task2_x = Array2::from_shape_vec((15, 4), (10..70).map(|x| x as f64).collect())
+            .expect("shape should match data length");
+        let task2_y = Array2::from_shape_vec((15, 3), (5..50).map(|x| x as f64 * 0.9).collect())
+            .expect("shape should match data length");
 
         let fs_cca = FewShotCCA::new(1, 3, 0.1, 0.01);
         let result = fs_cca.meta_train(&[(task1_x, task1_y), (task2_x, task2_y)]);

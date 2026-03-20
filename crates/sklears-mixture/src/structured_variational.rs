@@ -6,7 +6,7 @@
 //! of increased computational complexity.
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Trained, Untrained},
@@ -368,7 +368,7 @@ impl StructuredVariationalGMM<Untrained> {
         let mut means = Array2::zeros((self.n_components, n_features));
 
         // First center is chosen randomly
-        let first_idx = rng.gen_range(0..n_samples);
+        let first_idx = rng.random_range(0..n_samples);
         means
             .slice_mut(s![0, ..])
             .assign(&X.slice(s![first_idx, ..]));
@@ -390,7 +390,7 @@ impl StructuredVariationalGMM<Untrained> {
 
             // Choose next center with probability proportional to squared distance
             let total_dist: f64 = distances.sum();
-            let mut prob = rng.gen::<f64>() * total_dist;
+            let mut prob = rng.random::<f64>() * total_dist;
             let mut chosen_idx = 0;
 
             for i in 0..n_samples {
@@ -474,7 +474,9 @@ impl StructuredVariationalGMM<Untrained> {
         let (n_samples, n_features) = X.dim();
 
         // Compute mean
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         // Compute covariance
         let mut cov = Array2::zeros((n_features, n_features));
@@ -1545,8 +1547,12 @@ mod tests {
             .tol(1e-3)
             .max_iter(50);
 
-        let fitted = gmm.fit(&X.view(), &()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let predictions = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert!(predictions.iter().all(|&label| label < 2));
@@ -1583,8 +1589,12 @@ mod tests {
                 .tol(1e-2)
                 .max_iter(20);
 
-            let fitted = gmm.fit(&X.view(), &()).unwrap();
-            let predictions = fitted.predict(&X.view()).unwrap();
+            let fitted = gmm
+                .fit(&X.view(), &())
+                .expect("model fitting should succeed");
+            let predictions = fitted
+                .predict(&X.view())
+                .expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert!(predictions.iter().all(|&label| label < 2));
@@ -1603,8 +1613,12 @@ mod tests {
             .tol(1e-3)
             .max_iter(30);
 
-        let fitted = gmm.fit(&X.view(), &()).unwrap();
-        let probabilities = fitted.predict_proba(&X.view()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let probabilities = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(probabilities.dim(), (4, 2));
 
@@ -1630,8 +1644,10 @@ mod tests {
             .tol(1e-3)
             .max_iter(30);
 
-        let fitted = gmm.fit(&X.view(), &()).unwrap();
-        let score = fitted.score(&X.view()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let score = fitted.score(&X.view()).expect("operation should succeed");
 
         assert!(score.is_finite());
     }
@@ -1648,7 +1664,9 @@ mod tests {
             .tol(1e-3)
             .max_iter(30);
 
-        let fitted = gmm.fit(&X.view(), &()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         let model_selection = fitted.model_selection();
 
         assert!(model_selection.aic.is_finite());
@@ -1678,8 +1696,12 @@ mod tests {
                 .tol(1e-2)
                 .max_iter(20);
 
-            let fitted = gmm.fit(&X.view(), &()).unwrap();
-            let predictions = fitted.predict(&X.view()).unwrap();
+            let fitted = gmm
+                .fit(&X.view(), &())
+                .expect("model fitting should succeed");
+            let predictions = fitted
+                .predict(&X.view())
+                .expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert!(predictions.iter().all(|&label| label < 2));
@@ -1698,7 +1720,9 @@ mod tests {
             .tol(1e-3)
             .max_iter(30);
 
-        let fitted = gmm.fit(&X.view(), &()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         // Test parameter access
         assert_eq!(fitted.mean_values().dim(), (2, 2));
@@ -1730,11 +1754,19 @@ mod tests {
             .tol(1e-3)
             .max_iter(30);
 
-        let fitted1 = gmm1.fit(&X.view(), &()).unwrap();
-        let fitted2 = gmm2.fit(&X.view(), &()).unwrap();
+        let fitted1 = gmm1
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let fitted2 = gmm2
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
-        let predictions1 = fitted1.predict(&X.view()).unwrap();
-        let predictions2 = fitted2.predict(&X.view()).unwrap();
+        let predictions1 = fitted1
+            .predict(&X.view())
+            .expect("prediction should succeed");
+        let predictions2 = fitted2
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions1, predictions2);
     }
@@ -1751,8 +1783,12 @@ mod tests {
             .tol(1e-3)
             .max_iter(30);
 
-        let fitted = gmm.fit(&X.view(), &()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let predictions = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&label| label == 0));
@@ -1775,17 +1811,23 @@ mod tests {
             .tol(1e-3)
             .max_iter(30);
 
-        let fitted = gmm.fit(&X.view(), &()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         // Check dimensions
         assert_eq!(fitted.mean_values().dim(), (2, 3));
         assert_eq!(fitted.precision_values().dim(), (2, 3, 3));
         assert_eq!(fitted.responsibilities().dim(), (4, 2));
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probabilities = fitted.predict_proba(&X.view()).unwrap();
+        let probabilities = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (4, 2));
     }
 

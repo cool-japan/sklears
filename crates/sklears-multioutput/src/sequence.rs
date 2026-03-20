@@ -379,7 +379,7 @@ impl Fit<Array3<Float>, Array2<i32>> for HiddenMarkovModel<Untrained> {
         let mut rng = thread_rng();
 
         // Initialize parameters
-        let normal_dist = RandNormal::new(0.0, 1.0).unwrap();
+        let normal_dist = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let mut transition_matrix = Array2::<Float>::zeros((self.n_states, self.n_states));
         for i in 0..self.n_states {
             for j in 0..self.n_states {
@@ -848,7 +848,7 @@ impl Fit<Vec<Array2<Float>>, Vec<Vec<i32>>> for MaximumEntropyMarkovModel<Untrai
             use std::time::{SystemTime, UNIX_EPOCH};
             let time_seed = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs();
             scirs2_core::random::seeded_rng(time_seed)
         };
@@ -1111,12 +1111,16 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_structured_perceptron_basic() {
-        let X = Array3::from_shape_vec((1, 2, 2), vec![1.0, 2.0, 2.0, 3.0]).unwrap();
-        let y = Array2::from_shape_vec((1, 2), vec![0, 1]).unwrap();
+        let X = Array3::from_shape_vec((1, 2, 2), vec![1.0, 2.0, 2.0, 3.0])
+            .expect("shape and data length should match");
+        let y =
+            Array2::from_shape_vec((1, 2), vec![0, 1]).expect("shape and data length should match");
 
         let perceptron = StructuredPerceptron::new().max_iterations(10);
-        let trained = perceptron.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = perceptron
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (1, 2));
     }
@@ -1124,12 +1128,14 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_hidden_markov_model_basic() {
-        let X = Array3::from_shape_vec((1, 3, 2), vec![1.0, 2.0, 2.0, 3.0, 1.5, 2.5]).unwrap();
-        let y = Array2::from_shape_vec((1, 3), vec![0, 1, 0]).unwrap();
+        let X = Array3::from_shape_vec((1, 3, 2), vec![1.0, 2.0, 2.0, 3.0, 1.5, 2.5])
+            .expect("shape and data length should match");
+        let y = Array2::from_shape_vec((1, 3), vec![0, 1, 0])
+            .expect("shape and data length should match");
 
         let hmm = HiddenMarkovModel::new().n_states(2).max_iterations(5);
-        let trained = hmm.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = hmm.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (1, 3));
     }
@@ -1143,8 +1149,8 @@ mod tests {
         let memm = MaximumEntropyMarkovModel::new()
             .max_iter(5)
             .learning_rate(0.1);
-        let trained = memm.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = memm.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert_eq!(predictions[0].len(), 2);
@@ -1163,14 +1169,18 @@ mod tests {
         let memm1 = MaximumEntropyMarkovModel::new()
             .max_iter(10)
             .random_state(42);
-        let trained_memm1 = memm1.fit(&X, &y).unwrap();
-        let pred1 = trained_memm1.predict(&X).unwrap();
+        let trained_memm1 = memm1.fit(&X, &y).expect("model fitting should succeed");
+        let pred1 = trained_memm1
+            .predict(&X)
+            .expect("prediction should succeed");
 
         let memm2 = MaximumEntropyMarkovModel::new()
             .max_iter(10)
             .random_state(42);
-        let trained_memm2 = memm2.fit(&X, &y).unwrap();
-        let pred2 = trained_memm2.predict(&X).unwrap();
+        let trained_memm2 = memm2.fit(&X, &y).expect("model fitting should succeed");
+        let pred2 = trained_memm2
+            .predict(&X)
+            .expect("prediction should succeed");
 
         assert_eq!(pred1, pred2);
     }

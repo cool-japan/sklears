@@ -57,7 +57,7 @@ impl DistributedFaultHandler {
     /// Start comprehensive fault monitoring with SIMD acceleration
     pub fn start_monitoring(&mut self, nodes: &[NodeInfo]) -> SklResult<()> {
         // Initialize fault detectors for each node using SIMD optimization
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         match simd_accelerator.accelerated_detector_initialization(nodes) {
             Ok(detectors) => {
                 self.fault_detectors = detectors;
@@ -81,19 +81,19 @@ impl DistributedFaultHandler {
 
         // Initialize machine learning detector
         {
-            let mut ml_detector = self.machine_learning_detector.lock().unwrap();
+            let mut ml_detector = self.machine_learning_detector.lock().unwrap_or_else(|e| e.into_inner());
             ml_detector.train_initial_models(nodes)?;
         }
 
         // Initialize predictive analytics
         {
-            let mut predictive_analyzer = self.predictive_analytics.lock().unwrap();
+            let mut predictive_analyzer = self.predictive_analytics.lock().unwrap_or_else(|e| e.into_inner());
             predictive_analyzer.initialize_prediction_models(nodes)?;
         }
 
         // Start resilience monitoring
         {
-            let mut resilience_monitor = self.resilience_monitor.lock().unwrap();
+            let mut resilience_monitor = self.resilience_monitor.lock().unwrap_or_else(|e| e.into_inner());
             resilience_monitor.start_monitoring(nodes)?;
         }
 
@@ -106,7 +106,7 @@ impl DistributedFaultHandler {
         let mut failed_nodes = Vec::new();
 
         // Use SIMD-accelerated parallel fault detection
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         match simd_accelerator.parallel_fault_detection(&mut self.fault_detectors) {
             Ok(simd_failed_nodes) => {
                 failed_nodes.extend(simd_failed_nodes);
@@ -123,7 +123,7 @@ impl DistributedFaultHandler {
 
         // Use machine learning for additional fault detection
         {
-            let ml_detector = self.machine_learning_detector.lock().unwrap();
+            let ml_detector = self.machine_learning_detector.lock().unwrap_or_else(|e| e.into_inner());
             let ml_predictions = ml_detector.predict_node_failures(&self.fault_detectors)?;
             for (node_id, failure_probability) in ml_predictions {
                 if failure_probability > 0.8 && !failed_nodes.contains(&node_id) {
@@ -136,7 +136,7 @@ impl DistributedFaultHandler {
         for node_id in &failed_nodes {
             let failure_event = self.create_detailed_failure_event(node_id, FailureType::NodeFailure)?;
             {
-                let mut history = self.failure_history.write().unwrap();
+                let mut history = self.failure_history.write().unwrap_or_else(|e| e.into_inner());
                 history.push(failure_event);
 
                 // Keep only recent history (last 10,000 events)
@@ -148,7 +148,7 @@ impl DistributedFaultHandler {
 
         // Check for cascading failures
         {
-            let cascading_detector = self.cascading_failure_detector.lock().unwrap();
+            let cascading_detector = self.cascading_failure_detector.lock().unwrap_or_else(|e| e.into_inner());
             let potential_cascading = cascading_detector.detect_cascading_failures(&failed_nodes, &self.fault_detectors)?;
             failed_nodes.extend(potential_cascading);
         }
@@ -158,13 +158,13 @@ impl DistributedFaultHandler {
 
     /// Detect Byzantine nodes with advanced SIMD algorithms
     pub fn detect_byzantine_nodes(&mut self) -> SklResult<Vec<String>> {
-        let byzantine_detector = self.byzantine_detector.lock().unwrap();
+        let byzantine_detector = self.byzantine_detector.lock().unwrap_or_else(|e| e.into_inner());
 
         // Combine traditional Byzantine detection with ML-based detection
         let mut byzantine_nodes = byzantine_detector.detect_byzantine_behavior()?;
 
         // Use SIMD-accelerated consensus analysis
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         match simd_accelerator.detect_byzantine_patterns(&self.fault_detectors) {
             Ok(simd_byzantine) => {
                 for node in simd_byzantine {
@@ -182,7 +182,7 @@ impl DistributedFaultHandler {
         for node_id in &byzantine_nodes {
             let failure_event = self.create_detailed_failure_event(node_id, FailureType::ByzantineFailure)?;
             {
-                let mut history = self.failure_history.write().unwrap();
+                let mut history = self.failure_history.write().unwrap_or_else(|e| e.into_inner());
                 history.push(failure_event);
             }
         }
@@ -194,14 +194,14 @@ impl DistributedFaultHandler {
     pub fn handle_consensus_failure(&mut self, error: &str) -> SklResult<()> {
         // Use recovery optimizer to determine best strategy
         let recovery_plan = {
-            let recovery_optimizer = self.recovery_optimizer.lock().unwrap();
+            let recovery_optimizer = self.recovery_optimizer.lock().unwrap_or_else(|e| e.into_inner());
             recovery_optimizer.optimize_consensus_recovery(error, &self.failure_history)?
         };
 
         // Execute optimized recovery plan
         match recovery_plan.strategy {
             RecoveryStrategy::Checkpoint => {
-                let checkpoint_manager = self.checkpoint_manager.lock().unwrap();
+                let checkpoint_manager = self.checkpoint_manager.lock().unwrap_or_else(|e| e.into_inner());
                 checkpoint_manager.rollback_to_last_checkpoint()?;
             },
             RecoveryStrategy::NodeReplacement => {
@@ -217,7 +217,7 @@ impl DistributedFaultHandler {
 
         // Record detailed failure event
         let failure_event = FailureEvent {
-            event_id: format!("consensus_failure_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()),
+            event_id: format!("consensus_failure_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()),
             node_id: "consensus_system".to_string(),
             failure_type: FailureType::ByzantineFailure,
             timestamp: SystemTime::now(),
@@ -227,7 +227,7 @@ impl DistributedFaultHandler {
         };
 
         {
-            let mut history = self.failure_history.write().unwrap();
+            let mut history = self.failure_history.write().unwrap_or_else(|e| e.into_inner());
             history.push(failure_event);
         }
 
@@ -239,7 +239,7 @@ impl DistributedFaultHandler {
         let mut recovery_results = Vec::new();
 
         // Use SIMD-accelerated recovery planning
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         let recovery_plan = simd_accelerator.optimize_recovery_plan(failed_nodes, failure_types, &self.recovery_strategies)?;
 
         // Execute recovery steps in optimized order
@@ -286,8 +286,8 @@ impl DistributedFaultHandler {
 
     /// Predict potential failures using SIMD-accelerated analytics
     pub fn predict_potential_failures(&self, time_horizon: Duration) -> SklResult<Vec<FailurePrediction>> {
-        let predictive_analyzer = self.predictive_analytics.lock().unwrap();
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let predictive_analyzer = self.predictive_analytics.lock().unwrap_or_else(|e| e.into_inner());
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for accelerated failure prediction
         let failure_indicators = simd_accelerator.extract_failure_indicators(&self.fault_detectors)?;
@@ -298,8 +298,8 @@ impl DistributedFaultHandler {
 
     /// Assess system resilience with comprehensive metrics
     pub fn assess_system_resilience(&self) -> SklResult<ResilienceAssessment> {
-        let resilience_monitor = self.resilience_monitor.lock().unwrap();
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let resilience_monitor = self.resilience_monitor.lock().unwrap_or_else(|e| e.into_inner());
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel resilience calculation
         let resilience_metrics = simd_accelerator.calculate_resilience_metrics(
@@ -316,7 +316,7 @@ impl DistributedFaultHandler {
         self.monitoring_active.store(false, Ordering::Relaxed);
 
         // Cleanup with SIMD optimization
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         simd_accelerator.cleanup_monitoring_resources(&mut self.fault_detectors)?;
 
         self.fault_detectors.clear();
@@ -325,8 +325,8 @@ impl DistributedFaultHandler {
 
     /// Get comprehensive fault analytics
     pub fn get_fault_analytics(&self) -> SklResult<FaultAnalytics> {
-        let history = self.failure_history.read().unwrap();
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let history = self.failure_history.read().unwrap_or_else(|e| e.into_inner());
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         let analytics = simd_accelerator.compute_comprehensive_analytics(&history)?;
         Ok(analytics)
@@ -334,7 +334,7 @@ impl DistributedFaultHandler {
 
     /// Get recent fault events with filtering
     pub fn get_recent_events(&self, time_window: Duration, severity_filter: Option<FailureSeverity>) -> Vec<FailureEvent> {
-        let history = self.failure_history.read().unwrap();
+        let history = self.failure_history.read().unwrap_or_else(|e| e.into_inner());
         let cutoff_time = SystemTime::now() - time_window;
 
         history.iter()
@@ -356,7 +356,7 @@ impl DistributedFaultHandler {
     fn create_detailed_failure_event(&self, node_id: &str, failure_type: FailureType) -> SklResult<FailureEvent> {
         let event_id = format!("failure_{}_{}_{}",
             node_id,
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
             fastrand::u32(..)
         );
 
@@ -397,7 +397,7 @@ impl DistributedFaultHandler {
 
     /// Execute data recovery
     fn execute_data_recovery(&self, affected_nodes: &[String]) -> SklResult<IndividualRecoveryResult> {
-        let checkpoint_manager = self.checkpoint_manager.lock().unwrap();
+        let checkpoint_manager = self.checkpoint_manager.lock().unwrap_or_else(|e| e.into_inner());
         match checkpoint_manager.recover_node_data(affected_nodes) {
             Ok(_) => Ok(IndividualRecoveryResult {
                 action_type: RecoveryActionType::DataRecovery,
@@ -454,7 +454,7 @@ impl DistributedFaultHandler {
 
     /// Execute node replacement recovery
     fn execute_node_replacement_recovery(&self) -> SklResult<()> {
-        let redundancy_manager = self.redundancy_manager.lock().unwrap();
+        let redundancy_manager = self.redundancy_manager.lock().unwrap_or_else(|e| e.into_inner());
         redundancy_manager.activate_backup_nodes()
     }
 
@@ -905,7 +905,7 @@ impl CheckpointManager {
 
     /// Create checkpoint with SIMD compression
     pub fn create_checkpoint(&mut self, state_data: &[u8]) -> SklResult<String> {
-        let checkpoint_id = format!("checkpoint_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs());
+        let checkpoint_id = format!("checkpoint_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
 
         let compressed_data = if self.compression_enabled && state_data.len() > 1024 {
             match self.simd_compressor.compress_checkpoint(state_data) {
@@ -1205,7 +1205,7 @@ impl FaultToleranceSimdAccelerator {
             health_scores.iter().sum::<f64>() / health_scores.len() as f64
         };
 
-        let history = failure_history.read().unwrap();
+        let history = failure_history.read().unwrap_or_else(|e| e.into_inner());
         let recent_failures = history.iter()
             .filter(|event| event.timestamp > SystemTime::now() - Duration::from_secs(3600))
             .count();
@@ -1296,7 +1296,7 @@ impl FaultToleranceSimdAccelerator {
 
         // Extract timing data for analysis
         let event_times: Vec<f64> = history.iter()
-            .map(|event| event.timestamp.duration_since(UNIX_EPOCH).unwrap().as_secs_f64())
+            .map(|event| event.timestamp.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64())
             .collect();
 
         // Calculate failure frequency using SIMD

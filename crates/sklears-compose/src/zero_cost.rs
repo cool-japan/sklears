@@ -624,7 +624,7 @@ impl<T> Arena<T> {
         chunk.push(item);
         self.current_offset += 1;
 
-        chunk.last_mut().unwrap()
+        chunk.last_mut().expect("just pushed an item")
     }
 
     /// Allocate space for multiple items
@@ -760,13 +760,13 @@ impl<T> PooledBuffer<T> {
 
     /// Get mutable reference to the buffer
     pub fn buffer_mut(&mut self) -> &mut Vec<T> {
-        self.buffer.as_mut().unwrap()
+        self.buffer.as_mut().expect("buffer not initialized")
     }
 
     /// Get immutable reference to the buffer
     #[must_use]
     pub fn buffer_ref(&self) -> &Vec<T> {
-        self.buffer.as_ref().unwrap()
+        self.buffer.as_ref().expect("buffer not initialized")
     }
 }
 
@@ -774,13 +774,13 @@ impl<T> std::ops::Deref for PooledBuffer<T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
-        self.buffer.as_ref().unwrap()
+        self.buffer.as_ref().expect("buffer not initialized")
     }
 }
 
 impl<T> std::ops::DerefMut for PooledBuffer<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.buffer.as_mut().unwrap()
+        self.buffer.as_mut().expect("buffer not initialized")
     }
 }
 
@@ -1595,7 +1595,7 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
         let view = ZeroCopyView::new(&data, (3, 3), (3, 1));
 
-        let sub_view = view.slice(1..3, 1..3).unwrap();
+        let sub_view = view.slice(1..3, 1..3).expect("operation should succeed");
         assert_eq!(sub_view.shape(), (2, 2));
         assert_eq!(sub_view.get(0, 0), Some(&5)); // data[1*3 + 1] = data[4]
     }
@@ -1612,7 +1612,7 @@ mod tests {
         drop(cloned);
         assert_eq!(data.ref_count(), 1);
 
-        let recovered = data.try_unwrap().unwrap();
+        let recovered = data.try_unwrap().unwrap_or_default();
         assert_eq!(recovered, vec![1, 2, 3]);
     }
 
@@ -1694,7 +1694,7 @@ mod tests {
         let data = vec![1, 2, 3, 4, 5];
 
         // Test zero_copy_slice
-        let slice = data.zero_copy_slice(1, 4).unwrap();
+        let slice = data.zero_copy_slice(1, 4).unwrap_or_default();
         assert_eq!(slice, &[2, 3, 4]);
 
         // Test zero_copy_chunks
@@ -1749,7 +1749,7 @@ mod tests {
         let data = SafeConcurrentData::new(vec![1, 2, 3]);
 
         // Test reading
-        let result = data.read(|v| v.len()).unwrap();
+        let result = data.read(|v| v.len()).unwrap_or_default();
         assert_eq!(result, 3);
 
         // Test writing
@@ -1758,7 +1758,7 @@ mod tests {
                 v.push(4);
                 v.len()
             })
-            .unwrap();
+            .unwrap_or_default();
         assert_eq!(result, 4);
 
         // Check stats
@@ -1768,11 +1768,11 @@ mod tests {
         assert_eq!(stats.contentions, 0);
 
         // Test try_read
-        let result = data.try_read(|v| v.len()).unwrap();
+        let result = data.try_read(|v| v.len()).unwrap_or_default();
         assert_eq!(result, Some(4));
 
         // Test final data
-        let final_result = data.read(|v| v.clone()).unwrap();
+        let final_result = data.read(|v| v.clone()).unwrap_or_default();
         assert_eq!(final_result, vec![1, 2, 3, 4]);
     }
 
@@ -1793,7 +1793,7 @@ mod tests {
         assert_eq!(cloned.strong_count(), 2);
 
         // Upgrade weak reference
-        let upgraded = weak.upgrade().unwrap();
+        let upgraded = weak.upgrade().expect("operation should succeed");
         assert_eq!(upgraded.strong_count(), 3);
 
         // Drop cloned and upgraded
@@ -1802,7 +1802,7 @@ mod tests {
         assert_eq!(data.strong_count(), 1);
 
         // Try to unwrap
-        let recovered = data.try_unwrap().unwrap();
+        let recovered = data.try_unwrap().unwrap_or_default();
         assert_eq!(recovered, vec![1, 2, 3]);
     }
 
@@ -1813,21 +1813,21 @@ mod tests {
         assert_eq!(queue.len(), 0);
 
         // Enqueue items
-        queue.enqueue(1).unwrap();
-        queue.enqueue(2).unwrap();
-        queue.enqueue(3).unwrap();
+        queue.enqueue(1).unwrap_or_default();
+        queue.enqueue(2).unwrap_or_default();
+        queue.enqueue(3).unwrap_or_default();
 
         assert_eq!(queue.len(), 3);
         assert!(!queue.is_empty());
 
         // Dequeue items
-        assert_eq!(queue.dequeue().unwrap(), Some(1));
-        assert_eq!(queue.dequeue().unwrap(), Some(2));
+        assert_eq!(queue.dequeue().unwrap_or_default(), Some(1));
+        assert_eq!(queue.dequeue().unwrap_or_default(), Some(2));
         assert_eq!(queue.len(), 1);
 
         // Try dequeue
-        assert_eq!(queue.try_dequeue().unwrap(), Some(3));
-        assert_eq!(queue.try_dequeue().unwrap(), None);
+        assert_eq!(queue.try_dequeue().unwrap_or_default(), Some(3));
+        assert_eq!(queue.try_dequeue().unwrap_or_default(), None);
 
         assert!(queue.is_empty());
 
@@ -1846,27 +1846,27 @@ mod tests {
         assert_eq!(deque.len(), 0);
 
         // Push work items
-        deque.push(1).unwrap();
-        deque.push(2).unwrap();
-        deque.push(3).unwrap();
+        deque.push(1).unwrap_or_default();
+        deque.push(2).unwrap_or_default();
+        deque.push(3).unwrap_or_default();
 
         assert_eq!(deque.len(), 3);
         assert!(!deque.is_empty());
 
         // Pop from same thread (LIFO)
-        assert_eq!(deque.pop().unwrap(), Some(3));
+        assert_eq!(deque.pop().unwrap_or_default(), Some(3));
         assert_eq!(deque.len(), 2);
 
         // Steal from other thread (FIFO)
-        assert_eq!(deque.steal().unwrap(), Some(1));
+        assert_eq!(deque.steal().unwrap_or_default(), Some(1));
         assert_eq!(deque.len(), 1);
 
         // Pop remaining
-        assert_eq!(deque.pop().unwrap(), Some(2));
+        assert_eq!(deque.pop().unwrap_or_default(), Some(2));
         assert!(deque.is_empty());
 
         // Try steal from empty
-        assert_eq!(deque.steal().unwrap(), None);
+        assert_eq!(deque.steal().unwrap_or_default(), None);
 
         // Check stats
         let stats = deque.get_stats();

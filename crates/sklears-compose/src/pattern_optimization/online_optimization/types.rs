@@ -513,7 +513,7 @@ impl OnlinePerformanceMonitor {
                 return Some(Alert {
                     alert_id: format!(
                         "{}_{}", metric_name, SystemTime::now()
-                        .duration_since(UNIX_EPOCH).unwrap().as_secs()
+                        .duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
                     ),
                     severity: threshold.severity.clone(),
                     message: format!(
@@ -531,7 +531,7 @@ impl OnlinePerformanceMonitor {
                 return Some(Alert {
                     alert_id: format!(
                         "{}_{}", metric_name, SystemTime::now()
-                        .duration_since(UNIX_EPOCH).unwrap().as_secs()
+                        .duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
                     ),
                     severity: threshold.severity.clone(),
                     message: format!(
@@ -618,7 +618,7 @@ impl UCBBandit {
         }
         Self {
             algorithm_id: format!(
-                "ucb_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
+                "ucb_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default()
                 .as_millis()
             ),
             num_arms,
@@ -765,7 +765,7 @@ impl StreamingSGD {
     pub fn new(dimension: usize, learning_rate: f64) -> Self {
         Self {
             optimizer_id: format!(
-                "sgd_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
+                "sgd_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default()
                 .as_millis()
             ),
             learning_rate,
@@ -1067,7 +1067,7 @@ impl OnlineAdaptationController {
             let new_params = strategy.compute_adaptation(current_params, &context)?;
             let event = AdaptationEvent {
                 event_id: format!(
-                    "adapt_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
+                    "adapt_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default()
                     .as_millis()
                 ),
                 timestamp: SystemTime::now(),

@@ -471,7 +471,7 @@ impl TimeSeriesAnalyzer {
         y_pred: &ArrayView1<Float>,
     ) -> SklResult<Float> {
         // Use R-squared score
-        let y_mean = y_true.mean().unwrap();
+        let y_mean = y_true.mean().expect("operation should succeed");
         let ss_tot: Float = y_true.iter().map(|&y| (y - y_mean).powi(2)).sum();
         let ss_res: Float = y_true
             .iter()
@@ -536,7 +536,7 @@ impl TimeSeriesAnalyzer {
 
     fn compute_confidence_interval(&self, scores: &ArrayView1<Float>) -> SklResult<(Float, Float)> {
         let mut sorted_scores = scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let alpha = self.config.significance_level;
         let lower_idx = ((alpha / 2.0) * sorted_scores.len() as Float) as usize;
@@ -553,7 +553,7 @@ impl TimeSeriesAnalyzer {
 
     fn test_significance(&self, scores: &ArrayView1<Float>, null_value: Float) -> SklResult<bool> {
         // Simple t-test against null hypothesis
-        let mean = scores.mean().unwrap();
+        let mean = scores.mean().expect("operation should succeed");
         let std = scores.std(0.0);
         let n = scores.len() as Float;
 
@@ -777,8 +777,8 @@ impl TimeSeriesAnalyzer {
         y: &ArrayView1<Float>,
     ) -> SklResult<(Float, Float, Float)> {
         let n = x.len() as Float;
-        let x_mean = x.mean().unwrap();
-        let y_mean = y.mean().unwrap();
+        let x_mean = x.mean().expect("operation should succeed");
+        let y_mean = y.mean().expect("operation should succeed");
 
         let numerator: Float = x
             .iter()
@@ -956,7 +956,7 @@ impl TimeSeriesAnalyzer {
             return Ok(0.0);
         }
 
-        let mean = series.mean().unwrap();
+        let mean = series.mean().expect("operation should succeed");
 
         let mut numerator = 0.0;
         let mut denominator = 0.0;
@@ -1006,8 +1006,8 @@ impl TimeSeriesAnalyzer {
         let x_slice = x.slice(scirs2_core::ndarray::s![lag..]);
         let y_slice = y.slice(scirs2_core::ndarray::s![..effective_n]);
 
-        let x_mean = x_slice.mean().unwrap();
-        let y_mean = y_slice.mean().unwrap();
+        let x_mean = x_slice.mean().expect("operation should succeed");
+        let y_mean = y_slice.mean().expect("operation should succeed");
 
         let mut numerator = 0.0;
         let mut x_var = 0.0;
@@ -1404,7 +1404,7 @@ mod tests {
         let result = analyzer.seasonal_decomposition(&series.view());
         assert!(result.is_ok());
 
-        let decomp = result.unwrap();
+        let decomp = result.expect("operation should succeed");
         assert_eq!(decomp.original.len(), 48);
         assert_eq!(decomp.trend.len(), 48);
         assert_eq!(decomp.seasonal.len(), 48);
@@ -1425,7 +1425,7 @@ mod tests {
         let result = analyzer.trend_analysis(&series.view());
         assert!(result.is_ok());
 
-        let trend = result.unwrap();
+        let trend = result.expect("operation should succeed");
         assert!(matches!(trend.trend_direction, TrendDirection::Increasing));
         assert!(trend.trend_magnitude > 0.0);
         assert!(!trend.trend_segments.is_empty());
@@ -1445,7 +1445,7 @@ mod tests {
         let result = analyzer.lag_importance(&series1.view(), &series2.view());
         assert!(result.is_ok());
 
-        let lag_imp = result.unwrap();
+        let lag_imp = result.expect("operation should succeed");
         assert_eq!(
             lag_imp.lag_scores.len(),
             analyzer.config.max_lag.min(n / 4) + 1
@@ -1468,7 +1468,7 @@ mod tests {
         let result = analyzer.dtw_explanation(&query.view(), &reference.view());
         assert!(result.is_ok());
 
-        let dtw = result.unwrap();
+        let dtw = result.expect("operation should succeed");
         assert!(dtw.distance >= 0.0);
         assert!(dtw.warping_path.nrows() > 0);
         assert_eq!(dtw.warping_path.ncols(), 2);
@@ -1484,7 +1484,7 @@ mod tests {
         let result = analyzer.compute_moving_average(&series.view(), 3);
         assert!(result.is_ok());
 
-        let ma = result.unwrap();
+        let ma = result.expect("operation should succeed");
         assert_eq!(ma.len(), series.len());
         assert!(ma.iter().all(|&x| x > 0.0));
     }
@@ -1497,7 +1497,7 @@ mod tests {
         let result = analyzer.compute_autocorrelation(&series.view(), 2);
         assert!(result.is_ok());
 
-        let ac = result.unwrap();
+        let ac = result.expect("operation should succeed");
         // Should have high autocorrelation at lag 2 due to pattern
         assert!(ac > 0.5);
     }
@@ -1511,7 +1511,7 @@ mod tests {
         let result = analyzer.compute_cross_correlation(&x.view(), &y.view(), 2);
         assert!(result.is_ok());
 
-        let cc = result.unwrap();
+        let cc = result.expect("operation should succeed");
         assert_eq!(cc.len(), 3); // lag 0, 1, 2
         assert!(cc[0] > 0.8); // High correlation at lag 0
     }
@@ -1532,7 +1532,7 @@ mod tests {
         let result = analyzer.detect_change_points(&series.view());
         assert!(result.is_ok());
 
-        let change_points = result.unwrap();
+        let change_points = result.expect("operation should succeed");
         // Should detect change point around index 10
         assert!(!change_points.is_empty());
     }
@@ -1553,7 +1553,7 @@ mod tests {
         let result = analyzer.temporal_importance(&X.view(), &y.view(), &model_fn);
         assert!(result.is_ok());
 
-        let temp_imp = result.unwrap();
+        let temp_imp = result.expect("operation should succeed");
         assert_eq!(temp_imp.temporal_scores.len(), 5);
         assert_eq!(temp_imp.significance_map.len(), 5);
         assert_eq!(temp_imp.confidence_intervals.nrows(), 5);

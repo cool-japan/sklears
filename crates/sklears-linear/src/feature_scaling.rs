@@ -233,7 +233,10 @@ impl FeatureScaler {
             });
         }
 
-        let stats = self.stats.as_ref().unwrap();
+        let stats = self
+            .stats
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.is_empty() {
             return Ok(vec![]);
@@ -273,7 +276,10 @@ impl FeatureScaler {
             });
         }
 
-        let stats = self.stats.as_ref().unwrap();
+        let stats = self
+            .stats
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let mut result = x.to_vec();
 
         self.apply_inverse_transformation(&mut result, stats)?;
@@ -376,7 +382,7 @@ impl FeatureScaler {
 
             // Collect feature values for quantile computation
             let mut feature_values: Vec<f64> = x.iter().map(|row| row[j]).collect();
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             // Compute median (50th percentile)
             let median_idx = feature_values.len() / 2;
@@ -448,7 +454,7 @@ impl FeatureScaler {
             }
 
             let mut feature_values: Vec<f64> = x.iter().map(|row| row[j]).collect();
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             let mut quantiles = Vec::with_capacity(num_quantiles + 1);
             for i in 0..=num_quantiles {
@@ -580,7 +586,9 @@ impl FeatureScaler {
 
                 // Find position in quantile distribution
                 let pos = quantiles
-                    .binary_search_by(|&q| q.partial_cmp(value).unwrap())
+                    .binary_search_by(|&q| {
+                        q.partial_cmp(value).unwrap_or(std::cmp::Ordering::Equal)
+                    })
                     .unwrap_or_else(|i| i);
 
                 *value = pos as f64 / (quantiles.len() - 1) as f64;
@@ -745,7 +753,9 @@ mod tests {
         ];
 
         let mut scaler = FeatureScaler::standard();
-        let scaled = scaler.fit_transform(&data).unwrap();
+        let scaled = scaler
+            .fit_transform(&data)
+            .expect("operation should succeed");
 
         // Check that means are approximately 0 and stds are approximately 1
         let means: Vec<f64> = (0..2)
@@ -757,7 +767,9 @@ mod tests {
         }
 
         // Test inverse transformation
-        let inverse = scaler.inverse_transform(&scaled).unwrap();
+        let inverse = scaler
+            .inverse_transform(&scaled)
+            .expect("operation should succeed");
         for (i, row) in inverse.iter().enumerate() {
             for (j, &value) in row.iter().enumerate() {
                 assert_relative_eq!(value, data[i][j], epsilon = 1e-10);
@@ -775,7 +787,9 @@ mod tests {
         ];
 
         let mut scaler = FeatureScaler::min_max();
-        let scaled = scaler.fit_transform(&data).unwrap();
+        let scaled = scaler
+            .fit_transform(&data)
+            .expect("operation should succeed");
 
         // Check that values are in [0, 1] range
         for row in &scaled {
@@ -802,12 +816,14 @@ mod tests {
         ];
 
         let mut scaler = FeatureScaler::robust();
-        let scaled = scaler.fit_transform(&data).unwrap();
+        let scaled = scaler
+            .fit_transform(&data)
+            .expect("operation should succeed");
 
         // Robust scaling should be less affected by outliers
         assert!(scaled.len() == data.len());
 
-        let stats = scaler.get_stats().unwrap();
+        let stats = scaler.get_stats().expect("operation should succeed");
         // Median should be 3.0 for first feature and 30.0 for second
         assert_relative_eq!(stats.medians[0], 3.0, epsilon = 1e-10);
         assert_relative_eq!(stats.medians[1], 30.0, epsilon = 1e-10);
@@ -825,7 +841,9 @@ mod tests {
             ..Default::default()
         };
         let mut scaler = FeatureScaler::new(config);
-        let scaled = scaler.fit_transform(&data).unwrap();
+        let scaled = scaler
+            .fit_transform(&data)
+            .expect("operation should succeed");
 
         // Check that each row has unit norm
         for row in &scaled {
@@ -845,7 +863,9 @@ mod tests {
         let mut scaler = FeatureScaler::standard();
         scaler.exclude_feature(1); // Exclude second feature from scaling
 
-        let scaled = scaler.fit_transform(&data).unwrap();
+        let scaled = scaler
+            .fit_transform(&data)
+            .expect("operation should succeed");
 
         // Second feature should remain unchanged
         for (i, row) in scaled.iter().enumerate() {

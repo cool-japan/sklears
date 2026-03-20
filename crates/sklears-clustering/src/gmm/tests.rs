@@ -68,11 +68,14 @@ mod classical_gmm_tests {
             .n_components(2)
             .covariance_type(CovarianceType::Diagonal)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.weights().unwrap().len(), 2);
-        assert_eq!(model.means().unwrap().nrows(), 2);
-        assert_eq!(model.covariances().unwrap().len(), 2);
+        assert_eq!(model.weights().expect("operation should succeed").len(), 2);
+        assert_eq!(model.means().expect("operation should succeed").nrows(), 2);
+        assert_eq!(
+            model.covariances().expect("operation should succeed").len(),
+            2
+        );
         assert!(model.converged() || model.n_iter() == model.config().max_iter);
     }
 
@@ -83,9 +86,9 @@ mod classical_gmm_tests {
         let model: GaussianMixture = GaussianMixture::new()
             .n_components(2)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let labels = model.predict(&x.view()).unwrap();
+        let labels = model.predict(&x.view()).expect("operation should succeed");
         assert_eq!(labels.len(), x.nrows());
 
         // Check that all labels are valid
@@ -101,9 +104,11 @@ mod classical_gmm_tests {
         let model: GaussianMixture = GaussianMixture::new()
             .n_components(2)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let proba = model.predict_proba(&x.view()).unwrap();
+        let proba = model
+            .predict_proba(&x.view())
+            .expect("operation should succeed");
         assert_eq!(proba.nrows(), x.nrows());
         assert_eq!(proba.ncols(), 2);
 
@@ -127,22 +132,22 @@ mod classical_gmm_tests {
             .n_components(3)
             .covariance_type(CovarianceType::Diagonal)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test scoring
-        let score = model.score(&x.view()).unwrap();
+        let score = model.score(&x.view()).expect("operation should succeed");
         assert!(score.is_finite());
 
         // Test AIC
-        let aic = model.aic(&x.view()).unwrap();
+        let aic = model.aic(&x.view()).expect("operation should succeed");
         assert!(aic.is_finite());
 
         // Test BIC
-        let bic = model.bic(&x.view()).unwrap();
+        let bic = model.bic(&x.view()).expect("operation should succeed");
         assert!(bic.is_finite());
 
         // Test ICL
-        let icl = model.icl(&x.view()).unwrap();
+        let icl = model.icl(&x.view()).expect("operation should succeed");
         assert!(icl.is_finite());
 
         // BIC should generally be larger than AIC for the same model
@@ -161,7 +166,7 @@ mod classical_gmm_tests {
             ModelSelectionCriterion::BIC,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.best_n_components >= 1 && result.best_n_components <= 3);
         assert_eq!(result.criterion_values.len(), 3);
@@ -197,11 +202,14 @@ mod classical_gmm_tests {
                 .n_components(2)
                 .covariance_type(*cov_type)
                 .fit(&x.view(), &Array1::zeros(0).view())
-                .unwrap();
+                .expect("operation should succeed");
 
-            assert_eq!(model.weights().unwrap().len(), 2);
-            assert_eq!(model.means().unwrap().nrows(), 2);
-            assert_eq!(model.covariances().unwrap().len(), 2);
+            assert_eq!(model.weights().expect("operation should succeed").len(), 2);
+            assert_eq!(model.means().expect("operation should succeed").nrows(), 2);
+            assert_eq!(
+                model.covariances().expect("operation should succeed").len(),
+                2
+            );
         }
     }
 
@@ -212,13 +220,16 @@ mod classical_gmm_tests {
         let model: GaussianMixture = GaussianMixture::new()
             .n_components(1)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.weights().unwrap().len(), 1);
-        assert_eq!(model.means().unwrap().nrows(), 1);
-        assert_eq!(model.covariances().unwrap().len(), 1);
+        assert_eq!(model.weights().expect("operation should succeed").len(), 1);
+        assert_eq!(model.means().expect("operation should succeed").nrows(), 1);
+        assert_eq!(
+            model.covariances().expect("operation should succeed").len(),
+            1
+        );
 
-        let labels = model.predict(&x.view()).unwrap();
+        let labels = model.predict(&x.view()).expect("operation should succeed");
         for &label in labels.iter() {
             assert_eq!(label, 0);
         }
@@ -239,13 +250,19 @@ mod bayesian_gmm_tests {
             .n_components(2)
             .covariance_type(CovarianceType::Diagonal)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.weights().unwrap().len(), 2);
-        assert_eq!(model.means().unwrap().nrows(), 2);
-        assert_eq!(model.covariances().unwrap().len(), 2);
+        assert_eq!(model.weights().expect("operation should succeed").len(), 2);
+        assert_eq!(model.means().expect("operation should succeed").nrows(), 2);
+        assert_eq!(
+            model.covariances().expect("operation should succeed").len(),
+            2
+        );
         // Check that the model either converged or completed the maximum iterations
-        assert!(model.converged().unwrap() || model.n_iter().unwrap() > 0);
+        assert!(
+            model.converged().expect("operation should succeed")
+                || model.n_iter().expect("operation should succeed") > 0
+        );
     }
 
     #[test]
@@ -255,9 +272,9 @@ mod bayesian_gmm_tests {
         let model: BayesianGaussianMixture = BayesianGaussianMixture::new()
             .n_components(2)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let labels = model.predict(&x.view()).unwrap();
+        let labels = model.predict(&x.view()).expect("operation should succeed");
         assert_eq!(labels.len(), x.nrows());
 
         // Check that all labels are valid
@@ -273,9 +290,11 @@ mod bayesian_gmm_tests {
         let model: BayesianGaussianMixture = BayesianGaussianMixture::new()
             .n_components(2)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let proba = model.predict_proba(&x.view()).unwrap();
+        let proba = model
+            .predict_proba(&x.view())
+            .expect("operation should succeed");
         assert_eq!(proba.nrows(), x.nrows());
         assert_eq!(proba.ncols(), 2);
 
@@ -298,9 +317,9 @@ mod bayesian_gmm_tests {
         let model: BayesianGaussianMixture = BayesianGaussianMixture::new()
             .n_components(2)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let lower_bound = model.lower_bound().unwrap();
+        let lower_bound = model.lower_bound().expect("operation should succeed");
         // Note: Lower bound computation may have numerical issues with small datasets
         // In practice, non-finite values indicate numerical instability
         if !lower_bound.is_finite() {
@@ -322,11 +341,11 @@ mod bayesian_gmm_tests {
             .weight_concentration_prior(2.0)
             .mean_precision_prior(0.5)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should successfully fit with custom priors
-        assert!(model.converged().unwrap());
-        assert_eq!(model.weights().unwrap().len(), 1);
+        assert!(model.converged().expect("operation should succeed"));
+        assert_eq!(model.weights().expect("operation should succeed").len(), 1);
     }
 
     #[test]
@@ -338,10 +357,10 @@ mod bayesian_gmm_tests {
             .n_components(5) // Start with more components than necessary
             .weight_concentration_prior(0.1) // Encourage sparsity
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that some components might have very small weights (automatic selection)
-        let weights = model.weights().unwrap();
+        let weights = model.weights().expect("operation should succeed");
         let effective_components = weights.iter().filter(|&&w| w > 0.01).count();
 
         // With a sparse prior, we should get fewer effective components
@@ -437,7 +456,9 @@ mod model_selection_tests {
         let config = GaussianMixtureConfig::default();
         let selector = ModelSelector::new(1, 3).criterion(ModelSelectionCriterion::BIC);
 
-        let result = selector.select_best_model(&x.view(), &config).unwrap();
+        let result = selector
+            .select_best_model(&x.view(), &config)
+            .expect("operation should succeed");
 
         assert!(result.best_n_components >= 1 && result.best_n_components <= 3);
         assert_eq!(result.criterion_values.len(), 3);
@@ -464,7 +485,8 @@ mod model_selection_tests {
         let x = test_data::simple_two_clusters();
         let config = GaussianMixtureConfig::default();
 
-        let result = select_model(&x.view(), 1, 3, ModelSelectionCriterion::AIC, &config).unwrap();
+        let result = select_model(&x.view(), 1, 3, ModelSelectionCriterion::AIC, &config)
+            .expect("operation should succeed");
 
         assert!(result.best_n_components >= 1 && result.best_n_components <= 3);
         assert!(matches!(result.criterion, ModelSelectionCriterion::AIC));
@@ -485,7 +507,9 @@ mod model_selection_tests {
             .cv_folds(3)
             .scoring(ModelSelectionCriterion::BIC);
 
-        let result = grid_search.fit(&x.view()).unwrap();
+        let result = grid_search
+            .fit(&x.view())
+            .expect("operation should succeed");
 
         assert!(result.best_score.is_finite());
         assert!(!result.cv_results.is_empty());
@@ -507,7 +531,7 @@ mod em_algorithm_tests {
             .covariance_type(CovarianceType::Diagonal)
             .init_params(WeightInit::KMeans);
 
-        let result = em.fit(&x.view(), 2).unwrap();
+        let result = em.fit(&x.view(), 2).expect("operation should succeed");
 
         assert_eq!(result.weights.len(), 2);
         assert_eq!(result.means.nrows(), 2);
@@ -524,7 +548,9 @@ mod em_algorithm_tests {
             .covariance_type(CovarianceType::Full)
             .init_params(WeightInit::KMeans);
 
-        let (weights, means, covariances) = em.initialize_parameters(&x.view(), 2).unwrap();
+        let (weights, means, covariances) = em
+            .initialize_parameters(&x.view(), 2)
+            .expect("operation should succeed");
 
         assert_eq!(weights.len(), 2);
         assert_eq!(means.nrows(), 2);
@@ -555,7 +581,7 @@ mod em_algorithm_tests {
                 .init_params(*init_method)
                 .random_state(42);
 
-            let result = em.fit(&x.view(), 2).unwrap();
+            let result = em.fit(&x.view(), 2).expect("operation should succeed");
 
             assert_eq!(result.weights.len(), 2);
             assert_eq!(result.means.nrows(), 2);
@@ -569,7 +595,7 @@ mod em_algorithm_tests {
 
         // Test with very strict tolerance
         let em = EMAlgorithm::new(1000, 1e-10, 1e-6);
-        let result = em.fit(&x.view(), 2).unwrap();
+        let result = em.fit(&x.view(), 2).expect("operation should succeed");
 
         // Should either converge or reach max iterations
         assert!(result.converged || result.n_iter == 1000);
@@ -591,7 +617,7 @@ mod integration_tests {
             .covariance_type(CovarianceType::Diagonal)
             .random_state(42)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let bayesian: BayesianGaussianMixture = BayesianGaussianMixture::new()
             .n_components(2)
@@ -600,15 +626,19 @@ mod integration_tests {
             .mean_precision_prior(1e-3)
             .random_state(42)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Both should converge
         assert!(classical.converged());
-        assert!(bayesian.converged().unwrap());
+        assert!(bayesian.converged().expect("operation should succeed"));
 
         // Both should produce valid cluster assignments
-        let classical_labels = classical.predict(&x.view()).unwrap();
-        let bayesian_labels = bayesian.predict(&x.view()).unwrap();
+        let classical_labels = classical
+            .predict(&x.view())
+            .expect("operation should succeed");
+        let bayesian_labels = bayesian
+            .predict(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(classical_labels.len(), x.nrows());
         assert_eq!(bayesian_labels.len(), x.nrows());
@@ -623,20 +653,26 @@ mod integration_tests {
             .covariance_type(CovarianceType::Diagonal)
             .regularization(1e-6);
 
-        let selection_result =
-            select_model(&x.view(), 1, 5, ModelSelectionCriterion::BIC, &config).unwrap();
+        let selection_result = select_model(&x.view(), 1, 5, ModelSelectionCriterion::BIC, &config)
+            .expect("operation should succeed");
 
         // Fit model with best number of components
         let final_model: GaussianMixture = GaussianMixture::new()
             .n_components(selection_result.best_n_components)
             .covariance_type(CovarianceType::Diagonal)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Evaluate final model
-        let score = final_model.score(&x.view()).unwrap();
-        let aic = final_model.aic(&x.view()).unwrap();
-        let bic = final_model.bic(&x.view()).unwrap();
+        let score = final_model
+            .score(&x.view())
+            .expect("operation should succeed");
+        let aic = final_model
+            .aic(&x.view())
+            .expect("operation should succeed");
+        let bic = final_model
+            .bic(&x.view())
+            .expect("operation should succeed");
 
         assert!(score.is_finite());
         assert!(aic.is_finite());
@@ -654,7 +690,7 @@ mod integration_tests {
             .init_params(WeightInit::KMeans)
             .random_state(42);
 
-        let em_result = em.fit(&x.view(), 2).unwrap();
+        let em_result = em.fit(&x.view(), 2).expect("operation should succeed");
 
         // Verify EM algorithm results
         assert!(em_result.converged);
@@ -678,10 +714,10 @@ mod integration_tests {
         // };
         //
         // // Test that manual model produces valid predictions
-        // let labels = manual_model.predict(&x.view()).unwrap();
+        // let labels = manual_model.predict(&x.view()).expect("operation should succeed");
         // assert_eq!(labels.len(), x.nrows());
         //
-        // let proba = manual_model.predict_proba(&x.view()).unwrap();
+        // let proba = manual_model.predict_proba(&x.view()).expect("operation should succeed");
         // assert_eq!(proba.nrows(), x.nrows());
         // assert_eq!(proba.ncols(), 2);
     }
@@ -700,12 +736,12 @@ mod edge_case_tests {
         let model: GaussianMixture = GaussianMixture::new()
             .n_components(1)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.weights().unwrap().len(), 1);
-        assert!((model.weights().unwrap()[0] - 1.0).abs() < 1e-10);
+        assert_eq!(model.weights().expect("operation should succeed").len(), 1);
+        assert!((model.weights().expect("operation should succeed")[0] - 1.0).abs() < 1e-10);
 
-        let labels = model.predict(&x.view()).unwrap();
+        let labels = model.predict(&x.view()).expect("operation should succeed");
         assert_eq!(labels[0], 0);
     }
 
@@ -717,10 +753,10 @@ mod edge_case_tests {
             .n_components(1)
             .reg_covar(1e-6) // Important for numerical stability
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.weights().unwrap().len(), 1);
-        let labels = model.predict(&x.view()).unwrap();
+        assert_eq!(model.weights().expect("operation should succeed").len(), 1);
+        let labels = model.predict(&x.view()).expect("operation should succeed");
 
         for &label in labels.iter() {
             assert_eq!(label, 0);
@@ -742,10 +778,10 @@ mod edge_case_tests {
             .covariance_type(CovarianceType::Diagonal)
             .max_iter(50)
             .fit(&data.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_eq!(model.weights().unwrap().len(), 2);
-        assert_eq!(model.means().unwrap().ncols(), 50);
+        assert_eq!(model.weights().expect("operation should succeed").len(), 2);
+        assert_eq!(model.means().expect("operation should succeed").ncols(), 50);
     }
 
     #[test]
@@ -758,11 +794,11 @@ mod edge_case_tests {
             .reg_covar(1e-3) // Higher regularization for stability
             .max_iter(10)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should still produce a valid model
-        assert_eq!(model.weights().unwrap().len(), 2);
-        assert_eq!(model.means().unwrap().nrows(), 2);
+        assert_eq!(model.weights().expect("operation should succeed").len(), 2);
+        assert_eq!(model.means().expect("operation should succeed").nrows(), 2);
     }
 
     #[test]
@@ -774,7 +810,7 @@ mod edge_case_tests {
             .tol(0.0) // Zero tolerance should run to max_iter
             .max_iter(5)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!model.converged()); // Should not converge with zero tolerance
         assert_eq!(model.n_iter(), 5); // Should run exactly max_iter
@@ -830,14 +866,17 @@ mod performance_tests {
             .covariance_type(CovarianceType::Diagonal)
             .max_iter(50)
             .fit(&data.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let elapsed = start_time.elapsed();
         println!("Large dataset GMM fitting took: {:?}", elapsed);
 
-        assert_eq!(model.weights().unwrap().len(), 2);
-        assert_eq!(model.means().unwrap().nrows(), 2);
-        assert_eq!(model.means().unwrap().ncols(), n_features);
+        assert_eq!(model.weights().expect("operation should succeed").len(), 2);
+        assert_eq!(model.means().expect("operation should succeed").nrows(), 2);
+        assert_eq!(
+            model.means().expect("operation should succeed").ncols(),
+            n_features
+        );
 
         // Should complete in reasonable time (this is more of a smoke test)
         assert!(elapsed.as_secs() < 10); // Should complete within 10 seconds

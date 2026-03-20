@@ -281,15 +281,15 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
 
         let iso = IsotonicRegression::new();
-        let fitted = iso.fit(&x, &y).unwrap();
-        let original_predictions = fitted.predict(&x).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
+        let original_predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Create serializable model
-        let serializable =
-            SerializableIsotonicRegression::from_isotonic_regression(&fitted, &x).unwrap();
+        let serializable = SerializableIsotonicRegression::from_isotonic_regression(&fitted, &x)
+            .expect("operation should succeed");
 
         // Test prediction with serializable model
-        let serializable_predictions = serializable.predict(&x).unwrap();
+        let serializable_predictions = serializable.predict(&x).expect("prediction should succeed");
 
         // Predictions should be close (may not be exactly equal due to reconstruction)
         for i in 0..original_predictions.len() {
@@ -315,7 +315,9 @@ mod tests {
 
         // Test interpolation
         let test_x = array![1.5, 2.5, 3.5];
-        let predictions = serializable.predict(&test_x).unwrap();
+        let predictions = serializable
+            .predict(&test_x)
+            .expect("prediction should succeed");
 
         assert_abs_diff_eq!(predictions[0], 1.5, epsilon = 1e-6);
         assert_abs_diff_eq!(predictions[1], 2.5, epsilon = 1e-6);
@@ -336,7 +338,9 @@ mod tests {
 
         // Test extrapolation
         let test_x = array![0.5, 6.0];
-        let predictions = serializable.predict(&test_x).unwrap();
+        let predictions = serializable
+            .predict(&test_x)
+            .expect("prediction should succeed");
 
         assert_abs_diff_eq!(predictions[0], 1.0, epsilon = 1e-6); // Should use first value
         assert_abs_diff_eq!(predictions[1], 5.0, epsilon = 1e-6); // Should use last value
@@ -349,11 +353,11 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
 
         let iso = IsotonicRegression::new();
-        let fitted = iso.fit(&x, &y).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
 
         // Test JSON serialization
-        let json = serialize_to_json(&fitted, &x).unwrap();
-        let deserialized = deserialize_from_json(&json).unwrap();
+        let json = serialize_to_json(&fitted, &x).expect("serialization should succeed");
+        let deserialized = deserialize_from_json(&json).expect("serialization should succeed");
 
         assert_eq!(deserialized.x_values, x.to_vec());
         assert_eq!(deserialized.constraint, MonotonicityConstraint::Increasing);
@@ -391,14 +395,18 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
 
         let iso = IsotonicRegression::new();
-        let fitted = iso.fit(&x, &y).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
 
         // Test convenience functions
-        let serializable = serialize_isotonic_model(&fitted, &x).unwrap();
-        let reconstructed = deserialize_isotonic_model(&serializable).unwrap();
+        let serializable =
+            serialize_isotonic_model(&fitted, &x).expect("serialization should succeed");
+        let reconstructed =
+            deserialize_isotonic_model(&serializable).expect("serialization should succeed");
 
         // Test that reconstructed model can make predictions
-        let predictions = reconstructed.predict(&x).unwrap();
+        let predictions = reconstructed
+            .predict(&x)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 5);
     }
 }

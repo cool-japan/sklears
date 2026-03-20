@@ -10,6 +10,7 @@ use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::error::Result;
 use sklears_core::traits::{Fit, Predict};
 use sklears_core::types::{Features, Float};
@@ -85,7 +86,7 @@ impl ConnectivityBasedOutlierFactor {
         // Get k-nearest neighbors
         let query = X.slice(s![point_idx..point_idx + 1, ..]).to_owned();
         let (distances_opt, indices) = nn_model.kneighbors(&query, Some(self.k + 1), true)?;
-        let _distances = distances_opt.unwrap();
+        let _distances = distances_opt.expect("operation should succeed");
 
         let neighbors: Vec<usize> = indices
             .row(0)
@@ -613,7 +614,7 @@ impl IsolationNode {
 
         // Select random feature and split value
         let n_features = data.ncols();
-        let split_feature = rng.gen_range(0..n_features);
+        let split_feature = rng.random_range(0..n_features);
 
         // Get min and max values for the selected feature among the current samples
         let mut min_val = Float::INFINITY;
@@ -634,7 +635,7 @@ impl IsolationNode {
         }
 
         // Random split value between min and max
-        let split_value = rng.gen_range(min_val..max_val);
+        let split_value = rng.random_range(min_val..max_val);
 
         // Split data
         let mut left_indices = Vec::new();
@@ -798,7 +799,11 @@ impl IsolationForest {
 
             // Compute anomaly score: s(x,n) = 2^(-E(h(x))/c(n))
             // where c(n) is the average path length of unsuccessful search in BST of n points
-            let training_size = self.X_train.as_ref().unwrap().nrows();
+            let training_size = self
+                .X_train
+                .as_ref()
+                .expect("operation should succeed")
+                .nrows();
             let c_n = if training_size > 1 {
                 2.0 * ((training_size as Float - 1.0).ln() + 0.5772156649)
                     - 2.0 * (training_size as Float - 1.0) / (training_size as Float)
@@ -856,7 +861,7 @@ impl Fit<Features, ()> for IsolationForest {
         // Initialize RNG
         let rng_seed = fitted_model
             .random_state
-            .unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+            .unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         // Build isolation trees
@@ -931,11 +936,11 @@ mod tests {
                 1.1, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let cof = ConnectivityBasedOutlierFactor::new(3);
-        let fitted = cof.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = cof.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(scores.len(), 6);
 
@@ -967,14 +972,16 @@ mod tests {
         data.push(10.0);
         data.push(10.0);
 
-        let X = Array2::from_shape_vec((16, 2), data).unwrap();
+        let X = Array2::from_shape_vec((16, 2), data).expect("operation should succeed");
 
         let loci = LocalCorrelationIntegral::new(0.2, 4.0, 10) // Better parameters for outlier detection
             .with_alpha(1.5);
 
-        let fitted = loci.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
-        let outliers = fitted.predict_outliers(&X.view()).unwrap();
+        let fitted = loci.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
+        let outliers = fitted
+            .predict_outliers(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 16);
         assert_eq!(outliers.len(), 16);
@@ -1009,11 +1016,12 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_cof_edge_cases() {
         // Test with minimal data
-        let X = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.1, 1.1]).unwrap();
+        let X = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.1, 1.1])
+            .expect("operation should succeed");
 
         let cof = ConnectivityBasedOutlierFactor::new(1);
-        let fitted = cof.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = cof.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(scores.len(), 2);
         for &score in scores.iter() {
@@ -1025,11 +1033,12 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_loci_edge_cases() {
         // Test with identical points
-        let X = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         let loci = LocalCorrelationIntegral::new(0.01, 1.0, 5);
-        let fitted = loci.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = loci.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(scores.len(), 3);
         // With identical points, LOCI scores should be low (no outliers)
@@ -1041,21 +1050,25 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_distance_metrics() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 2.0, 2.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
 
         // Test COF with Manhattan distance
         let cof_manhattan =
             ConnectivityBasedOutlierFactor::new(2).with_distance(Distance::Manhattan);
-        let fitted = cof_manhattan.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = cof_manhattan
+            .fit(&X, &())
+            .expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
         assert_eq!(scores.len(), 4);
 
         // Test LOCI with Chebyshev distance
         let loci_chebyshev =
             LocalCorrelationIntegral::new(0.1, 3.0, 5).with_distance(Distance::Chebyshev);
-        let fitted = loci_chebyshev.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = loci_chebyshev
+            .fit(&X, &())
+            .expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
         assert_eq!(scores.len(), 4);
     }
 
@@ -1070,15 +1083,17 @@ mod tests {
                 1.1, 1.1, 1.2, 1.2, 1.0, 1.1, 1.1, 1.0, 10.0, 10.0, // Clear outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let iforest = IsolationForest::new(10)
             .with_random_state(42)
             .with_contamination(0.2);
 
-        let fitted = iforest.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
-        let outliers = fitted.predict_outliers(&X.view()).unwrap();
+        let fitted = iforest.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
+        let outliers = fitted
+            .predict_outliers(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 6);
         assert_eq!(outliers.len(), 6);
@@ -1115,7 +1130,7 @@ mod tests {
                 1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.0, 1.1, 1.1, 1.0, 2.0, 2.0, 10.0, 10.0, 11.0, 11.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Test with custom parameters
         let iforest = IsolationForest::new(5)
@@ -1124,8 +1139,8 @@ mod tests {
             .with_random_state(42)
             .with_contamination(0.25);
 
-        let fitted = iforest.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = iforest.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(scores.len(), 8);
 
@@ -1150,12 +1165,12 @@ mod tests {
                 1.0, 1.0, 1.1, 1.1, 5.0, 5.0, // Outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let iforest = IsolationForest::new(3).with_random_state(42);
 
-        let fitted = iforest.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = iforest.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(scores.len(), 3);
 
@@ -1170,13 +1185,13 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_isolation_forest_identical_points() {
         // Test with identical points
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         let iforest = IsolationForest::new(5).with_random_state(42);
 
-        let fitted = iforest.fit(&X, &()).unwrap();
-        let scores = fitted.predict(&X).unwrap();
+        let fitted = iforest.fit(&X, &()).expect("operation should succeed");
+        let scores = fitted.predict(&X).expect("operation should succeed");
 
         assert_eq!(scores.len(), 4);
 
@@ -1193,8 +1208,8 @@ mod tests {
     #[test]
     fn test_isolation_node_path_length() {
         // Test individual tree path length calculation
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 10.0, 10.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 10.0, 10.0])
+            .expect("operation should succeed");
 
         let indices = vec![0, 1, 2, 3];
         let mut rng = StdRng::seed_from_u64(42);

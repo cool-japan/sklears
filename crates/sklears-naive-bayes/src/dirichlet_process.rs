@@ -222,7 +222,7 @@ impl StickBreaking {
         &self,
         rng: &mut scirs2_core::random::CoreRandom<scirs2_core::random::rngs::StdRng>,
     ) -> usize {
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform = RandUniform::new(0.0, 1.0).expect("operation should succeed");
         let u = uniform.sample(rng);
 
         let mut cumulative = 0.0;
@@ -371,7 +371,10 @@ impl DirichletProcessNB {
 
             for &class in &self.classes {
                 let prob = proba_map.get(&class).copied().unwrap_or(0.0);
-                class_probabilities.get_mut(&class).unwrap().push(prob);
+                class_probabilities
+                    .get_mut(&class)
+                    .expect("operation should succeed")
+                    .push(prob);
             }
         }
 
@@ -521,7 +524,7 @@ impl DirichletProcessNB {
 
         let normalized_probs: Vec<f64> = probs.iter().map(|&p| p / prob_sum).collect();
 
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform = RandUniform::new(0.0, 1.0).expect("operation should succeed");
         let u = uniform.sample(&mut self.rng);
 
         let mut cumulative = 0.0;
@@ -948,7 +951,8 @@ mod tests {
     #[test]
     fn test_stick_breaking() {
         let mut rng = scirs2_core::random::CoreRandom::seed_from_u64(42);
-        let stick_breaking = StickBreaking::new(1.0, 5, &mut rng).unwrap();
+        let stick_breaking =
+            StickBreaking::new(1.0, 5, &mut rng).expect("operation should succeed");
 
         assert_eq!(stick_breaking.weights.len(), 5);
         assert!((stick_breaking.weights.sum() - 1.0).abs() < 1e-6);
@@ -967,17 +971,17 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 3.0, 3.0, 3.1, 3.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 
         assert!(dp_nb.fit(&X, &y).is_ok());
         assert!(dp_nb.is_fitted);
         assert!(dp_nb.n_components() > 0);
 
-        let predictions = dp_nb.predict(&X).unwrap();
+        let predictions = dp_nb.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = dp_nb.predict_proba(&X).unwrap();
+        let probabilities = dp_nb.predict_proba(&X).expect("operation should succeed");
         assert_eq!(probabilities.len(), 3); // 3 classes
     }
 
@@ -990,8 +994,8 @@ mod tests {
 
         let mut dp_nb = DirichletProcessNB::new(config);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(dp_nb.fit(&X, &y).is_ok());
@@ -1007,8 +1011,8 @@ mod tests {
 
         let mut dp_nb = DirichletProcessNB::new(config);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(dp_nb.fit(&X, &y).is_ok());

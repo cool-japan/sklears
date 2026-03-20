@@ -879,7 +879,7 @@ mod tests {
         let component = registry.get_component("StandardScaler");
         assert!(component.is_some());
 
-        let comp = component.unwrap();
+        let comp = component.expect("operation should succeed");
         assert_eq!(comp.name, "StandardScaler");
         assert_eq!(comp.component_type, StepType::Transformer);
     }
@@ -926,7 +926,7 @@ mod tests {
         let summary = registry.get_component_summary("LinearRegression");
         assert!(summary.is_some());
 
-        let sum = summary.unwrap();
+        let sum = summary.expect("operation should succeed");
         assert_eq!(sum.name, "LinearRegression");
         assert_eq!(sum.component_type, StepType::Trainer);
         assert!(!sum.deprecated);

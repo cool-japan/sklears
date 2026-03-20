@@ -209,7 +209,7 @@ impl ConformalPredictor {
             });
         }
 
-        let threshold = self.quantile_threshold.unwrap();
+        let threshold = self.quantile_threshold.expect("operation should succeed");
         let mut intervals = Vec::new();
 
         for (i, &pred) in predictions.iter().enumerate() {
@@ -276,7 +276,7 @@ impl ConformalPredictor {
                 let threshold = if let Some(ref class_thresholds) = self.class_thresholds {
                     class_thresholds.get(&class_idx).copied().unwrap_or(0.0)
                 } else {
-                    self.quantile_threshold.unwrap()
+                    self.quantile_threshold.expect("operation should succeed")
                 };
 
                 // Include class if its score is below threshold
@@ -338,7 +338,9 @@ impl ConformalPredictor {
         prediction_errors: Option<&[f64]>,
     ) -> Result<CoverageStatistics> {
         let result = self.predict_intervals(predictions, prediction_errors)?;
-        let intervals = result.prediction_intervals.unwrap();
+        let intervals = result
+            .prediction_intervals
+            .expect("operation should succeed");
 
         let mut covered = 0;
         for (i, &true_val) in true_values.iter().enumerate() {
@@ -367,7 +369,7 @@ impl ConformalPredictor {
         true_labels: &[usize],
     ) -> Result<CoverageStatistics> {
         let result = self.predict_sets(prediction_probabilities)?;
-        let prediction_sets = result.prediction_sets.unwrap();
+        let prediction_sets = result.prediction_sets.expect("operation should succeed");
 
         let mut covered = 0;
         let mut class_coverage_counts: HashMap<usize, (usize, usize)> = HashMap::new();
@@ -583,14 +585,20 @@ mod tests {
         let cal_preds = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let cal_targets = vec![1.1, 1.9, 3.2, 3.8, 5.1];
 
-        predictor.fit(&cal_preds, &cal_targets).unwrap();
+        predictor
+            .fit(&cal_preds, &cal_targets)
+            .expect("operation should succeed");
 
         // Make predictions
         let test_preds = vec![2.5, 4.5];
-        let result = predictor.predict_intervals(&test_preds, None).unwrap();
+        let result = predictor
+            .predict_intervals(&test_preds, None)
+            .expect("operation should succeed");
 
         assert!(result.prediction_intervals.is_some());
-        let intervals = result.prediction_intervals.unwrap();
+        let intervals = result
+            .prediction_intervals
+            .expect("operation should succeed");
         assert_eq!(intervals.len(), 2);
 
         // Check that intervals have positive width
@@ -619,14 +627,16 @@ mod tests {
 
         predictor
             .fit_classification(&cal_probs, &cal_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Make predictions
         let test_probs = vec![vec![0.5, 0.3, 0.2], vec![0.2, 0.6, 0.2]];
-        let result = predictor.predict_sets(&test_probs).unwrap();
+        let result = predictor
+            .predict_sets(&test_probs)
+            .expect("operation should succeed");
 
         assert!(result.prediction_sets.is_some());
-        let sets = result.prediction_sets.unwrap();
+        let sets = result.prediction_sets.expect("operation should succeed");
         assert_eq!(sets.len(), 2);
     }
 
@@ -642,14 +652,16 @@ mod tests {
         let cal_preds = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let cal_targets = vec![1.0, 2.0, 3.0, 4.0, 5.0]; // Perfect predictions
 
-        predictor.fit(&cal_preds, &cal_targets).unwrap();
+        predictor
+            .fit(&cal_preds, &cal_targets)
+            .expect("operation should succeed");
 
         // Evaluate on test data
         let test_preds = vec![1.5, 2.5];
         let test_targets = vec![1.5, 2.5]; // Also perfect
         let coverage = predictor
             .evaluate_coverage(&test_preds, &test_targets, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(coverage.empirical_coverage >= 0.0);
         assert!(coverage.empirical_coverage <= 1.0);

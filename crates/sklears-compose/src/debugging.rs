@@ -1135,7 +1135,7 @@ impl PerformanceProfiler {
     pub fn record_measurement(&mut self, measurement: PerformanceMeasurement) {
         self.measurements.push(measurement);
         self.bottleneck_detector
-            .analyze_measurement(self.measurements.last().unwrap());
+            .analyze_measurement(self.measurements.last().expect("measurement just pushed"));
     }
 
     #[must_use]
@@ -1288,7 +1288,7 @@ impl DebugSession {
                 "debug_{}",
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_secs()
             ),
             start_time: SystemTime::now(),

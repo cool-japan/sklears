@@ -339,7 +339,10 @@ impl GroupLassoSelector<Untrained> {
 
 impl Transform<Array2<Float>> for GroupLassoSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -353,8 +356,15 @@ impl Transform<Array2<Float>> for GroupLassoSelector<Trained> {
 
 impl SelectorMixin for GroupLassoSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.coefficients_.as_ref().unwrap().len();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .coefficients_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -365,7 +375,10 @@ impl SelectorMixin for GroupLassoSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -415,7 +428,10 @@ impl GroupLassoSelector<Trained> {
 
     /// Predict using the fitted model
     pub fn predict(&self, x: &Array2<Float>) -> SklResult<Array1<Float>> {
-        let coefficients = self.coefficients_.as_ref().unwrap();
+        let coefficients = self
+            .coefficients_
+            .as_ref()
+            .expect("operation should succeed");
         let (n_samples, n_features) = x.dim();
 
         if n_features != coefficients.len() {
@@ -557,7 +573,10 @@ impl Fit<Array2<Float>, Array1<Float>> for SparseGroupLassoSelector<Untrained> {
             .normalize(self.normalize);
 
         let fitted_group_lasso = group_lasso.fit(x, y)?;
-        let mut coefficients = fitted_group_lasso.coefficients().unwrap().clone();
+        let mut coefficients = fitted_group_lasso
+            .coefficients()
+            .expect("operation should succeed")
+            .clone();
 
         // Apply element-wise soft thresholding
         for coeff in coefficients.iter_mut() {
@@ -597,7 +616,10 @@ impl Fit<Array2<Float>, Array1<Float>> for SparseGroupLassoSelector<Untrained> {
 
 impl Transform<Array2<Float>> for SparseGroupLassoSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -611,8 +633,15 @@ impl Transform<Array2<Float>> for SparseGroupLassoSelector<Trained> {
 
 impl SelectorMixin for SparseGroupLassoSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.coefficients_.as_ref().unwrap().len();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .coefficients_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -623,7 +652,10 @@ impl SelectorMixin for SparseGroupLassoSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -981,7 +1013,10 @@ impl HierarchicalStructuredSparsitySelector<Untrained> {
 
 impl Transform<Array2<Float>> for HierarchicalStructuredSparsitySelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -995,8 +1030,15 @@ impl Transform<Array2<Float>> for HierarchicalStructuredSparsitySelector<Trained
 
 impl SelectorMixin for HierarchicalStructuredSparsitySelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.coefficients_.as_ref().unwrap().len();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .coefficients_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -1007,7 +1049,10 @@ impl SelectorMixin for HierarchicalStructuredSparsitySelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1243,7 +1288,10 @@ impl GraphStructuredSparsitySelector<Untrained> {
 
 impl Transform<Array2<Float>> for GraphStructuredSparsitySelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -1257,8 +1305,15 @@ impl Transform<Array2<Float>> for GraphStructuredSparsitySelector<Trained> {
 
 impl SelectorMixin for GraphStructuredSparsitySelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.coefficients_.as_ref().unwrap().len();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .coefficients_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -1269,7 +1324,10 @@ impl SelectorMixin for GraphStructuredSparsitySelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1548,7 +1606,10 @@ impl OverlappingGroupSparsitySelector<Untrained> {
 
 impl Transform<Array2<Float>> for OverlappingGroupSparsitySelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -1562,8 +1623,15 @@ impl Transform<Array2<Float>> for OverlappingGroupSparsitySelector<Trained> {
 
 impl SelectorMixin for OverlappingGroupSparsitySelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.coefficients_.as_ref().unwrap().len();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .coefficients_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -1574,7 +1642,10 @@ impl SelectorMixin for OverlappingGroupSparsitySelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1604,11 +1675,14 @@ mod tests {
 
         let selector = GroupLassoSelector::new().alpha(0.1).feature_groups(groups);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         assert!(fitted_selector.coefficients().is_some());
         assert!(fitted_selector.selected_groups().is_some());
-        assert!(!fitted_selector.selected_groups().unwrap().is_empty());
+        assert!(!fitted_selector
+            .selected_groups()
+            .expect("operation should succeed")
+            .is_empty());
     }
 
     #[test]
@@ -1623,10 +1697,12 @@ mod tests {
             .alpha(10.0) // High regularization
             .feature_groups(groups);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         // With high regularization, few or no groups should be selected
-        let selected_groups = fitted_selector.selected_groups().unwrap();
+        let selected_groups = fitted_selector
+            .selected_groups()
+            .expect("operation should succeed");
         assert!(selected_groups.len() <= n_groups);
     }
 
@@ -1647,7 +1723,7 @@ mod tests {
             .alpha_element(0.05)
             .feature_groups(groups);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         assert!(fitted_selector.coefficients_.is_some());
         assert!(fitted_selector.selected_features_.is_some());
@@ -1666,8 +1742,10 @@ mod tests {
 
         let selector = GroupLassoSelector::new().alpha(0.1).feature_groups(groups);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
-        let transformed = fitted_selector.transform(&x).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
+        let transformed = fitted_selector
+            .transform(&x)
+            .expect("operation should succeed");
 
         assert!(transformed.ncols() <= x.ncols());
         assert_eq!(transformed.nrows(), x.nrows());
@@ -1706,7 +1784,7 @@ mod tests {
             .hierarchy(hierarchy)
             .feature_to_node(feature_to_node);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         assert!(fitted_selector.coefficients_.is_some());
         assert!(fitted_selector.selected_features_.is_some());
@@ -1724,7 +1802,7 @@ mod tests {
             .alpha(0.1)
             .adjacency_matrix(adjacency_matrix);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         assert!(fitted_selector.coefficients_.is_some());
         assert!(fitted_selector.selected_features_.is_some());
@@ -1747,7 +1825,7 @@ mod tests {
             .alpha(0.1)
             .overlapping_groups(overlapping_groups);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         assert!(fitted_selector.coefficients_.is_some());
         assert!(fitted_selector.selected_features_.is_some());
@@ -1777,16 +1855,18 @@ mod tests {
             .hierarchy(hierarchy)
             .feature_to_node(feature_to_node);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         // Check if any features were selected before transforming
         if !fitted_selector
             .selected_features_
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .is_empty()
         {
-            let transformed = fitted_selector.transform(&x).unwrap();
+            let transformed = fitted_selector
+                .transform(&x)
+                .expect("operation should succeed");
             assert!(transformed.ncols() <= x.ncols());
             assert_eq!(transformed.nrows(), x.nrows());
         } else {
@@ -1794,7 +1874,7 @@ mod tests {
             assert!(fitted_selector
                 .selected_features_
                 .as_ref()
-                .unwrap()
+                .expect("operation should succeed")
                 .is_empty());
         }
     }
@@ -1816,7 +1896,7 @@ mod tests {
             .overlapping_groups(overlapping_groups)
             .group_names(group_names);
 
-        let fitted_selector = selector.fit(&x, &y).unwrap();
+        let fitted_selector = selector.fit(&x, &y).expect("operation should succeed");
 
         assert!(fitted_selector.coefficients_.is_some());
         assert!(fitted_selector.group_names.is_some());

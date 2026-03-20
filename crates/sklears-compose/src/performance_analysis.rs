@@ -67,25 +67,25 @@ impl PerformanceAnalyzer {
 
     /// Register anomaly detector
     pub fn register_anomaly_detector(&mut self, name: String, detector: Box<dyn AnomalyDetector>) {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         self.anomaly_detectors.insert(name, detector);
     }
 
     /// Register trend analyzer
     pub fn register_trend_analyzer(&mut self, name: String, analyzer: Box<dyn TrendAnalyzer>) {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         self.trend_analyzers.insert(name, analyzer);
     }
 
     /// Register pattern recognizer
     pub fn register_pattern_recognizer(&mut self, recognizer: Box<dyn PatternRecognizer>) {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         self.pattern_recognizers.push(recognizer);
     }
 
     /// Perform comprehensive performance analysis
     pub fn analyze_performance(&mut self, metrics: &[PerformanceMetric], events: &[TaskExecutionEvent]) -> SklResult<PerformanceInsights> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         let start_time = Instant::now();
 
         // Check cache first
@@ -471,13 +471,13 @@ impl PerformanceAnalyzer {
 
     /// Get cached insights
     fn get_cached_insights(&self, key: &str) -> Option<PerformanceInsights> {
-        let cache = self.insights_cache.lock().unwrap();
+        let cache = self.insights_cache.lock().unwrap_or_else(|e| e.into_inner());
         cache.get(key)
     }
 
     /// Cache insights
     fn cache_insights(&self, key: String, insights: &PerformanceInsights) {
-        let mut cache = self.insights_cache.lock().unwrap();
+        let mut cache = self.insights_cache.lock().unwrap_or_else(|e| e.into_inner());
         cache.insert(key, insights.clone());
     }
 
@@ -991,7 +991,7 @@ mod tests {
             PerformanceMetric::new("metric_b".to_string(), 6.0, "value".to_string()),
         ];
 
-        let correlations = analyzer.analyze_correlations(&metrics).unwrap();
+        let correlations = analyzer.analyze_correlations(&metrics).unwrap_or_default();
         assert_eq!(correlations.len(), 1);
 
         let correlation = &correlations[0];
@@ -1092,7 +1092,7 @@ mod tests {
         cache.insert("test_key".to_string(), &insights);
         let retrieved = cache.get("test_key");
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().confidence_score, 0.8);
+        assert_eq!(retrieved.unwrap_or_default().confidence_score, 0.8);
 
         // Test non-existent key
         let non_existent = cache.get("non_existent");

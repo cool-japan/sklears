@@ -7,7 +7,7 @@ use crate::base::SelectorMixin;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 
 use scirs2_core::rand_prelude::IndexedRandom;
-use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{validate, Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -151,13 +151,13 @@ impl Fit<Array2<Float>, Array1<Float>> for NeuralFeatureSelector<Untrained> {
             let scale = (2.0 / (input_size + output_size) as f64).sqrt();
             let mut weight_matrix = Array2::zeros((input_size, output_size));
             for elem in weight_matrix.iter_mut() {
-                *elem = rng.gen::<f64>() * 2.0 * scale - scale;
+                *elem = rng.random::<f64>() * 2.0 * scale - scale;
             }
             weights.push(weight_matrix);
 
             let mut bias_vector = Array1::zeros(output_size);
             for elem in bias_vector.iter_mut() {
-                *elem = rng.gen::<f64>() * 0.1 - 0.05;
+                *elem = rng.random::<f64>() * 0.1 - 0.05;
             }
             biases.push(bias_vector);
         }
@@ -173,7 +173,7 @@ impl Fit<Array2<Float>, Array1<Float>> for NeuralFeatureSelector<Untrained> {
 
                 // Forward pass
                 let (activations, z_values) = self.forward_pass(&input, &weights, &biases);
-                let prediction = activations.last().unwrap()[0];
+                let prediction = activations.last().expect("operation should succeed")[0];
 
                 // Compute loss (MSE for regression)
                 let loss = 0.5 * (prediction - target).powi(2);
@@ -277,7 +277,7 @@ impl NeuralFeatureSelector<Untrained> {
         let mut bias_gradients = vec![Array1::zeros(z_values[0].len()); n_layers];
 
         // Output layer error
-        let output_error = activations.last().unwrap()[0] - target;
+        let output_error = activations.last().expect("operation should succeed")[0] - target;
         let mut delta = Array1::from_vec(vec![output_error]);
 
         // Backward propagation
@@ -346,7 +346,7 @@ impl NeuralFeatureSelector<Untrained> {
             .map(|(i, &importance)| (i, importance))
             .collect();
 
-        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected: Vec<usize> = if let Some(k) = self.k {
             feature_indices
@@ -370,7 +370,10 @@ impl NeuralFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for NeuralFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -384,8 +387,15 @@ impl Transform<Array2<Float>> for NeuralFeatureSelector<Trained> {
 
 impl SelectorMixin for NeuralFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.feature_importances_.as_ref().unwrap().len();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .feature_importances_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -396,7 +406,10 @@ impl SelectorMixin for NeuralFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -531,7 +544,7 @@ impl Fit<Array2<Float>, Array1<Float>> for AttentionFeatureSelector<Untrained> {
         // Initialize with small random values
         for w in [&mut query_weights, &mut key_weights, &mut value_weights] {
             for elem in w.iter_mut() {
-                *elem = rng.gen::<f64>() * 0.02 - 0.01;
+                *elem = rng.random::<f64>() * 0.02 - 0.01;
             }
         }
 
@@ -630,7 +643,7 @@ impl AttentionFeatureSelector<Untrained> {
         let mut feature_indices: Vec<(usize, Float)> =
             attention.indexed_iter().map(|(i, &att)| (i, att)).collect();
 
-        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected: Vec<usize> = if let Some(k) = self.k {
             feature_indices
@@ -654,7 +667,10 @@ impl AttentionFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for AttentionFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -668,8 +684,15 @@ impl Transform<Array2<Float>> for AttentionFeatureSelector<Trained> {
 
 impl SelectorMixin for AttentionFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.feature_attention_.as_ref().unwrap().len();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .feature_attention_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -680,7 +703,10 @@ impl SelectorMixin for AttentionFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -807,9 +833,11 @@ impl Fit<Array2<Float>, Array1<Float>> for RLFeatureSelector<Untrained> {
                 }
 
                 // Epsilon-greedy action selection
-                let action = if rng.gen::<f64>() < current_epsilon {
+                let action = if rng.random::<f64>() < current_epsilon {
                     // Random action
-                    *available_actions.choose(&mut rng).unwrap()
+                    *available_actions
+                        .choose(&mut rng)
+                        .expect("operation should succeed")
                 } else {
                     // Greedy action (highest Q-value)
                     let q_values = q_table
@@ -818,8 +846,12 @@ impl Fit<Array2<Float>, Array1<Float>> for RLFeatureSelector<Untrained> {
 
                     let best_action = available_actions
                         .iter()
-                        .max_by(|&&a, &&b| q_values[a].partial_cmp(&q_values[b]).unwrap())
-                        .unwrap();
+                        .max_by(|&&a, &&b| {
+                            q_values[a]
+                                .partial_cmp(&q_values[b])
+                                .expect("operation should succeed")
+                        })
+                        .expect("operation should succeed");
                     *best_action
                 };
 
@@ -874,8 +906,12 @@ impl Fit<Array2<Float>, Array1<Float>> for RLFeatureSelector<Untrained> {
 
             let best_action = available_actions
                 .iter()
-                .max_by(|&&a, &&b| q_values[a].partial_cmp(&q_values[b]).unwrap())
-                .unwrap();
+                .max_by(|&&a, &&b| {
+                    q_values[a]
+                        .partial_cmp(&q_values[b])
+                        .expect("operation should succeed")
+                })
+                .expect("operation should succeed");
 
             best_features.push(*best_action);
             current_state = encode_state(&best_features, n_features);
@@ -926,7 +962,10 @@ impl RLFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for RLFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -940,8 +979,11 @@ impl Transform<Array2<Float>> for RLFeatureSelector<Trained> {
 
 impl SelectorMixin for RLFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.n_features_.unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self.n_features_.expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             if idx < n_features {
@@ -952,7 +994,10 @@ impl SelectorMixin for RLFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1143,7 +1188,7 @@ impl MetaLearningFeatureSelector<Untrained> {
             .map(|(i, &score)| (i, score))
             .collect();
 
-        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected: Vec<usize> = if let Some(k) = self.k {
             feature_indices
@@ -1168,7 +1213,10 @@ impl MetaLearningFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for MetaLearningFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -1182,7 +1230,10 @@ impl Transform<Array2<Float>> for MetaLearningFeatureSelector<Trained> {
 
 impl SelectorMixin for MetaLearningFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_features = if let Some(ref selections) = self.base_selections_ {
             selections.iter().flatten().max().unwrap_or(&0) + 1
         } else {
@@ -1199,7 +1250,10 @@ impl SelectorMixin for MetaLearningFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1275,7 +1329,7 @@ fn apply_correlation_selection(
         correlations.push((j, corr.abs()));
     }
 
-    correlations.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    correlations.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
     let selection_size = k.unwrap_or(n_features / 4).min(n_features);
     let selection: Vec<usize> = correlations

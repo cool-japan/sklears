@@ -219,8 +219,8 @@ impl MetricsCollectionManager {
 
     /// Register a new metric definition
     pub fn register_metric(&self, metric: MetricDefinition) -> MetricsResult<()> {
-        let mut metrics = self.metrics.write().unwrap();
-        let mut states = self.collection_states.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
+        let mut states = self.collection_states.write().unwrap_or_else(|e| e.into_inner());
 
         // Validate metric definition
         self.validate_metric_definition(&metric)?;
@@ -258,8 +258,8 @@ impl MetricsCollectionManager {
 
     /// Unregister a metric
     pub fn unregister_metric(&self, metric_id: &str) -> MetricsResult<()> {
-        let mut metrics = self.metrics.write().unwrap();
-        let mut states = self.collection_states.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
+        let mut states = self.collection_states.write().unwrap_or_else(|e| e.into_inner());
 
         metrics.remove(metric_id);
         states.remove(metric_id);
@@ -269,14 +269,14 @@ impl MetricsCollectionManager {
 
     /// Collect metrics from all registered sources
     pub fn collect_metrics(&self) -> MetricsResult<()> {
-        let scheduler = self.scheduler.write().unwrap();
+        let scheduler = self.scheduler.write().unwrap_or_else(|e| e.into_inner());
         scheduler.schedule_collections()?;
         Ok(())
     }
 
     /// Add a data point to the buffer
     pub fn add_data_point(&self, data_point: MetricDataPoint) -> MetricsResult<()> {
-        let mut buffer = self.data_buffer.write().unwrap();
+        let mut buffer = self.data_buffer.write().unwrap_or_else(|e| e.into_inner());
         buffer.push_back(data_point);
 
         // Process buffer if it reaches threshold
@@ -289,8 +289,8 @@ impl MetricsCollectionManager {
 
     /// Flush the data buffer
     pub fn flush_buffer(&self) -> MetricsResult<()> {
-        let mut buffer = self.data_buffer.write().unwrap();
-        let mut processor = self.data_processor.write().unwrap();
+        let mut buffer = self.data_buffer.write().unwrap_or_else(|e| e.into_inner());
+        let mut processor = self.data_processor.write().unwrap_or_else(|e| e.into_inner());
 
         while let Some(data_point) = buffer.pop_front() {
             processor.process_data_point(&data_point)
@@ -302,7 +302,7 @@ impl MetricsCollectionManager {
 
     /// Get metric statistics
     pub fn get_metric_statistics(&self, metric_id: &str) -> MetricsResult<super::processing_analytics::MetricStatistics> {
-        let aggregated_metrics = self.aggregated_metrics.read().unwrap();
+        let aggregated_metrics = self.aggregated_metrics.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(metric) = aggregated_metrics.get(metric_id) {
             Ok(metric.statistics.clone())
@@ -313,7 +313,7 @@ impl MetricsCollectionManager {
 
     /// Get collection state
     pub fn get_collection_state(&self, metric_id: &str) -> MetricsResult<MetricCollectionState> {
-        let states = self.collection_states.read().unwrap();
+        let states = self.collection_states.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(state) = states.get(metric_id) {
             Ok(state.clone())
@@ -324,7 +324,7 @@ impl MetricsCollectionManager {
 
     /// Update collection state
     pub fn update_collection_state(&self, metric_id: &str, status: CollectionStatus) -> MetricsResult<()> {
-        let mut states = self.collection_states.write().unwrap();
+        let mut states = self.collection_states.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(state) = states.get_mut(metric_id) {
             state.status = status;
@@ -337,7 +337,7 @@ impl MetricsCollectionManager {
 
     /// Perform analytics on metrics
     pub fn analyze_metrics(&self, metric_id: &str, analysis_type: AnalysisType) -> MetricsResult<AnalysisResult> {
-        let mut analytics_engine = self.analytics_engine.write().unwrap();
+        let mut analytics_engine = self.analytics_engine.write().unwrap_or_else(|e| e.into_inner());
         analytics_engine.analyze(metric_id, analysis_type)
             .map_err(|e| MetricsError::AnalysisError(e))
     }
@@ -351,11 +351,11 @@ impl MetricsCollectionManager {
 
     /// Get system health status
     pub fn get_health_status(&self) -> HealthStatus {
-        let scheduler = self.scheduler.read().unwrap();
-        let processor = self.data_processor.read().unwrap();
-        let storage = self.storage_manager.read().unwrap();
-        let analytics = self.analytics_engine.read().unwrap();
-        let monitor = self.performance_monitor.read().unwrap();
+        let scheduler = self.scheduler.read().unwrap_or_else(|e| e.into_inner());
+        let processor = self.data_processor.read().unwrap_or_else(|e| e.into_inner());
+        let storage = self.storage_manager.read().unwrap_or_else(|e| e.into_inner());
+        let analytics = self.analytics_engine.read().unwrap_or_else(|e| e.into_inner());
+        let monitor = self.performance_monitor.read().unwrap_or_else(|e| e.into_inner());
 
         HealthStatus {
             overall_status: SystemStatus::Healthy,
@@ -364,7 +364,7 @@ impl MetricsCollectionManager {
             storage_status: ComponentStatus::Active,
             analytics_status: ComponentStatus::Active,
             monitor_status: ComponentStatus::Active,
-            active_metrics: self.metrics.read().unwrap().len() as u32,
+            active_metrics: self.metrics.read().unwrap_or_else(|e| e.into_inner()).len() as u32,
             active_workers: scheduler.metrics.active_workers,
             queue_length: scheduler.metrics.queue_length,
             last_updated: SystemTime::now(),
@@ -373,16 +373,16 @@ impl MetricsCollectionManager {
 
     /// Get system metrics summary
     pub fn get_system_metrics(&self) -> SystemMetrics {
-        let scheduler = self.scheduler.read().unwrap();
-        let processor = self.data_processor.read().unwrap();
-        let storage = self.storage_manager.read().unwrap();
+        let scheduler = self.scheduler.read().unwrap_or_else(|e| e.into_inner());
+        let processor = self.data_processor.read().unwrap_or_else(|e| e.into_inner());
+        let storage = self.storage_manager.read().unwrap_or_else(|e| e.into_inner());
 
         SystemMetrics {
             scheduler_metrics: scheduler.metrics.clone(),
             processor_metrics: processor.get_metrics().clone(),
             storage_metrics: storage.get_metrics().clone(),
-            total_metrics: self.metrics.read().unwrap().len() as u64,
-            buffer_size: self.data_buffer.read().unwrap().len() as u64,
+            total_metrics: self.metrics.read().unwrap_or_else(|e| e.into_inner()).len() as u64,
+            buffer_size: self.data_buffer.read().unwrap_or_else(|e| e.into_inner()).len() as u64,
             memory_usage: 0, // Would be calculated from actual usage
             uptime: Duration::from_secs(0), // Would track actual uptime
         }
@@ -409,7 +409,7 @@ impl MetricsCollectionManager {
     /// Start the collection manager
     pub fn start(&self) -> MetricsResult<()> {
         // Initialize components
-        self.scheduler.write().unwrap().start()?;
+        self.scheduler.write().unwrap_or_else(|e| e.into_inner()).start()?;
 
         // Start background tasks for processing, analytics, etc.
         // This would typically spawn threads or async tasks
@@ -420,7 +420,7 @@ impl MetricsCollectionManager {
     /// Stop the collection manager
     pub fn stop(&self) -> MetricsResult<()> {
         // Stop all components gracefully
-        self.scheduler.write().unwrap().stop()?;
+        self.scheduler.write().unwrap_or_else(|e| e.into_inner()).stop()?;
 
         // Flush any remaining data
         self.flush_buffer()?;

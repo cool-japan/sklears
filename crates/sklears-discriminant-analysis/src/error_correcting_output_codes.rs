@@ -293,7 +293,10 @@ impl Fit<Array2<Float>, Array1<i32>> for ErrorCorrectingOutputCodes {
             // Create binary labels based on the code
             let mut binary_y = Array1::zeros(y.len());
             for (i, &label) in y.iter().enumerate() {
-                let class_idx = classes.iter().position(|&c| c == label).unwrap();
+                let class_idx = classes
+                    .iter()
+                    .position(|&c| c == label)
+                    .expect("element not found");
                 binary_y[i] = code_column[class_idx];
             }
 
@@ -510,8 +513,8 @@ mod tests {
             .code_method("random")
             .n_codes(5);
 
-        let fitted = ecoc.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 3);
@@ -534,8 +537,10 @@ mod tests {
             .code_method("dense_random")
             .n_codes(4);
 
-        let fitted = ecoc.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (6, 3));
 
@@ -558,8 +563,8 @@ mod tests {
                 .code_method(method)
                 .n_codes(3);
 
-            let fitted = ecoc.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert_eq!(fitted.classes().len(), 2);
@@ -573,8 +578,8 @@ mod tests {
 
         let ecoc = ErrorCorrectingOutputCodes::new().code_method("exhaustive");
 
-        let fitted = ecoc.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.classes().len(), 2);
@@ -587,7 +592,9 @@ mod tests {
             .n_codes(4)
             .random_state(42);
 
-        let code_matrix = ecoc.generate_code_matrix(3).unwrap();
+        let code_matrix = ecoc
+            .generate_code_matrix(3)
+            .expect("operation should succeed");
 
         assert_eq!(code_matrix.dim(), (3, 4));
 
@@ -616,8 +623,8 @@ mod tests {
                 .correction_method(method)
                 .n_codes(3);
 
-            let fitted = ecoc.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = ecoc.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert_eq!(fitted.classes().len(), 2);

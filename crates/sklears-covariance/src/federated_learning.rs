@@ -265,7 +265,11 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
             ));
         }
 
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = data - &mean;
         let covariance = centered.t().dot(&centered) / (n_samples - 1) as f64;
         Ok(covariance)
@@ -297,7 +301,8 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
                     for j in 0..m {
                         // Simple Laplace noise implementation using exponential distribution
                         let mut local_rng = Random::seed(self.random_state.unwrap_or(123));
-                        let uniform = Uniform::new(0.0, 1.0).unwrap();
+                        let uniform = Uniform::new(0.0, 1.0)
+                            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
                         let u: f64 = uniform.sample(&mut local_rng) - 0.5;
                         let laplace_noise = -scale * u.signum() * (1.0f64 - 2.0f64 * u.abs()).ln();
                         noise[[i, j]] = laplace_noise;
@@ -312,12 +317,14 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
                     for j in 0..m {
                         let prob = budget / (budget + 2.0);
                         let mut local_rng = Random::seed(self.random_state.unwrap_or(456));
-                        let uniform = Uniform::new(0.0, 1.0).unwrap();
+                        let uniform = Uniform::new(0.0, 1.0)
+                            .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
                         if uniform.sample(&mut local_rng) > prob {
                             // Add noise based on sensitivity
                             let sensitivity = 1.0; // Simplified sensitivity
                             let scale = sensitivity / budget;
-                            let uniform2 = Uniform::new(0.0, 1.0).unwrap();
+                            let uniform2 = Uniform::new(0.0, 1.0)
+                                .map_err(|e| SklearsError::NumericalError(e.to_string()))?;
                             let u: f64 = uniform2.sample(&mut local_rng) - 0.5;
                             let laplace_noise =
                                 -scale * u.signum() * (1.0f64 - 2.0f64 * u.abs()).ln();
@@ -443,7 +450,7 @@ impl FederatedCovariance<FederatedCovarianceUntrained> {
             for j in 0..m {
                 let mut values: Vec<f64> =
                     local_covariances.iter().map(|cov| cov[[i, j]]).collect();
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                 // Use median as robust aggregation
                 let median = if values.len() % 2 == 0 {
@@ -638,7 +645,7 @@ mod tests {
     fn test_federated_covariance() {
         // Use deterministic seed for testing
         let mut local_rng = Random::seed(111);
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((100, 4), |_| dist.sample(&mut local_rng));
         let data_splits = split_data_for_federation(X.view(), 3);
         let parties = create_federated_parties(data_splits);
@@ -650,7 +657,7 @@ mod tests {
         let result = estimator.fit_federated(&parties);
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         let global_cov = trained.global_covariance();
 
         assert_eq!(global_cov.shape(), &[4, 4]);
@@ -660,7 +667,7 @@ mod tests {
     #[test]
     fn test_privacy_mechanisms() {
         let mut local_rng = Random::seed(222);
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((60, 3), |_| dist.sample(&mut local_rng));
         let data_splits = split_data_for_federation(X.view(), 2);
         let parties = create_federated_parties(data_splits);
@@ -685,7 +692,7 @@ mod tests {
     #[test]
     fn test_aggregation_methods() {
         let mut local_rng = Random::seed(333);
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((80, 3), |_| dist.sample(&mut local_rng));
         let data_splits = split_data_for_federation(X.view(), 4);
         let parties = create_federated_parties(data_splits);
@@ -708,14 +715,16 @@ mod tests {
     #[test]
     fn test_communication_cost() {
         let mut local_rng = Random::seed(444);
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((40, 2), |_| dist.sample(&mut local_rng));
         let data_splits = split_data_for_federation(X.view(), 2);
         let parties = create_federated_parties(data_splits);
 
         let estimator = FederatedCovariance::new(2).with_communication_rounds(3);
 
-        let trained = estimator.fit_federated(&parties).unwrap();
+        let trained = estimator
+            .fit_federated(&parties)
+            .expect("operation should succeed");
         let cost = trained.communication_cost();
 
         assert!(cost.total_bytes > 0);

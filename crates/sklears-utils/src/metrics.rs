@@ -10,7 +10,10 @@ pub fn euclidean_distance(a: &Array1<Float>, b: &Array1<Float>) -> Float {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
     // Use SIMD optimization for f32 if available
-    euclidean_distance_optimized(a.as_slice().unwrap(), b.as_slice().unwrap())
+    euclidean_distance_optimized(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 /// Internal optimized Euclidean distance implementation
@@ -50,7 +53,10 @@ pub fn manhattan_distance(a: &Array1<Float>, b: &Array1<Float>) -> Float {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
     // Use SIMD optimization for f32 if available
-    manhattan_distance_optimized(a.as_slice().unwrap(), b.as_slice().unwrap())
+    manhattan_distance_optimized(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 /// Internal optimized Manhattan distance implementation
@@ -107,7 +113,10 @@ pub fn cosine_similarity(a: &Array1<Float>, b: &Array1<Float>) -> Float {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
     // Use optimized implementation that calculates 1 - cosine_distance
-    1.0 - cosine_distance_optimized(a.as_slice().unwrap(), b.as_slice().unwrap())
+    1.0 - cosine_distance_optimized(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 /// Internal optimized cosine distance implementation
@@ -152,7 +161,10 @@ pub fn cosine_distance(a: &Array1<Float>, b: &Array1<Float>) -> Float {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
     // Use SIMD optimization for f32 if available
-    cosine_distance_optimized(a.as_slice().unwrap(), b.as_slice().unwrap())
+    cosine_distance_optimized(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 // Scalar f32 versions for high-performance applications
@@ -160,25 +172,37 @@ pub fn cosine_distance(a: &Array1<Float>, b: &Array1<Float>) -> Float {
 /// Euclidean distance for f32 arrays (using SIMD optimization)
 pub fn euclidean_distance_f32(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
-    SimdDistanceOps::euclidean_distance_f32(a.as_slice().unwrap(), b.as_slice().unwrap())
+    SimdDistanceOps::euclidean_distance_f32(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 /// Manhattan distance for f32 arrays (using SIMD optimization)
 pub fn manhattan_distance_f32(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
-    SimdDistanceOps::manhattan_distance_f32(a.as_slice().unwrap(), b.as_slice().unwrap())
+    SimdDistanceOps::manhattan_distance_f32(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 /// Cosine distance for f32 arrays (using SIMD optimization)
 pub fn cosine_distance_f32(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
-    1.0 - SimdDistanceOps::cosine_similarity_f32(a.as_slice().unwrap(), b.as_slice().unwrap())
+    1.0 - SimdDistanceOps::cosine_similarity_f32(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 /// Cosine similarity for f32 arrays (using SIMD optimization)
 pub fn cosine_similarity_f32(a: &Array1<f32>, b: &Array1<f32>) -> f32 {
     debug_assert_eq!(a.len(), b.len(), "Arrays must have the same length");
-    SimdDistanceOps::cosine_similarity_f32(a.as_slice().unwrap(), b.as_slice().unwrap())
+    SimdDistanceOps::cosine_similarity_f32(
+        a.as_slice().expect("operation should succeed"),
+        b.as_slice().expect("operation should succeed"),
+    )
 }
 
 /// Scalar implementation for f32 Euclidean distance

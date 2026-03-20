@@ -162,7 +162,11 @@ impl MemoryMappedKernelMatrix {
             ));
         }
 
-        let x = self.x_data.as_ref().unwrap().clone();
+        let x = self
+            .x_data
+            .as_ref()
+            .expect("x_data not available - model not fitted")
+            .clone();
         let (rows, cols) = self.dimensions;
 
         // Sequential computation for now (to avoid borrowing issues)
@@ -511,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_memory_mapped_kernel_creation() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("construction should succeed");
         let config = MemoryMappedKernelConfig {
             file_path: temp_file.path().to_path_buf(),
             ..MemoryMappedKernelConfig::default()
@@ -524,22 +528,23 @@ mod tests {
 
     #[test]
     fn test_kernel_value_set_get() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("construction should succeed");
         let config = MemoryMappedKernelConfig {
             file_path: temp_file.path().to_path_buf(),
             ..MemoryMappedKernelConfig::default()
         };
 
         let kernel = Box::new(LinearKernel);
-        let mut matrix = MemoryMappedKernelMatrix::new(kernel, (10, 10), config).unwrap();
+        let mut matrix = MemoryMappedKernelMatrix::new(kernel, (10, 10), config)
+            .expect("construction should succeed");
 
-        matrix.set(0, 0, 1.5).unwrap();
-        assert_eq!(matrix.get(0, 0).unwrap(), 1.5);
+        matrix.set(0, 0, 1.5).expect("operation should succeed");
+        assert_eq!(matrix.get(0, 0).expect("operation should succeed"), 1.5);
     }
 
     #[test]
     fn test_sparse_memory_mapped_kernel() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("construction should succeed");
         let config = MemoryMappedKernelConfig {
             file_path: temp_file.path().to_path_buf(),
             ..MemoryMappedKernelConfig::default()

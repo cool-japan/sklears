@@ -850,9 +850,9 @@ mod tests {
             2.0, // threshold
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let (neighbors, distances) = sparse.get_neighbors(0).unwrap();
+        let (neighbors, distances) = sparse.get_neighbors(0).expect("operation should succeed");
         assert_eq!(neighbors.len(), 2); // Only 2 neighbors under threshold
         assert!(distances[0] <= 2.0);
         assert!(distances[1] <= 2.0);
@@ -874,14 +874,16 @@ mod tests {
             2.0,     // threshold
             Some(3), // max neighbors
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let (neighbors, _distances) = sparse.get_neighbors(0).unwrap();
+        let (neighbors, _distances) = sparse.get_neighbors(0).expect("operation should succeed");
         assert!(neighbors.len() <= 3);
         assert!(neighbors.len() >= 2); // At least 2 neighbors under threshold
 
         // Test k-neighbors
-        let (k_neighbors, k_distances) = sparse.get_k_neighbors(0, 2).unwrap();
+        let (k_neighbors, k_distances) = sparse
+            .get_k_neighbors(0, 2)
+            .expect("operation should succeed");
         assert_eq!(k_neighbors.len(), 2);
         assert_eq!(k_distances.len(), 2);
 
@@ -903,9 +905,9 @@ mod tests {
             2.0,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let (dense_indices, dense_distances) = sparse.to_dense().unwrap();
+        let (dense_indices, dense_distances) = sparse.to_dense().expect("operation should succeed");
 
         // Check that original data is preserved for values under threshold
         assert_eq!(dense_indices[[0, 0]], 1);
@@ -924,12 +926,12 @@ mod tests {
             .threshold(2.0)
             .max_neighbors(2)
             .build(&neighbor_indices, &neighbor_distances)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(sparse.index_type(), SparseIndexType::BTreeMap);
         assert_eq!(sparse.threshold(), 2.0);
 
-        let (neighbors, _) = sparse.get_neighbors(0).unwrap();
+        let (neighbors, _) = sparse.get_neighbors(0).expect("operation should succeed");
         assert!(neighbors.len() <= 2);
     }
 
@@ -949,7 +951,7 @@ mod tests {
             1.0, // Only keep very small distances
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let stats = sparse.stats();
         assert!(stats.sparsity > 0.0); // Should be somewhat sparse
@@ -983,15 +985,16 @@ mod tests {
                 2.0,
                 None,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
             // All should work and preserve data
-            let (neighbors, distances) = sparse.get_neighbors(0).unwrap();
+            let (neighbors, distances) = sparse.get_neighbors(0).expect("operation should succeed");
             assert!(!neighbors.is_empty());
             assert_eq!(neighbors.len(), distances.len());
 
             // Should be able to convert back to dense
-            let (dense_indices, dense_distances) = sparse.to_dense().unwrap();
+            let (dense_indices, dense_distances) =
+                sparse.to_dense().expect("operation should succeed");
             assert_eq!(dense_indices.shape(), [3, 2]);
             assert_eq!(dense_distances.shape(), [3, 2]);
         }

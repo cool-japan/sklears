@@ -584,7 +584,7 @@ mod tests {
             1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0,
             1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0,
         ];
-        Array2::from_shape_vec((6, 4), data).unwrap()
+        Array2::from_shape_vec((6, 4), data).expect("operation should succeed")
     }
 
     #[test]
@@ -592,7 +592,7 @@ mod tests {
         let data = create_categorical_data();
         let rock = ROCK::builder().n_clusters(2).theta(0.3).build();
 
-        let result = rock.fit(&data, &()).unwrap();
+        let result = rock.fit(&data, &()).expect("operation should succeed");
         assert_eq!(result.labels().len(), 6);
         assert_eq!(result.similarity_matrix().nrows(), 6);
         assert_eq!(result.similarity_matrix().ncols(), 6);
@@ -603,8 +603,8 @@ mod tests {
         let data = create_categorical_data();
         let rock = ROCK::builder().n_clusters(2).build();
 
-        let fitted = rock.fit(&data, &()).unwrap();
-        let predictions = fitted.predict(&data).unwrap();
+        let fitted = rock.fit(&data, &()).expect("operation should succeed");
+        let predictions = fitted.predict(&data).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
     }
 
@@ -672,7 +672,7 @@ mod tests {
         let data = create_categorical_data();
         let rock = ROCK::builder().n_clusters(2).theta(0.4).build();
 
-        let fitted = rock.fit(&data, &()).unwrap();
+        let fitted = rock.fit(&data, &()).expect("operation should succeed");
         let intra_sim = fitted.intra_cluster_similarity();
         let inter_sim = fitted.inter_cluster_similarity();
 

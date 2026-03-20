@@ -59,7 +59,7 @@ mod custom_kernel_tests {
             .fit(&x, &y)
             .expect("Failed to fit SVC with custom kernel");
 
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("operation should succeed");
         let accuracy = accuracy_score(&y, &predictions);
 
         // Should achieve perfect accuracy on linearly separable data
@@ -83,7 +83,7 @@ mod custom_kernel_tests {
             .fit(&x, &y)
             .expect("Failed to fit SVR with custom kernel");
 
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("operation should succeed");
         let mse = mean_squared_error(&y, &predictions);
 
         // Should achieve low MSE on linear data
@@ -123,7 +123,7 @@ mod custom_kernel_tests {
         let svc = SVC::new(KernelType::Custom(custom_kernel), 1.0);
         let trained = svc.fit(&x, &y).expect("Failed to fit multi-class SVC");
 
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("operation should succeed");
         let accuracy = accuracy_score(&y, &predictions);
 
         // Should achieve good accuracy

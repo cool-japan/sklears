@@ -764,15 +764,15 @@ mod tests {
             .group_lasso(groups, 0.1)
             .increasing(true);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
             assert!(fitted_y[i] <= fitted_y[i + 1]);
         }
 
-        let active_groups = fitted_model.active_groups().unwrap();
+        let active_groups = fitted_model.active_groups().expect("operation should succeed");
         assert!(!active_groups.is_empty());
     }
 
@@ -785,15 +785,15 @@ mod tests {
             .fused_lasso(0.1)
             .increasing(true);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
             assert!(fitted_y[i] <= fitted_y[i + 1]);
         }
 
-        let sparsity_pattern = fitted_model.sparsity_pattern().unwrap();
+        let sparsity_pattern = fitted_model.sparsity_pattern().expect("operation should succeed");
         assert_eq!(sparsity_pattern.len(), y.len());
     }
 
@@ -808,8 +808,8 @@ mod tests {
             .hierarchical_sparsity(hierarchy)
             .increasing(true);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -835,8 +835,8 @@ mod tests {
             .graph_lasso(adjacency, 0.1)
             .increasing(true);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -854,10 +854,10 @@ mod tests {
             .group_lasso(groups, 0.5) // High regularization to induce sparsity
             .increasing(true);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let n_active_groups = fitted_model.n_active_groups().unwrap();
-        let sparsity_ratio = fitted_model.sparsity_ratio().unwrap();
+        let n_active_groups = fitted_model.n_active_groups().expect("operation should succeed");
+        let sparsity_ratio = fitted_model.sparsity_ratio().expect("operation should succeed");
 
         assert!(n_active_groups <= 2); // At most 2 groups
         assert!(sparsity_ratio >= 0.0 && sparsity_ratio <= 1.0);
@@ -873,7 +873,7 @@ mod tests {
         let result = structured_sparse_isotonic_regression(&x, &y, sparsity_type, true);
         assert!(result.is_ok());
 
-        let (fitted_x, fitted_y, active_groups, sparsity_pattern) = result.unwrap();
+        let (fitted_x, fitted_y, active_groups, sparsity_pattern) = result.expect("operation should succeed");
         assert_eq!(fitted_x.len(), 4);
         assert_eq!(fitted_y.len(), 4);
         assert_eq!(sparsity_pattern.len(), 4);
@@ -894,8 +894,8 @@ mod tests {
             .group_elastic_net(groups, 0.5, 0.1)
             .increasing(true);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let fitted_y = fitted_model.fitted_y().unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_y = fitted_model.fitted_y().expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {

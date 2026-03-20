@@ -14,7 +14,8 @@ use sklears::utils::data_generation::make_classification;
 #[allow(non_snake_case)]
 fn test_end_to_end_classification_pipeline() {
     // Generate synthetic data
-    let (X, y) = make_classification(100, 4, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X, y) = make_classification(100, 4, 3, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Skip preprocessing for now (StandardScaler not available in facade)
     // TODO: Re-enable when preprocessing is properly exposed
@@ -22,13 +23,17 @@ fn test_end_to_end_classification_pipeline() {
 
     // Train classifier
     let classifier = KNeighborsClassifier::new(3);
-    let fitted_classifier = classifier.fit(&X_scaled, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X_scaled, &y)
+        .expect("model fitting should succeed");
 
     // Make predictions
-    let predictions = fitted_classifier.predict(&X_scaled).unwrap();
+    let predictions = fitted_classifier
+        .predict(&X_scaled)
+        .expect("prediction should succeed");
 
     // Evaluate performance
-    let accuracy = accuracy_score(&y, &predictions).unwrap();
+    let accuracy = accuracy_score(&y, &predictions).expect("operation should succeed");
 
     // Should have reasonable accuracy on training data
     assert!(accuracy > 0.7, "Accuracy should be > 0.7, got {}", accuracy);
@@ -51,16 +56,21 @@ fn test_end_to_end_classification_pipeline() {
 fn test_clustering_and_classification() {
     // Generate blob data for clustering
     // Using make_classification instead as make_blobs is not available
-    let (X, y_true) = make_classification(60, 2, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X, y_true) = make_classification(60, 2, 2, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Use KNN to classify based on cluster structure
     let classifier = KNeighborsClassifier::new(5);
-    let fitted_classifier = classifier.fit(&X, &y_true).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X, &y_true)
+        .expect("model fitting should succeed");
 
     // Predict on the same data (should be very accurate)
-    let predictions = fitted_classifier.predict(&X).unwrap();
+    let predictions = fitted_classifier
+        .predict(&X)
+        .expect("prediction should succeed");
 
-    let accuracy = accuracy_score(&y_true, &predictions).unwrap();
+    let accuracy = accuracy_score(&y_true, &predictions).expect("operation should succeed");
     assert!(
         accuracy > 0.6,
         "Accuracy on blob data should be reasonable, got {}",
@@ -75,10 +85,10 @@ fn test_metrics_consistency() {
     let y_pred = array![0, 1, 0, 0, 1, 1, 1, 1, 0, 1];
 
     // Calculate all metrics
-    let accuracy = accuracy_score(&y_true, &y_pred).unwrap();
-    let precision = precision_score(&y_true, &y_pred, Some(1)).unwrap();
-    let recall = recall_score(&y_true, &y_pred, Some(1)).unwrap();
-    let f1 = f1_score(&y_true, &y_pred, Some(1)).unwrap();
+    let accuracy = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
+    let precision = precision_score(&y_true, &y_pred, Some(1)).expect("operation should succeed");
+    let recall = recall_score(&y_true, &y_pred, Some(1)).expect("operation should succeed");
+    let f1 = f1_score(&y_true, &y_pred, Some(1)).expect("operation should succeed");
 
     // Basic sanity checks
     assert!((0.0..=1.0).contains(&accuracy));
@@ -102,8 +112,10 @@ fn test_preprocessing_pipeline() {
 #[allow(non_snake_case)]
 fn test_data_generation_consistency() {
     // Test that data generation functions produce consistent outputs
-    let (X1, y1) = make_classification(50, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
-    let (X2, y2) = make_classification(50, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X1, y1) = make_classification(50, 3, 2, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
+    let (X2, y2) = make_classification(50, 3, 2, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // With same random seed, should produce identical results
     assert_eq!(X1, X2);
@@ -134,10 +146,12 @@ fn test_cross_crate_type_compatibility() {
             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
         ],
     )
-    .unwrap();
+    .expect("operation should succeed");
 
-    let fitted = classifier.fit(&X_test, &labels).unwrap();
-    let predictions = fitted.predict(&X_test).unwrap();
+    let fitted = classifier
+        .fit(&X_test, &labels)
+        .expect("model fitting should succeed");
+    let predictions = fitted.predict(&X_test).expect("prediction should succeed");
 
     // Should predict same as input for this trivial case
     assert_eq!(predictions.len(), labels.len());

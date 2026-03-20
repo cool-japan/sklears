@@ -322,7 +322,7 @@ impl PipelineExecutionEngine {
 
         // Register execution
         {
-            let mut executions = self.active_executions.write().unwrap();
+            let mut executions = self.active_executions.write().unwrap_or_else(|e| e.into_inner());
             executions.insert(execution_id.clone(), execution);
         }
 
@@ -331,7 +331,7 @@ impl PipelineExecutionEngine {
 
         // Remove execution from active list
         {
-            let mut executions = self.active_executions.write().unwrap();
+            let mut executions = self.active_executions.write().unwrap_or_else(|e| e.into_inner());
             executions.remove(&execution_id);
         }
 
@@ -340,7 +340,7 @@ impl PipelineExecutionEngine {
 
     /// Get execution status
     pub fn get_status(&self, pipeline_id: &str) -> Option<PipelineStatus> {
-        let executions = self.active_executions.read().unwrap();
+        let executions = self.active_executions.read().unwrap_or_else(|e| e.into_inner());
         executions.values()
             .find(|exec| exec.pipeline.pipeline_id == pipeline_id)
             .map(|exec| exec.status.clone())
@@ -437,9 +437,9 @@ impl ExecutionScheduler {
 
         // Add to queue
         {
-            let mut queue = self.execution_queue.lock().unwrap();
+            let mut queue = self.execution_queue.lock().unwrap_or_else(|e| e.into_inner());
             queue.push(scheduled);
-            queue.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap());
+            queue.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
         }
 
         // Execute immediately for now (simplified)
@@ -541,13 +541,13 @@ impl StageExecutorPool {
 
     /// Get an available executor
     pub fn get_executor(&self) -> Option<StageExecutor> {
-        let mut executors = self.executors.write().unwrap();
+        let mut executors = self.executors.write().unwrap_or_else(|e| e.into_inner());
         executors.pop()
     }
 
     /// Return an executor to the pool
     pub fn return_executor(&self, executor: StageExecutor) {
-        let mut executors = self.executors.write().unwrap();
+        let mut executors = self.executors.write().unwrap_or_else(|e| e.into_inner());
         executors.push(executor);
     }
 }

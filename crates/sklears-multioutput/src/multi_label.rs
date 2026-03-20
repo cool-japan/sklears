@@ -798,10 +798,12 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>> for PrunedLabelPowerset<Untrained> 
 
             let mapped_combination = combination_mapping
                 .get(&original_combination)
-                .unwrap()
+                .expect("operation should succeed")
                 .clone();
 
-            let class_id = *combination_to_class.get(&mapped_combination).unwrap();
+            let class_id = *combination_to_class
+                .get(&mapped_combination)
+                .expect("index should be valid");
             transformed_labels.push(class_id);
         }
 

@@ -83,8 +83,11 @@ impl SimdDistanceComputer {
 
             // Find k smallest distances
             let mut sorted_indices: Vec<usize> = (0..n_samples).collect();
-            sorted_indices
-                .sort_by(|&a, &b| row_distances[a].partial_cmp(&row_distances[b]).unwrap());
+            sorted_indices.sort_by(|&a, &b| {
+                row_distances[a]
+                    .partial_cmp(&row_distances[b])
+                    .expect("operation should succeed")
+            });
 
             for j in 0..k {
                 indices[[i, j]] = sorted_indices[j];

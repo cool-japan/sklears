@@ -652,7 +652,10 @@ impl PerformanceCharacteristics {
             })
             .collect();
 
-        let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        let results: Vec<_> = handles
+            .into_iter()
+            .map(|h| h.join().expect("operation should succeed"))
+            .collect();
         let elapsed = start.elapsed();
 
         std::hint::black_box(results);

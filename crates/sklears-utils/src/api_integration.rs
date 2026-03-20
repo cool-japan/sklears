@@ -464,14 +464,14 @@ impl ApiService {
                 }
                 Err(e) => {
                     last_error = Some(e);
-                    if !self.should_retry(last_error.as_ref().unwrap()) {
+                    if !self.should_retry(last_error.as_ref().expect("operation should succeed")) {
                         break;
                     }
                 }
             }
         }
 
-        Err(last_error.unwrap())
+        Err(last_error.expect("operation should succeed"))
     }
 
     pub fn get_metrics(&self) -> Option<ApiMetrics> {
@@ -718,7 +718,7 @@ mod tests {
         let data = json!({"name": "test", "value": 42});
         let request = RequestBuilder::post("https://api.example.com/data".to_string())
             .json(&data)
-            .unwrap()
+            .expect("operation should succeed")
             .build();
 
         assert_eq!(request.method, HttpMethod::Post);
@@ -738,10 +738,10 @@ mod tests {
         assert_eq!(response.status_code, 200);
         assert_eq!(response.execution_time, Duration::from_millis(100));
 
-        let text = response.text().unwrap();
+        let text = response.text().expect("operation should succeed");
         assert_eq!(text, "{\"result\": \"success\"}");
 
-        let json: serde_json::Value = response.json().unwrap();
+        let json: serde_json::Value = response.json().expect("operation should succeed");
         assert_eq!(json["result"], "success");
     }
 
@@ -757,10 +757,13 @@ mod tests {
         client.add_response(mock_response);
 
         let request = ApiRequest::new(HttpMethod::Get, "https://api.example.com/test".to_string());
-        let response = client.execute(request).unwrap();
+        let response = client.execute(request).expect("operation should succeed");
 
         assert_eq!(response.status_code, 200);
-        assert_eq!(response.text().unwrap(), "{\"data\": \"test\"}");
+        assert_eq!(
+            response.text().expect("operation should succeed"),
+            "{\"data\": \"test\"}"
+        );
     }
 
     #[test]
@@ -782,8 +785,8 @@ mod tests {
         let service = ApiService::with_mock();
 
         let features = json!({"feature1": 1.0, "feature2": 2.0});
-        let request_builder =
-            MLApiPatterns::prediction_request(&service, "predict", &features).unwrap();
+        let request_builder = MLApiPatterns::prediction_request(&service, "predict", &features)
+            .expect("operation should succeed");
         let request = request_builder.build();
 
         assert_eq!(request.method, HttpMethod::Post);

@@ -574,7 +574,7 @@ impl OptimizationEngineCore {
         let context = self.analyze_optimization_context(&pattern_definition, &optimization_request)?;
 
         // Select optimal strategy
-        let coordinator = self.adaptive_coordinator.read().unwrap();
+        let coordinator = self.adaptive_coordinator.read().unwrap_or_else(|e| e.into_inner());
         let strategy = coordinator.select_strategy(&context)?;
         drop(coordinator);
 
@@ -601,7 +601,7 @@ impl OptimizationEngineCore {
         };
 
         // Update optimization history
-        let mut history = self.history_tracker.write().unwrap();
+        let mut history = self.history_tracker.write().unwrap_or_else(|e| e.into_inner());
         history.record_optimization(&result)?;
         drop(history);
 
@@ -620,7 +620,7 @@ impl OptimizationEngineCore {
         pattern_definition: PatternDefinition,
         request: OptimizationRequest,
     ) -> Result<OptimizationResult> {
-        let mut optimizer = self.genetic_optimizer.write().unwrap();
+        let mut optimizer = self.genetic_optimizer.write().unwrap_or_else(|e| e.into_inner());
 
         // Initialize population
         optimizer.initialize_population(&pattern_definition, &request)?;
@@ -651,7 +651,7 @@ impl OptimizationEngineCore {
 
             // Track best solution
             if let Some(current_best) = optimizer.get_best_solution() {
-                if best_solution.is_none() || current_best.fitness > best_solution.as_ref().unwrap().fitness {
+                if best_solution.is_none() || current_best.fitness > best_solution.as_ref().unwrap_or_default().fitness {
                     best_solution = Some(current_best);
                 }
             }
@@ -680,7 +680,7 @@ impl OptimizationEngineCore {
         pattern_definition: PatternDefinition,
         request: OptimizationRequest,
     ) -> Result<OptimizationResult> {
-        let mut optimizer = self.swarm_optimizer.write().unwrap();
+        let mut optimizer = self.swarm_optimizer.write().unwrap_or_else(|e| e.into_inner());
 
         // Initialize swarm
         optimizer.initialize_swarm(&pattern_definition, &request)?;
@@ -732,7 +732,7 @@ impl OptimizationEngineCore {
         pattern_definition: PatternDefinition,
         request: OptimizationRequest,
     ) -> Result<OptimizationResult> {
-        let mut optimizer = self.gradient_optimizer.write().unwrap();
+        let mut optimizer = self.gradient_optimizer.write().unwrap_or_else(|e| e.into_inner());
 
         // Initialize solution
         optimizer.initialize_solution(&pattern_definition, &request)?;
@@ -789,7 +789,7 @@ impl OptimizationEngineCore {
         pattern_definition: PatternDefinition,
         request: OptimizationRequest,
     ) -> Result<OptimizationResult> {
-        let mut optimizer = self.annealing_optimizer.write().unwrap();
+        let mut optimizer = self.annealing_optimizer.write().unwrap_or_else(|e| e.into_inner());
 
         // Initialize solution
         optimizer.initialize_solution(&pattern_definition, &request)?;
@@ -847,7 +847,7 @@ impl OptimizationEngineCore {
         pattern_definition: PatternDefinition,
         request: OptimizationRequest,
     ) -> Result<OptimizationResult> {
-        let mut optimizer = self.moo_optimizer.write().unwrap();
+        let mut optimizer = self.moo_optimizer.write().unwrap_or_else(|e| e.into_inner());
 
         // Initialize population
         optimizer.initialize_population(&pattern_definition, &request)?;
@@ -897,7 +897,7 @@ impl OptimizationEngineCore {
         pattern_definition: PatternDefinition,
         request: OptimizationRequest,
     ) -> Result<OptimizationResult> {
-        let coordinator = self.adaptive_coordinator.read().unwrap();
+        let coordinator = self.adaptive_coordinator.read().unwrap_or_else(|e| e.into_inner());
         let hybrid_strategy = coordinator.hybridization_manager.create_hybrid_strategy(&pattern_definition, &request)?;
         drop(coordinator);
 
@@ -924,7 +924,7 @@ impl OptimizationEngineCore {
             // Update best result
             if best_result.is_none() ||
                (component_result.best_solution.is_some() &&
-                self.is_result_better(&component_result, best_result.as_ref().unwrap())) {
+                self.is_result_better(&component_result, best_result.as_ref().unwrap_or_default())) {
                 best_result = Some(component_result);
             }
         }
@@ -963,7 +963,7 @@ impl OptimizationEngineCore {
 
     /// Calculate current success rate
     fn calculate_success_rate(&self) -> f64 {
-        let history = self.history_tracker.read().unwrap();
+        let history = self.history_tracker.read().unwrap_or_else(|e| e.into_inner());
         history.get_success_rate()
     }
 
@@ -1098,7 +1098,7 @@ impl GeneticAlgorithmOptimizer {
 
                     let winner = tournament_candidates.iter()
                         .max_by(|a, b| a.fitness.partial_cmp(&b.fitness).unwrap_or(Ordering::Equal))
-                        .unwrap();
+                        .unwrap_or_default();
 
                     selected.push((*winner).clone());
                 }

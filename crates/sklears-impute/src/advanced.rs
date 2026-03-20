@@ -1,23 +1,29 @@
 //! Advanced imputation methods
 //!
-//! This module provides sophisticated imputation strategies including matrix factorization,
-//! tree-based methods, and other advanced statistical approaches.
+//! This module provides sophisticated imputation strategies including kernel density
+//! estimation, local regression, robust methods, and other advanced statistical approaches.
+//!
+//! # Note
+//!
+//! All imputation methods in this module are stub implementations in v0.1.0.
+//! Methods with `fit_transform` return `Err(NotImplemented)`. Helper types
+//! (`EmpiricalCDF`, `EmpiricalQuantile`, `analyze_breakdown_point`) also return
+//! `Err(NotImplemented)` rather than placeholder values. Full implementations are
+//! planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
 
 // Note: Re-exports removed due to missing modules
 // TODO: Implement MatrixFactorizationImputer and DecisionTreeImputer in their own modules
 
-/// Placeholder for advanced imputation implementations
-/// Many advanced methods are implemented in specialized modules:
-/// - Matrix methods in matrix_factorization.rs
-/// - Tree methods in tree_methods.rs
-/// - Kernel methods in kernel.rs
-/// - Neural methods in neural.rs
-/// - Bayesian methods in bayesian.rs
-// Temporary stub implementations for types referenced in lib.rs that don't exist yet
+/// Kernel Density Estimation Imputer
 ///
-///   Kernel Density Estimation Imputer
+/// Imputes missing values using kernel density estimation to model the
+/// marginal and conditional distributions of features.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct KDEImputer {
     /// bandwidth
@@ -40,12 +46,24 @@ impl KDEImputer {
         Self::default()
     }
 
+    /// Fit the KDE model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("KDEImputer not fully implemented yet".to_string())
+        Err("KDEImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Local Linear Regression Imputer
+///
+/// Imputes missing values using locally weighted linear regression,
+/// adapting to the local structure of the data.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct LocalLinearImputer {
     /// n_neighbors
@@ -68,12 +86,24 @@ impl LocalLinearImputer {
         Self::default()
     }
 
+    /// Fit the local linear model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("LocalLinearImputer not fully implemented yet".to_string())
+        Err("LocalLinearImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// LOWESS (Locally Weighted Scatterplot Smoothing) Imputer
+///
+/// Imputes missing values using LOWESS, a non-parametric regression method
+/// that combines local polynomial fitting with iterative reweighting.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct LowessImputer {
     /// frac
@@ -96,12 +126,24 @@ impl LowessImputer {
         Self::default()
     }
 
+    /// Fit the LOWESS model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("LowessImputer not fully implemented yet".to_string())
+        Err("LowessImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Robust Regression Imputer
+///
+/// Imputes missing values using robust regression methods (e.g., Huber, bisquare)
+/// that are resistant to outliers in the observed data.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct RobustRegressionImputer {
     /// method
@@ -124,12 +166,24 @@ impl RobustRegressionImputer {
         Self::default()
     }
 
+    /// Fit the robust regression model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("RobustRegressionImputer not fully implemented yet".to_string())
+        Err("RobustRegressionImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Trimmed Mean Imputer
+///
+/// Imputes missing values using the trimmed mean (excluding extreme values)
+/// of each feature, providing robustness to outliers.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct TrimmedMeanImputer {
     /// trim_fraction
@@ -147,12 +201,24 @@ impl TrimmedMeanImputer {
         Self::default()
     }
 
+    /// Fit the trimmed mean model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("TrimmedMeanImputer not fully implemented yet".to_string())
+        Err("TrimmedMeanImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Multivariate Normal Imputer
+///
+/// Imputes missing values assuming the data follows a multivariate normal
+/// distribution, using EM algorithm to estimate parameters.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct MultivariateNormalImputer {
     /// max_iter
@@ -175,12 +241,24 @@ impl MultivariateNormalImputer {
         Self::default()
     }
 
+    /// Fit the multivariate normal model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("MultivariateNormalImputer not fully implemented yet".to_string())
+        Err("MultivariateNormalImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Copula-based Imputer
+///
+/// Imputes missing values by modeling the dependence structure between
+/// features using copula functions, preserving marginal distributions.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct CopulaImputer {
     /// copula_type
@@ -203,12 +281,21 @@ impl CopulaImputer {
         Self::default()
     }
 
+    /// Fit the copula model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("CopulaImputer not fully implemented yet".to_string())
+        Err("CopulaImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Copula Parameters
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone, Default)]
 pub struct CopulaParameters {
     /// correlation_matrix
@@ -218,6 +305,13 @@ pub struct CopulaParameters {
 }
 
 /// Factor Analysis Imputer
+///
+/// Imputes missing values using factor analysis, modeling observed variables
+/// as linear combinations of latent factors plus noise.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct FactorAnalysisImputer {
     /// n_components
@@ -240,12 +334,24 @@ impl FactorAnalysisImputer {
         Self::default()
     }
 
+    /// Fit the factor analysis model and impute missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("FactorAnalysisImputer not fully implemented yet".to_string())
+        Err("FactorAnalysisImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Empirical CDF
+///
+/// Computes the empirical cumulative distribution function from observed values.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. `evaluate()` returns `Err(NotImplemented)`.
+/// Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct EmpiricalCDF {
     /// values
@@ -257,12 +363,24 @@ impl EmpiricalCDF {
         Self { values }
     }
 
-    pub fn evaluate(&self, _x: f64) -> f64 {
-        0.5 // Placeholder
+    /// Evaluate the empirical CDF at a given point.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    pub fn evaluate(&self, _x: f64) -> Result<f64, String> {
+        Err("EmpiricalCDF::evaluate: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Empirical Quantile function
+///
+/// Computes quantiles from observed values.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. `evaluate()` returns `Err(NotImplemented)`.
+/// Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct EmpiricalQuantile {
     /// values
@@ -274,12 +392,24 @@ impl EmpiricalQuantile {
         Self { values }
     }
 
-    pub fn evaluate(&self, _p: f64) -> f64 {
-        self.values.first().cloned().unwrap_or(0.0) // Placeholder
+    /// Evaluate the empirical quantile function at a given probability.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+    pub fn evaluate(&self, _p: f64) -> Result<f64, String> {
+        Err(
+            "EmpiricalQuantile::evaluate: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        )
     }
 }
 
 /// Breakdown point analysis
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct BreakdownPointAnalysis {
     /// breakdown_point
@@ -288,10 +418,11 @@ pub struct BreakdownPointAnalysis {
     pub robust_estimates: Vec<f64>,
 }
 
-/// Analyze breakdown point of robust estimators
-pub fn analyze_breakdown_point(_X: &ArrayView2<f64>) -> BreakdownPointAnalysis {
-    BreakdownPointAnalysis {
-        breakdown_point: 0.5,
-        robust_estimates: Vec::new(),
-    }
+/// Analyze breakdown point of robust estimators.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
+pub fn analyze_breakdown_point(_X: &ArrayView2<f64>) -> Result<BreakdownPointAnalysis, String> {
+    Err("analyze_breakdown_point: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
 }

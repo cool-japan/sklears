@@ -130,7 +130,9 @@ impl PolynomialFeatures {
                 feature_names.push("1".to_string());
             } else if combination.len() == 1 {
                 // Single feature
-                feature_names.push(input_features.unwrap()[combination[0]].clone());
+                feature_names.push(
+                    input_features.expect("operation should succeed")[combination[0]].clone(),
+                );
             } else {
                 // Interaction features
                 let mut name = String::new();
@@ -138,7 +140,7 @@ impl PolynomialFeatures {
                     if i > 0 {
                         name.push(' ');
                     }
-                    name.push_str(&input_features.unwrap()[feature_idx]);
+                    name.push_str(&input_features.expect("operation should succeed")[feature_idx]);
                 }
                 feature_names.push(name);
             }

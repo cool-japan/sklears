@@ -762,38 +762,45 @@ mod tests {
 
     #[test]
     fn test_data_converter() {
-        let data = Array2::from_shape_vec((2, 2), vec![1i32, 2, 3, 4]).unwrap();
-        let converted: Array2<f64> = DataConverter::convert_array_type(&data.view()).unwrap();
+        let data =
+            Array2::from_shape_vec((2, 2), vec![1i32, 2, 3, 4]).expect("operation should succeed");
+        let converted: Array2<f64> =
+            DataConverter::convert_array_type(&data.view()).expect("operation should succeed");
         assert_eq!(converted.dim(), (2, 2));
         assert_eq!(converted[(0, 0)], 1.0);
     }
 
     #[test]
     fn test_matrix_utils() {
-        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let rank = MatrixUtils::matrix_rank(&matrix.view()).unwrap();
+        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let rank = MatrixUtils::matrix_rank(&matrix.view()).expect("operation should succeed");
         assert!(rank > 0);
 
-        let frobenius = MatrixUtils::frobenius_norm(&matrix.view()).unwrap();
+        let frobenius =
+            MatrixUtils::frobenius_norm(&matrix.view()).expect("operation should succeed");
         assert!(frobenius > 0.0);
     }
 
     #[test]
     fn test_statistical_utils() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let target = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let correlation = StatisticalUtils::correlation_matrix(&data.view()).unwrap();
+        let correlation =
+            StatisticalUtils::correlation_matrix(&data.view()).expect("operation should succeed");
         assert_eq!(correlation.dim(), (2, 2));
 
-        let importance =
-            StatisticalUtils::feature_importance_scores(&data.view(), &target.view()).unwrap();
+        let importance = StatisticalUtils::feature_importance_scores(&data.view(), &target.view())
+            .expect("operation should succeed");
         assert_eq!(importance.len(), 2);
     }
 
     #[test]
     fn test_validation_utils() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
         assert!(!ValidationUtils::has_infinite_values(&data.view()));
         assert!(ValidationUtils::validate_dimensions(&data.view(), Some(2), Some(2)).is_ok());
@@ -802,24 +809,27 @@ mod tests {
 
     #[test]
     fn test_sampling_utils() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
-        let sample = SamplingUtils::random_sample(&data.view(), 2, None).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
+        let sample =
+            SamplingUtils::random_sample(&data.view(), 2, None).expect("operation should succeed");
         assert_eq!(sample.dim(), (2, 2));
     }
 
     #[test]
     fn test_feature_engineering_utils() {
-        let features1 = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let features2 = Array2::from_shape_vec((2, 1), vec![5.0, 6.0]).unwrap();
+        let features1 = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let features2 =
+            Array2::from_shape_vec((2, 1), vec![5.0, 6.0]).expect("operation should succeed");
 
         let combined =
             FeatureEngineeringUtils::combine_features(&[features1.view(), features2.view()])
-                .unwrap();
+                .expect("operation should succeed");
         assert_eq!(combined.dim(), (2, 3));
 
-        let statistics =
-            FeatureEngineeringUtils::compute_feature_statistics(&features1.view()).unwrap();
+        let statistics = FeatureEngineeringUtils::compute_feature_statistics(&features1.view())
+            .expect("operation should succeed");
         assert!(statistics.contains_key("means"));
         assert!(statistics.contains_key("stds"));
     }

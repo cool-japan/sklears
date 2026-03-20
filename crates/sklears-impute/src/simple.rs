@@ -148,7 +148,8 @@ impl Fit<ArrayView2<'_, Float>, ()> for SimpleImputer<Untrained> {
                 }
                 "median" => {
                     let mut sorted_values = valid_values.clone();
-                    sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted_values
+                        .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let len = sorted_values.len();
                     if len % 2 == 0 {
                         (sorted_values[len / 2 - 1] + sorted_values[len / 2]) / 2.0
@@ -164,7 +165,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for SimpleImputer<Untrained> {
                     let most_frequent_bits = counts
                         .into_iter()
                         .max_by_key(|&(_, count)| count)
-                        .unwrap()
+                        .expect("operation should succeed")
                         .0;
                     f64::from_bits(most_frequent_bits)
                 }

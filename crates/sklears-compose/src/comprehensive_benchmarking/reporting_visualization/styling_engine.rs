@@ -489,7 +489,7 @@ impl StylingEngineSystem {
 
         // Register with theme manager
         {
-            let mut theme_manager = self.theme_manager.write().unwrap();
+            let mut theme_manager = self.theme_manager.write().unwrap_or_else(|e| e.into_inner());
             theme_manager.register_theme(theme.clone()).await?;
         }
 
@@ -498,7 +498,7 @@ impl StylingEngineSystem {
 
         // Update performance metrics
         {
-            let mut performance_monitor = self.performance_monitor.write().unwrap();
+            let mut performance_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             performance_monitor.record_theme_registration(&theme.id).await?;
         }
 
@@ -514,25 +514,25 @@ impl StylingEngineSystem {
 
         // Generate base CSS
         let base_css = {
-            let css_generator = self.css_generator.read().unwrap();
+            let css_generator = self.css_generator.read().unwrap_or_else(|e| e.into_inner());
             css_generator.generate_base_css(&request).await?
         };
 
         // Apply optimizations
         let optimized_css = {
-            let optimization_system = self.optimization_system.read().unwrap();
+            let optimization_system = self.optimization_system.read().unwrap_or_else(|e| e.into_inner());
             optimization_system.optimize_css(base_css, &request.optimization_config).await?
         };
 
         // Validate generated CSS
         {
-            let validation_system = self.validation_system.read().unwrap();
+            let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
             validation_system.validate_css(&optimized_css, &request.validation_config).await?;
         }
 
         // Check accessibility compliance
         {
-            let accessibility_manager = self.accessibility_manager.read().unwrap();
+            let accessibility_manager = self.accessibility_manager.read().unwrap_or_else(|e| e.into_inner());
             accessibility_manager.validate_css_accessibility(&optimized_css).await?;
         }
 
@@ -540,7 +540,7 @@ impl StylingEngineSystem {
 
         // Record performance metrics
         {
-            let mut performance_monitor = self.performance_monitor.write().unwrap();
+            let mut performance_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             performance_monitor.record_css_generation(&request.id, generation_time).await?;
         }
 
@@ -562,7 +562,7 @@ impl StylingEngineSystem {
     pub async fn apply_theme(&self, theme_id: &str, scope: ThemeScope) -> Result<()> {
         // Get theme from registry
         let theme = {
-            let theme_manager = self.theme_manager.read().unwrap();
+            let theme_manager = self.theme_manager.read().unwrap_or_else(|e| e.into_inner());
             theme_manager.get_theme(theme_id).await?
         };
 
@@ -580,7 +580,7 @@ impl StylingEngineSystem {
 
         // Apply CSS to target scope
         {
-            let mut dynamic_engine = self.dynamic_engine.write().unwrap();
+            let mut dynamic_engine = self.dynamic_engine.write().unwrap_or_else(|e| e.into_inner());
             dynamic_engine.apply_css(&generated_css, &scope).await?;
         }
 
@@ -591,19 +591,19 @@ impl StylingEngineSystem {
     pub async fn switch_theme(&self, from_theme: &str, to_theme: &str, animation_config: ThemeTransitionConfig) -> Result<()> {
         // Prepare theme transition
         {
-            let mut dynamic_engine = self.dynamic_engine.write().unwrap();
+            let mut dynamic_engine = self.dynamic_engine.write().unwrap_or_else(|e| e.into_inner());
             dynamic_engine.prepare_theme_transition(from_theme, to_theme, &animation_config).await?;
         }
 
         // Execute transition
         {
-            let mut dynamic_engine = self.dynamic_engine.write().unwrap();
+            let mut dynamic_engine = self.dynamic_engine.write().unwrap_or_else(|e| e.into_inner());
             dynamic_engine.execute_theme_transition().await?;
         }
 
         // Update performance metrics
         {
-            let mut performance_monitor = self.performance_monitor.write().unwrap();
+            let mut performance_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             performance_monitor.record_theme_switch(from_theme, to_theme).await?;
         }
 
@@ -612,43 +612,43 @@ impl StylingEngineSystem {
 
     /// Optimize styles for performance
     pub async fn optimize_styles(&self, optimization_config: StyleOptimizationConfig) -> Result<OptimizationResult> {
-        let optimization_system = self.optimization_system.read().unwrap();
+        let optimization_system = self.optimization_system.read().unwrap_or_else(|e| e.into_inner());
         optimization_system.optimize_styles(optimization_config).await
     }
 
     /// Validate theme accessibility
     pub async fn validate_accessibility(&self, theme_id: &str) -> Result<AccessibilityReport> {
-        let accessibility_manager = self.accessibility_manager.read().unwrap();
+        let accessibility_manager = self.accessibility_manager.read().unwrap_or_else(|e| e.into_inner());
         accessibility_manager.validate_theme_accessibility(theme_id).await
     }
 
     /// Get style performance metrics
     pub async fn get_performance_metrics(&self) -> Result<StylePerformanceMetrics> {
-        let performance_monitor = self.performance_monitor.read().unwrap();
+        let performance_monitor = self.performance_monitor.read().unwrap_or_else(|e| e.into_inner());
         performance_monitor.get_comprehensive_metrics().await
     }
 
     /// Validate theme configuration
     async fn validate_theme(&self, theme: &Theme) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap();
+        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
         validation_system.validate_theme(theme).await
     }
 
     /// Check accessibility compliance
     async fn check_accessibility_compliance(&self, theme: &Theme) -> Result<()> {
-        let accessibility_manager = self.accessibility_manager.read().unwrap();
+        let accessibility_manager = self.accessibility_manager.read().unwrap_or_else(|e| e.into_inner());
         accessibility_manager.check_theme_compliance(theme).await
     }
 
     /// Generate CSS for theme
     async fn generate_theme_css(&self, theme: &Theme) -> Result<()> {
-        let css_generator = self.css_generator.read().unwrap();
+        let css_generator = self.css_generator.read().unwrap_or_else(|e| e.into_inner());
         css_generator.generate_theme_css(theme).await
     }
 
     /// Validate CSS generation request
     async fn validate_generation_request(&self, request: &CssGenerationRequest) -> Result<()> {
-        let validation_system = self.validation_system.read().unwrap();
+        let validation_system = self.validation_system.read().unwrap_or_else(|e| e.into_inner());
         validation_system.validate_generation_request(request).await
     }
 }

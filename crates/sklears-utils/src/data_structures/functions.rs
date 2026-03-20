@@ -12,12 +12,18 @@ mod tests {
         let _a = graph.add_vertex("A");
         let _b = graph.add_vertex("B");
         let _c = graph.add_vertex("C");
-        graph.add_edge(&"A", &"B").unwrap();
-        graph.add_edge(&"B", &"C").unwrap();
-        graph.add_edge(&"C", &"A").unwrap();
+        graph
+            .add_edge(&"A", &"B")
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"B", &"C")
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"C", &"A")
+            .expect("operation should succeed");
         assert_eq!(graph.num_vertices(), 3);
         assert_eq!(graph.num_edges(), 3);
-        let neighbors = graph.neighbors(&"A").unwrap();
+        let neighbors = graph.neighbors(&"A").expect("operation should succeed");
         assert_eq!(neighbors.len(), 1);
         assert_eq!(neighbors[0], &"B");
     }
@@ -28,10 +34,16 @@ mod tests {
         graph.add_vertex("B");
         graph.add_vertex("C");
         graph.add_vertex("D");
-        graph.add_edge(&"A", &"B").unwrap();
-        graph.add_edge(&"A", &"C").unwrap();
-        graph.add_edge(&"B", &"D").unwrap();
-        let bfs_result = graph.bfs(&"A").unwrap();
+        graph
+            .add_edge(&"A", &"B")
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"A", &"C")
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"B", &"D")
+            .expect("operation should succeed");
+        let bfs_result = graph.bfs(&"A").expect("operation should succeed");
         assert_eq!(bfs_result[0], &"A");
         assert!(bfs_result.contains(&&"B"));
         assert!(bfs_result.contains(&&"C"));
@@ -43,10 +55,10 @@ mod tests {
         graph.add_vertex(1);
         graph.add_vertex(2);
         graph.add_vertex(3);
-        graph.add_edge(&1, &2).unwrap();
-        graph.add_edge(&2, &3).unwrap();
+        graph.add_edge(&1, &2).expect("operation should succeed");
+        graph.add_edge(&2, &3).expect("operation should succeed");
         assert!(!graph.has_cycle());
-        graph.add_edge(&3, &1).unwrap();
+        graph.add_edge(&3, &1).expect("operation should succeed");
         assert!(graph.has_cycle());
     }
     #[test]
@@ -210,14 +222,14 @@ mod tests {
     #[test]
     fn test_block_matrix() {
         let mut matrix = BlockMatrix::new(4, 4, 2);
-        matrix.set(0, 0, 1).unwrap();
-        matrix.set(1, 1, 2).unwrap();
-        matrix.set(2, 2, 3).unwrap();
-        matrix.set(3, 3, 4).unwrap();
-        assert_eq!(*matrix.get(0, 0).unwrap(), 1);
-        assert_eq!(*matrix.get(1, 1).unwrap(), 2);
-        assert_eq!(*matrix.get(2, 2).unwrap(), 3);
-        assert_eq!(*matrix.get(3, 3).unwrap(), 4);
+        matrix.set(0, 0, 1).expect("operation should succeed");
+        matrix.set(1, 1, 2).expect("operation should succeed");
+        matrix.set(2, 2, 3).expect("operation should succeed");
+        matrix.set(3, 3, 4).expect("operation should succeed");
+        assert_eq!(*matrix.get(0, 0).expect("operation should succeed"), 1);
+        assert_eq!(*matrix.get(1, 1).expect("operation should succeed"), 2);
+        assert_eq!(*matrix.get(2, 2).expect("operation should succeed"), 3);
+        assert_eq!(*matrix.get(3, 3).expect("operation should succeed"), 4);
         assert_eq!(matrix.dim(), (4, 4));
         assert!(matrix.set(5, 5, 1).is_err());
         assert!(matrix.get(5, 5).is_err());
@@ -229,15 +241,33 @@ mod tests {
         graph.add_vertex("B");
         graph.add_vertex("C");
         graph.add_vertex("D");
-        graph.add_edge(&"A", &"B", 1).unwrap();
-        graph.add_edge(&"B", &"A", 1).unwrap();
-        graph.add_edge(&"B", &"C", 2).unwrap();
-        graph.add_edge(&"C", &"B", 2).unwrap();
-        graph.add_edge(&"C", &"D", 3).unwrap();
-        graph.add_edge(&"D", &"C", 3).unwrap();
-        graph.add_edge(&"A", &"D", 4).unwrap();
-        graph.add_edge(&"D", &"A", 4).unwrap();
-        let mst = graph.minimum_spanning_tree().unwrap();
+        graph
+            .add_edge(&"A", &"B", 1)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"B", &"A", 1)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"B", &"C", 2)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"C", &"B", 2)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"C", &"D", 3)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"D", &"C", 3)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"A", &"D", 4)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"D", &"A", 4)
+            .expect("operation should succeed");
+        let mst = graph
+            .minimum_spanning_tree()
+            .expect("operation should succeed");
         assert!(mst.len() <= 3);
         for (_, _, weight) in &mst {
             assert!(*weight >= 1 && *weight <= 4);
@@ -246,43 +276,74 @@ mod tests {
     #[test]
     fn test_concurrent_hashmap() {
         let map = ConcurrentHashMap::new();
-        assert!(map.insert("key1".to_string(), 1).unwrap().is_none());
-        assert_eq!(map.get(&"key1".to_string()).unwrap(), Some(1));
-        assert!(map.contains_key(&"key1".to_string()).unwrap());
-        assert_eq!(map.len().unwrap(), 1);
-        assert_eq!(map.insert("key1".to_string(), 2).unwrap(), Some(1));
-        assert_eq!(map.get(&"key1".to_string()).unwrap(), Some(2));
-        assert_eq!(map.remove(&"key1".to_string()).unwrap(), Some(2));
-        assert_eq!(map.get(&"key1".to_string()).unwrap(), None);
-        assert!(map.is_empty().unwrap());
+        assert!(map
+            .insert("key1".to_string(), 1)
+            .expect("operation should succeed")
+            .is_none());
+        assert_eq!(
+            map.get(&"key1".to_string())
+                .expect("operation should succeed"),
+            Some(1)
+        );
+        assert!(map
+            .contains_key(&"key1".to_string())
+            .expect("operation should succeed"));
+        assert_eq!(map.len().expect("operation should succeed"), 1);
+        assert_eq!(
+            map.insert("key1".to_string(), 2)
+                .expect("operation should succeed"),
+            Some(1)
+        );
+        assert_eq!(
+            map.get(&"key1".to_string())
+                .expect("operation should succeed"),
+            Some(2)
+        );
+        assert_eq!(
+            map.remove(&"key1".to_string())
+                .expect("operation should succeed"),
+            Some(2)
+        );
+        assert_eq!(
+            map.get(&"key1".to_string())
+                .expect("operation should succeed"),
+            None
+        );
+        assert!(map.is_empty().expect("operation should succeed"));
     }
     #[test]
     fn test_concurrent_ring_buffer() {
         let buffer = ConcurrentRingBuffer::new(3);
-        assert!(buffer.is_empty().unwrap());
-        assert!(!buffer.is_full().unwrap());
-        assert!(buffer.push(1).unwrap().is_none());
-        assert!(buffer.push(2).unwrap().is_none());
-        assert!(buffer.push(3).unwrap().is_none());
-        assert!(buffer.is_full().unwrap());
-        assert_eq!(buffer.len().unwrap(), 3);
-        let old = buffer.push(4).unwrap();
+        assert!(buffer.is_empty().expect("operation should succeed"));
+        assert!(!buffer.is_full().expect("operation should succeed"));
+        assert!(buffer.push(1).expect("operation should succeed").is_none());
+        assert!(buffer.push(2).expect("operation should succeed").is_none());
+        assert!(buffer.push(3).expect("operation should succeed").is_none());
+        assert!(buffer.is_full().expect("operation should succeed"));
+        assert_eq!(buffer.len().expect("operation should succeed"), 3);
+        let old = buffer.push(4).expect("operation should succeed");
         assert_eq!(old, Some(1));
-        assert_eq!(buffer.pop().unwrap(), Some(2));
-        assert_eq!(buffer.len().unwrap(), 2);
+        assert_eq!(buffer.pop().expect("operation should succeed"), Some(2));
+        assert_eq!(buffer.len().expect("operation should succeed"), 2);
     }
     #[test]
     fn test_concurrent_queue() {
         let queue = ConcurrentQueue::new();
-        assert!(queue.is_empty().unwrap());
-        queue.push_back(1).unwrap();
-        queue.push_back(2).unwrap();
-        queue.push_front(0).unwrap();
-        assert_eq!(queue.len().unwrap(), 3);
-        assert_eq!(queue.pop_front().unwrap(), Some(0));
-        assert_eq!(queue.pop_back().unwrap(), Some(2));
-        assert_eq!(queue.pop_front().unwrap(), Some(1));
-        assert!(queue.is_empty().unwrap());
+        assert!(queue.is_empty().expect("operation should succeed"));
+        queue.push_back(1).expect("operation should succeed");
+        queue.push_back(2).expect("operation should succeed");
+        queue.push_front(0).expect("operation should succeed");
+        assert_eq!(queue.len().expect("operation should succeed"), 3);
+        assert_eq!(
+            queue.pop_front().expect("operation should succeed"),
+            Some(0)
+        );
+        assert_eq!(queue.pop_back().expect("operation should succeed"), Some(2));
+        assert_eq!(
+            queue.pop_front().expect("operation should succeed"),
+            Some(1)
+        );
+        assert!(queue.is_empty().expect("operation should succeed"));
     }
     #[test]
     fn test_atomic_counter() {
@@ -302,19 +363,29 @@ mod tests {
     #[test]
     fn test_work_queue() {
         let queue = WorkQueue::new();
-        assert!(!queue.has_work().unwrap());
-        assert_eq!(queue.queue_size().unwrap(), 0);
+        assert!(!queue.has_work().expect("operation should succeed"));
+        assert_eq!(queue.queue_size().expect("operation should succeed"), 0);
         assert_eq!(queue.active_worker_count(), 0);
-        queue.add_work("task1".to_string()).unwrap();
-        queue.add_work("task2".to_string()).unwrap();
-        assert!(queue.has_work().unwrap());
-        assert_eq!(queue.queue_size().unwrap(), 2);
+        queue
+            .add_work("task1".to_string())
+            .expect("operation should succeed");
+        queue
+            .add_work("task2".to_string())
+            .expect("operation should succeed");
+        assert!(queue.has_work().expect("operation should succeed"));
+        assert_eq!(queue.queue_size().expect("operation should succeed"), 2);
         queue.register_worker();
         queue.register_worker();
         assert_eq!(queue.active_worker_count(), 2);
-        assert_eq!(queue.get_work().unwrap(), Some("task1".to_string()));
-        assert_eq!(queue.get_work().unwrap(), Some("task2".to_string()));
-        assert_eq!(queue.get_work().unwrap(), None);
+        assert_eq!(
+            queue.get_work().expect("operation should succeed"),
+            Some("task1".to_string())
+        );
+        assert_eq!(
+            queue.get_work().expect("operation should succeed"),
+            Some("task2".to_string())
+        );
+        assert_eq!(queue.get_work().expect("operation should succeed"), None);
         queue.unregister_worker();
         assert_eq!(queue.active_worker_count(), 1);
     }
@@ -324,9 +395,15 @@ mod tests {
         graph.add_vertex("A");
         graph.add_vertex("B");
         graph.add_vertex("C");
-        graph.add_edge(&"A", &"B").unwrap();
-        graph.add_edge(&"B", &"C").unwrap();
-        graph.add_edge(&"C", &"A").unwrap();
+        graph
+            .add_edge(&"A", &"B")
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"B", &"C")
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"C", &"A")
+            .expect("operation should succeed");
         let serialized = graph.serialize();
         assert!(serialized.contains("Graph {"));
         assert!(serialized.contains("vertices: 3 nodes"));
@@ -340,7 +417,9 @@ mod tests {
         let mut graph = Graph::new();
         graph.add_vertex("A");
         graph.add_vertex("B");
-        graph.add_edge(&"A", &"B").unwrap();
+        graph
+            .add_edge(&"A", &"B")
+            .expect("operation should succeed");
         let visualized = graph.visualize();
         assert!(visualized.contains("Graph Visualization:"));
         assert!(visualized.contains("Vertices: 2"));
@@ -354,15 +433,21 @@ mod tests {
         let mut graph1 = Graph::new();
         graph1.add_vertex("A");
         graph1.add_vertex("B");
-        graph1.add_edge(&"A", &"B").unwrap();
+        graph1
+            .add_edge(&"A", &"B")
+            .expect("operation should succeed");
         let mut graph2 = Graph::new();
         graph2.add_vertex("A");
         graph2.add_vertex("B");
-        graph2.add_edge(&"A", &"B").unwrap();
+        graph2
+            .add_edge(&"A", &"B")
+            .expect("operation should succeed");
         let mut graph3 = Graph::new();
         graph3.add_vertex("A");
         graph3.add_vertex("C");
-        graph3.add_edge(&"A", &"C").unwrap();
+        graph3
+            .add_edge(&"A", &"C")
+            .expect("operation should succeed");
         assert!(graph1.structural_equals(&graph2));
         assert!(!graph1.structural_equals(&graph3));
     }
@@ -372,8 +457,12 @@ mod tests {
         graph.add_vertex("A");
         graph.add_vertex("B");
         graph.add_vertex("C");
-        graph.add_edge(&"A", &"B", 1.5).unwrap();
-        graph.add_edge(&"B", &"C", 2.0).unwrap();
+        graph
+            .add_edge(&"A", &"B", 1.5)
+            .expect("operation should succeed");
+        graph
+            .add_edge(&"B", &"C", 2.0)
+            .expect("operation should succeed");
         let serialized = graph.serialize();
         assert!(serialized.contains("WeightedGraph {"));
         assert!(serialized.contains("vertices: 3 nodes"));
@@ -387,7 +476,9 @@ mod tests {
         let mut graph = WeightedGraph::new();
         graph.add_vertex("A");
         graph.add_vertex("B");
-        graph.add_edge(&"A", &"B", 10).unwrap();
+        graph
+            .add_edge(&"A", &"B", 10)
+            .expect("operation should succeed");
         let visualized = graph.visualize();
         assert!(visualized.contains("Weighted Graph Visualization:"));
         assert!(visualized.contains("Vertices: 2"));
@@ -400,15 +491,21 @@ mod tests {
         let mut graph1 = WeightedGraph::new();
         graph1.add_vertex("A");
         graph1.add_vertex("B");
-        graph1.add_edge(&"A", &"B", 5).unwrap();
+        graph1
+            .add_edge(&"A", &"B", 5)
+            .expect("operation should succeed");
         let mut graph2 = WeightedGraph::new();
         graph2.add_vertex("A");
         graph2.add_vertex("B");
-        graph2.add_edge(&"A", &"B", 5).unwrap();
+        graph2
+            .add_edge(&"A", &"B", 5)
+            .expect("operation should succeed");
         let mut graph3 = WeightedGraph::new();
         graph3.add_vertex("A");
         graph3.add_vertex("B");
-        graph3.add_edge(&"A", &"B", 10).unwrap();
+        graph3
+            .add_edge(&"A", &"B", 10)
+            .expect("operation should succeed");
         assert!(graph1.structural_equals(&graph2));
         assert!(!graph1.structural_equals(&graph3));
     }

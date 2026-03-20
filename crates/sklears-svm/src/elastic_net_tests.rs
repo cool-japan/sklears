@@ -20,8 +20,12 @@ mod tests {
             .with_c(1.0)
             .with_max_iter(1000);
 
-        let trained_l2 = model_l2.fit(&X_var, &y).unwrap();
-        let predictions_l2 = trained_l2.predict(&X_var).unwrap();
+        let trained_l2 = model_l2
+            .fit(&X_var, &y)
+            .expect("model fitting should succeed");
+        let predictions_l2 = trained_l2
+            .predict(&X_var)
+            .expect("prediction should succeed");
 
         // Test L1 penalty
         let model_l1 = LinearSVC::new()
@@ -30,8 +34,12 @@ mod tests {
             .with_c(1.0)
             .with_max_iter(1000);
 
-        let trained_l1 = model_l1.fit(&X_var, &y).unwrap();
-        let predictions_l1 = trained_l1.predict(&X_var).unwrap();
+        let trained_l1 = model_l1
+            .fit(&X_var, &y)
+            .expect("model fitting should succeed");
+        let predictions_l1 = trained_l1
+            .predict(&X_var)
+            .expect("prediction should succeed");
 
         // Test elastic net penalty
         let model_en = LinearSVC::new()
@@ -41,8 +49,12 @@ mod tests {
             .with_c(1.0)
             .with_max_iter(1000);
 
-        let trained_en = model_en.fit(&X_var, &y).unwrap();
-        let predictions_en = trained_en.predict(&X_var).unwrap();
+        let trained_en = model_en
+            .fit(&X_var, &y)
+            .expect("model fitting should succeed");
+        let predictions_en = trained_en
+            .predict(&X_var)
+            .expect("prediction should succeed");
 
         // All models should make reasonable predictions
         assert_eq!(predictions_l2.len(), 4);
@@ -111,8 +123,8 @@ mod tests {
             let result = model.fit(&X_var, &y);
             assert!(result.is_ok(), "l1_ratio {} should work", l1_ratio);
 
-            let trained = result.unwrap();
-            let predictions = trained.predict(&X_var).unwrap();
+            let trained = result.expect("operation should succeed");
+            let predictions = trained.predict(&X_var).expect("prediction should succeed");
             assert_eq!(predictions.len(), 6);
         }
     }

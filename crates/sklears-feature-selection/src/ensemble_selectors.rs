@@ -76,39 +76,47 @@ impl<E: Clone> BootstrapSelector<E, Untrained> {
     }
 
     /// Set the number of bootstrap iterations
-    pub fn n_bootstrap(mut self, n_bootstrap: usize) -> Self {
+    pub fn n_bootstrap(mut self, n_bootstrap: usize) -> Result<Self, SklearsError> {
         if n_bootstrap < 1 {
-            panic!("n_bootstrap must be at least 1");
+            return Err(SklearsError::InvalidInput(
+                "n_bootstrap must be at least 1".to_string(),
+            ));
         }
         self.n_bootstrap = n_bootstrap;
-        self
+        Ok(self)
     }
 
     /// Set the sample ratio for each bootstrap iteration
-    pub fn sample_ratio(mut self, sample_ratio: f64) -> Self {
+    pub fn sample_ratio(mut self, sample_ratio: f64) -> Result<Self, SklearsError> {
         if !(0.0..=1.0).contains(&sample_ratio) {
-            panic!("sample_ratio must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "sample_ratio must be between 0 and 1".to_string(),
+            ));
         }
         self.sample_ratio = sample_ratio;
-        self
+        Ok(self)
     }
 
     /// Set the stability threshold (features selected in at least this fraction of bootstrap iterations)
-    pub fn stability_threshold(mut self, threshold: f64) -> Self {
+    pub fn stability_threshold(mut self, threshold: f64) -> Result<Self, SklearsError> {
         if !(0.0..=1.0).contains(&threshold) {
-            panic!("stability_threshold must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "stability_threshold must be between 0 and 1".to_string(),
+            ));
         }
         self.stability_threshold = threshold;
-        self
+        Ok(self)
     }
 
     /// Set the minimum selection frequency for a feature to be considered
-    pub fn min_selection_frequency(mut self, frequency: f64) -> Self {
+    pub fn min_selection_frequency(mut self, frequency: f64) -> Result<Self, SklearsError> {
         if !(0.0..=1.0).contains(&frequency) {
-            panic!("min_selection_frequency must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "min_selection_frequency must be between 0 and 1".to_string(),
+            ));
         }
         self.min_selection_frequency = frequency;
-        self
+        Ok(self)
     }
 
     /// Set the maximum number of features to select
@@ -245,7 +253,7 @@ where
                 selected_features.sort_by(|&a, &b| {
                     let score_a: f64 = feature_frequencies[a] * stability_scores[a];
                     let score_b: f64 = feature_frequencies[b] * stability_scores[b];
-                    score_b.partial_cmp(&score_a).unwrap()
+                    score_b.partial_cmp(&score_a).expect("operation should succeed")
                 });
                 selected_features.truncate(max_feat);
                 selected_features.sort(); // Restore original order
@@ -278,17 +286,17 @@ where
 
 impl<E> Transform<Array2<Float>> for BootstrapSelector<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         extract_features(x, selected_features)
     }
 }
 
 impl<E> SelectorMixin for BootstrapSelector<E, Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -299,7 +307,7 @@ impl<E> SelectorMixin for BootstrapSelector<E, Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -310,28 +318,28 @@ impl<E> SelectorMixin for BootstrapSelector<E, Trained> {
 impl<E> BootstrapSelector<E, Trained> {
     /// Get feature selection frequencies across bootstrap iterations
     pub fn feature_frequencies(&self) -> &Array1<Float> {
-        self.feature_frequencies_.as_ref().unwrap()
+        self.feature_frequencies_.as_ref().expect("operation should succeed")
     }
 
     /// Get feature stability scores
     pub fn stability_scores(&self) -> &Array1<Float> {
-        self.stability_scores_.as_ref().unwrap()
+        self.stability_scores_.as_ref().expect("operation should succeed")
     }
 
     /// Get selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_.as_ref().expect("operation should succeed")
     }
 
     /// Get all bootstrap selections for analysis
     pub fn bootstrap_selections(&self) -> &[Vec<usize>] {
-        self.bootstrap_selections_.as_ref().unwrap()
+        self.bootstrap_selections_.as_ref().expect("operation should succeed")
     }
 
     /// Calculate the overall stability of the feature selection
     /// Returns the average Jaccard similarity across all bootstrap iterations
     pub fn selection_stability(&self) -> f64 {
-        let selections = self.bootstrap_selections_.as_ref().unwrap();
+        let selections = self.bootstrap_selections_.as_ref().expect("operation should succeed");
         if selections.len() < 2 {
             return 1.0; // Perfect stability with only one selection
         }
@@ -420,12 +428,14 @@ impl<E> BorutaSelector<E, Untrained> {
     }
 
     /// Set the significance level alpha for statistical tests
-    pub fn alpha(mut self, alpha: f64) -> Self {
+    pub fn alpha(mut self, alpha: f64) -> Result<Self, SklearsError> {
         if alpha <= 0.0 || alpha >= 1.0 {
-            panic!("alpha must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "alpha must be between 0 and 1".to_string(),
+            ));
         }
         self.alpha = alpha;
-        self
+        Ok(self)
     }
 
     /// Enable/disable two-step procedure for rejecting features
@@ -435,12 +445,14 @@ impl<E> BorutaSelector<E, Untrained> {
     }
 
     /// Set percentile of shadow feature importance used as threshold
-    pub fn percentile(mut self, percentile: f64) -> Self {
+    pub fn percentile(mut self, percentile: f64) -> Result<Self, SklearsError> {
         if percentile <= 0.0 || percentile > 100.0 {
-            panic!("percentile must be between 0 and 100");
+            return Err(SklearsError::InvalidInput(
+                "percentile must be between 0 and 100".to_string(),
+            ));
         }
         self.percentile = percentile;
-        self
+        Ok(self)
     }
 
     /// Set random state for reproducibility
@@ -674,7 +686,7 @@ where
         }
 
         let mut sorted_importances: Vec<Float> = shadow_importances.to_vec();
-        sorted_importances.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_importances.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         let index = ((self.percentile / 100.0) * sorted_importances.len() as f64).ceil() as usize;
         let threshold_index = (index - 1).min(sorted_importances.len() - 1);
@@ -773,9 +785,9 @@ impl<E> Transform<Array2<f64>> for BorutaSelector<E, Trained> {
 
 impl<E> SelectorMixin for BorutaSelector<E, Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let confirmed = self.confirmed_features_.as_ref().unwrap();
-        let tentative = self.tentative_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let confirmed = self.confirmed_features_.as_ref().expect("operation should succeed");
+        let tentative = self.tentative_features_.as_ref().expect("operation should succeed");
 
         let mut support = Array1::<bool>::from_elem(n_features, false);
 
@@ -793,8 +805,8 @@ impl<E> SelectorMixin for BorutaSelector<E, Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let confirmed = self.confirmed_features_.as_ref().unwrap();
-        let tentative = self.tentative_features_.as_ref().unwrap();
+        let confirmed = self.confirmed_features_.as_ref().expect("operation should succeed");
+        let tentative = self.tentative_features_.as_ref().expect("operation should succeed");
 
         let mut selected_set = std::collections::HashSet::new();
         for &idx in confirmed {
@@ -818,45 +830,45 @@ impl<E> SelectorMixin for BorutaSelector<E, Trained> {
 impl<E> BorutaSelector<E, Trained> {
     /// Get confirmed features (definitively relevant)
     pub fn confirmed_features(&self) -> &[usize] {
-        self.confirmed_features_.as_ref().unwrap()
+        self.confirmed_features_.as_ref().expect("operation should succeed")
     }
 
     /// Get tentative features (undecided)
     pub fn tentative_features(&self) -> &[usize] {
-        self.tentative_features_.as_ref().unwrap()
+        self.tentative_features_.as_ref().expect("operation should succeed")
     }
 
     /// Get rejected features (definitively irrelevant)
     pub fn rejected_features(&self) -> &[usize] {
-        self.rejected_features_.as_ref().unwrap()
+        self.rejected_features_.as_ref().expect("operation should succeed")
     }
 
     /// Get feature importances from the final iteration
     pub fn feature_importances(&self) -> &Array1<Float> {
-        self.feature_importances_.as_ref().unwrap()
+        self.feature_importances_.as_ref().expect("operation should succeed")
     }
 
     /// Get shadow feature importances from the final iteration
     pub fn shadow_importances(&self) -> &Array1<Float> {
-        self.shadow_importances_.as_ref().unwrap()
+        self.shadow_importances_.as_ref().expect("operation should succeed")
     }
 
     /// Get number of iterations performed
     pub fn n_iterations(&self) -> usize {
-        self.n_iterations_.unwrap()
+        self.n_iterations_.expect("operation should succeed")
     }
 
     /// Get all selected features (confirmed + tentative)
     pub fn selected_features(&self) -> Vec<usize> {
-        let mut selected = self.confirmed_features_.as_ref().unwrap().clone();
-        selected.extend_from_slice(self.tentative_features_.as_ref().unwrap());
+        let mut selected = self.confirmed_features_.as_ref().expect("operation should succeed").clone();
+        selected.extend_from_slice(self.tentative_features_.as_ref().expect("operation should succeed"));
         selected.sort_unstable();
         selected
     }
 
     /// Check if the algorithm converged (no tentative features remaining)
     pub fn converged(&self) -> bool {
-        self.tentative_features_.as_ref().unwrap().is_empty()
+        self.tentative_features_.as_ref().expect("operation should succeed").is_empty()
     }
 }
 
@@ -1342,17 +1354,17 @@ impl EnsembleFeatureRanking<Untrained> {
 impl EnsembleFeatureRanking<Trained> {
     /// Get the final aggregated ranking
     pub fn feature_importances(&self) -> &Array1<f64> {
-        self.final_ranking_.as_ref().unwrap()
+        self.final_ranking_.as_ref().expect("operation should succeed")
     }
 
     /// Get rankings from individual selectors
     pub fn individual_rankings(&self) -> &[Array1<f64>] {
-        self.rankings_.as_ref().unwrap()
+        self.rankings_.as_ref().expect("operation should succeed")
     }
 
     /// Select top k features based on ensemble ranking
     pub fn select_k_best(&self, k: usize) -> Vec<usize> {
-        let ranking = self.final_ranking_.as_ref().unwrap();
+        let ranking = self.final_ranking_.as_ref().expect("operation should succeed");
         let mut indexed_scores: Vec<(usize, f64)> = ranking
             .indexed_iter()
             .map(|(idx, &score)| (idx, score))
@@ -1368,7 +1380,7 @@ impl EnsembleFeatureRanking<Trained> {
 
     /// Select features based on threshold
     pub fn select_by_threshold(&self, threshold: f64) -> Vec<usize> {
-        let ranking = self.final_ranking_.as_ref().unwrap();
+        let ranking = self.final_ranking_.as_ref().expect("operation should succeed");
         ranking
             .indexed_iter()
             .filter_map(|(idx, &score)| if score >= threshold { Some(idx) } else { None })
@@ -1378,7 +1390,7 @@ impl EnsembleFeatureRanking<Trained> {
 
 impl Transform<Array2<f64>> for EnsembleFeatureRanking<Trained> {
     fn transform(&self, x: &Array2<f64>) -> SklResult<Array2<f64>> {
-        let n_features = self.n_features_.unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -1403,7 +1415,7 @@ impl Transform<Array2<f64>> for EnsembleFeatureRanking<Trained> {
 impl SelectorMixin for EnsembleFeatureRanking<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
         // Default: select top 50% of features
-        let n_features = self.n_features_.unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
         let k = n_features / 2;
         let selected = self.select_k_best(k);
 
@@ -1415,7 +1427,7 @@ impl SelectorMixin for EnsembleFeatureRanking<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected = self.select_k_best(self.n_features_.unwrap() / 2);
+        let selected = self.select_k_best(self.n_features_.expect("operation should succeed") / 2);
         Ok(indices
             .iter()
             .filter_map(|&idx| selected.iter().position(|&f| f == idx))

@@ -226,7 +226,7 @@ impl SVC<Untrained> {
     /// Find unique classes in the target array
     fn find_classes(y: &Array1<Float>) -> Array1<Float> {
         let mut classes: Vec<Float> = y.iter().cloned().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup();
         Array1::from_vec(classes)
     }
@@ -316,15 +316,21 @@ impl SVC<Trained> {
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = x.dim();
 
-        if n_features != self.n_features_in_.unwrap() {
+        if n_features
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.unwrap(),
+                expected: self
+                    .n_features_in_
+                    .expect("n_features_in_ not available - model not fitted"),
                 actual: n_features,
             });
         }
 
         let kernel_type = self.kernel_.as_ref().expect("Kernel should be available");
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel = create_kernel(kernel_type.clone())?;
         let support_vectors = self.support_vectors();
         let dual_coef = self.dual_coef();
         let intercept = self.intercept();
@@ -415,7 +421,10 @@ impl Fit<Array2<Float>, Array1<Float>> for SVC<Untrained> {
         let mut weighted_c = Array1::from_elem(n_samples, self.config.c);
 
         for (i, &label) in y.iter().enumerate() {
-            let class_idx = classes.iter().position(|&c| c == label).unwrap();
+            let class_idx = classes
+                .iter()
+                .position(|&c| c == label)
+                .expect("element not found");
             weighted_c[i] *= class_weights[class_idx];
         }
 
@@ -432,7 +441,7 @@ impl Fit<Array2<Float>, Array1<Float>> for SVC<Untrained> {
         };
 
         // Solve with SMO algorithm
-        let concrete_kernel = create_kernel(kernel.clone());
+        let concrete_kernel = create_kernel(kernel.clone())?;
         let mut solver = SmoSolver::new(smo_config, concrete_kernel);
         let smo_result = solver.solve(x, &binary_y)?;
 
@@ -541,7 +550,11 @@ mod tests {
         ];
         let y = array![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
 
-        let svc = SVC::new().linear().c(1.0).fit(&x, &y).unwrap();
+        let svc = SVC::new()
+            .linear()
+            .c(1.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Check fitted attributes
         assert_eq!(svc.classes().len(), 2);
@@ -553,7 +566,7 @@ mod tests {
             [4.0, 4.0],   // Should be class 1
             [-4.0, -4.0], // Should be class 0
         ];
-        let predictions = svc.predict(&x_test).unwrap();
+        let predictions = svc.predict(&x_test).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
         // Note: exact predictions depend on SMO convergence
@@ -564,7 +577,11 @@ mod tests {
         let x = array![[1.0, 1.0], [2.0, 2.0], [-1.0, -1.0], [-2.0, -2.0],];
         let y = array![1.0, 1.0, 0.0, 0.0];
 
-        let svc = SVC::new().rbf(Some(1.0)).c(1.0).fit(&x, &y).unwrap();
+        let svc = SVC::new()
+            .rbf(Some(1.0))
+            .c(1.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         assert_eq!(svc.classes().len(), 2);
         assert!(svc.support_vectors().nrows() > 0);
@@ -625,14 +642,16 @@ mod tests {
             .tol(0.1)
             .max_iter(50)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that probability estimation is enabled
         assert!(svc.has_probability());
 
         // Test probability prediction
         let x_test = array![[1.0, 1.0], [-1.0, -1.0]];
-        let probabilities = svc.predict_proba(&x_test).unwrap();
+        let probabilities = svc
+            .predict_proba(&x_test)
+            .expect("probability prediction should succeed");
 
         // Check dimensions
         assert_eq!(probabilities.dim(), (2, 2));
@@ -658,7 +677,11 @@ mod tests {
         }
 
         // Test that SVC without probability estimation fails
-        let svc_no_prob = SVC::new().linear().c(1.0).fit(&x, &y).unwrap();
+        let svc_no_prob = SVC::new()
+            .linear()
+            .c(1.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         assert!(!svc_no_prob.has_probability());
         assert!(svc_no_prob.predict_proba(&x_test).is_err());

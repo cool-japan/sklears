@@ -224,7 +224,7 @@ impl ProfileGuidedOptimizer {
 
     /// Add optimization rule
     pub fn add_rule(&self, rule: OptimizationRule) {
-        let mut rules = self.rules.write().unwrap();
+        let mut rules = self.rules.write().expect("rwlock should not be poisoned");
         rules.push(rule);
         // Sort by priority (descending)
         rules.sort_by(|a, b| b.priority.cmp(&a.priority));
@@ -232,26 +232,26 @@ impl ProfileGuidedOptimizer {
 
     /// Register adaptive algorithm
     pub fn register_adaptive_algorithm(&self, name: String, algorithm: Box<dyn AdaptiveAlgorithm>) {
-        let mut algorithms = self.adaptive_algorithms.write().unwrap();
+        let mut algorithms = self.adaptive_algorithms.write().expect("rwlock should not be poisoned");
         algorithms.insert(name, algorithm);
     }
 
     /// Update performance profile
     pub fn update_profile(&self, profile_name: &str, profile: PerformanceProfile) {
-        let mut profiles = self.profiles.write().unwrap();
+        let mut profiles = self.profiles.write().expect("rwlock should not be poisoned");
         profiles.insert(profile_name.to_string(), profile);
     }
 
     /// Get performance profile
     pub fn get_profile(&self, profile_name: &str) -> Option<PerformanceProfile> {
-        let profiles = self.profiles.read().unwrap();
+        let profiles = self.profiles.read().expect("rwlock should not be poisoned");
         profiles.get(profile_name).cloned()
     }
 
     /// Apply optimizations based on profiles
     pub fn optimize(&self, calibrator_name: &str) -> Result<Vec<OptimizationAction>> {
-        let profiles = self.profiles.read().unwrap();
-        let rules = self.rules.read().unwrap();
+        let profiles = self.profiles.read()?;
+        let rules = self.rules.read()?;
         
         let profile = profiles.get(calibrator_name)
             .ok_or_else(|| SklearsError::InvalidInput(
@@ -328,7 +328,7 @@ impl ProfileGuidedOptimizer {
 
     /// Get optimization recommendations
     pub fn get_recommendations(&self, calibrator_name: &str) -> Result<Vec<String>> {
-        let profiles = self.profiles.read().unwrap();
+        let profiles = self.profiles.read()?;
         let profile = profiles.get(calibrator_name)
             .ok_or_else(|| SklearsError::InvalidInput(
                 format!("No profile found for calibrator '{}'", calibrator_name)
@@ -377,7 +377,7 @@ impl ProfileGuidedOptimizer {
 
     /// Generate optimization report
     pub fn generate_report(&self) -> String {
-        let profiles = self.profiles.read().unwrap();
+        let profiles = self.profiles.read().expect("rwlock should not be poisoned");
         let mut report = String::new();
 
         report.push_str("# Profile-Guided Optimization Report\n\n");
@@ -488,20 +488,20 @@ impl ProfilingCalibrator {
 
     /// Get performance profile
     pub fn get_profile(&self) -> PerformanceProfile {
-        let profile = self.profile.lock().unwrap();
+        let profile = self.profile.lock().expect("mutex should not be poisoned");
         profile.clone()
     }
 
     /// Clear performance profile
     pub fn clear_profile(&self) {
-        let mut profile = self.profile.lock().unwrap();
+        let mut profile = self.profile.lock().expect("mutex should not be poisoned");
         *profile = PerformanceProfile::new();
     }
 
     /// Record timing
     fn record_timing(&self, operation: &str, duration: Duration) {
         if self.enable_profiling {
-            let mut profile = self.profile.lock().unwrap();
+            let mut profile = self.profile.lock().expect("mutex should not be poisoned");
             profile.add_timing(operation, duration);
         }
     }
@@ -509,7 +509,7 @@ impl ProfilingCalibrator {
     /// Record memory usage
     fn record_memory_usage(&self, operation: &str, bytes: usize) {
         if self.enable_profiling {
-            let mut profile = self.profile.lock().unwrap();
+            let mut profile = self.profile.lock().expect("mutex should not be poisoned");
             profile.add_memory_usage(operation, bytes);
         }
     }
@@ -517,7 +517,7 @@ impl ProfilingCalibrator {
     /// Record input size
     fn record_input_size(&self, size: usize) {
         if self.enable_profiling {
-            let mut profile = self.profile.lock().unwrap();
+            let mut profile = self.profile.lock().expect("mutex should not be poisoned");
             profile.add_input_size(size);
         }
     }
@@ -598,20 +598,20 @@ impl OptimizationCache {
 
     /// Get value from cache
     pub fn get(&self, key: &str) -> Option<Array1<Float>> {
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.write().expect("rwlock should not be poisoned");
         if let Some(entry) = cache.get_mut(key) {
             entry.access_count += 1;
-            *self.hits.write().unwrap() += 1;
+            *self.hits.write().expect("rwlock should not be poisoned") += 1;
             Some(entry.value.clone())
         } else {
-            *self.misses.write().unwrap() += 1;
+            *self.misses.write().expect("rwlock should not be poisoned") += 1;
             None
         }
     }
 
     /// Put value in cache
     pub fn put(&self, key: String, value: Array1<Float>) {
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.write().expect("rwlock should not be poisoned");
         
         // Evict if necessary
         if cache.len() >= self.max_size {
@@ -639,8 +639,8 @@ impl OptimizationCache {
 
     /// Get cache hit rate
     pub fn hit_rate(&self) -> Float {
-        let hits = *self.hits.read().unwrap();
-        let misses = *self.misses.read().unwrap();
+        let hits = *self.hits.read().expect("rwlock should not be poisoned");
+        let misses = *self.misses.read().expect("rwlock should not be poisoned");
         let total = hits + misses;
         
         if total > 0 {
@@ -652,10 +652,10 @@ impl OptimizationCache {
 
     /// Clear cache
     pub fn clear(&self) {
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.write().expect("rwlock should not be poisoned");
         cache.clear();
-        *self.hits.write().unwrap() = 0;
-        *self.misses.write().unwrap() = 0;
+        *self.hits.write().expect("rwlock should not be poisoned") = 0;
+        *self.misses.write().expect("rwlock should not be poisoned") = 0;
     }
 }
 
@@ -806,7 +806,7 @@ mod tests {
         optimizer.update_profile("test_calibrator", profile);
 
         // Test optimization
-        let actions = optimizer.optimize("test_calibrator").unwrap();
+        let actions = optimizer.optimize("test_calibrator").expect("operation should succeed");
         assert_eq!(actions.len(), 1);
         
         match &actions[0] {
@@ -827,8 +827,8 @@ mod tests {
         let targets = Array1::from(vec![0, 0, 1, 1]);
 
         // Fit and predict
-        profiling_calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = profiling_calibrator.predict_proba(&probabilities).unwrap();
+        profiling_calibrator.fit(&probabilities, &targets).expect("fit should succeed");
+        let predictions = profiling_calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
 
@@ -848,7 +848,7 @@ mod tests {
         let value1 = Array1::from(vec![0.1, 0.2, 0.3]);
         cache.put(key1.clone(), value1.clone());
 
-        let retrieved = cache.get(&key1).unwrap();
+        let retrieved = cache.get(&key1).expect("index should be valid");
         assert_eq!(retrieved, value1);
         assert!(cache.hit_rate() > 0.0);
 
@@ -874,7 +874,7 @@ mod tests {
         profile.add_timing("fit", Duration::from_millis(2000)); // Slow training
         profile.add_effectiveness_score("adaptive_sigmoid", 0.7); // Low effectiveness
 
-        adaptive.adapt(&profile).unwrap();
+        adaptive.adapt(&profile).expect("operation should succeed");
 
         let params = adaptive.get_parameters();
         assert!(params["learning_rate"] > 0.01); // Should increase learning rate
@@ -893,7 +893,7 @@ mod tests {
         
         optimizer.update_profile("test_calibrator", profile);
         
-        let recommendations = optimizer.get_recommendations("test_calibrator").unwrap();
+        let recommendations = optimizer.get_recommendations("test_calibrator").expect("operation should succeed");
         assert!(!recommendations.is_empty());
         assert!(recommendations.iter().any(|r| r.contains("optimizing 'fit' operation")));
         assert!(recommendations.iter().any(|r| r.contains("High memory usage")));

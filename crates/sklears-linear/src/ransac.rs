@@ -442,10 +442,13 @@ mod tests {
         ];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 200.0]; // last is outlier
 
-        let model = RANSACRegressor::new().random_state(42).fit(&x, &y).unwrap();
+        let model = RANSACRegressor::new()
+            .random_state(42)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Check that some outliers are detected
-        let inlier_mask = model.inlier_mask().unwrap();
+        let inlier_mask = model.inlier_mask().expect("operation should succeed");
         let n_inliers = inlier_mask.iter().filter(|&&x| x).count();
         // Should detect at least some inliers (but not all due to outlier)
         assert!(
@@ -456,7 +459,7 @@ mod tests {
 
         // Predictions should follow the pattern 2*x
         let x_test = array![[2.5], [3.5]];
-        let predictions = model.predict(&x_test).unwrap();
+        let predictions = model.predict(&x_test).expect("prediction should succeed");
         assert_abs_diff_eq!(predictions[0], 5.0, epsilon = 0.5);
         assert_abs_diff_eq!(predictions[1], 7.0, epsilon = 0.5);
     }
@@ -470,7 +473,7 @@ mod tests {
             .min_samples(3)
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.estimator_.is_some());
     }
@@ -484,9 +487,9 @@ mod tests {
             .residual_threshold(0.5)
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let inlier_mask = model.inlier_mask().unwrap();
+        let inlier_mask = model.inlier_mask().expect("operation should succeed");
         let n_inliers = inlier_mask.iter().filter(|&&x| x).count();
         // With residual threshold 0.5, should find at least some inliers
         assert!((2..=4).contains(&n_inliers));
@@ -502,9 +505,9 @@ mod tests {
             .residual_threshold(1.0) // 1.0 squared error threshold
             .random_state(42)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let inlier_mask = model.inlier_mask().unwrap();
+        let inlier_mask = model.inlier_mask().expect("operation should succeed");
         assert!(inlier_mask
             .slice(scirs2_core::ndarray::s![0..3])
             .iter()
@@ -523,9 +526,12 @@ mod tests {
         ];
         let y = array![5.0, 8.0, 13.0, 18.0, 21.0, 300.0]; // last is outlier
 
-        let model = RANSACRegressor::new().random_state(42).fit(&x, &y).unwrap();
+        let model = RANSACRegressor::new()
+            .random_state(42)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let inlier_mask = model.inlier_mask().unwrap();
+        let inlier_mask = model.inlier_mask().expect("operation should succeed");
         assert_eq!(inlier_mask.iter().filter(|&&x| x).count(), 5); // 5 inliers
     }
 }

@@ -470,8 +470,8 @@ mod tests {
         let config = TypeSafeConfig::default();
         let transformer: TypeSafeTransformer<Unfitted, Dynamic, Dynamic> =
             TypeSafeTransformer::<Unfitted, Dynamic, Dynamic>::new(config);
-        let fitted = transformer.fit(&X).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = transformer.fit(&X).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 3);
         assert_eq!(result.ncols(), 2);
@@ -484,8 +484,8 @@ mod tests {
         let config = TypeSafeConfig::default();
         let transformer: TypeSafeTransformer<Unfitted, Known<2>, Dynamic> =
             TypeSafeTransformer::<Unfitted, Known<2>, Dynamic>::with_input_dim(config);
-        let fitted = transformer.fit(&X).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = transformer.fit(&X).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.ncols(), 2);
     }
@@ -509,8 +509,8 @@ mod tests {
         let config = TypeSafeConfig::default();
         let transformer: TypeSafeTransformer<Unfitted, Known<2>, Known<2>> =
             TypeSafeTransformer::<Unfitted, Known<2>, Known<2>>::with_dimensions(config);
-        let fitted = transformer.fit(&X).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = transformer.fit(&X).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 3);
         assert_eq!(result.ncols(), 2);
@@ -526,11 +526,13 @@ mod tests {
         };
         let transformer: TypeSafeTransformer<Unfitted, Dynamic, Dynamic> =
             TypeSafeTransformer::<Unfitted, Dynamic, Dynamic>::new(config);
-        let fitted = transformer.fit(&X).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = transformer.fit(&X).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         // Verify normalization: mean should be approximately 0
-        let mean = result.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let mean = result
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("array should have elements for mean computation");
         for &val in mean.iter() {
             assert!((val.abs()) < 1e-10);
         }
@@ -552,8 +554,10 @@ mod tests {
             TypeSafeTransformer::<Unfitted, Dynamic, Dynamic>::new(config2);
 
         let pipeline = TypeSafePipeline::new(transformer1, transformer2);
-        let fitted_pipeline = pipeline.fit(&X).unwrap();
-        let result = fitted_pipeline.transform(&X).unwrap();
+        let fitted_pipeline = pipeline.fit(&X).expect("model fitting should succeed");
+        let result = fitted_pipeline
+            .transform(&X)
+            .expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 3);
         assert_eq!(result.ncols(), 2);
@@ -572,8 +576,10 @@ mod tests {
             TypeSafeTransformer::<Unfitted, Known<2>, Known<2>>::with_dimensions(config2);
 
         let pipeline = TypeSafePipeline::new(transformer1, transformer2);
-        let fitted_pipeline = pipeline.fit(&X).unwrap();
-        let result = fitted_pipeline.transform(&X).unwrap();
+        let fitted_pipeline = pipeline.fit(&X).expect("model fitting should succeed");
+        let result = fitted_pipeline
+            .transform(&X)
+            .expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 3);
         assert_eq!(result.ncols(), 2);
@@ -588,10 +594,10 @@ mod tests {
             TypeSafeTransformer::<Unfitted, Dynamic, Dynamic>::new(TypeSafeConfig::default());
 
         // Fit transitions to Fitted state
-        let fitted = unfitted.fit(&X).unwrap();
+        let fitted = unfitted.fit(&X).expect("model fitting should succeed");
 
         // Can transform in Fitted state
-        let _result = fitted.transform(&X).unwrap();
+        let _result = fitted.transform(&X).expect("transformation should succeed");
 
         // Cannot call fit() on fitted transformer (compile error if uncommented)
         // let _refitted = fitted.fit(&X); // This would not compile

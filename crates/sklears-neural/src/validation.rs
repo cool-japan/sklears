@@ -857,7 +857,7 @@ mod tests {
         let mut params_with_defaults_applied = params_with_defaults.clone();
         validator
             .apply_defaults(&mut params_with_defaults_applied)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(params_with_defaults_applied.contains_key("batch_size"));
     }
 
@@ -866,7 +866,9 @@ mod tests {
         let validator = ConfigurationTemplates::mlp_classifier();
 
         let mut params = HashMap::new();
-        validator.apply_defaults(&mut params).unwrap();
+        validator
+            .apply_defaults(&mut params)
+            .expect("operation should succeed");
 
         // Should have all default values
         assert!(params.contains_key("hidden_layer_sizes"));

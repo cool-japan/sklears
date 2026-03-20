@@ -1695,7 +1695,7 @@ impl BulkheadController {
 
     /// Initialize the controller
     pub fn initialize(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = ControllerStatus::Starting;
         state.status = ControllerStatus::Running;
         Ok(())
@@ -1703,7 +1703,7 @@ impl BulkheadController {
 
     /// Shutdown the controller
     pub fn shutdown(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = ControllerStatus::Stopping;
         state.status = ControllerStatus::Stopped;
         Ok(())
@@ -1711,10 +1711,10 @@ impl BulkheadController {
 
     /// Add partition to the controller
     pub fn add_partition(&self, partition: ResourcePartition) -> SklResult<()> {
-        let mut partitions = self.partitions.write().unwrap();
+        let mut partitions = self.partitions.write().unwrap_or_else(|e| e.into_inner());
         partitions.insert(partition.partition_id.clone(), partition);
 
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active_partitions = partitions.len();
 
         Ok(())
@@ -1722,10 +1722,10 @@ impl BulkheadController {
 
     /// Remove partition from the controller
     pub fn remove_partition(&self, partition_id: &str) -> SklResult<()> {
-        let mut partitions = self.partitions.write().unwrap();
+        let mut partitions = self.partitions.write().unwrap_or_else(|e| e.into_inner());
         partitions.remove(partition_id);
 
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active_partitions = partitions.len();
 
         Ok(())
@@ -1733,12 +1733,12 @@ impl BulkheadController {
 
     /// Get controller metrics
     pub fn get_metrics(&self) -> IsolationMetrics {
-        self.metrics.lock().unwrap().clone()
+        self.metrics.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get controller state
     pub fn get_state(&self) -> ControllerState {
-        self.state.read().unwrap().clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 

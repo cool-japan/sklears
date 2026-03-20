@@ -229,7 +229,7 @@ impl NeuromorphicRuntime {
         };
 
         self.contexts.push(context);
-        Ok(self.contexts.last_mut().unwrap())
+        Ok(self.contexts.last_mut().expect("operation should succeed"))
     }
 
     /// Check if neuromorphic hardware is available
@@ -571,7 +571,7 @@ mod tests {
         let result = algorithms::reservoir_compute(&input_spikes, &config);
         assert!(result.is_ok());
 
-        let outputs = result.unwrap();
+        let outputs = result.expect("operation should succeed");
         assert_eq!(outputs.len(), 2);
     }
 }

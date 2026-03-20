@@ -872,11 +872,15 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 1];
 
         // Fit the estimator
-        estimator.fit(&probabilities, &y_true, None).unwrap();
+        estimator
+            .fit(&probabilities, &y_true, None)
+            .expect("fit should succeed");
         assert!(estimator.is_fitted);
 
         // Estimate uncertainty
-        let result = estimator.estimate_uncertainty(&probabilities).unwrap();
+        let result = estimator
+            .estimate_uncertainty(&probabilities)
+            .expect("operation should succeed");
 
         // Verify all uncertainty components are computed
         assert_eq!(result.epistemic_uncertainty.len(), probabilities.len());
@@ -905,7 +909,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // Perfect correlation
 
-        let corr = estimator.compute_correlation(&x, &y).unwrap();
+        let corr = estimator
+            .compute_correlation(&x, &y)
+            .expect("operation should succeed");
         assert!(
             (corr - 1.0).abs() < 1e-10,
             "Perfect correlation should be close to 1.0"
@@ -917,7 +923,9 @@ mod tests {
         let estimator = HigherOrderUncertaintyEstimator::default();
         let component = array![0.1, 0.2, 0.3, 0.4, 0.5];
 
-        let entropy = estimator.compute_differential_entropy(&component).unwrap();
+        let entropy = estimator
+            .compute_differential_entropy(&component)
+            .expect("operation should succeed");
         assert!(entropy >= 0.0, "Entropy should be non-negative");
     }
 
@@ -927,8 +935,12 @@ mod tests {
         let probabilities = array![0.2, 0.4, 0.6, 0.8];
         let y_true = array![0, 0, 1, 1];
 
-        estimator.fit(&probabilities, &y_true, None).unwrap();
-        let result = estimator.estimate_uncertainty(&probabilities).unwrap();
+        estimator
+            .fit(&probabilities, &y_true, None)
+            .expect("fit should succeed");
+        let result = estimator
+            .estimate_uncertainty(&probabilities)
+            .expect("operation should succeed");
         let summary = estimator.get_uncertainty_summary(&result);
 
         assert!(summary.contains("Higher-Order Uncertainty Analysis"));
@@ -943,13 +955,17 @@ mod tests {
         let probabilities = array![0.3, 0.5, 0.7];
         let y_true = array![0, 1, 1];
 
-        estimator.fit(&probabilities, &y_true, None).unwrap();
+        estimator
+            .fit(&probabilities, &y_true, None)
+            .expect("fit should succeed");
 
         // Add some historical predictions
         estimator.update_prediction_history(array![0.25, 0.45, 0.65]);
         estimator.update_prediction_history(array![0.35, 0.55, 0.75]);
 
-        let result = estimator.estimate_uncertainty(&probabilities).unwrap();
+        let result = estimator
+            .estimate_uncertainty(&probabilities)
+            .expect("operation should succeed");
 
         // Temporal uncertainty should be computed based on history
         assert!(result.temporal_uncertainty.iter().all(|&x| x >= 0.0));
@@ -961,8 +977,12 @@ mod tests {
         let probabilities = array![0.4, 0.6];
         let y_true = array![0, 1];
 
-        estimator.fit(&probabilities, &y_true, None).unwrap();
-        let result = estimator.estimate_uncertainty(&probabilities).unwrap();
+        estimator
+            .fit(&probabilities, &y_true, None)
+            .expect("fit should succeed");
+        let result = estimator
+            .estimate_uncertainty(&probabilities)
+            .expect("operation should succeed");
 
         // Check confidence regions structure
         assert_eq!(result.confidence_regions.shape(), &[2, 6, 2]);
@@ -983,8 +1003,12 @@ mod tests {
         let probabilities = array![0.5];
         let y_true = array![1];
 
-        estimator.fit(&probabilities, &y_true, None).unwrap();
-        let result = estimator.estimate_uncertainty(&probabilities).unwrap();
+        estimator
+            .fit(&probabilities, &y_true, None)
+            .expect("fit should succeed");
+        let result = estimator
+            .estimate_uncertainty(&probabilities)
+            .expect("operation should succeed");
 
         // Check attribution weights sum to 1
         let attribution_sum = result.attribution_weights.row(0).sum();

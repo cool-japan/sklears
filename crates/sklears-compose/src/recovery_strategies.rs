@@ -937,7 +937,7 @@ impl RecoveryOrchestrator {
 
     /// Initialize the orchestrator
     pub fn initialize(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = OrchestratorStatus::Starting;
         state.status = OrchestratorStatus::Running;
         Ok(())
@@ -945,7 +945,7 @@ impl RecoveryOrchestrator {
 
     /// Shutdown the orchestrator
     pub fn shutdown(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.status = OrchestratorStatus::Stopping;
         state.status = OrchestratorStatus::Stopped;
         Ok(())
@@ -967,7 +967,7 @@ impl RecoveryOrchestrator {
             attempted_strategies: Vec::new(),
             recovery_history: Vec::new(),
             system_state: SystemStateSnapshot::current()?,
-            constraints: self.global_constraints.read().unwrap().clone(),
+            constraints: self.global_constraints.read().unwrap_or_else(|e| e.into_inner()).clone(),
             metadata: HashMap::new(),
         };
 
@@ -979,7 +979,7 @@ impl RecoveryOrchestrator {
             status: SessionStatus::Initializing,
         };
 
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = self.sessions.write().unwrap_or_else(|e| e.into_inner());
         sessions.insert(session_id.clone(), session.clone());
 
         Ok(session)
@@ -987,13 +987,13 @@ impl RecoveryOrchestrator {
 
     /// Add recovery strategy
     pub fn add_strategy(&self, name: String, strategy: Box<dyn RecoveryManager>) {
-        let mut strategies = self.strategies.write().unwrap();
+        let mut strategies = self.strategies.write().unwrap_or_else(|e| e.into_inner());
         strategies.insert(name, strategy);
     }
 
     /// Get orchestrator metrics
     pub fn get_metrics(&self) -> OrchestratorMetrics {
-        self.state.read().unwrap().performance_metrics.clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).performance_metrics.clone()
     }
 }
 
@@ -1194,7 +1194,7 @@ mod tests {
     #[test]
     fn test_recovery_orchestrator_creation() {
         let orchestrator = RecoveryOrchestrator::new();
-        let state = orchestrator.state.read().unwrap();
+        let state = orchestrator.state.read().unwrap_or_else(|e| e.into_inner());
         assert_eq!(state.status, OrchestratorStatus::Stopped);
         assert_eq!(state.active_sessions, 0);
     }

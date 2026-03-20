@@ -42,7 +42,7 @@ fn main() {
 
         // Show top emotion scores
         let mut scores: Vec<_> = result.emotion_scores.iter().collect();
-        scores.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+        scores.sort_by(|a, b| b.1.partial_cmp(a.1).expect("operation should succeed"));
         println!("  Top emotions:");
         for (emotion, score) in scores.iter().take(3) {
             if **score > 0.0 {
@@ -63,7 +63,9 @@ fn main() {
         "I'm so angry and frustrated with this!".to_string(),
     ];
 
-    let features = emotion_detector.extract_features(&documents).unwrap();
+    let features = emotion_detector
+        .extract_features(&documents)
+        .expect("operation should succeed");
     println!(
         "\nFeature matrix shape: {} x {}",
         features.nrows(),

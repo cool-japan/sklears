@@ -464,10 +464,14 @@ mod tests {
         let probabilities = array![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
         let y_true = array![0, 0, 0, 0, 1, 1, 1, 1, 1];
 
-        let calibrator = KDECalibrator::new().fit(&probabilities, &y_true).unwrap();
+        let calibrator = KDECalibrator::new()
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
 
         let test_probabilities = array![0.25, 0.75];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -493,10 +497,12 @@ mod tests {
             let calibrator = KDECalibrator::new()
                 .kernel(kernel)
                 .fit(&probabilities, &y_true)
-                .unwrap();
+                .expect("operation should succeed");
 
             let test_probabilities = array![0.3, 0.7];
-            let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+            let calibrated = calibrator
+                .predict_proba(&test_probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(calibrated.len(), 2);
             for &prob in calibrated.iter() {
@@ -520,10 +526,12 @@ mod tests {
             let calibrator = KDECalibrator::new()
                 .bandwidth(bandwidth)
                 .fit(&probabilities, &y_true)
-                .unwrap();
+                .expect("operation should succeed");
 
             let test_probabilities = array![0.25, 0.75];
-            let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+            let calibrated = calibrator
+                .predict_proba(&test_probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(calibrated.len(), 2);
             for &prob in calibrated.iter() {
@@ -540,10 +548,12 @@ mod tests {
         let calibrator = AdaptiveKDECalibrator::new()
             .adaptation_factor(0.3)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_probabilities = array![0.25, 0.75];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {
@@ -556,10 +566,14 @@ mod tests {
         let probabilities = array![0.1, 0.3, 0.5, 0.7, 0.9];
         let y_true = array![0, 0, 1, 1, 1];
 
-        let calibrator = KDECalibrator::new().fit(&probabilities, &y_true).unwrap();
+        let calibrator = KDECalibrator::new()
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
 
         let test_probabilities = array![0.2, 0.8];
-        let calibrated = calibrator.predict_proba(&test_probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 2);
         for &prob in calibrated.iter() {

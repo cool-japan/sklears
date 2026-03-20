@@ -395,7 +395,7 @@ pub mod accuracy {
             }
         }
 
-        inputs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        inputs.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         inputs.dedup();
         inputs
     }

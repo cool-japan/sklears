@@ -185,7 +185,8 @@ impl MapReduceNeighborSearch {
                     .enumerate()
                     .map(|(i, row)| (i, row[0]))
                     .collect();
-                indexed_data.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                indexed_data
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 // Create range partitions
                 for part_idx in 0..self.config.num_partitions {
@@ -314,7 +315,7 @@ impl MapReduceNeighborSearch {
             .collect();
 
         // Sort by distance and take k nearest
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         distances.truncate(k_partition);
         distances
     }
@@ -331,7 +332,8 @@ impl MapReduceNeighborSearch {
                 let mut all_neighbors: Vec<(Float, usize)> =
                     partition_results.into_iter().flatten().collect();
 
-                all_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                all_neighbors
+                    .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 all_neighbors.truncate(k);
 
                 let distances = Array1::from_iter(all_neighbors.iter().map(|(d, _)| *d));
@@ -351,7 +353,8 @@ impl MapReduceNeighborSearch {
                     selected_neighbors.extend_from_slice(&partition_neighbors[..take_count]);
                 }
 
-                selected_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                selected_neighbors
+                    .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 selected_neighbors.truncate(k);
 
                 let distances = Array1::from_iter(selected_neighbors.iter().map(|(d, _)| *d));
@@ -367,14 +370,19 @@ impl MapReduceNeighborSearch {
                     partition_results.into_iter().enumerate()
                 {
                     let partition_weight = self.partitions[partition_idx].0.nrows() as Float
-                        / self.training_data.as_ref().unwrap().nrows() as Float;
+                        / self
+                            .training_data
+                            .as_ref()
+                            .expect("operation should succeed")
+                            .nrows() as Float;
 
                     for (distance, idx) in partition_neighbors {
                         weighted_neighbors.push((distance * partition_weight, idx));
                     }
                 }
 
-                weighted_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                weighted_neighbors
+                    .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 weighted_neighbors.truncate(k);
 
                 let distances = Array1::from_iter(weighted_neighbors.iter().map(|(d, _)| *d));
@@ -421,11 +429,17 @@ impl MapReduceNeighborSearch {
         stats.insert("partition_size_variance".to_string(), variance);
         stats.insert(
             "min_partition_size".to_string(),
-            *partition_sizes.iter().min().unwrap() as Float,
+            *partition_sizes
+                .iter()
+                .min()
+                .expect("operation should succeed") as Float,
         );
         stats.insert(
             "max_partition_size".to_string(),
-            *partition_sizes.iter().max().unwrap() as Float,
+            *partition_sizes
+                .iter()
+                .max()
+                .expect("operation should succeed") as Float,
         );
 
         stats
@@ -513,7 +527,7 @@ mod tests {
                 1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 5.0, 5.0, 5.1, 5.1, 6.0, 6.0, 6.1, 6.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_train = array![0, 0, 0, 0, 1, 1, 1, 1];
 
         let config = MapReduceConfig {
@@ -525,10 +539,15 @@ mod tests {
         };
 
         let mut search = MapReduceNeighborSearch::new(config);
-        search.fit(&x_train, &y_train).unwrap();
+        search
+            .fit(&x_train, &y_train)
+            .expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05]).unwrap();
-        let (indices, distances) = search.kneighbors(&x_test, 3).unwrap();
+        let x_test = Array2::from_shape_vec((2, 2), vec![1.05, 1.05, 5.05, 5.05])
+            .expect("operation should succeed");
+        let (indices, distances) = search
+            .kneighbors(&x_test, 3)
+            .expect("operation should succeed");
 
         assert_eq!(indices.nrows(), 2);
         assert_eq!(indices.ncols(), 3);
@@ -549,7 +568,7 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_train = array![0, 0, 1, 1, 2, 2];
 
         let strategies = [
@@ -573,14 +592,19 @@ mod tests {
             assert!(result.is_ok(), "Strategy {:?} failed", strategy);
 
             let stats = search.partition_stats();
-            assert!(stats.get("num_partitions").unwrap() > &0.0);
+            assert!(
+                stats
+                    .get("num_partitions")
+                    .expect("operation should succeed")
+                    > &0.0
+            );
         }
     }
 
     #[test]
     fn test_reduce_strategies() {
-        let x_train =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x_train = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
         let y_train = array![0, 0, 1, 1];
 
         let strategies = [
@@ -599,9 +623,12 @@ mod tests {
             };
 
             let mut search = MapReduceNeighborSearch::new(config);
-            search.fit(&x_train, &y_train).unwrap();
+            search
+                .fit(&x_train, &y_train)
+                .expect("operation should succeed");
 
-            let x_test = Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).unwrap();
+            let x_test =
+                Array2::from_shape_vec((1, 2), vec![2.5, 2.5]).expect("operation should succeed");
             let result = search.kneighbors(&x_test, 2);
             assert!(result.is_ok(), "Reduce strategy {:?} failed", strategy);
         }
@@ -613,19 +640,26 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y_train = array![0, 0, 1, 1, 2, 2];
 
         let config = MapReduceConfig::default();
         let mut search = MapReduceNeighborSearch::new(config);
-        search.fit(&x_train, &y_train).unwrap();
+        search
+            .fit(&x_train, &y_train)
+            .expect("operation should succeed");
 
         let stats = search.partition_stats();
 
         assert!(stats.contains_key("num_partitions"));
         assert!(stats.contains_key("total_samples"));
         assert!(stats.contains_key("mean_partition_size"));
-        assert_eq!(stats.get("total_samples").unwrap(), &6.0);
+        assert_eq!(
+            stats
+                .get("total_samples")
+                .expect("operation should succeed"),
+            &6.0
+        );
     }
 
     #[test]
@@ -640,7 +674,8 @@ mod tests {
         assert!(result.is_err());
 
         // Test with unfitted model
-        let x_test = Array2::from_shape_vec((1, 2), vec![1.0, 1.0]).unwrap();
+        let x_test =
+            Array2::from_shape_vec((1, 2), vec![1.0, 1.0]).expect("operation should succeed");
         let result = search.kneighbors(&x_test, 1);
         assert!(result.is_err());
     }

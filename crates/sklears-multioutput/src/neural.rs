@@ -149,8 +149,12 @@ mod tests {
             .max_iter(5)
             .random_state(Some(42));
 
-        let trained_mlp = mlp.fit(&X.view(), &y).unwrap();
-        let predictions = trained_mlp.predict(&X.view()).unwrap();
+        let trained_mlp = mlp
+            .fit(&X.view(), &y)
+            .expect("model fitting should succeed");
+        let predictions = trained_mlp
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (2, 2));
         assert!(!predictions.iter().any(|&x| x.is_nan()));
@@ -168,8 +172,12 @@ mod tests {
             .max_iter(5)
             .random_state(Some(42));
 
-        let trained = mt_net.fit(&X.view(), &tasks).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = mt_net
+            .fit(&X.view(), &tasks)
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert!(predictions.contains_key("task1"));
@@ -187,8 +195,12 @@ mod tests {
             .max_iter(5)
             .random_state(Some(42));
 
-        let trained = adv_net.fit(&X.view(), &tasks).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = adv_net
+            .fit(&X.view(), &tasks)
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 1);
         assert!(predictions.contains_key("task1"));

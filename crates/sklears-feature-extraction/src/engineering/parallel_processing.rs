@@ -203,14 +203,14 @@ impl ParallelFeatureExtractor {
         features.push(
             *column_mins
                 .iter()
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap(),
+                .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed"),
         );
         features.push(
             *column_maxs
                 .iter()
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap(),
+                .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed"),
         );
 
         // Parallel computation of row-wise statistics

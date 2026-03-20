@@ -53,7 +53,7 @@ fn test_dataset_size(n_samples: usize, n_features: usize, n_runs: usize) -> (f64
     }
 
     // Calculate statistics
-    times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    times.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let min = times[0];
     let max = times[times.len() - 1];
     let median = times[times.len() / 2];

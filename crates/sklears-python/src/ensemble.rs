@@ -3,8 +3,9 @@
 //! This module provides PyO3-based Python bindings for sklears ensemble algorithms.
 //! It includes implementations for Gradient Boosting, AdaBoost, Voting, and Stacking classifiers.
 
+use crate::linear::common::core_array1_to_py;
 use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
-use numpy::{IntoPyArray, PyArray1, PyArray2};
+use numpy::{PyArray1, PyArray2};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
@@ -122,7 +123,7 @@ impl PyGradientBoostingClassifier {
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
                 .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
-        Ok(predictions.into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, &predictions))
     }
 
     /// Get feature importances
@@ -132,7 +133,7 @@ impl PyGradientBoostingClassifier {
         })?;
 
         let importances = trained_model.feature_importances_gain();
-        Ok(importances.clone().into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, importances))
     }
 
     fn __repr__(&self) -> String {
@@ -244,7 +245,7 @@ impl PyGradientBoostingRegressor {
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
                 .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
-        Ok(predictions.into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, &predictions))
     }
 
     fn __repr__(&self) -> String {
@@ -318,7 +319,7 @@ impl PyAdaBoostClassifier {
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
                 .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
-        Ok(predictions.into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, &predictions))
     }
 
     fn __repr__(&self) -> String {
@@ -405,7 +406,7 @@ impl PyVotingClassifier {
         let predictions: Array1<f64> =
             Predict::<Array2<f64>, Array1<f64>>::predict(trained_model, &x_array)
                 .map_err(|e| PyRuntimeError::new_err(format!("Prediction failed: {}", e)))?;
-        Ok(predictions.into_pyarray(py).unbind())
+        Ok(core_array1_to_py(py, &predictions))
     }
 
     fn __repr__(&self) -> String {

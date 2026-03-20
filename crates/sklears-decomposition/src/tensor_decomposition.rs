@@ -294,7 +294,7 @@ impl CPDecomposition<Untrained> {
                 };
 
                 // Unfold tensor along current mode
-                let unfolded = self.unfold_tensor(tensor, mode);
+                let unfolded = self.unfold_tensor(tensor, mode)?;
 
                 // Solve least squares problem: unfolded = factor * khatri_rao^T
                 // factor = unfolded * khatri_rao * (khatri_rao^T * khatri_rao)^(-1)
@@ -397,7 +397,7 @@ impl CPDecomposition<Untrained> {
                     _ => unreachable!(),
                 };
 
-                let unfolded = self.unfold_tensor(tensor, mode);
+                let unfolded = self.unfold_tensor(tensor, mode)?;
 
                 // Multiplicative update rule for non-negative factorization
                 let numerator = unfolded.dot(&khatri_rao);
@@ -474,7 +474,7 @@ impl CPDecomposition<Untrained> {
     }
 
     /// Unfold tensor along specified mode
-    fn unfold_tensor(&self, tensor: &Array3<f64>, mode: usize) -> Array2<f64> {
+    fn unfold_tensor(&self, tensor: &Array3<f64>, mode: usize) -> Result<Array2<f64>> {
         let (n1, n2, n3) = tensor.dim();
 
         match mode {
@@ -488,7 +488,7 @@ impl CPDecomposition<Untrained> {
                         }
                     }
                 }
-                unfolded
+                Ok(unfolded)
             }
             1 => {
                 // Mode-2 unfolding: n2 × (n3*n1)
@@ -500,7 +500,7 @@ impl CPDecomposition<Untrained> {
                         }
                     }
                 }
-                unfolded
+                Ok(unfolded)
             }
             2 => {
                 // Mode-3 unfolding: n3 × (n1*n2)
@@ -512,9 +512,12 @@ impl CPDecomposition<Untrained> {
                         }
                     }
                 }
-                unfolded
+                Ok(unfolded)
             }
-            _ => panic!("Mode must be 0, 1, or 2 for 3D tensors"),
+            _ => Err(SklearsError::InvalidParameter {
+                name: "mode".to_string(),
+                reason: "must be 0, 1, or 2 for 3D tensors".to_string(),
+            }),
         }
     }
 
@@ -657,7 +660,7 @@ impl Fit<Array3<f64>, ()> for TuckerDecomposition<Untrained> {
 
         // Center tensor if requested
         let (centered_tensor, mean) = if self.center {
-            let mean_val = tensor.mean().unwrap();
+            let mean_val = tensor.mean().expect("array should have elements for mean computation");
             let centered = tensor.mapv(|x| x - mean_val);
             let mean_tensor = Array3::from_elem(tensor.dim(), mean_val);
             (centered, Some(mean_tensor))
@@ -704,7 +707,7 @@ impl TuckerDecomposition<Untrained> {
 
         // Compute SVD for each mode
         for mode in 0..3 {
-            let unfolded = self.unfold_tensor_tucker(tensor, mode);
+            let unfolded = self.unfold_tensor_tucker(tensor, mode)?;
             let svd_result = self.compute_svd(&unfolded)?;
 
             // Take first n_components[mode] columns from U matrix (not V^T)
@@ -770,7 +773,7 @@ impl TuckerDecomposition<Untrained> {
 
             // Update each factor matrix
             for mode in 0..3 {
-                let unfolded = self.unfold_tensor_tucker(tensor, mode);
+                let unfolded = self.unfold_tensor_tucker(tensor, mode)?;
 
                 // Create product of other factor matrices
                 let other_factors = match mode {
@@ -849,7 +852,7 @@ impl TuckerDecomposition<Untrained> {
     }
 
     /// Unfold tensor for Tucker decomposition
-    fn unfold_tensor_tucker(&self, tensor: &Array3<f64>, mode: usize) -> Array2<f64> {
+    fn unfold_tensor_tucker(&self, tensor: &Array3<f64>, mode: usize) -> Result<Array2<f64>> {
         let (n1, n2, n3) = tensor.dim();
 
         match mode {
@@ -862,7 +865,7 @@ impl TuckerDecomposition<Untrained> {
                         }
                     }
                 }
-                unfolded
+                Ok(unfolded)
             }
             1 => {
                 let mut unfolded = Array2::zeros((n2, n1 * n3));
@@ -873,7 +876,7 @@ impl TuckerDecomposition<Untrained> {
                         }
                     }
                 }
-                unfolded
+                Ok(unfolded)
             }
             2 => {
                 let mut unfolded = Array2::zeros((n3, n1 * n2));
@@ -884,9 +887,12 @@ impl TuckerDecomposition<Untrained> {
                         }
                     }
                 }
-                unfolded
+                Ok(unfolded)
             }
-            _ => panic!("Mode must be 0, 1, or 2 for 3D tensors"),
+            _ => Err(SklearsError::InvalidParameter {
+                name: "mode".to_string(),
+                reason: "must be 0, 1, or 2 for 3D tensors".to_string(),
+            }),
         }
     }
 
@@ -1091,7 +1097,7 @@ mod tests {
         }
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         assert_eq!(trained.state.n_components, 2);
         assert_eq!(trained.state.factors.len(), 3);
         assert!(trained.state.reconstruction_error.is_finite());
@@ -1116,7 +1122,7 @@ mod tests {
         }
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         assert_eq!(trained.state.n_components, vec![2, 2, 1]);
         assert_eq!(trained.state.factors.len(), 3);
         assert!(trained.state.reconstruction_error.is_finite());
@@ -1134,7 +1140,7 @@ mod tests {
         let result = cp.fit(&tensor, &());
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         // Check that all factor values are non-negative
         for factor in &trained.state.factors {
             for &val in factor.iter() {
@@ -1158,7 +1164,7 @@ mod tests {
         }
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         assert_eq!(trained.state.n_components, vec![1, 2, 1]);
         assert!(trained.state.n_iter > 0);
     }

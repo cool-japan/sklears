@@ -313,17 +313,22 @@ impl Fit<Array2<Float>, Array1<i32>> for OneVsOneDiscriminantAnalysis<Untrained>
 impl OneVsOneDiscriminantAnalysis<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the pairwise classifiers
     pub fn pairwise_classifiers(&self) -> &Vec<PairwiseClassifier> {
-        self.pairwise_classifiers_.as_ref().unwrap()
+        self.pairwise_classifiers_
+            .as_ref()
+            .expect("pairwise_classifiers_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features(&self) -> usize {
-        self.n_features_.unwrap()
+        self.n_features_
+            .expect("n_features_ not available - model not fitted")
     }
 
     /// Perform hard voting: each classifier votes for one class
@@ -340,8 +345,14 @@ impl OneVsOneDiscriminantAnalysis<Trained> {
             let predictions = pairwise.classifier.predict_binary(x)?;
 
             // Find indices of class_i and class_j in the classes array
-            let class_i_idx = classes.iter().position(|&c| c == pairwise.class_i).unwrap();
-            let class_j_idx = classes.iter().position(|&c| c == pairwise.class_j).unwrap();
+            let class_i_idx = classes
+                .iter()
+                .position(|&c| c == pairwise.class_i)
+                .expect("element not found");
+            let class_j_idx = classes
+                .iter()
+                .position(|&c| c == pairwise.class_j)
+                .expect("element not found");
 
             for (sample_idx, &prediction) in predictions.iter().enumerate() {
                 if prediction == 0 {
@@ -386,8 +397,14 @@ impl OneVsOneDiscriminantAnalysis<Trained> {
             let probas = pairwise.classifier.predict_proba_binary(x)?;
 
             // Find indices of class_i and class_j in the classes array
-            let class_i_idx = classes.iter().position(|&c| c == pairwise.class_i).unwrap();
-            let class_j_idx = classes.iter().position(|&c| c == pairwise.class_j).unwrap();
+            let class_i_idx = classes
+                .iter()
+                .position(|&c| c == pairwise.class_i)
+                .expect("element not found");
+            let class_j_idx = classes
+                .iter()
+                .position(|&c| c == pairwise.class_j)
+                .expect("element not found");
 
             for sample_idx in 0..n_samples {
                 // probas has shape (n_samples, 2) where column 0 is class_i, column 1 is class_j

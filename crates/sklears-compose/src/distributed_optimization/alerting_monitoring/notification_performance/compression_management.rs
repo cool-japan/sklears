@@ -335,7 +335,7 @@ impl CompressionManager {
     pub fn compress_auto(&mut self, data: &[u8]) -> Result<CompressionResult, String> {
         if !self.config.enabled {
             return Ok(CompressionResult {
-                request_id: format!("auto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos()),
+                request_id: format!("auto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()),
                 compressed_data: data.to_vec(),
                 algorithm_used: CompressionAlgorithm::Gzip, // Default fallback
                 compression_ratio: 1.0,
@@ -352,7 +352,7 @@ impl CompressionManager {
         let compression_time = start_time.elapsed().unwrap_or(Duration::from_millis(0));
 
         let compression_ratio = data.len() as f64 / compressed_data.len() as f64;
-        let request_id = format!("auto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos());
+        let request_id = format!("auto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos());
 
         Ok(CompressionResult {
             request_id,

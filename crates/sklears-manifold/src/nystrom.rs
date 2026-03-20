@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
@@ -187,7 +187,7 @@ impl Fit<Array2<Float>, ()> for NystromApproximation {
             .map(|(&val, vec)| (val, vec.to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Take top n_components with positive eigenvalues
         let mut selected_eigenvalues = Vec::new();
@@ -313,7 +313,7 @@ impl NystromApproximation {
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         match self.selection_method.as_str() {
@@ -349,7 +349,7 @@ impl NystromApproximation {
         let mut selected_indices = Vec::new();
 
         // Select first landmark randomly
-        let first_index = rng.gen_range(0..n_samples);
+        let first_index = rng.random_range(0..n_samples);
         selected_indices.push(first_index);
 
         // Select remaining landmarks using k-means++ strategy
@@ -543,7 +543,7 @@ impl FittedIncrementalNystromApproximation {
         let n_replace = ((n_landmarks as Float * self.update_rate) as usize).max(1);
 
         // Select random landmarks to replace
-        let mut rng = StdRng::seed_from_u64(thread_rng().gen());
+        let mut rng = StdRng::seed_from_u64(thread_rng().random());
         let mut replace_indices: Vec<usize> = (0..n_landmarks).collect();
         replace_indices.shuffle(&mut rng);
         replace_indices.truncate(n_replace);
@@ -584,7 +584,7 @@ impl FittedIncrementalNystromApproximation {
             .map(|(&val, vec)| (val, vec.to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Take top n_components with positive eigenvalues
         let mut selected_eigenvalues = Vec::new();
@@ -702,11 +702,11 @@ fn compute_median_distance(data: &Array2<Float>) -> SklResult<Float> {
     } else {
         // For larger datasets, sample a subset of distances
         let sample_size = (n_samples * n_samples / 4).min(10000);
-        let mut rng = StdRng::seed_from_u64(thread_rng().gen());
+        let mut rng = StdRng::seed_from_u64(thread_rng().random());
 
         while distances.len() < sample_size {
-            let i = rng.gen_range(0..n_samples);
-            let j = rng.gen_range(0..n_samples);
+            let i = rng.random_range(0..n_samples);
+            let j = rng.random_range(0..n_samples);
             if i != j {
                 let dist = compute_euclidean_distance_squared(&data.row(i), &data.row(j)).sqrt();
                 distances.push(dist);
@@ -720,7 +720,7 @@ fn compute_median_distance(data: &Array2<Float>) -> SklResult<Float> {
         ));
     }
 
-    distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let median = distances[distances.len() / 2];
 
     Ok(median)
@@ -738,8 +738,8 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0]];
 
         let nystrom = NystromApproximation::new(2, 3);
-        let fitted = nystrom.fit(&data, &()).unwrap();
-        let approximation = fitted.transform(&data).unwrap();
+        let fitted = nystrom.fit(&data, &()).expect("operation should succeed");
+        let approximation = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(approximation.nrows(), 5);
         assert!(approximation.ncols() <= 2);
@@ -751,8 +751,8 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let nystrom = NystromApproximation::new(2, 3).kernel("rbf").gamma(1.0);
-        let fitted = nystrom.fit(&data, &()).unwrap();
-        let approximation = fitted.transform(&data).unwrap();
+        let fitted = nystrom.fit(&data, &()).expect("operation should succeed");
+        let approximation = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(approximation.nrows(), 4);
         assert!(approximation.iter().all(|&x| x.is_finite()));
@@ -767,8 +767,8 @@ mod tests {
             .gamma(1.0)
             .degree(2)
             .coef0(1.0);
-        let fitted = nystrom.fit(&data, &()).unwrap();
-        let approximation = fitted.transform(&data).unwrap();
+        let fitted = nystrom.fit(&data, &()).expect("operation should succeed");
+        let approximation = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(approximation.nrows(), 4);
         assert!(approximation.iter().all(|&x| x.is_finite()));
@@ -779,8 +779,8 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let nystrom = NystromApproximation::new(2, 3).kernel("linear");
-        let fitted = nystrom.fit(&data, &()).unwrap();
-        let approximation = fitted.transform(&data).unwrap();
+        let fitted = nystrom.fit(&data, &()).expect("operation should succeed");
+        let approximation = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(approximation.nrows(), 4);
         assert!(approximation.iter().all(|&x| x.is_finite()));
@@ -794,19 +794,25 @@ mod tests {
         let nystrom_random = NystromApproximation::new(2, 3)
             .selection_method("random")
             .random_state(42);
-        let fitted_random = nystrom_random.fit(&data, &()).unwrap();
+        let fitted_random = nystrom_random
+            .fit(&data, &())
+            .expect("operation should succeed");
         assert_eq!(fitted_random.landmarks().nrows(), 3);
 
         // Test uniform selection
         let nystrom_uniform = NystromApproximation::new(2, 3).selection_method("uniform");
-        let fitted_uniform = nystrom_uniform.fit(&data, &()).unwrap();
+        let fitted_uniform = nystrom_uniform
+            .fit(&data, &())
+            .expect("operation should succeed");
         assert_eq!(fitted_uniform.landmarks().nrows(), 3);
 
         // Test k-means selection
         let nystrom_kmeans = NystromApproximation::new(2, 3)
             .selection_method("kmeans")
             .random_state(42);
-        let fitted_kmeans = nystrom_kmeans.fit(&data, &()).unwrap();
+        let fitted_kmeans = nystrom_kmeans
+            .fit(&data, &())
+            .expect("operation should succeed");
         assert_eq!(fitted_kmeans.landmarks().nrows(), 3);
     }
 
@@ -819,19 +825,23 @@ mod tests {
         let incremental = IncrementalNystromApproximation::new(2, 3)
             .update_rate(0.5)
             .random_state(42);
-        let mut fitted = incremental.fit(&data1, &()).unwrap();
+        let mut fitted = incremental
+            .fit(&data1, &())
+            .expect("operation should succeed");
 
         // Initial transform
-        let approximation1 = fitted.transform(&data1).unwrap();
+        let approximation1 = fitted.transform(&data1).expect("operation should succeed");
         assert_eq!(approximation1.nrows(), 3);
         assert!(approximation1.iter().all(|&x| x.is_finite()));
 
         // Update with new data
-        fitted.partial_fit(&data2).unwrap();
+        fitted
+            .partial_fit(&data2)
+            .expect("operation should succeed");
         assert_eq!(fitted.n_updates(), 1);
 
         // Transform with new data
-        let approximation2 = fitted.transform(&data2).unwrap();
+        let approximation2 = fitted.transform(&data2).expect("operation should succeed");
         assert_eq!(approximation2.nrows(), 3);
         assert!(approximation2.iter().all(|&x| x.is_finite()));
     }
@@ -842,8 +852,10 @@ mod tests {
 
         // Test with full rank approximation (should be nearly perfect)
         let nystrom = NystromApproximation::new(3, 3).kernel("rbf").gamma(1.0);
-        let fitted = nystrom.fit(&data, &()).unwrap();
-        let reconstructed = fitted.reconstruct_kernel(&data).unwrap();
+        let fitted = nystrom.fit(&data, &()).expect("operation should succeed");
+        let reconstructed = fitted
+            .reconstruct_kernel(&data)
+            .expect("operation should succeed");
 
         assert_eq!(reconstructed.shape(), &[3, 3]);
         assert!(reconstructed.iter().all(|&x| x.is_finite()));
@@ -871,8 +883,10 @@ mod tests {
 
         // Test with low-rank approximation (should still be reasonable)
         let nystrom = NystromApproximation::new(2, 3).kernel("rbf").gamma(1.0);
-        let fitted = nystrom.fit(&data, &()).unwrap();
-        let reconstructed = fitted.reconstruct_kernel(&data).unwrap();
+        let fitted = nystrom.fit(&data, &()).expect("operation should succeed");
+        let reconstructed = fitted
+            .reconstruct_kernel(&data)
+            .expect("operation should succeed");
 
         assert_eq!(reconstructed.shape(), &[3, 3]);
         assert!(reconstructed.iter().all(|&x| x.is_finite()));

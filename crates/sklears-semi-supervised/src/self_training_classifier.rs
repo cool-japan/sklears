@@ -194,7 +194,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for SelfTrainingClassifier<
                     }
                 }
                 "k_best" => {
-                    new_labels.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+                    new_labels
+                        .sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
                     for (i, label, _) in new_labels.into_iter().take(self.k_best) {
                         selected_indices.push((i, label));
                     }

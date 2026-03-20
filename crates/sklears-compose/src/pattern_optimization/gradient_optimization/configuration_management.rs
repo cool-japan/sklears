@@ -1506,7 +1506,7 @@ mod tests {
     #[test]
     fn test_config_validation_valid() {
         let config = OptimizationConfig::default();
-        let result = config.validate().unwrap();
+        let result = config.validate().unwrap_or_default();
 
         assert_eq!(result.status, ValidationStatus::Valid);
         assert!(result.errors.is_empty());
@@ -1518,7 +1518,7 @@ mod tests {
         config.max_iterations = 0;
         config.tolerance = -1.0;
 
-        let result = config.validate().unwrap();
+        let result = config.validate().unwrap_or_default();
         assert_eq!(result.status, ValidationStatus::Invalid);
         assert!(!result.errors.is_empty());
     }

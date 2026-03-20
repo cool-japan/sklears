@@ -7,8 +7,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use scirs2_core::SliceRandomExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -190,7 +190,7 @@ pub struct RobustnessMetrics {
 }
 
 /// Worst-case scenario generator
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct WorstCaseScenarioGenerator {
     config: WorstCaseValidationConfig,
     rng: StdRng,
@@ -415,7 +415,7 @@ impl WorstCaseScenarioGenerator {
                 // Fast Gradient Sign Method
                 for mut row in adv_x.axis_iter_mut(Axis(0)) {
                     for val in row.iter_mut() {
-                        let perturbation = if self.rng.gen_bool(0.5) {
+                        let perturbation = if self.rng.random_bool(0.5) {
                             epsilon
                         } else {
                             -epsilon
@@ -430,7 +430,7 @@ impl WorstCaseScenarioGenerator {
                     for mut row in adv_x.axis_iter_mut(Axis(0)) {
                         for val in row.iter_mut() {
                             let step_size = epsilon / (*iterations as Float);
-                            let perturbation = if self.rng.gen_bool(0.5) {
+                            let perturbation = if self.rng.random_bool(0.5) {
                                 step_size
                             } else {
                                 -step_size
@@ -448,7 +448,7 @@ impl WorstCaseScenarioGenerator {
                 for _ in 0..*iterations {
                     for mut row in adv_x.axis_iter_mut(Axis(0)) {
                         for val in row.iter_mut() {
-                            let perturbation = if self.rng.gen_bool(0.5) {
+                            let perturbation = if self.rng.random_bool(0.5) {
                                 alpha
                             } else {
                                 -alpha
@@ -462,7 +462,7 @@ impl WorstCaseScenarioGenerator {
                 // Random noise attack
                 for mut row in adv_x.axis_iter_mut(Axis(0)) {
                     for val in row.iter_mut() {
-                        let noise = self.rng.gen_range(-epsilon..epsilon + 1.0);
+                        let noise = self.rng.random_range(-epsilon..epsilon + 1.0);
                         *val += noise;
                     }
                 }
@@ -471,7 +471,7 @@ impl WorstCaseScenarioGenerator {
                 // Simplified implementation for C&W and Boundary Attack
                 for mut row in adv_x.axis_iter_mut(Axis(0)) {
                     for val in row.iter_mut() {
-                        let perturbation = self.rng.gen_range(-epsilon..epsilon + 1.0);
+                        let perturbation = self.rng.random_range(-epsilon..epsilon + 1.0);
                         *val += perturbation;
                     }
                 }
@@ -505,7 +505,7 @@ impl WorstCaseScenarioGenerator {
             DistributionShiftType::PriorShift => {
                 // Change class distribution by removing samples from certain classes
                 let mut unique_classes: Vec<Float> = y.iter().cloned().collect();
-                unique_classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                unique_classes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 unique_classes.dedup();
                 if unique_classes.len() > 1 {
                     let target_class = unique_classes[0];
@@ -572,7 +572,7 @@ impl WorstCaseScenarioGenerator {
             for val in outlier_x.row_mut(idx) {
                 let outlier_value = self
                     .rng
-                    .gen_range(-outlier_magnitude..outlier_magnitude + 1.0);
+                    .random_range(-outlier_magnitude..outlier_magnitude + 1.0);
                 *val += outlier_value;
             }
         }
@@ -589,7 +589,7 @@ impl WorstCaseScenarioGenerator {
         _imbalance_ratio: Float,
     ) -> Result<(Array2<Float>, Array1<Float>), Box<dyn std::error::Error>> {
         let mut unique_classes: Vec<Float> = y.iter().cloned().collect();
-        unique_classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_classes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         unique_classes.dedup();
         if unique_classes.len() < 2 {
             return Ok((x.clone(), y.clone()));
@@ -730,7 +730,7 @@ impl WorstCaseScenarioGenerator {
     ) -> Result<(Array2<Float>, Array1<Float>), Box<dyn std::error::Error>> {
         let mut noisy_y = y.clone();
         let mut unique_classes: Vec<Float> = y.iter().cloned().collect();
-        unique_classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_classes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         unique_classes.dedup();
 
         if unique_classes.len() < 2 {
@@ -748,7 +748,7 @@ impl WorstCaseScenarioGenerator {
                             .cloned()
                             .collect();
                         if !other_classes.is_empty() {
-                            *label = other_classes[self.rng.gen_range(0..other_classes.len())];
+                            *label = other_classes[self.rng.random_range(0..other_classes.len())];
                         }
                     }
                 }
@@ -772,7 +772,7 @@ impl WorstCaseScenarioGenerator {
                             .cloned()
                             .collect();
                         if !other_classes.is_empty() {
-                            *label = other_classes[self.rng.gen_range(0..other_classes.len())];
+                            *label = other_classes[self.rng.random_range(0..other_classes.len())];
                         }
                     }
                 }
@@ -851,7 +851,7 @@ impl WorstCaseScenarioGenerator {
                 let n_blocks = (missing_rate * n_cols as Float) as usize / block_size;
 
                 for _ in 0..n_blocks {
-                    let start_col = self.rng.gen_range(0..n_cols.saturating_sub(*block_size));
+                    let start_col = self.rng.random_range(0..n_cols.saturating_sub(*block_size));
                     let end_col = (start_col + block_size).min(n_cols);
 
                     for mut row in missing_x.axis_iter_mut(Axis(0)) {
@@ -1034,10 +1034,13 @@ mod tests {
         let config = WorstCaseValidationConfig::default();
         let mut generator = WorstCaseScenarioGenerator::new(config);
 
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as Float).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as Float).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
 
-        let scenarios = generator.generate_scenarios(&x, &y).unwrap();
+        let scenarios = generator
+            .generate_scenarios(&x, &y)
+            .expect("operation should succeed");
         assert!(!scenarios.is_empty());
     }
 
@@ -1046,12 +1049,13 @@ mod tests {
         let config = WorstCaseValidationConfig::default();
         let mut generator = WorstCaseScenarioGenerator::new(config);
 
-        let x = Array2::from_shape_vec((5, 3), (0..15).map(|i| i as Float).collect()).unwrap();
+        let x = Array2::from_shape_vec((5, 3), (0..15).map(|i| i as Float).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0]);
 
         let (adv_x, adv_y) = generator
             .generate_adversarial_examples(&x, &y, 0.1, &AdversarialAttackMethod::FGSM, false)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(adv_x.dim(), x.dim());
         assert_eq!(adv_y.len(), y.len());
@@ -1069,8 +1073,8 @@ mod tests {
             ..Default::default()
         };
 
-        let x =
-            Array2::from_shape_vec((10, 3), (0..30).map(|i| i as Float * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as Float * 0.1).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
 
         let model_fn =
@@ -1078,7 +1082,8 @@ mod tests {
                 Ok(0.8) // Mock accuracy
             };
 
-        let result = worst_case_validate(&x, &y, model_fn, Some(config)).unwrap();
+        let result =
+            worst_case_validate(&x, &y, model_fn, Some(config)).expect("operation should succeed");
 
         assert!(result.robustness_score >= 0.0);
         assert!(result.robustness_score <= 1.0);
@@ -1090,12 +1095,13 @@ mod tests {
         let config = WorstCaseValidationConfig::default();
         let mut generator = WorstCaseScenarioGenerator::new(config);
 
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as Float).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as Float).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
 
         let (noisy_x, noisy_y) = generator
             .generate_label_noise(&x, &y, 0.2, &NoisePattern::Uniform)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(noisy_x.dim(), x.dim());
         assert_eq!(noisy_y.len(), y.len());

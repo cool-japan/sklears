@@ -772,7 +772,8 @@ impl SpectralGraphClustering {
         let mut rng = thread_rng();
         let mut eigenvectors = Array2::zeros((n, n_eigenvectors));
 
-        let normal = scirs2_core::random::RandNormal::new(0.0, 1.0).unwrap();
+        let normal =
+            scirs2_core::random::RandNormal::new(0.0, 1.0).expect("operation should succeed");
         for i in 0..n {
             for j in 0..n_eigenvectors {
                 eigenvectors[[i, j]] = normal.sample(&mut rng);
@@ -842,9 +843,9 @@ mod tests {
     fn test_graph_creation() {
         let adjacency =
             Array2::from_shape_vec((3, 3), vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
-        let graph = Graph::from_adjacency(adjacency, false).unwrap();
+        let graph = Graph::from_adjacency(adjacency, false).expect("operation should succeed");
         assert_eq!(graph.n_nodes, 3);
         assert!(!graph.directed);
         assert_abs_diff_eq!(graph.degree(1), 2.0, epsilon = 1e-10);
@@ -858,9 +859,9 @@ mod tests {
                 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let graph = Graph::from_adjacency(adjacency, false).unwrap();
+        let graph = Graph::from_adjacency(adjacency, false).expect("operation should succeed");
         let clustering = ModularityClustering::new(ModularityClusteringConfig::default());
 
         // Perfect community structure: nodes 0,2 in community 0, nodes 1,3 in community 1
@@ -879,15 +880,15 @@ mod tests {
                 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let graph = Graph::from_adjacency(adjacency, false).unwrap();
+        let graph = Graph::from_adjacency(adjacency, false).expect("operation should succeed");
         let clustering = LabelPropagationClustering::new(LabelPropagationConfig {
             random_seed: Some(42),
             ..Default::default()
         });
 
-        let communities = clustering.fit(&graph).unwrap();
+        let communities = clustering.fit(&graph).expect("operation should succeed");
         assert_eq!(communities.len(), 4);
 
         // Check that communities are contiguous (0, 1, 2, ...)
@@ -911,12 +912,12 @@ mod tests {
         let clustering = SpectralGraphClustering::new(config);
 
         let adjacency = Array2::eye(5);
-        let graph = Graph::from_adjacency(adjacency, false).unwrap();
+        let graph = Graph::from_adjacency(adjacency, false).expect("operation should succeed");
 
         let result = clustering.fit(&graph);
         assert!(result.is_ok());
 
-        let communities = result.unwrap();
+        let communities = result.expect("operation should succeed");
         assert_eq!(communities.len(), 5);
     }
 
@@ -924,7 +925,7 @@ mod tests {
     fn test_graph_from_edges() {
         let edges = vec![(0, 1, 1.0), (1, 2, 1.0), (2, 0, 1.0)];
 
-        let graph = Graph::from_edges(&edges, 3, false).unwrap();
+        let graph = Graph::from_edges(&edges, 3, false).expect("operation should succeed");
         assert_eq!(graph.n_nodes, 3);
         assert_abs_diff_eq!(graph.total_weight(), 3.0, epsilon = 1e-10);
 

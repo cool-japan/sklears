@@ -21,7 +21,7 @@ fn random_data_strategy() -> impl Strategy<Value = Array2<Float>> {
                     (n_samples, n_features),
                     data.into_iter().flatten().collect(),
                 )
-                .unwrap()
+                .expect("operation should succeed")
             })
     })
 }
@@ -328,7 +328,7 @@ mod robustness_tests {
                 data_vec.extend(vec![(i as f64) * 10.0, (i as f64) * 10.0]);
             }
 
-            let data = Array2::from_shape_vec((n_clusters, 2), data_vec).unwrap();
+            let data = Array2::from_shape_vec((n_clusters, 2), data_vec).expect("operation should succeed");
 
             let config = KMeansConfig {
                 n_clusters,
@@ -364,7 +364,10 @@ mod test_utils {
         // Test that our data generation strategy works
         let strategy = random_data_strategy();
         let mut runner = proptest::test_runner::TestRunner::default();
-        let data = strategy.new_tree(&mut runner).unwrap().current();
+        let data = strategy
+            .new_tree(&mut runner)
+            .expect("operation should succeed")
+            .current();
 
         assert!(data.nrows() >= 20);
         assert!(data.ncols() >= 2);

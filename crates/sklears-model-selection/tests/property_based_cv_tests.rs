@@ -21,7 +21,8 @@ mod property_tests {
             (
                 proptest::collection::vec(proptest::num::f64::ANY, n_samples * n_features)
                     .prop_map(move |values| {
-                        Array2::from_shape_vec((n_samples, n_features), values).unwrap()
+                        Array2::from_shape_vec((n_samples, n_features), values)
+                            .expect("operation should succeed")
                     }),
                 proptest::collection::vec(0i32..3, n_samples).prop_map(Array1::from),
             )

@@ -606,66 +606,66 @@ mod tests {
 
     #[test]
     fn test_extreme_probabilities() {
-        RobustnessTestSuite::test_extreme_probabilities().unwrap();
+        RobustnessTestSuite::test_extreme_probabilities().expect("operation should succeed");
     }
 
     #[test]
     fn test_small_datasets() {
-        RobustnessTestSuite::test_small_datasets().unwrap();
+        RobustnessTestSuite::test_small_datasets().expect("operation should succeed");
     }
 
     #[test]
     fn test_imbalanced_datasets() {
-        RobustnessTestSuite::test_imbalanced_datasets().unwrap();
+        RobustnessTestSuite::test_imbalanced_datasets().expect("operation should succeed");
     }
 
     #[test]
     fn test_constant_predictions() {
-        RobustnessTestSuite::test_constant_predictions().unwrap();
+        RobustnessTestSuite::test_constant_predictions().expect("operation should succeed");
     }
 
     #[test]
     fn test_numerical_precision_limits() {
-        RobustnessTestSuite::test_numerical_precision_limits().unwrap();
+        RobustnessTestSuite::test_numerical_precision_limits().expect("operation should succeed");
     }
 
     #[test]
     fn test_zero_variance_features() {
-        RobustnessTestSuite::test_zero_variance_features().unwrap();
+        RobustnessTestSuite::test_zero_variance_features().expect("operation should succeed");
     }
 
     #[test]
     fn test_infinite_and_nan_handling() {
-        RobustnessTestSuite::test_infinite_and_nan_handling().unwrap();
+        RobustnessTestSuite::test_infinite_and_nan_handling().expect("operation should succeed");
     }
 
     #[test]
     fn test_single_class_problems() {
-        RobustnessTestSuite::test_single_class_problems().unwrap();
+        RobustnessTestSuite::test_single_class_problems().expect("operation should succeed");
     }
 
     #[test]
     fn test_perfect_separation() {
-        RobustnessTestSuite::test_perfect_separation().unwrap();
+        RobustnessTestSuite::test_perfect_separation().expect("operation should succeed");
     }
 
     #[test]
     fn test_adversarial_inputs() {
-        RobustnessTestSuite::test_adversarial_inputs().unwrap();
+        RobustnessTestSuite::test_adversarial_inputs().expect("operation should succeed");
     }
 
     #[test]
     fn test_calibration_quality_stress() {
-        RobustnessTestSuite::test_calibration_quality_stress().unwrap();
+        RobustnessTestSuite::test_calibration_quality_stress().expect("operation should succeed");
     }
 
     #[test]
     fn test_benchmark_performance() {
-        RobustnessTestSuite::benchmark_performance().unwrap();
+        RobustnessTestSuite::benchmark_performance().expect("operation should succeed");
     }
 
     #[test]
     fn test_run_all_tests() {
-        RobustnessTestSuite::run_all_tests().unwrap();
+        RobustnessTestSuite::run_all_tests().expect("operation should succeed");
     }
 }

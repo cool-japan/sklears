@@ -321,7 +321,7 @@ impl ThreadSafeKernelCache for DashMapKernelCache {
             entry.last_access.store(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("value should be present")
                     .as_nanos() as u64,
                 Ordering::Relaxed,
             );
@@ -351,12 +351,12 @@ impl ThreadSafeKernelCache for DashMapKernelCache {
             access_count: AtomicU64::new(1),
             insertion_order: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("value should be present")
                 .as_nanos() as u64,
             last_access: AtomicU64::new(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .expect("value should be present")
                     .as_nanos() as u64,
             ),
         };

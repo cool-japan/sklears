@@ -12,7 +12,7 @@
 //! - Blind Source Separation with higher-order moments
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
 use sklears_core::error::SklearsError;
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -141,7 +141,9 @@ impl HigherOrderAnalyzer {
 
     /// Center data by subtracting column means
     fn center_data(&self, data: &Array2<Float>) -> Result<Array2<Float>, SklearsError> {
-        let means = data.mean_axis(Axis(0)).unwrap();
+        let means = data.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
         let centered = data - &means.insert_axis(Axis(0));
         Ok(centered)
     }
@@ -464,7 +466,7 @@ impl HigherOrderAnalyzer {
             // Create bootstrap sample
             let mut bootstrap_data = Array2::<Float>::zeros((n_samples, n_features));
             for i in 0..n_samples {
-                let random_idx = rng.gen_range(0..n_samples);
+                let random_idx = rng.random_range(0..n_samples);
                 bootstrap_data.row_mut(i).assign(&data.row(random_idx));
             }
 
@@ -505,7 +507,7 @@ impl HigherOrderAnalyzer {
 
         for feature in 0..n_features {
             let mut column_data: Vec<Float> = data.column(feature).to_vec();
-            column_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            column_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             let index = (percentile / 100.0 * (n_bootstrap - 1) as f64) as usize;
             result[feature] = column_data[index.min(n_bootstrap - 1)];
@@ -559,7 +561,7 @@ impl NonGaussianComponentAnalysis {
         component_indices.sort_by(|&i, &j| {
             kurtosis_deviations[j]
                 .partial_cmp(&kurtosis_deviations[i])
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         Ok(NonGaussianResults {
@@ -640,7 +642,7 @@ impl PolyspectralCCA {
         let mut rng = thread_rng();
         let polyspectrum = Array3::<Float>::from_shape_fn(
             (n_features, n_features, self.polyspectrum_order),
-            |_| rng.gen::<Float>(),
+            |_| rng.random::<Float>(),
         );
 
         Ok(polyspectrum)
@@ -659,7 +661,7 @@ impl PolyspectralCCA {
         let mut rng = thread_rng();
         let cross_polyspectrum = Array3::<Float>::from_shape_fn(
             (n_features_x, n_features_y, self.polyspectrum_order),
-            |_| rng.gen::<Float>(),
+            |_| rng.random::<Float>(),
         );
 
         Ok(cross_polyspectrum)
@@ -679,11 +681,11 @@ impl PolyspectralCCA {
         let mut rng = thread_rng();
         let x_components =
             Array2::<Float>::from_shape_fn((n_features_x, self.n_components), |_| {
-                rng.gen::<Float>()
+                rng.random::<Float>()
             });
         let y_components =
             Array2::<Float>::from_shape_fn((n_features_y, self.n_components), |_| {
-                rng.gen::<Float>()
+                rng.random::<Float>()
             });
 
         Ok((x_components, y_components))
@@ -713,20 +715,20 @@ mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::thread_rng;
+    use scirs2_core::random::{thread_rng, RngExt};
 
     #[test]
     fn test_higher_order_analysis() {
         let data = Array2::from_shape_fn((100, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let analyzer = HigherOrderAnalyzer::new();
 
         let result = analyzer.analyze(&data);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.skewness.len(), 5);
         assert_eq!(result.kurtosis.len(), 5);
         assert!(!result.moments.is_empty());
@@ -736,9 +738,13 @@ mod tests {
     fn test_moment_computation() {
         let data = Array2::<Float>::ones((50, 3));
         let analyzer = HigherOrderAnalyzer::new();
-        let centered = analyzer.center_data(&data).unwrap();
+        let centered = analyzer
+            .center_data(&data)
+            .expect("operation should succeed");
 
-        let moments = analyzer.compute_moments(&centered).unwrap();
+        let moments = analyzer
+            .compute_moments(&centered)
+            .expect("operation should succeed");
         assert!(moments.contains_key(&2));
         assert!(moments.contains_key(&3));
         assert!(moments.contains_key(&4));
@@ -748,13 +754,19 @@ mod tests {
     fn test_cumulant_computation() {
         let data = Array2::from_shape_fn((75, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let analyzer = HigherOrderAnalyzer::new();
-        let centered = analyzer.center_data(&data).unwrap();
-        let moments = analyzer.compute_moments(&centered).unwrap();
+        let centered = analyzer
+            .center_data(&data)
+            .expect("operation should succeed");
+        let moments = analyzer
+            .compute_moments(&centered)
+            .expect("operation should succeed");
 
-        let cumulants = analyzer.compute_cumulants(&moments).unwrap();
+        let cumulants = analyzer
+            .compute_cumulants(&moments)
+            .expect("operation should succeed");
         assert!(cumulants.contains_key(&2));
         assert!(cumulants.contains_key(&3));
         assert!(cumulants.contains_key(&4));
@@ -765,7 +777,7 @@ mod tests {
         // Create data with known skewness/kurtosis properties
         let mut data = Array2::from_shape_fn((200, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         // Make one column highly skewed
@@ -775,7 +787,7 @@ mod tests {
         }
 
         let analyzer = HigherOrderAnalyzer::new();
-        let result = analyzer.analyze(&data).unwrap();
+        let result = analyzer.analyze(&data).expect("operation should succeed");
 
         // First column should have positive skewness
         assert!(result.skewness[0] > 0.0);
@@ -785,14 +797,14 @@ mod tests {
     fn test_non_gaussian_analysis() {
         let data = Array2::from_shape_fn((150, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let ng_analyzer = NonGaussianComponentAnalysis::new();
 
         let result = ng_analyzer.fit(&data);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.component_order.len(), 4);
         assert_eq!(result.kurtosis_values.len(), 4);
         assert_eq!(result.skewness_values.len(), 4);
@@ -802,18 +814,18 @@ mod tests {
     fn test_polyspectral_cca() {
         let x = Array2::from_shape_fn((100, 6), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_fn((100, 4), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let poly_cca = PolyspectralCCA::new(3, 2);
 
         let result = poly_cca.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.x_components.dim(), (6, 2));
         assert_eq!(result.y_components.dim(), (4, 2));
     }
@@ -822,10 +834,10 @@ mod tests {
     fn test_independence_measures() {
         let data = Array2::from_shape_fn((80, 5), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let analyzer = HigherOrderAnalyzer::new();
-        let result = analyzer.analyze(&data).unwrap();
+        let result = analyzer.analyze(&data).expect("operation should succeed");
 
         assert_eq!(result.independence_measures.dim(), (5, 5));
 
@@ -839,13 +851,13 @@ mod tests {
     fn test_bootstrap_confidence_intervals() {
         let data = Array2::from_shape_fn((60, 3), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let mut config = HigherOrderConfig::default();
         config.n_bootstrap = 100; // Smaller for test speed
 
         let analyzer = HigherOrderAnalyzer::new().with_config(config);
-        let result = analyzer.analyze(&data).unwrap();
+        let result = analyzer.analyze(&data).expect("operation should succeed");
 
         assert!(result.confidence_intervals.contains_key("skewness"));
         assert!(result.confidence_intervals.contains_key("kurtosis"));

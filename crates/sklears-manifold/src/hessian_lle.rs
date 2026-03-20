@@ -223,7 +223,7 @@ impl HessianLLE<Untrained> {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             for (neighbor_idx, &(_, j)) in distances.iter().take(self.n_neighbors).enumerate() {
                 neighbor_indices[[i, neighbor_idx]] = j;
             }
@@ -348,7 +348,7 @@ impl HessianLLE<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
-        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Take eigenvectors corresponding to smallest non-zero eigenvalues
         // Skip the first eigenvector (corresponding to eigenvalue 0)

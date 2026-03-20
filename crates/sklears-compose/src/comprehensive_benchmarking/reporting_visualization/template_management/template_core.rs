@@ -69,24 +69,24 @@ impl TemplateManagementSystem {
     pub fn add_template(&self, template: TemplateEntry) -> Result<(), TemplateError> {
         // Validate template before adding
         {
-            let validation_engine = self.validation_engine.read().unwrap();
+            let validation_engine = self.validation_engine.read().unwrap_or_else(|e| e.into_inner());
             validation_engine.validate_template(&template)?;
         }
 
         // Perform security scan
         {
-            let security_scanner = self.security_scanner.read().unwrap();
+            let security_scanner = self.security_scanner.read().unwrap_or_else(|e| e.into_inner());
             security_scanner.scan_template(&template)?;
         }
 
         // Analyze dependencies
         {
-            let dependency_manager = self.dependency_manager.read().unwrap();
+            let dependency_manager = self.dependency_manager.read().unwrap_or_else(|e| e.into_inner());
             dependency_manager.analyze_dependencies(&template)?;
         }
 
         // Add to repository
-        let mut repository = self.template_repository.write().unwrap();
+        let mut repository = self.template_repository.write().unwrap_or_else(|e| e.into_inner());
         repository.add_template(template)?;
 
         Ok(())
@@ -102,7 +102,7 @@ impl TemplateManagementSystem {
     /// # Returns
     /// Result containing the template entry or error if not found
     pub fn get_template(&self, template_id: &str) -> Result<TemplateEntry, TemplateError> {
-        let repository = self.template_repository.read().unwrap();
+        let repository = self.template_repository.read().unwrap_or_else(|e| e.into_inner());
         repository.get_template(template_id)
     }
 
@@ -116,7 +116,7 @@ impl TemplateManagementSystem {
     /// # Returns
     /// Result containing matching template entries
     pub fn search_templates(&self, query: &str) -> Result<Vec<TemplateEntry>, TemplateError> {
-        let repository = self.template_repository.read().unwrap();
+        let repository = self.template_repository.read().unwrap_or_else(|e| e.into_inner());
         repository.search_templates(query)
     }
 
@@ -133,18 +133,18 @@ impl TemplateManagementSystem {
     pub fn update_template(&self, template_id: &str, updated_template: TemplateEntry) -> Result<(), TemplateError> {
         // Validate updated template
         {
-            let validation_engine = self.validation_engine.read().unwrap();
+            let validation_engine = self.validation_engine.read().unwrap_or_else(|e| e.into_inner());
             validation_engine.validate_template(&updated_template)?;
         }
 
         // Version management
         {
-            let mut versioning_system = self.versioning_system.write().unwrap();
+            let mut versioning_system = self.versioning_system.write().unwrap_or_else(|e| e.into_inner());
             versioning_system.create_version(template_id, &updated_template)?;
         }
 
         // Update repository
-        let mut repository = self.template_repository.write().unwrap();
+        let mut repository = self.template_repository.write().unwrap_or_else(|e| e.into_inner());
         repository.update_template(template_id, updated_template)?;
 
         Ok(())
@@ -162,7 +162,7 @@ impl TemplateManagementSystem {
     pub fn delete_template(&self, template_id: &str) -> Result<(), TemplateError> {
         // Check dependencies before deletion
         {
-            let dependency_manager = self.dependency_manager.read().unwrap();
+            let dependency_manager = self.dependency_manager.read().unwrap_or_else(|e| e.into_inner());
             if dependency_manager.has_dependents(template_id)? {
                 return Err(TemplateError::DependencyError(
                     "Cannot delete template with active dependencies".to_string()
@@ -172,12 +172,12 @@ impl TemplateManagementSystem {
 
         // Archive version
         {
-            let mut versioning_system = self.versioning_system.write().unwrap();
+            let mut versioning_system = self.versioning_system.write().unwrap_or_else(|e| e.into_inner());
             versioning_system.archive_template(template_id)?;
         }
 
         // Remove from repository
-        let mut repository = self.template_repository.write().unwrap();
+        let mut repository = self.template_repository.write().unwrap_or_else(|e| e.into_inner());
         repository.delete_template(template_id)?;
 
         Ok(())
@@ -200,7 +200,7 @@ impl TemplateManagementSystem {
     ) -> Result<CompiledTemplate, TemplateError> {
         let template = self.get_template(template_id)?;
 
-        let compilation_system = self.compilation_system.read().unwrap();
+        let compilation_system = self.compilation_system.read().unwrap_or_else(|e| e.into_inner());
         compilation_system.compile_template(&template, parameters)
     }
 
@@ -214,7 +214,7 @@ impl TemplateManagementSystem {
     /// # Returns
     /// Result containing performance metrics or error
     pub fn get_template_performance(&self, template_id: &str) -> Result<TemplatePerformanceMetrics, TemplateError> {
-        let performance_analyzer = self.performance_analyzer.read().unwrap();
+        let performance_analyzer = self.performance_analyzer.read().unwrap_or_else(|e| e.into_inner());
         performance_analyzer.get_metrics(template_id)
     }
 
@@ -229,14 +229,14 @@ impl TemplateManagementSystem {
 
         // Validate repository integrity
         {
-            let repository = self.template_repository.read().unwrap();
+            let repository = self.template_repository.read().unwrap_or_else(|e| e.into_inner());
             repository.validate_integrity(&mut report)?;
         }
 
         // Validate all templates
         {
-            let validation_engine = self.validation_engine.read().unwrap();
-            let repository = self.template_repository.read().unwrap();
+            let validation_engine = self.validation_engine.read().unwrap_or_else(|e| e.into_inner());
+            let repository = self.template_repository.read().unwrap_or_else(|e| e.into_inner());
 
             for template in repository.get_all_templates()? {
                 if let Err(e) = validation_engine.validate_template(&template) {

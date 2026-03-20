@@ -426,8 +426,8 @@ impl IsotonicBenchmarkSuite {
             / times.len() as f64;
 
         let std_time = Duration::from_nanos(variance.sqrt() as u64);
-        let min_time = *times.iter().min().unwrap();
-        let max_time = *times.iter().max().unwrap();
+        let min_time = *times.iter().min().expect("operation should succeed");
+        let max_time = *times.iter().max().expect("operation should succeed");
 
         BenchmarkResult {
             algorithm: algorithm.to_string(),
@@ -692,7 +692,7 @@ mod tests {
     fn test_quick_benchmark() {
         let result = quick_benchmark(100, 3);
         assert!(result.is_ok());
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert!(!results.is_empty());
     }
 
@@ -706,7 +706,7 @@ mod tests {
         let metrics = suite.compute_accuracy_metrics(&predicted, &actual);
 
         assert!(metrics.is_ok());
-        let metrics = metrics.unwrap();
+        let metrics = metrics.expect("operation should succeed");
         assert!(metrics.mse > 0.0);
         assert!(metrics.mae > 0.0);
         assert!(metrics.monotonicity_score > 0.8);

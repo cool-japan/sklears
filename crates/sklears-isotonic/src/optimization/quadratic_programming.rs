@@ -313,7 +313,7 @@ mod tests {
     fn test_active_set_simple_case() {
         let y = array![3.0, 1.0, 2.0, 4.0];
         let regressor = ActiveSetIsotonicRegressor::new().increasing(true);
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check monotonicity
         for i in 1..result.len() {
@@ -325,7 +325,7 @@ mod tests {
     fn test_active_set_decreasing() {
         let y = array![1.0, 3.0, 2.0, 4.0];
         let regressor = ActiveSetIsotonicRegressor::new().increasing(false);
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check monotonicity (decreasing)
         for i in 1..result.len() {
@@ -336,7 +336,7 @@ mod tests {
     #[test]
     fn test_qp_wrapper() {
         let y = array![2.0, 1.0, 3.0];
-        let result = isotonic_regression_qp(&y, None, true).unwrap();
+        let result = isotonic_regression_qp(&y, None, true).expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..result.len() {
@@ -347,7 +347,8 @@ mod tests {
     #[test]
     fn test_active_set_wrapper() {
         let y = array![4.0, 2.0, 3.0, 1.0];
-        let result = isotonic_regression_active_set(&y, None, false).unwrap();
+        let result =
+            isotonic_regression_active_set(&y, None, false).expect("operation should succeed");
 
         // Check monotonicity (decreasing)
         for i in 1..result.len() {
@@ -362,7 +363,7 @@ mod tests {
             .increasing(true)
             .bounds(Some(1.0), Some(2.0));
 
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check bounds are respected
         for &val in result.iter() {
@@ -376,7 +377,9 @@ mod tests {
         let y = array![1.0, 3.0, 2.0];
         let weights = array![1.0, 10.0, 1.0]; // High weight on middle point
         let regressor = ActiveSetIsotonicRegressor::new().increasing(true);
-        let result = regressor.solve(&y, Some(&weights)).unwrap();
+        let result = regressor
+            .solve(&y, Some(&weights))
+            .expect("solve should succeed");
 
         // Result should be influenced by the high-weight middle point
         assert!(result.len() == 3);

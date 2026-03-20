@@ -149,7 +149,9 @@ impl AdaptiveOptimizer {
     /// Helper function to handle mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn lock_cache(&self) -> std::sync::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
-        self.performance_cache.lock().unwrap()
+        self.performance_cache
+            .lock()
+            .expect("lock should not be poisoned")
     }
 
     #[cfg(feature = "no-std")]
@@ -160,7 +162,9 @@ impl AdaptiveOptimizer {
     /// Helper function to handle mutable mutex locking in both std and no-std environments
     #[cfg(not(feature = "no-std"))]
     fn lock_cache_mut(&self) -> std::sync::MutexGuard<'_, HashMap<String, AlgorithmPerformance>> {
-        self.performance_cache.lock().unwrap()
+        self.performance_cache
+            .lock()
+            .expect("lock should not be poisoned")
     }
 
     #[cfg(feature = "no-std")]
@@ -425,9 +429,8 @@ impl AdaptiveOptimizer {
             let base_score = 1.0 / perf.avg_duration.as_secs_f64() * perf.success_rate;
             let exploration_factor = {
                 use scirs2_core::random::thread_rng;
-                use scirs2_core::Rng;
                 let mut rng = thread_rng();
-                0.1 * rng.gen::<f64>()
+                0.1 * rng.random::<f64>()
             };
             base_score + exploration_factor
         } else {
@@ -627,9 +630,8 @@ mod tests {
 
             let random_val = {
                 use scirs2_core::random::thread_rng;
-                use scirs2_core::Rng;
                 let mut rng = thread_rng();
-                rng.gen::<f64>()
+                rng.random::<f64>()
             };
             if random_val < self.success_rate {
                 Ok(vec![1.0, 2.0, 3.0])

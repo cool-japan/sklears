@@ -337,9 +337,18 @@ impl SingularSpectrumAnalysis {
 
     /// Reconstruct components from SVD
     fn reconstruct_components(&self, n_components: usize) -> Result<Array2<Float>> {
-        let u = self.left_singular_vectors_.as_ref().unwrap();
-        let s = self.singular_values_.as_ref().unwrap();
-        let vt = self.right_singular_vectors_.as_ref().unwrap();
+        let u = self
+            .left_singular_vectors_
+            .as_ref()
+            .expect("operation should succeed");
+        let s = self
+            .singular_values_
+            .as_ref()
+            .expect("operation should succeed");
+        let vt = self
+            .right_singular_vectors_
+            .as_ref()
+            .expect("operation should succeed");
 
         let n_components = n_components.min(s.len());
         let (window_length, k) = (u.nrows(), vt.ncols());
@@ -411,7 +420,10 @@ impl SingularSpectrumAnalysis {
 
     /// Calculate explained variance ratio
     fn calculate_explained_variance_ratio(&self) -> Result<Array1<Float>> {
-        let eigenvalues = self.eigenvalues_.as_ref().unwrap();
+        let eigenvalues = self
+            .eigenvalues_
+            .as_ref()
+            .expect("operation should succeed");
         let total_variance = eigenvalues.sum();
 
         if total_variance <= 0.0 {
@@ -1226,7 +1238,12 @@ impl ChangePointDetection {
         let mut filtered_peaks = vec![peaks[0]];
 
         for &peak in peaks.iter().skip(1) {
-            if peak.saturating_sub(*filtered_peaks.last().unwrap()) >= self.min_distance {
+            if peak.saturating_sub(
+                *filtered_peaks
+                    .last()
+                    .expect("collection should not be empty"),
+            ) >= self.min_distance
+            {
                 filtered_peaks.push(peak);
             }
         }

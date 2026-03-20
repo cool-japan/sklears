@@ -82,7 +82,6 @@ mod oas;
 mod optimization;
 mod pca_integration;
 mod performance_optimizations;
-mod polars_integration;
 mod presets;
 mod rao_blackwell_lw;
 mod ridge;
@@ -125,13 +124,6 @@ pub use diagnostics::{
     OffDiagonalStats, QualityAssessment,
 };
 
-// Re-export Polars integration
-pub use polars_integration::utils as polars_utils;
-pub use polars_integration::{
-    ColumnStatistics, ConvergenceInfo, CovarianceDataFrame, CovarianceResult, DataFrameDescription,
-    DataFrameEstimator, DataFrameMetadata, EstimatorInfo, PerformanceMetrics,
-};
-
 // Re-export Hyperparameter Tuning
 pub use hyperparameter_tuning::presets as tuning_presets;
 pub use hyperparameter_tuning::{
@@ -144,11 +136,11 @@ pub use hyperparameter_tuning::{
 // Re-export Model Selection
 pub use model_selection::presets as model_selection_presets;
 pub use model_selection::{
-    AutoCovarianceSelector, BestEstimator, CandidateResult, ComputationalComplexity,
-    ComputationalConstraints, CorrelationStructure, DataCharacteristics, DataCharacterizationRules,
-    DistributionCharacteristics, HeuristicRule, InformationCriterion, MissingDataInfo,
-    ModelSelectionCV, ModelSelectionResult, ModelSelectionScoring, PerformanceComparison,
-    RuleCondition, SelectionRule, SelectionStrategy, StratificationStrategy,
+    ArrayCovarianceResult, ArrayEstimator, AutoCovarianceSelector, BestEstimator, CandidateResult,
+    ComputationalComplexity, ComputationalConstraints, CorrelationStructure, DataCharacteristics,
+    DataCharacterizationRules, DistributionCharacteristics, HeuristicRule, InformationCriterion,
+    MissingDataInfo, ModelSelectionCV, ModelSelectionResult, ModelSelectionScoring,
+    PerformanceComparison, RuleCondition, SelectionRule, SelectionStrategy, StratificationStrategy,
 };
 
 // Re-export configuration presets
@@ -465,7 +457,9 @@ mod tests {
         let x = array![[1.0, 0.1], [2.0, 1.9], [3.0, 2.8], [4.0, 4.1], [5.0, 4.9]];
 
         let estimator = EmpiricalCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -476,7 +470,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [2.0, 3.0]];
 
         let estimator = LedoitWolf::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -489,7 +485,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let estimator = ShrunkCovariance::new().shrinkage(0.1);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert_eq!(fitted.get_shrinkage(), 0.1);
@@ -523,7 +521,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [2.0, 3.0]];
 
         let estimator = OAS::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -549,7 +549,9 @@ mod tests {
         match estimator.fit(&x.view(), &()) {
             Ok(fitted) => {
                 assert_eq!(fitted.get_covariance().dim(), (2, 2));
-                let predictions = fitted.predict(&x.view()).unwrap();
+                let predictions = fitted
+                    .predict(&x.view())
+                    .expect("prediction should succeed");
                 assert_eq!(predictions.len(), 9);
             }
             Err(_) => {
@@ -580,7 +582,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let estimator = RidgeCovariance::new().alpha(0.1);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -592,7 +596,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
         let estimator = ElasticNetCovariance::new().alpha(0.1).l1_ratio(0.5);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -605,7 +611,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [2.0, 3.0]];
 
         let estimator = ChenSteinCovariance::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -689,7 +697,9 @@ mod tests {
         ];
 
         let estimator = RaoBlackwellLedoitWolf::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -715,7 +725,9 @@ mod tests {
         ];
 
         let estimator = NonlinearShrinkage::new();
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());
@@ -734,7 +746,9 @@ mod tests {
         ];
 
         let estimator = CLIME::new().lambda(0.1);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert_eq!(fitted.get_precision().dim(), (3, 3));
@@ -752,7 +766,9 @@ mod tests {
         ];
 
         let estimator = NuclearNormMinimization::new().lambda(0.1);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_precision().is_some());

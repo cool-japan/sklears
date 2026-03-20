@@ -41,8 +41,7 @@ impl Default for BenchmarkConfig {
 /// Generate synthetic data for benchmarking
 fn generate_benchmark_data(n_samples: usize, n_features: usize) -> (Array2<Float>, Array1<Float>) {
     use scirs2_core::random::rngs::StdRng;
-    use scirs2_core::random::Rng;
-    use scirs2_core::random::SeedableRng;
+    use scirs2_core::random::{RngExt, SeedableRng};
     let mut rng = StdRng::seed_from_u64(42);
 
     let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<Float>() * 10.0);
@@ -58,8 +57,7 @@ fn generate_multiclass_data(
     n_classes: usize,
 ) -> (Array2<Float>, Array1<i32>) {
     use scirs2_core::random::rngs::StdRng;
-    use scirs2_core::random::Rng;
-    use scirs2_core::random::SeedableRng;
+    use scirs2_core::random::{RngExt, SeedableRng};
     let mut rng = StdRng::seed_from_u64(42);
 
     let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<Float>() * 10.0);
@@ -93,7 +91,7 @@ fn benchmark_linear_models(c: &mut Criterion) {
                     let model = LinearRegression::new()
                         .fit_intercept(true)
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },
@@ -110,7 +108,7 @@ fn benchmark_linear_models(c: &mut Criterion) {
                     let model = Ridge::new()
                         .alpha(1.0)
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },
@@ -125,7 +123,7 @@ fn benchmark_linear_models(c: &mut Criterion) {
                     let model = Lasso::new()
                         .alpha(0.1)
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },
@@ -154,7 +152,7 @@ fn benchmark_tree_models(c: &mut Criterion) {
                     let model = DecisionTreeClassifier::new()
                         .max_depth(10)
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },
@@ -169,7 +167,7 @@ fn benchmark_tree_models(c: &mut Criterion) {
                     let model = RandomForestClassifier::new()
                         .n_estimators(10)
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },
@@ -198,7 +196,7 @@ fn benchmark_ensemble_methods(c: &mut Criterion) {
                         .learning_rate(0.1)
                         .build()
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },
@@ -214,7 +212,7 @@ fn benchmark_ensemble_methods(c: &mut Criterion) {
                     let model = AdaBoostClassifier::new()
                         .n_estimators(10)
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },
@@ -242,8 +240,8 @@ fn benchmark_preprocessing(c: &mut Criterion) {
             &x,
             |b, x| {
                 b.iter(|| {
-                    let scaler = StandardScaler::new().fit(black_box(x)).unwrap();
-                    let transformed = scaler.transform(black_box(x)).unwrap();
+                    let scaler = StandardScaler::new().fit(black_box(x)).expect("model fitting should succeed");
+                    let transformed = scaler.transform(black_box(x)).expect("transformation should succeed");
                     black_box(transformed)
                 });
             },
@@ -255,8 +253,8 @@ fn benchmark_preprocessing(c: &mut Criterion) {
             &x,
             |b, x| {
                 b.iter(|| {
-                    let scaler = MinMaxScaler::new().fit(black_box(x)).unwrap();
-                    let transformed = scaler.transform(black_box(x)).unwrap();
+                    let scaler = MinMaxScaler::new().fit(black_box(x)).expect("model fitting should succeed");
+                    let transformed = scaler.transform(black_box(x)).expect("transformation should succeed");
                     black_box(transformed)
                 });
             },
@@ -265,8 +263,8 @@ fn benchmark_preprocessing(c: &mut Criterion) {
         // PCA
         group.bench_with_input(BenchmarkId::new("PCA/fit_transform", size), &x, |b, x| {
             b.iter(|| {
-                let pca = PCA::new().n_components(5).fit(black_box(x)).unwrap();
-                let transformed = pca.transform(black_box(x)).unwrap();
+                let pca = PCA::new().n_components(5).fit(black_box(x)).expect("model fitting should succeed");
+                let transformed = pca.transform(black_box(x)).expect("transformation should succeed");
                 black_box(transformed)
             });
         });
@@ -293,8 +291,12 @@ fn benchmark_clustering(c: &mut Criterion) {
                 };
                 let kmeans_model = KMeans::new(config);
                 let y_dummy = Array1::zeros(x.nrows());
-                let fitted = kmeans_model.fit(black_box(x), &y_dummy).unwrap();
-                let labels = fitted.predict(black_box(x)).unwrap();
+                let fitted = kmeans_model
+                    .fit(black_box(x), &y_dummy)
+                    .expect("model fitting should succeed");
+                let labels = fitted
+                    .predict(black_box(x))
+                    .expect("prediction should succeed");
                 black_box(labels)
             });
         });
@@ -323,7 +325,7 @@ fn benchmark_neural_networks(c: &mut Criterion) {
                         .hidden_layer_sizes(&[10, 5])
                         .max_iter(100)
                         .fit(black_box(x), black_box(y))
-                        .unwrap();
+                        .expect("operation should succeed");
                     black_box(model)
                 });
             },

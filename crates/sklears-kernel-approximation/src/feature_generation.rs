@@ -71,7 +71,7 @@ impl RandomFourierGenerator {
         // Sample offset from Uniform(0, 2π)
         let mut offset = Array1::zeros(self.n_components);
         for elem in offset.iter_mut() {
-            *elem = rng.gen_range(0.0..(2.0 * std::f64::consts::PI));
+            *elem = rng.random_range(0.0..(2.0 * std::f64::consts::PI));
         }
 
         self.weights = Some(weights);
@@ -91,7 +91,7 @@ impl FeatureGenerator for RandomFourierGenerator {
                     .to_string(),
             })?;
 
-        let offset = self.offset.as_ref().unwrap();
+        let offset = self.offset.as_ref().expect("operation should succeed");
 
         // Compute X @ W
         let projection = data.dot(weights);
@@ -495,8 +495,10 @@ mod tests {
         let mut generator = RandomFourierGenerator::new(50, 1.0, Some(42));
         let data = array![[1.0, 2.0], [3.0, 4.0]];
 
-        generator.fit_generator(&data).unwrap();
-        let features = generator.generate(&data).unwrap();
+        generator
+            .fit_generator(&data)
+            .expect("operation should succeed");
+        let features = generator.generate(&data).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
         assert_eq!(generator.output_dim(), 50);
@@ -508,7 +510,7 @@ mod tests {
         let generator = PolynomialGenerator::new(2, true, false);
         let data = array![[1.0, 2.0], [3.0, 4.0]];
 
-        let features = generator.generate(&data).unwrap();
+        let features = generator.generate(&data).expect("operation should succeed");
         assert!(features.ncols() >= 3); // bias + 2 features + interactions
     }
 
@@ -537,7 +539,7 @@ mod tests {
         let generator = PolynomialGenerator::new(2, false, true);
         let data = array![[1.0, 2.0, 3.0]];
 
-        let features = generator.generate(&data).unwrap();
+        let features = generator.generate(&data).expect("operation should succeed");
         // Should have original 3 features + interactions
         assert!(features.ncols() >= 3);
     }

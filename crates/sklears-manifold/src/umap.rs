@@ -4,7 +4,7 @@
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
 use sklears_core::{
@@ -325,7 +325,7 @@ impl UMAP<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Store k-nearest neighbor indices
             for (k, &(_, neighbor_idx)) in distances.iter().take(self.n_neighbors).enumerate() {
@@ -374,7 +374,7 @@ impl UMAP<Untrained> {
         let n_samples = x.nrows();
         let mut rng = match self.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::seed_from_u64(thread_rng().gen()),
+            None => StdRng::seed_from_u64(thread_rng().random()),
         };
 
         match self.init.as_str() {
@@ -414,7 +414,7 @@ impl UMAP<Untrained> {
         let n_samples = embedding.nrows();
         let mut rng = match self.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::seed_from_u64(thread_rng().gen()),
+            None => StdRng::seed_from_u64(thread_rng().random()),
         };
 
         for epoch in 0..n_epochs {
@@ -440,8 +440,8 @@ impl UMAP<Untrained> {
 
             // Repulsive forces (negative sampling)
             for _ in 0..(n_samples * self.negative_sample_rate) {
-                let i = rng.gen_range(0..n_samples);
-                let j = rng.gen_range(0..n_samples);
+                let i = rng.random_range(0..n_samples);
+                let j = rng.random_range(0..n_samples);
 
                 if i != j {
                     let dist_sq = self.squared_distance(&embedding.row(i), &embedding.row(j));

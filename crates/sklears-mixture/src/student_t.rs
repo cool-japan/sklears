@@ -86,12 +86,15 @@ impl StudentTMixture<Untrained> {
     }
 
     /// Set the degrees of freedom for each component
-    pub fn degrees_of_freedom(mut self, degrees_of_freedom: Vec<f64>) -> Self {
+    pub fn degrees_of_freedom(mut self, degrees_of_freedom: Vec<f64>) -> SklResult<Self> {
         if degrees_of_freedom.iter().any(|&df| df <= 2.0) {
-            panic!("Degrees of freedom must be > 2.0 for finite variance");
+            return Err(SklearsError::InvalidParameter {
+                name: "degrees_of_freedom".to_string(),
+                reason: "all values must be > 2.0 for finite variance".to_string(),
+            });
         }
         self.degrees_of_freedom = degrees_of_freedom;
-        self
+        Ok(self)
     }
 
     /// Set the covariance type
@@ -190,7 +193,9 @@ impl StudentTMixture<Untrained> {
 
     fn compute_sample_covariance(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, n_features) = X.dim();
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         let mut cov = Array2::zeros((n_features, n_features));
         for i in 0..n_samples {
@@ -213,7 +218,9 @@ impl StudentTMixture<Untrained> {
 
     fn compute_sample_variance(&self, X: &Array2<f64>) -> SklResult<Array1<f64>> {
         let (n_samples, n_features) = X.dim();
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         let mut var = Array1::zeros(n_features);
         for i in 0..n_samples {
@@ -767,7 +774,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for StudentTMixture<Untrained> {
             }
         }
 
-        let (weights, means, covariances) = best_params.unwrap();
+        let (weights, means, covariances) = best_params.expect("operation should succeed");
 
         // Calculate model selection criteria
         let n_params =

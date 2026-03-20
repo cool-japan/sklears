@@ -31,7 +31,7 @@ mod tests {
             [1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0], [11.0, 12.0]
         ];
         let y = array![1.0, 0.0, 1.0, 0.0, 1.0, 0.0];
-        let folds = cv.create_folds(&x, &y).unwrap();
+        let folds = cv.create_folds(&x, &y).expect("operation should succeed");
         assert_eq!(folds.len(), 3);
         for (train_indices, val_indices) in &folds {
             assert!(! train_indices.is_empty());
@@ -51,7 +51,7 @@ mod tests {
         let cv = EnsembleCrossValidator::new(config);
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let y = array![0.0, 0.0, 1.0, 1.0];
-        let folds = cv.create_folds(&x, &y).unwrap();
+        let folds = cv.create_folds(&x, &y).expect("operation should succeed");
         assert_eq!(folds.len(), 2);
     }
     #[test]
@@ -96,7 +96,7 @@ mod tests {
         let cv = EnsembleCrossValidator::new(config);
         let x = array![[1.0], [2.0], [3.0], [4.0], [5.0], [6.0], [7.0], [8.0]];
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let folds = cv.create_folds(&x, &y).unwrap();
+        let folds = cv.create_folds(&x, &y).expect("operation should succeed");
         let mut prev_train_size = 0;
         for (train_indices, _) in &folds {
             assert!(train_indices.len() >= prev_train_size);
@@ -145,7 +145,7 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0];
         let (x_bootstrap, y_bootstrap) = analyzer
             .generate_bootstrap_sample(&x, &y, 0)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(x_bootstrap.ncols(), x.ncols());
         assert_eq!(y_bootstrap.len(), x_bootstrap.nrows());
     }
@@ -210,14 +210,14 @@ mod tests {
     fn test_cohens_kappa_calculation() {
         let pred1 = vec![0, 1, 0, 1, 1, 0];
         let pred2 = vec![0, 1, 1, 1, 0, 0];
-        let kappa = DiversityAnalyzer::compute_pairwise_kappa(&pred1, &pred2).unwrap();
+        let kappa = DiversityAnalyzer::compute_pairwise_kappa(&pred1, &pred2).expect("operation should succeed");
         assert!(kappa >= - 1.0 && kappa <= 1.0);
     }
     #[test]
     fn test_fleiss_kappa_calculation() {
         let predictions = vec![vec![0, 1, 0, 1], vec![0, 1, 1, 1], vec![1, 1, 0, 0]];
         let fleiss_kappa = DiversityAnalyzer::compute_fleiss_kappa(&predictions)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(fleiss_kappa >= - 1.0 && fleiss_kappa <= 1.0);
     }
     #[test]
@@ -231,7 +231,7 @@ mod tests {
         let pred1 = vec![1, 2, 3, 4, 5];
         let pred2 = vec![2, 4, 6, 8, 10];
         let correlation = DiversityAnalyzer::compute_pearson_correlation(&pred1, &pred2)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((correlation - 1.0).abs() < 0.001);
     }
     #[test]
@@ -269,7 +269,7 @@ mod tests {
                 &predictions,
                 &ground_truth,
             )
-            .unwrap();
+            .expect("operation should succeed");
         assert!(
             diversity_metrics.disagreement >= 0.0 && diversity_metrics.disagreement <=
             1.0
@@ -292,9 +292,9 @@ mod tests {
     fn test_perfect_agreement_kappa() {
         let predictions = vec![vec![0, 1, 0, 1], vec![0, 1, 0, 1], vec![0, 1, 0, 1]];
         let cohens_kappa = DiversityAnalyzer::compute_cohens_kappa(&predictions)
-            .unwrap();
+            .expect("operation should succeed");
         let fleiss_kappa = DiversityAnalyzer::compute_fleiss_kappa(&predictions)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((cohens_kappa - 1.0).abs() < 0.001);
         assert!((fleiss_kappa - 1.0).abs() < 0.001);
     }
@@ -302,7 +302,7 @@ mod tests {
     fn test_zero_agreement_kappa() {
         let predictions = vec![vec![0, 0, 0, 0], vec![1, 1, 1, 1]];
         let cohens_kappa = DiversityAnalyzer::compute_cohens_kappa(&predictions)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(cohens_kappa <= 0.0);
     }
 }

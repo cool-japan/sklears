@@ -360,8 +360,10 @@ mod tests {
 
     #[test]
     fn test_extract_patches_2d() {
-        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect()).unwrap();
-        let patches = extract_patches_2d(&image.view(), (2, 2), None, None).unwrap();
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+        let patches = extract_patches_2d(&image.view(), (2, 2), None, None)
+            .expect("operation should succeed");
 
         assert_eq!(patches.dim(), (9, 2, 2)); // 3x3 possible positions
         assert_eq!(patches[[0, 0, 0]], 0.0); // Top-left patch, top-left pixel
@@ -369,8 +371,10 @@ mod tests {
 
     #[test]
     fn test_extract_patches_max_limit() {
-        let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect()).unwrap();
-        let patches = extract_patches_2d(&image.view(), (2, 2), Some(5), None).unwrap();
+        let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+        let patches = extract_patches_2d(&image.view(), (2, 2), Some(5), None)
+            .expect("operation should succeed");
 
         assert_eq!(patches.dim().0, 5); // Should limit to 5 patches
     }
@@ -389,9 +393,12 @@ mod tests {
 
     #[test]
     fn test_reconstruct_from_patches() {
-        let original = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect()).unwrap();
-        let patches = extract_patches_2d(&original.view(), (2, 2), None, None).unwrap();
-        let reconstructed = reconstruct_from_patches_2d(&patches.view(), (4, 4)).unwrap();
+        let original = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+        let patches = extract_patches_2d(&original.view(), (2, 2), None, None)
+            .expect("operation should succeed");
+        let reconstructed =
+            reconstruct_from_patches_2d(&patches.view(), (4, 4)).expect("operation should succeed");
 
         assert_eq!(reconstructed.dim(), (4, 4));
         // Due to overlapping and averaging, exact reconstruction may not match
@@ -400,7 +407,8 @@ mod tests {
 
     #[test]
     fn test_invalid_patch_size() {
-        let image = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let image = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let result = extract_patches_2d(&image.view(), (3, 3), None, None);
 
         assert!(result.is_err());
@@ -409,7 +417,8 @@ mod tests {
     #[test]
     fn test_empty_image_reconstruction() {
         let patches = Array3::zeros((0, 2, 2));
-        let result = reconstruct_from_patches_2d(&patches.view(), (4, 4)).unwrap();
+        let result =
+            reconstruct_from_patches_2d(&patches.view(), (4, 4)).expect("operation should succeed");
 
         assert_eq!(result.dim(), (4, 4));
         assert!(result.iter().all(|&x| x == 0.0));
@@ -433,16 +442,18 @@ mod tests {
                 16.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Extract patches with size 2x2 (will have overlapping regions)
-        let patches = extract_patches_2d(&image.view(), (2, 2), None, None).unwrap();
+        let patches = extract_patches_2d(&image.view(), (2, 2), None, None)
+            .expect("operation should succeed");
 
         // Should have 9 patches (3x3 grid)
         assert_eq!(patches.dim(), (9, 2, 2));
 
         // Reconstruct
-        let reconstructed = reconstruct_from_patches_2d(&patches.view(), (4, 4)).unwrap();
+        let reconstructed =
+            reconstruct_from_patches_2d(&patches.view(), (4, 4)).expect("operation should succeed");
 
         // Due to averaging of overlapping regions, the reconstruction should be close
         // Corner pixels appear in 1 patch, edge pixels in 2 patches, center pixels in 4 patches
@@ -464,15 +475,18 @@ mod tests {
     fn test_reconstruct_exact_coverage() {
         // Test reconstruction when patches exactly tile the image (no overlap)
         // Create a 4x4 image
-        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect()).unwrap();
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         // Extract 2x2 patches - this will give us overlapping patches in raster scan order
-        let patches = extract_patches_2d(&image.view(), (2, 2), None, None).unwrap();
+        let patches = extract_patches_2d(&image.view(), (2, 2), None, None)
+            .expect("operation should succeed");
 
         // We get 9 patches from a 4x4 image with 2x2 patches (3x3 grid of positions)
         assert_eq!(patches.dim(), (9, 2, 2));
 
-        let reconstructed = reconstruct_from_patches_2d(&patches.view(), (4, 4)).unwrap();
+        let reconstructed =
+            reconstruct_from_patches_2d(&patches.view(), (4, 4)).expect("operation should succeed");
 
         // Reconstruction should be close to original (averaging overlaps)
         assert_eq!(reconstructed.dim(), (4, 4));
@@ -487,9 +501,11 @@ mod tests {
     #[test]
     fn test_reconstruct_single_patch() {
         // Edge case: reconstruct from a single 2x2 patch
-        let patch = Array3::from_shape_vec((1, 2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let patch = Array3::from_shape_vec((1, 2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
-        let reconstructed = reconstruct_from_patches_2d(&patch.view(), (2, 2)).unwrap();
+        let reconstructed =
+            reconstruct_from_patches_2d(&patch.view(), (2, 2)).expect("operation should succeed");
 
         // Single patch placed at (0,0) should perfectly reconstruct the 2x2 image
         assert_eq!(reconstructed.dim(), (2, 2));

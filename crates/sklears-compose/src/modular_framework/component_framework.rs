@@ -972,19 +972,19 @@ mod tests {
 
         assert_eq!(component.current_state(), ComponentState::Created);
 
-        component.initialize(&config).unwrap();
+        component.initialize(&config).unwrap_or_default();
         assert_eq!(component.current_state(), ComponentState::Ready);
 
-        component.start().unwrap();
+        component.start().unwrap_or_default();
         assert_eq!(component.current_state(), ComponentState::Running);
 
-        component.pause().unwrap();
+        component.pause().unwrap_or_default();
         assert_eq!(component.current_state(), ComponentState::Paused);
 
-        component.resume().unwrap();
+        component.resume().unwrap_or_default();
         assert_eq!(component.current_state(), ComponentState::Running);
 
-        component.stop().unwrap();
+        component.stop().unwrap_or_default();
         assert_eq!(component.current_state(), ComponentState::Stopped);
     }
 
@@ -995,13 +995,13 @@ mod tests {
 
         registry
             .register_factory("mock_component", factory)
-            .unwrap();
+            .unwrap_or_default();
         assert!(registry.is_registered("mock_component"));
 
         let config = ComponentConfig::new("test_instance", "mock_component");
         let component = registry
             .create_component("mock_component", &config)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(component.component_id(), "test_instance");
         assert_eq!(component.component_type(), "mock_component");

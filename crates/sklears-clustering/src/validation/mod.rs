@@ -482,31 +482,43 @@ mod tests {
         let validator = ClusteringValidator::euclidean();
 
         // Test internal validation
-        let silhouette = validator.silhouette_analysis(&data, &labels).unwrap();
+        let silhouette = validator
+            .silhouette_analysis(&data, &labels)
+            .expect("operation should succeed");
         assert!(silhouette.mean_silhouette >= -1.0 && silhouette.mean_silhouette <= 1.0);
 
-        let ch_index = validator.calinski_harabasz_index(&data, &labels).unwrap();
+        let ch_index = validator
+            .calinski_harabasz_index(&data, &labels)
+            .expect("operation should succeed");
         assert!(ch_index >= 0.0);
 
-        let db_index = validator.davies_bouldin_index(&data, &labels).unwrap();
+        let db_index = validator
+            .davies_bouldin_index(&data, &labels)
+            .expect("operation should succeed");
         assert!(db_index >= 0.0);
 
         // Test external validation
         let ari = validator
             .internal_validator
             .adjusted_rand_index(&labels, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((ari - 1.0).abs() < 1e-10); // Perfect match
 
         // Test coherence and separation
-        let coherence = validator.cluster_coherence(&data, &labels).unwrap();
+        let coherence = validator
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
         assert!(coherence.overall_coherence >= 0.0);
 
-        let separation = validator.cluster_separation(&data, &labels).unwrap();
+        let separation = validator
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
         assert!(separation.gap_ratio >= 0.0);
 
         // Test automated validation
-        let result = validator.quick_validation(&data, &labels).unwrap();
+        let result = validator
+            .quick_validation(&data, &labels)
+            .expect("operation should succeed");
         assert!(result.internal_quality_score >= 0.0 && result.internal_quality_score <= 1.0);
     }
 
@@ -515,19 +527,20 @@ mod tests {
         let data = array![[1.0, 2.0], [1.5, 1.8], [5.0, 8.0], [5.2, 7.8],];
         let labels = vec![0, 0, 1, 1];
 
-        let sil_score = silhouette_score(&data, &labels).unwrap();
+        let sil_score = silhouette_score(&data, &labels).expect("operation should succeed");
         assert!(sil_score >= -1.0 && sil_score <= 1.0);
 
-        let ch_score = calinski_harabasz_score(&data, &labels).unwrap();
+        let ch_score = calinski_harabasz_score(&data, &labels).expect("operation should succeed");
         assert!(ch_score >= 0.0);
 
-        let db_score = davies_bouldin_score(&data, &labels).unwrap();
+        let db_score = davies_bouldin_score(&data, &labels).expect("operation should succeed");
         assert!(db_score >= 0.0);
 
-        let ari_score = adjusted_rand_score(&labels, &labels).unwrap();
+        let ari_score = adjusted_rand_score(&labels, &labels).expect("operation should succeed");
         assert!((ari_score - 1.0).abs() < 1e-10);
 
-        let nmi_score = normalized_mutual_info_score(&labels, &labels).unwrap();
+        let nmi_score =
+            normalized_mutual_info_score(&labels, &labels).expect("operation should succeed");
         assert!((nmi_score - 1.0).abs() < 1e-10);
     }
 
@@ -542,13 +555,13 @@ mod tests {
 
         let euc_sil = euclidean_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let man_sil = manhattan_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let cos_sil = cosine_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // All should produce valid results
         assert!(euc_sil.mean_silhouette >= -1.0 && euc_sil.mean_silhouette <= 1.0);

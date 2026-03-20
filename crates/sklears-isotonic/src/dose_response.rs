@@ -326,7 +326,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
     ) -> Result<(Array1<Float>, Array1<Float>, Array1<Float>)> {
         // Sort by dose
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut sorted_responses: Array1<Float> =
@@ -408,7 +408,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
             // Sort by dose
             let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-            sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
             let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
 
@@ -437,7 +437,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
                         .iter()
                         .map(|&idx| responses[idx])
                         .nth(i)
-                        .unwrap();
+                        ?;
                     let pred = predicted_responses[i];
                     let error = target - pred;
 
@@ -460,7 +460,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
                         .iter()
                         .map(|&idx| responses[idx])
                         .nth(i)
-                        .unwrap();
+                        ?;
                     let pred = predicted_responses[i];
                     let error = target - pred;
 
@@ -488,7 +488,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
         // Generate final fitted values
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let fitted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut fitted_responses: Array1<Float> = fitted_doses.mapv(|d| {
@@ -533,7 +533,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
             // Sort by dose
             let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-            sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
             let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
 
@@ -564,7 +564,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
         // Generate final fitted values
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let fitted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut fitted_responses: Array1<Float> = fitted_doses.mapv(|d| {
@@ -620,7 +620,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
             // Sort by dose
             let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-            sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+            sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
             let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
 
@@ -647,7 +647,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
         // Generate final fitted values
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let fitted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut fitted_responses: Array1<Float> = fitted_doses.mapv(|d| {
@@ -683,7 +683,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
         // Sort by dose
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut fitted_responses: Array1<Float> =
@@ -716,7 +716,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
         // Sort by dose
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut fitted_responses: Array1<Float> = sorted_doses.mapv(|d| {
@@ -754,7 +754,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
         // Sort by dose
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut fitted_responses: Array1<Float> = sorted_doses.mapv(|d| {
@@ -796,7 +796,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
 
         // Sort by dose
         let mut sorted_indices: Vec<usize> = (0..doses.len()).collect();
-        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| doses[i].partial_cmp(&doses[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_doses: Array1<Float> = sorted_indices.iter().map(|&i| doses[i]).collect();
         let mut fitted_responses: Array1<Float> = sorted_doses.mapv(|d| {
@@ -828,7 +828,7 @@ impl DoseResponseIsotonicRegression<Untrained> {
         doses: &Array1<Float>,
         responses: &Array1<Float>,
     ) -> Result<Array1<Float>> {
-        let method = self.benchmark_method.unwrap();
+        let method = self.benchmark_method.ok_or_else(|| SklearsError::NumericalError("benchmark_method not set".into()))?;
 
         let target_response = match method {
             BenchmarkDoseMethod::BMD10 => {
@@ -1096,8 +1096,8 @@ pub fn monotonic_dose_response_curve(
     let model = DoseResponseIsotonicRegression::new().model_type(model_type);
     let fitted_model = model.fit(doses, responses)?;
 
-    let fitted_doses = fitted_model.fitted_doses.unwrap();
-    let fitted_responses = fitted_model.fitted_responses.unwrap();
+    let fitted_doses = fitted_model.fitted_doses?;
+    let fitted_responses = fitted_model.fitted_responses?;
 
     Ok((fitted_doses, fitted_responses))
 }
@@ -1114,9 +1114,9 @@ pub fn benchmark_dose_estimation(
         .benchmark_method(benchmark_method);
     let fitted_model = model.fit(doses, responses)?;
 
-    let fitted_doses = fitted_model.fitted_doses.unwrap();
-    let fitted_responses = fitted_model.fitted_responses.unwrap();
-    let benchmark_doses = fitted_model.benchmark_doses.unwrap();
+    let fitted_doses = fitted_model.fitted_doses?;
+    let fitted_responses = fitted_model.fitted_responses?;
+    let benchmark_doses = fitted_model.benchmark_doses?;
 
     Ok((fitted_doses, fitted_responses, benchmark_doses))
 }
@@ -1135,10 +1135,10 @@ pub fn toxicological_modeling(
 
     let fitted_model = model.fit(doses, responses)?;
 
-    let fitted_doses = fitted_model.fitted_doses.unwrap();
-    let fitted_responses = fitted_model.fitted_responses.unwrap();
-    let benchmark_doses = fitted_model.benchmark_doses.unwrap();
-    let confidence_intervals = fitted_model.confidence_intervals.unwrap();
+    let fitted_doses = fitted_model.fitted_doses?;
+    let fitted_responses = fitted_model.fitted_responses?;
+    let benchmark_doses = fitted_model.benchmark_doses?;
+    let confidence_intervals = fitted_model.confidence_intervals?;
 
     Ok((
         fitted_doses,
@@ -1160,9 +1160,9 @@ pub fn pharmacokinetic_modeling(
 
     let fitted_model = model.fit(doses, responses)?;
 
-    let fitted_doses = fitted_model.fitted_doses.unwrap();
-    let fitted_responses = fitted_model.fitted_responses.unwrap();
-    let model_parameters = fitted_model.model_parameters.unwrap();
+    let fitted_doses = fitted_model.fitted_doses?;
+    let fitted_responses = fitted_model.fitted_responses?;
+    let model_parameters = fitted_model.model_parameters?;
 
     Ok((fitted_doses, fitted_responses, model_parameters))
 }
@@ -1180,9 +1180,9 @@ pub fn efficacy_modeling(
 
     let fitted_model = model.fit(doses, responses)?;
 
-    let fitted_doses = fitted_model.fitted_doses.unwrap();
-    let fitted_responses = fitted_model.fitted_responses.unwrap();
-    let model_parameters = fitted_model.model_parameters.unwrap();
+    let fitted_doses = fitted_model.fitted_doses?;
+    let fitted_responses = fitted_model.fitted_responses?;
+    let model_parameters = fitted_model.model_parameters?;
 
     Ok((fitted_doses, fitted_responses, model_parameters))
 }
@@ -1443,7 +1443,7 @@ mod tests {
             .confidence_level(0.95);
 
         let fitted_model = model.fit(&doses, &responses)?;
-        let confidence_intervals = fitted_model.confidence_intervals().unwrap();
+        let confidence_intervals = fitted_model.confidence_intervals().expect("operation should succeed");
 
         assert_eq!(confidence_intervals.shape(), [5, 2]);
 

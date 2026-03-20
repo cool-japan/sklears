@@ -447,7 +447,7 @@ mod tests {
     #[test]
     fn test_cholesky_decomposition() {
         let matrix = array![[4.0, 2.0], [2.0, 3.0]];
-        let l = KernelOps::cholesky_with_jitter(&matrix, 0.0).unwrap();
+        let l = KernelOps::cholesky_with_jitter(&matrix, 0.0).expect("operation should succeed");
 
         // Verify L * L^T = original matrix
         let reconstructed = l.dot(&l.t());

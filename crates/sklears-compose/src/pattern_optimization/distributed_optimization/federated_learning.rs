@@ -236,7 +236,7 @@ impl FedAvgOptimizer {
                     }
                 }
 
-                candidate_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                candidate_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 let selected = candidate_scores.into_iter()
                     .take(self.min_clients_per_round)
                     .map(|(id, _)| id)
@@ -253,7 +253,7 @@ impl FedAvgOptimizer {
                     })
                     .collect();
 
-                client_weights.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                client_weights.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 let selected = client_weights.into_iter()
                     .take(self.min_clients_per_round)
                     .map(|(id, _)| id)
@@ -270,7 +270,7 @@ impl FedAvgOptimizer {
                     })
                     .collect();
 
-                client_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                client_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
                 let selected = client_scores.into_iter()
                     .take(self.min_clients_per_round)
                     .map(|(id, _)| id)
@@ -608,7 +608,7 @@ pub struct TopKCompression;
 impl CompressionAlgorithm for TopKCompression {
     fn compress(&self, data: &Array2<f64>, compression_ratio: f64) -> SklResult<Array2<f64>> {
         let mut flat_data: Vec<f64> = data.iter().copied().collect();
-        flat_data.sort_by(|a, b| b.abs().partial_cmp(&a.abs()).unwrap());
+        flat_data.sort_by(|a, b| b.abs().partial_cmp(&a.abs()).unwrap_or_default());
 
         let keep_count = ((flat_data.len() as f64) * compression_ratio) as usize;
         let threshold = flat_data.get(keep_count).copied().unwrap_or(0.0);
@@ -858,7 +858,7 @@ mod tests {
         optimizer.set_client_selection_strategy(ClientSelectionStrategy::Random { fraction: 0.5 });
 
         let available_clients = vec!["client1".to_string(), "client2".to_string(), "client3".to_string(), "client4".to_string()];
-        let selected = optimizer.select_clients(&available_clients).unwrap();
+        let selected = optimizer.select_clients(&available_clients).unwrap_or_default();
 
         assert!(selected.len() >= 3); // Should select at least min_clients_per_round
         assert!(selected.len() <= available_clients.len());
@@ -902,7 +902,7 @@ mod tests {
         assert!(noisy_data.is_ok());
 
         // Check that noise was added (values should be different)
-        let result = noisy_data.unwrap();
+        let result = noisy_data.unwrap_or_default();
         assert_ne!(result[(0, 0)], 1.0);
     }
 

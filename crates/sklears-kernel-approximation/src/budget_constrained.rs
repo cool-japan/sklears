@@ -693,7 +693,7 @@ mod tests {
     #[test]
     fn test_budget_constrained_rbf_sampler() {
         let x = Array2::from_shape_vec((100, 4), (0..400).map(|i| (i as f64) * 0.01).collect())
-            .unwrap();
+            .expect("operation should succeed");
 
         let config = BudgetConstrainedConfig {
             budget: BudgetConstraint::Time { max_seconds: 5.0 },
@@ -706,8 +706,8 @@ mod tests {
 
         let sampler = BudgetConstrainedRBFSampler::new().gamma(0.5).config(config);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 100);
         assert!(fitted.optimal_components() >= 10);
@@ -718,8 +718,8 @@ mod tests {
 
     #[test]
     fn test_budget_constrained_nystroem() {
-        let x =
-            Array2::from_shape_vec((80, 3), (0..240).map(|i| (i as f64) * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((80, 3), (0..240).map(|i| (i as f64) * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = BudgetConstrainedConfig {
             budget: BudgetConstraint::Memory { max_bytes: 100000 },
@@ -732,8 +732,8 @@ mod tests {
 
         let nystroem = BudgetConstrainedNystroem::new().gamma(1.0).config(config);
 
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 80);
         assert!(fitted.optimal_components() >= 5);
@@ -743,8 +743,8 @@ mod tests {
 
     #[test]
     fn test_budget_constraint_types() {
-        let x =
-            Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.05).collect())
+            .expect("operation should succeed");
 
         let constraints = vec![
             BudgetConstraint::Time { max_seconds: 10.0 },
@@ -773,7 +773,7 @@ mod tests {
                 .gamma(0.8)
                 .config(config.clone());
 
-            let fitted = sampler.fit(&x, &()).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
             let usage = fitted.budget_usage();
 
             // Verify budget constraints are respected
@@ -786,8 +786,8 @@ mod tests {
 
     #[test]
     fn test_optimization_strategies() {
-        let x =
-            Array2::from_shape_vec((60, 3), (0..180).map(|i| (i as f64) * 0.03).collect()).unwrap();
+        let x = Array2::from_shape_vec((60, 3), (0..180).map(|i| (i as f64) * 0.03).collect())
+            .expect("operation should succeed");
 
         let strategies = vec![
             OptimizationStrategy::MaxQuality,
@@ -814,7 +814,7 @@ mod tests {
 
             let sampler = BudgetConstrainedRBFSampler::new().gamma(0.5).config(config);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
 
             assert!(fitted.optimal_components() >= 10);
             assert!(fitted.optimal_components() <= 30);
@@ -848,8 +848,8 @@ mod tests {
 
     #[test]
     fn test_early_stopping() {
-        let x =
-            Array2::from_shape_vec((40, 2), (0..80).map(|i| (i as f64) * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((40, 2), (0..80).map(|i| (i as f64) * 0.05).collect())
+            .expect("operation should succeed");
 
         let config = BudgetConstrainedConfig {
             budget: BudgetConstraint::Time { max_seconds: 10.0 },
@@ -863,7 +863,9 @@ mod tests {
 
         let sampler = BudgetConstrainedRBFSampler::new().gamma(0.3).config(config);
 
-        let result = sampler.find_optimal_config(&x).unwrap();
+        let result = sampler
+            .find_optimal_config(&x)
+            .expect("operation should succeed");
 
         // Should find a reasonable solution
         assert!(result.optimal_components >= 5);
@@ -873,8 +875,8 @@ mod tests {
 
     #[test]
     fn test_reproducibility() {
-        let x =
-            Array2::from_shape_vec((50, 3), (0..150).map(|i| (i as f64) * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 3), (0..150).map(|i| (i as f64) * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = BudgetConstrainedConfig {
             budget: BudgetConstraint::Time { max_seconds: 3.0 },
@@ -892,8 +894,8 @@ mod tests {
 
         let sampler2 = BudgetConstrainedRBFSampler::new().gamma(0.7).config(config);
 
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
 
         assert_eq!(fitted1.optimal_components(), fitted2.optimal_components());
         assert_abs_diff_eq!(

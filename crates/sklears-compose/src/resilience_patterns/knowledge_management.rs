@@ -627,7 +627,7 @@ impl KnowledgeManagementCore {
         knowledge_request: AddKnowledgeRequest,
     ) -> Result<AddKnowledgeResult> {
         // Validate knowledge entry
-        let validator = self.knowledge_validator.read().unwrap();
+        let validator = self.knowledge_validator.read().unwrap_or_else(|e| e.into_inner());
         let validation_result = validator.validate_knowledge(&knowledge_request.knowledge)?;
         drop(validator);
 
@@ -641,12 +641,12 @@ impl KnowledgeManagementCore {
         }
 
         // Extract and enhance knowledge
-        let mut learning_engine = self.learning_engine.write().unwrap();
+        let mut learning_engine = self.learning_engine.write().unwrap_or_else(|e| e.into_inner());
         let enhanced_knowledge = learning_engine.enhance_knowledge(&knowledge_request.knowledge)?;
         drop(learning_engine);
 
         // Add to knowledge base
-        let mut kb = self.knowledge_base.write().unwrap();
+        let mut kb = self.knowledge_base.write().unwrap_or_else(|e| e.into_inner());
         let knowledge_id = kb.add_entry(enhanced_knowledge)?;
         drop(kb);
 
@@ -669,7 +669,7 @@ impl KnowledgeManagementCore {
         &self,
         search_request: KnowledgeSearchRequest,
     ) -> Result<KnowledgeSearchResult> {
-        let search_engine = self.search_engine.read().unwrap();
+        let search_engine = self.search_engine.read().unwrap_or_else(|e| e.into_inner());
 
         // Process query
         let processed_query = search_engine.query_processor.process_query(&search_request.query)?;
@@ -717,7 +717,7 @@ impl KnowledgeManagementCore {
         &self,
         recommendation_request: RecommendationRequest,
     ) -> Result<RecommendationResult> {
-        let recommender = self.recommendation_system.read().unwrap();
+        let recommender = self.recommendation_system.read().unwrap_or_else(|e| e.into_inner());
 
         // Generate recommendations based on type
         let recommendations = match recommendation_request.recommendation_type {
@@ -763,7 +763,7 @@ impl KnowledgeManagementCore {
         &self,
         experience: ExperienceData,
     ) -> Result<LearningResult> {
-        let mut learning_engine = self.learning_engine.write().unwrap();
+        let mut learning_engine = self.learning_engine.write().unwrap_or_else(|e| e.into_inner());
 
         // Collect and process experience
         learning_engine.experience_collector.collect_experience(&experience)?;
@@ -813,7 +813,7 @@ impl KnowledgeManagementCore {
         &self,
         consultation_request: ConsultationRequest,
     ) -> Result<ConsultationResult> {
-        let expert_system = self.expert_system.read().unwrap();
+        let expert_system = self.expert_system.read().unwrap_or_else(|e| e.into_inner());
 
         // Process consultation request
         let processed_request = expert_system.consultation_system.process_request(&consultation_request)?;
@@ -848,7 +848,7 @@ impl KnowledgeManagementCore {
         &self,
         discovery_request: DiscoveryRequest,
     ) -> Result<DiscoveryResult> {
-        let mut discovery_system = self.discovery_system.write().unwrap();
+        let mut discovery_system = self.discovery_system.write().unwrap_or_else(|e| e.into_inner());
 
         // Mine data for patterns
         let mining_results = discovery_system.data_mining.mine_patterns(&discovery_request)?;
@@ -894,7 +894,7 @@ impl KnowledgeManagementCore {
         domain: String,
         context: Option<PracticeContext>,
     ) -> Result<BestPracticesResult> {
-        let practices_manager = self.best_practices.read().unwrap();
+        let practices_manager = self.best_practices.read().unwrap_or_else(|e| e.into_inner());
 
         // Get practices for domain
         let domain_practices = practices_manager.practices_catalog.get_practices_for_domain(&domain)?;
@@ -929,9 +929,9 @@ impl KnowledgeManagementCore {
 
     /// Get system health status
     pub fn get_health_status(&self) -> Result<KnowledgeSystemHealthReport> {
-        let state = self.state.read().unwrap();
-        let kb = self.knowledge_base.read().unwrap();
-        let learning = self.learning_engine.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let kb = self.knowledge_base.read().unwrap_or_else(|e| e.into_inner());
+        let learning = self.learning_engine.read().unwrap_or_else(|e| e.into_inner());
 
         let health_report = KnowledgeSystemHealthReport {
             system_health: state.health.clone(),
@@ -951,7 +951,7 @@ impl KnowledgeManagementCore {
 
     /// Helper methods
     async fn update_semantic_index(&self, knowledge_id: &str) -> Result<()> {
-        let mut kb = self.knowledge_base.write().unwrap();
+        let mut kb = self.knowledge_base.write().unwrap_or_else(|e| e.into_inner());
         kb.semantic_index.update_index(knowledge_id)?;
         drop(kb);
 
@@ -1119,7 +1119,7 @@ mod tests {
     #[tokio::test]
     async fn test_knowledge_search() {
         let config = KnowledgeConfig::default();
-        let system = KnowledgeManagementCore::new(config).unwrap();
+        let system = KnowledgeManagementCore::new(config).unwrap_or_default();
 
         let search_request = KnowledgeSearchRequest {
             query: "resilience patterns".to_string(),

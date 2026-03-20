@@ -240,14 +240,17 @@ impl Pipeline {
         let start_time = Instant::now();
         self.state = PipelineState::Running;
 
-        let mut metrics = self.metrics.lock().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         metrics.execution_count += 1;
         metrics.last_execution_start = Some(start_time);
         drop(metrics);
 
         // Initialize execution context
         {
-            let mut context = self.execution_context.write().unwrap();
+            let mut context = self
+                .execution_context
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             context.input_data = input_data;
             context.execution_id = uuid::Uuid::new_v4().to_string();
             context.start_time = start_time;
@@ -263,7 +266,7 @@ impl Pipeline {
         let execution_duration = end_time.duration_since(start_time);
 
         // Update metrics
-        let mut metrics = self.metrics.lock().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         metrics.last_execution_end = Some(end_time);
         metrics.total_execution_time += execution_duration;
 
@@ -282,7 +285,10 @@ impl Pipeline {
     async fn execute_sequential(&mut self) -> SklResult<PipelineResult> {
         let mut stage_results = Vec::new();
         let mut current_data = {
-            let context = self.execution_context.read().unwrap();
+            let context = self
+                .execution_context
+                .read()
+                .unwrap_or_else(|e| e.into_inner());
             context.input_data.clone()
         };
 
@@ -317,7 +323,10 @@ impl Pipeline {
             stage_results,
             final_output: current_data,
             execution_time: {
-                let context = self.execution_context.read().unwrap();
+                let context = self
+                    .execution_context
+                    .read()
+                    .unwrap_or_else(|e| e.into_inner());
                 context.start_time.elapsed()
             },
             error: None,
@@ -490,7 +499,7 @@ impl Pipeline {
     /// Get pipeline metrics
     #[must_use]
     pub fn get_metrics(&self) -> PipelineMetrics {
-        let metrics = self.metrics.lock().unwrap();
+        let metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         metrics.clone()
     }
 
@@ -1176,7 +1185,7 @@ mod tests {
             .build();
 
         assert!(pipeline.is_ok());
-        let pipeline = pipeline.unwrap();
+        let pipeline = pipeline.expect("operation should succeed");
         assert_eq!(pipeline.stages.len(), 1);
         assert_eq!(pipeline.error_strategy, ErrorHandlingStrategy::FailFast);
     }

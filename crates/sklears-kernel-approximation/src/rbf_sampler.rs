@@ -2,7 +2,7 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::{Normal as RandNormal, Uniform as RandUniform};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_core::Cauchy;
 use sklears_core::{
@@ -112,7 +112,7 @@ impl Fit<Array2<Float>, ()> for RBFSampler<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Sample random weights from N(0, 2*gamma)
@@ -292,7 +292,7 @@ impl Fit<Array2<Float>, ()> for LaplacianSampler<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Sample random weights from Cauchy distribution (location=0, scale=gamma)
@@ -498,7 +498,7 @@ impl Fit<Array2<Float>, ()> for PolynomialSampler<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // For polynomial kernels, we use a different approach:
@@ -709,7 +709,7 @@ impl Fit<Array2<Float>, ()> for ArcCosineSampler<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Sample random weights from standard normal distribution
@@ -800,8 +800,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
         let rbf = RBFSampler::new(50).gamma(0.1);
-        let fitted = rbf.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = rbf.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[3, 50]);
 
@@ -816,12 +816,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let rbf1 = RBFSampler::new(10).random_state(42);
-        let fitted1 = rbf1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = rbf1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let rbf2 = RBFSampler::new(10).random_state(42);
-        let fitted2 = rbf2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = rbf2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be identical with same random state
         for (a, b) in result1.iter().zip(result2.iter()) {
@@ -838,7 +838,7 @@ mod tests {
         ];
 
         let rbf = RBFSampler::new(10);
-        let fitted = rbf.fit(&x_train, &()).unwrap();
+        let fitted = rbf.fit(&x_train, &()).expect("operation should succeed");
         let result = fitted.transform(&x_test);
 
         assert!(result.is_err());
@@ -865,8 +865,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
         let laplacian = LaplacianSampler::new(50).gamma(0.1);
-        let fitted = laplacian.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = laplacian.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[3, 50]);
 
@@ -881,12 +881,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let laplacian1 = LaplacianSampler::new(10).random_state(42);
-        let fitted1 = laplacian1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = laplacian1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let laplacian2 = LaplacianSampler::new(10).random_state(42);
-        let fitted2 = laplacian2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = laplacian2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be identical with same random state
         for (a, b) in result1.iter().zip(result2.iter()) {
@@ -903,7 +903,9 @@ mod tests {
         ];
 
         let laplacian = LaplacianSampler::new(10);
-        let fitted = laplacian.fit(&x_train, &()).unwrap();
+        let fitted = laplacian
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
 
         assert!(result.is_err());
@@ -930,8 +932,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
         let poly = PolynomialSampler::new(50).degree(3).gamma(1.0).coef0(1.0);
-        let fitted = poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[3, 50]);
 
@@ -946,12 +948,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let poly1 = PolynomialSampler::new(10).degree(2).random_state(42);
-        let fitted1 = poly1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = poly1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let poly2 = PolynomialSampler::new(10).degree(2).random_state(42);
-        let fitted2 = poly2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = poly2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be identical with same random state
         for (a, b) in result1.iter().zip(result2.iter()) {
@@ -968,7 +970,7 @@ mod tests {
         ];
 
         let poly = PolynomialSampler::new(10);
-        let fitted = poly.fit(&x_train, &()).unwrap();
+        let fitted = poly.fit(&x_train, &()).expect("operation should succeed");
         let result = fitted.transform(&x_test);
 
         assert!(result.is_err());
@@ -1004,14 +1006,14 @@ mod tests {
 
         // Test degree 1
         let poly1 = PolynomialSampler::new(10).degree(1);
-        let fitted1 = poly1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = poly1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
         assert_eq!(result1.shape(), &[2, 10]);
 
         // Test degree 5
         let poly5 = PolynomialSampler::new(10).degree(5);
-        let fitted5 = poly5.fit(&x, &()).unwrap();
-        let result5 = fitted5.transform(&x).unwrap();
+        let fitted5 = poly5.fit(&x, &()).expect("operation should succeed");
+        let result5 = fitted5.transform(&x).expect("operation should succeed");
         assert_eq!(result5.shape(), &[2, 10]);
     }
 
@@ -1020,8 +1022,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
         let arc_cosine = ArcCosineSampler::new(50).degree(1);
-        let fitted = arc_cosine.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = arc_cosine.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[3, 50]);
 
@@ -1037,12 +1039,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let arc1 = ArcCosineSampler::new(10).degree(1).random_state(42);
-        let fitted1 = arc1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = arc1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let arc2 = ArcCosineSampler::new(10).degree(1).random_state(42);
-        let fitted2 = arc2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = arc2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be identical with same random state
         for (a, b) in result1.iter().zip(result2.iter()) {
@@ -1056,20 +1058,20 @@ mod tests {
 
         // Test degree 0 (ReLU)
         let arc0 = ArcCosineSampler::new(10).degree(0);
-        let fitted0 = arc0.fit(&x, &()).unwrap();
-        let result0 = fitted0.transform(&x).unwrap();
+        let fitted0 = arc0.fit(&x, &()).expect("operation should succeed");
+        let result0 = fitted0.transform(&x).expect("operation should succeed");
         assert_eq!(result0.shape(), &[2, 10]);
 
         // Test degree 1 (Linear ReLU)
         let arc1 = ArcCosineSampler::new(10).degree(1);
-        let fitted1 = arc1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = arc1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
         assert_eq!(result1.shape(), &[2, 10]);
 
         // Test degree 2 (Quadratic ReLU)
         let arc2 = ArcCosineSampler::new(10).degree(2);
-        let fitted2 = arc2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = arc2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
         assert_eq!(result2.shape(), &[2, 10]);
     }
 
@@ -1082,7 +1084,9 @@ mod tests {
         ];
 
         let arc_cosine = ArcCosineSampler::new(10);
-        let fitted = arc_cosine.fit(&x_train, &()).unwrap();
+        let fitted = arc_cosine
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
 
         assert!(result.is_err());

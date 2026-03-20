@@ -533,7 +533,11 @@ impl OutputCorrelationAnalyzer {
         }
 
         // Check that all outputs have the same number of samples
-        let n_samples = outputs.values().next().unwrap().nrows();
+        let n_samples = outputs
+            .values()
+            .next()
+            .expect("sampling should succeed")
+            .nrows();
         for (task_name, task_outputs) in outputs {
             if task_outputs.nrows() != n_samples {
                 return Err(SklearsError::ShapeMismatch {
@@ -649,7 +653,9 @@ impl OutputCorrelationAnalyzer {
         let mut corr_matrix = Array2::eye(n_vars);
 
         // Compute means
-        let means = data.mean_axis(Axis(0)).unwrap();
+        let means = data
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         // Compute centered data
         let mut centered_data = data.clone();
@@ -698,7 +704,10 @@ impl OutputCorrelationAnalyzer {
                 .enumerate()
                 .map(|(i, &val)| (val, i))
                 .collect();
-            column_data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            column_data.sort_by(|a, b| {
+                a.0.partial_cmp(&b.0)
+                    .expect("matrix indexing should be valid")
+            });
 
             for (rank, (_, original_idx)) in column_data.iter().enumerate() {
                 ranked_data[[*original_idx, j]] = rank as Float;
@@ -801,8 +810,12 @@ impl OutputCorrelationAnalyzer {
         let mut cross_corr = Array2::<Float>::zeros((n_outputs1, n_outputs2));
 
         // Compute means
-        let means1 = data1.mean_axis(Axis(0)).unwrap();
-        let means2 = data2.mean_axis(Axis(0)).unwrap();
+        let means1 = data1
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
+        let means2 = data2
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         for i in 0..n_outputs1 {
             for j in 0..n_outputs2 {
@@ -966,7 +979,8 @@ impl DependencyGraphBuilder {
                         .map(|j| (j, correlation_matrix[[i, j]].abs()))
                         .collect();
 
-                    correlations.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                    correlations
+                        .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                     for (j, corr_strength) in correlations.iter().take(*k) {
                         adjacency_matrix[[i, *j]] = 1.0;
@@ -990,7 +1004,8 @@ impl DependencyGraphBuilder {
                     .map(|j| (j, edge_weights[[i, j]]))
                     .collect();
 
-                dependencies.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                dependencies
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                 // Keep only top max_deps dependencies
                 for (idx, (j, _)) in dependencies.iter().enumerate() {
@@ -1173,7 +1188,11 @@ impl CorrelationAnalysis {
             }
         }
 
-        strong_correlations.sort_by(|a, b| b.2.abs().partial_cmp(&a.2.abs()).unwrap());
+        strong_correlations.sort_by(|a, b| {
+            b.2.abs()
+                .partial_cmp(&a.2.abs())
+                .expect("operation should succeed")
+        });
         strong_correlations
     }
 
@@ -1197,7 +1216,7 @@ impl CorrelationAnalysis {
                 return Some((0.0, 0.0, 0.0, 0.0));
             }
 
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let mean = values.iter().sum::<Float>() / values.len() as Float;
             let median = if values.len() % 2 == 0 {
@@ -1299,7 +1318,9 @@ mod correlation_tests {
             .include_cross_task(true)
             .include_within_task(true);
 
-        let analysis = analyzer.analyze(&outputs).unwrap();
+        let analysis = analyzer
+            .analyze(&outputs)
+            .expect("operation should succeed");
 
         // Check that we have correlation matrices
         assert!(analysis
@@ -1335,7 +1356,7 @@ mod correlation_tests {
             .include_self_loops(false)
             .directed(false);
 
-        let graph = builder.build(&outputs).unwrap();
+        let graph = builder.build(&outputs).expect("operation should succeed");
 
         // Check graph properties
         assert_eq!(graph.node_names.len(), 3); // 3 tasks with 1 output each
@@ -1385,7 +1406,9 @@ mod correlation_tests {
         );
 
         let analyzer = OutputCorrelationAnalyzer::new();
-        let analysis = analyzer.analyze(&outputs).unwrap();
+        let analysis = analyzer
+            .analyze(&outputs)
+            .expect("operation should succeed");
 
         // Test getting specific correlation
         let corr = analysis.get_correlation("task1_0", "task1_1", &CorrelationType::Pearson);
@@ -1398,7 +1421,7 @@ mod correlation_tests {
         // Test correlation summary
         let summary = analysis.correlation_summary(&CorrelationType::Pearson);
         assert!(summary.is_some());
-        let (mean, median, min, max) = summary.unwrap();
+        let (mean, median, min, max) = summary.expect("operation should succeed");
         assert!(min <= median);
         assert!(median <= max);
     }
@@ -1412,7 +1435,7 @@ mod correlation_tests {
         let builder =
             DependencyGraphBuilder::new().method(DependencyMethod::CorrelationThreshold(0.1));
 
-        let graph = builder.build(&outputs).unwrap();
+        let graph = builder.build(&outputs).expect("operation should succeed");
 
         // Test neighbor retrieval
         let neighbors = graph.get_neighbors("task1_0");

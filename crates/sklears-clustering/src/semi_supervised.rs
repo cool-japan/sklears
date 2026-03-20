@@ -848,8 +848,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_constrained_kmeans_basic() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+            .expect("operation should succeed");
 
         let config = ConstrainedKMeansConfig {
             n_clusters: 2,
@@ -869,7 +869,9 @@ mod tests {
         );
 
         let dummy_y = Array1::<f64>::zeros(X.nrows());
-        let fitted = clusterer.fit(&X, &dummy_y).unwrap();
+        let fitted = clusterer
+            .fit(&X, &dummy_y)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 4);
         assert!(fitted.n_iterations <= 100);
@@ -907,8 +909,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_label_propagation_basic() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1])
+            .expect("operation should succeed");
 
         // Partial labels: first two points labeled as class 0, others unlabeled
         let partial_labels = vec![Some(0), Some(0), None, None];
@@ -921,7 +923,9 @@ mod tests {
         };
 
         let clusterer = LabelPropagation::new(config);
-        let fitted = clusterer.fit_partial(&X, &partial_labels).unwrap();
+        let fitted = clusterer
+            .fit_partial(&X, &partial_labels)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 4);
         assert!(fitted.n_iterations <= 100);
@@ -1075,7 +1079,8 @@ impl SemiSupervisedSpectral {
                         })
                         .collect();
 
-                    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    distances
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                     for (neighbor_idx, _) in distances.iter().take(k + 1) {
                         if *neighbor_idx != i {
@@ -1170,7 +1175,8 @@ impl SemiSupervisedSpectral {
         let mut rng = thread_rng();
         let mut eigenvectors = Array2::zeros((n, n_eigenvectors));
 
-        let normal = scirs2_core::random::RandNormal::new(0.0, 1.0).unwrap();
+        let normal =
+            scirs2_core::random::RandNormal::new(0.0, 1.0).expect("operation should succeed");
         for i in 0..n {
             for j in 0..n_eigenvectors {
                 eigenvectors[[i, j]] = normal.sample(&mut rng);
@@ -1382,7 +1388,7 @@ impl ActiveClustering {
                 queries.sort_by(|a, b| {
                     b.uncertainty_score
                         .partial_cmp(&a.uncertainty_score)
-                        .unwrap()
+                        .expect("operation should succeed")
                 });
             }
             "random" => {

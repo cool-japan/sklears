@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Array3};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Normal;
+use scirs2_core::random::{Normal, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use std::f64::consts::PI;
 
@@ -66,37 +66,38 @@ pub fn make_multi_agent_environment(
             for agent in 0..config.n_agents {
                 // State depends on previous states if not first timestep
                 let state = if timestep == 0 {
-                    rng.gen_range(0..config.n_states)
+                    rng.random_range(0..config.n_states)
                 } else {
                     // State transition influenced by other agents if cooperation is enabled
-                    if config.cooperation_level > 0.0 && rng.gen::<f64>() < config.cooperation_level
+                    if config.cooperation_level > 0.0
+                        && rng.random::<f64>() < config.cooperation_level
                     {
-                        let other_agent = rng.gen_range(0..config.n_agents);
+                        let other_agent = rng.random_range(0..config.n_agents);
                         if other_agent != agent {
                             let other_state = states[[episode, timestep - 1, other_agent]];
-                            (other_state + rng.gen_range(0..3)) % config.n_states
+                            (other_state + rng.random_range(0..3)) % config.n_states
                         } else {
-                            rng.gen_range(0..config.n_states)
+                            rng.random_range(0..config.n_states)
                         }
                     } else {
-                        rng.gen_range(0..config.n_states)
+                        rng.random_range(0..config.n_states)
                     }
                 };
 
                 states[[episode, timestep, agent]] = state;
 
                 // Action selection - can be influenced by communication
-                let action = if config.communication_enabled && rng.gen::<f64>() < 0.3 {
+                let action = if config.communication_enabled && rng.random::<f64>() < 0.3 {
                     // Agent considers other agents' previous actions
                     if timestep > 0 {
-                        let other_agent = rng.gen_range(0..config.n_agents);
+                        let other_agent = rng.random_range(0..config.n_agents);
                         let other_action = actions[[episode, timestep - 1, other_agent]];
-                        (other_action + rng.gen_range(0..2)) % config.n_actions
+                        (other_action + rng.random_range(0..2)) % config.n_actions
                     } else {
-                        rng.gen_range(0..config.n_actions)
+                        rng.random_range(0..config.n_actions)
                     }
                 } else {
-                    rng.gen_range(0..config.n_actions)
+                    rng.random_range(0..config.n_actions)
                 };
 
                 actions[[episode, timestep, agent]] = action;
@@ -105,7 +106,7 @@ pub fn make_multi_agent_environment(
                 let individual_reward = if state == action % config.n_states {
                     1.0
                 } else {
-                    0.1 * rng.gen::<f64>()
+                    0.1 * rng.random::<f64>()
                 };
 
                 if config.reward_sharing {
@@ -172,7 +173,7 @@ pub fn make_vision_language_dataset(
 
     // Generate synthetic images
     let mut images = Array3::zeros((n_samples, height, width));
-    let normal = Normal::new(0.5, 0.3).unwrap();
+    let normal = Normal::new(0.5, 0.3).expect("operation should succeed");
 
     for i in 0..n_samples {
         for h in 0..height {
@@ -193,13 +194,13 @@ pub fn make_vision_language_dataset(
 
         // Generate text based on image features
         for j in 0..max_sequence_length {
-            let token = if rng.gen::<f64>() < alignment_strength {
+            let token = if rng.random::<f64>() < alignment_strength {
                 // Aligned token based on image features
 
                 ((image_mean * vocab_size as f64) as usize).min(vocab_size - 1)
             } else {
                 // Random token
-                rng.gen_range(0..vocab_size)
+                rng.random_range(0..vocab_size)
             };
             texts[[i, j]] = token;
         }
@@ -248,10 +249,10 @@ pub fn make_audio_visual_dataset(
 
     // Generate audio signals
     let mut audio = Array2::zeros((n_samples, audio_length));
-    let normal = Normal::new(0.0, 0.5).unwrap();
+    let normal = Normal::new(0.0, 0.5).expect("operation should succeed");
 
     for i in 0..n_samples {
-        let base_frequency = rng.gen_range(0.1..0.5);
+        let base_frequency = rng.random_range(0.1..0.5);
         for t in 0..audio_length {
             let time = t as f64 / audio_length as f64;
             let signal = (2.0 * PI * base_frequency * time).sin();
@@ -278,12 +279,12 @@ pub fn make_audio_visual_dataset(
 
             for pixel in 0..(height * width) {
                 let idx = frame_start + pixel;
-                if rng.gen::<f64>() < sync_strength {
+                if rng.random::<f64>() < sync_strength {
                     // Synchronized pixel based on audio
-                    video[[i, idx]] = audio_frame_energy + 0.2 * rng.gen::<f64>();
+                    video[[i, idx]] = audio_frame_energy + 0.2 * rng.random::<f64>();
                 } else {
                     // Random pixel
-                    video[[i, idx]] = rng.gen::<f64>();
+                    video[[i, idx]] = rng.random::<f64>();
                 }
             }
         }
@@ -373,8 +374,8 @@ pub fn make_communication_cost_datasets(
 
         for client in 0..config.n_clients {
             // Add random variation to network conditions
-            let bandwidth_variation = 1.0 + 0.3 * (rng.gen::<f64>() - 0.5); // ±15% variation
-            let latency_variation = 1.0 + 0.5 * (rng.gen::<f64>() - 0.5); // ±25% variation
+            let bandwidth_variation = 1.0 + 0.3 * (rng.random::<f64>() - 0.5); // ±15% variation
+            let latency_variation = 1.0 + 0.5 * (rng.random::<f64>() - 0.5); // ±25% variation
             let effective_bandwidth = config.bandwidth_mbps * bandwidth_variation;
             let effective_latency = config.latency_ms * latency_variation;
 
@@ -476,11 +477,11 @@ pub fn make_sensor_fusion_dataset(
         )));
     }
 
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     for sample in 0..n_samples {
         // Generate a ground truth event (e.g., motion pattern)
-        let event_type = rng.gen_range(0..5); // 5 different event types
+        let event_type = rng.random_range(0..5); // 5 different event types
         ground_truth_events[sample] = event_type;
 
         // Generate base signal for this event
@@ -500,8 +501,8 @@ pub fn make_sensor_fusion_dataset(
                 let base_signal = base_amplitude * (2.0 * PI * base_frequency * time).sin();
 
                 // Add sync error
-                let sync_error = if rng.gen::<f64>() > sync_accuracy {
-                    0.1 * rng.gen::<f64>() // Random desynchronization
+                let sync_error = if rng.random::<f64>() > sync_accuracy {
+                    0.1 * rng.random::<f64>() // Random desynchronization
                 } else {
                     0.0
                 };
@@ -625,7 +626,7 @@ pub fn make_multimodal_alignment_dataset(
     // Cross-modal alignment matrix
     let mut cross_modal_alignment = Array2::zeros((n_samples, n_modalities * n_modalities));
 
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     for sample in 0..n_samples {
         // Generate shared semantic content
@@ -651,14 +652,14 @@ pub fn make_multimodal_alignment_dataset(
                 let modality_specific = match modality.as_str() {
                     "text" => {
                         // Text features: semantic similarity, word frequency, etc.
-                        let word_freq = rng.gen::<f64>() * 0.1;
+                        let word_freq = rng.random::<f64>() * 0.1;
                         let semantic_sim = shared_influence * 0.8;
                         semantic_sim + word_freq
                     }
                     "image" => {
                         // Image features: visual patterns, colors, textures
                         let visual_pattern = (shared_influence * 2.0).sin() * 0.5;
-                        let color_intensity = rng.gen::<f64>() * 0.3;
+                        let color_intensity = rng.random::<f64>() * 0.3;
                         visual_pattern + color_intensity
                     }
                     "audio" => {
@@ -670,7 +671,7 @@ pub fn make_multimodal_alignment_dataset(
                     "video" => {
                         // Video features: temporal patterns, motion, etc.
                         let temporal_pattern = shared_influence * 0.7;
-                        let motion_component = rng.gen::<f64>() * 0.2;
+                        let motion_component = rng.random::<f64>() * 0.2;
                         temporal_pattern + motion_component
                     }
                     _ => shared_influence,
@@ -778,7 +779,7 @@ pub fn make_cross_modal_retrieval_dataset(
     let mut ground_truth_indices = Array1::zeros(n_samples);
     let mut retrieval_scores = Array1::zeros(n_samples);
 
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     for sample in 0..n_samples {
         // Generate shared semantic representation
@@ -793,7 +794,7 @@ pub fn make_cross_modal_retrieval_dataset(
 
             let modality_specific = match source_modality.as_str() {
                 "text" => {
-                    let semantic_weight = 0.6 + 0.4 * rng.gen::<f64>();
+                    let semantic_weight = 0.6 + 0.4 * rng.random::<f64>();
                     shared_influence * semantic_weight
                 }
                 "image" => (shared_influence * 1.5).sin() * 0.7,
@@ -816,7 +817,7 @@ pub fn make_cross_modal_retrieval_dataset(
 
             let modality_specific = match target_modality.as_str() {
                 "text" => {
-                    let semantic_weight = 0.6 + 0.4 * rng.gen::<f64>();
+                    let semantic_weight = 0.6 + 0.4 * rng.random::<f64>();
                     shared_influence * semantic_weight
                 }
                 "image" => (shared_influence * 1.5).sin() * 0.7,
@@ -847,7 +848,7 @@ pub fn make_cross_modal_retrieval_dataset(
 
                 let modality_specific = match target_modality.as_str() {
                     "text" => {
-                        let semantic_weight = 0.6 + 0.4 * rng.gen::<f64>();
+                        let semantic_weight = 0.6 + 0.4 * rng.random::<f64>();
                         shared_influence * semantic_weight
                     }
                     "image" => (shared_influence * 1.5).sin() * 0.7,
@@ -910,7 +911,8 @@ mod tests {
         };
 
         let (states, actions, rewards, episode_rewards) =
-            make_multi_agent_environment(config, 10, 20, Some(42)).unwrap();
+            make_multi_agent_environment(config, 10, 20, Some(42))
+                .expect("operation should succeed");
 
         assert_eq!(states.shape(), &[10, 20, 3]);
         assert_eq!(actions.shape(), &[10, 20, 3]);
@@ -931,7 +933,8 @@ mod tests {
     #[test]
     fn test_make_vision_language_dataset() {
         let (images, texts, alignment_scores) =
-            make_vision_language_dataset(50, (32, 32), 1000, 10, 0.7, Some(42)).unwrap();
+            make_vision_language_dataset(50, (32, 32), 1000, 10, 0.7, Some(42))
+                .expect("operation should succeed");
 
         assert_eq!(images.shape(), &[50, 32, 32]);
         assert_eq!(texts.shape(), &[50, 10]);
@@ -962,7 +965,8 @@ mod tests {
     #[test]
     fn test_make_audio_visual_dataset() {
         let (audio, video, sync_scores) =
-            make_audio_visual_dataset(20, 100, 10, (8, 8), 0.8, Some(42)).unwrap();
+            make_audio_visual_dataset(20, 100, 10, (8, 8), 0.8, Some(42))
+                .expect("operation should succeed");
 
         assert_eq!(audio.shape(), &[20, 100]);
         assert_eq!(video.shape(), &[20, 640]); // 10 frames * 8 * 8 pixels
@@ -993,7 +997,8 @@ mod tests {
         };
 
         let (upload_costs, download_costs, round_times, bandwidth_usage) =
-            make_communication_cost_datasets(config, 10, 2.5, Some(42)).unwrap();
+            make_communication_cost_datasets(config, 10, 2.5, Some(42))
+                .expect("operation should succeed");
 
         assert_eq!(upload_costs.shape(), &[10, 5]);
         assert_eq!(download_costs.shape(), &[10, 5]);
@@ -1027,7 +1032,8 @@ mod tests {
         ];
 
         let (sensor_data, fusion_quality, ground_truth_events) =
-            make_sensor_fusion_dataset(20, sensor_types, 10, 0.9, Some(42)).unwrap();
+            make_sensor_fusion_dataset(20, sensor_types, 10, 0.9, Some(42))
+                .expect("operation should succeed");
 
         assert_eq!(sensor_data.len(), 3); // 3 sensors
         assert_eq!(sensor_data[0].shape(), &[20, 30]); // accelerometer: 20 samples, 10 timesteps * 3 dims
@@ -1055,7 +1061,8 @@ mod tests {
         let modality_types = vec!["text".to_string(), "image".to_string(), "audio".to_string()];
 
         let (modality_data, cross_modal_alignment, alignment_scores) =
-            make_multimodal_alignment_dataset(15, modality_types, 0.8, 0.2, Some(42)).unwrap();
+            make_multimodal_alignment_dataset(15, modality_types, 0.8, 0.2, Some(42))
+                .expect("operation should succeed");
 
         assert_eq!(modality_data.len(), 3); // 3 modalities
         assert_eq!(modality_data[0].shape(), &[15, 300]); // text: 15 samples, 300 dims
@@ -1084,7 +1091,7 @@ mod tests {
                 0.3,
                 Some(42),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(source_embeddings.shape(), &[10, 300]); // 10 samples, 300 text dims
         assert_eq!(target_embeddings.shape(), &[60, 2048]); // 10 * (1 + 5) targets, 2048 image dims

@@ -8,8 +8,8 @@ fn test_heteroscedastic_discriminant_analysis_full() {
 
     let hda = HeteroscedasticDiscriminantAnalysis::new().covariance_type("full");
 
-    let fitted = hda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -21,8 +21,8 @@ fn test_heteroscedastic_discriminant_analysis_tied() {
 
     let hda = HeteroscedasticDiscriminantAnalysis::new().covariance_type("tied");
 
-    let fitted = hda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -34,8 +34,8 @@ fn test_heteroscedastic_discriminant_analysis_diag() {
 
     let hda = HeteroscedasticDiscriminantAnalysis::new().covariance_type("diag");
 
-    let fitted = hda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -47,8 +47,8 @@ fn test_heteroscedastic_discriminant_analysis_spherical() {
 
     let hda = HeteroscedasticDiscriminantAnalysis::new().covariance_type("spherical");
 
-    let fitted = hda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -62,14 +62,16 @@ fn test_heteroscedastic_predict_proba() {
         .covariance_type("full")
         .store_covariance(true);
 
-    let fitted = hda.fit(&x, &y).unwrap();
-    let probas = fitted.predict_proba(&x).unwrap();
+    let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+    let probas = fitted
+        .predict_proba(&x)
+        .expect("probability prediction should succeed");
 
     assert_eq!(probas.dim(), (4, 2));
     assert_probabilities_sum_to_one(&probas);
 
     // Test covariance matrices are stored
-    let covariances = fitted.covariances().unwrap();
+    let covariances = fitted.covariances().expect("operation should succeed");
     assert_eq!(covariances.len(), 2); // One for each class
 }
 
@@ -82,9 +84,11 @@ fn test_heteroscedastic_with_adaptive_regularization() {
         .adaptive_regularization(true)
         .adaptive_method("ledoit_wolf");
 
-    let fitted = hda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
-    let probas = fitted.predict_proba(&x).unwrap();
+    let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
+    let probas = fitted
+        .predict_proba(&x)
+        .expect("probability prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -100,13 +104,15 @@ fn test_heteroscedastic_with_shrinkage() {
         .shrinkage(Some(0.1))
         .store_covariance(true);
 
-    let fitted = hda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = hda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
 
     // Test that shared covariance is stored (since we used tied covariance)
-    let shared_cov = fitted.shared_covariance().unwrap();
+    let shared_cov = fitted
+        .shared_covariance()
+        .expect("operation should succeed");
     assert_eq!(shared_cov.nrows(), 2); // 2D data
 }

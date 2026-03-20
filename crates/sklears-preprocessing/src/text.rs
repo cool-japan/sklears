@@ -763,8 +763,12 @@ mod tests {
             "cats and dogs are pets".to_string(),
         ];
 
-        let fitted_vectorizer = vectorizer.fit(&documents, &()).unwrap();
-        let tfidf_matrix = fitted_vectorizer.transform(&documents).unwrap();
+        let fitted_vectorizer = vectorizer
+            .fit(&documents, &())
+            .expect("model fitting should succeed");
+        let tfidf_matrix = fitted_vectorizer
+            .transform(&documents)
+            .expect("transformation should succeed");
 
         assert_eq!(
             tfidf_matrix.shape(),
@@ -814,8 +818,12 @@ mod tests {
             "cats and dogs".to_string(),
         ];
 
-        let fitted_embedding = embedding.fit(&documents, &()).unwrap();
-        let bow_matrix = fitted_embedding.transform(&documents).unwrap();
+        let fitted_embedding = embedding
+            .fit(&documents, &())
+            .expect("model fitting should succeed");
+        let bow_matrix = fitted_embedding
+            .transform(&documents)
+            .expect("transformation should succeed");
 
         assert_eq!(bow_matrix.shape(), &[3, fitted_embedding.vocabulary.len()]);
 

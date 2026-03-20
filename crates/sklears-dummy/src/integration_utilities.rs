@@ -350,8 +350,16 @@ impl AutoBaselineGenerator {
 
         // Calculate class balance (ratio of smallest to largest class)
         let class_balance = if class_counts.len() > 1 {
-            let min_count = *class_counts.values().min().unwrap() as f64;
-            let max_count = *class_counts.values().max().unwrap() as f64;
+            let min_count = *class_counts
+                .values()
+                .min()
+                .expect("collection should not be empty for min/max")
+                as f64;
+            let max_count = *class_counts
+                .values()
+                .max()
+                .expect("collection should not be empty for min/max")
+                as f64;
             Some(min_count / max_count)
         } else {
             None
@@ -367,7 +375,7 @@ impl AutoBaselineGenerator {
         for col in 0..n_features {
             let column = x.column(col);
             let mut sorted_col = column.to_vec();
-            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_col.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let q1_idx = sorted_col.len() / 4;
             let q3_idx = 3 * sorted_col.len() / 4;
@@ -429,8 +437,12 @@ impl AutoBaselineGenerator {
 
     fn compute_correlation(&self, x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> f64 {
         let n = x.len() as f64;
-        let mean_x = x.mean().unwrap();
-        let mean_y = y.mean().unwrap();
+        let mean_x = x
+            .mean()
+            .expect("array should have elements for mean computation");
+        let mean_y = y
+            .mean()
+            .expect("array should have elements for mean computation");
 
         let numerator: f64 = x
             .iter()
@@ -520,7 +532,11 @@ impl BaselineRecommendationEngine {
         // Select best recommendation
         let (primary_rule, confidence_score) = candidate_recommendations
             .into_iter()
-            .max_by(|(_, conf_a), (_, conf_b)| conf_a.partial_cmp(conf_b).unwrap())
+            .max_by(|(_, conf_a), (_, conf_b)| {
+                conf_a
+                    .partial_cmp(conf_b)
+                    .expect("operation should succeed")
+            })
             .unwrap_or((
                 RecommendationRule {
                     condition: "default".to_string(),
@@ -670,11 +686,14 @@ mod tests {
 
     #[test]
     fn test_auto_baseline_generator() {
-        let x = Array2::from_shape_vec((100, 5), (0..500).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((100, 5), (0..500).map(|i| i as f64).collect())
+            .expect("shape and data length should match");
         let y = Array1::from_vec((0..100).map(|i| i % 3).collect());
 
         let generator = AutoBaselineGenerator::new();
-        let recommendation = generator.analyze_and_recommend(&x, &y).unwrap();
+        let recommendation = generator
+            .analyze_and_recommend(&x, &y)
+            .expect("operation should succeed");
 
         assert!(recommendation.confidence_score > 0.0);
         assert!(!recommendation.reasoning.is_empty());
@@ -699,7 +718,7 @@ mod tests {
                 148.0, 149.0, 150.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec((0..50).map(|i| i % 2).collect());
 
         let generator = AutoBaselineGenerator::new();

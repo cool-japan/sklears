@@ -452,14 +452,14 @@ impl ReportGenerationManager {
 
     /// Register a new report generator
     pub fn register_generator(&self, generator: ReportGenerator) -> ReportGenerationResult<()> {
-        let mut generators = self.report_generators.write().unwrap();
+        let mut generators = self.report_generators.write().unwrap_or_else(|e| e.into_inner());
         generators.insert(generator.generator_id.clone(), generator);
         Ok(())
     }
 
     /// Get a report generator by ID
     pub fn get_generator(&self, generator_id: &str) -> ReportGenerationResult<ReportGenerator> {
-        let generators = self.report_generators.read().unwrap();
+        let generators = self.report_generators.read().unwrap_or_else(|e| e.into_inner());
         generators.get(generator_id)
             .cloned()
             .ok_or_else(|| ReportGenerationError::GeneratorNotFound(generator_id.to_string()))

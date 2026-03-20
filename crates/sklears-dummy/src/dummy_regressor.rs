@@ -5,7 +5,7 @@
 //! with modular architecture as described in TODO.md.
 
 use scirs2_core::ndarray::Array1;
-use scirs2_core::random::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, thread_rng, RngExt, SeedableRng};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::traits::{Estimator, Fit, Predict, Trained, Untrained};
 use sklears_core::types::{Features, Float};
@@ -109,7 +109,7 @@ impl Fit<Features, Array1<Float>> for DummyRegressor<Untrained> {
             Strategy::Constant(value) => *value,
             Strategy::Median => {
                 let mut sorted = y.to_vec();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 if sorted.len() % 2 == 0 {
                     (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                 } else {
@@ -126,7 +126,7 @@ impl Fit<Features, Array1<Float>> for DummyRegressor<Untrained> {
             }
             Strategy::Quantile(q) => {
                 let mut sorted = y.to_vec();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let index =
                     ((*q * (sorted.len() - 1) as f64).round() as usize).min(sorted.len() - 1);
                 sorted[index]
@@ -134,7 +134,7 @@ impl Fit<Features, Array1<Float>> for DummyRegressor<Untrained> {
             Strategy::Auto => {
                 // Simple auto strategy: use median for now
                 let mut sorted = y.to_vec();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 if sorted.len() % 2 == 0 {
                     (sorted[sorted.len() / 2 - 1] + sorted[sorted.len() / 2]) / 2.0
                 } else {
@@ -170,7 +170,7 @@ impl Fit<Features, Array1<Float>> for DummyRegressor<Untrained> {
 impl Predict<Features, Array1<Float>> for DummyRegressor<Trained> {
     fn predict(&self, x: &Features) -> Result<Array1<Float>> {
         let n_samples = x.nrows();
-        let fitted_value = self.fitted_value_.unwrap();
+        let fitted_value = self.fitted_value_.expect("operation should succeed");
         let fitted_std = self.fitted_std_;
 
         let predictions = match &self.strategy {
@@ -186,14 +186,14 @@ impl Predict<Features, Array1<Float>> for DummyRegressor<Trained> {
                     let mut rng = StdRng::seed_from_u64(seed);
                     (0..n_samples)
                         .map(|_| {
-                            fitted_value + rng.gen_range(-1.0..1.0) * fitted_std.unwrap_or(1.0)
+                            fitted_value + rng.random_range(-1.0..1.0) * fitted_std.unwrap_or(1.0)
                         })
                         .collect()
                 } else {
                     let mut rng = thread_rng();
                     (0..n_samples)
                         .map(|_| {
-                            fitted_value + rng.gen_range(-1.0..1.0) * fitted_std.unwrap_or(1.0)
+                            fitted_value + rng.random_range(-1.0..1.0) * fitted_std.unwrap_or(1.0)
                         })
                         .collect()
                 };
@@ -204,12 +204,12 @@ impl Predict<Features, Array1<Float>> for DummyRegressor<Trained> {
                 let predictions: Vec<f64> = if let Some(seed) = self.random_state {
                     let mut rng = StdRng::seed_from_u64(seed);
                     (0..n_samples)
-                        .map(|_| fitted_value + rng.gen_range(-2.0..2.0) * std_val) // Simplified normal sampling
+                        .map(|_| fitted_value + rng.random_range(-2.0..2.0) * std_val) // Simplified normal sampling
                         .collect()
                 } else {
                     let mut rng = thread_rng();
                     (0..n_samples)
-                        .map(|_| fitted_value + rng.gen_range(-2.0..2.0) * std_val) // Simplified normal sampling
+                        .map(|_| fitted_value + rng.random_range(-2.0..2.0) * std_val) // Simplified normal sampling
                         .collect()
                 };
                 Array1::from_vec(predictions)

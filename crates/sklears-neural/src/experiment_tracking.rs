@@ -29,7 +29,7 @@ impl ExperimentId {
     pub fn generate() -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
+            .expect("value should be present")
             .as_millis();
 
         let random_suffix = scirs2_core::random::thread_rng().random::<u32>();
@@ -135,7 +135,7 @@ impl MetricValue {
             step: None,
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
+                .expect("value should be present")
                 .as_secs(),
             tags: HashMap::new(),
         }
@@ -178,7 +178,7 @@ impl Artifact {
             metadata: HashMap::new(),
             created_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
+                .expect("value should be present")
                 .as_secs(),
         }
     }
@@ -252,7 +252,7 @@ impl Experiment {
         let id = ExperimentId::generate();
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
+            .expect("value should be present")
             .as_secs();
 
         Self {
@@ -305,7 +305,7 @@ impl Experiment {
         self.started_at = Some(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
+                .expect("value should be present")
                 .as_secs(),
         );
     }
@@ -316,7 +316,7 @@ impl Experiment {
         self.finished_at = Some(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
+                .expect("value should be present")
                 .as_secs(),
         );
     }
@@ -327,7 +327,7 @@ impl Experiment {
         self.finished_at = Some(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
+                .expect("value should be present")
                 .as_secs(),
         );
     }
@@ -338,7 +338,7 @@ impl Experiment {
         self.finished_at = Some(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
+                .expect("value should be present")
                 .as_secs(),
         );
     }
@@ -912,8 +912,22 @@ mod tests {
         experiment.log_metric_simple("accuracy".to_string(), 0.85, Some(1));
 
         assert_eq!(experiment.metrics.len(), 2);
-        assert_eq!(experiment.metrics.get("loss").unwrap().len(), 2);
-        assert_eq!(experiment.metrics.get("accuracy").unwrap().len(), 1);
+        assert_eq!(
+            experiment
+                .metrics
+                .get("loss")
+                .expect("operation should succeed")
+                .len(),
+            2
+        );
+        assert_eq!(
+            experiment
+                .metrics
+                .get("accuracy")
+                .expect("operation should succeed")
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -922,11 +936,17 @@ mod tests {
         let experiment = Experiment::new("test".to_string());
         let id = experiment.id.clone();
 
-        backend.store_experiment(&experiment).unwrap();
-        let loaded = backend.load_experiment(&id).unwrap();
+        backend
+            .store_experiment(&experiment)
+            .expect("operation should succeed");
+        let loaded = backend
+            .load_experiment(&id)
+            .expect("operation should succeed");
         assert_eq!(loaded.name, experiment.name);
 
-        let experiments = backend.list_experiments().unwrap();
+        let experiments = backend
+            .list_experiments()
+            .expect("operation should succeed");
         assert_eq!(experiments.len(), 1);
         assert!(experiments.contains(&id));
     }
@@ -935,20 +955,30 @@ mod tests {
     fn test_experiment_tracker() {
         let mut tracker = ExperimentTracker::new(InMemoryBackend::new());
 
-        let exp_id = tracker.create_experiment("test_exp".to_string()).unwrap();
-        tracker.start_experiment(exp_id.clone()).unwrap();
+        let exp_id = tracker
+            .create_experiment("test_exp".to_string())
+            .expect("operation should succeed");
+        tracker
+            .start_experiment(exp_id.clone())
+            .expect("operation should succeed");
 
-        tracker.log_hyperparameter("lr".to_string(), 0.001).unwrap();
+        tracker
+            .log_hyperparameter("lr".to_string(), 0.001)
+            .expect("operation should succeed");
         tracker
             .log_metric("loss".to_string(), 0.5, Some(1))
-            .unwrap();
+            .expect("operation should succeed");
         tracker
             .log_metric("accuracy".to_string(), 0.9, Some(1))
-            .unwrap();
+            .expect("operation should succeed");
 
-        tracker.complete_experiment().unwrap();
+        tracker
+            .complete_experiment()
+            .expect("operation should succeed");
 
-        let experiment = tracker.get_experiment(&exp_id).unwrap();
+        let experiment = tracker
+            .get_experiment(&exp_id)
+            .expect("operation should succeed");
         assert_eq!(experiment.status, ExperimentStatus::Completed);
         assert!(experiment.hyperparameters.contains_key("lr"));
         assert!(experiment.metrics.contains_key("loss"));
@@ -959,21 +989,37 @@ mod tests {
     fn test_experiment_search() {
         let mut tracker = ExperimentTracker::new(InMemoryBackend::new());
 
-        let exp1_id = tracker.create_experiment("exp1".to_string()).unwrap();
-        let exp2_id = tracker.create_experiment("exp2".to_string()).unwrap();
+        let exp1_id = tracker
+            .create_experiment("exp1".to_string())
+            .expect("operation should succeed");
+        let exp2_id = tracker
+            .create_experiment("exp2".to_string())
+            .expect("operation should succeed");
 
         // Add tags to distinguish experiments
-        let mut exp1 = tracker.get_experiment(&exp1_id).unwrap();
+        let mut exp1 = tracker
+            .get_experiment(&exp1_id)
+            .expect("operation should succeed");
         exp1.add_tag("type".to_string(), "test".to_string());
-        tracker.backend.update_experiment(&exp1).unwrap();
+        tracker
+            .backend
+            .update_experiment(&exp1)
+            .expect("operation should succeed");
 
-        let mut exp2 = tracker.get_experiment(&exp2_id).unwrap();
+        let mut exp2 = tracker
+            .get_experiment(&exp2_id)
+            .expect("operation should succeed");
         exp2.add_tag("type".to_string(), "production".to_string());
-        tracker.backend.update_experiment(&exp2).unwrap();
+        tracker
+            .backend
+            .update_experiment(&exp2)
+            .expect("operation should succeed");
 
         // Search for test experiments
         let query = ExperimentQuery::new().with_tag("type".to_string(), "test".to_string());
-        let results = tracker.search_experiments(&query).unwrap();
+        let results = tracker
+            .search_experiments(&query)
+            .expect("operation should succeed");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, exp1_id);
@@ -983,26 +1029,30 @@ mod tests {
     fn test_experiment_comparison() {
         let mut tracker = ExperimentTracker::new(InMemoryBackend::new());
 
-        let exp1_id = tracker.create_experiment("exp1".to_string()).unwrap();
-        let exp2_id = tracker.create_experiment("exp2".to_string()).unwrap();
+        let exp1_id = tracker
+            .create_experiment("exp1".to_string())
+            .expect("operation should succeed");
+        let exp2_id = tracker
+            .create_experiment("exp2".to_string())
+            .expect("operation should succeed");
 
         // Add different metric values
         tracker.set_current_experiment(exp1_id.clone());
         tracker
             .log_metric("accuracy".to_string(), 0.85, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         tracker.set_current_experiment(exp2_id.clone());
         tracker
             .log_metric("accuracy".to_string(), 0.92, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         let comparison = tracker
             .compare_experiments(
                 &[exp1_id.clone(), exp2_id.clone()],
                 &["accuracy".to_string()],
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         let best_exp = comparison.best_experiment_for_metric("accuracy");
         assert_eq!(best_exp, Some(&exp2_id));

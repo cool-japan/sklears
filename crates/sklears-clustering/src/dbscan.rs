@@ -318,7 +318,7 @@ impl DBSCAN<Untrained> {
 
         for i in 0..n_samples {
             {
-                let visited_guard = visited_arc.lock().unwrap();
+                let visited_guard = visited_arc.lock().expect("operation should succeed");
                 if visited_guard[i] {
                     continue;
                 }
@@ -326,7 +326,7 @@ impl DBSCAN<Untrained> {
 
             // Mark as visited
             {
-                let mut visited_guard = visited_arc.lock().unwrap();
+                let mut visited_guard = visited_arc.lock().expect("operation should succeed");
                 visited_guard[i] = true;
             }
 
@@ -349,7 +349,7 @@ impl DBSCAN<Untrained> {
                 let q = seed_set[j];
 
                 let was_visited = {
-                    let mut visited_guard = visited_arc.lock().unwrap();
+                    let mut visited_guard = visited_arc.lock().expect("operation should succeed");
                     let was_visited = visited_guard[q];
                     if !was_visited {
                         visited_guard[q] = true;
@@ -501,7 +501,7 @@ mod tests {
             .eps(0.5)
             .min_samples(3)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -540,7 +540,7 @@ mod tests {
             .eps(1.0)
             .min_samples(2)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -586,7 +586,7 @@ mod tests {
 
         let fitted = model
             .fit_parallel_with_config(&data, &(), &parallel_config)
-            .unwrap();
+            .expect("operation should succeed");
         let labels = fitted.labels();
 
         // Should find 2 clusters

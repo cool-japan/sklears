@@ -613,7 +613,7 @@ impl PerformanceOptimizer {
     }
 
     fn apply_strategy(&mut self, strategy: &OptimizationStrategy, before_metrics: &PerformanceSnapshot) -> Result<(), String> {
-        let record_id = format!("opt_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos());
+        let record_id = format!("opt_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos());
 
         // TODO: Implement actual strategy application
 

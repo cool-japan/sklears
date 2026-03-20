@@ -385,7 +385,11 @@ impl CVModelSelector {
         // Sort models based on selection criteria
         match &self.config.criteria {
             ModelSelectionCriteria::HighestMean => {
-                rankings.sort_by(|a, b| b.mean_score.partial_cmp(&a.mean_score).unwrap());
+                rankings.sort_by(|a, b| {
+                    b.mean_score
+                        .partial_cmp(&a.mean_score)
+                        .expect("operation should succeed")
+                });
             }
             ModelSelectionCriteria::OneStandardError => {
                 // Find best score, then select simplest model within 1 SE
@@ -410,16 +414,27 @@ impl CVModelSelector {
                     match (a_within_se, b_within_se) {
                         (true, false) => std::cmp::Ordering::Less,
                         (false, true) => std::cmp::Ordering::Greater,
-                        _ => b.mean_score.partial_cmp(&a.mean_score).unwrap(),
+                        _ => b
+                            .mean_score
+                            .partial_cmp(&a.mean_score)
+                            .expect("operation should succeed"),
                     }
                 });
             }
             ModelSelectionCriteria::MostConsistent => {
-                rankings.sort_by(|a, b| a.std_score.partial_cmp(&b.std_score).unwrap());
+                rankings.sort_by(|a, b| {
+                    a.std_score
+                        .partial_cmp(&b.std_score)
+                        .expect("operation should succeed")
+                });
             }
             ModelSelectionCriteria::StatisticalSignificance => {
                 // Sort by mean score first, then adjust based on statistical significance
-                rankings.sort_by(|a, b| b.mean_score.partial_cmp(&a.mean_score).unwrap());
+                rankings.sort_by(|a, b| {
+                    b.mean_score
+                        .partial_cmp(&a.mean_score)
+                        .expect("operation should succeed")
+                });
             }
             ModelSelectionCriteria::Weighted {
                 mean_weight,
@@ -441,7 +456,9 @@ impl CVModelSelector {
                         a.mean_score / max_mean * mean_weight - a.std_score / min_std * std_weight;
                     let score_b =
                         b.mean_score / max_mean * mean_weight - b.std_score / min_std * std_weight;
-                    score_b.partial_cmp(&score_a).unwrap()
+                    score_b
+                        .partial_cmp(&score_a)
+                        .expect("operation should succeed")
                 });
             }
         }
@@ -657,7 +674,7 @@ mod tests {
         let result = selector.select_model(&models, &x, &y, &cv, &scoring);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.model_rankings.len(), 3);
         assert_eq!(result.cv_scores.len(), 3);
         assert_eq!(result.n_folds, 5);
@@ -737,7 +754,7 @@ mod tests {
         }
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.model_rankings.len(), 2);
         assert_eq!(result.model_rankings[0].rank, 1);
     }
@@ -774,7 +791,7 @@ mod tests {
         let result = selector.select_model(&models, &x, &y, &cv, &scoring);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(!result.statistical_comparisons.is_empty());
 
         // Should have 3 pairwise comparisons for 3 models

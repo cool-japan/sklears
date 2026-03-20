@@ -180,7 +180,11 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         let (n_samples, n_assets) = x.dim();
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean.insert_axis(Axis(0));
 
         // Compute sample covariance
@@ -228,7 +232,11 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         let mut factor_scores = Array2::zeros((n_samples, self.n_factors));
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean.insert_axis(Axis(0));
 
         // EM algorithm
@@ -257,7 +265,14 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
             // Update specific variances
             let reconstructed = factor_scores.dot(&factor_loadings.t());
             let residuals = &centered - &reconstructed;
-            specific_variances = residuals.mapv(|x| x * x).mean_axis(Axis(0)).unwrap();
+            specific_variances = residuals
+                .mapv(|x| x * x)
+                .mean_axis(Axis(0))
+                .ok_or_else(|| {
+                    SklearsError::NumericalError(
+                        "mean computation should succeed for non-empty array".into(),
+                    )
+                })?;
 
             // Check convergence
             let diff = (&factor_loadings - &old_loadings).mapv(|x| x.abs()).sum();
@@ -282,7 +297,11 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         let (n_samples, n_assets) = x.dim();
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean.insert_axis(Axis(0));
 
         // Use sample covariance for eigenvalue decomposition
@@ -309,7 +328,7 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         if let Some((best_k, _)) = ic_values
             .iter()
             .enumerate()
-            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
         {
             selected_factors = best_k + 1;
         }
@@ -349,7 +368,11 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
 
         // Recompute specific variances after rotation
         let explained_variance = factor_loadings.mapv(|x| x * x).sum_axis(Axis(1));
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean.insert_axis(Axis(0));
         let sample_cov = centered.t().dot(&centered) / (n_samples - 1) as f64;
         let total_variance = sample_cov.diag().to_owned();
@@ -400,7 +423,11 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
 
         // Sort by eigenvalues in descending order
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let sorted_eigenvalues =
             Array1::from_vec(indices.iter().map(|&i| eigenvalues[i]).collect());
@@ -411,8 +438,7 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
                 .iter()
                 .flat_map(|&i| eigenvectors.column(i).to_owned().into_iter())
                 .collect(),
-        )
-        .unwrap();
+        )?;
 
         Ok((sorted_eigenvalues, sorted_eigenvectors))
     }
@@ -484,7 +510,12 @@ impl RiskFactorModel<RiskFactorModelUntrained> {
         let mut constrained = loadings.clone();
 
         // Ensure first factor has positive mean (market factor)
-        if constrained.column(0).mean().unwrap() < 0.0 {
+        if constrained
+            .column(0)
+            .mean()
+            .expect("mean computation should succeed for non-empty array")
+            < 0.0
+        {
             for col in constrained.column_mut(0) {
                 *col = -*col;
             }
@@ -1141,7 +1172,10 @@ impl StressTesting {
         portfolio_weights: &ArrayView1<f64>,
     ) -> Result<(), SklearsError> {
         if let Some(results) = &mut self.results {
-            let base_cov = self.base_covariance.as_ref().unwrap();
+            let base_cov = self
+                .base_covariance
+                .as_ref()
+                .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
             let base_risk = (portfolio_weights.dot(&base_cov.dot(portfolio_weights))).sqrt();
 
             for result in results.iter_mut() {
@@ -1251,9 +1285,19 @@ mod tests {
                 assert_eq!(fitted.get_factor_loadings().dim(), (4, 2));
                 assert_eq!(fitted.get_factor_covariance().dim(), (2, 2));
                 assert_eq!(fitted.get_specific_variances().len(), 4);
-                assert_eq!(fitted.compute_covariance_matrix().unwrap().dim(), (4, 4));
+                assert_eq!(
+                    fitted
+                        .compute_covariance_matrix()
+                        .expect("operation should succeed")
+                        .dim(),
+                    (4, 4)
+                );
                 // R-squared computation
-                let total_variance = fitted.compute_covariance_matrix().unwrap().diag().sum();
+                let total_variance = fitted
+                    .compute_covariance_matrix()
+                    .expect("operation should succeed")
+                    .diag()
+                    .sum();
                 let explained_variance = fitted.get_factor_loadings().mapv(|x| x * x).sum();
                 let r_squared = explained_variance / total_variance;
                 assert!(r_squared >= 0.0 && r_squared <= 1.0);

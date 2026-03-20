@@ -342,19 +342,19 @@ mod tests {
         let model = RidgeCV::new()
             .alphas(vec![0.01, 0.1, 1.0, 10.0])
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that coefficients are close to expected value
         assert_abs_diff_eq!(model.coef()[0], 2.0, epsilon = 0.1);
 
         // Test prediction
         let x_test = array![[9.0], [10.0]];
-        let y_pred = model.predict(&x_test).unwrap();
+        let y_pred = model.predict(&x_test).expect("prediction should succeed");
         assert_abs_diff_eq!(y_pred[0], 18.0, epsilon = 0.5);
         assert_abs_diff_eq!(y_pred[1], 20.0, epsilon = 0.5);
 
         // Check score
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("scoring should succeed");
         assert!(score > 0.95);
     }
 
@@ -374,7 +374,7 @@ mod tests {
             .alphas(vec![0.001, 0.01, 0.1, 1.0])
             .cv(3)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check coefficients (with more tolerance due to small sample size)
         assert_abs_diff_eq!(model.coef()[0], 1.0, epsilon = 0.6);
@@ -391,10 +391,10 @@ mod tests {
             .cv(3)
             .store_cv_values(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that CV values were stored
-        let cv_values = model.cv_values().unwrap();
+        let cv_values = model.cv_values().expect("operation should succeed");
         assert_eq!(cv_values.shape(), &[3, 3]); // 3 alphas, 3 folds
     }
 }

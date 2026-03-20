@@ -854,22 +854,24 @@ mod tests {
         let model = SparseLasso::new(0.1)
             .fit_intercept(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let coeffs = model.coefficients().unwrap();
+        let coeffs = model.coefficients().expect("operation should succeed");
         assert_eq!(coeffs.len(), 2);
 
         // Test prediction
-        let y_pred = model.predict(&x).unwrap();
+        let y_pred = model.predict(&x).expect("prediction should succeed");
         assert_eq!(y_pred.len(), 4);
 
         // Check sparsity
-        let sparsity = model.coefficient_sparsity().unwrap();
+        let sparsity = model
+            .coefficient_sparsity()
+            .expect("operation should succeed");
         assert!((0.0..=1.0).contains(&sparsity));
     }
 
     #[test]
-    #[ignore = "Waiting for SciRS2-sparse v0.1.0-rc.2 to be published to crates.io"]
+    #[ignore = "Requires SciRS2-sparse to be published to crates.io"]
     fn test_sparse_lasso_sparse_input() {
         let triplets = vec![
             (0, 0, 1.0),
@@ -879,17 +881,25 @@ mod tests {
             (2, 0, 3.0),
             (2, 1, 3.0),
         ];
-        let x_sparse = SparseMatrixCSR::from_triplets(3, 2, &triplets).unwrap();
+        let x_sparse =
+            SparseMatrixCSR::from_triplets(3, 2, &triplets).expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0];
 
-        let model = SparseLasso::new(0.1).fit(&x_sparse, &y).unwrap();
+        let model = SparseLasso::new(0.1)
+            .fit(&x_sparse, &y)
+            .expect("model fitting should succeed");
 
         assert!(model.is_sparse_fitted());
-        assert_eq!(model.n_features().unwrap(), 2);
-        assert!(model.n_nonzero_coefficients().unwrap() <= 2);
+        assert_eq!(model.n_features().expect("operation should succeed"), 2);
+        assert!(
+            model
+                .n_nonzero_coefficients()
+                .expect("operation should succeed")
+                <= 2
+        );
 
         // Test sparse prediction
-        let y_pred = model.predict(&x_sparse).unwrap();
+        let y_pred = model.predict(&x_sparse).expect("prediction should succeed");
         assert_eq!(y_pred.len(), 3);
     }
 
@@ -901,15 +911,15 @@ mod tests {
         let model = SparseElasticNet::new(0.1, 0.5)
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let coeffs = model.coefficients().unwrap();
+        let coeffs = model.coefficients().expect("operation should succeed");
         assert_eq!(coeffs.len(), 2);
 
         // ElasticNet should find a solution
         assert!(coeffs.iter().any(|&c| c.abs() > 1e-6));
 
-        let y_pred = model.predict(&x).unwrap();
+        let y_pred = model.predict(&x).expect("prediction should succeed");
         assert_eq!(y_pred.len(), 4);
     }
 
@@ -945,12 +955,14 @@ mod tests {
         let model = SparseLasso::new(0.5) // High regularization
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let coeffs = model.coefficients().unwrap();
+        let coeffs = model.coefficients().expect("operation should succeed");
 
         // Should have induced sparsity (some coefficients should be zero or very small)
-        let nnz = model.n_nonzero_coefficients().unwrap();
+        let nnz = model
+            .n_nonzero_coefficients()
+            .expect("operation should succeed");
         assert!(nnz < coeffs.len(), "Lasso should induce sparsity");
 
         // The second feature should be zero or very small (it was always zero in data)
@@ -966,14 +978,30 @@ mod tests {
         let y = array![1.0, 2.0, 3.0];
 
         // Test pure Lasso (l1_ratio = 1.0)
-        let lasso_model = SparseElasticNet::new(0.1, 1.0).fit(&x, &y).unwrap();
+        let lasso_model = SparseElasticNet::new(0.1, 1.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Test pure Ridge (l1_ratio = 0.0)
-        let ridge_model = SparseElasticNet::new(0.1, 0.0).fit(&x, &y).unwrap();
+        let ridge_model = SparseElasticNet::new(0.1, 0.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Both should converge to reasonable solutions
-        assert!(lasso_model.coefficients().unwrap()[0].abs() > 1e-6);
-        assert!(ridge_model.coefficients().unwrap()[0].abs() > 1e-6);
+        assert!(
+            lasso_model
+                .coefficients()
+                .expect("operation should succeed")[0]
+                .abs()
+                > 1e-6
+        );
+        assert!(
+            ridge_model
+                .coefficients()
+                .expect("operation should succeed")[0]
+                .abs()
+                > 1e-6
+        );
     }
 }
 

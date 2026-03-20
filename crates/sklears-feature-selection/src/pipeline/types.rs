@@ -284,7 +284,10 @@ impl FeatureSelectionPipeline<Untrained> {
         if self.dimensionality_reduction.is_some() {
             let step_start = Instant::now();
             let features_before = current_X.ncols();
-            let mut reduction = self.dimensionality_reduction.take().unwrap();
+            let mut reduction = self
+                .dimensionality_reduction
+                .take()
+                .expect("operation should succeed");
             current_X = self.apply_dimensionality_reduction(&mut reduction, current_X.view())?;
             self.dimensionality_reduction = Some(reduction);
             trained_steps.push(TrainedStep {
@@ -299,7 +302,10 @@ impl FeatureSelectionPipeline<Untrained> {
         if self.model_selection.is_some() {
             let step_start = Instant::now();
             let features_before = current_X.ncols();
-            let mut model_sel = self.model_selection.take().unwrap();
+            let mut model_sel = self
+                .model_selection
+                .take()
+                .expect("operation should succeed");
             let selected_features =
                 self.apply_model_selection(&mut model_sel, current_X.view(), current_y.view())?;
             self.model_selection = Some(model_sel);
@@ -452,7 +458,7 @@ impl FeatureSelectionPipeline<Untrained> {
             let mut scale = Array1::ones(X.ncols());
             for col in 0..X.ncols() {
                 let mut column_data: Vec<f64> = X.column(col).to_vec();
-                column_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                column_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let n = column_data.len();
                 if config.with_centering {
                     center[col] = if n % 2 == 0 {
@@ -643,7 +649,8 @@ impl FeatureSelectionPipeline<Untrained> {
                     }
                 }
             }
-            candidate_pairs.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+            candidate_pairs
+                .sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
             let limit = max_pairs.unwrap_or(candidate_pairs.len());
             pairs = candidate_pairs
                 .into_iter()
@@ -652,7 +659,10 @@ impl FeatureSelectionPipeline<Untrained> {
                 .collect();
             *feature_pairs = Some(pairs.clone());
         } else {
-            pairs = feature_pairs.as_ref().unwrap().clone();
+            pairs = feature_pairs
+                .as_ref()
+                .expect("operation should succeed")
+                .clone();
         }
         for &(i, j) in &pairs {
             let mut interaction = Array1::zeros(X.nrows());
@@ -698,7 +708,8 @@ impl FeatureSelectionPipeline<Untrained> {
                     }
                     BinningStrategy::Quantile => {
                         let mut sorted_values: Vec<f64> = column.to_vec();
-                        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        sorted_values
+                            .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let n = sorted_values.len();
                         (0..=n_bins)
                             .map(|i| {
@@ -782,7 +793,7 @@ impl FeatureSelectionPipeline<Untrained> {
             }
             *feature_variance = Some(variances);
         }
-        let variances = feature_variance.as_ref().unwrap();
+        let variances = feature_variance.as_ref().expect("operation should succeed");
         let selection = variances.mapv(|v| v > threshold);
         Ok(selection)
     }
@@ -813,7 +824,9 @@ impl FeatureSelectionPipeline<Untrained> {
             }
             *correlation_matrix = Some(corr_matrix);
         }
-        let corr_matrix = correlation_matrix.as_ref().unwrap();
+        let corr_matrix = correlation_matrix
+            .as_ref()
+            .expect("operation should succeed");
         let mut selection = Array1::from_elem(X.ncols(), true);
         for i in 0..X.ncols() {
             for j in (i + 1)..X.ncols() {
@@ -856,7 +869,8 @@ impl FeatureSelectionPipeline<Untrained> {
                     .enumerate()
                     .map(|(i, &score)| (i, score))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
                 let mut selection = Array1::from_elem(X.ncols(), false);
                 for &(idx, _) in indexed_scores.iter().take(*k_val) {
                     selection[idx] = true;
@@ -870,7 +884,8 @@ impl FeatureSelectionPipeline<Untrained> {
                     .enumerate()
                     .map(|(i, &score)| (i, score))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
                 let mut selection = Array1::from_elem(X.ncols(), false);
                 for &(idx, _) in indexed_scores.iter().take(k_val) {
                     selection[idx] = true;
@@ -884,7 +899,8 @@ impl FeatureSelectionPipeline<Untrained> {
                     .enumerate()
                     .map(|(i, &score)| (i, score))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
                 let mut selection = Array1::from_elem(X.ncols(), false);
                 for &(idx, _) in indexed_scores.iter().take(k_val) {
                     selection[idx] = true;
@@ -1043,7 +1059,7 @@ impl FeatureSelectionPipeline<Untrained> {
                 .enumerate()
                 .map(|(i, &score)| (i, score))
                 .collect();
-            indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
             let n_select = X.ncols() / 2;
             Ok(indexed_scores
                 .into_iter()
@@ -1069,7 +1085,7 @@ impl FeatureSelectionPipeline<Untrained> {
                 let score = self.compute_correlation(X.column(col), y).abs();
                 scores.push((col, score));
             }
-            scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
             let features: Vec<usize> = scores
                 .into_iter()
                 .take(max_features.min(X.ncols()))
@@ -1078,7 +1094,10 @@ impl FeatureSelectionPipeline<Untrained> {
             *selected_features = Some(features.clone());
             Ok(features)
         } else {
-            Ok(selected_features.as_ref().unwrap().clone())
+            Ok(selected_features
+                .as_ref()
+                .expect("operation should succeed")
+                .clone())
         }
     }
     fn compute_correlation(&self, x: ArrayView1<f64>, y: ArrayView1<f64>) -> f64 {

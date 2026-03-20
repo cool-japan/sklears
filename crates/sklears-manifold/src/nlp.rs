@@ -26,7 +26,6 @@ use scirs2_linalg::compat::ArrayLinalgExt;
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::Distribution;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -643,7 +642,8 @@ mod tests {
 
     #[test]
     fn test_word_embedding_fit() {
-        let cooc = Array2::from_shape_vec((10, 10), vec![0.0; 100]).unwrap();
+        let cooc =
+            Array2::from_shape_vec((10, 10), vec![0.0; 100]).expect("operation should succeed");
         let embedding = WordEmbedding::new().embedding_dim(5).n_epochs(2);
         let result = embedding.fit(&cooc.view(), &());
         assert!(result.is_ok());

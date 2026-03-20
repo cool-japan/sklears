@@ -242,7 +242,11 @@ impl Fit<ArrayView2<'_, f64>, ()> for PCACovariance {
 
         // Center and optionally scale the data
         let mean = if self.center {
-            x.mean_axis(Axis(0)).unwrap()
+            x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?
         } else {
             Array1::zeros(n_features)
         };
@@ -258,7 +262,7 @@ impl Fit<ArrayView2<'_, f64>, ()> for PCACovariance {
             let std_dev = x_centered
                 .mapv(|x| x * x)
                 .mean_axis(Axis(0))
-                .unwrap()
+                .ok_or_else(|| SklearsError::NumericalError("mean_axis failed".into()))?
                 .mapv(|x| x.sqrt());
             for mut row in x_centered.axis_iter_mut(Axis(0)) {
                 for (i, val) in row.iter_mut().enumerate() {
@@ -421,7 +425,9 @@ impl PCACovariance {
         // Process data in batches
         for chunk in x.axis_chunks_iter(Axis(0), batch_size) {
             let batch_size = chunk.nrows();
-            let batch_mean = chunk.mean_axis(Axis(0)).unwrap();
+            let batch_mean = chunk
+                .mean_axis(Axis(0))
+                .expect("mean computation should succeed for non-empty array");
 
             // Update running mean
             let new_n_samples = n_samples_seen + batch_size;
@@ -502,8 +508,12 @@ impl PCACovariance {
         }
 
         // Center the kernel matrix
-        let row_means = kernel_matrix.mean_axis(Axis(1)).unwrap();
-        let total_mean = kernel_matrix.mean().unwrap();
+        let row_means = kernel_matrix
+            .mean_axis(Axis(1))
+            .expect("mean computation should succeed for non-empty array");
+        let total_mean = kernel_matrix
+            .mean()
+            .expect("mean computation should succeed for non-empty array");
 
         for i in 0..n_samples {
             for j in 0..n_samples {
@@ -525,7 +535,7 @@ impl PCACovariance {
             .map(|(&val, vec)| (val.re, vec.mapv(|x| x.re)))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Take first n_components
         let eigenvalues: Array1<f64> = eigen_pairs
@@ -718,9 +728,11 @@ impl PCACovariance {
                 let max_idx = eigenvalues
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.re.partial_cmp(&b.re).unwrap())
+                    .max_by(|(_, a), (_, b)| {
+                        a.re.partial_cmp(&b.re).expect("operation should succeed")
+                    })
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("operation should succeed");
 
                 let mut component = eigenvectors.column(max_idx).mapv(|x| x.re);
 
@@ -1021,7 +1033,9 @@ mod tests {
             .n_components(2)
             .method(PCAMethod::Standard);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert_eq!(fitted.get_components().dim(), (2, 3));
@@ -1029,11 +1043,15 @@ mod tests {
         assert_eq!(fitted.get_n_components(), 2);
 
         // Test transform
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("transform should succeed");
         assert_eq!(transformed.dim(), (5, 2));
 
         // Test inverse transform
-        let reconstructed = fitted.inverse_transform(&transformed.view()).unwrap();
+        let reconstructed = fitted
+            .inverse_transform(&transformed.view())
+            .expect("operation should succeed");
         assert_eq!(reconstructed.dim(), (5, 3));
     }
 
@@ -1046,12 +1064,16 @@ mod tests {
             .method(PCAMethod::Kernel)
             .kernel(KernelFunction::RBF { gamma: 1.0 });
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_components().dim(), (2, 2));
         assert_eq!(fitted.get_explained_variance().len(), 2);
 
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("transform should succeed");
         assert_eq!(transformed.dim(), (4, 2));
     }
 
@@ -1069,11 +1091,18 @@ mod tests {
             .n_components(2)
             .method(PCAMethod::Probabilistic);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_components().dim(), (2, 3));
         assert!(fitted.get_noise_variance().is_some());
-        assert!(fitted.get_noise_variance().unwrap() > 0.0);
+        assert!(
+            fitted
+                .get_noise_variance()
+                .expect("operation should succeed")
+                > 0.0
+        );
     }
 
     #[test]
@@ -1090,7 +1119,9 @@ mod tests {
             .n_components(3)
             .method(PCAMethod::Standard);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let n_comp_90 = fitted.components_for_variance_ratio(0.9);
         let n_comp_95 = fitted.components_for_variance_ratio(0.95);
@@ -1114,7 +1145,9 @@ mod tests {
             .method(PCAMethod::Sparse)
             .sparsity(0.1);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         // Check that some components have been sparsified (set to zero)
         let components = fitted.get_components();

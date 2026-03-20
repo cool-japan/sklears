@@ -448,7 +448,9 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0, 4.0];
         let b = vec![5.0, 6.0, 7.0, 8.0];
 
-        let result = optimizer.vectorized_dot_product(&a, &b).unwrap();
+        let result = optimizer
+            .vectorized_dot_product(&a, &b)
+            .expect("operation should succeed");
         let expected = 1.0 * 5.0 + 2.0 * 6.0 + 3.0 * 7.0 + 4.0 * 8.0;
 
         assert!((result - expected).abs() < 1e-6);
@@ -461,22 +463,22 @@ mod tests {
 
         let sum = optimizer
             .vectorized_reduction(&data, ReductionOp::Sum)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(sum, 15.0);
 
         let max = optimizer
             .vectorized_reduction(&data, ReductionOp::Max)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(max, 5.0);
 
         let min = optimizer
             .vectorized_reduction(&data, ReductionOp::Min)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(min, 1.0);
 
         let mean = optimizer
             .vectorized_reduction(&data, ReductionOp::Mean)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(mean, 3.0);
     }
 

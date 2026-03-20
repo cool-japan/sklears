@@ -251,7 +251,10 @@ impl Fit<ArrayView2<'_, f64>, ()> for EMCovarianceMissingData {
             let target = if self.diagonal_covariance {
                 Array2::from_diag(&covariance.diag())
             } else {
-                Array2::eye(n_features) * covariance.diag().mean().unwrap()
+                Array2::eye(n_features)
+                    * covariance.diag().mean().ok_or_else(|| {
+                        SklearsError::NumericalError("valid array creation".into())
+                    })?
             };
             (1.0 - shrinkage) * covariance + shrinkage * target
         } else {
@@ -401,7 +404,9 @@ impl EMCovarianceMissingData {
             mean = if self.assume_centered {
                 Array1::zeros(n_features)
             } else {
-                x_imputed.mean_axis(Axis(0)).unwrap()
+                x_imputed
+                    .mean_axis(Axis(0))
+                    .expect("mean computation should succeed for non-empty array")
             };
 
             // Update covariance
@@ -920,7 +925,9 @@ mod tests {
 
         let estimator = EMCovarianceMissingData::new().max_iter(50).tolerance(1e-4);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert_eq!(fitted.get_mean().len(), 3);
@@ -928,7 +935,7 @@ mod tests {
         assert!(fitted.get_log_likelihood().is_finite());
 
         // Test imputation
-        let imputed = fitted.impute(&x.view()).unwrap();
+        let imputed = fitted.impute(&x.view()).expect("operation should succeed");
         assert_eq!(imputed.dim(), (5, 3));
 
         // Check that no values are NaN in imputed data
@@ -945,7 +952,7 @@ mod tests {
         let em_normal = EMCovarianceMissingData::new()
             .missing_method(MissingDataMethod::MultivariateNormal)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(matches!(
             em_normal.get_method(),
             MissingDataMethod::MultivariateNormal
@@ -955,7 +962,7 @@ mod tests {
         let em_fa = EMCovarianceMissingData::new()
             .missing_method(MissingDataMethod::FactorAnalysis { n_factors: 1 })
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(matches!(
             em_fa.get_method(),
             MissingDataMethod::FactorAnalysis { .. }
@@ -973,7 +980,9 @@ mod tests {
 
         let estimator = EMCovarianceMissingData::new().diagonal_covariance(true);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let cov = fitted.get_covariance();
 
@@ -999,7 +1008,9 @@ mod tests {
 
         let estimator = EMCovarianceMissingData::new().shrinkage(0.1);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         // Shrinkage should affect the covariance structure
@@ -1014,7 +1025,9 @@ mod tests {
             [1.5, 2.5, 3.5]
         ];
 
-        let fitted = EMCovarianceMissingData::new().fit(&x.view(), &()).unwrap();
+        let fitted = EMCovarianceMissingData::new()
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let missing_pattern = fitted.get_missing_pattern();
         let missing_fraction = fitted.get_missing_fraction();
@@ -1043,7 +1056,7 @@ mod tests {
         let fitted = EMCovarianceMissingData::new()
             .max_iter(10)
             .fit(&x.view(), &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let history = fitted.get_log_likelihood_history();
         assert!(history.len() > 0);

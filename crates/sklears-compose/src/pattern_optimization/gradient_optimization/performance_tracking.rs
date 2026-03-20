@@ -153,7 +153,7 @@ impl PerformanceTracker {
 
         // Initialize real-time monitoring
         {
-            let mut real_time = self.real_time_metrics.lock().unwrap();
+            let mut real_time = self.real_time_metrics.lock().unwrap_or_else(|e| e.into_inner());
             real_time.reset();
         }
 
@@ -184,7 +184,7 @@ impl PerformanceTracker {
 
             // Update real-time metrics
             {
-                let mut real_time = self.real_time_metrics.lock().unwrap();
+                let mut real_time = self.real_time_metrics.lock().unwrap_or_else(|e| e.into_inner());
                 real_time.update(&metrics);
             }
 
@@ -214,7 +214,7 @@ impl PerformanceTracker {
 
             // Store session in history
             {
-                let mut history = self.history.write().unwrap();
+                let mut history = self.history.write().unwrap_or_else(|e| e.into_inner());
                 history.add_session(session);
             }
 
@@ -231,7 +231,7 @@ impl PerformanceTracker {
 
     /// Gets a real-time performance summary.
     pub fn get_performance_summary(&self) -> SklResult<PerformanceSummary> {
-        let real_time = self.real_time_metrics.lock().unwrap();
+        let real_time = self.real_time_metrics.lock().unwrap_or_else(|e| e.into_inner());
 
         if let Some(ref session) = self.current_session {
             let elapsed = session.start_time.elapsed();
@@ -873,8 +873,8 @@ impl ConvergenceMetrics {
     fn update_convergence_rate(&mut self) {
         if self.function_values.len() >= 10 {
             let recent_values = &self.function_values[self.function_values.len() - 10..];
-            let improvement = recent_values.first().unwrap() - recent_values.last().unwrap();
-            let initial_value = recent_values.first().unwrap();
+            let improvement = recent_values.first().unwrap_or_default() - recent_values.last().unwrap_or_default();
+            let initial_value = recent_values.first().unwrap_or_default();
 
             if initial_value.abs() > 1e-15 {
                 self.convergence_rate = Some((improvement / initial_value.abs()).max(0.0));

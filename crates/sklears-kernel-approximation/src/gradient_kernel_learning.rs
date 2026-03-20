@@ -439,7 +439,7 @@ impl GradientKernelLearner {
 
     /// Momentum update
     fn update_momentum(&mut self, gradient: &Array1<f64>) -> Result<()> {
-        let velocity = self.velocity.as_mut().unwrap();
+        let velocity = self.velocity.as_mut().expect("operation should succeed");
 
         for i in 0..self.parameters.len() {
             velocity[i] =
@@ -459,8 +459,8 @@ impl GradientKernelLearner {
             self.adam_v = Some(Array1::zeros(self.parameters.len()));
         }
 
-        let adam_m = self.adam_m.as_mut().unwrap();
-        let adam_v = self.adam_v.as_mut().unwrap();
+        let adam_m = self.adam_m.as_mut().expect("operation should succeed");
+        let adam_v = self.adam_v.as_mut().expect("operation should succeed");
 
         let beta1 = 0.9;
         let beta2 = 0.999;
@@ -493,7 +493,7 @@ impl GradientKernelLearner {
             self.adam_v = Some(Array1::zeros(self.parameters.len()));
         }
 
-        let accumulated_grad = self.adam_v.as_mut().unwrap();
+        let accumulated_grad = self.adam_v.as_mut().expect("operation should succeed");
         let epsilon = 1e-8;
 
         for i in 0..self.parameters.len() {
@@ -512,7 +512,7 @@ impl GradientKernelLearner {
             self.adam_v = Some(Array1::zeros(self.parameters.len()));
         }
 
-        let accumulated_grad = self.adam_v.as_mut().unwrap();
+        let accumulated_grad = self.adam_v.as_mut().expect("operation should succeed");
         let decay_rate = 0.9;
         let epsilon = 1e-8;
 
@@ -549,7 +549,11 @@ impl GradientKernelLearner {
     /// Update learning rate adaptively
     fn update_learning_rate(&mut self, iteration: usize) {
         if iteration > 0 {
-            let current_loss = self.optimization_history.last().unwrap().0;
+            let current_loss = self
+                .optimization_history
+                .last()
+                .expect("operation should succeed")
+                .0;
             let previous_loss = self.optimization_history[self.optimization_history.len() - 2].0;
 
             if current_loss > previous_loss {
@@ -899,11 +903,13 @@ mod tests {
             .with_optimizer(GradientOptimizer::Adam)
             .with_objective(KernelObjective::KernelAlignment);
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("operation should succeed");
 
         learner.initialize_parameters(Array1::from_vec(vec![1.0, 0.5]));
-        let optimized_params = learner.optimize(&x, None).unwrap();
+        let optimized_params = learner
+            .optimize(&x, None)
+            .expect("operation should succeed");
 
         assert_eq!(optimized_params.len(), 2);
     }
@@ -921,7 +927,8 @@ mod tests {
         for optimizer in optimizers {
             let mut learner = GradientKernelLearner::new(1).with_optimizer(optimizer);
 
-            let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0]).unwrap();
+            let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0])
+                .expect("operation should succeed");
 
             learner.initialize_parameters(Array1::from_vec(vec![1.0]));
             let result = learner.optimize(&x, None);
@@ -939,14 +946,16 @@ mod tests {
                     0.0, 5.0, // Parameter 1: [0.0, 5.0]
                 ],
             )
-            .unwrap(),
+            .expect("operation should succeed"),
         );
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("operation should succeed");
 
         learner.initialize_parameters(Array1::from_vec(vec![100.0, -1.0]));
-        let optimized_params = learner.optimize(&x, None).unwrap();
+        let optimized_params = learner
+            .optimize(&x, None)
+            .expect("operation should succeed");
 
         assert!(optimized_params[0] >= 0.1 && optimized_params[0] <= 10.0);
         assert!(optimized_params[1] >= 0.0 && optimized_params[1] <= 5.0);
@@ -956,10 +965,12 @@ mod tests {
     fn test_multi_kernel_learner() {
         let mut multi_learner = GradientMultiKernelLearner::new(3, 2);
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("operation should succeed");
 
-        multi_learner.optimize(&x, None).unwrap();
+        multi_learner
+            .optimize(&x, None)
+            .expect("operation should succeed");
 
         let all_params = multi_learner.get_all_parameters();
         assert_eq!(all_params.len(), 3);
@@ -983,7 +994,7 @@ mod tests {
             let mut learner = GradientKernelLearner::new(1).with_objective(objective.clone());
 
             let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
-                .unwrap();
+                .expect("operation should succeed");
 
             let y = Array1::from_vec(vec![1.0, 0.0, 1.0, 0.0]);
 
@@ -1012,8 +1023,8 @@ mod tests {
 
         let mut learner = GradientKernelLearner::new(1).with_config(config);
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("operation should succeed");
 
         learner.initialize_parameters(Array1::from_vec(vec![1.0]));
         let result = learner.optimize(&x, None);

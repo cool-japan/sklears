@@ -16,7 +16,7 @@
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{array, s, Array1, Array2, ArrayView2};
 use scirs2_core::random::RandNormal;
-use scirs2_core::random::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -259,7 +259,7 @@ impl NSGA2Optimizer<Untrained> {
         let param_size = n_features * n_outputs + n_outputs; // weights + bias
 
         for _ in 0..self.config.population_size {
-            let parameters = Array1::from_shape_fn(param_size, |_| rng.gen_range(-1.0..1.0));
+            let parameters = Array1::from_shape_fn(param_size, |_| rng.random_range(-1.0..1.0));
             let solution = ParetoSolution {
                 parameters,
                 objectives: Array1::zeros(2), // Will be filled during evaluation
@@ -419,8 +419,8 @@ impl NSGA2Optimizer<Untrained> {
         population: &[ParetoSolution],
         rng: &mut R,
     ) -> SklResult<ParetoSolution> {
-        let idx1 = rng.gen_range(0..population.len());
-        let idx2 = rng.gen_range(0..population.len());
+        let idx1 = rng.random_range(0..population.len());
+        let idx2 = rng.random_range(0..population.len());
 
         let solution1 = &population[idx1];
         let solution2 = &population[idx2];

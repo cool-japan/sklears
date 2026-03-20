@@ -575,7 +575,11 @@ impl CircuitBreakerAnalytics {
 
     /// Schedule analytics job
     pub fn schedule_job(&self, job: AnalyticsJob) -> SklResult<()> {
-        let mut jobs = self.scheduler.jobs.write().unwrap();
+        let mut jobs = self
+            .scheduler
+            .jobs
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         jobs.push(job);
         Ok(())
     }
@@ -829,13 +833,13 @@ impl InMemoryDataStorageBackend {
 
 impl DataStorageBackend for InMemoryDataStorageBackend {
     fn store(&self, events: &[CircuitBreakerEvent]) -> SklResult<()> {
-        let mut data = self.data.write().unwrap();
+        let mut data = self.data.write().unwrap_or_else(|e| e.into_inner());
         data.extend_from_slice(events);
         Ok(())
     }
 
     fn query(&self, _query: &DataQuery) -> SklResult<Vec<CircuitBreakerEvent>> {
-        let data = self.data.read().unwrap();
+        let data = self.data.read().unwrap_or_else(|e| e.into_inner());
         Ok(data.clone())
     }
 
@@ -844,7 +848,7 @@ impl DataStorageBackend for InMemoryDataStorageBackend {
     }
 
     fn statistics(&self) -> StorageStatistics {
-        let data = self.data.read().unwrap();
+        let data = self.data.read().unwrap_or_else(|e| e.into_inner());
         /// StorageStatistics
         StorageStatistics {
             total_events: data.len() as u64,

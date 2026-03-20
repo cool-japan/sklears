@@ -87,7 +87,7 @@ impl Fit<Array2<f64>, Array1<f64>> for MultiObjectiveFeatureSelector<Untrained> 
 
 impl Transform<Array2<f64>> for MultiObjectiveFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<f64>) -> SklResult<Array2<f64>> {
-        let n_features = self.n_features_.unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
         if x.ncols() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
@@ -109,7 +109,7 @@ impl Transform<Array2<f64>> for MultiObjectiveFeatureSelector<Trained> {
 impl SelectorMixin for MultiObjectiveFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
         let selected_features = self.balanced_solution().unwrap_or(&[]);
-        let n_features = self.n_features_.unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
         let mut support = vec![false; n_features];
         for &idx in selected_features {
             support[idx] = true;

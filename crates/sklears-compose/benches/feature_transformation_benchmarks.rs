@@ -10,7 +10,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::RngExt;
+use scirs2_core::random::SeedableRng;
 use sklears_compose::{FeatureUnion, PipelineStep};
 use sklears_core::error::Result as SklResult;
 use sklears_core::traits::{Fit, Untrained};
@@ -110,13 +111,16 @@ fn bench_feature_union(c: &mut Criterion) {
                 )
             })
             .collect();
-        let fitted = build_union(transformers).fit(&x_view, &y_opt).unwrap();
+        let fitted = build_union(transformers)
+            .fit(&x_view, &y_opt)
+            .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("parallel_transforms", n_transformers),
             n_transformers,
             |bench, _| {
-                bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+                bench
+                    .iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
             },
         );
     }
@@ -136,19 +140,37 @@ fn bench_transformation_types(c: &mut Criterion) {
     // Benchmark scaling
     group.bench_function("scale_operation", |bench| {
         let transformer = MockFeatureTransformer::new(TransformOperation::Scale(2.5));
-        bench.iter(|| black_box(transformer.transform(&x_view).unwrap()));
+        bench.iter(|| {
+            black_box(
+                transformer
+                    .transform(&x_view)
+                    .expect("bench operation failed"),
+            )
+        });
     });
 
     // Benchmark squaring
     group.bench_function("square_operation", |bench| {
         let transformer = MockFeatureTransformer::new(TransformOperation::Square);
-        bench.iter(|| black_box(transformer.transform(&x_view).unwrap()));
+        bench.iter(|| {
+            black_box(
+                transformer
+                    .transform(&x_view)
+                    .expect("bench operation failed"),
+            )
+        });
     });
 
     // Benchmark log transform
     group.bench_function("log_operation", |bench| {
         let transformer = MockFeatureTransformer::new(TransformOperation::Log);
-        bench.iter(|| black_box(transformer.transform(&x_view).unwrap()));
+        bench.iter(|| {
+            black_box(
+                transformer
+                    .transform(&x_view)
+                    .expect("bench operation failed"),
+            )
+        });
     });
 
     // Benchmark polynomial features
@@ -158,7 +180,13 @@ fn bench_transformation_types(c: &mut Criterion) {
             degree,
             |bench, &d| {
                 let transformer = MockFeatureTransformer::new(TransformOperation::Polynomial(d));
-                bench.iter(|| black_box(transformer.transform(&x_view).unwrap()));
+                bench.iter(|| {
+                    black_box(
+                        transformer
+                            .transform(&x_view)
+                            .expect("bench operation failed"),
+                    )
+                });
             },
         );
     }
@@ -200,13 +228,14 @@ fn bench_feature_union_data_scaling(c: &mut Criterion) {
             ),
         ])
         .fit(&x_view, &y_opt)
-        .unwrap();
+        .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("5_transformers", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+                bench
+                    .iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
             },
         );
     }
@@ -245,10 +274,16 @@ fn bench_feature_union_weighting(c: &mut Criterion) {
         ),
     ])
     .fit(&x_view, &y_opt)
-    .unwrap();
+    .expect("bench operation failed");
 
     group.bench_function("unweighted", |bench| {
-        bench.iter(|| black_box(fitted_unweighted.transform(&x_view).unwrap()));
+        bench.iter(|| {
+            black_box(
+                fitted_unweighted
+                    .transform(&x_view)
+                    .expect("bench operation failed"),
+            )
+        });
     });
 
     // Benchmark with transformer weights
@@ -280,10 +315,18 @@ fn bench_feature_union_weighting(c: &mut Criterion) {
         ),
     ]);
     union_weighted = union_weighted.transformer_weights(weights);
-    let fitted_weighted = union_weighted.fit(&x_view, &y_opt).unwrap();
+    let fitted_weighted = union_weighted
+        .fit(&x_view, &y_opt)
+        .expect("bench operation failed");
 
     group.bench_function("weighted", |bench| {
-        bench.iter(|| black_box(fitted_weighted.transform(&x_view).unwrap()));
+        bench.iter(|| {
+            black_box(
+                fitted_weighted
+                    .transform(&x_view)
+                    .expect("bench operation failed"),
+            )
+        });
     });
 
     group.finish();
@@ -316,13 +359,14 @@ fn bench_feature_dimensionality(c: &mut Criterion) {
             ("log", MockFeatureTransformer::new(TransformOperation::Log)),
         ])
         .fit(&x_view, &y_opt)
-        .unwrap();
+        .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("3_transformers", n_features),
             n_features,
             |bench, _| {
-                bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+                bench
+                    .iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
             },
         );
     }
@@ -349,7 +393,13 @@ fn bench_transformation_memory(c: &mut Criterion) {
             &(*n_samples, *n_features),
             |bench, _| {
                 let transformer = MockFeatureTransformer::new(TransformOperation::Scale(2.0));
-                bench.iter(|| black_box(transformer.transform(&x_view).unwrap()));
+                bench.iter(|| {
+                    black_box(
+                        transformer
+                            .transform(&x_view)
+                            .expect("bench operation failed"),
+                    )
+                });
             },
         );
 
@@ -365,13 +415,19 @@ fn bench_transformation_memory(c: &mut Criterion) {
             ("t3", MockFeatureTransformer::new(TransformOperation::Log)),
         ])
         .fit(&x_view, &y_opt)
-        .unwrap();
+        .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("union_transform", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted_union.transform(&x_view).unwrap()));
+                bench.iter(|| {
+                    black_box(
+                        fitted_union
+                            .transform(&x_view)
+                            .expect("bench operation failed"),
+                    )
+                });
             },
         );
     }

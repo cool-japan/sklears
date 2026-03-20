@@ -9,7 +9,7 @@
 //! - Multi-modal topic-document representations
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -283,13 +283,13 @@ impl TopicModel {
 
         for i in 0..self.num_documents {
             for j in 0..self.num_topics {
-                w[[i, j]] = rng.gen();
+                w[[i, j]] = rng.random();
             }
         }
 
         for i in 0..self.num_topics {
             for j in 0..self.num_terms {
-                h[[i, j]] = rng.gen();
+                h[[i, j]] = rng.random();
             }
         }
 
@@ -372,7 +372,10 @@ impl TopicModel {
         result: &mut Array2<f64>,
         alpha: f64,
     ) -> Result<(), TopicModelError> {
-        let topic_term_matrix = self.topic_term_matrix.as_ref().unwrap();
+        let topic_term_matrix = self
+            .topic_term_matrix
+            .as_ref()
+            .expect("topic_term_matrix not available - model not fitted");
 
         for doc in 0..result.nrows() {
             let mut doc_topic_counts = Array1::zeros(self.num_topics);
@@ -432,7 +435,10 @@ impl TopicModel {
         doc_term_matrix: &Array2<f64>,
         result: &mut Array2<f64>,
     ) -> Result<(), TopicModelError> {
-        let topic_term_matrix = self.topic_term_matrix.as_ref().unwrap();
+        let topic_term_matrix = self
+            .topic_term_matrix
+            .as_ref()
+            .expect("topic_term_matrix not available - model not fitted");
 
         // Solve for W given H using least squares approximation
         let h = topic_term_matrix;
@@ -450,7 +456,10 @@ impl TopicModel {
         doc_term_matrix: &Array2<f64>,
         result: &mut Array2<f64>,
     ) -> Result<(), TopicModelError> {
-        let topic_term_matrix = self.topic_term_matrix.as_ref().unwrap();
+        let topic_term_matrix = self
+            .topic_term_matrix
+            .as_ref()
+            .expect("topic_term_matrix not available - model not fitted");
 
         for doc in 0..result.nrows() {
             for topic in 0..self.num_topics {
@@ -469,11 +478,11 @@ impl TopicModel {
     fn sample_topic(&self, probs: &Array1<f64>, rng: &mut impl Rng) -> usize {
         let total: f64 = probs.sum();
         if total == 0.0 {
-            return rng.gen_range(0..self.num_topics);
+            return rng.random_range(0..self.num_topics);
         }
 
         let mut cumulative = 0.0;
-        let threshold = rng.gen::<f64>() * total;
+        let threshold = rng.random::<f64>() * total;
 
         for (topic, &prob) in probs.iter().enumerate() {
             cumulative += prob;
@@ -515,7 +524,10 @@ impl TopicModel {
             return Err(TopicModelError::NotTrained);
         }
 
-        let topic_term_matrix = self.topic_term_matrix.as_ref().unwrap();
+        let topic_term_matrix = self
+            .topic_term_matrix
+            .as_ref()
+            .expect("topic_term_matrix not available - model not fitted");
         let mut topic_words = Vec::new();
 
         for topic in 0..self.num_topics {
@@ -526,7 +538,7 @@ impl TopicModel {
                 .map(|(word, &prob)| (word, prob))
                 .collect();
 
-            word_probs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            word_probs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             word_probs.truncate(num_words);
 
             topic_words.push(word_probs);
@@ -541,7 +553,10 @@ impl TopicModel {
             return Err(TopicModelError::NotTrained);
         }
 
-        let document_topic_matrix = self.document_topic_matrix.as_ref().unwrap();
+        let document_topic_matrix = self
+            .document_topic_matrix
+            .as_ref()
+            .expect("document_topic_matrix not available - model not fitted");
 
         if doc_idx >= document_topic_matrix.nrows() {
             return Err(TopicModelError::InvalidDimensions);
@@ -768,8 +783,14 @@ pub mod topic_utils {
             return f64::INFINITY;
         }
 
-        let topic_term_matrix = topic_model.topic_term_matrix.as_ref().unwrap();
-        let document_topic_matrix = topic_model.document_topic_matrix.as_ref().unwrap();
+        let topic_term_matrix = topic_model
+            .topic_term_matrix
+            .as_ref()
+            .expect("value not available");
+        let document_topic_matrix = topic_model
+            .document_topic_matrix
+            .as_ref()
+            .expect("value not available");
 
         let mut log_likelihood = 0.0;
         let mut total_words = 0.0;
@@ -805,7 +826,9 @@ pub mod topic_utils {
             return 0.0;
         }
 
-        let topic_words = topic_model.get_topic_words(top_words).unwrap_or_default();
+        let topic_words = topic_model
+            .get_topic_words(top_words)
+            .expect("value should be present");
         let mut total_coherence = 0.0;
 
         for topic_word_list in &topic_words {
@@ -868,7 +891,7 @@ mod tests {
         );
 
         assert!(model.is_ok());
-        let model = model.unwrap();
+        let model = model.expect("operation should succeed");
         assert_eq!(model.num_topics, 5);
         assert!(!model.is_trained);
     }
@@ -885,14 +908,14 @@ mod tests {
             1e-6,
             Some(42),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Create simple document-term matrix
         let doc_term_matrix = Array2::from_shape_vec(
             (3, 4),
             vec![1.0, 2.0, 0.0, 1.0, 0.0, 1.0, 2.0, 1.0, 2.0, 0.0, 1.0, 2.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = model.fit(&doc_term_matrix);
         assert!(result.is_ok());
@@ -911,13 +934,13 @@ mod tests {
             1e-6,
             Some(42),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let doc_term_matrix = Array2::from_shape_vec(
             (3, 4),
             vec![1.0, 2.0, 0.0, 1.0, 0.0, 1.0, 2.0, 1.0, 2.0, 0.0, 1.0, 2.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = model.fit(&doc_term_matrix);
         assert!(result.is_ok());

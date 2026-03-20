@@ -19,7 +19,7 @@ impl PythonInterop {
     /// Convert Rust array to Python-compatible format
     pub fn array_to_python_buffer(array: &Array1<f64>) -> PyArrayBuffer {
         PyArrayBuffer {
-            data: array.as_slice().unwrap().to_vec(),
+            data: array.as_slice().expect("operation should succeed").to_vec(),
             shape: vec![array.len()],
             dtype: "float64".to_string(),
             order: "C".to_string(),
@@ -30,7 +30,7 @@ impl PythonInterop {
     pub fn array2_to_python_buffer(array: &Array2<f64>) -> PyArrayBuffer {
         let (rows, cols) = array.dim();
         PyArrayBuffer {
-            data: array.as_slice().unwrap().to_vec(),
+            data: array.as_slice().expect("operation should succeed").to_vec(),
             shape: vec![rows, cols],
             dtype: "float64".to_string(),
             order: "C".to_string(),
@@ -378,7 +378,7 @@ impl RInterop {
     /// Convert Rust array to R-compatible format
     pub fn array_to_r_vector(array: &Array1<f64>) -> RVector {
         RVector {
-            data: array.as_slice().unwrap().to_vec(),
+            data: array.as_slice().expect("operation should succeed").to_vec(),
             length: array.len(),
             r_type: RType::Numeric,
         }
@@ -1080,7 +1080,8 @@ mod tests {
         assert_eq!(buffer.order, "C");
 
         // Test conversion back
-        let converted = PythonInterop::python_buffer_to_array(&buffer).unwrap();
+        let converted =
+            PythonInterop::python_buffer_to_array(&buffer).expect("operation should succeed");
         assert_eq!(converted, arr);
     }
 
@@ -1093,7 +1094,8 @@ mod tests {
         assert_eq!(buffer.shape, vec![3, 2]);
 
         // Test conversion back
-        let converted = PythonInterop::python_buffer_to_array2(&buffer).unwrap();
+        let converted =
+            PythonInterop::python_buffer_to_array2(&buffer).expect("operation should succeed");
         assert_eq!(converted, arr);
     }
 
@@ -1161,7 +1163,7 @@ mod tests {
 
         let script =
             PythonInterop::create_ml_script("random_forest", &training_data, &labels, &hyperparams)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(script.contains("import numpy as np"));
         assert!(script.contains("from sklearn.ensemble import RandomForestRegressor"));
@@ -1280,10 +1282,11 @@ mod tests {
     #[test]
     fn test_rust_to_c_string() {
         let rust_str = "Hello, World!";
-        let c_ptr = FFIUtils::rust_string_to_c(rust_str).unwrap();
+        let c_ptr = FFIUtils::rust_string_to_c(rust_str).expect("operation should succeed");
 
         // Convert back to verify
-        let converted = unsafe { FFIUtils::c_string_to_rust(c_ptr).unwrap() };
+        let converted =
+            unsafe { FFIUtils::c_string_to_rust(c_ptr).expect("operation should succeed") };
         assert_eq!(converted, rust_str);
 
         // Clean up
@@ -1372,7 +1375,7 @@ mod tests {
         assert_eq!(r_vector.r_type, RType::Numeric);
 
         // Test conversion back
-        let converted = RInterop::r_vector_to_array(&r_vector).unwrap();
+        let converted = RInterop::r_vector_to_array(&r_vector).expect("operation should succeed");
         assert_eq!(converted, arr);
     }
 
@@ -1388,7 +1391,7 @@ mod tests {
         assert_eq!(r_matrix.r_type, RType::Numeric);
 
         // Test conversion back
-        let converted = RInterop::r_matrix_to_array2(&r_matrix).unwrap();
+        let converted = RInterop::r_matrix_to_array2(&r_matrix).expect("operation should succeed");
         assert_eq!(converted, arr);
     }
 
@@ -1445,7 +1448,8 @@ mod tests {
             },
         );
 
-        let code = RInterop::generate_r_dataframe_code("my_df", &columns).unwrap();
+        let code = RInterop::generate_r_dataframe_code("my_df", &columns)
+            .expect("operation should succeed");
 
         // The order might vary due to HashMap, so check for both possibilities
         let expected1 = "my_df <- data.frame(x = c(1, 2, 3), y = c(4, 5, 6))";
@@ -1519,7 +1523,7 @@ mod tests {
             &response_var,
             &hyperparams,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(script.contains("library(randomForest)"));
         assert!(script.contains("X <- matrix"));
@@ -1554,7 +1558,7 @@ mod tests {
             &response_var,
             &hyperparams,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(script.contains("# Linear regression using base R"));
         assert!(script.contains("model <- lm(y_train ~ X_train)"));
@@ -1572,18 +1576,21 @@ mod tests {
         };
 
         // Test descriptive statistics
-        let script = RInterop::create_r_statistical_analysis(&data, "descriptive").unwrap();
+        let script = RInterop::create_r_statistical_analysis(&data, "descriptive")
+            .expect("operation should succeed");
         assert!(script.contains("summary(data)"));
         assert!(script.contains("apply(data, 2, sd)"));
         assert!(script.contains("cor(data)"));
 
         // Test PCA
-        let script = RInterop::create_r_statistical_analysis(&data, "pca").unwrap();
+        let script = RInterop::create_r_statistical_analysis(&data, "pca")
+            .expect("operation should succeed");
         assert!(script.contains("prcomp(data, center = TRUE, scale. = TRUE)"));
         assert!(script.contains("plot(pca_result$x[,1:2])"));
 
         // Test clustering
-        let script = RInterop::create_r_statistical_analysis(&data, "clustering").unwrap();
+        let script = RInterop::create_r_statistical_analysis(&data, "clustering")
+            .expect("operation should succeed");
         assert!(script.contains("kmeans(data, centers = 3)"));
         assert!(script.contains("plot(data, col = kmeans_result$cluster)"));
     }
@@ -1592,7 +1599,8 @@ mod tests {
     fn test_r_output_conversion() {
         // Test vector parsing
         let vector_output = "[1] 1.0 2.5 3.8";
-        let result = RInterop::convert_r_output(vector_output, ROutputType::Vector).unwrap();
+        let result = RInterop::convert_r_output(vector_output, ROutputType::Vector)
+            .expect("operation should succeed");
         match result {
             ROutputValue::Vector(v) => assert_eq!(v, vec![1.0, 2.5, 3.8]),
             _ => panic!("Expected vector output"),
@@ -1600,7 +1608,8 @@ mod tests {
 
         // Test scalar parsing
         let scalar_output = "[1] 42.5";
-        let result = RInterop::convert_r_output(scalar_output, ROutputType::Scalar).unwrap();
+        let result = RInterop::convert_r_output(scalar_output, ROutputType::Scalar)
+            .expect("operation should succeed");
         match result {
             ROutputValue::Scalar(s) => assert_eq!(s, 42.5),
             _ => panic!("Expected scalar output"),
@@ -1608,7 +1617,8 @@ mod tests {
 
         // Test string parsing
         let string_output = "This is a test string";
-        let result = RInterop::convert_r_output(string_output, ROutputType::String).unwrap();
+        let result = RInterop::convert_r_output(string_output, ROutputType::String)
+            .expect("operation should succeed");
         match result {
             ROutputValue::String(s) => assert_eq!(s, "This is a test string"),
             _ => panic!("Expected string output"),
@@ -1625,7 +1635,7 @@ mod tests {
             r_type: RType::Numeric,
         };
 
-        let converted = RInterop::r_matrix_to_array2(&r_matrix).unwrap();
+        let converted = RInterop::r_matrix_to_array2(&r_matrix).expect("operation should succeed");
 
         // When byrow=true, data is already in row-major format [1,2,3,4]
         // This should give us [[1.0, 2.0], [3.0, 4.0]]

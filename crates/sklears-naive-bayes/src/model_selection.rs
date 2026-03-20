@@ -499,7 +499,7 @@ impl BayesianModelSelector {
         let best_idx = posterior_model_probs
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -891,7 +891,7 @@ impl NaiveBayesModelSelector {
         let best_idx = cv_results
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.mean_test_score.partial_cmp(&b.mean_test_score).unwrap())
+            .max_by(|(_, a), (_, b)| a.mean_test_score.partial_cmp(&b.mean_test_score).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -1001,7 +1001,7 @@ mod tests {
     fn test_kfold_splits() {
         let selector = NaiveBayesModelSelector::new();
         let y = Array1::from_vec(vec![0, 1, 0, 1, 0, 1, 0, 1]);
-        let splits = selector.kfold_splits(8, 4, false, None).unwrap();
+        let splits = selector.kfold_splits(8, 4, false, None).expect("operation should succeed");
 
         assert_eq!(splits.len(), 4);
         for (train, test) in splits {
@@ -1012,7 +1012,7 @@ mod tests {
     #[test]
     fn test_cross_validate() {
         let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0]).expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 1, 0]);
 
         let selector = NaiveBayesModelSelector::new().cv_strategy(CVStrategy::KFold {
@@ -1022,7 +1022,7 @@ mod tests {
         });
 
         let model = GaussianNB::new();
-        let results = selector.cross_validate(model, &x, &y).unwrap();
+        let results = selector.cross_validate(model, &x, &y).expect("operation should succeed");
 
         assert_eq!(results.test_scores.len(), 2);
         assert!(results.mean_test_score >= 0.0 && results.mean_test_score <= 1.0);
@@ -1048,7 +1048,7 @@ mod tests {
                 4.0, 3.0, 3.0, 1.0, 4.0, 1.0, 3.0, 2.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 1, 0, 1, 0, 1, 0]);
 
         let bayesian_selector = BayesianModelSelector::new();
@@ -1089,9 +1089,9 @@ mod tests {
         let max_idx = posterior_probs
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(max_idx, 2); // Third model has highest log marginal likelihood
     }
 
@@ -1101,7 +1101,7 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 1.0, 4.0, 2.0, 2.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 1, 0, 1, 0]);
 
         let bayesian_selector = BayesianModelSelector::new()
@@ -1113,7 +1113,7 @@ mod tests {
         let comparison = bayesian_selector.compare_models_bayesian(models, &x, &y);
         assert!(comparison.is_ok());
 
-        let results = comparison.unwrap();
+        let results = comparison.expect("operation should succeed");
         assert_eq!(results.model_names.len(), 1);
         assert_eq!(results.log_marginal_likelihoods.len(), 1);
         assert_eq!(results.bayes_factors.len(), 1);
@@ -1130,7 +1130,7 @@ mod tests {
                 4.0, 3.0, 3.0, 1.0, 4.0, 1.0, 3.0, 2.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 1, 0, 1, 0, 1, 0]);
 
         let selector = NaiveBayesModelSelector::new();
@@ -1141,7 +1141,7 @@ mod tests {
 
         let nested_results = selector
             .nested_model_comparison(&simple_model, &complex_model, &x, &y, 0.05)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!nested_results.simple_model_name.is_empty());
         assert!(!nested_results.complex_model_name.is_empty());

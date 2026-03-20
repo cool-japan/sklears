@@ -6,8 +6,8 @@
 
 use rayon::prelude::*;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -345,7 +345,7 @@ impl ParallelOptimizer {
 
         // Process configurations in parallel chunks
         let shared_state = self.shared_state.clone();
-        let worker_pool = self.worker_pool.as_ref().unwrap();
+        let worker_pool = self.worker_pool.as_ref().expect("operation should succeed");
 
         worker_pool.install(|| {
             grid_configs
@@ -381,13 +381,6 @@ impl ParallelOptimizer {
                                 }
                             }
                             Err(e) => {
-                                if matches!(
-                                    self.config.error_handling,
-                                    ErrorHandlingStrategy::FailFast
-                                ) {
-                                    panic!("Evaluation failed: {}", e);
-                                }
-
                                 let evaluation_time = start_time.elapsed();
                                 let result = EvaluationResult {
                                     hyperparameters: config.clone(),
@@ -398,6 +391,18 @@ impl ParallelOptimizer {
                                     additional_metrics: HashMap::new(),
                                     error: Some(e.to_string()),
                                 };
+
+                                if matches!(
+                                    self.config.error_handling,
+                                    ErrorHandlingStrategy::FailFast
+                                ) {
+                                    // Record the error and return early instead of panicking
+                                    if let Ok(mut state) = shared_state.write() {
+                                        state.evaluations.push(result);
+                                        state.completed_count += 1;
+                                    }
+                                    return;
+                                }
 
                                 if let Ok(mut state) = shared_state.write() {
                                     state.evaluations.push(result);
@@ -434,7 +439,7 @@ impl ParallelOptimizer {
         };
 
         let shared_state = self.shared_state.clone();
-        let worker_pool = self.worker_pool.as_ref().unwrap();
+        let worker_pool = self.worker_pool.as_ref().expect("operation should succeed");
 
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -568,7 +573,7 @@ impl ParallelOptimizer {
             )?;
 
             // Evaluate batch in parallel
-            let worker_pool = self.worker_pool.as_ref().unwrap();
+            let worker_pool = self.worker_pool.as_ref().expect("operation should succeed");
             worker_pool.install(|| {
                 next_batch
                     .par_iter()
@@ -754,7 +759,7 @@ impl ParallelOptimizer {
         let mut config = HashMap::new();
 
         for (i, &(low, high)) in parameter_bounds.iter().enumerate() {
-            let value = rng.gen_range(low..high + 1.0);
+            let value = rng.random_range(low..high + 1.0);
             config.insert(format!("param_{}", i), value);
         }
 
@@ -842,7 +847,7 @@ impl ParallelOptimizer {
 
     /// Create optimization result
     fn create_result(&self) -> Result<ParallelOptimizationResult, Box<dyn std::error::Error>> {
-        let state = self.shared_state.read().unwrap();
+        let state = self.shared_state.read().expect("operation should succeed");
 
         let successful_evaluations = state
             .evaluations
@@ -975,7 +980,7 @@ mod tests {
             10,
             Some(config),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.best_score <= 0.0); // Max should be 0 for our function
                                            // Allow for slight overshoot in parallel execution due to batch processing
@@ -1003,7 +1008,7 @@ mod tests {
             9, // 3x3 grid
             Some(config),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.best_score <= 0.0);
         assert!(result.optimization_statistics.total_evaluations > 0);
@@ -1024,8 +1029,8 @@ mod tests {
 
         let parameter_bounds = vec![(0.0, 1.0)];
 
-        let result =
-            parallel_optimize(failing_function, &parameter_bounds, 5, Some(config)).unwrap();
+        let result = parallel_optimize(failing_function, &parameter_bounds, 5, Some(config))
+            .expect("operation should succeed");
 
         // In parallel execution, evaluations may exceed requested due to batching
         assert!(result.optimization_statistics.failed_evaluations >= 5);

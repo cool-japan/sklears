@@ -40,7 +40,7 @@ fn generate_gaussian_clusters(
             .map(|_| rng.random_range(-15.0..15.0))
             .collect();
 
-        let normal = Normal::new(0.0, 1.5).unwrap();
+        let normal = Normal::new(0.0, 1.5).expect("operation should succeed");
 
         for i in start_idx..end_idx {
             for j in 0..n_features {

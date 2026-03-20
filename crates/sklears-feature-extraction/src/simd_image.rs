@@ -428,10 +428,12 @@ mod tests {
 
     #[test]
     fn test_simd_gaussian_blur() {
-        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect()).unwrap();
+        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let kernel = vec![0.25, 0.5, 0.25];
-        let result = simd_gaussian_blur(&image.view(), &kernel, 1.0).unwrap();
+        let result =
+            simd_gaussian_blur(&image.view(), &kernel, 1.0).expect("operation should succeed");
 
         assert_eq!(result.dim(), (8, 8));
         // Test that blur preserves overall image energy
@@ -449,9 +451,10 @@ mod tests {
                 16.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let integral = simd_compute_integral_image(&image.view()).unwrap();
+        let integral =
+            simd_compute_integral_image(&image.view()).expect("operation should succeed");
 
         // Test known integral values
         assert_eq!(integral[[1, 1]], 1.0); // First element
@@ -461,7 +464,7 @@ mod tests {
     #[test]
     fn test_simd_statistical_moments() {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
-        let moments = simd_compute_moments(&data, 4).unwrap();
+        let moments = simd_compute_moments(&data, 4).expect("operation should succeed");
 
         // Test mean
         assert!((moments[1] - 5.5).abs() < 1e-10);
@@ -474,7 +477,7 @@ mod tests {
     #[test]
     fn test_simd_entropy() {
         let probabilities = vec![0.5, 0.25, 0.125, 0.125];
-        let entropy = simd_compute_entropy(&probabilities).unwrap();
+        let entropy = simd_compute_entropy(&probabilities).expect("operation should succeed");
 
         // Expected entropy for this distribution
         let expected = -0.5 * 0.5f64.ln() - 0.25 * 0.25f64.ln() - 2.0 * 0.125 * 0.125f64.ln();
@@ -483,9 +486,10 @@ mod tests {
 
     #[test]
     fn test_simd_downsample() {
-        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect()).unwrap();
+        let image = Array2::from_shape_vec((4, 4), (0..16).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
-        let downsampled = simd_downsample_2x(&image.view()).unwrap();
+        let downsampled = simd_downsample_2x(&image.view()).expect("operation should succeed");
 
         assert_eq!(downsampled.dim(), (2, 2));
 
@@ -738,7 +742,7 @@ fn simd_compare_with_neighbors(center_val: Float, neighbors: &[Float]) -> Option
 /// * `threshold` - Clipping threshold for illumination invariance
 pub fn simd_normalize_descriptor(descriptor: &mut ArrayViewMut1<Float>, threshold: Float) {
     let _n = descriptor.len();
-    let desc_data = descriptor.as_slice_mut().unwrap();
+    let desc_data = descriptor.as_slice_mut().expect("operation should succeed");
 
     // L2 normalization using SIMD
     let norm = simd_compute_l2_norm(desc_data);

@@ -239,8 +239,12 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
             for task_name in y.keys() {
                 let (start_col, end_col) = task_coefficients[task_name];
                 let task_residuals = residuals.slice(s![.., start_col..end_col]);
-                let grad_intercepts = task_residuals.mean_axis(Axis(0)).unwrap();
-                let task_intercepts = intercepts.get_mut(task_name).unwrap();
+                let grad_intercepts = task_residuals
+                    .mean_axis(Axis(0))
+                    .expect("array should have elements for mean computation");
+                let task_intercepts = intercepts
+                    .get_mut(task_name)
+                    .expect("operation should succeed");
                 *task_intercepts = &*task_intercepts - &(self.learning_rate * &grad_intercepts);
             }
 

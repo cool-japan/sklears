@@ -16,7 +16,9 @@ pub(crate) fn compute_market_factor(
     x: &Array2<Float>,
     _y: &Array1<Float>,
 ) -> Result<Array1<Float>> {
-    let market_returns = x.mean_axis(scirs2_core::ndarray::Axis(1)).unwrap();
+    let market_returns = x
+        .mean_axis(scirs2_core::ndarray::Axis(1))
+        .expect("operation should succeed");
     Ok(market_returns)
 }
 

@@ -7,8 +7,8 @@
 
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use scirs2_core::SliceRandomExt;
 use std::collections::HashMap;
 
@@ -311,7 +311,7 @@ impl CrossValidator for BootstrapCV {
             let mut sampled_indices = std::collections::HashSet::new();
 
             for _ in 0..train_size {
-                let idx = rng.gen_range(0..n_samples);
+                let idx = rng.random_range(0..n_samples);
                 train_indices.push(idx);
                 sampled_indices.insert(idx);
             }

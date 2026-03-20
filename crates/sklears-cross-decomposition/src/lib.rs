@@ -2,6 +2,13 @@
 //!
 //! This module is part of sklears, providing scikit-learn compatible
 //! machine learning algorithms in Rust.
+//!
+//! ## Known Limitations
+//!
+//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `cross_validation` - Cross-validation for cross-decomposition models
+//! - `permutation_tests` - Permutation testing and stability selection
 
 #![allow(missing_docs)]
 #![allow(unused_imports)]
@@ -35,7 +42,7 @@ pub mod bayesian;
 pub mod benchmarks;
 pub mod cca;
 pub mod consensus_pca;
-// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod cross_validation;
 pub mod deep_cca;
 pub mod deep_learning;
@@ -60,7 +67,7 @@ pub mod neuroimaging;
 pub mod opls;
 pub mod out_of_core;
 pub mod parallel;
-// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod permutation_tests;
 pub mod pls;
 pub mod pls_canonical;
@@ -88,7 +95,7 @@ pub use benchmarks::{
 };
 pub use cca::{RidgeCCA, SparseCCA, CCA};
 pub use consensus_pca::ConsensusPCA;
-// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use cross_validation::{
 //     CVResults, CVStrategy, CrossValidator, NestedCrossValidator, ScoringFunction,
 // };
@@ -179,7 +186,7 @@ pub use parallel::{
     EigenMethod, OptimizedMatrixOps, ParallelEigenSolver, ParallelMatrixOps, ParallelSVD,
     SVDAlgorithm, WorkStealingThreadPool,
 };
-// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use permutation_tests::{
 //     ComputeStatistic, PermutationTest, PermutationTestResults, StabilityResults,
 //     StabilitySelection, TestStatistic,
@@ -244,8 +251,8 @@ mod tests {
         let y = array![[1.5], [2.5], [3.5], [4.5],];
 
         let pls = PLSRegression::new(1);
-        let fitted = pls.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = pls.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
 
         assert_eq!(predictions.shape(), &[4, 1]);
     }

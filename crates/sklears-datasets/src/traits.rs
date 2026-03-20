@@ -511,7 +511,7 @@ impl DatasetGenerator for ClassificationGenerator {
 
         // Generate features
         let mut features = Array2::<f64>::zeros((config.n_samples, config.n_features));
-        let normal_dist = RandNormal::new(0.0, 1.0).unwrap();
+        let normal_dist = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         for mut row in features.rows_mut() {
             for val in row.iter_mut() {
                 *val = normal_dist.sample(&mut rng);
@@ -590,7 +590,7 @@ impl DatasetGenerator for RegressionGenerator {
 
         // Generate features
         let mut features = Array2::<f64>::zeros((config.n_samples, config.n_features));
-        let normal_dist = RandNormal::new(0.0, 1.0).unwrap();
+        let normal_dist = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         for mut row in features.rows_mut() {
             for val in row.iter_mut() {
                 *val = normal_dist.sample(&mut rng);
@@ -605,7 +605,7 @@ impl DatasetGenerator for RegressionGenerator {
         let mut targets = Array1::<f64>::zeros(config.n_samples);
         for (i, target) in targets.iter_mut().enumerate() {
             let feature_row = features.row(i);
-            let noise_dist = RandNormal::new(0.0, noise).unwrap();
+            let noise_dist = RandNormal::new(0.0, noise).expect("operation should succeed");
             *target = feature_row.dot(&coefficients) + noise_dist.sample(&mut rng);
         }
 
@@ -645,8 +645,10 @@ mod tests {
 
     #[test]
     fn test_in_memory_dataset() {
-        let features = Array::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect()).unwrap();
-        let targets = Array1::from_shape_vec(10, (0..10).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
+        let targets = Array1::from_shape_vec(10, (0..10).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
 
         let dataset = InMemoryDataset::new(features, Some(targets));
 
@@ -655,14 +657,17 @@ mod tests {
         assert_eq!(dataset.shape(), (10, 3));
         assert!(dataset.has_targets());
 
-        let features_view = dataset.features().unwrap();
+        let features_view = dataset.features().expect("operation should succeed");
         assert_eq!(features_view.dim(), (10, 3));
 
-        let sample = dataset.sample(5).unwrap();
+        let sample = dataset.sample(5).expect("sampling should succeed");
         assert_eq!(sample.len(), 3);
         assert_eq!(sample[0], 15.0); // 5 * 3 + 0
 
-        let targets_view = dataset.targets().unwrap().unwrap();
+        let targets_view = dataset
+            .targets()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert_eq!(targets_view.len(), 10);
         assert_eq!(targets_view[5], 5.0);
     }
@@ -678,7 +683,9 @@ mod tests {
         assert!(generators.contains(&"regression".to_string()));
 
         let config = GeneratorConfig::new(50, 4);
-        let dataset = registry.generate("classification", config).unwrap();
+        let dataset = registry
+            .generate("classification", config)
+            .expect("operation should succeed");
 
         assert_eq!(dataset.n_samples(), 50);
         assert_eq!(dataset.n_features(), 4);
@@ -692,13 +699,18 @@ mod tests {
         config.set_parameter("n_classes".to_string(), 3i64);
         config.random_state = Some(42);
 
-        let dataset = generator.generate(config).unwrap();
+        let dataset = generator
+            .generate(config)
+            .expect("operation should succeed");
 
         assert_eq!(dataset.n_samples(), 100);
         assert_eq!(dataset.n_features(), 5);
         assert!(dataset.has_targets());
 
-        let targets = dataset.targets().unwrap().unwrap();
+        let targets = dataset
+            .targets()
+            .expect("operation should succeed")
+            .expect("operation should succeed");
         assert!(targets.iter().all(|&t| t >= 0.0 && t < 3.0));
 
         let metadata = dataset.metadata();
@@ -716,7 +728,9 @@ mod tests {
         config.set_parameter("noise".to_string(), 0.05);
         config.random_state = Some(42);
 
-        let dataset = generator.generate(config).unwrap();
+        let dataset = generator
+            .generate(config)
+            .expect("operation should succeed");
 
         assert_eq!(dataset.n_samples(), 100);
         assert_eq!(dataset.n_features(), 3);
@@ -782,8 +796,10 @@ mod tests {
 
     #[test]
     fn test_mutable_dataset() {
-        let features = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let targets = Array1::from_shape_vec(3, vec![10.0, 20.0, 30.0]).unwrap();
+        let features = Array::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let targets = Array1::from_shape_vec(3, vec![10.0, 20.0, 30.0])
+            .expect("shape and data length should match");
 
         let mut dataset = InMemoryDataset::new(features, Some(targets));
 
@@ -791,7 +807,7 @@ mod tests {
         let new_sample = Array1::from_vec(vec![99.0, 88.0]);
         assert!(dataset.set_sample(1, new_sample.view()).is_ok());
 
-        let updated_sample = dataset.sample(1).unwrap();
+        let updated_sample = dataset.sample(1).expect("sampling should succeed");
         assert_eq!(updated_sample[0], 99.0);
         assert_eq!(updated_sample[1], 88.0);
 

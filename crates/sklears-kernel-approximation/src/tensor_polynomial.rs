@@ -541,9 +541,12 @@ impl TensorPolynomialFeatures<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for TensorPolynomialFeatures<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
-        let n_input_features = self.n_input_features_.unwrap();
-        let n_output_features = self.n_output_features_.unwrap();
-        let tensor_indices = self.tensor_indices_.as_ref().unwrap();
+        let n_input_features = self.n_input_features_.expect("operation should succeed");
+        let n_output_features = self.n_output_features_.expect("operation should succeed");
+        let tensor_indices = self
+            .tensor_indices_
+            .as_ref()
+            .expect("operation should succeed");
 
         if n_features != n_input_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -589,22 +592,26 @@ impl TensorPolynomialFeatures<Trained> {
 
     /// Get the number of input features
     pub fn n_input_features(&self) -> usize {
-        self.n_input_features_.unwrap()
+        self.n_input_features_.expect("operation should succeed")
     }
 
     /// Get the number of output features
     pub fn n_output_features(&self) -> usize {
-        self.n_output_features_.unwrap()
+        self.n_output_features_.expect("operation should succeed")
     }
 
     /// Get the tensor indices
     pub fn tensor_indices(&self) -> &[Vec<Vec<u32>>] {
-        self.tensor_indices_.as_ref().unwrap()
+        self.tensor_indices_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the contraction map
     pub fn contraction_map(&self) -> &[Vec<usize>] {
-        self.contraction_map_.as_ref().unwrap()
+        self.contraction_map_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -619,8 +626,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let tensor_poly = TensorPolynomialFeatures::new(2, 2);
-        let fitted = tensor_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
         assert!(x_transformed.ncols() > 0);
@@ -631,8 +638,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let tensor_poly = TensorPolynomialFeatures::new(2, 2).include_bias(false);
-        let fitted = tensor_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
         assert!(x_transformed.ncols() > 0);
@@ -643,8 +650,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let tensor_poly = TensorPolynomialFeatures::new(2, 2).interaction_only(true);
-        let fitted = tensor_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
         assert!(x_transformed.ncols() > 0);
@@ -662,8 +669,8 @@ mod tests {
 
         for ordering in orderings {
             let tensor_poly = TensorPolynomialFeatures::new(2, 2).tensor_ordering(ordering);
-            let fitted = tensor_poly.fit(&x, &()).unwrap();
-            let x_transformed = fitted.transform(&x).unwrap();
+            let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
+            let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(x_transformed.nrows(), 1);
             assert!(x_transformed.ncols() > 0);
@@ -682,8 +689,8 @@ mod tests {
 
         for method in methods {
             let tensor_poly = TensorPolynomialFeatures::new(2, 3).contraction_method(method);
-            let fitted = tensor_poly.fit(&x, &()).unwrap();
-            let x_transformed = fitted.transform(&x).unwrap();
+            let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
+            let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(x_transformed.nrows(), 2);
             assert!(x_transformed.ncols() > 0);
@@ -696,8 +703,8 @@ mod tests {
 
         for n_dims in 1..=4 {
             let tensor_poly = TensorPolynomialFeatures::new(2, n_dims);
-            let fitted = tensor_poly.fit(&x, &()).unwrap();
-            let x_transformed = fitted.transform(&x).unwrap();
+            let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
+            let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(x_transformed.nrows(), 2);
             assert!(x_transformed.ncols() > 0);
@@ -710,7 +717,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Different number of features
 
         let tensor_poly = TensorPolynomialFeatures::new(2, 2);
-        let fitted = tensor_poly.fit(&x_train, &()).unwrap();
+        let fitted = tensor_poly
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
         assert!(result.is_err());
     }
@@ -736,8 +745,8 @@ mod tests {
         let x = array![[2.0], [3.0]];
 
         let tensor_poly = TensorPolynomialFeatures::new(3, 2);
-        let fitted = tensor_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
         assert!(x_transformed.ncols() > 0);
@@ -749,7 +758,7 @@ mod tests {
 
         let tensor_poly =
             TensorPolynomialFeatures::new(2, 2).contraction_method(ContractionMethod::Symmetric);
-        let fitted = tensor_poly.fit(&x, &()).unwrap();
+        let fitted = tensor_poly.fit(&x, &()).expect("operation should succeed");
 
         let contraction_map = fitted.contraction_map();
         assert!(!contraction_map.is_empty());

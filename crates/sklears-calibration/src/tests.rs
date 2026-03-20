@@ -34,9 +34,11 @@ mod calibration_tests {
             .method(CalibrationMethod::Sigmoid)
             .cv(2);
 
-        let fitted = calibrator.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
-        let probabilities = fitted.predict_proba(&x).unwrap();
+        let fitted = calibrator.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
+        let probabilities = fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(probabilities.dim(), (4, 2));
@@ -67,8 +69,10 @@ mod calibration_tests {
                 concentration: 1.5,
                 max_clusters: 4,
             });
-        let dp_fitted = dp_calibrator.fit(&x, &y).unwrap();
-        let dp_probas = dp_fitted.predict_proba(&x).unwrap();
+        let dp_fitted = dp_calibrator.fit(&x, &y).expect("fit should succeed");
+        let dp_probas = dp_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Non-parametric GP calibration
         let np_gp_calibrator =
@@ -76,8 +80,10 @@ mod calibration_tests {
                 kernel_type: "spectral_mixture".to_string(),
                 n_inducing: 3,
             });
-        let np_gp_fitted = np_gp_calibrator.fit(&x, &y).unwrap();
-        let np_gp_probas = np_gp_fitted.predict_proba(&x).unwrap();
+        let np_gp_fitted = np_gp_calibrator.fit(&x, &y).expect("fit should succeed");
+        let np_gp_probas = np_gp_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Check dimensions
         assert_eq!(dp_probas.dim(), (6, 2));
@@ -102,8 +108,10 @@ mod calibration_tests {
                     kernel_type: kernel.to_string(),
                     n_inducing: 3,
                 });
-            let gp_fitted = gp_calibrator.fit(&x, &y).unwrap();
-            let gp_probas = gp_fitted.predict_proba(&x).unwrap();
+            let gp_fitted = gp_calibrator.fit(&x, &y).expect("fit should succeed");
+            let gp_probas = gp_fitted
+                .predict_proba(&x)
+                .expect("predict_proba should succeed");
 
             assert_eq!(gp_probas.dim(), (6, 2));
             for row in gp_probas.axis_iter(Axis(0)) {
@@ -135,8 +143,10 @@ mod calibration_tests {
                 learning_rate: 0.01,
                 epochs: 50,
             });
-        let neural_fitted = neural_calibrator.fit(&x, &y).unwrap();
-        let neural_probas = neural_fitted.predict_proba(&x).unwrap();
+        let neural_fitted = neural_calibrator.fit(&x, &y).expect("fit should succeed");
+        let neural_probas = neural_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Mixup Calibration
         let mixup_calibrator =
@@ -145,8 +155,10 @@ mod calibration_tests {
                 alpha: 0.2,
                 num_mixup_samples: 20,
             });
-        let mixup_fitted = mixup_calibrator.fit(&x, &y).unwrap();
-        let mixup_probas = mixup_fitted.predict_proba(&x).unwrap();
+        let mixup_fitted = mixup_calibrator.fit(&x, &y).expect("fit should succeed");
+        let mixup_probas = mixup_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Dropout Calibration
         let dropout_calibrator =
@@ -155,8 +167,10 @@ mod calibration_tests {
                 dropout_prob: 0.1,
                 mc_samples: 20,
             });
-        let dropout_fitted = dropout_calibrator.fit(&x, &y).unwrap();
-        let dropout_probas = dropout_fitted.predict_proba(&x).unwrap();
+        let dropout_fitted = dropout_calibrator.fit(&x, &y).expect("fit should succeed");
+        let dropout_probas = dropout_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Ensemble Neural Calibration
         let ensemble_calibrator =
@@ -164,8 +178,10 @@ mod calibration_tests {
                 n_estimators: 3,
                 hidden_dims: vec![8, 4],
             });
-        let ensemble_fitted = ensemble_calibrator.fit(&x, &y).unwrap();
-        let ensemble_probas = ensemble_fitted.predict_proba(&x).unwrap();
+        let ensemble_fitted = ensemble_calibrator.fit(&x, &y).expect("fit should succeed");
+        let ensemble_probas = ensemble_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Check dimensions
         assert_eq!(neural_probas.dim(), (8, 2));
@@ -204,8 +220,10 @@ mod calibration_tests {
                     learning_rate: 0.02,
                     epochs: 30,
                 });
-            let neural_fitted = neural_calibrator.fit(&x, &y).unwrap();
-            let neural_probas = neural_fitted.predict_proba(&x).unwrap();
+            let neural_fitted = neural_calibrator.fit(&x, &y).expect("fit should succeed");
+            let neural_probas = neural_fitted
+                .predict_proba(&x)
+                .expect("predict_proba should succeed");
 
             assert_eq!(neural_probas.dim(), (8, 2));
             for row in neural_probas.axis_iter(Axis(0)) {
@@ -222,9 +240,11 @@ mod calibration_tests {
 
         let calibrator = SigmoidCalibrator::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 4);
 
@@ -241,13 +261,17 @@ mod calibration_tests {
 
         // Test sigmoid method
         let sigmoid_calibrator = CalibratedClassifierCV::new().method(CalibrationMethod::Sigmoid);
-        let sigmoid_fitted = sigmoid_calibrator.fit(&x, &y).unwrap();
-        let sigmoid_probas = sigmoid_fitted.predict_proba(&x).unwrap();
+        let sigmoid_fitted = sigmoid_calibrator.fit(&x, &y).expect("fit should succeed");
+        let sigmoid_probas = sigmoid_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test isotonic method
         let isotonic_calibrator = CalibratedClassifierCV::new().method(CalibrationMethod::Isotonic);
-        let isotonic_fitted = isotonic_calibrator.fit(&x, &y).unwrap();
-        let isotonic_probas = isotonic_fitted.predict_proba(&x).unwrap();
+        let isotonic_fitted = isotonic_calibrator.fit(&x, &y).expect("fit should succeed");
+        let isotonic_probas = isotonic_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(sigmoid_probas.dim(), (4, 2));
         assert_eq!(isotonic_probas.dim(), (4, 2));
@@ -282,16 +306,20 @@ mod calibration_tests {
 
         // Train calibrator
         let calibrator = CalibratedClassifierCV::new().method(CalibrationMethod::Isotonic);
-        let fitted = calibrator.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = calibrator.fit(&x, &y).expect("fit should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Get class 1 probabilities
         let class1_probas = probas.column(1).to_owned();
 
         // Calculate calibration metrics
         let config = CalibrationMetricsConfig::default();
-        let ece = expected_calibration_error(&y, &class1_probas, &config).unwrap();
-        let mce = maximum_calibration_error(&y, &class1_probas, &config).unwrap();
+        let ece = expected_calibration_error(&y, &class1_probas, &config)
+            .expect("operation should succeed");
+        let mce = maximum_calibration_error(&y, &class1_probas, &config)
+            .expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&ece));
         assert!((0.0..=1.0).contains(&mce));
@@ -313,8 +341,10 @@ mod calibration_tests {
         // Test conformal split method
         let split_calibrator =
             CalibratedClassifierCV::new().method(CalibrationMethod::ConformalSplit { alpha: 0.1 });
-        let split_fitted = split_calibrator.fit(&x, &y).unwrap();
-        let split_probas = split_fitted.predict_proba(&x).unwrap();
+        let split_fitted = split_calibrator.fit(&x, &y).expect("fit should succeed");
+        let split_probas = split_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test conformal cross-validation method
         let cross_calibrator =
@@ -322,14 +352,20 @@ mod calibration_tests {
                 alpha: 0.1,
                 n_folds: 3,
             });
-        let cross_fitted = cross_calibrator.fit(&x, &y).unwrap();
-        let cross_probas = cross_fitted.predict_proba(&x).unwrap();
+        let cross_fitted = cross_calibrator.fit(&x, &y).expect("fit should succeed");
+        let cross_probas = cross_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test conformal jackknife method
         let jackknife_calibrator = CalibratedClassifierCV::new()
             .method(CalibrationMethod::ConformalJackknife { alpha: 0.1 });
-        let jackknife_fitted = jackknife_calibrator.fit(&x, &y).unwrap();
-        let jackknife_probas = jackknife_fitted.predict_proba(&x).unwrap();
+        let jackknife_fitted = jackknife_calibrator
+            .fit(&x, &y)
+            .expect("fit should succeed");
+        let jackknife_probas = jackknife_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(split_probas.dim(), (6, 2));
         assert_eq!(cross_probas.dim(), (6, 2));
@@ -367,8 +403,10 @@ mod calibration_tests {
         // Test Bayesian model averaging
         let bma_calibrator = CalibratedClassifierCV::new()
             .method(CalibrationMethod::BayesianModelAveraging { n_models: 3 });
-        let bma_fitted = bma_calibrator.fit(&x, &y).unwrap();
-        let bma_probas = bma_fitted.predict_proba(&x).unwrap();
+        let bma_fitted = bma_calibrator.fit(&x, &y).expect("fit should succeed");
+        let bma_probas = bma_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test variational inference
         let vi_calibrator =
@@ -377,8 +415,10 @@ mod calibration_tests {
                 n_samples: 5,
                 max_iter: 50,
             });
-        let vi_fitted = vi_calibrator.fit(&x, &y).unwrap();
-        let vi_probas = vi_fitted.predict_proba(&x).unwrap();
+        let vi_fitted = vi_calibrator.fit(&x, &y).expect("fit should succeed");
+        let vi_probas = vi_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test MCMC calibration
         let mcmc_calibrator = CalibratedClassifierCV::new().method(CalibrationMethod::MCMC {
@@ -386,14 +426,18 @@ mod calibration_tests {
             burn_in: 20,
             step_size: 0.1,
         });
-        let mcmc_fitted = mcmc_calibrator.fit(&x, &y).unwrap();
-        let mcmc_probas = mcmc_fitted.predict_proba(&x).unwrap();
+        let mcmc_fitted = mcmc_calibrator.fit(&x, &y).expect("fit should succeed");
+        let mcmc_probas = mcmc_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test hierarchical Bayesian
         let hb_calibrator =
             CalibratedClassifierCV::new().method(CalibrationMethod::HierarchicalBayesian);
-        let hb_fitted = hb_calibrator.fit(&x, &y).unwrap();
-        let hb_probas = hb_fitted.predict_proba(&x).unwrap();
+        let hb_fitted = hb_calibrator.fit(&x, &y).expect("fit should succeed");
+        let hb_probas = hb_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Check dimensions
         assert_eq!(bma_probas.dim(), (6, 2));
@@ -442,23 +486,29 @@ mod calibration_tests {
             window_size: 3,
             temporal_decay: 0.9,
         });
-        let ts_fitted = ts_calibrator.fit(&x, &y).unwrap();
-        let ts_probas = ts_fitted.predict_proba(&x).unwrap();
+        let ts_fitted = ts_calibrator.fit(&x, &y).expect("fit should succeed");
+        let ts_probas = ts_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Regression calibration
         let reg_calibrator = CalibratedClassifierCV::new().method(CalibrationMethod::Regression {
             distributional: true,
         });
-        let reg_fitted = reg_calibrator.fit(&x, &y).unwrap();
-        let reg_probas = reg_fitted.predict_proba(&x).unwrap();
+        let reg_fitted = reg_calibrator.fit(&x, &y).expect("fit should succeed");
+        let reg_probas = reg_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Ranking calibration
         let ranking_calibrator = CalibratedClassifierCV::new().method(CalibrationMethod::Ranking {
             ranking_weight: 0.3,
             listwise: true,
         });
-        let ranking_fitted = ranking_calibrator.fit(&x, &y).unwrap();
-        let ranking_probas = ranking_fitted.predict_proba(&x).unwrap();
+        let ranking_fitted = ranking_calibrator.fit(&x, &y).expect("fit should succeed");
+        let ranking_probas = ranking_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Survival calibration
         let survival_calibrator =
@@ -466,8 +516,10 @@ mod calibration_tests {
                 time_points: vec![5.0, 10.0],
                 handle_censoring: false,
             });
-        let survival_fitted = survival_calibrator.fit(&x, &y).unwrap();
-        let survival_probas = survival_fitted.predict_proba(&x).unwrap();
+        let survival_fitted = survival_calibrator.fit(&x, &y).expect("fit should succeed");
+        let survival_probas = survival_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Check dimensions
         assert_eq!(ts_probas.dim(), (8, 2));
@@ -518,8 +570,10 @@ mod calibration_tests {
                 use_mrf: true,
                 temperature: 1.2,
             });
-        let sequence_fitted = sequence_calibrator.fit(&x, &y).unwrap();
-        let sequence_probas = sequence_fitted.predict_proba(&x).unwrap();
+        let sequence_fitted = sequence_calibrator.fit(&x, &y).expect("fit should succeed");
+        let sequence_probas = sequence_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test with tree structure
         let tree_calibrator =
@@ -528,8 +582,10 @@ mod calibration_tests {
                 use_mrf: false,
                 temperature: 0.8,
             });
-        let tree_fitted = tree_calibrator.fit(&x, &y).unwrap();
-        let tree_probas = tree_fitted.predict_proba(&x).unwrap();
+        let tree_fitted = tree_calibrator.fit(&x, &y).expect("fit should succeed");
+        let tree_probas = tree_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test with graph structure
         let graph_calibrator =
@@ -538,8 +594,10 @@ mod calibration_tests {
                 use_mrf: true,
                 temperature: 1.0,
             });
-        let graph_fitted = graph_calibrator.fit(&x, &y).unwrap();
-        let graph_probas = graph_fitted.predict_proba(&x).unwrap();
+        let graph_fitted = graph_calibrator.fit(&x, &y).expect("fit should succeed");
+        let graph_probas = graph_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test with grid structure
         let grid_calibrator =
@@ -548,8 +606,10 @@ mod calibration_tests {
                 use_mrf: false,
                 temperature: 1.5,
             });
-        let grid_fitted = grid_calibrator.fit(&x, &y).unwrap();
-        let grid_probas = grid_fitted.predict_proba(&x).unwrap();
+        let grid_fitted = grid_calibrator.fit(&x, &y).expect("fit should succeed");
+        let grid_probas = grid_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Check dimensions
         assert_eq!(sequence_probas.dim(), (8, 2));
@@ -593,8 +653,12 @@ mod calibration_tests {
                 use_momentum: true,
                 momentum: 0.9,
             });
-        let online_sigmoid_fitted = online_sigmoid_calibrator.fit(&x, &y).unwrap();
-        let online_sigmoid_probas = online_sigmoid_fitted.predict_proba(&x).unwrap();
+        let online_sigmoid_fitted = online_sigmoid_calibrator
+            .fit(&x, &y)
+            .expect("fit should succeed");
+        let online_sigmoid_probas = online_sigmoid_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Adaptive Online calibration
         let adaptive_online_calibrator =
@@ -603,8 +667,12 @@ mod calibration_tests {
                 retrain_frequency: 3,
                 drift_threshold: 0.2,
             });
-        let adaptive_online_fitted = adaptive_online_calibrator.fit(&x, &y).unwrap();
-        let adaptive_online_probas = adaptive_online_fitted.predict_proba(&x).unwrap();
+        let adaptive_online_fitted = adaptive_online_calibrator
+            .fit(&x, &y)
+            .expect("fit should succeed");
+        let adaptive_online_probas = adaptive_online_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Test Incremental Update calibration
         let incremental_calibrator =
@@ -613,8 +681,12 @@ mod calibration_tests {
                 learning_rate: 0.02,
                 use_smoothing: true,
             });
-        let incremental_fitted = incremental_calibrator.fit(&x, &y).unwrap();
-        let incremental_probas = incremental_fitted.predict_proba(&x).unwrap();
+        let incremental_fitted = incremental_calibrator
+            .fit(&x, &y)
+            .expect("fit should succeed");
+        let incremental_probas = incremental_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         // Check dimensions
         assert_eq!(online_sigmoid_probas.dim(), (10, 2));
@@ -1286,8 +1358,10 @@ mod calibration_aware_tests {
                 learning_rate: 0.01,
                 max_epochs: 30,
             });
-        let focal_fitted = focal_calibrator.fit(&x, &y).unwrap();
-        let focal_probas = focal_fitted.predict_proba(&x).unwrap();
+        let focal_fitted = focal_calibrator.fit(&x, &y).expect("fit should succeed");
+        let focal_probas = focal_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(focal_probas.dim(), (8, 2));
         for row in focal_probas.axis_iter(Axis(0)) {
@@ -1302,8 +1376,12 @@ mod calibration_aware_tests {
                 learning_rate: 0.01,
                 max_epochs: 30,
             });
-        let cross_entropy_fitted = cross_entropy_calibrator.fit(&x, &y).unwrap();
-        let cross_entropy_probas = cross_entropy_fitted.predict_proba(&x).unwrap();
+        let cross_entropy_fitted = cross_entropy_calibrator
+            .fit(&x, &y)
+            .expect("fit should succeed");
+        let cross_entropy_probas = cross_entropy_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(cross_entropy_probas.dim(), (8, 2));
         for row in cross_entropy_probas.axis_iter(Axis(0)) {
@@ -1317,8 +1395,10 @@ mod calibration_aware_tests {
                 learning_rate: 0.01,
                 max_epochs: 30,
             });
-        let brier_fitted = brier_calibrator.fit(&x, &y).unwrap();
-        let brier_probas = brier_fitted.predict_proba(&x).unwrap();
+        let brier_fitted = brier_calibrator.fit(&x, &y).expect("fit should succeed");
+        let brier_probas = brier_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(brier_probas.dim(), (8, 2));
         for row in brier_probas.axis_iter(Axis(0)) {
@@ -1333,8 +1413,10 @@ mod calibration_aware_tests {
                 learning_rate: 0.01,
                 max_epochs: 30,
             });
-        let ece_fitted = ece_calibrator.fit(&x, &y).unwrap();
-        let ece_probas = ece_fitted.predict_proba(&x).unwrap();
+        let ece_fitted = ece_calibrator.fit(&x, &y).expect("fit should succeed");
+        let ece_probas = ece_fitted
+            .predict_proba(&x)
+            .expect("predict_proba should succeed");
 
         assert_eq!(ece_probas.dim(), (8, 2));
         for row in ece_probas.axis_iter(Axis(0)) {

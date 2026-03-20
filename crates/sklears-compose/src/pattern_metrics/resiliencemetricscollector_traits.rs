@@ -15,7 +15,7 @@ impl Default for ResilienceMetricsCollector {
         Self {
             collector_id: format!(
                 "collector_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap().as_millis()
+                .unwrap_or_default().as_millis()
             ),
             collection_interval: Duration::from_secs(60),
             metrics_storage: Arc::new(RwLock::new(MetricsStorage::default())),

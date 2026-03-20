@@ -26,7 +26,8 @@ mod tests {
     fn gaussian_features_strategy(rows: usize, cols: usize) -> impl Strategy<Value = Array2<f64>> {
         prop::collection::vec(prop::collection::vec(-10.0f64..10.0, cols), rows).prop_map(
             move |data| {
-                Array2::from_shape_vec((rows, cols), data.into_iter().flatten().collect()).unwrap()
+                Array2::from_shape_vec((rows, cols), data.into_iter().flatten().collect())
+                    .expect("operation should succeed")
             },
         )
     }
@@ -35,7 +36,8 @@ mod tests {
     fn count_features_strategy(rows: usize, cols: usize) -> impl Strategy<Value = Array2<f64>> {
         prop::collection::vec(prop::collection::vec(0.0f64..20.0, cols), rows).prop_map(
             move |data| {
-                Array2::from_shape_vec((rows, cols), data.into_iter().flatten().collect()).unwrap()
+                Array2::from_shape_vec((rows, cols), data.into_iter().flatten().collect())
+                    .expect("operation should succeed")
             },
         )
     }
@@ -47,7 +49,7 @@ mod tests {
                 (rows, cols),
                 data.into_iter().flatten().map(|x| x as f64).collect(),
             )
-            .unwrap()
+            .expect("operation should succeed")
         })
     }
 
@@ -63,7 +65,7 @@ mod tests {
                     (rows, cols),
                     data.into_iter().flatten().map(|x| x as f64).collect(),
                 )
-                .unwrap()
+                .expect("operation should succeed")
             },
         )
     }
@@ -75,7 +77,7 @@ mod tests {
                 (rows, cols),
                 data.into_iter().flatten().map(|x| x as f64).collect(),
             )
-            .unwrap()
+            .expect("operation should succeed")
         })
     }
 
@@ -97,7 +99,7 @@ mod tests {
                 .fit(&x, &y);
 
             if let Ok(trained_model) = model {
-                let probabilities = PredictProba::predict_proba(&trained_model, &x).unwrap();
+                let probabilities = PredictProba::predict_proba(&trained_model, &x).expect("operation should succeed");
 
                 // Property 1: All probabilities should be non-negative
                 for &prob in probabilities.iter() {
@@ -111,22 +113,22 @@ mod tests {
                 }
 
                 // Property 3: Predictions should be consistent with max probability
-                let predictions = Predict::predict(&trained_model, &x).unwrap();
+                let predictions = Predict::predict(&trained_model, &x).expect("operation should succeed");
                 for i in 0..predictions.len() {
                     let predicted_class = predictions[i];
                     let max_prob_idx = probabilities.row(i)
                         .iter()
                         .enumerate()
-                        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                         .map(|(idx, _)| idx)
-                        .unwrap();
+                        .expect("operation should succeed");
 
                     let classes = trained_model.classes();
                     prop_assert_eq!(predicted_class, classes[max_prob_idx]);
                 }
 
                 // Property 4: Score should be between 0 and 1
-                let score = trained_model.score(&x, &y).unwrap();
+                let score = trained_model.score(&x, &y).expect("operation should succeed");
                 prop_assert!(score >= 0.0 && score <= 1.0);
             }
         }
@@ -142,7 +144,7 @@ mod tests {
                 .fit(&x, &y);
 
             if let Ok(trained_model) = model {
-                let probabilities = PredictProba::predict_proba(&trained_model, &x).unwrap();
+                let probabilities = PredictProba::predict_proba(&trained_model, &x).expect("operation should succeed");
 
                 // Property 1: All probabilities should be non-negative
                 for &prob in probabilities.iter() {
@@ -159,8 +161,8 @@ mod tests {
                 // Property 3: Adding more smoothing should not drastically change predictions
                 let model2 = MultinomialNB::new()
                     .alpha(alpha * 1.1)
-                    .fit(&x, &y).unwrap();
-                let probabilities2 = model2.predict_proba(&x).unwrap();
+                    .fit(&x, &y).expect("operation should succeed");
+                let probabilities2 = model2.predict_proba(&x).expect("operation should succeed");
 
                 for i in 0..probabilities.nrows() {
                     for j in 0..probabilities.ncols() {
@@ -182,7 +184,7 @@ mod tests {
                 .fit(&x, &y);
 
             if let Ok(trained_model) = model {
-                let probabilities = PredictProba::predict_proba(&trained_model, &x).unwrap();
+                let probabilities = PredictProba::predict_proba(&trained_model, &x).expect("operation should succeed");
 
                 // Property 1: All probabilities should be non-negative and ≤ 1
                 for &prob in probabilities.iter() {
@@ -221,7 +223,7 @@ mod tests {
                 .fit(&x, &y);
 
             if let Ok(trained_model) = model {
-                let probabilities = PredictProba::predict_proba(&trained_model, &x).unwrap();
+                let probabilities = PredictProba::predict_proba(&trained_model, &x).expect("operation should succeed");
 
                 // Property 1: All probabilities should be in [0, 1]
                 for &prob in probabilities.iter() {
@@ -256,7 +258,7 @@ mod tests {
                 .fit(&x, &y);
 
             if let Ok(trained_model) = model {
-                let probabilities = PredictProba::predict_proba(&trained_model, &x).unwrap();
+                let probabilities = PredictProba::predict_proba(&trained_model, &x).expect("operation should succeed");
 
                 // Property 1: All probabilities should be in [0, 1]
                 for &prob in probabilities.iter() {
@@ -271,8 +273,8 @@ mod tests {
                 }
 
                 // Property 3: Predictions should be deterministic for the same input
-                let predictions1 = trained_model.predict(&x).unwrap();
-                let predictions2 = trained_model.predict(&x).unwrap();
+                let predictions1 = trained_model.predict(&x).expect("operation should succeed");
+                let predictions2 = trained_model.predict(&x).expect("operation should succeed");
                 prop_assert_eq!(predictions1, predictions2);
             }
         }
@@ -288,7 +290,7 @@ mod tests {
                 .fit(&x, &y);
 
             if let Ok(trained_model) = model {
-                let probabilities = PredictProba::predict_proba(&trained_model, &x).unwrap();
+                let probabilities = PredictProba::predict_proba(&trained_model, &x).expect("operation should succeed");
 
                 // Property 1: All probabilities should be in [0, 1]
                 for &prob in probabilities.iter() {
@@ -303,7 +305,7 @@ mod tests {
                 }
 
                 // Property 3: Score should improve with more balanced data
-                let score = trained_model.score(&x, &y).unwrap();
+                let score = trained_model.score(&x, &y).expect("operation should succeed");
                 prop_assert!(score >= 0.0 && score <= 1.0);
             }
         }
@@ -315,7 +317,7 @@ mod tests {
             let prob_matrix = Array2::from_shape_vec(
                 (probabilities.len(), 3),
                 probabilities.into_iter().flatten().collect()
-            ).unwrap();
+            ).expect("operation should succeed");
 
             let uncertainty = StandardUncertainty::new();
             let measures = uncertainty.uncertainty_measures(&prob_matrix);
@@ -381,7 +383,7 @@ mod tests {
             let count_matrix = Array2::from_shape_vec(
                 (2, 3),
                 counts.into_iter().flatten().collect()
-            ).unwrap();
+            ).expect("operation should succeed");
             let totals = count_matrix.sum_axis(scirs2_core::ndarray::Axis(1));
 
             let laplace = LaplaceSmoothing::new(alpha);
@@ -434,22 +436,35 @@ mod tests {
             }
         }
 
-        let x = Array2::from_shape_vec((n_samples, n_features), x_data).unwrap();
+        let x = Array2::from_shape_vec((n_samples, n_features), x_data)
+            .expect("operation should succeed");
         let y = Array1::from_vec(y_data);
 
         // Test Gaussian NB
-        let gaussian_model = GaussianNB::new().fit(&x, &y).unwrap();
-        let gaussian_score = gaussian_model.score(&x, &y).unwrap();
+        let gaussian_model = GaussianNB::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
+        let gaussian_score = gaussian_model
+            .score(&x, &y)
+            .expect("operation should succeed");
 
         // Test Multinomial NB (with non-negative transformation)
         let x_positive = &x + 1.0; // Make all values positive
-        let multinomial_model = MultinomialNB::new().fit(&x_positive, &y).unwrap();
-        let multinomial_score = multinomial_model.score(&x_positive, &y).unwrap();
+        let multinomial_model = MultinomialNB::new()
+            .fit(&x_positive, &y)
+            .expect("operation should succeed");
+        let multinomial_score = multinomial_model
+            .score(&x_positive, &y)
+            .expect("operation should succeed");
 
         // Test Poisson NB (with integer transformation)
         let x_int = x_positive.mapv(|v| v.round());
-        let poisson_model = PoissonNB::new().fit(&x_int, &y).unwrap();
-        let poisson_score = poisson_model.score(&x_int, &y).unwrap();
+        let poisson_model = PoissonNB::new()
+            .fit(&x_int, &y)
+            .expect("operation should succeed");
+        let poisson_score = poisson_model
+            .score(&x_int, &y)
+            .expect("operation should succeed");
 
         // All models should achieve reasonable performance on separable data
         assert!(
@@ -469,7 +484,8 @@ mod tests {
         );
 
         // Test uncertainty quantification
-        let gaussian_proba = PredictProba::predict_proba(&gaussian_model, &x).unwrap();
+        let gaussian_proba =
+            PredictProba::predict_proba(&gaussian_model, &x).expect("operation should succeed");
         let uncertainty = StandardUncertainty::new();
         let measures = uncertainty.uncertainty_measures(&gaussian_proba);
 
@@ -489,7 +505,7 @@ mod tests {
                 .sum::<f64>()
                 / high_conf_indices.len() as f64;
 
-            let avg_total_entropy: f64 = measures.entropy.mean().unwrap();
+            let avg_total_entropy: f64 = measures.entropy.mean().expect("operation should succeed");
 
             assert!(
                 avg_high_conf_entropy <= avg_total_entropy,

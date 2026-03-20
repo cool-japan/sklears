@@ -388,7 +388,7 @@ impl ComponentHealthTracker {
 
     /// Start health monitoring
     pub fn start(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         if *state != TrackerState::Stopped {
             return Err(SklearsError::InvalidState(
                 "Tracker already running".to_string()
@@ -397,7 +397,7 @@ impl ComponentHealthTracker {
 
         // Start scheduler
         {
-            let mut scheduler = self.scheduler.lock().unwrap();
+            let mut scheduler = self.scheduler.lock().unwrap_or_else(|e| e.into_inner());
             scheduler.start(&self.component_id, &self.config)?;
         }
 
@@ -407,14 +407,14 @@ impl ComponentHealthTracker {
 
     /// Stop health monitoring
     pub fn stop(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         if *state == TrackerState::Stopped {
             return Ok(());
         }
 
         // Stop scheduler
         {
-            let mut scheduler = self.scheduler.lock().unwrap();
+            let mut scheduler = self.scheduler.lock().unwrap_or_else(|e| e.into_inner());
             scheduler.stop(&self.component_id)?;
         }
 
@@ -431,17 +431,17 @@ impl ComponentHealthTracker {
 
     /// Get current health status
     pub fn get_health(&self) -> ComponentHealth {
-        self.status.read().unwrap().current_health.clone()
+        self.status.read().unwrap_or_else(|e| e.into_inner()).current_health.clone()
     }
 
     /// Get health status with history
     pub fn get_full_status(&self) -> HealthStatus {
-        self.status.read().unwrap().clone()
+        self.status.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Process health check result
     fn process_check_result(&self, result: &HealthCheckResult) -> SklResult<()> {
-        let mut status = self.status.write().unwrap();
+        let mut status = self.status.write().unwrap_or_else(|e| e.into_inner());
 
         // Update health state based on result
         let new_health = match result.status {
@@ -512,13 +512,13 @@ impl ComponentHealthTracker {
 
         // Collect metrics
         {
-            let mut collector = self.metrics_collector.lock().unwrap();
+            let mut collector = self.metrics_collector.lock().unwrap_or_else(|e| e.into_inner());
             collector.collect_metrics(&result)?;
         }
 
         // Check for alerts
         {
-            let mut alert_manager = self.alert_manager.lock().unwrap();
+            let mut alert_manager = self.alert_manager.lock().unwrap_or_else(|e| e.into_inner());
             alert_manager.check_alerts(&status.current_health, &result)?;
         }
 
@@ -1026,7 +1026,7 @@ impl ComponentHealthMonitor {
 
     /// Initialize the monitor
     pub fn initialize(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         *state = MonitorState::Starting;
         *state = MonitorState::Running;
         Ok(())
@@ -1034,11 +1034,11 @@ impl ComponentHealthMonitor {
 
     /// Shutdown the monitor
     pub fn shutdown(&self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         *state = MonitorState::Stopping;
 
         // Stop all trackers
-        let trackers = self.trackers.read().unwrap();
+        let trackers = self.trackers.read().unwrap_or_else(|e| e.into_inner());
         for tracker in trackers.values() {
             tracker.stop()?;
         }
@@ -1057,11 +1057,11 @@ impl ComponentHealthMonitor {
         let tracker = ComponentHealthTracker::new(component_id.clone(), config, checker);
 
         // Start the tracker if monitor is running
-        if *self.state.read().unwrap() == MonitorState::Running {
+        if *self.state.read().unwrap_or_else(|e| e.into_inner()) == MonitorState::Running {
             tracker.start()?;
         }
 
-        let mut trackers = self.trackers.write().unwrap();
+        let mut trackers = self.trackers.write().unwrap_or_else(|e| e.into_inner());
         trackers.insert(component_id, tracker);
 
         Ok(())
@@ -1069,7 +1069,7 @@ impl ComponentHealthMonitor {
 
     /// Remove component from monitoring
     pub fn remove_component(&self, component_id: &str) -> SklResult<()> {
-        let mut trackers = self.trackers.write().unwrap();
+        let mut trackers = self.trackers.write().unwrap_or_else(|e| e.into_inner());
         if let Some(tracker) = trackers.remove(component_id) {
             tracker.stop()?;
         }
@@ -1078,7 +1078,7 @@ impl ComponentHealthMonitor {
 
     /// Get component health
     pub fn get_component_health(&self, component_id: &str) -> SklResult<ComponentHealth> {
-        let trackers = self.trackers.read().unwrap();
+        let trackers = self.trackers.read().unwrap_or_else(|e| e.into_inner());
         trackers.get(component_id)
             .map(|tracker| tracker.get_health())
             .ok_or_else(|| SklearsError::Other("Component not found".to_string()))
@@ -1086,7 +1086,7 @@ impl ComponentHealthMonitor {
 
     /// Get all component health statuses
     pub fn get_all_health(&self) -> HashMap<String, ComponentHealth> {
-        let trackers = self.trackers.read().unwrap();
+        let trackers = self.trackers.read().unwrap_or_else(|e| e.into_inner());
         trackers.iter()
             .map(|(id, tracker)| (id.clone(), tracker.get_health()))
             .collect()

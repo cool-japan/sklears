@@ -32,7 +32,7 @@ use std::collections::{HashMap, HashSet};
 
 use scirs2_core::ndarray::Array2;
 use scirs2_core::rand_prelude::{Distribution, SliceRandom};
-use scirs2_core::random::{thread_rng, RandNormal, Rng};
+use scirs2_core::random::{thread_rng, RandNormal, Rng, RngExt};
 use sklears_core::error::{Result, SklearsError};
 
 use super::internal_validation::ClusteringValidator;
@@ -444,7 +444,7 @@ impl StabilityAnalyzer {
             s
         } else {
             let mut rng = thread_rng();
-            (0..n_runs).map(|_| rng.gen::<u64>()).collect()
+            (0..n_runs).map(|_| rng.random::<u64>()).collect()
         };
 
         // Run clustering with different seeds
@@ -582,7 +582,7 @@ impl StabilityAnalyzer {
             for _ in 0..n_trials_per_level {
                 // Create perturbed data
                 let mut perturbed_data = X.clone();
-                let normal = RandNormal::new(0.0, noise_std).unwrap();
+                let normal = RandNormal::new(0.0, noise_std).expect("operation should succeed");
                 for i in 0..perturbed_data.nrows() {
                     for j in 0..perturbed_data.ncols() {
                         let noise: f64 = normal.sample(&mut rng);
@@ -1061,7 +1061,7 @@ impl StabilityAnalyzer {
     ) -> Vec<(f64, f64)> {
         let mut degradation_curve = Vec::new();
         let mut sorted_noise_levels: Vec<f64> = noise_results.keys().map(|&k| k.into()).collect();
-        sorted_noise_levels.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_noise_levels.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         for noise_level in sorted_noise_levels {
             if let Some(result) = noise_results.get(&noise_level.into()) {
@@ -1185,7 +1185,7 @@ mod tests {
 
         let result = analyzer
             .subsample_stability(&data, simple_clustering_fn, 0.7, 10)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.mean_stability >= 0.0 && result.mean_stability <= 1.0);
         assert!(result.std_stability >= 0.0);
@@ -1201,7 +1201,7 @@ mod tests {
 
         let result = analyzer
             .consensus_stability(seeded_clustering_fn, &data, 5, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.mean_stability >= 0.0 && result.mean_stability <= 1.0);
         assert!(result.std_stability >= 0.0);
@@ -1219,7 +1219,7 @@ mod tests {
         let noise_levels = vec![0.1, 0.2, 0.5];
         let result = analyzer
             .perturbation_stability(simple_clustering_fn, &data, &noise_levels, 5)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.baseline_clustering.len(), data.nrows());
         assert_eq!(result.tested_noise_levels, noise_levels);
@@ -1251,7 +1251,7 @@ mod tests {
                 &parameters,
                 "test_param".to_string(),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.parameter_name, "test_param");
         assert_eq!(result.tested_parameters, parameters);
@@ -1268,7 +1268,7 @@ mod tests {
 
         let result = analyzer
             .cross_validation_stability(simple_clustering_fn, &data, 3, 2)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.mean_stability >= 0.0 && result.mean_stability <= 1.0);
         assert!(result.std_stability >= 0.0);

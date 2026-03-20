@@ -435,8 +435,8 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for AutoregressiveModel {
             let predicted_class = class_probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .unwrap()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = predicted_class as i32;
         }
@@ -511,9 +511,15 @@ mod tests {
             .epochs(10)
             .learning_rate(0.01);
 
-        let fitted_model = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted_model.predict(&X.view()).unwrap();
-        let probabilities = fitted_model.predict_proba(&X.view()).unwrap();
+        let fitted_model = model
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted_model
+            .predict(&X.view())
+            .expect("operation should succeed");
+        let probabilities = fitted_model
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(probabilities.dim(), (4, 2));
@@ -562,11 +568,13 @@ mod tests {
             .input_dim(3)
             .epochs(5);
 
-        let fitted_model = model.fit(&X.view(), &y.view()).unwrap();
+        let fitted_model = model
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
         let initial_context = array![1.0, 2.0];
         let sequence = fitted_model
             .generate_sequence(&initial_context.view(), 5)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(sequence.len(), 5);
     }
@@ -582,9 +590,13 @@ mod tests {
             .input_dim(3)
             .epochs(5);
 
-        let fitted_model = model.fit(&X.view(), &y.view()).unwrap();
+        let fitted_model = model
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
         let sequence = array![1.0, 2.0, 3.0, 4.0];
-        let log_likelihood = fitted_model.log_likelihood(&sequence.view()).unwrap();
+        let log_likelihood = fitted_model
+            .log_likelihood(&sequence.view())
+            .expect("operation should succeed");
 
         assert!(log_likelihood.is_finite());
     }
@@ -653,9 +665,15 @@ mod tests {
             .temperature(0.5)
             .classification_weight(0.5);
 
-        let fitted_model = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted_model.predict(&X.view()).unwrap();
-        let probabilities = fitted_model.predict_proba(&X.view()).unwrap();
+        let fitted_model = model
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted_model
+            .predict(&X.view())
+            .expect("operation should succeed");
+        let probabilities = fitted_model
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         assert_eq!(probabilities.dim(), (3, 3));
@@ -666,10 +684,14 @@ mod tests {
         let model = AutoregressiveModel::new().input_dim(3).hidden_dims(vec![4]);
 
         let mut model = model.clone();
-        model.initialize_parameters().unwrap();
+        model
+            .initialize_parameters()
+            .expect("operation should succeed");
 
         let sequence = array![1.0, 2.0, 3.0, 4.0];
-        let loss = model.autoregressive_loss(&sequence.view()).unwrap();
+        let loss = model
+            .autoregressive_loss(&sequence.view())
+            .expect("operation should succeed");
 
         assert!(loss >= 0.0);
         assert!(loss.is_finite());
@@ -680,7 +702,9 @@ mod tests {
         let model = AutoregressiveModel::new().input_dim(3).hidden_dims(vec![4]);
 
         let mut model = model.clone();
-        model.initialize_parameters().unwrap();
+        model
+            .initialize_parameters()
+            .expect("operation should succeed");
 
         let sequence = array![1.0]; // Too short
         let result = model.autoregressive_loss(&sequence.view());

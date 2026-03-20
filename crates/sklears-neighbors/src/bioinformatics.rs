@@ -635,7 +635,11 @@ impl SequenceSimilaritySearch {
         }
 
         // Sort by score (descending) and return top k
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .expect("operation should succeed")
+        });
         results.truncate(k);
 
         Ok(results)
@@ -803,7 +807,11 @@ impl ProteinStructureSearch {
         }
 
         // Sort by RMSD (ascending - lower is better)
-        results.sort_by(|a, b| a.rmsd.partial_cmp(&b.rmsd).unwrap());
+        results.sort_by(|a, b| {
+            a.rmsd
+                .partial_cmp(&b.rmsd)
+                .expect("operation should succeed")
+        });
         results.truncate(k);
 
         Ok(results)
@@ -973,7 +981,11 @@ impl GeneExpressionNeighbors {
         }
 
         // Sort by absolute correlation (descending)
-        results.sort_by(|a, b| b.similarity_score.partial_cmp(&a.similarity_score).unwrap());
+        results.sort_by(|a, b| {
+            b.similarity_score
+                .partial_cmp(&a.similarity_score)
+                .expect("operation should succeed")
+        });
         results.truncate(k);
 
         Ok(results)
@@ -1055,7 +1067,7 @@ mod tests {
             "GCTAGCTA".to_string(),
         ];
 
-        index.build(&sequences).unwrap();
+        index.build(&sequences).expect("operation should succeed");
 
         // Test candidate finding
         let candidates = index.get_candidates("ATCGATCG", 1);
@@ -1093,9 +1105,13 @@ mod tests {
             "GCTAGCTAGCTA".to_string(),
         ];
 
-        search.build_index_from_sequences(&sequences).unwrap();
+        search
+            .build_index_from_sequences(&sequences)
+            .expect("operation should succeed");
 
-        let results = search.search_similar_sequences("ATCGATCGATCG", 2).unwrap();
+        let results = search
+            .search_similar_sequences("ATCGATCGATCG", 2)
+            .expect("operation should succeed");
         assert!(!results.is_empty());
 
         // First result should be perfect match or very similar
@@ -1137,10 +1153,16 @@ mod tests {
             chain_id: Some("B".to_string()),
         };
 
-        search.add_structure(structure1.clone(), metadata1).unwrap();
-        search.add_structure(structure2, metadata2).unwrap();
+        search
+            .add_structure(structure1.clone(), metadata1)
+            .expect("operation should succeed");
+        search
+            .add_structure(structure2, metadata2)
+            .expect("operation should succeed");
 
-        let results = search.search_similar_structures(&structure1, 1).unwrap();
+        let results = search
+            .search_similar_structures(&structure1, 1)
+            .expect("operation should succeed");
         assert!(!results.is_empty());
 
         // RMSD should be reasonable for similar structures
@@ -1166,13 +1188,15 @@ mod tests {
                 5.0, 4.0, 3.0, 2.0, 1.0, // GENE3 (anti-correlated)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         search
             .load_expression_data(gene_names, expression_matrix)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let results = search.find_coexpressed_genes("GENE1", 2).unwrap();
+        let results = search
+            .find_coexpressed_genes("GENE1", 2)
+            .expect("operation should succeed");
         assert_eq!(results.len(), 2);
 
         // GENE2 should be highly correlated

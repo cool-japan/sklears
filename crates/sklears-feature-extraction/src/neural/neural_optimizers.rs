@@ -62,7 +62,7 @@ impl Optimizer for SGD {
                 self.velocity = Some(Array2::zeros(params.raw_dim()));
             }
 
-            let velocity = self.velocity.as_mut().unwrap();
+            let velocity = self.velocity.as_mut().expect("operation should succeed");
 
             if self.dampening == 0.0 {
                 *velocity = velocity * self.momentum + &grad;
@@ -162,8 +162,8 @@ impl Optimizer for Adam {
             }
         }
 
-        let m = self.m.as_mut().unwrap();
-        let v = self.v.as_mut().unwrap();
+        let m = self.m.as_mut().expect("operation should succeed");
+        let v = self.v.as_mut().expect("operation should succeed");
 
         *m = m * self.beta1 + &grad * (1.0 - self.beta1);
         *v = v * self.beta2 + &(&grad * &grad) * (1.0 - self.beta2);
@@ -174,7 +174,7 @@ impl Optimizer for Adam {
         let step_size = self.learning_rate / bias_correction1;
 
         let v_corrected = if self.amsgrad {
-            let v_max = self.v_max.as_mut().unwrap();
+            let v_max = self.v_max.as_mut().expect("operation should succeed");
             for i in 0..v.nrows() {
                 for j in 0..v.ncols() {
                     v_max[(i, j)] = v_max[(i, j)].max(v[(i, j)]);
@@ -254,8 +254,8 @@ impl Optimizer for AdamW {
             self.v = Some(Array2::zeros(params.raw_dim()));
         }
 
-        let m = self.m.as_mut().unwrap();
-        let v = self.v.as_mut().unwrap();
+        let m = self.m.as_mut().expect("operation should succeed");
+        let v = self.v.as_mut().expect("operation should succeed");
 
         *m = m * self.beta1 + gradients * (1.0 - self.beta1);
         *v = v * self.beta2 + &(gradients * gradients) * (1.0 - self.beta2);
@@ -363,11 +363,11 @@ impl Optimizer for RMSprop {
             }
         }
 
-        let v = self.v.as_mut().unwrap();
+        let v = self.v.as_mut().expect("operation should succeed");
         *v = v * self.alpha + &(&grad * &grad) * (1.0 - self.alpha);
 
         let avg = if self.centered {
-            let grad_avg = self.grad_avg.as_mut().unwrap();
+            let grad_avg = self.grad_avg.as_mut().expect("operation should succeed");
             *grad_avg = grad_avg * self.alpha + &grad * (1.0 - self.alpha);
             v - &(grad_avg * grad_avg)
         } else {
@@ -382,7 +382,7 @@ impl Optimizer for RMSprop {
         }
 
         if self.momentum > 0.0 {
-            let buf = self.buf.as_mut().unwrap();
+            let buf = self.buf.as_mut().expect("operation should succeed");
             *buf = buf * self.momentum + &(&grad / &denominator);
             *params = params - buf * self.learning_rate;
         } else {
@@ -443,7 +443,7 @@ impl Optimizer for Adagrad {
             self.sum_squared_gradients = Some(Array2::zeros(params.raw_dim()));
         }
 
-        let sum_sq_grad = self.sum_squared_gradients.as_mut().unwrap();
+        let sum_sq_grad = self.sum_squared_gradients.as_mut().expect("operation should succeed");
         *sum_sq_grad = sum_sq_grad + &(&grad * &grad);
 
         let mut denominator = Array2::zeros(sum_sq_grad.raw_dim());
@@ -519,8 +519,8 @@ impl Optimizer for Adadelta {
             self.sum_squared_updates = Some(Array2::zeros(params.raw_dim()));
         }
 
-        let sum_sq_grad = self.sum_squared_gradients.as_mut().unwrap();
-        let sum_sq_updates = self.sum_squared_updates.as_mut().unwrap();
+        let sum_sq_grad = self.sum_squared_gradients.as_mut().expect("operation should succeed");
+        let sum_sq_updates = self.sum_squared_updates.as_mut().expect("operation should succeed");
 
         *sum_sq_grad = sum_sq_grad * self.rho + &(&grad * &grad) * (1.0 - self.rho);
 

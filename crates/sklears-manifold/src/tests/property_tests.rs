@@ -25,7 +25,7 @@ fn random_data_matrix(n_samples: usize, n_features: usize) -> impl Strategy<Valu
                 (n_samples, n_features),
                 data.into_iter().flatten().collect(),
             )
-            .unwrap()
+            .expect("operation should succeed")
         },
     )
 }

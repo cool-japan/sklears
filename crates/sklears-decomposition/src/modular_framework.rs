@@ -585,7 +585,9 @@ impl PreprocessingStep for StandardizationStep {
     fn process(&mut self, data: &Array2<Float>) -> Result<Array2<Float>> {
         if !self.fitted {
             // Fit step - compute mean and std
-            let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+            let mean = data
+                .mean_axis(scirs2_core::ndarray::Axis(0))
+                .expect("array should have elements for mean computation");
             let std = data
                 .var_axis(scirs2_core::ndarray::Axis(0), 0.0)
                 .mapv(|x| x.sqrt());
@@ -596,8 +598,8 @@ impl PreprocessingStep for StandardizationStep {
         }
 
         // Transform step
-        let mean = self.mean.as_ref().unwrap();
-        let std = self.std.as_ref().unwrap();
+        let mean = self.mean.as_ref().expect("operation should succeed");
+        let std = self.std.as_ref().expect("operation should succeed");
 
         let mean_broadcast = mean.clone().insert_axis(scirs2_core::ndarray::Axis(0));
         let std_broadcast = std.clone().insert_axis(scirs2_core::ndarray::Axis(0));
@@ -613,8 +615,8 @@ impl PreprocessingStep for StandardizationStep {
             ));
         }
 
-        let mean = self.mean.as_ref().unwrap();
-        let std = self.std.as_ref().unwrap();
+        let mean = self.mean.as_ref().expect("operation should succeed");
+        let std = self.std.as_ref().expect("operation should succeed");
 
         let mean_broadcast = mean.clone().insert_axis(scirs2_core::ndarray::Axis(0));
         let std_broadcast = std.clone().insert_axis(scirs2_core::ndarray::Axis(0));
@@ -830,7 +832,9 @@ mod tests {
         let algorithms = registry.list_algorithms();
         assert_eq!(algorithms, vec!["mock_pca"]);
 
-        let algorithm = registry.create_algorithm("mock_pca").unwrap();
+        let algorithm = registry
+            .create_algorithm("mock_pca")
+            .expect("operation should succeed");
         assert_eq!(algorithm.name(), "mock_pca");
 
         let dim_red_algorithms =
@@ -844,9 +848,10 @@ mod tests {
         assert!(!step.is_fitted());
         assert_eq!(step.name(), "standardization");
 
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
 
-        let processed = step.process(&data).unwrap();
+        let processed = step.process(&data).expect("operation should succeed");
         assert!(step.is_fitted());
         assert_eq!(processed.shape(), data.shape());
     }
@@ -859,7 +864,7 @@ mod tests {
         let mut components = DecompositionComponents::default();
         components.components = Some(Array2::eye(3));
 
-        let processed = step.process(components).unwrap();
+        let processed = step.process(components).expect("operation should succeed");
         assert!(processed.metadata.contains_key("rotation_applied"));
     }
 
@@ -873,20 +878,24 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let params = DecompositionParams {
             n_components: Some(2),
             ..DecompositionParams::default()
         };
 
-        let result = pipeline.fit_transform(&data, &params).unwrap();
+        let result = pipeline
+            .fit_transform(&data, &params)
+            .expect("operation should succeed");
         assert_eq!(result.algorithm_used, "mock_pca");
         assert!(result.execution_time.as_nanos() > 0);
         assert!(pipeline.is_fitted());
 
         // Test transform
-        let transformed = pipeline.transform(&data).unwrap();
+        let transformed = pipeline
+            .transform(&data)
+            .expect("transformation should succeed");
         assert_eq!(transformed.shape(), &[4, 2]);
     }
 
@@ -913,13 +922,13 @@ mod tests {
 
         let pipeline = builder
             .with_algorithm("mock_pca")
-            .unwrap()
+            .expect("operation should succeed")
             .with_preprocessing(Box::new(StandardizationStep::new()))
-            .unwrap()
+            .expect("operation should succeed")
             .with_postprocessing(Box::new(VarimaxRotationStep::new()))
-            .unwrap()
+            .expect("operation should succeed")
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(pipeline.algorithm.name(), "mock_pca");
         assert_eq!(pipeline.preprocessing_steps.len(), 1);

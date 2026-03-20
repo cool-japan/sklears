@@ -728,7 +728,7 @@ fn compute_persistence_landscape(
             }
         }
 
-        values.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        values.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
         landscape[(0, i)] = values.first().copied().unwrap_or(0.0);
     }
 
@@ -830,7 +830,7 @@ fn compute_density_filter(x: &ArrayView2<'_, Float>) -> SklResult<Array1<Float>>
                 distances.push(dist);
             }
         }
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let kth_distance = distances
             .get(k.min(distances.len() - 1))
@@ -848,7 +848,7 @@ fn compute_distance_filter(x: &ArrayView2<'_, Float>) -> SklResult<Array1<Float>
     let mut filter_values = Array1::zeros(n_samples);
 
     // Use centroid as reference point
-    let centroid = x.mean_axis(Axis(0)).unwrap();
+    let centroid = x.mean_axis(Axis(0)).expect("operation should succeed");
 
     for i in 0..n_samples {
         let dist = (&x.row(i) - &centroid).mapv(|x| x * x).sum().sqrt();
@@ -935,7 +935,7 @@ fn single_linkage_clustering(
         }
     }
 
-    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     // Simple two-cluster split
     let mid = n / 2;

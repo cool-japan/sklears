@@ -117,7 +117,7 @@ mod tests {
         let mut data = HashMap::new();
         data.insert("key", "value");
 
-        let json = to_json(&data).unwrap();
+        let json = to_json(&data).expect("operation should succeed");
         assert!(json.contains("key"));
         assert!(json.contains("value"));
     }

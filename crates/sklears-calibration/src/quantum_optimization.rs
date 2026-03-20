@@ -630,7 +630,9 @@ impl QuantumCalibrationOptimizer {
             .optimization_history
             .iter()
             .enumerate()
-            .min_by(|(_, (_, a)), (_, (_, b))| a.partial_cmp(b).unwrap())
+            .min_by(|(_, (_, a)), (_, (_, b))| {
+                a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(i, _)| i)
             .unwrap_or(0);
 
@@ -671,7 +673,8 @@ impl QuantumCalibrationOptimizer {
 
 impl Default for QuantumCalibrationOptimizer {
     fn default() -> Self {
-        let bounds = Array2::from_shape_vec((2, 2), vec![-10.0, 10.0, -10.0, 10.0]).unwrap();
+        let bounds = Array2::from_shape_vec((2, 2), vec![-10.0, 10.0, -10.0, 10.0])
+            .expect("shape should match data length");
         Self::new(QuantumOptimizationConfig::default(), bounds)
     }
 }
@@ -701,7 +704,7 @@ mod tests {
 
         state
             .apply_rotation(0, std::f64::consts::PI as Float / 4.0)
-            .unwrap();
+            .expect("operation should succeed");
 
         // State should still be normalized
         let norm_squared: Float = state.amplitudes.iter().map(|&a| a * a).sum();
@@ -718,7 +721,7 @@ mod tests {
 
         state
             .apply_controlled_gate(0, 1, std::f64::consts::PI as Float / 6.0)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check entanglement was created
         assert!(state.entanglement_matrix[[0, 1]] > 0.0);
@@ -742,7 +745,8 @@ mod tests {
 
     #[test]
     fn test_quantum_optimizer_creation() {
-        let bounds = Array2::from_shape_vec((2, 2), vec![-1.0, 1.0, -2.0, 2.0]).unwrap();
+        let bounds = Array2::from_shape_vec((2, 2), vec![-1.0, 1.0, -2.0, 2.0])
+            .expect("shape should match data length");
         let config = QuantumOptimizationConfig::default();
         let optimizer = QuantumCalibrationOptimizer::new(config, bounds);
 
@@ -753,11 +757,14 @@ mod tests {
 
     #[test]
     fn test_parameter_conversion() {
-        let bounds = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, -1.0, 1.0]).unwrap();
+        let bounds = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, -1.0, 1.0])
+            .expect("shape should match data length");
         let config = QuantumOptimizationConfig::default();
         let optimizer = QuantumCalibrationOptimizer::new(config, bounds);
 
-        let params = optimizer.quantum_measurement_to_parameters().unwrap();
+        let params = optimizer
+            .quantum_measurement_to_parameters()
+            .expect("operation should succeed");
 
         assert_eq!(params.len(), 2);
         assert!(params[0] >= 0.0 && params[0] <= 1.0);
@@ -766,7 +773,8 @@ mod tests {
 
     #[test]
     fn test_bit_similarity() {
-        let bounds = Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).unwrap();
+        let bounds =
+            Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).expect("shape should match data length");
         let config = QuantumOptimizationConfig::default();
         let optimizer = QuantumCalibrationOptimizer::new(config, bounds);
 
@@ -782,7 +790,8 @@ mod tests {
     #[test]
     fn test_annealing_schedule() {
         let config = QuantumOptimizationConfig::default();
-        let bounds = Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).unwrap();
+        let bounds =
+            Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).expect("shape should match data length");
         let optimizer = QuantumCalibrationOptimizer::new(config.clone(), bounds);
 
         // Check annealing schedule properties
@@ -803,7 +812,8 @@ mod tests {
 
     #[test]
     fn test_simple_optimization() {
-        let bounds = Array2::from_shape_vec((1, 2), vec![-5.0, 5.0]).unwrap();
+        let bounds = Array2::from_shape_vec((1, 2), vec![-5.0, 5.0])
+            .expect("shape should match data length");
         let config = QuantumOptimizationConfig {
             max_iterations: 10,
             n_annealing_steps: 10,
@@ -815,7 +825,9 @@ mod tests {
         // Simple quadratic objective function: f(x) = x^2
         let objective = |params: &Array1<Float>| -> Result<Float> { Ok(params[0] * params[0]) };
 
-        let (best_params, best_value) = optimizer.optimize(objective).unwrap();
+        let (best_params, best_value) = optimizer
+            .optimize(objective)
+            .expect("operation should succeed");
 
         // Best solution should be close to x = 0
         assert!(best_params.len() == 1);
@@ -825,7 +837,8 @@ mod tests {
 
     #[test]
     fn test_convergence_detection() {
-        let bounds = Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).unwrap();
+        let bounds =
+            Array2::from_shape_vec((1, 2), vec![0.0, 1.0]).expect("shape should match data length");
         let config = QuantumOptimizationConfig::default();
         let mut optimizer = QuantumCalibrationOptimizer::new(config, bounds);
 
@@ -849,7 +862,8 @@ mod tests {
 
     #[test]
     fn test_optimization_stats() {
-        let bounds = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, -1.0, 1.0]).unwrap();
+        let bounds = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, -1.0, 1.0])
+            .expect("shape should match data length");
         let config = QuantumOptimizationConfig::default();
         let optimizer = QuantumCalibrationOptimizer::new(config, bounds);
 

@@ -124,7 +124,7 @@ impl PluginFactory {
         plugin: Box<dyn KernelApproximationPlugin>,
     ) -> std::result::Result<(), PluginError> {
         let metadata = plugin.metadata();
-        let mut plugins = self.plugins.write().unwrap();
+        let mut plugins = self.plugins.write().expect("operation should succeed");
 
         if plugins.contains_key(&metadata.name) {
             return Err(PluginError::PluginAlreadyRegistered {
@@ -138,7 +138,7 @@ impl PluginFactory {
 
     /// Unregister a plugin
     pub fn unregister_plugin(&self, name: &str) -> std::result::Result<(), PluginError> {
-        let mut plugins = self.plugins.write().unwrap();
+        let mut plugins = self.plugins.write().expect("operation should succeed");
         plugins
             .remove(name)
             .ok_or_else(|| PluginError::PluginNotFound {
@@ -152,7 +152,7 @@ impl PluginFactory {
         &self,
         name: &str,
     ) -> std::result::Result<PluginMetadata, PluginError> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = self.plugins.read().expect("operation should succeed");
         let plugin = plugins
             .get(name)
             .ok_or_else(|| PluginError::PluginNotFound {
@@ -163,7 +163,7 @@ impl PluginFactory {
 
     /// List all registered plugins
     pub fn list_plugins(&self) -> Vec<PluginMetadata> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = self.plugins.read().expect("operation should succeed");
         plugins.values().map(|p| p.metadata()).collect()
     }
 
@@ -173,7 +173,7 @@ impl PluginFactory {
         name: &str,
         config: PluginConfig,
     ) -> std::result::Result<Box<dyn KernelApproximationInstance>, PluginError> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = self.plugins.read().expect("operation should succeed");
         let plugin = plugins
             .get(name)
             .ok_or_else(|| PluginError::PluginNotFound {
@@ -186,7 +186,7 @@ impl PluginFactory {
 
     /// Get default configuration for a plugin
     pub fn get_default_config(&self, name: &str) -> std::result::Result<PluginConfig, PluginError> {
-        let plugins = self.plugins.read().unwrap();
+        let plugins = self.plugins.read().expect("operation should succeed");
         let plugin = plugins
             .get(name)
             .ok_or_else(|| PluginError::PluginNotFound {
@@ -487,7 +487,9 @@ mod tests {
     fn test_plugin_instance_creation() {
         let factory = PluginFactory::new();
         let plugin = Box::new(LinearKernelPlugin);
-        factory.register_plugin(plugin).unwrap();
+        factory
+            .register_plugin(plugin)
+            .expect("operation should succeed");
 
         let mut config = PluginConfig::default();
         config.parameters.insert(
@@ -503,7 +505,9 @@ mod tests {
     fn test_plugin_wrapper_fit_transform() {
         let factory = PluginFactory::new();
         let plugin = Box::new(LinearKernelPlugin);
-        factory.register_plugin(plugin).unwrap();
+        factory
+            .register_plugin(plugin)
+            .expect("operation should succeed");
 
         let mut config = PluginConfig::default();
         config.parameters.insert(
@@ -511,13 +515,17 @@ mod tests {
             serde_json::Value::Number(30.into()),
         );
 
-        let instance = factory.create_instance("linear_kernel", config).unwrap();
-        let metadata = factory.get_plugin_metadata("linear_kernel").unwrap();
+        let instance = factory
+            .create_instance("linear_kernel", config)
+            .expect("operation should succeed");
+        let metadata = factory
+            .get_plugin_metadata("linear_kernel")
+            .expect("operation should succeed");
         let wrapper = PluginWrapper::new(instance, metadata);
 
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let fitted = wrapper.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = wrapper.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[3, 30]);
     }
@@ -535,7 +543,9 @@ mod tests {
     fn test_invalid_configuration() {
         let factory = PluginFactory::new();
         let plugin = Box::new(LinearKernelPlugin);
-        factory.register_plugin(plugin).unwrap();
+        factory
+            .register_plugin(plugin)
+            .expect("operation should succeed");
 
         let config = PluginConfig::default(); // Missing n_components
         let result = factory.create_instance("linear_kernel", config);

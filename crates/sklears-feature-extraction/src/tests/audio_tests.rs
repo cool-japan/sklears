@@ -29,7 +29,9 @@ fn test_mfcc_extractor() {
         .sample_rate(sample_rate as f64);
 
     let signal_array = Array1::from_vec(signal);
-    let features = mfcc.extract_features(&signal_array.view()).unwrap();
+    let features = mfcc
+        .extract_features(&signal_array.view())
+        .expect("operation should succeed");
 
     // Check dimensions
     let expected_frames = (signal_array.len() - 512) / 160 + 1;
@@ -60,7 +62,9 @@ fn test_spectral_centroid_extractor() {
         .hop_length(256)
         .sample_rate(sample_rate);
 
-    let features = spectral_centroid.extract_features(&signal.view()).unwrap();
+    let features = spectral_centroid
+        .extract_features(&signal.view())
+        .expect("operation should succeed");
 
     // Should have one centroid value per frame
     let expected_frames = (signal.len() - 512) / 256 + 1;
@@ -91,7 +95,9 @@ fn test_zero_crossing_rate_extractor() {
         .hop_length(50);
 
     let signal_array = Array1::from_vec(signal);
-    let features = zcr.extract_features(&signal_array.view()).unwrap();
+    let features = zcr
+        .extract_features(&signal_array.view())
+        .expect("operation should succeed");
 
     // Should have zero crossing rate values per frame
     let expected_frames = (signal_array.len() - 100) / 50 + 1;
@@ -122,7 +128,9 @@ fn test_tonnetz_extractor() {
         .hop_length(256)
         .sample_rate(sample_rate);
 
-    let features = tonnetz.extract_features(&signal.view()).unwrap();
+    let features = tonnetz
+        .extract_features(&signal.view())
+        .expect("operation should succeed");
 
     // Tonnetz features have 6 dimensions
     let expected_frames = (signal.len() - 512) / 256 + 1;
@@ -157,7 +165,9 @@ fn test_chroma_extractor() {
         .n_chroma(12);
 
     let signal_array = Array1::from_vec(signal);
-    let features = chroma.extract_features(&signal_array.view()).unwrap();
+    let features = chroma
+        .extract_features(&signal_array.view())
+        .expect("operation should succeed");
 
     // Chroma features have 12 dimensions (one per semitone)
     let expected_frames = (signal_array.len() - 1024) / 512 + 1;
@@ -198,7 +208,9 @@ fn test_tempogram_extractor() {
         .tempo_max(200)
         .n_tempo_bins(40);
 
-    let features = tempogram.extract_features(&signal.view()).unwrap();
+    let features = tempogram
+        .extract_features(&signal.view())
+        .expect("operation should succeed");
 
     // Tempogram should have tempo bins as columns
     let expected_frames = (signal.len() - 1024) / 512 + 1; // Using default n_fft=1024
@@ -228,7 +240,9 @@ fn test_rms_energy_extractor() {
         .frame_length(100)
         .hop_length(50);
 
-    let features = rms.extract_features(&signal.view()).unwrap();
+    let features = rms
+        .extract_features(&signal.view())
+        .expect("operation should succeed");
 
     // Should have RMS values per frame
     let expected_frames = (signal.len() - 100) / 50 + 1;
@@ -272,7 +286,9 @@ fn test_spectral_rolloff_extractor() {
     // Note: rolloff_percent method may need to be implemented
 
     let signal_array = Array1::from_vec(signal);
-    let features = rolloff.extract_features(&signal_array.view()).unwrap();
+    let features = rolloff
+        .extract_features(&signal_array.view())
+        .expect("operation should succeed");
 
     let expected_frames = (signal_array.len() - 1024) / 512 + 1;
     assert_eq!(features.len(), expected_frames);
@@ -304,7 +320,9 @@ fn test_spectral_bandwidth_extractor() {
         .sample_rate(sample_rate as f64);
 
     let signal_array = Array1::from_vec(signal);
-    let features = bandwidth.extract_features(&signal_array.view()).unwrap();
+    let features = bandwidth
+        .extract_features(&signal_array.view())
+        .expect("operation should succeed");
 
     let expected_frames = (signal_array.len() - 1024) / 512 + 1;
     assert_eq!(features.len(), expected_frames);
@@ -334,7 +352,9 @@ fn test_mel_spectrogram_extractor() {
         .sample_rate(sample_rate as f64);
 
     let signal_array = Array1::from_vec(signal);
-    let features = mel_spec.extract_features(&signal_array.view()).unwrap();
+    let features = mel_spec
+        .extract_features(&signal_array.view())
+        .expect("operation should succeed");
 
     let expected_frames = (signal_array.len() - 512) / 256 + 1;
     assert_eq!(features.nrows(), expected_frames);
@@ -367,7 +387,9 @@ fn test_pitch_extractor() {
         .sample_rate(sample_rate)
         .hop_length(512);
 
-    let features = pitch.extract_features(&signal.view()).unwrap();
+    let features = pitch
+        .extract_features(&signal.view())
+        .expect("operation should succeed");
 
     let expected_frames = (signal.len() - 1024) / 512 + 1;
     assert_eq!(features.len(), expected_frames);
@@ -405,7 +427,9 @@ fn test_onset_detector() {
         .sample_rate(sample_rate)
         .method("energy".to_string());
 
-    let onsets = onset.detect_onsets(&signal.view()).unwrap();
+    let onsets = onset
+        .detect_onsets(&signal.view())
+        .expect("operation should succeed");
 
     // Should detect at least one onset around the middle
     assert!(onsets.len() > 0);
@@ -441,7 +465,9 @@ fn test_harmonic_percussive_separation() {
         .kernel_size(31)
         .power(2.0);
 
-    let (harmonic, percussive) = hps.separate(&signal.view()).unwrap();
+    let (harmonic, percussive) = hps
+        .separate(&signal.view())
+        .expect("operation should succeed");
 
     assert_eq!(harmonic.len(), signal.len());
     assert_eq!(percussive.len(), signal.len());
@@ -494,8 +520,12 @@ fn test_audio_feature_consistency() {
 
     // Extract features multiple times - should be consistent
     let signal_arr = Array1::from_vec(signal);
-    let features1 = mfcc.extract_features(&signal_arr.view()).unwrap();
-    let features2 = mfcc.extract_features(&signal_arr.view()).unwrap();
+    let features1 = mfcc
+        .extract_features(&signal_arr.view())
+        .expect("operation should succeed");
+    let features2 = mfcc
+        .extract_features(&signal_arr.view())
+        .expect("operation should succeed");
 
     assert_eq!(features1.dim(), features2.dim());
 
@@ -525,7 +555,9 @@ fn test_audio_feature_batch_processing() {
         .n_fft(256)
         .hop_length(128);
 
-    let batch_features = mfcc.extract_features_batch(&signals).unwrap();
+    let batch_features = mfcc
+        .extract_features_batch(&signals)
+        .expect("operation should succeed");
     assert_eq!(batch_features.len(), 3);
 
     for features in batch_features.iter() {

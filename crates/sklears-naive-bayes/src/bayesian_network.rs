@@ -713,13 +713,13 @@ mod tests {
                 7.0, 3.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let mut ban = BayesianNetworkAugmentedNB::new(BANConfig::default());
         assert!(ban.fit(&X, &y).is_ok());
 
-        let predictions = ban.predict(&X).unwrap();
+        let predictions = ban.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
     }
 
@@ -765,7 +765,7 @@ mod tests {
                 weight: 0.5,
                 conditional_mi: 0.0,
             })
-            .unwrap();
+            .expect("operation should succeed");
         network
             .add_edge(NetworkEdge {
                 parent: 0,
@@ -773,7 +773,7 @@ mod tests {
                 weight: 0.3,
                 conditional_mi: 0.0,
             })
-            .unwrap();
+            .expect("operation should succeed");
         network
             .add_edge(NetworkEdge {
                 parent: 1,
@@ -781,16 +781,30 @@ mod tests {
                 weight: 0.2,
                 conditional_mi: 0.0,
             })
-            .unwrap();
+            .expect("operation should succeed");
 
-        let topo_order = network.topological_sort().unwrap();
+        let topo_order = network
+            .topological_sort()
+            .expect("operation should succeed");
         assert_eq!(topo_order.len(), 4);
 
         // Node 0 should come before nodes 1 and 2
-        let pos_0 = topo_order.iter().position(|&x| x == 0).unwrap();
-        let pos_1 = topo_order.iter().position(|&x| x == 1).unwrap();
-        let pos_2 = topo_order.iter().position(|&x| x == 2).unwrap();
-        let pos_3 = topo_order.iter().position(|&x| x == 3).unwrap();
+        let pos_0 = topo_order
+            .iter()
+            .position(|&x| x == 0)
+            .expect("operation should succeed");
+        let pos_1 = topo_order
+            .iter()
+            .position(|&x| x == 1)
+            .expect("operation should succeed");
+        let pos_2 = topo_order
+            .iter()
+            .position(|&x| x == 2)
+            .expect("operation should succeed");
+        let pos_3 = topo_order
+            .iter()
+            .position(|&x| x == 3)
+            .expect("operation should succeed");
 
         assert!(pos_0 < pos_1);
         assert!(pos_0 < pos_2);
@@ -800,7 +814,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_empty_dataset() {
-        let X = Array2::from_shape_vec((0, 2), vec![]).unwrap();
+        let X = Array2::from_shape_vec((0, 2), vec![]).expect("operation should succeed");
         let y = Array1::from_vec(vec![]);
 
         let mut ban = BayesianNetworkAugmentedNB::new(BANConfig::default());

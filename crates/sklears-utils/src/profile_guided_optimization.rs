@@ -359,7 +359,7 @@ impl ProfileGuidedOptimizer {
 
         self.profiles
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(program_name.to_string(), mock_profile.clone());
         Ok(mock_profile)
     }
@@ -505,7 +505,7 @@ impl ProfileGuidedOptimizer {
         &self,
         program_name: &str,
     ) -> Result<Vec<OptimizationRecommendation>, ProfileError> {
-        let profiles = self.profiles.read().unwrap();
+        let profiles = self.profiles.read().expect("operation should succeed");
         let profile = profiles
             .get(program_name)
             .ok_or(ProfileError::ProfileNotFound)?;
@@ -586,18 +586,27 @@ impl ProfileGuidedOptimizer {
             ),
         };
 
-        self.optimization_history.lock().unwrap().push(application);
+        self.optimization_history
+            .lock()
+            .expect("operation should succeed")
+            .push(application);
         Ok(())
     }
 
     /// Get optimization history
     pub fn get_optimization_history(&self) -> Vec<OptimizationApplication> {
-        self.optimization_history.lock().unwrap().clone()
+        self.optimization_history
+            .lock()
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Calculate overall performance gain
     pub fn calculate_performance_gain(&self) -> f64 {
-        let history = self.optimization_history.lock().unwrap();
+        let history = self
+            .optimization_history
+            .lock()
+            .expect("operation should succeed");
         let successful_optimizations: Vec<_> = history
             .iter()
             .filter(|app| app.success && app.measured_speedup.is_some())
@@ -610,13 +619,13 @@ impl ProfileGuidedOptimizer {
         // Compound the speedups
         successful_optimizations
             .iter()
-            .map(|app| app.measured_speedup.unwrap())
+            .map(|app| app.measured_speedup.expect("operation should succeed"))
             .fold(1.0, |acc, speedup| acc * speedup)
     }
 
     /// Generate optimization report
     pub fn generate_report(&self, program_name: &str) -> Result<OptimizationReport, ProfileError> {
-        let profiles = self.profiles.read().unwrap();
+        let profiles = self.profiles.read().expect("operation should succeed");
         let profile = profiles
             .get(program_name)
             .ok_or(ProfileError::ProfileNotFound)?;
@@ -658,8 +667,14 @@ impl ProfileGuidedOptimizer {
 
     /// Reset profiling data
     pub fn reset(&self) {
-        self.profiles.write().unwrap().clear();
-        self.optimization_history.lock().unwrap().clear();
+        self.profiles
+            .write()
+            .expect("operation should succeed")
+            .clear();
+        self.optimization_history
+            .lock()
+            .expect("operation should succeed")
+            .clear();
     }
 }
 
@@ -757,7 +772,9 @@ mod tests {
         let targets = PerformanceTargets::default();
         let optimizer = ProfileGuidedOptimizer::new(config, targets);
 
-        let profile = optimizer.collect_profile("test_program").unwrap();
+        let profile = optimizer
+            .collect_profile("test_program")
+            .expect("operation should succeed");
         assert!(!profile.function_profiles.is_empty());
         assert!(profile.total_samples > 0);
     }
@@ -768,8 +785,12 @@ mod tests {
         let targets = PerformanceTargets::default();
         let optimizer = ProfileGuidedOptimizer::new(config, targets);
 
-        optimizer.collect_profile("test_program").unwrap();
-        let recommendations = optimizer.analyze_and_recommend("test_program").unwrap();
+        optimizer
+            .collect_profile("test_program")
+            .expect("operation should succeed");
+        let recommendations = optimizer
+            .analyze_and_recommend("test_program")
+            .expect("operation should succeed");
 
         assert!(!recommendations.is_empty());
         assert!(recommendations[0].priority > 0.0);
@@ -781,8 +802,12 @@ mod tests {
         let targets = PerformanceTargets::default();
         let optimizer = ProfileGuidedOptimizer::new(config, targets);
 
-        optimizer.collect_profile("test_program").unwrap();
-        let recommendations = optimizer.analyze_and_recommend("test_program").unwrap();
+        optimizer
+            .collect_profile("test_program")
+            .expect("operation should succeed");
+        let recommendations = optimizer
+            .analyze_and_recommend("test_program")
+            .expect("operation should succeed");
 
         if let Some(recommendation) = recommendations.first() {
             assert!(optimizer.apply_optimization(recommendation).is_ok());
@@ -799,11 +824,17 @@ mod tests {
         let targets = PerformanceTargets::default();
         let optimizer = ProfileGuidedOptimizer::new(config, targets);
 
-        optimizer.collect_profile("test_program").unwrap();
-        let recommendations = optimizer.analyze_and_recommend("test_program").unwrap();
+        optimizer
+            .collect_profile("test_program")
+            .expect("operation should succeed");
+        let recommendations = optimizer
+            .analyze_and_recommend("test_program")
+            .expect("operation should succeed");
 
         for recommendation in recommendations.iter().take(2) {
-            optimizer.apply_optimization(recommendation).unwrap();
+            optimizer
+                .apply_optimization(recommendation)
+                .expect("operation should succeed");
         }
 
         let gain = optimizer.calculate_performance_gain();
@@ -816,8 +847,12 @@ mod tests {
         let targets = PerformanceTargets::default();
         let optimizer = ProfileGuidedOptimizer::new(config, targets);
 
-        optimizer.collect_profile("test_program").unwrap();
-        let report = optimizer.generate_report("test_program").unwrap();
+        optimizer
+            .collect_profile("test_program")
+            .expect("operation should succeed");
+        let report = optimizer
+            .generate_report("test_program")
+            .expect("operation should succeed");
 
         assert_eq!(report.program_name, "test_program");
         assert!(report.profile_summary.total_functions > 0);

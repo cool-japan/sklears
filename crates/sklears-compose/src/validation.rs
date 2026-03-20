@@ -651,7 +651,7 @@ impl ComprehensivePipelineValidator {
             };
 
             // Would split data and evaluate pipeline
-            let score = 0.8 + thread_rng().gen::<f64>() * 0.2; // Placeholder
+            let score = 0.8 + thread_rng().random::<f64>() * 0.2; // Placeholder
             cv_scores.push(score);
         }
 
@@ -1008,7 +1008,7 @@ impl ComprehensivePipelineValidator {
 
         let n = data.len();
         let mut sorted_data = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         // Simplified normality test based on sample skewness and kurtosis
         let mean = data.mean().unwrap_or(0.0);
@@ -1379,7 +1379,7 @@ mod tests {
         let mut messages = Vec::new();
         let result = validator
             .validate_data(&x.view(), Some(&y.view()), &mut messages)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.passed);
         assert_eq!(result.missing_values_count, 0);
@@ -1394,7 +1394,7 @@ mod tests {
         let mut messages = Vec::new();
         let result = validator
             .validate_data(&x.view(), None, &mut messages)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!result.passed);
         assert_eq!(result.missing_values_count, 1);

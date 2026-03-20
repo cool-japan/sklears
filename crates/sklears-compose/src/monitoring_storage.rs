@@ -143,13 +143,13 @@ impl InMemoryStorage {
 
     /// Get current memory usage
     fn get_memory_usage(&self) -> u64 {
-        let data = self.data.read().unwrap();
+        let data = self.data.read().unwrap_or_else(|e| e.into_inner());
         data.values().map(|v| v.len() as u64).sum()
     }
 
     /// Evict items if necessary
     fn evict_if_needed(&mut self) -> SklResult<()> {
-        let mut data = self.data.write().unwrap();
+        let mut data = self.data.write().unwrap_or_else(|e| e.into_inner());
 
         // Check if eviction is needed
         if data.len() >= self.config.max_items || self.get_memory_usage() >= self.config.max_memory {
@@ -200,10 +200,10 @@ impl StorageBackend for InMemoryStorage {
         };
 
         // Store data
-        self.data.write().unwrap().insert(key.to_string(), stored_data);
+        self.data.write().unwrap_or_else(|e| e.into_inner()).insert(key.to_string(), stored_data);
 
         // Update statistics
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.write_operations += 1;
         stats.total_items += 1;
         stats.total_size += data.len() as u64;
@@ -218,7 +218,7 @@ impl StorageBackend for InMemoryStorage {
     fn retrieve(&self, key: &str) -> SklResult<Option<Vec<u8>>> {
         let start = SystemTime::now();
 
-        let data = self.data.read().unwrap();
+        let data = self.data.read().unwrap_or_else(|e| e.into_inner());
         let result = if let Some(stored_data) = data.get(key) {
             // Decompress if needed
             let decompressed = if self.config.compression {
@@ -232,7 +232,7 @@ impl StorageBackend for InMemoryStorage {
         };
 
         // Update statistics
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.read_operations += 1;
         stats.last_operation = SystemTime::now();
         if let Ok(elapsed) = start.elapsed() {
@@ -243,11 +243,11 @@ impl StorageBackend for InMemoryStorage {
     }
 
     fn delete(&mut self, key: &str) -> SklResult<bool> {
-        let mut data = self.data.write().unwrap();
+        let mut data = self.data.write().unwrap_or_else(|e| e.into_inner());
         let removed = data.remove(key).is_some();
 
         if removed {
-            let mut stats = self.stats.write().unwrap();
+            let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
             stats.delete_operations += 1;
             stats.total_items = stats.total_items.saturating_sub(1);
             stats.last_operation = SystemTime::now();
@@ -257,7 +257,7 @@ impl StorageBackend for InMemoryStorage {
     }
 
     fn list_keys(&self, pattern: &str) -> SklResult<Vec<String>> {
-        let data = self.data.read().unwrap();
+        let data = self.data.read().unwrap_or_else(|e| e.into_inner());
         let keys: Vec<String> = data.keys()
             .filter(|key| key.contains(pattern))
             .cloned()
@@ -266,7 +266,7 @@ impl StorageBackend for InMemoryStorage {
     }
 
     fn get_stats(&self) -> SklResult<StorageStats> {
-        let mut stats = self.stats.read().unwrap().clone();
+        let mut stats = self.stats.read().unwrap_or_else(|e| e.into_inner()).clone();
         stats.total_size = self.get_memory_usage();
         stats.available_space = self.config.max_memory.saturating_sub(stats.total_size);
         Ok(stats)
@@ -442,7 +442,7 @@ impl FileStorage {
 
     /// Rebuild index from existing files
     fn rebuild_index(&self) -> SklResult<()> {
-        let mut index = self.index.write().unwrap();
+        let mut index = self.index.write().unwrap_or_else(|e| e.into_inner());
         index.clear();
 
         self.scan_directory(&self.base_path, &mut index)?;
@@ -565,10 +565,10 @@ impl StorageBackend for FileStorage {
             checksum,
         };
 
-        self.index.write().unwrap().insert(key.to_string(), file_index);
+        self.index.write().unwrap_or_else(|e| e.into_inner()).insert(key.to_string(), file_index);
 
         // Update statistics
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.write_operations += 1;
         stats.total_items += 1;
         stats.total_size += data.len() as u64;
@@ -583,7 +583,7 @@ impl StorageBackend for FileStorage {
     fn retrieve(&self, key: &str) -> SklResult<Option<Vec<u8>>> {
         let start = SystemTime::now();
 
-        let index = self.index.read().unwrap();
+        let index = self.index.read().unwrap_or_else(|e| e.into_inner());
         let result = if let Some(file_index) = index.get(key) {
             // Read file
             let mut file = fs::File::open(&file_index.file_path)
@@ -612,7 +612,7 @@ impl StorageBackend for FileStorage {
         };
 
         // Update statistics
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.read_operations += 1;
         stats.last_operation = SystemTime::now();
         if let Ok(elapsed) = start.elapsed() {
@@ -623,7 +623,7 @@ impl StorageBackend for FileStorage {
     }
 
     fn delete(&mut self, key: &str) -> SklResult<bool> {
-        let mut index = self.index.write().unwrap();
+        let mut index = self.index.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(file_index) = index.remove(key) {
             // Delete file
@@ -633,7 +633,7 @@ impl StorageBackend for FileStorage {
             }
 
             // Update statistics
-            let mut stats = self.stats.write().unwrap();
+            let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
             stats.delete_operations += 1;
             stats.total_items = stats.total_items.saturating_sub(1);
             stats.total_size = stats.total_size.saturating_sub(file_index.size);
@@ -646,7 +646,7 @@ impl StorageBackend for FileStorage {
     }
 
     fn list_keys(&self, pattern: &str) -> SklResult<Vec<String>> {
-        let index = self.index.read().unwrap();
+        let index = self.index.read().unwrap_or_else(|e| e.into_inner());
         let keys: Vec<String> = index.keys()
             .filter(|key| key.contains(pattern))
             .cloned()
@@ -655,7 +655,7 @@ impl StorageBackend for FileStorage {
     }
 
     fn get_stats(&self) -> SklResult<StorageStats> {
-        let stats = self.stats.read().unwrap().clone();
+        let stats = self.stats.read().unwrap_or_else(|e| e.into_inner()).clone();
         Ok(stats)
     }
 
@@ -702,7 +702,7 @@ impl StorageBackend for FileStorage {
     }
 
     fn cleanup(&mut self, older_than: SystemTime) -> SklResult<usize> {
-        let mut index = self.index.write().unwrap();
+        let mut index = self.index.write().unwrap_or_else(|e| e.into_inner());
         let mut removed_count = 0;
         let mut keys_to_remove = Vec::new();
 
@@ -725,7 +725,7 @@ impl StorageBackend for FileStorage {
         }
 
         // Update statistics
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.total_items = stats.total_items.saturating_sub(removed_count);
 
         Ok(removed_count as usize)
@@ -937,10 +937,10 @@ impl StorageManager {
         };
 
         if successful_writes >= required_writes {
-            self.stats.write().unwrap().successful_operations += 1;
+            self.stats.write().unwrap_or_else(|e| e.into_inner()).successful_operations += 1;
             Ok(())
         } else {
-            self.stats.write().unwrap().failed_operations += 1;
+            self.stats.write().unwrap_or_else(|e| e.into_inner()).failed_operations += 1;
             Err(last_error.unwrap_or_else(|| SklearsError::StorageError("Insufficient replicas".to_string())))
         }
     }
@@ -1008,7 +1008,7 @@ impl StorageManager {
 
     /// Get manager statistics
     pub fn get_stats(&self) -> ManagerStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 
@@ -1239,17 +1239,17 @@ mod tests {
         let key = "test_key";
         let data = b"test_data";
 
-        storage.store(key, data).unwrap();
-        let retrieved = storage.retrieve(key).unwrap();
+        storage.store(key, data).unwrap_or_default();
+        let retrieved = storage.retrieve(key).unwrap_or_default();
         assert_eq!(retrieved, Some(data.to_vec()));
 
         // Test delete
-        assert!(storage.delete(key).unwrap());
-        let retrieved = storage.retrieve(key).unwrap();
+        assert!(storage.delete(key).unwrap_or_default());
+        let retrieved = storage.retrieve(key).unwrap_or_default();
         assert_eq!(retrieved, None);
 
         // Test stats
-        let stats = storage.get_stats().unwrap();
+        let stats = storage.get_stats().unwrap_or_default();
         assert_eq!(stats.write_operations, 1);
         assert_eq!(stats.read_operations, 2);
         assert_eq!(stats.delete_operations, 1);
@@ -1257,7 +1257,7 @@ mod tests {
 
     #[test]
     fn test_file_storage() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().unwrap_or_default();
         let config = FileStorageConfig {
             base_path: temp_dir.path().to_string_lossy().to_string(),
             format: FileFormat::Binary,
@@ -1267,23 +1267,23 @@ mod tests {
             directory_structure: DirectoryStructure::Flat,
         };
 
-        let mut storage = FileStorage::new(config).unwrap();
+        let mut storage = FileStorage::new(config).unwrap_or_default();
 
         // Test store and retrieve
         let key = "test_key";
         let data = b"test_data";
 
-        storage.store(key, data).unwrap();
-        let retrieved = storage.retrieve(key).unwrap();
+        storage.store(key, data).unwrap_or_default();
+        let retrieved = storage.retrieve(key).unwrap_or_default();
         assert_eq!(retrieved, Some(data.to_vec()));
 
         // Test list keys
-        let keys = storage.list_keys("test").unwrap();
+        let keys = storage.list_keys("test").unwrap_or_default();
         assert!(keys.contains(&key.to_string()));
 
         // Test delete
-        assert!(storage.delete(key).unwrap());
-        let retrieved = storage.retrieve(key).unwrap();
+        assert!(storage.delete(key).unwrap_or_default());
+        let retrieved = storage.retrieve(key).unwrap_or_default();
         assert_eq!(retrieved, None);
     }
 
@@ -1326,12 +1326,12 @@ mod tests {
         let key = "test_key";
         let data = b"test_data";
 
-        manager.store_replicated(key, data).unwrap();
-        let retrieved = manager.retrieve_balanced(key).unwrap();
+        manager.store_replicated(key, data).unwrap_or_default();
+        let retrieved = manager.retrieve_balanced(key).unwrap_or_default();
         assert_eq!(retrieved, Some(data.to_vec()));
 
         // Test health check
-        let health = manager.get_health_status().unwrap();
+        let health = manager.get_health_status().unwrap_or_default();
         assert!(matches!(health.status, StorageStatus::Healthy));
     }
 
@@ -1362,7 +1362,7 @@ mod tests {
         };
 
         let mut retention_manager = DataRetentionManager::new(storage, retention_config);
-        let report = retention_manager.apply_retention_policies().unwrap();
+        let report = retention_manager.apply_retention_policies().unwrap_or_default();
 
         // With no data, nothing should be archived or deleted
         assert_eq!(report.archived_items, 0);

@@ -146,7 +146,7 @@ pub fn export_classification_hdf5<P: AsRef<Path>>(
         .new_dataset::<i32>()
         .shape([n_samples])
         .create("targets")?;
-    targets_dataset.write(targets.as_slice().unwrap())?;
+    targets_dataset.write(targets.as_slice().expect("slice operation should succeed"))?;
     if let Some(names) = feature_names {
         let names_dataset = metadata_group
             .new_dataset::<hdf5::types::VarLenUnicode>()
@@ -170,7 +170,7 @@ pub fn export_classification_hdf5<P: AsRef<Path>>(
     metadata_group
         .new_attr::<hdf5::types::VarLenUnicode>()
         .create("dataset_type")?
-        .write_scalar(&hdf5::types::VarLenUnicode::from_str("classification").unwrap())?;
+        .write_scalar(&hdf5::types::VarLenUnicode::from_str("classification").expect("operation should succeed"))?;
     Ok(())
 }
 /// Export regression dataset to HDF5 format
@@ -195,7 +195,7 @@ pub fn export_regression_hdf5<P: AsRef<Path>>(
         .new_dataset::<f64>()
         .shape([n_samples])
         .create("targets")?;
-    targets_dataset.write(targets.as_slice().unwrap())?;
+    targets_dataset.write(targets.as_slice().expect("slice operation should succeed"))?;
     if let Some(names) = feature_names {
         let names_dataset = metadata_group
             .new_dataset::<hdf5::types::VarLenUnicode>()
@@ -219,7 +219,7 @@ pub fn export_regression_hdf5<P: AsRef<Path>>(
     metadata_group
         .new_attr::<hdf5::types::VarLenUnicode>()
         .create("dataset_type")?
-        .write_scalar(&hdf5::types::VarLenUnicode::from_str("regression").unwrap())?;
+        .write_scalar(&hdf5::types::VarLenUnicode::from_str("regression").expect("operation should succeed"))?;
     Ok(())
 }
 /// Import classification dataset from HDF5 format

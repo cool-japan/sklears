@@ -102,7 +102,7 @@ pub fn stream_classification(
             0,          // n_redundant
             n_classes, seed,
         )
-        .unwrap()
+        .expect("operation should succeed")
     })
 }
 
@@ -117,7 +117,7 @@ pub fn stream_regression(
             0.1,        // noise
             seed,
         )
-        .unwrap()
+        .expect("operation should succeed")
     })
 }
 
@@ -132,7 +132,7 @@ pub fn stream_blobs(
             chunk_size, n_features, centers, 1.0, // cluster_std
             seed,
         )
-        .unwrap()
+        .expect("operation should succeed")
     })
 }
 
@@ -623,7 +623,10 @@ impl DistributedGenerator {
 
         let total_time: Duration = generation_times.iter().sum();
         let avg_time = total_time / generation_times.len() as u32;
-        let max_time = generation_times.iter().max().unwrap();
+        let max_time = generation_times
+            .iter()
+            .max()
+            .expect("collection should not be empty for min/max");
 
         if max_time.as_nanos() == 0 {
             return 1.0;
@@ -853,7 +856,7 @@ mod tests {
 
     #[test]
     fn test_parallel_classification() {
-        let result = parallel_classification(1000, 5, 3, 4).unwrap();
+        let result = parallel_classification(1000, 5, 3, 4).expect("operation should succeed");
 
         assert_eq!(result.n_workers_used, 4);
         assert_eq!(result.chunks.len(), 4);
@@ -877,7 +880,7 @@ mod tests {
 
         while !generator.is_complete() {
             if let Some(result) = generator.next_chunk() {
-                let (x, y) = result.unwrap();
+                let (x, y) = result.expect("operation should succeed");
                 assert_eq!(x.ncols(), 3);
                 assert!(y.iter().all(|&label| label < 2));
 
@@ -910,7 +913,7 @@ mod tests {
     #[test]
     fn test_parallel_generation_timing() {
         let start = std::time::Instant::now();
-        let result = parallel_regression(2000, 10, 2).unwrap();
+        let result = parallel_regression(2000, 10, 2).expect("operation should succeed");
         let sequential_time = start.elapsed();
 
         assert!(result.generation_time <= sequential_time * 2); // Should be reasonably fast
@@ -941,8 +944,10 @@ mod tests {
         config.n_nodes = 3;
         config.node_id = 0;
 
-        let mut generator = DistributedGenerator::new(config).unwrap();
-        generator.calculate_sample_distribution().unwrap();
+        let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
+        generator
+            .calculate_sample_distribution()
+            .expect("sampling should succeed");
 
         // Check equal split: 1000 / 3 = 333 remainder 1
         // Node 0: 334, Node 1: 333, Node 2: 333
@@ -966,8 +971,10 @@ mod tests {
         config.node_id = 0;
         config.load_balancing = LoadBalancingStrategy::Weighted(vec![0.5, 0.3, 0.2]);
 
-        let mut generator = DistributedGenerator::new(config).unwrap();
-        generator.calculate_sample_distribution().unwrap();
+        let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
+        generator
+            .calculate_sample_distribution()
+            .expect("sampling should succeed");
 
         // Check weighted split: 500, 300, 200
         assert_eq!(generator.nodes[&0].samples_assigned, 500);
@@ -992,7 +999,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = distributed_classification(5, 3, config).unwrap();
+        let result = distributed_classification(5, 3, config).expect("operation should succeed");
 
         // Check that node 1 gets approximately 250 samples (1000 / 4)
         assert_eq!(result.data.0.nrows(), 250);
@@ -1016,7 +1023,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = distributed_regression(7, config).unwrap();
+        let result = distributed_regression(7, config).expect("operation should succeed");
 
         // Check that node 0 gets 400 samples (800 / 2)
         assert_eq!(result.data.0.nrows(), 400);
@@ -1040,7 +1047,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = distributed_blobs(4, 5, config).unwrap();
+        let result = distributed_blobs(4, 5, config).expect("operation should succeed");
 
         // Check that node 2 gets 200 samples (600 / 3)
         assert_eq!(result.data.0.nrows(), 200);
@@ -1077,7 +1084,7 @@ mod tests {
         config.n_nodes = 3;
         config.load_balancing = LoadBalancingStrategy::Weighted(vec![0.5, 0.3]); // Wrong length
 
-        let mut generator = DistributedGenerator::new(config).unwrap();
+        let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
         let result = generator.calculate_sample_distribution();
         assert!(result.is_err());
         assert!(result
@@ -1092,18 +1099,40 @@ mod tests {
         config.n_nodes = 2;
         config.node_id = 0;
 
-        let mut generator = DistributedGenerator::new(config).unwrap();
+        let mut generator = DistributedGenerator::new(config).expect("operation should succeed");
 
         // Simulate nodes completing at different times
-        generator.nodes.get_mut(&0).unwrap().status = NodeStatus::Completed;
-        generator.nodes.get_mut(&0).unwrap().start_time =
-            Some(Instant::now() - Duration::from_millis(100));
-        generator.nodes.get_mut(&0).unwrap().completion_time = Some(Instant::now());
+        generator
+            .nodes
+            .get_mut(&0)
+            .expect("operation should succeed")
+            .status = NodeStatus::Completed;
+        generator
+            .nodes
+            .get_mut(&0)
+            .expect("operation should succeed")
+            .start_time = Some(Instant::now() - Duration::from_millis(100));
+        generator
+            .nodes
+            .get_mut(&0)
+            .expect("operation should succeed")
+            .completion_time = Some(Instant::now());
 
-        generator.nodes.get_mut(&1).unwrap().status = NodeStatus::Completed;
-        generator.nodes.get_mut(&1).unwrap().start_time =
-            Some(Instant::now() - Duration::from_millis(200));
-        generator.nodes.get_mut(&1).unwrap().completion_time = Some(Instant::now());
+        generator
+            .nodes
+            .get_mut(&1)
+            .expect("operation should succeed")
+            .status = NodeStatus::Completed;
+        generator
+            .nodes
+            .get_mut(&1)
+            .expect("operation should succeed")
+            .start_time = Some(Instant::now() - Duration::from_millis(200));
+        generator
+            .nodes
+            .get_mut(&1)
+            .expect("operation should succeed")
+            .completion_time = Some(Instant::now());
 
         let efficiency = generator.calculate_load_balance_efficiency();
         assert!(efficiency >= 0.0);

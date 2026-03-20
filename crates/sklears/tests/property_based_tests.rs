@@ -20,8 +20,11 @@ use sklears_neighbors::{KNeighborsClassifier, KNeighborsRegressor};
 // Helper function to generate valid test data
 fn generate_valid_data() -> impl Strategy<Value = (Array2<f64>, Array1<i32>)> {
     (5usize..50, 2usize..10, 2i32..5).prop_flat_map(|(n_samples, n_features, n_classes)| {
-        let data_strategy = prop::collection::vec(-10.0..10.0, n_samples * n_features)
-            .prop_map(move |data| Array2::from_shape_vec((n_samples, n_features), data).unwrap());
+        let data_strategy =
+            prop::collection::vec(-10.0..10.0, n_samples * n_features).prop_map(move |data| {
+                Array2::from_shape_vec((n_samples, n_features), data)
+                    .expect("shape and data length should match")
+            });
 
         let labels_strategy = prop::collection::vec(0..n_classes, n_samples).prop_map(Array1::from);
 
@@ -31,8 +34,11 @@ fn generate_valid_data() -> impl Strategy<Value = (Array2<f64>, Array1<i32>)> {
 
 fn generate_regression_data() -> impl Strategy<Value = (Array2<f64>, Array1<f64>)> {
     (5usize..50, 2usize..10).prop_flat_map(|(n_samples, n_features)| {
-        let data_strategy = prop::collection::vec(-10.0..10.0, n_samples * n_features)
-            .prop_map(move |data| Array2::from_shape_vec((n_samples, n_features), data).unwrap());
+        let data_strategy =
+            prop::collection::vec(-10.0..10.0, n_samples * n_features).prop_map(move |data| {
+                Array2::from_shape_vec((n_samples, n_features), data)
+                    .expect("shape and data length should match")
+            });
 
         let targets_strategy =
             prop::collection::vec(-100.0..100.0, n_samples).prop_map(Array1::from);
@@ -59,7 +65,7 @@ proptest! {
 
     #[test]
     #[ignore = "Preprocessing modules not available in facade"]
-    fn test_standard_scaler_zero_mean_unit_variance(data in prop::collection::vec(-10.0..10.0, 20..100).prop_map(|v| { let rows = 20; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).unwrap() })) {
+    fn test_standard_scaler_zero_mean_unit_variance(data in prop::collection::vec(-10.0..10.0, 20..100).prop_map(|v| { let rows = 20; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).expect("shape and data length should match") })) {
         // Test disabled - StandardScaler not available in facade
         let _ = data;
     }
@@ -77,8 +83,8 @@ proptest! {
         prop_assume!(data.nrows() >= 3);
 
         let classifier = KNeighborsClassifier::new(k);
-        let fitted_classifier = classifier.fit(&data, &labels).unwrap();
-        let predictions = fitted_classifier.predict(&data).unwrap();
+        let fitted_classifier = classifier.fit(&data, &labels).expect("model fitting should succeed");
+        let predictions = fitted_classifier.predict(&data).expect("prediction should succeed");
 
         // Predictions should have same length as input
         prop_assert_eq!(predictions.len(), data.nrows());
@@ -97,8 +103,8 @@ proptest! {
         prop_assume!(data.nrows() >= 3);
 
         let regressor = KNeighborsRegressor::new(k);
-        let fitted_regressor = regressor.fit(&data, &targets).unwrap();
-        let predictions = fitted_regressor.predict(&data).unwrap();
+        let fitted_regressor = regressor.fit(&data, &targets).expect("model fitting should succeed");
+        let predictions = fitted_regressor.predict(&data).expect("prediction should succeed");
 
         // Predictions should have same length as input
         prop_assert_eq!(predictions.len(), data.nrows());
@@ -111,7 +117,7 @@ proptest! {
 
     #[test]
     #[ignore = "Preprocessing modules not available in facade"]
-    fn test_polynomial_features_shape(data in prop::collection::vec(-5.0..5.0, 12..48).prop_map(|v| { let rows = 6; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).unwrap() }), degree in 1usize..4) {
+    fn test_polynomial_features_shape(data in prop::collection::vec(-5.0..5.0, 12..48).prop_map(|v| { let rows = 6; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).expect("shape and data length should match") }), degree in 1usize..4) {
         // Test disabled - PolynomialFeatures not available in facade
         let _ = (data, degree);
     }
@@ -132,7 +138,7 @@ proptest! {
 
     #[test]
     #[ignore = "Preprocessing modules not available in facade"]
-    fn test_simple_imputer_no_nans(data in prop::collection::vec(-10.0..10.0, 20..100).prop_map(|v| { let rows = 10; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).unwrap() })) {
+    fn test_simple_imputer_no_nans(data in prop::collection::vec(-10.0..10.0, 20..100).prop_map(|v| { let rows = 10; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).expect("shape and data length should match") })) {
         // Test disabled - SimpleImputer not available in facade
         let _ = data;
     }
@@ -142,10 +148,10 @@ proptest! {
         prop_assume!(data.nrows() >= 5);
 
         let classifier = KNeighborsClassifier::new(3);
-        let fitted_classifier = classifier.fit(&data, &labels).unwrap();
-        let predictions = fitted_classifier.predict(&data).unwrap();
+        let fitted_classifier = classifier.fit(&data, &labels).expect("model fitting should succeed");
+        let predictions = fitted_classifier.predict(&data).expect("prediction should succeed");
 
-        let accuracy = accuracy_score(&labels, &predictions).unwrap();
+        let accuracy = accuracy_score(&labels, &predictions).expect("operation should succeed");
 
         // Accuracy should be between 0 and 1
         prop_assert!((0.0..=1.0).contains(&accuracy),
@@ -157,12 +163,12 @@ proptest! {
         prop_assume!(data.nrows() >= 5);
 
         let regressor = KNeighborsRegressor::new(3);
-        let fitted_regressor = regressor.fit(&data, &targets).unwrap();
-        let predictions = fitted_regressor.predict(&data).unwrap();
+        let fitted_regressor = regressor.fit(&data, &targets).expect("model fitting should succeed");
+        let predictions = fitted_regressor.predict(&data).expect("prediction should succeed");
 
-        let mse = mean_squared_error(&targets, &predictions).unwrap();
-        let mae = mean_absolute_error(&targets, &predictions).unwrap();
-        let r2 = r2_score(&targets, &predictions).unwrap();
+        let mse = mean_squared_error(&targets, &predictions).expect("operation should succeed");
+        let mae = mean_absolute_error(&targets, &predictions).expect("operation should succeed");
+        let r2 = r2_score(&targets, &predictions).expect("operation should succeed");
 
         // MSE should be non-negative
         prop_assert!(mse >= 0.0, "MSE should be non-negative, got {}", mse);
@@ -179,9 +185,9 @@ proptest! {
 
         // For perfect predictions, MSE and MAE should be 0
         let perfect_predictions = targets.clone();
-        let perfect_mse = mean_squared_error(&targets, &perfect_predictions).unwrap();
-        let perfect_mae = mean_absolute_error(&targets, &perfect_predictions).unwrap();
-        let perfect_r2 = r2_score(&targets, &perfect_predictions).unwrap();
+        let perfect_mse = mean_squared_error(&targets, &perfect_predictions).expect("operation should succeed");
+        let perfect_mae = mean_absolute_error(&targets, &perfect_predictions).expect("operation should succeed");
+        let perfect_r2 = r2_score(&targets, &perfect_predictions).expect("operation should succeed");
 
         prop_assert!((perfect_mse).abs() < 1e-10, "Perfect predictions should have MSE=0");
         prop_assert!((perfect_mae).abs() < 1e-10, "Perfect predictions should have MAE=0");
@@ -190,7 +196,7 @@ proptest! {
 
     #[test]
     #[ignore = "Preprocessing modules not available in facade"]
-    fn test_function_transformer_invertibility(data in prop::collection::vec(-5.0..5.0, 12..48).prop_map(|v| { let rows = 6; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).unwrap() })) {
+    fn test_function_transformer_invertibility(data in prop::collection::vec(-5.0..5.0, 12..48).prop_map(|v| { let rows = 6; let cols = v.len() / rows; let actual_size = rows * cols; Array2::from_shape_vec((rows, cols), v[..actual_size].to_vec()).expect("shape and data length should match") })) {
         // Test disabled - FunctionTransformer not available in facade
         let _ = data;
     }

@@ -516,7 +516,11 @@ impl CustomCovarianceEstimator for SimpleEmpiricalEstimator {
             ));
         }
 
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = &X - &mean;
         let covariance = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
@@ -667,7 +671,7 @@ impl Middleware for TimingMiddleware {
             "start_time".to_string(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .map_err(|e| SklearsError::NumericalError(e.to_string()))?
                 .as_secs()
                 .to_string(),
         );
@@ -677,7 +681,7 @@ impl Middleware for TimingMiddleware {
     fn after_estimation(&self, response: &mut EstimationResponse) -> Result<(), SklearsError> {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .map_err(|e| SklearsError::NumericalError(e.to_string()))?
             .as_secs();
 
         response.metadata.insert(
@@ -709,30 +713,34 @@ mod tests {
         let factory = SimpleEmpiricalFactory;
         registry
             .register_estimator_factory(Box::new(factory))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Register regularization
         let regularization = L2Regularization::new();
         registry
             .register_regularization(Box::new(regularization))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Register hook
         let hook = LoggingHook::new("test".to_string());
         registry
             .register_hook(HookType::PreFit, Box::new(hook))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Register middleware
         let middleware = TimingMiddleware;
-        registry.register_middleware(Box::new(middleware)).unwrap();
+        registry
+            .register_middleware(Box::new(middleware))
+            .expect("operation should succeed");
 
         // Test estimator creation
         let estimator = registry.create_estimator("simple_empirical");
         assert!(estimator.is_ok());
 
         // Test listing
-        let estimators = registry.list_estimators().unwrap();
+        let estimators = registry
+            .list_estimators()
+            .expect("operation should succeed");
         assert!(estimators.contains(&"simple_empirical".to_string()));
     }
 
@@ -740,7 +748,7 @@ mod tests {
     fn test_custom_estimator() {
         let mut estimator = SimpleEmpiricalEstimator::new();
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((10, 3), |_| dist.sample(&mut local_rng));
 
         let result = estimator.fit(X.view());
@@ -749,7 +757,7 @@ mod tests {
         let covariance = estimator.covariance();
         assert!(covariance.is_ok());
 
-        let cov_matrix = covariance.unwrap();
+        let cov_matrix = covariance.expect("operation should succeed");
         assert_eq!(cov_matrix.shape(), &[3, 3]);
     }
 
@@ -760,13 +768,13 @@ mod tests {
         // Register components
         registry
             .register_estimator_factory(Box::new(SimpleEmpiricalFactory))
-            .unwrap();
+            .expect("operation should succeed");
         registry
             .register_middleware(Box::new(TimingMiddleware))
-            .unwrap();
+            .expect("operation should succeed");
 
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((20, 2), |_| dist.sample(&mut local_rng));
         let request = EstimationRequest {
             data: X,
@@ -778,7 +786,7 @@ mod tests {
         let response = registry.process_estimation(request);
         assert!(response.is_ok());
 
-        let result = response.unwrap();
+        let result = response.expect("operation should succeed");
         assert_eq!(result.covariance.shape(), &[2, 2]);
         assert!(result.performance.fit_time_ms >= 0.0);
     }

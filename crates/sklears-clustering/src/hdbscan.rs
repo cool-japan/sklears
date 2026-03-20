@@ -663,7 +663,7 @@ mod tests {
             .min_cluster_size(3) // Reduced from 4 to 3 to allow smaller clusters
             .min_samples(2) // Reduced from 3 to 2
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         let probabilities = model.probabilities();
@@ -731,7 +731,7 @@ mod tests {
             .min_cluster_size(3)
             .allow_single_cluster(true)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
 
@@ -751,7 +751,10 @@ mod tests {
         // Points too far apart and sparse
         let data = array![[0.0, 0.0], [10.0, 0.0], [0.0, 10.0], [10.0, 10.0],];
 
-        let model = HDBSCAN::new().min_cluster_size(3).fit(&data, &()).unwrap();
+        let model = HDBSCAN::new()
+            .min_cluster_size(3)
+            .fit(&data, &())
+            .expect("operation should succeed");
 
         // Should find no clusters (all noise) due to large distances and high min_cluster_size
         assert_eq!(model.n_clusters(), 0);
@@ -830,7 +833,10 @@ mod tests {
             [5.1, 5.2],
         ];
 
-        let model = HDBSCAN::new().min_cluster_size(3).fit(&data, &()).unwrap();
+        let model = HDBSCAN::new()
+            .min_cluster_size(3)
+            .fit(&data, &())
+            .expect("operation should succeed");
 
         let stats = model.cluster_stats();
 
@@ -866,7 +872,7 @@ mod tests {
         let model = HDBSCAN::new()
             .min_cluster_size(3)
             .fit(&train_data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![
             [0.05, 0.05], // Near first cluster
@@ -876,7 +882,7 @@ mod tests {
 
         let predictions = model
             .predict_approximate(&train_data, &test_data, 0.5)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
 
@@ -903,7 +909,7 @@ mod tests {
         let model = HDBSCAN::new()
             .min_cluster_size(3)
             .fit(&train_data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![
             [0.05, 0.05], // Near cluster
@@ -912,7 +918,7 @@ mod tests {
 
         let is_outlier = model
             .predict_outliers(&train_data, &test_data, 1.0)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(is_outlier.len(), 2);
 

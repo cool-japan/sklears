@@ -1,6 +1,11 @@
 //! Manifold Learning Imputer
 //!
 //! This module provides manifold learning-based imputation methods.
+//!
+//! # Note
+//!
+//! Not implemented in v0.1.0. `fit` and `transform` return
+//! `Err(SklearsError::NotImplemented)`. Planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use sklears_core::{
@@ -99,22 +104,12 @@ impl Fit<ArrayView2<'_, Float>, ()> for ManifoldLearningImputer<Untrained> {
         let X = X.mapv(|x| x);
         let (n_samples, n_features) = X.dim();
 
-        // Simplified stub implementation
-        let embedding = Array2::zeros((n_samples, self.n_components));
-        let training_data = X.clone();
-
-        Ok(ManifoldLearningImputer {
-            state: ManifoldLearningImputerTrained {
-                embedding_: embedding,
-                training_data_: training_data,
-                n_features_in_: n_features,
-            },
-            n_components: self.n_components,
-            method: self.method,
-            n_neighbors: self.n_neighbors,
-            missing_values: self.missing_values,
-            random_state: self.random_state,
-        })
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = (n_samples, n_features);
+        Err(SklearsError::NotImplemented(
+            "ManifoldLearningImputer::fit: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        ))
     }
 }
 
@@ -133,16 +128,11 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>>
             )));
         }
 
-        // Simplified stub - just fill with zeros
-        let mut X_imputed = X.clone();
-        for i in 0..n_samples {
-            for j in 0..n_features {
-                if X[[i, j]].is_nan() {
-                    X_imputed[[i, j]] = 0.0;
-                }
-            }
-        }
-
-        Ok(X_imputed.mapv(|x| x as Float))
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = (n_samples, n_features);
+        Err(SklearsError::NotImplemented(
+            "ManifoldLearningImputer::transform: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        ))
     }
 }

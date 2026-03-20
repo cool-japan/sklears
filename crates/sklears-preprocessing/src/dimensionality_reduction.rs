@@ -183,7 +183,9 @@ impl Fit<Array2<f64>, ()> for PCA<Untrained> {
 
         // Center the data if requested
         let (x_centered, mean) = if self.config.center {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             let mut x_centered = x.clone();
             for mut row in x_centered.axis_iter_mut(Axis(0)) {
                 for (j, &mean_j) in mean.iter().enumerate() {
@@ -680,7 +682,7 @@ mod tests {
         let result = pca.fit(&data, &());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.n_components(), 2);
         assert_eq!(fitted.n_features(), 3);
         assert_eq!(fitted.components().dim(), (2, 3));
@@ -699,8 +701,10 @@ mod tests {
             [4.0, 8.0, 12.0],
         ]);
 
-        let fitted = pca.fit(&data, &()).unwrap();
-        let transformed = fitted.transform(&data).unwrap();
+        let fitted = pca.fit(&data, &()).expect("model fitting should succeed");
+        let transformed = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(transformed.dim(), (4, 2)); // 4 samples, 2 components
     }
@@ -710,7 +714,8 @@ mod tests {
         // Test empty array
         let config = PCAConfig::new(2);
         let pca = PCA::new(config);
-        let empty_data = Array2::from_shape_vec((0, 0), vec![]).unwrap();
+        let empty_data =
+            Array2::from_shape_vec((0, 0), vec![]).expect("shape and data length should match");
         assert!(pca.fit(&empty_data, &()).is_err());
 
         // Test single sample
@@ -732,7 +737,9 @@ mod tests {
         let pca = PCA::new(config);
 
         let train_data = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
-        let fitted = pca.fit(&train_data, &()).unwrap();
+        let fitted = pca
+            .fit(&train_data, &())
+            .expect("model fitting should succeed");
 
         // Test with different number of features
         let wrong_data = arr2(&[[1.0, 2.0, 3.0]]); // 3 features instead of 2
@@ -745,7 +752,7 @@ mod tests {
         let pca = PCA::new(config);
 
         let data = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
-        let fitted = pca.fit(&data, &()).unwrap();
+        let fitted = pca.fit(&data, &()).expect("model fitting should succeed");
 
         // Should not have mean when centering is disabled
         assert!(fitted.mean().is_none());
@@ -763,7 +770,7 @@ mod tests {
             [4.0, 8.0, 12.0],
         ]);
 
-        let fitted = pca.fit(&data, &()).unwrap();
+        let fitted = pca.fit(&data, &()).expect("model fitting should succeed");
         let cumulative = fitted.cumulative_explained_variance_ratio();
 
         assert_eq!(cumulative.len(), 2);

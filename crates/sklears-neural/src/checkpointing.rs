@@ -263,13 +263,19 @@ impl TrainingHistory {
         if self.val_loss.is_none() {
             self.val_loss = Some(Vec::new());
         }
-        self.val_loss.as_mut().unwrap().push(val_loss);
+        self.val_loss
+            .as_mut()
+            .expect("val_loss not available")
+            .push(val_loss);
 
         if let Some(acc) = val_accuracy {
             if self.val_accuracy.is_none() {
                 self.val_accuracy = Some(Vec::new());
             }
-            self.val_accuracy.as_mut().unwrap().push(acc);
+            self.val_accuracy
+                .as_mut()
+                .expect("val_accuracy not available")
+                .push(acc);
         }
     }
 
@@ -287,7 +293,7 @@ impl TrainingHistory {
             losses
                 .iter()
                 .enumerate()
-                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| self.epochs[idx])
         })
     }
@@ -851,8 +857,9 @@ mod tests {
     #[test]
     fn test_model_weights_creation() {
         let weights = vec![
-            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap(),
-            Array2::from_shape_vec((3, 1), vec![7.0, 8.0, 9.0]).unwrap(),
+            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .expect("array shape mismatch"),
+            Array2::from_shape_vec((3, 1), vec![7.0, 8.0, 9.0]).expect("array shape mismatch"),
         ];
         let biases = vec![
             Array1::from_vec(vec![0.1, 0.2, 0.3]),
@@ -867,8 +874,10 @@ mod tests {
 
     #[test]
     fn test_model_weights_validation() {
-        let weights =
-            vec![Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap()];
+        let weights = vec![
+            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .expect("array shape mismatch"),
+        ];
         let biases = vec![
             Array1::from_vec(vec![0.1, 0.2]), // Wrong size!
         ];
@@ -913,8 +922,10 @@ mod tests {
 
     #[test]
     fn test_checkpoint_creation() {
-        let weights =
-            vec![Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap()];
+        let weights = vec![
+            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .expect("array shape mismatch"),
+        ];
         let biases = vec![Array1::from_vec(vec![0.1, 0.2, 0.3])];
         let model_weights = ModelWeights::new(weights, biases);
 
@@ -931,7 +942,7 @@ mod tests {
         use std::env;
 
         let temp_dir = env::temp_dir().join("sklears_checkpoint_test");
-        let manager = CheckpointManager::new(&temp_dir).unwrap();
+        let manager = CheckpointManager::new(&temp_dir).expect("construction should succeed");
 
         assert!(temp_dir.exists());
         assert_eq!(manager.checkpoint_dir, temp_dir);
@@ -947,13 +958,14 @@ mod tests {
 
         let temp_dir = env::temp_dir().join("sklears_mmap_test");
         let checkpoint_manager = CheckpointManager::new(&temp_dir)
-            .unwrap()
+            .expect("operation should succeed")
             .with_format(CheckpointFormat::MemoryMapped);
 
         // Create test checkpoint
         let weights = vec![
-            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap(),
-            Array2::from_shape_vec((3, 1), vec![7.0, 8.0, 9.0]).unwrap(),
+            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .expect("array shape mismatch"),
+            Array2::from_shape_vec((3, 1), vec![7.0, 8.0, 9.0]).expect("array shape mismatch"),
         ];
         let biases = vec![
             Array1::from_vec(vec![0.1, 0.2, 0.3]),
@@ -967,12 +979,19 @@ mod tests {
             .with_optimizer(optimizer_state);
 
         // Save checkpoint
-        let saved_path = checkpoint_manager.save_checkpoint(&checkpoint).unwrap();
+        let saved_path = checkpoint_manager
+            .save_checkpoint(&checkpoint)
+            .expect("operation should succeed");
         assert!(saved_path.exists());
-        assert_eq!(saved_path.extension().unwrap(), "mmap");
+        assert_eq!(
+            saved_path.extension().expect("operation should succeed"),
+            "mmap"
+        );
 
         // Load checkpoint
-        let loaded_checkpoint = checkpoint_manager.load_checkpoint(&saved_path).unwrap();
+        let loaded_checkpoint = checkpoint_manager
+            .load_checkpoint(&saved_path)
+            .expect("operation should succeed");
 
         // Verify loaded checkpoint
         assert_eq!(loaded_checkpoint.current_epoch, 42);

@@ -33,7 +33,7 @@ use std::marker::PhantomData;
 /// let views = vec![view1, view2, view3];
 ///
 /// let mvc = MultiViewClustering::new(2).consensus_weight(0.7);
-/// let fitted = mvc.fit(&views, &()).unwrap();
+/// let fitted = mvc.fit(&views, &()).expect("fit should succeed");
 /// let cluster_assignments = fitted.labels();
 /// ```
 #[derive(Debug, Clone)]
@@ -714,7 +714,12 @@ impl Transform<Vec<Array2<Float>>, Array1<usize>> for MultiViewClustering<Traine
 impl MultiViewClustering<Trained> {
     /// Predict cluster labels for new data
     pub fn predict(&self, views: &Vec<Array2<Float>>) -> Result<Array1<usize>> {
-        let cluster_centers = self.cluster_centers_.as_ref().unwrap();
+        let cluster_centers = self
+            .cluster_centers_
+            .as_ref()
+            .ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
 
         if views.len() != cluster_centers.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -750,47 +755,61 @@ impl MultiViewClustering<Trained> {
 
     /// Get the final cluster labels
     pub fn labels(&self) -> &Array1<usize> {
-        self.labels_.as_ref().unwrap()
+        self.labels_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the cluster centers for each view
     pub fn cluster_centers(&self) -> &Vec<Array2<Float>> {
-        self.cluster_centers_.as_ref().unwrap()
+        self.cluster_centers_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the consensus cluster centers
     pub fn consensus_centers(&self) -> &Array2<Float> {
-        self.consensus_centers_.as_ref().unwrap()
+        self.consensus_centers_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the individual cluster assignments for each view
     pub fn individual_labels(&self) -> &Vec<Array1<usize>> {
-        self.individual_labels_.as_ref().unwrap()
+        self.individual_labels_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the consensus scores (confidence in assignments)
     pub fn consensus_scores(&self) -> &Array1<Float> {
-        self.consensus_scores_.as_ref().unwrap()
+        self.consensus_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the within-cluster sum of squares for each view
     pub fn within_cluster_ss(&self) -> &Array1<Float> {
-        self.within_cluster_ss_.as_ref().unwrap()
+        self.within_cluster_ss_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations for convergence
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Get the total inertia
     pub fn inertia(&self) -> Float {
-        self.inertia_.unwrap()
+        self.inertia_.expect("value should be set after fitting")
     }
 
     /// Get the silhouette scores for each view
     pub fn silhouette_scores(&self) -> &Array1<Float> {
-        self.silhouette_scores_.as_ref().unwrap()
+        self.silhouette_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     // Helper method used by predict
@@ -891,7 +910,7 @@ mod tests {
         let views = vec![view1, view2];
 
         let mvc = MultiViewClustering::new(2);
-        let fitted = mvc.fit(&views, &()).unwrap();
+        let fitted = mvc.fit(&views, &()).expect("fit should succeed");
 
         // Check that labels were computed
         assert_eq!(fitted.labels().len(), 4);
@@ -910,14 +929,14 @@ mod tests {
         let views = vec![view1.clone(), view2.clone()];
 
         let mvc = MultiViewClustering::new(2);
-        let fitted = mvc.fit(&views, &()).unwrap();
+        let fitted = mvc.fit(&views, &()).expect("fit should succeed");
 
         // Test prediction on same data
-        let predicted = fitted.predict(&views).unwrap();
+        let predicted = fitted.predict(&views).expect("predict should succeed");
         assert_eq!(predicted.len(), 4);
 
         // Test transform
-        let transformed = fitted.transform(&views).unwrap();
+        let transformed = fitted.transform(&views).expect("transform should succeed");
         assert_eq!(transformed.len(), 4);
     }
 
@@ -929,17 +948,17 @@ mod tests {
 
         // Test Euclidean distance
         let mvc_euclidean = MultiViewClustering::new(2).distance_metric(DistanceMetric::Euclidean);
-        let fitted_euclidean = mvc_euclidean.fit(&views, &()).unwrap();
+        let fitted_euclidean = mvc_euclidean.fit(&views, &()).expect("fit should succeed");
         assert!(fitted_euclidean.n_iter() > 0);
 
         // Test Manhattan distance
         let mvc_manhattan = MultiViewClustering::new(2).distance_metric(DistanceMetric::Manhattan);
-        let fitted_manhattan = mvc_manhattan.fit(&views, &()).unwrap();
+        let fitted_manhattan = mvc_manhattan.fit(&views, &()).expect("fit should succeed");
         assert!(fitted_manhattan.n_iter() > 0);
 
         // Test Cosine distance
         let mvc_cosine = MultiViewClustering::new(2).distance_metric(DistanceMetric::Cosine);
-        let fitted_cosine = mvc_cosine.fit(&views, &()).unwrap();
+        let fitted_cosine = mvc_cosine.fit(&views, &()).expect("fit should succeed");
         assert!(fitted_cosine.n_iter() > 0);
     }
 
@@ -951,10 +970,10 @@ mod tests {
 
         // Test with different consensus weights
         let mvc1 = MultiViewClustering::new(2).consensus_weight(0.0);
-        let fitted1 = mvc1.fit(&views, &()).unwrap();
+        let fitted1 = mvc1.fit(&views, &()).expect("fit should succeed");
 
         let mvc2 = MultiViewClustering::new(2).consensus_weight(1.0);
-        let fitted2 = mvc2.fit(&views, &()).unwrap();
+        let fitted2 = mvc2.fit(&views, &()).expect("fit should succeed");
 
         // Both should work
         assert!(fitted1.n_iter() > 0);
@@ -992,12 +1011,12 @@ mod tests {
 
         // Test K-means++ initialization
         let mvc_kmpp = MultiViewClustering::new(2).init_method(InitMethod::KMeansPlusPlus);
-        let fitted_kmpp = mvc_kmpp.fit(&views, &()).unwrap();
+        let fitted_kmpp = mvc_kmpp.fit(&views, &()).expect("fit should succeed");
         assert!(fitted_kmpp.n_iter() > 0);
 
         // Test random initialization
         let mvc_random = MultiViewClustering::new(2).init_method(InitMethod::Random);
-        let fitted_random = mvc_random.fit(&views, &()).unwrap();
+        let fitted_random = mvc_random.fit(&views, &()).expect("fit should succeed");
         assert!(fitted_random.n_iter() > 0);
     }
 
@@ -1008,7 +1027,7 @@ mod tests {
         let views = vec![view1, view2];
 
         let mvc = MultiViewClustering::new(2);
-        let fitted = mvc.fit(&views, &()).unwrap();
+        let fitted = mvc.fit(&views, &()).expect("fit should succeed");
 
         // Check that metrics were computed
         assert_eq!(fitted.consensus_scores().len(), 4);

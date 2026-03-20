@@ -105,7 +105,10 @@ impl TokenLevelCalibrator {
 
         // Initialize context weights based on attention if provided
         if let Some(attn) = attention_weights {
-            self.context_weights = attn.mean_axis(Axis(0)).unwrap().to_owned();
+            self.context_weights = attn
+                .mean_axis(Axis(0))
+                .expect("mean_axis requires non-empty array")
+                .to_owned();
         } else {
             // Use uniform weights if no attention provided
             self.context_weights = Array2::ones((seq_length, seq_length)) / (seq_length as Float);
@@ -294,8 +297,12 @@ impl SequenceLevelCalibrator {
         }
 
         // Fit temperature parameter using sequence probabilities and rewards
-        self.sequence_temperature =
-            self.optimize_temperature(&sequence_probs, sequence_rewards.as_slice().unwrap())?;
+        self.sequence_temperature = self.optimize_temperature(
+            &sequence_probs,
+            sequence_rewards
+                .as_slice()
+                .expect("operation should succeed"),
+        )?;
 
         // Fit length-specific calibrators
         for &seq_len in sequence_lengths.iter() {
@@ -929,7 +936,7 @@ mod tests {
                 0.2, 0.1, 0.4, 0.3, // batch 1, position 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let true_tokens = array![[3, 2, 1], [0, 1, 2]];
 
@@ -950,7 +957,7 @@ mod tests {
                 0.1, 0.4, 0.3, 0.2, 0.2, 0.1, 0.4, 0.3,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let seq_rewards = array![0.8, 0.6];
         let seq_lengths = array![3, 3];
@@ -990,12 +997,12 @@ mod tests {
                 0.6, 0.2, 0.2, // position 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = calibrator.compute_attention_confidence(&attention);
         assert!(result.is_ok());
 
-        let confidence_scores = result.unwrap();
+        let confidence_scores = result.expect("operation should succeed");
         assert_eq!(confidence_scores.len(), 1);
         assert!(confidence_scores[0] > 0.0);
         assert!(confidence_scores[0] <= 1.0);

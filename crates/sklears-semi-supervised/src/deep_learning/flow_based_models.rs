@@ -585,8 +585,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for NormalizingFlow<Untrain
         Ok(NormalizingFlow {
             state: NormalizingFlowTrained {
                 layers: model.layers,
-                classifier_weights: model.classifier_weights.unwrap(),
-                classifier_biases: model.classifier_biases.unwrap(),
+                classifier_weights: model.classifier_weights.expect("operation should succeed"),
+                classifier_biases: model.classifier_biases.expect("operation should succeed"),
                 classes: Array1::from(unique_classes),
                 n_layers: model.n_layers,
                 n_classes: model.n_classes,
@@ -673,7 +673,7 @@ mod tests {
         let result = layer.forward(&x.view());
         assert!(result.is_ok());
 
-        let (output, log_det) = result.unwrap();
+        let (output, log_det) = result.expect("operation should succeed");
         assert_eq!(output.len(), 4);
         // Check that masked elements are unchanged
         assert_eq!(output[0], x[0]);
@@ -686,8 +686,8 @@ mod tests {
         let layer = AffineCouplingLayer::new(4, vec![4], mask);
         let x = array![1.0, 2.0, 3.0, 4.0];
 
-        let (z, _) = layer.forward(&x.view()).unwrap();
-        let x_reconstructed = layer.inverse(&z.view()).unwrap();
+        let (z, _) = layer.forward(&x.view()).expect("operation should succeed");
+        let x_reconstructed = layer.inverse(&z.view()).expect("operation should succeed");
 
         // Check reconstruction (should be close to original)
         for i in 0..4 {
@@ -730,19 +730,19 @@ mod tests {
         let result = flow.fit(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.state.classes.len(), 2);
 
         let predictions = fitted.predict(&X.view());
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.len(), 6);
 
         let probabilities = fitted.predict_proba(&X.view());
         assert!(probabilities.is_ok());
 
-        let proba = probabilities.unwrap();
+        let proba = probabilities.expect("operation should succeed");
         assert_eq!(proba.dim(), (6, 2));
 
         // Check probabilities sum to 1
@@ -784,12 +784,14 @@ mod tests {
 
         let flow = NormalizingFlow::new().n_layers(2).max_iter(3);
 
-        let fitted = flow.fit(&X.view(), &y.view()).unwrap();
+        let fitted = flow
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         let generated = fitted.generate_samples(5);
         assert!(generated.is_ok());
 
-        let samples = generated.unwrap();
+        let samples = generated.expect("operation should succeed");
         assert_eq!(samples.dim(), (5, 3));
     }
 
@@ -799,7 +801,7 @@ mod tests {
         let layer = AffineCouplingLayer::new(4, vec![4], mask);
         let x = array![1.0, 2.0, 3.0, 4.0];
 
-        let (output, log_det) = layer.forward(&x.view()).unwrap();
+        let (output, log_det) = layer.forward(&x.view()).expect("operation should succeed");
 
         // With empty mask, output should be same as input
         assert_eq!(output, x);
@@ -826,8 +828,8 @@ mod tests {
         let result = flow.fit(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = result.expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 }

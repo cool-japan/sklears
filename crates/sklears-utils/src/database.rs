@@ -365,7 +365,10 @@ impl DatabasePool {
     }
 
     pub fn size(&self) -> usize {
-        self.connections.lock().unwrap().len()
+        self.connections
+            .lock()
+            .expect("operation should succeed")
+            .len()
     }
 
     pub fn max_size(&self) -> usize {
@@ -803,7 +806,7 @@ mod tests {
         row2.insert("b".to_string(), 4.0f64);
         result_set.add_row(row2);
 
-        let array = result_set.to_array2().unwrap();
+        let array = result_set.to_array2().expect("operation should succeed");
         assert_eq!(array.shape(), &[2, 2]);
         assert_eq!(array[[0, 0]], 1.0);
         assert_eq!(array[[1, 1]], 4.0);
@@ -833,10 +836,12 @@ mod tests {
         assert!(connection.is_connected());
 
         let query = Query::new("SELECT 1".to_string(), vec![]);
-        let result = connection.execute(&query).unwrap();
+        let result = connection
+            .execute(&query)
+            .expect("operation should succeed");
         assert_eq!(result.rows_affected, 1);
 
-        let result_set = connection.query(&query).unwrap();
+        let result_set = connection.query(&query).expect("operation should succeed");
         assert_eq!(result_set.columns().len(), 2);
     }
 
@@ -846,7 +851,7 @@ mod tests {
         assert!(!transaction.is_committed());
         assert!(!transaction.is_rolled_back());
 
-        transaction.commit().unwrap();
+        transaction.commit().expect("operation should succeed");
         assert!(transaction.is_committed());
 
         // Cannot rollback after commit
@@ -860,7 +865,7 @@ mod tests {
 
         assert_eq!(pool.max_size(), 10);
 
-        let connection = pool.get_connection().unwrap();
+        let connection = pool.get_connection().expect("operation should succeed");
         assert!(connection.is_connected());
     }
 
@@ -880,7 +885,9 @@ mod tests {
         row3.insert("category".to_string(), "A");
         result_set.add_row(row3);
 
-        let unique_values = result_set.unique_values("category").unwrap();
+        let unique_values = result_set
+            .unique_values("category")
+            .expect("operation should succeed");
         assert_eq!(unique_values.len(), 2);
         assert!(unique_values.contains(&Value::String("A".to_string())));
         assert!(unique_values.contains(&Value::String("B".to_string())));

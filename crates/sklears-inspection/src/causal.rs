@@ -604,7 +604,8 @@ mod tests {
         let outcome = array![1.0, 3.0, 2.0, 4.0, 1.5, 3.5];
         let config = CausalConfig::default();
 
-        let result = estimate_ate(&treatment.view(), &outcome.view(), None, &config).unwrap();
+        let result = estimate_ate(&treatment.view(), &outcome.view(), None, &config)
+            .expect("operation should succeed");
 
         assert!(result.effect > 0.0); // Treatment should have positive effect
         assert!(result.standard_error > 0.0);
@@ -625,7 +626,7 @@ mod tests {
             None,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(
             (result.direct_effect + result.indirect_effect - result.total_effect).abs() < 1e-10
@@ -653,7 +654,8 @@ mod tests {
         let variables = vec!["X".to_string(), "Y".to_string(), "Z".to_string()];
         let config = CausalConfig::default();
 
-        let graph = discover_causal_structure(&data.view(), variables, &config).unwrap();
+        let graph = discover_causal_structure(&data.view(), variables, &config)
+            .expect("operation should succeed");
 
         assert_eq!(graph.nodes.len(), 3);
         assert!(!graph.edges.is_empty()); // Should discover some edges due to correlations
@@ -663,12 +665,12 @@ mod tests {
     fn test_do_calculus() {
         let variables = vec!["X".to_string(), "Y".to_string()];
         let mut graph = CausalGraph::new(variables);
-        graph.add_edge(0, 1).unwrap();
+        graph.add_edge(0, 1).expect("operation should succeed");
 
         let mut intervention = HashMap::new();
         intervention.insert(0, 2.0);
 
-        let effect = apply_do_calculus(&graph, &intervention, 1).unwrap();
+        let effect = apply_do_calculus(&graph, &intervention, 1).expect("operation should succeed");
         assert!(effect > 0.0);
     }
 
@@ -676,8 +678,8 @@ mod tests {
     fn test_path_finding() {
         let variables = vec!["X".to_string(), "Y".to_string(), "Z".to_string()];
         let mut graph = CausalGraph::new(variables);
-        graph.add_edge(0, 1).unwrap();
-        graph.add_edge(1, 2).unwrap();
+        graph.add_edge(0, 1).expect("operation should succeed");
+        graph.add_edge(1, 2).expect("operation should succeed");
 
         let paths = graph.find_paths(0, 2);
         assert_eq!(paths.len(), 1);
@@ -688,8 +690,8 @@ mod tests {
     fn test_d_separation() {
         let variables = vec!["X".to_string(), "Y".to_string(), "Z".to_string()];
         let mut graph = CausalGraph::new(variables);
-        graph.add_edge(0, 1).unwrap();
-        graph.add_edge(1, 2).unwrap();
+        graph.add_edge(0, 1).expect("operation should succeed");
+        graph.add_edge(1, 2).expect("operation should succeed");
 
         // Y d-separates X and Z
         assert!(graph.d_separates(0, 2, &[1]));

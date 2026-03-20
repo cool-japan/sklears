@@ -313,7 +313,8 @@ impl QuantizedTensor {
 
         for (i, &quantized_val) in self.data.iter().enumerate() {
             let dequantized = self.params.scale * (quantized_val - self.params.zero_point) as f64;
-            result.as_slice_mut().unwrap()[i] = T::from(dequantized).unwrap();
+            result.as_slice_mut().expect("non-contiguous array")[i] =
+                T::from(dequantized).unwrap_or_else(|| T::zero());
         }
 
         Ok(result)
@@ -565,7 +566,7 @@ impl<T: FloatBounds> Quantizer<T> {
                 .max(-(params.n_levels as i32 / 2))
                 .min(params.n_levels as i32 / 2 - 1);
 
-            quantized.as_slice_mut().unwrap()[i] = clamped;
+            quantized.as_slice_mut().expect("non-contiguous array")[i] = clamped;
         }
 
         Ok(quantized)
@@ -640,13 +641,18 @@ impl<T: FloatBounds> Quantizer<T> {
 
         // Mean Squared Error
         let diff = original - &reconstructed;
-        let mse = diff.mapv(|x| x * x).mean().unwrap().to_f64().unwrap_or(0.0);
+        let mse = diff
+            .mapv(|x| x * x)
+            .mean()
+            .expect("mean should not fail on non-empty array")
+            .to_f64()
+            .unwrap_or(0.0);
 
         // Signal-to-Noise Ratio
         let signal_power = original
             .mapv(|x| x * x)
             .mean()
-            .unwrap()
+            .expect("value should be present")
             .to_f64()
             .unwrap_or(0.0);
         let snr_db = if mse > 0.0 {
@@ -659,7 +665,7 @@ impl<T: FloatBounds> Quantizer<T> {
         let max_val = original
             .iter()
             .map(|&x| x.abs())
-            .fold(T::from(0.0).unwrap(), |a, b| a.max(b));
+            .fold(T::from(0.0).unwrap_or_else(|| T::zero()), |a, b| a.max(b));
         let max_val_f64 = max_val.to_f64().unwrap_or(0.0);
         let psnr_db = if mse > 0.0 {
             20.0 * (max_val_f64 / mse.sqrt()).log10()
@@ -858,10 +864,16 @@ mod tests {
         let mut layer_data = HashMap::new();
         layer_data.insert("test_layer".to_string(), data.clone());
 
-        quantizer.calibrate(&layer_data).unwrap();
+        quantizer
+            .calibrate(&layer_data)
+            .expect("operation should succeed");
 
-        let quantized = quantizer.quantize_tensor(&data, "test_layer").unwrap();
-        let reconstructed = quantizer.dequantize_tensor(&quantized).unwrap();
+        let quantized = quantizer
+            .quantize_tensor(&data, "test_layer")
+            .expect("operation should succeed");
+        let reconstructed = quantizer
+            .dequantize_tensor(&quantized)
+            .expect("operation should succeed");
 
         // Check that reconstruction is close to original
         for (orig, recon) in data.iter().zip(reconstructed.iter()) {
@@ -884,7 +896,7 @@ mod tests {
 
         let metrics = quantizer
             .compute_quantization_error(&original, &quantized)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(metrics.mse >= 0.0);
         assert!(metrics.compression_ratio > 1.0);
     }
@@ -921,7 +933,9 @@ mod tests {
         let params = QuantizationParams::symmetric(2.0, 256);
         let quantized = QuantizedTensor::new(data, params, vec![2, 2]);
 
-        let dequantized = quantized.dequantize::<f64>().unwrap();
+        let dequantized = quantized
+            .dequantize::<f64>()
+            .expect("operation should succeed");
         assert!(dequantized.dim() == (2, 2));
 
         let ratio = quantized.compression_ratio();

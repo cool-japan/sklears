@@ -323,7 +323,7 @@ impl HierarchicalCrossValidator {
             let n_bootstrap = (all_clusters.len() as f64 * 0.632).ceil() as usize;
 
             for _ in 0..n_bootstrap {
-                let idx = self.rng.gen_range(0..all_clusters.len());
+                let idx = self.rng.random_range(0..all_clusters.len());
                 bootstrap_clusters.push(all_clusters[idx].cluster_id.clone());
             }
 
@@ -580,9 +580,9 @@ mod tests {
 
         let mut validator = HierarchicalCrossValidator::new(config)
             .with_cluster_labels(&cluster_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let splits = validator.split(8).unwrap();
+        let splits = validator.split(8).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -615,9 +615,9 @@ mod tests {
 
         let mut validator = HierarchicalCrossValidator::new(config)
             .with_cluster_labels(&cluster_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let splits = validator.split(6).unwrap();
+        let splits = validator.split(6).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -651,9 +651,9 @@ mod tests {
 
         let mut validator = HierarchicalCrossValidator::new(config)
             .with_hierarchical_labels(&hierarchical_labels)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let splits = validator.split(4).unwrap();
+        let splits = validator.split(4).expect("operation should succeed");
 
         assert!(!splits.is_empty());
 

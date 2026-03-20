@@ -251,7 +251,9 @@ impl LinearDiscriminantAnalysis<Untrained> {
             .max(n_features + 1)
             .min(n_samples);
 
-        let mut best_mean = data.mean_axis(Axis(0)).unwrap();
+        let mut best_mean = data
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
         let mut best_cov = Array2::eye(n_features);
         let mut best_det = Float::INFINITY;
         let mut best_weights = Array1::ones(n_samples);
@@ -272,7 +274,9 @@ impl LinearDiscriminantAnalysis<Untrained> {
             let subset_data: Array2<Float> =
                 Array2::from_shape_fn((subset_size, n_features), |(i, j)| data[[indices[i], j]]);
 
-            let subset_mean = subset_data.mean_axis(Axis(0)).unwrap();
+            let subset_mean = subset_data
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
             let mut subset_cov = Array2::zeros((n_features, n_features));
 
             // Compute covariance for subset
@@ -413,7 +417,9 @@ impl LinearDiscriminantAnalysis<Untrained> {
         let (_n_samples, _) = x.dim();
 
         // Calculate overall mean
-        let overall_mean = x.mean_axis(Axis(0)).unwrap();
+        let overall_mean = x
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
 
         // Calculate within-class scatter matrix S_w
         let mut sw = Array2::zeros((n_features, n_features));
@@ -763,7 +769,9 @@ impl LinearDiscriminantAnalysis<Untrained> {
         let mut beta2 = 0.0;
         for i in 0..n_samples {
             let sample = x.row(i);
-            let sample_mean = x.mean_axis(Axis(0)).unwrap();
+            let sample_mean = x
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
             let centered = &sample - &sample_mean;
 
             for j in 0..n_features {
@@ -1132,7 +1140,7 @@ impl Predict<Array2<Float>, Array1<i32>> for LinearDiscriminantAnalysis<Trained>
                     .iter()
                     .enumerate()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
+                    .expect("value should be present")
                     .0;
                 classes[max_idx]
             })

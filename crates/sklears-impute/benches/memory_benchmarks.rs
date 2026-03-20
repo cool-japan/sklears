@@ -47,8 +47,12 @@ fn bench_sparse_data_imputation(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let imputer = SimpleImputer::new().strategy("mean".to_string());
-                    let fitted = imputer.fit(&data.view(), &()).unwrap();
-                    let _result = fitted.transform(&data.view()).unwrap();
+                    let fitted = imputer
+                        .fit(&data.view(), &())
+                        .expect("model fitting should succeed");
+                    let _result = fitted
+                        .transform(&data.view())
+                        .expect("transformation should succeed");
                 });
             },
         );
@@ -73,8 +77,12 @@ fn bench_cache_efficiency(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let imputer = SimpleImputer::new().strategy("mean".to_string());
-                    let fitted = imputer.fit(&data.view(), &()).unwrap();
-                    let _result = fitted.transform(&data.view()).unwrap();
+                    let fitted = imputer
+                        .fit(&data.view(), &())
+                        .expect("model fitting should succeed");
+                    let _result = fitted
+                        .transform(&data.view())
+                        .expect("transformation should succeed");
                 });
             },
         );
@@ -107,8 +115,12 @@ fn bench_memory_allocation(c: &mut Criterion) {
     group.bench_function("simple_imputer_allocation", |b| {
         b.iter(|| {
             let imputer = SimpleImputer::new().strategy("mean".to_string());
-            let fitted = imputer.fit(&data.view(), &()).unwrap();
-            let result = fitted.transform(&data.view()).unwrap();
+            let fitted = imputer
+                .fit(&data.view(), &())
+                .expect("model fitting should succeed");
+            let result = fitted
+                .transform(&data.view())
+                .expect("transformation should succeed");
             black_box(result);
         });
     });
@@ -119,8 +131,12 @@ fn bench_memory_allocation(c: &mut Criterion) {
     group.bench_function("knn_imputer_allocation", |b| {
         b.iter(|| {
             let imputer = KNNImputer::new().n_neighbors(5);
-            let fitted = imputer.fit(&small_data.view(), &()).unwrap();
-            let result = fitted.transform(&small_data.view()).unwrap();
+            let fitted = imputer
+                .fit(&small_data.view(), &())
+                .expect("model fitting should succeed");
+            let result = fitted
+                .transform(&small_data.view())
+                .expect("transformation should succeed");
             black_box(result);
         });
     });
@@ -153,19 +169,25 @@ fn bench_model_reuse(c: &mut Criterion) {
 
     // Fit once, transform multiple times
     let imputer = SimpleImputer::new().strategy("mean".to_string());
-    let fitted = imputer.fit(&train_data.view(), &()).unwrap();
+    let fitted = imputer
+        .fit(&train_data.view(), &())
+        .expect("model fitting should succeed");
 
     group.throughput(Throughput::Elements((size * n_features) as u64));
     group.bench_function("single_transform", |b| {
         b.iter(|| {
-            let _result = fitted.transform(&test_data.view()).unwrap();
+            let _result = fitted
+                .transform(&test_data.view())
+                .expect("transformation should succeed");
         });
     });
 
     group.bench_function("repeated_transform_10x", |b| {
         b.iter(|| {
             for _ in 0..10 {
-                let _result = fitted.transform(&test_data.view()).unwrap();
+                let _result = fitted
+                    .transform(&test_data.view())
+                    .expect("transformation should succeed");
             }
         });
     });
@@ -202,16 +224,24 @@ fn bench_data_layout(c: &mut Criterion) {
     group.bench_function("row_major", |b| {
         b.iter(|| {
             let imputer = SimpleImputer::new().strategy("mean".to_string());
-            let fitted = imputer.fit(&row_major.view(), &()).unwrap();
-            let _result = fitted.transform(&row_major.view()).unwrap();
+            let fitted = imputer
+                .fit(&row_major.view(), &())
+                .expect("model fitting should succeed");
+            let _result = fitted
+                .transform(&row_major.view())
+                .expect("transformation should succeed");
         });
     });
 
     group.bench_function("column_major", |b| {
         b.iter(|| {
             let imputer = SimpleImputer::new().strategy("mean".to_string());
-            let fitted = imputer.fit(&col_major.view(), &()).unwrap();
-            let _result = fitted.transform(&col_major.view()).unwrap();
+            let fitted = imputer
+                .fit(&col_major.view(), &())
+                .expect("model fitting should succeed");
+            let _result = fitted
+                .transform(&col_major.view())
+                .expect("transformation should succeed");
         });
     });
 
@@ -246,8 +276,12 @@ fn bench_scalability(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     let imputer = SimpleImputer::new().strategy("mean".to_string());
-                    let fitted = imputer.fit(&data.view(), &()).unwrap();
-                    let _result = fitted.transform(&data.view()).unwrap();
+                    let fitted = imputer
+                        .fit(&data.view(), &())
+                        .expect("model fitting should succeed");
+                    let _result = fitted
+                        .transform(&data.view())
+                        .expect("transformation should succeed");
                 });
             },
         );

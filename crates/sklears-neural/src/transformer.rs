@@ -55,8 +55,8 @@ impl<T: FloatBounds> Default for TransformerConfig<T> {
             num_decoder_layers: 6,
             max_seq_len: 512,
             vocab_size: 30000,
-            dropout_rate: T::from(0.1).unwrap(),
-            label_smoothing: T::from(0.1).unwrap(),
+            dropout_rate: T::from(0.1).unwrap_or_else(|| T::zero()),
+            label_smoothing: T::from(0.1).unwrap_or_else(|| T::zero()),
             pre_norm: false,
             activation: "relu".to_string(),
             share_embeddings: false,
@@ -133,10 +133,9 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> FeedForwardNetwork<T>
                 // Apply dropout if training
                 let dropout_applied = if training && self.dropout_rate > T::zero() {
                     // Simple dropout implementation
-                    use scirs2_core::random::Rng;
                     let mut rng = scirs2_core::random::thread_rng();
                     activated.mapv(|x| {
-                        if rng.gen::<f64>() < self.dropout_rate.to_f64().unwrap_or(0.0) {
+                        if rng.random::<f64>() < self.dropout_rate.to_f64().unwrap_or(0.0) {
                             T::zero()
                         } else {
                             x / (T::one() - self.dropout_rate)
@@ -173,7 +172,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand> LayerNorm<T> {
         Self {
             weight: Array1::ones(d_model),
             bias: Array1::zeros(d_model),
-            eps: T::from(1e-5).unwrap(),
+            eps: T::from(1e-5).unwrap_or_else(|| T::zero()),
         }
     }
 
@@ -688,7 +687,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + From<f64>>
             for b in 0..batch_size {
                 let logits_row = last_logits.slice(s![b, ..]);
                 let mut max_idx = 0;
-                let mut max_val = *logits_row.iter().next().unwrap();
+                let mut max_val = *logits_row.iter().next().expect("empty iterator");
 
                 for (idx, &val) in logits_row.iter().enumerate() {
                     if val > max_val {
@@ -752,12 +751,15 @@ mod tests {
     #[test]
     #[ignore]
     fn test_feed_forward_network() {
-        let ffn = FeedForwardNetwork::new(512, 2048, 0.1, "relu".to_string()).unwrap();
+        let ffn = FeedForwardNetwork::new(512, 2048, 0.1, "relu".to_string())
+            .expect("construction should succeed");
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
-        let output = ffn.forward(&input, false).unwrap();
+        let output = ffn
+            .forward(&input, false)
+            .expect("forward pass should succeed");
         assert_eq!(output.dim(), (2, 10, 512));
     }
 
@@ -767,7 +769,7 @@ mod tests {
         let layer_norm = LayerNorm::<f64>::new(512);
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = layer_norm.forward(&input);
         assert_eq!(output.dim(), (2, 10, 512));
@@ -777,13 +779,16 @@ mod tests {
     #[ignore]
     fn test_transformer_encoder_layer() {
         let config: TransformerConfig<f64> = TransformerConfig::default();
-        let mut encoder_layer = TransformerEncoderLayer::new(&config).unwrap();
+        let mut encoder_layer =
+            TransformerEncoderLayer::new(&config).expect("construction should succeed");
 
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
-        let output = encoder_layer.forward(&input, None, false).unwrap();
+        let output = encoder_layer
+            .forward(&input, None, false)
+            .expect("forward pass should succeed");
         assert_eq!(output.dim(), (2, 10, 512));
     }
 
@@ -791,19 +796,20 @@ mod tests {
     #[ignore]
     fn test_transformer_decoder_layer() {
         let config: TransformerConfig<f64> = TransformerConfig::default();
-        let mut decoder_layer = TransformerDecoderLayer::new(&config).unwrap();
+        let mut decoder_layer =
+            TransformerDecoderLayer::new(&config).expect("construction should succeed");
 
         let input = Array3::from_shape_fn((2, 10, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let encoder_output = Array3::from_shape_fn((2, 15, 512), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("construction should succeed"))
         });
         let output = decoder_layer
             .forward(&input, &encoder_output, None, None, false)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(output.dim(), (2, 10, 512));
     }
 
@@ -821,14 +827,15 @@ mod tests {
             ..Default::default()
         };
 
-        let mut transformer = EncoderDecoderTransformer::new(config).unwrap();
+        let mut transformer =
+            EncoderDecoderTransformer::new(config).expect("construction should succeed");
 
         let src_ids = Array2::from_elem((2, 10), 1); // Simple input
         let tgt_ids = Array2::from_elem((2, 8), 2); // Simple target
 
         let output = transformer
             .forward(&src_ids, &tgt_ids, None, None, None, false)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(output.dim(), (2, 8, 1000)); // batch, seq, vocab
     }
 
@@ -846,10 +853,13 @@ mod tests {
             ..Default::default()
         };
 
-        let mut transformer = EncoderDecoderTransformer::new(config).unwrap();
+        let mut transformer =
+            EncoderDecoderTransformer::new(config).expect("construction should succeed");
 
         let src_ids = Array2::from_elem((1, 5), 1);
-        let generated = transformer.generate(&src_ids, 10, 2, 3, None).unwrap();
+        let generated = transformer
+            .generate(&src_ids, 10, 2, 3, None)
+            .expect("operation should succeed");
 
         assert_eq!(generated.nrows(), 1);
         assert!(generated.ncols() <= 10);

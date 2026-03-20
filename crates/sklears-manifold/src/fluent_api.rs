@@ -694,7 +694,7 @@ mod tests {
             .include_params()
             .include_metrics();
 
-        let export = builder.export_config().unwrap();
+        let export = builder.export_config().expect("operation should succeed");
         assert_eq!(export.csv, Some("embedding.csv".to_string()));
         assert_eq!(export.json, Some("embedding.json".to_string()));
         assert!(export.params);

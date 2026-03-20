@@ -311,7 +311,7 @@ impl Fit<Features, Array1<Int>> for EnsembleDummyClassifier {
                 let best_idx = val_scores
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _): (usize, &Float)| idx);
                 (None, best_idx, None)
             }
@@ -481,7 +481,7 @@ impl Fit<Features, Array1<Float>> for EnsembleDummyRegressor {
                 let best_idx = val_scores
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _): (usize, &Float)| idx);
                 (None, best_idx, None)
             }
@@ -547,12 +547,15 @@ impl Fit<Features, Array1<Float>> for EnsembleDummyRegressor {
 
 impl Predict<Features, Array1<Int>> for EnsembleDummyClassifier<sklears_core::traits::Trained> {
     fn predict(&self, x: &Features) -> Result<Array1<Int>> {
-        let base_estimators = self.base_estimators_.as_ref().unwrap();
+        let base_estimators = self
+            .base_estimators_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
 
         match &self.ensemble_strategy {
             EnsembleStrategy::BestStrategy => {
-                let best_idx = self.best_strategy_index_.unwrap();
+                let best_idx = self.best_strategy_index_.expect("operation should succeed");
                 base_estimators[best_idx].predict(x)
             }
             EnsembleStrategy::RandomSelection => {
@@ -590,7 +593,7 @@ impl Predict<Features, Array1<Int>> for EnsembleDummyClassifier<sklears_core::tr
                         .iter()
                         .max_by_key(|(_, &count)| count)
                         .map(|(class, _)| class)
-                        .unwrap();
+                        .expect("operation should succeed");
                 }
                 Ok(final_predictions)
             }
@@ -623,10 +626,13 @@ impl Predict<Features, Array1<Int>> for EnsembleDummyClassifier<sklears_core::tr
 
 impl EnsembleDummyClassifier<sklears_core::traits::Trained> {
     fn predict_average(&self, x: &Features) -> Result<Array1<Int>> {
-        let base_estimators = self.base_estimators_.as_ref().unwrap();
+        let base_estimators = self
+            .base_estimators_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
-        let n_classes = self.n_classes_.unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let n_classes = self.n_classes_.expect("operation should succeed");
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Get probability predictions and average them
         let mut avg_probas = Array2::zeros((n_samples, n_classes));
@@ -654,10 +660,10 @@ impl EnsembleDummyClassifier<sklears_core::traits::Trained> {
                 .iter()
                 .enumerate()
                 .max_by(|(_, a): &(usize, &Float), (_, b): &(usize, &Float)| {
-                    a.partial_cmp(b).unwrap()
+                    a.partial_cmp(b).expect("operation should succeed")
                 })
                 .map(|(idx, _)| idx)
-                .unwrap();
+                .expect("operation should succeed");
             predictions[i] = classes[class_idx];
         }
 
@@ -667,12 +673,15 @@ impl EnsembleDummyClassifier<sklears_core::traits::Trained> {
 
 impl Predict<Features, Array1<Float>> for EnsembleDummyRegressor<sklears_core::traits::Trained> {
     fn predict(&self, x: &Features) -> Result<Array1<Float>> {
-        let base_estimators = self.base_estimators_.as_ref().unwrap();
+        let base_estimators = self
+            .base_estimators_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
 
         match &self.ensemble_strategy {
             EnsembleStrategy::BestStrategy => {
-                let best_idx = self.best_strategy_index_.unwrap();
+                let best_idx = self.best_strategy_index_.expect("operation should succeed");
                 base_estimators[best_idx].predict(x)
             }
             EnsembleStrategy::RandomSelection => {
@@ -719,7 +728,10 @@ impl Predict<Features, Array1<Float>> for EnsembleDummyRegressor<sklears_core::t
 
 impl EnsembleDummyRegressor<sklears_core::traits::Trained> {
     fn predict_average(&self, x: &Features) -> Result<Array1<Float>> {
-        let base_estimators = self.base_estimators_.as_ref().unwrap();
+        let base_estimators = self
+            .base_estimators_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
 
         let mut predictions = Array1::zeros(n_samples);
@@ -754,13 +766,16 @@ impl PredictProba<Features, Array2<Float>>
     for EnsembleDummyClassifier<sklears_core::traits::Trained>
 {
     fn predict_proba(&self, x: &Features) -> Result<Array2<Float>> {
-        let base_estimators = self.base_estimators_.as_ref().unwrap();
+        let base_estimators = self
+            .base_estimators_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
-        let n_classes = self.n_classes_.unwrap();
+        let n_classes = self.n_classes_.expect("operation should succeed");
 
         match &self.ensemble_strategy {
             EnsembleStrategy::BestStrategy => {
-                let best_idx = self.best_strategy_index_.unwrap();
+                let best_idx = self.best_strategy_index_.expect("operation should succeed");
                 base_estimators[best_idx].predict_proba(x)
             }
             _ => {
@@ -802,7 +817,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 0, 1];
 
         let strategies = vec![
@@ -813,8 +828,8 @@ mod tests {
 
         let ensemble = EnsembleDummyClassifier::new(strategies, EnsembleStrategy::Average)
             .with_random_state(42);
-        let fitted = ensemble.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
     }
@@ -825,7 +840,7 @@ mod tests {
             (5, 2),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
         let strategies = vec![
@@ -839,8 +854,8 @@ mod tests {
 
         let ensemble = EnsembleDummyRegressor::new(strategies, EnsembleStrategy::Average)
             .with_random_state(42);
-        let fitted = ensemble.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         for &pred in predictions.iter() {
@@ -850,8 +865,8 @@ mod tests {
 
     #[test]
     fn test_ensemble_weighted_average() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let strategies = vec![RegressorStrategy::Mean, RegressorStrategy::Median];
@@ -859,12 +874,12 @@ mod tests {
         let ensemble = EnsembleDummyRegressor::new(strategies, EnsembleStrategy::WeightedAverage)
             .with_random_state(42)
             .with_validation_split(0.5);
-        let fitted = ensemble.fit(&x, &y).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that weights were computed
         assert!(fitted.strategy_weights().is_some());
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -876,7 +891,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
         let strategies = vec![
@@ -891,18 +906,19 @@ mod tests {
         let ensemble = EnsembleDummyRegressor::new(strategies, EnsembleStrategy::BestStrategy)
             .with_random_state(42)
             .with_validation_split(0.3);
-        let fitted = ensemble.fit(&x, &y).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that best strategy was selected
         assert!(fitted.best_strategy_index().is_some());
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
     }
 
     #[test]
     fn test_ensemble_stacking() {
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|x| x as f64).collect())
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
 
         let strategies = vec![RegressorStrategy::Mean, RegressorStrategy::Median];
@@ -914,8 +930,8 @@ mod tests {
         .with_random_state(42)
         .with_validation_split(0.5);
 
-        let fitted = ensemble.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
     }
@@ -928,7 +944,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 0, 1];
 
         let strategies = vec![
@@ -938,32 +954,32 @@ mod tests {
 
         let ensemble = EnsembleDummyClassifier::new(strategies, EnsembleStrategy::MajorityVoting)
             .with_random_state(42);
-        let fitted = ensemble.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
     }
 
     #[test]
     fn test_ensemble_random_selection() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let strategies = vec![RegressorStrategy::Mean, RegressorStrategy::Median];
 
         let ensemble = EnsembleDummyRegressor::new(strategies, EnsembleStrategy::RandomSelection)
             .with_random_state(42);
-        let fitted = ensemble.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_ensemble_predict_proba() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 1];
 
         let strategies = vec![
@@ -973,8 +989,8 @@ mod tests {
 
         let ensemble = EnsembleDummyClassifier::new(strategies, EnsembleStrategy::Average)
             .with_random_state(42);
-        let fitted = ensemble.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = ensemble.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted.predict_proba(&x).expect("operation should succeed");
 
         assert_eq!(probas.shape(), &[4, 2]); // 4 samples, 2 classes
 

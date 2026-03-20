@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
 [![Minimum Rust Version](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
-> **Latest release:** `0.1.0-beta.1` (January 1, 2026). See the [workspace release notes](../../docs/releases/0.1.0-beta.1.md) for highlights and upgrade guidance.
+> **Latest release:** `0.1.0` (March 20, 2026). See the [workspace release notes](../../docs/releases/0.1.0.md) for highlights and upgrade guidance.
 
 ## Overview
 
@@ -43,6 +43,6 @@ println!("Mean importance for feature 0: {}", importance.importances_mean[0]);
 
 ## Status
 
-- Extensively covered by workspace integration tests; all 11,160 tests passed for `0.1.0-beta.1`.
+- Extensively covered by workspace integration tests; all 11,160 tests passed for `0.1.0`.
 - Cross-crate sanity checks ensure compatibility with pipelines, model selection, and visualization crates.
 - Further enhancements (GPU ICE surfaces, streaming importance) tracked in `TODO.md`.

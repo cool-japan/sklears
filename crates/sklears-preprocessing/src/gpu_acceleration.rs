@@ -331,7 +331,7 @@ impl GpuStandardScaler<Untrained> {
 
         // GPU kernel implementation would go here
         // For now, fallback to CPU implementation
-        Ok(x.mean_axis(Axis(0)).unwrap().insert_axis(Axis(0)))
+        Ok(x.mean_axis(Axis(0)).expect("array should have elements for mean computation").insert_axis(Axis(0)))
     }
 
     /// GPU kernel for computing variance
@@ -651,13 +651,13 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let fitted_scaler = scaler.fit(&data, &())?;
         let scaled = fitted_scaler.transform(&data)?;
 
         // Check that the scaled data has approximately zero mean and unit variance
-        let mean = scaled.mean_axis(Axis(0)).unwrap();
+        let mean = scaled.mean_axis(Axis(0)).expect("array should have elements for mean computation");
         let std = scaled.std_axis(Axis(0), 1.0);
 
         for &m in mean.iter() {
@@ -680,7 +680,7 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let fitted_scaler = scaler.fit(&data, &())?;
         let scaled = fitted_scaler.transform(&data)?;
@@ -725,7 +725,7 @@ mod tests {
         // Should not fail even if GPU is not available (auto-fallback)
         assert!(ctx_result.is_ok());
 
-        let ctx = ctx_result.unwrap();
+        let ctx = ctx_result.expect("operation should succeed");
         // GPU may or may not be available depending on system
         let _ = ctx.is_gpu_available();
     }

@@ -694,13 +694,14 @@ mod tests {
         let config = PolynomialConfig::default();
         let mut poly = PolynomialFeatures::new(config);
 
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
         assert!(poly.fit(&x.view()).is_ok());
         assert!(poly.n_input_features() == Some(2));
         assert!(poly.feature_names().is_some());
 
-        let transformed = poly.transform(&x.view()).unwrap();
+        let transformed = poly.transform(&x.view()).expect("operation should succeed");
         assert!(transformed.nrows() == 3);
         assert!(transformed.ncols() > 2); // Should have more features
     }
@@ -710,12 +711,15 @@ mod tests {
         let config = PolynomialConfig::default();
         let mut interactions = InteractionFeatures::new(config);
 
-        let x = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
         assert!(interactions.fit(&x.view()).is_ok());
         assert!(interactions.interaction_pairs().is_some());
 
-        let transformed = interactions.transform(&x.view()).unwrap();
+        let transformed = interactions
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert_eq!(transformed.nrows(), 2);
         assert_eq!(transformed.ncols(), 3); // 3 interaction pairs for 3 features
     }
@@ -735,13 +739,16 @@ mod tests {
         let config = PolynomialConfig::default();
         let mut basis = BasisFunctionFeatures::new(config, BasisType::Gaussian);
 
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
         assert!(basis.fit(&x.view()).is_ok());
         assert!(basis.centers().is_some());
         assert!(basis.scales().is_some());
 
-        let transformed = basis.transform(&x.view()).unwrap();
+        let transformed = basis
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert_eq!(transformed.nrows(), 2);
     }
 }

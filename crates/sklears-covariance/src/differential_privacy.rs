@@ -22,7 +22,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::Distribution;
-use scirs2_core::random::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use sklears_core::{
     error::{Result, SklearsError},
     traits::Estimator,
@@ -317,7 +317,9 @@ impl DifferentialPrivacyCovariance<DifferentialPrivacyUntrained> {
     /// Compute empirical covariance matrix
     fn compute_empirical_covariance(&self, x: &Array2<f64>) -> Array2<f64> {
         let (n_samples, n_features) = x.dim();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("mean computation should succeed for non-empty array");
 
         let mut covariance = Array2::zeros((n_features, n_features));
 
@@ -396,12 +398,12 @@ impl DifferentialPrivacyCovariance<DifferentialPrivacyUntrained> {
                 let scale = noise_scale;
                 for i in 0..n {
                     for j in i..n {
-                        let u1: f64 = rng.gen();
-                        let u2: f64 = rng.gen();
-                        let noise = if u1 < 0.5 {
-                            scale * (2.0 * u1).ln()
+                        let u1: f64 = rng.random();
+                        let _u2: f64 = rng.random();
+                        let noise: f64 = if u1 < 0.5 {
+                            scale * (2.0_f64 * u1).ln()
                         } else {
-                            -scale * (2.0 * (1.0 - u1)).ln()
+                            -scale * (2.0_f64 * (1.0 - u1)).ln()
                         };
                         noisy_cov[[i, j]] += noise;
                         if i != j {
@@ -661,7 +663,9 @@ mod tests {
             .clipping_bound(10.0)
             .seed(42);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_utility_metrics().frobenius_error >= 0.0);
@@ -683,7 +687,9 @@ mod tests {
             .epsilon(0.5)
             .seed(42);
 
-        let gaussian_fitted = gaussian_estimator.fit(&x.view(), &()).unwrap();
+        let gaussian_fitted = gaussian_estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(gaussian_fitted.get_covariance().dim(), (2, 2));
 
         // Test Laplace mechanism
@@ -692,7 +698,9 @@ mod tests {
             .epsilon(0.5)
             .seed(42);
 
-        let laplace_fitted = laplace_estimator.fit(&x.view(), &()).unwrap();
+        let laplace_fitted = laplace_estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(laplace_fitted.get_covariance().dim(), (2, 2));
     }
 
@@ -705,7 +713,9 @@ mod tests {
             .delta(1e-5)
             .seed(42);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         let report = fitted.generate_privacy_report();
 
         assert!(report.contains("Differential Privacy Covariance Report"));
@@ -730,7 +740,9 @@ mod tests {
             .clipping_bound(10.0)
             .seed(42);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         let metrics = fitted.get_utility_metrics();
 
         assert!(metrics.frobenius_error >= 0.0);

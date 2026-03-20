@@ -365,8 +365,15 @@ impl DistributedSVM<Untrained> {
         }
 
         // Extract final results
-        let final_alpha = shared_state.global_alpha.lock().unwrap().clone();
-        let final_intercept = *shared_state.global_intercept.lock().unwrap();
+        let final_alpha = shared_state
+            .global_alpha
+            .lock()
+            .expect("lock not poisoned")
+            .clone();
+        let final_intercept = *shared_state
+            .global_intercept
+            .lock()
+            .expect("lock not poisoned");
 
         // Extract support vectors
         let support_indices: Vec<usize> = final_alpha
@@ -443,7 +450,7 @@ impl DistributedSVM<Untrained> {
             ..Default::default()
         };
 
-        let concrete_kernel = create_kernel(kernel);
+        let concrete_kernel = create_kernel(kernel)?;
         let mut smo_solver = SmoSolver::new(smo_config, concrete_kernel);
 
         loop {
@@ -455,8 +462,8 @@ impl DistributedSVM<Untrained> {
 
             // Check global convergence and iteration limit
             {
-                let global_iter = *global_iteration.lock().unwrap();
-                let convergence_flags = worker_convergence.lock().unwrap();
+                let global_iter = *global_iteration.lock().expect("lock not poisoned");
+                let convergence_flags = worker_convergence.lock().expect("lock not poisoned");
 
                 if global_iter >= max_global_iter || convergence_flags.iter().all(|&x| x) {
                     break;
@@ -473,10 +480,10 @@ impl DistributedSVM<Untrained> {
 
             // Synchronize with global state
             {
-                let mut global_alpha_lock = global_alpha.lock().unwrap();
-                let mut global_intercept_lock = global_intercept.lock().unwrap();
-                let mut convergence_lock = worker_convergence.lock().unwrap();
-                let mut global_iter_lock = global_iteration.lock().unwrap();
+                let mut global_alpha_lock = global_alpha.lock().expect("lock not poisoned");
+                let mut global_intercept_lock = global_intercept.lock().expect("lock not poisoned");
+                let mut convergence_lock = worker_convergence.lock().expect("lock not poisoned");
+                let mut global_iter_lock = global_iteration.lock().expect("lock not poisoned");
 
                 // Update global alpha for this worker's data indices
                 for (local_idx, &global_idx) in data_indices.iter().enumerate() {
@@ -528,7 +535,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<Float>> for DistributedSVM<Trained> {
                 operation: "predict".to_string(),
             })?;
 
-        let concrete_kernel = create_kernel(self.kernel.clone());
+        let concrete_kernel = create_kernel(self.kernel.clone())?;
         let mut predictions = Array1::zeros(x.nrows());
 
         // Compute decision function for each sample

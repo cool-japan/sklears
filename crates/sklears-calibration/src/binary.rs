@@ -47,9 +47,9 @@ use crate::{
 /// let y_true = array![0, 0, 1, 1];
 ///
 /// let calibrator = SigmoidCalibrator::new()
-///     .fit(&probabilities, &y_true).unwrap();
+///     .fit(&probabilities, &y_true).expect("fit should succeed");
 ///
-/// let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+/// let calibrated = calibrator.predict_proba(&probabilities).expect("predict_proba should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SigmoidCalibrator {

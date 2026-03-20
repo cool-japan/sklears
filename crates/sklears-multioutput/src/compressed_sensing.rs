@@ -100,7 +100,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<i32>> for CompressedSensingLabelPowerset<
         // Create random projection matrix
         let projection_matrix = Array2::random_using(
             (self.compressed_dimension, n_labels),
-            RandNormal::new(0.0, 1.0 / (n_labels as Float).sqrt()).unwrap(),
+            RandNormal::new(0.0, 1.0 / (n_labels as Float).sqrt()).expect("operation should succeed"),
             &mut rng,
         );
 
@@ -305,8 +305,8 @@ mod tests {
             .compressed_dimension(2)
             .reconstruction_method(ReconstructionMethod::L2);
 
-        let trained_cs = cs.fit(&X.view(), &y).unwrap();
-        let predictions = trained_cs.predict(&X.view()).unwrap();
+        let trained_cs = cs.fit(&X.view(), &y).expect("model fitting should succeed");
+        let predictions = trained_cs.predict(&X.view()).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (4, 4));
         assert!(predictions.iter().all(|&x| x == 0 || x == 1));
@@ -331,13 +331,13 @@ mod tests {
             .compressed_dimension(2)
             .reconstruction_method(ReconstructionMethod::OMP);
 
-        let trained_l1 = cs_l1.fit(&X.view(), &y).unwrap();
-        let trained_l2 = cs_l2.fit(&X.view(), &y).unwrap();
-        let trained_omp = cs_omp.fit(&X.view(), &y).unwrap();
+        let trained_l1 = cs_l1.fit(&X.view(), &y).expect("model fitting should succeed");
+        let trained_l2 = cs_l2.fit(&X.view(), &y).expect("model fitting should succeed");
+        let trained_omp = cs_omp.fit(&X.view(), &y).expect("model fitting should succeed");
 
-        let pred_l1 = trained_l1.predict(&X.view()).unwrap();
-        let pred_l2 = trained_l2.predict(&X.view()).unwrap();
-        let pred_omp = trained_omp.predict(&X.view()).unwrap();
+        let pred_l1 = trained_l1.predict(&X.view()).expect("prediction should succeed");
+        let pred_l2 = trained_l2.predict(&X.view()).expect("prediction should succeed");
+        let pred_omp = trained_omp.predict(&X.view()).expect("prediction should succeed");
 
         assert_eq!(pred_l1.dim(), (2, 3));
         assert_eq!(pred_l2.dim(), (2, 3));
@@ -352,12 +352,12 @@ mod tests {
         let cs1 = CompressedSensingLabelPowerset::new()
             .compressed_dimension(2)
             .random_state(42);
-        let trained_cs1 = cs1.fit(&X.view(), &y).unwrap();
+        let trained_cs1 = cs1.fit(&X.view(), &y).expect("model fitting should succeed");
 
         let cs2 = CompressedSensingLabelPowerset::new()
             .compressed_dimension(2)
             .random_state(42);
-        let trained_cs2 = cs2.fit(&X.view(), &y).unwrap();
+        let trained_cs2 = cs2.fit(&X.view(), &y).expect("model fitting should succeed");
 
         // Should produce same projection matrices
         let proj1 = trained_cs1.projection_matrix();

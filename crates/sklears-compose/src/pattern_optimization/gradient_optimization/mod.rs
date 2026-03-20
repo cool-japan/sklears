@@ -942,7 +942,7 @@ mod tests {
 
     #[test]
     fn test_unified_system_creation() {
-        let factory = UnifiedGradientOptimizationFactory::new().unwrap();
+        let factory = UnifiedGradientOptimizationFactory::new().unwrap_or_default();
         let config = OptimizationConfig::default();
         let system = factory.create_unified_system(config);
         assert!(system.is_ok());
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn test_health_check() {
-        let factory = UnifiedGradientOptimizationFactory::new().unwrap();
+        let factory = UnifiedGradientOptimizationFactory::new().unwrap_or_default();
         let health = factory.health_check();
         assert!(health.is_ok());
     }

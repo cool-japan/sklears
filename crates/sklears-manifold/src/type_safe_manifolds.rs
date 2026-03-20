@@ -318,7 +318,7 @@ impl<P, D> TypeSafeManifold<structure::Discrete, P, D> {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, neighbor) in distances.iter().take(k) {
                 adjacency[[i, *neighbor]] = 1.0;
@@ -590,7 +590,7 @@ mod tests {
         let data = array![[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]];
         let manifold = DiscreteManifold::new(data);
 
-        let adjacency = manifold.knn_adjacency(2).unwrap();
+        let adjacency = manifold.knn_adjacency(2).expect("operation should succeed");
 
         // Each point should be connected to its 2 nearest neighbors
         // For 4 points in a line: [0,0], [1,0], [2,0], [3,0] with k=2

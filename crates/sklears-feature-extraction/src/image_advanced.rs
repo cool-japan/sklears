@@ -135,14 +135,14 @@ impl ContourAnalysisExtractor {
             features.push(
                 *areas
                     .iter()
-                    .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap(),
+                    .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed"),
             ); // Max area
             features.push(
                 *areas
                     .iter()
-                    .min_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap(),
+                    .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed"),
             ); // Min area
 
             // Perimeter statistics
@@ -386,9 +386,14 @@ impl ContourAnalysisExtractor {
                 // Collinear points - sort by distance
                 let dist_a = (a.0 - p0.0).powi(2) + (a.1 - p0.1).powi(2);
                 let dist_b = (b.0 - p0.0).powi(2) + (b.1 - p0.1).powi(2);
-                dist_a.partial_cmp(&dist_b).unwrap()
+                dist_a
+                    .partial_cmp(&dist_b)
+                    .expect("operation should succeed")
             } else {
-                cross.partial_cmp(&0.0).unwrap().reverse()
+                cross
+                    .partial_cmp(&0.0)
+                    .expect("operation should succeed")
+                    .reverse()
             }
         });
 
@@ -472,7 +477,11 @@ impl ContourAnalysisExtractor {
         contours.retain(|c| c.area >= self.min_contour_area);
 
         // Sort by area (largest first)
-        contours.sort_by(|a, b| b.area.partial_cmp(&a.area).unwrap());
+        contours.sort_by(|a, b| {
+            b.area
+                .partial_cmp(&a.area)
+                .expect("operation should succeed")
+        });
 
         // Limit number of contours
         if let Some(max_count) = self.max_contours {
@@ -502,8 +511,8 @@ impl ContourAnalysisExtractor {
             hierarchy_features.push(
                 *hierarchy_levels
                     .iter()
-                    .max_by(|a, b| a.partial_cmp(b).unwrap())
-                    .unwrap(),
+                    .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed"),
             ); // Max depth
             hierarchy_features.push(self.mean(&hierarchy_levels)); // Mean depth
             hierarchy_features.push(self.std_dev(&hierarchy_levels)); // Std dev of depths
@@ -1070,7 +1079,7 @@ impl MorphologicalFeaturesExtractor {
                 let max_idx = pattern_spectrum
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(i, _)| i)
                     .unwrap_or(0);
                 features.push((max_idx + 1) as f64); // Dominant scale index

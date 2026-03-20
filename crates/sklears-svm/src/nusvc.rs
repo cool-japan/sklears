@@ -82,12 +82,15 @@ impl NuSVC<Untrained> {
     }
 
     /// Set the nu parameter (0 < nu <= 1)
-    pub fn nu(mut self, nu: Float) -> Self {
+    pub fn nu(mut self, nu: Float) -> Result<Self> {
         if nu <= 0.0 || nu > 1.0 {
-            panic!("Nu must be in the range (0, 1]");
+            return Err(SklearsError::InvalidParameter {
+                name: "nu".to_string(),
+                reason: "must be in the range (0, 1]".to_string(),
+            });
         }
         self.config.nu = nu;
-        self
+        Ok(self)
     }
 
     /// Set the kernel type
@@ -364,15 +367,24 @@ impl Fit<Array2<Float>, Array1<i32>> for NuSVC<Untrained> {
 
 impl Predict<Array2<Float>, Array1<i32>> for NuSVC<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.unwrap(),
+                expected: self
+                    .n_features_in_
+                    .expect("n_features_in_ not available - model not fitted"),
                 actual: x.ncols(),
             });
         }
 
         let decision_values = self.decision_function(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
 
         // For binary classification
         if classes.len() == 2 {
@@ -392,9 +404,17 @@ impl Predict<Array2<Float>, Array1<i32>> for NuSVC<Trained> {
 impl NuSVC<Trained> {
     /// Get the decision function values
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let support_vectors = self.support_vectors_.as_ref().unwrap();
-        let dual_coef = self.dual_coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let support_vectors = self
+            .support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted");
+        let dual_coef = self
+            .dual_coef_
+            .as_ref()
+            .expect("dual_coef_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ not available - model not fitted");
 
         let kernel = &self.config.kernel;
         let mut decisions = Array1::zeros(x.nrows());
@@ -413,37 +433,49 @@ impl NuSVC<Trained> {
 
     /// Get the support vectors
     pub fn support_vectors(&self) -> &Array2<Float> {
-        self.support_vectors_.as_ref().unwrap()
+        self.support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted")
     }
 
     /// Get the indices of support vectors
     pub fn support(&self) -> &Array1<usize> {
-        self.support_.as_ref().unwrap()
+        self.support_
+            .as_ref()
+            .expect("support_ not available - model not fitted")
     }
 
     /// Get the dual coefficients
     pub fn dual_coef(&self) -> &Array1<Float> {
-        self.dual_coef_.as_ref().unwrap()
+        self.dual_coef_
+            .as_ref()
+            .expect("dual_coef_ not available - model not fitted")
     }
 
     /// Get the intercept
     pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+        self.intercept_
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the number of support vectors for each class
     pub fn n_support(&self) -> &Array1<usize> {
-        self.n_support_.as_ref().unwrap()
+        self.n_support_
+            .as_ref()
+            .expect("n_support_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 }
 
@@ -458,6 +490,7 @@ mod tests {
     fn test_nusvc_creation() {
         let nusvc = NuSVC::new()
             .nu(0.3)
+            .expect("valid parameter")
             .kernel(KernelType::Linear)
             .tol(1e-4)
             .max_iter(500)
@@ -470,9 +503,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Nu must be in the range (0, 1]")]
     fn test_nusvc_invalid_nu() {
-        let _nusvc = NuSVC::new().nu(1.5);
+        let result = NuSVC::new().nu(1.5);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -490,15 +523,16 @@ mod tests {
 
         let nusvc = NuSVC::new()
             .nu(0.5)
+            .expect("valid parameter")
             .kernel(KernelType::Linear)
             .tol(0.1) // Very high tolerance for test speed
             .max_iter(10); // Very low iterations for tests
-        let fitted_model = nusvc.fit(&x, &y).unwrap();
+        let fitted_model = nusvc.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert_eq!(fitted_model.classes().len(), 2);
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Check that predictions are valid class labels
@@ -515,12 +549,15 @@ mod tests {
 
         let nusvc = NuSVC::new()
             .nu(0.5)
+            .expect("valid parameter")
             .kernel(KernelType::Linear)
             .tol(0.1) // Very high tolerance for test speed
             .max_iter(10); // Very low iterations for tests
-        let fitted_model = nusvc.fit(&x, &y).unwrap();
+        let fitted_model = nusvc.fit(&x, &y).expect("model fitting should succeed");
 
-        let decision_values = fitted_model.decision_function(&x).unwrap();
+        let decision_values = fitted_model
+            .decision_function(&x)
+            .expect("decision function should succeed");
         assert_eq!(decision_values.len(), 4);
 
         // Decision values should be finite
@@ -548,7 +585,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
         let nusvc = NuSVC::new();
-        let fitted_model = nusvc.fit(&x_train, &y_train).unwrap();
+        let fitted_model = nusvc
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         let result = fitted_model.predict(&x_test);
 
         assert!(result.is_err());
@@ -604,14 +643,14 @@ mod tests {
             .max_iter(10)
             .random_state(42)
             .auto_select_nu(&x, &y, Some(nu_candidates), Some(3))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Verify that a nu parameter was selected
         assert!(nusvc.config.nu > 0.0 && nusvc.config.nu <= 1.0);
 
         // Verify the model can still be trained
-        let fitted_model = nusvc.fit(&x, &y).unwrap();
-        let predictions = fitted_model.predict(&x).unwrap();
+        let fitted_model = nusvc.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 8);
     }
 }

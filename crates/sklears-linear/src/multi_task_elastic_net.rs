@@ -77,7 +77,7 @@ impl MultiTaskElasticNet<Untrained> {
     }
 
     /// Create with specific alpha and l1_ratio
-    pub fn with_params(alpha: Float, l1_ratio: Float) -> Self {
+    pub fn with_params(alpha: Float, l1_ratio: Float) -> Result<Self> {
         Self::new().alpha(alpha).l1_ratio(l1_ratio)
     }
 
@@ -88,12 +88,15 @@ impl MultiTaskElasticNet<Untrained> {
     }
 
     /// Set l1_ratio parameter
-    pub fn l1_ratio(mut self, l1_ratio: Float) -> Self {
+    pub fn l1_ratio(mut self, l1_ratio: Float) -> Result<Self> {
         if !(0.0..=1.0).contains(&l1_ratio) {
-            panic!("l1_ratio must be between 0 and 1");
+            return Err(SklearsError::InvalidParameter {
+                name: "l1_ratio".to_string(),
+                reason: "must be between 0 and 1".to_string(),
+            });
         }
         self.config.l1_ratio = l1_ratio;
-        self
+        Ok(self)
     }
 
     /// Set whether to fit intercept
@@ -132,12 +135,15 @@ impl MultiTaskElasticNetBuilder {
         self
     }
 
-    pub fn l1_ratio(mut self, l1_ratio: Float) -> Self {
+    pub fn l1_ratio(mut self, l1_ratio: Float) -> Result<Self> {
         if !(0.0..=1.0).contains(&l1_ratio) {
-            panic!("l1_ratio must be between 0 and 1");
+            return Err(SklearsError::InvalidParameter {
+                name: "l1_ratio".to_string(),
+                reason: "must be between 0 and 1".to_string(),
+            });
         }
         self.config.l1_ratio = l1_ratio;
-        self
+        Ok(self)
     }
 
     pub fn fit_intercept(mut self, fit_intercept: bool) -> Self {
@@ -426,10 +432,11 @@ mod tests {
         let model = MultiTaskElasticNet::new()
             .alpha(0.01)
             .l1_ratio(0.5)
+            .expect("valid parameter")
             .fit_intercept(false);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let coef = fitted.coef().expect("operation should succeed");
 
         // First feature should have coefficients close to [1.0, 2.0]
         assert_abs_diff_eq!(coef[[0, 0]], 1.0, epsilon = 0.1);
@@ -449,19 +456,25 @@ mod tests {
         let model_ridge = MultiTaskElasticNet::new()
             .alpha(0.1)
             .l1_ratio(0.0)
+            .expect("valid parameter")
             .fit_intercept(false);
 
-        let fitted_ridge = model_ridge.fit(&x, &y).unwrap();
-        let coef_ridge = fitted_ridge.coef().unwrap();
+        let fitted_ridge = model_ridge
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let coef_ridge = fitted_ridge.coef().expect("operation should succeed");
 
         // Test with l1_ratio = 1 (pure Lasso)
         let model_lasso = MultiTaskElasticNet::new()
             .alpha(0.1)
             .l1_ratio(1.0)
+            .expect("valid parameter")
             .fit_intercept(false);
 
-        let fitted_lasso = model_lasso.fit(&x, &y).unwrap();
-        let coef_lasso = fitted_lasso.coef().unwrap();
+        let fitted_lasso = model_lasso
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let coef_lasso = fitted_lasso.coef().expect("operation should succeed");
 
         // Ridge and Lasso should produce different coefficients
         // With the same alpha, pure Lasso (l1_ratio=1) should produce sparser solutions
@@ -483,15 +496,16 @@ mod tests {
         let model = MultiTaskElasticNet::new()
             .alpha(0.05)
             .l1_ratio(0.7)
+            .expect("valid parameter")
             .fit_intercept(true);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.shape(), &[5, 2]);
 
         // Check intercepts
-        let intercept = fitted.intercept().unwrap();
+        let intercept = fitted.intercept().expect("intercept should be available");
         assert_eq!(intercept.len(), 2);
 
         // Intercepts should be positive for this data
@@ -528,11 +542,12 @@ mod tests {
 
         let model = MultiTaskElasticNet::new()
             .alpha(0.1)
-            .l1_ratio(0.95) // Very high L1 ratio for sparsity
+            .l1_ratio(0.95)
+            .expect("valid parameter") // Very high L1 ratio for sparsity
             .fit_intercept(false);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let coef = fitted.coef().expect("operation should succeed");
 
         // Count non-zero features
         let mut non_zero_features = 0;
@@ -562,8 +577,8 @@ mod tests {
         let max_norm_idx = feature_norms
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .unwrap()
+            .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+            .expect("operation should succeed")
             .0;
 
         assert_eq!(
@@ -577,6 +592,7 @@ mod tests {
         let model = MultiTaskElasticNet::builder()
             .alpha(0.3)
             .l1_ratio(0.6)
+            .expect("valid parameter")
             .max_iter(800)
             .tol(1e-5)
             .fit_intercept(false)
@@ -590,8 +606,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "l1_ratio must be between 0 and 1")]
     fn test_invalid_l1_ratio() {
-        MultiTaskElasticNet::new().l1_ratio(1.5);
+        let result = MultiTaskElasticNet::new().l1_ratio(1.5);
+        assert!(result.is_err());
     }
 }

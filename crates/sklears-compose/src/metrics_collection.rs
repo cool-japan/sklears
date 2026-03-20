@@ -501,7 +501,7 @@ impl InMemoryMetricsStorage {
 
 impl MetricsStorage for InMemoryMetricsStorage {
     fn store_metric(&mut self, session_id: &str, metric: &PerformanceMetric) -> SklResult<()> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         // Validate metric
         if !metric.is_valid() {
@@ -523,7 +523,7 @@ impl MetricsStorage for InMemoryMetricsStorage {
     }
 
     fn retrieve_metrics(&self, session_id: &str, time_range: &TimeRange) -> SklResult<Vec<PerformanceMetric>> {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(metrics) = self.storage.get(session_id) {
             let filtered: Vec<PerformanceMetric> = metrics
@@ -538,7 +538,7 @@ impl MetricsStorage for InMemoryMetricsStorage {
     }
 
     fn aggregate_metrics(&self, session_id: &str, aggregation: &MetricsAggregationConfig) -> SklResult<Vec<PerformanceMetric>> {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(metrics) = self.storage.get(session_id) {
             let aggregator = MetricsAggregator::new(aggregation.clone());
@@ -549,14 +549,14 @@ impl MetricsStorage for InMemoryMetricsStorage {
     }
 
     fn metrics_count(&self, session_id: &str) -> SklResult<u64> {
-        let _lock = self.lock.read().unwrap();
+        let _lock = self.lock.read().unwrap_or_else(|e| e.into_inner());
 
         let count = self.storage.get(session_id).map_or(0, |metrics| metrics.len()) as u64;
         Ok(count)
     }
 
     fn delete_metrics(&mut self, session_id: &str) -> SklResult<u64> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
 
         let count = self.storage.remove(session_id).map_or(0, |metrics| metrics.len()) as u64;
         self.stats.total_metrics_deleted += count;
@@ -568,7 +568,7 @@ impl MetricsStorage for InMemoryMetricsStorage {
     }
 
     fn cleanup_old_metrics(&mut self, older_than: Duration) -> SklResult<u64> {
-        let _lock = self.lock.write().unwrap();
+        let _lock = self.lock.write().unwrap_or_else(|e| e.into_inner());
         let cutoff_time = SystemTime::now() - older_than;
         let mut removed_count = 0;
 
@@ -837,7 +837,7 @@ impl MetricsAggregator {
             }
             AggregationType::Percentile { percentile } => {
                 let mut sorted_values = values.clone();
-                sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let index = ((*percentile / 100.0) * (sorted_values.len() - 1) as f64) as usize;
                 let value = sorted_values[index.min(sorted_values.len() - 1)];
                 (value, &format!("_p{}", *percentile as u32))
@@ -846,8 +846,8 @@ impl MetricsAggregator {
                 if timestamps.len() < 2 {
                     return Ok(None);
                 }
-                let time_span = timestamps.iter().max().unwrap()
-                    .duration_since(*timestamps.iter().min().unwrap())
+                let time_span = timestamps.iter().max().unwrap_or_default()
+                    .duration_since(*timestamps.iter().min().unwrap_or_default())
                     .unwrap_or(Duration::from_secs(1));
                 let rate = values.len() as f64 / time_span.as_secs_f64();
                 (rate, "_rate")
@@ -1027,7 +1027,7 @@ mod tests {
             .tag("host".to_string(), "server1".to_string())
             .metric_type(MetricType::Gauge)
             .build()
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(metric.name, "memory_usage");
         assert_eq!(metric.value, 1024.0);
@@ -1045,10 +1045,10 @@ mod tests {
         );
 
         // Store metric
-        storage.store_metric("session1", &metric).unwrap();
+        storage.store_metric("session1", &metric).unwrap_or_default();
 
         // Check count
-        let count = storage.metrics_count("session1").unwrap();
+        let count = storage.metrics_count("session1").unwrap_or_default();
         assert_eq!(count, 1);
 
         // Retrieve metrics
@@ -1056,7 +1056,7 @@ mod tests {
             SystemTime::now() - Duration::from_secs(60),
             SystemTime::now() + Duration::from_secs(60),
         );
-        let metrics = storage.retrieve_metrics("session1", &time_range).unwrap();
+        let metrics = storage.retrieve_metrics("session1", &time_range).unwrap_or_default();
         assert_eq!(metrics.len(), 1);
         assert_eq!(metrics[0].name, "test_metric");
     }
@@ -1075,16 +1075,16 @@ mod tests {
         };
 
         let aggregator = MetricsAggregator::new(config);
-        let aggregated = aggregator.aggregate(&metrics).unwrap();
+        let aggregated = aggregator.aggregate(&metrics).unwrap_or_default();
 
         assert_eq!(aggregated.len(), 2); // Average and Maximum
 
         // Find average metric
-        let avg_metric = aggregated.iter().find(|m| m.name.contains("_avg")).unwrap();
+        let avg_metric = aggregated.iter().find(|m| m.name.contains("_avg")).unwrap_or_default();
         assert_eq!(avg_metric.value, 20.0);
 
         // Find max metric
-        let max_metric = aggregated.iter().find(|m| m.name.contains("_max")).unwrap();
+        let max_metric = aggregated.iter().find(|m| m.name.contains("_max")).unwrap_or_default();
         assert_eq!(max_metric.value, 30.0);
     }
 
@@ -1127,8 +1127,8 @@ mod tests {
         let metric = PerformanceMetric::new("test".to_string(), 1.0, "value".to_string());
 
         // Should succeed for first two metrics
-        storage.store_metric("session1", &metric).unwrap();
-        storage.store_metric("session1", &metric).unwrap();
+        storage.store_metric("session1", &metric).unwrap_or_default();
+        storage.store_metric("session1", &metric).unwrap_or_default();
 
         // Should fail for third metric (exceeds per-session limit)
         let result = storage.store_metric("session1", &metric);

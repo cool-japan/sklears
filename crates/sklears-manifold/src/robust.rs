@@ -6,7 +6,6 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::{seq::SliceRandom, SeedableRng};
 use scirs2_core::SliceRandomExt;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
@@ -246,7 +245,7 @@ impl RobustManifold<Untrained> {
         let n_samples = x.nrows();
 
         // Compute sample mean and covariance
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean.clone().insert_axis(Axis(0));
         let cov = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
@@ -320,7 +319,7 @@ impl RobustManifold<Untrained> {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             let k_neighbors: Vec<usize> = distances
                 .iter()
@@ -397,7 +396,9 @@ impl RobustManifold<Untrained> {
                 subset_data.row_mut(i).assign(&x.row(idx));
             }
 
-            let subset_mean = subset_data.mean_axis(Axis(0)).unwrap();
+            let subset_mean = subset_data
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
             let centered = &subset_data - &subset_mean.clone().insert_axis(Axis(0));
             let subset_cov = centered.t().dot(&centered) / (h - 1) as f64;
 
@@ -429,7 +430,7 @@ impl RobustManifold<Untrained> {
 
         // Determine outlier threshold
         let mut sorted_scores = outlier_scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let threshold_idx = ((1.0 - self.outlier_fraction) * n_samples as f64) as usize;
         let threshold = sorted_scores[threshold_idx.min(n_samples - 1)];
 
@@ -498,7 +499,7 @@ impl RobustManifold<Untrained> {
 
         // Iterative robust PCA
         let mut weights = Array1::ones(n_samples);
-        let mut current_mean = x.mean_axis(Axis(0)).unwrap();
+        let mut current_mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let mut current_cov = Array2::eye(n_features);
 
         for iteration in 0..self.max_iterations {
@@ -550,7 +551,11 @@ impl RobustManifold<Untrained> {
 
         // Sort by eigenvalues (descending)
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         // Project data onto top eigenvectors
         let mut projection_matrix = Array2::zeros((n_features, self.n_components));
@@ -681,7 +686,7 @@ impl RobustManifold<Untrained> {
     // Helper methods
     fn standard_pca(&self, x: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         let n_samples = x.nrows();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean.clone().insert_axis(Axis(0));
         let cov = centered.t().dot(&centered) / (n_samples - 1) as f64;
 
@@ -691,7 +696,11 @@ impl RobustManifold<Untrained> {
             })?;
 
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         let mut projection_matrix = Array2::zeros((x.ncols(), self.n_components));
         for (i, &idx) in indices.iter().take(self.n_components).enumerate() {
@@ -752,7 +761,7 @@ impl RobustManifold<Untrained> {
                     .sqrt()
             })
             .collect();
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         distances[k.min(distances.len() - 1)]
     }
 
@@ -770,7 +779,7 @@ impl RobustManifold<Untrained> {
                 )
             })
             .collect();
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         let k_neighbors: Vec<usize> = distances.iter().take(k).map(|(idx, _)| *idx).collect();
 
@@ -841,7 +850,7 @@ impl RobustManifold<Untrained> {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Use robust distance estimate (trimmed mean)
             let trimmed_distances: Vec<f64> = distances
@@ -902,7 +911,11 @@ impl RobustManifold<Untrained> {
             })?;
 
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         let mut embedding = Array2::zeros((n, self.n_components));
         for (i, &idx) in indices.iter().take(self.n_components).enumerate() {
@@ -925,7 +938,7 @@ impl RobustManifold<Untrained> {
             let mut distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Robust neighbor selection: exclude potential outliers
             let median_dist = distances[n_samples / 2].1;
@@ -1005,7 +1018,11 @@ impl RobustManifold<Untrained> {
             })?;
 
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[i].partial_cmp(&eigenvalues[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[i]
+                .partial_cmp(&eigenvalues[j])
+                .expect("operation should succeed")
+        });
 
         let mut embedding = Array2::zeros((n_samples, self.n_components));
         for (i, &idx) in indices.iter().skip(1).take(self.n_components).enumerate() {
@@ -1057,7 +1074,7 @@ impl RobustManifold<Untrained> {
         let avg_leverage = self.n_components as f64 / n_samples as f64;
 
         // Approximate using distance to centroid
-        let centroid = x.mean_axis(Axis(0)).unwrap();
+        let centroid = x.mean_axis(Axis(0)).expect("operation should succeed");
         let dist_to_centroid = (&x.row(point_idx) - &centroid)
             .mapv(|x: f64| x * x)
             .sum()
@@ -1080,7 +1097,7 @@ impl RobustManifold<Untrained> {
 
     fn compute_scale_estimate(&self, x: &ArrayView2<f64>) -> SklResult<f64> {
         // Median Absolute Deviation (MAD) scale estimate
-        let centroid = x.mean_axis(Axis(0)).unwrap();
+        let centroid = x.mean_axis(Axis(0)).expect("operation should succeed");
         let mut deviations: Vec<f64> = x
             .rows()
             .into_iter()
@@ -1091,7 +1108,7 @@ impl RobustManifold<Untrained> {
                     .sqrt()
             })
             .collect();
-        deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let median = deviations[deviations.len() / 2];
         Ok(median * 1.4826) // MAD to standard deviation conversion factor
@@ -1131,7 +1148,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, ()>> for RobustManifold<Untrained> 
 
         // Determine outlier mask
         let mut sorted_scores = outlier_scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let threshold_idx = ((1.0 - self.outlier_fraction) * x.nrows() as f64) as usize;
         let threshold = sorted_scores[threshold_idx.min(x.nrows() - 1)];
         let outlier_mask = outlier_scores.mapv(|score| score > threshold);
@@ -1146,7 +1163,7 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, ()>> for RobustManifold<Untrained> 
         let (robust_mean, robust_cov) = if self.robust_estimation {
             self.minimum_covariance_determinant(x)?
         } else {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
             let centered = x - &mean.clone().insert_axis(Axis(0));
             let cov = centered.t().dot(&centered) / (x.nrows() - 1) as f64;
             (mean, cov)
@@ -1301,8 +1318,12 @@ mod tests {
             .robust_estimation(true)
             .random_state(42);
 
-        let fitted = robust.fit(&x.view(), &dummy_y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = robust
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [5, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1324,8 +1345,12 @@ mod tests {
                 .outlier_fraction(0.25)
                 .random_state(42);
 
-            let fitted = robust.fit(&x.view(), &dummy_y.view()).unwrap();
-            let transformed = fitted.transform(&x.view()).unwrap();
+            let fitted = robust
+                .fit(&x.view(), &dummy_y.view())
+                .expect("operation should succeed");
+            let transformed = fitted
+                .transform(&x.view())
+                .expect("operation should succeed");
 
             assert_eq!(transformed.shape(), [4, 2]);
             assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1350,14 +1375,18 @@ mod tests {
             .outlier_method("mahalanobis".to_string())
             .random_state(42);
 
-        let fitted = robust.fit(&x.view(), &dummy_y.view()).unwrap();
+        let fitted = robust
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
 
         // Test outlier detection on new data
         let new_data = array![
             [2.5, 2.5],   // Normal point
             [20.0, 20.0]  // Clear outlier
         ];
-        let new_outliers = fitted.detect_outliers(&new_data.view()).unwrap();
+        let new_outliers = fitted
+            .detect_outliers(&new_data.view())
+            .expect("operation should succeed");
 
         assert!(!new_outliers[0]); // Normal point
         assert!(new_outliers[1]); // Outlier point
@@ -1373,7 +1402,9 @@ mod tests {
             .robust_estimation(true)
             .random_state(42);
 
-        let fitted = robust.fit(&x.view(), &dummy_y.view()).unwrap();
+        let fitted = robust
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
 
         let influence = fitted.influence_analysis();
         assert_eq!(influence.influence_scores.len(), 4);

@@ -828,7 +828,11 @@ pub mod ndarray_ops {
                     .axis_iter_mut(Axis(0))
                     .into_par_iter()
                     .for_each(|mut row| {
-                        add_scalar_f64_simd(row.as_slice_mut().unwrap(), scalar, config);
+                        add_scalar_f64_simd(
+                            row.as_slice_mut().expect("matrix indexing should be valid"),
+                            scalar,
+                            config,
+                        );
                     });
                 return;
             }
@@ -856,7 +860,11 @@ pub mod ndarray_ops {
                     .axis_iter_mut(Axis(0))
                     .into_par_iter()
                     .for_each(|mut row| {
-                        mul_scalar_f64_simd(row.as_slice_mut().unwrap(), scalar, config);
+                        mul_scalar_f64_simd(
+                            row.as_slice_mut().expect("matrix indexing should be valid"),
+                            scalar,
+                            config,
+                        );
                     });
                 return;
             }
@@ -1038,7 +1046,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Test scalar addition
         let original = array.clone();

@@ -448,8 +448,8 @@ pub fn kolmogorov_smirnov_independence_test(
     }
 
     // Sort both groups
-    missing_group.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    observed_group.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    missing_group.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+    observed_group.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     // Compute KS statistic
     let ks_statistic = compute_ks_statistic(&missing_group, &observed_group);
@@ -879,7 +879,7 @@ fn compute_ks_statistic(sample1: &[f64], sample2: &[f64]) -> f64 {
 
     // Combine and sort all unique values
     let mut all_values: Vec<f64> = sample1.iter().chain(sample2.iter()).cloned().collect();
-    all_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    all_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     all_values.dedup();
 
     let n1 = sample1.len() as f64;
@@ -1397,7 +1397,7 @@ fn simulate_mar_mechanism(
         return Ok(X_mar);
     }
 
-    predictor_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    predictor_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let threshold_idx = ((1.0 - correlation_strength) * predictor_values.len() as f64) as usize;
     let threshold = predictor_values
         .get(threshold_idx)
@@ -1444,7 +1444,7 @@ fn simulate_mnar_mechanism(
         return Ok(X_mnar);
     }
 
-    target_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    target_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let threshold_idx = ((1.0 - selection_strength) * target_values.len() as f64) as usize;
     let threshold = target_values
         .get(threshold_idx)

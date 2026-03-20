@@ -657,7 +657,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ExponentialFamilyMixture<Untrained> {
             }
         }
 
-        let (weights, natural_params) = best_params.unwrap();
+        let (weights, natural_params) = best_params.expect("operation should succeed");
 
         // Calculate model selection criteria
         let n_params = self.n_parameters(n_features);

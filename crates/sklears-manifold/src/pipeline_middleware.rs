@@ -576,7 +576,7 @@ impl PipelineMiddleware for StandardizationMiddleware {
                 context
                     .data
                     .mean_axis(scirs2_core::ndarray::Axis(0))
-                    .unwrap()
+                    .expect("operation should succeed")
             } else {
                 Array1::zeros(n_features)
             };
@@ -718,7 +718,9 @@ fn estimate_intrinsic_dimensionality(data: &Array2<f64>) -> f64 {
     }
 
     // Center the data
-    let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+    let mean = data
+        .mean_axis(scirs2_core::ndarray::Axis(0))
+        .expect("operation should succeed");
     let centered = data - &mean;
 
     // Compute covariance matrix
@@ -753,11 +755,11 @@ fn estimate_condition_number(data: &Array2<f64>) -> f64 {
             singular_values
                 .iter()
                 .filter(|&&x| x > 0.0)
-                .max_by(|a, b| a.partial_cmp(b).unwrap()),
+                .max_by(|a, b| a.partial_cmp(b).expect("operation should succeed")),
             singular_values
                 .iter()
                 .filter(|&&x| x > 0.0)
-                .min_by(|a, b| a.partial_cmp(b).unwrap()),
+                .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed")),
         ) {
             max_sv / min_sv
         } else {
@@ -776,14 +778,17 @@ mod tests {
 
     #[test]
     fn test_pipeline_execution() {
-        let data = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let pipeline = ManifoldPipeline::new()
             .add_middleware(Arc::new(DataValidationMiddleware::new().min_samples(5)))
             .add_middleware(Arc::new(StandardizationMiddleware::new()))
             .add_middleware(Arc::new(QualityAssessmentMiddleware::new()));
 
-        let result = pipeline.execute(&data.view()).unwrap();
+        let result = pipeline
+            .execute(&data.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.data.dim(), (10, 3));
         assert!(!result.metadata.transformations.is_empty());
@@ -792,7 +797,8 @@ mod tests {
 
     #[test]
     fn test_data_validation_middleware() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
         let context = PipelineContext {
             data,
@@ -821,7 +827,9 @@ mod tests {
         let middleware = DataValidationMiddleware::new()
             .min_samples(1)
             .max_samples(10);
-        let result = middleware.process(context).unwrap();
+        let result = middleware
+            .process(context)
+            .expect("operation should succeed");
 
         assert_eq!(result.metadata.quality_metrics.get("n_samples"), Some(&2.0));
         assert_eq!(
@@ -832,8 +840,8 @@ mod tests {
 
     #[test]
     fn test_standardization_middleware() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
         let context = PipelineContext {
             data,
@@ -860,13 +868,15 @@ mod tests {
         };
 
         let middleware = StandardizationMiddleware::new();
-        let result = middleware.process(context).unwrap();
+        let result = middleware
+            .process(context)
+            .expect("operation should succeed");
 
         // Check that data is approximately standardized
         let means = result
             .data
             .mean_axis(scirs2_core::ndarray::Axis(0))
-            .unwrap();
+            .expect("operation should succeed");
         let stds = result.data.std_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
         for &mean in means.iter() {

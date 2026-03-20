@@ -553,7 +553,7 @@ fn discretize_column(
                 .enumerate()
                 .map(|(i, &val)| (val, i))
                 .collect();
-            sorted_values.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            sorted_values.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             let samples_per_bin = n_samples / config.n_bins;
             let mut discretized = Array1::zeros(n_samples);
@@ -1225,7 +1225,7 @@ mod tests {
         let result = analyze_mutual_information(&X.view(), &y.view(), &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.feature_target_mi.len(), 2);
         assert_eq!(result.feature_feature_mi.shape(), &[2, 2]);
     }
@@ -1244,7 +1244,7 @@ mod tests {
         let result = compute_information_gain_attribution(&X.view(), &y.view(), &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.information_gains.len(), 2);
         assert_eq!(result.feature_ranking.len(), 2);
         assert!(result.target_entropy >= 0.0);
@@ -1272,7 +1272,7 @@ mod tests {
         let result = generate_entropy_explanations(model, &X.view(), &y.view(), &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.instance_entropies.len(), 3);
         assert_eq!(result.feature_entropy_reductions.len(), 2);
     }
@@ -1288,7 +1288,7 @@ mod tests {
         let result = discretize_column(&values.view(), &config);
         assert!(result.is_ok());
 
-        let discretized = result.unwrap();
+        let discretized = result.expect("operation should succeed");
         assert_eq!(discretized.len(), 5);
 
         // Check that values are within expected range
@@ -1305,7 +1305,7 @@ mod tests {
         let result = compute_entropy(&values.view(), &config);
         assert!(result.is_ok());
 
-        let entropy = result.unwrap();
+        let entropy = result.expect("operation should succeed");
         assert!(entropy > 0.0);
 
         // Maximum entropy for binary equal distribution should be ln(2)
@@ -1328,7 +1328,7 @@ mod tests {
         let result = apply_minimum_description_length(&X.view(), &y.view(), &config);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.total_description_length > 0.0);
         assert!(result.model_complexity > 0.0);
         assert!(!result.selected_features.is_empty());

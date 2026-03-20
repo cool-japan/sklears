@@ -133,7 +133,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for FisherInformationEmbedding<Untrained> {
 
         // Sort eigenvalues and eigenvectors in descending order
         let mut eigen_pairs: Vec<_> = eigenvalues.iter().zip(eigenvectors.columns()).collect();
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).expect("operation should succeed"));
 
         // Take the top n_components eigenvectors
         let selected_eigenvectors: Array2<f64> =

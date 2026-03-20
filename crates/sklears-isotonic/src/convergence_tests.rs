@@ -643,7 +643,7 @@ mod tests {
             LossFunction::SquaredLoss,
             criteria,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // All algorithms should converge
         for (name, result) in results {

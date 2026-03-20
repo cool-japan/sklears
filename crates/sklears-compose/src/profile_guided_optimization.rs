@@ -868,7 +868,7 @@ mod tests {
     #[test]
     fn test_optimizer_creation() {
         let config = OptimizerConfig::default();
-        let optimizer = ProfileGuidedOptimizer::new(config).unwrap();
+        let optimizer = ProfileGuidedOptimizer::new(config).expect("operation should succeed");
 
         let stats = optimizer.get_optimization_stats();
         assert_eq!(stats.total_operations, 0);
@@ -948,7 +948,9 @@ mod tests {
             cache_friendliness_scaled: 1000, // 1.0 * 1000
         };
 
-        let prediction = predictor.predict_execution_time(&characteristics).unwrap();
+        let prediction = predictor
+            .predict_execution_time(&characteristics)
+            .unwrap_or_default();
         assert!(prediction.as_secs_f64() >= 0.0);
     }
 
@@ -1150,9 +1152,9 @@ impl RuntimeOptimizer {
         // Simulate compilation based on optimization level
         match strategy.optimization_level {
             OptimizationLevel::None => true,
-            OptimizationLevel::Basic => thread_rng().gen::<f64>() > 0.1, // 90% success rate
-            OptimizationLevel::Advanced => thread_rng().gen::<f64>() > 0.2, // 80% success rate
-            OptimizationLevel::Aggressive => thread_rng().gen::<f64>() > 0.3, // 70% success rate
+            OptimizationLevel::Basic => thread_rng().random::<f64>() > 0.1, // 90% success rate
+            OptimizationLevel::Advanced => thread_rng().random::<f64>() > 0.2, // 80% success rate
+            OptimizationLevel::Aggressive => thread_rng().random::<f64>() > 0.3, // 70% success rate
         }
     }
 

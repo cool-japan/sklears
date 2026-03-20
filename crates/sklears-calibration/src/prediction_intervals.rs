@@ -695,10 +695,14 @@ mod tests {
         };
 
         let mut estimator = PredictionIntervalEstimator::new(config);
-        estimator.fit(&predictions, &targets).unwrap();
+        estimator
+            .fit(&predictions, &targets)
+            .expect("fit should succeed");
 
         let test_predictions = array![2.5, 3.5];
-        let result = estimator.predict(&test_predictions).unwrap();
+        let result = estimator
+            .predict(&test_predictions)
+            .expect("predict should succeed");
 
         assert_eq!(result.lower_bounds.len(), 2);
         assert_eq!(result.upper_bounds.len(), 2);
@@ -722,10 +726,14 @@ mod tests {
         };
 
         let mut estimator = PredictionIntervalEstimator::new(config);
-        estimator.fit(&predictions, &targets).unwrap();
+        estimator
+            .fit(&predictions, &targets)
+            .expect("fit should succeed");
 
         let test_predictions = array![2.5, 3.5];
-        let result = estimator.predict(&test_predictions).unwrap();
+        let result = estimator
+            .predict(&test_predictions)
+            .expect("predict should succeed");
 
         assert_eq!(result.method, "Gaussian");
         assert!(result.average_width > 0.0);
@@ -748,19 +756,22 @@ mod tests {
         };
 
         let targets = array![1.0, 2.0, 3.0]; // All should be covered
-        let coverage = compute_empirical_coverage(&intervals, &targets).unwrap();
+        let coverage =
+            compute_empirical_coverage(&intervals, &targets).expect("operation should succeed");
         assert_eq!(coverage, 1.0);
 
         // Test with targets where only middle one is covered
         // Intervals are: [0.5, 1.5], [1.5, 2.5], [2.5, 3.5]
         // For 1/3 coverage, we want exactly one target covered
         let targets_partial = array![0.0, 2.0, 4.0]; // Only middle one (2.0 in [1.5, 2.5]) covered
-        let coverage_partial = compute_empirical_coverage(&intervals, &targets_partial).unwrap();
+        let coverage_partial = compute_empirical_coverage(&intervals, &targets_partial)
+            .expect("operation should succeed");
         assert!((coverage_partial - 1.0 / 3.0).abs() < 1e-10);
 
         // Test with all targets outside intervals
         let targets_none = array![0.0, 1.0, 4.0]; // None should be covered
-        let coverage_none = compute_empirical_coverage(&intervals, &targets_none).unwrap();
+        let coverage_none = compute_empirical_coverage(&intervals, &targets_none)
+            .expect("operation should succeed");
         assert_eq!(coverage_none, 0.0);
     }
 
@@ -778,7 +789,7 @@ mod tests {
             &test_targets,
             0.9,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(!results.is_empty());
 

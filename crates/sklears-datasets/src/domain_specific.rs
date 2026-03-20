@@ -49,7 +49,7 @@ pub fn make_gene_expression_dataset(
     for i in 0..n_cell_types {
         for j in 0..n_genes {
             // Log-normal distribution for expression levels
-            let log_expr = rng.sample(Normal::new(5.0, 2.0).unwrap());
+            let log_expr = rng.sample(Normal::new(5.0, 2.0).expect("sampling should succeed"));
             expression_patterns[[i, j]] = log_expr.exp();
         }
     }
@@ -60,7 +60,7 @@ pub fn make_gene_expression_dataset(
         let cell_type = labels[i] as usize;
         for j in 0..n_genes {
             let base_expression = expression_patterns[[cell_type, j]];
-            let noise = rng.sample(Normal::new(0.0, noise_level).unwrap());
+            let noise = rng.sample(Normal::new(0.0, noise_level).expect("sampling should succeed"));
             expression[[i, j]] = base_expression + noise;
         }
     }
@@ -164,7 +164,7 @@ pub fn make_document_clustering_dataset(
     for i in 0..n_topics {
         for j in 0..n_features {
             // Use gamma distribution for topic-word probabilities
-            topic_distributions[[i, j]] = rng.sample(Normal::new(0.0, 1.0).unwrap()).abs();
+            topic_distributions[[i, j]] = rng.sample(Normal::new(0.0, 1.0).expect("sampling should succeed")).abs();
         }
 
         // Normalize to get probability distribution
@@ -186,7 +186,7 @@ pub fn make_document_clustering_dataset(
             if rng.gen() > sparsity {
                 // Sample word count based on topic distribution
                 let word_prob = topic_distributions[[topic, j]];
-                let word_count = rng.sample(Normal::new(word_prob * 100.0, 10.0).unwrap()).max(0.0);
+                let word_count = rng.sample(Normal::new(word_prob * 100.0, 10.0).expect("sampling should succeed")).max(0.0);
                 documents[[i, j]] = word_count;
             }
         }
@@ -247,7 +247,7 @@ pub fn make_synthetic_image_classification(
 
         for j in 0..n_pixels {
             let base_value = prototypes[[class, j]];
-            let noise = rng.sample(Normal::new(0.0, noise_level).unwrap());
+            let noise = rng.sample(Normal::new(0.0, noise_level).expect("sampling should succeed"));
             images[[i, j]] = (base_value + noise).clamp(0.0, 1.0);
         }
     }
@@ -305,7 +305,7 @@ pub fn make_privacy_preserving_dataset(
     // Add calibrated Gaussian noise
     for i in 0..n_rows {
         for j in 0..n_cols {
-            let noise = rng.sample(Normal::new(0.0, noise_scale).unwrap());
+            let noise = rng.sample(Normal::new(0.0, noise_scale).expect("sampling should succeed"));
             result[[i, j]] += noise;
         }
     }
@@ -436,7 +436,7 @@ pub fn make_ab_testing_simulation(
     for i in 0..n_users {
         let baseline = features.row(i).sum() * 0.5; // Feature effect
         let treatment_contribution = treatments[i] as f64 * treatment_effect;
-        let noise = rng.sample(Normal::new(0.0, 1.0).unwrap());
+        let noise = rng.sample(Normal::new(0.0, 1.0).expect("sampling should succeed"));
 
         outcomes[i] = baseline + treatment_contribution + noise;
     }

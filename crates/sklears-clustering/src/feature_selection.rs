@@ -142,7 +142,8 @@ impl FeatureSelector {
                     .iter()
                     .map(|&idx| (idx, feature_scores[idx]))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
                 selected_features = indexed_scores.iter().take(n).map(|(idx, _)| *idx).collect();
             }
         }
@@ -212,7 +213,7 @@ impl FeatureSelector {
             .map(|(idx, &score)| (idx, score))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_features: Vec<usize> = indexed_scores
             .iter()
@@ -247,7 +248,7 @@ impl FeatureSelector {
             }
 
             // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for (j, dist) in distances.iter().take(self.config.n_neighbors) {
                 // Gaussian kernel weight
@@ -495,7 +496,7 @@ impl FeatureSelectionResult {
             .map(|(idx, &score)| (idx, score))
             .collect();
 
-        ranking.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        ranking.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         ranking
     }
 
@@ -528,7 +529,7 @@ mod tests {
                 })
                 .collect(),
         )
-        .unwrap()
+        .expect("operation should succeed")
     }
 
     #[test]
@@ -536,7 +537,9 @@ mod tests {
         let data = generate_test_data();
         let selector = FeatureSelector::with_method(FeatureSelectionMethod::Variance);
 
-        let result = selector.select_features(&data).unwrap();
+        let result = selector
+            .select_features(&data)
+            .expect("operation should succeed");
 
         assert!(result.n_selected > 0);
         assert!(result.n_selected <= 4);
@@ -552,7 +555,9 @@ mod tests {
             .build();
 
         let selector = FeatureSelector::new(config);
-        let result = selector.select_features(&data).unwrap();
+        let result = selector
+            .select_features(&data)
+            .expect("operation should succeed");
 
         assert!(result.n_selected > 0);
         // Should remove one of the correlated features (0 or 3)
@@ -569,8 +574,12 @@ mod tests {
         let data = generate_test_data();
         let selector = FeatureSelector::with_method(FeatureSelectionMethod::Variance);
 
-        let result = selector.select_features(&data).unwrap();
-        let transformed = selector.transform(&data, &result).unwrap();
+        let result = selector
+            .select_features(&data)
+            .expect("operation should succeed");
+        let transformed = selector
+            .transform(&data, &result)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), data.nrows());
         assert_eq!(transformed.ncols(), result.n_selected);
@@ -581,7 +590,9 @@ mod tests {
         let data = generate_test_data();
         let selector = FeatureSelector::with_method(FeatureSelectionMethod::Variance);
 
-        let (transformed, result) = selector.fit_transform(&data).unwrap();
+        let (transformed, result) = selector
+            .fit_transform(&data)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), data.nrows());
         assert_eq!(transformed.ncols(), result.n_selected);
@@ -598,7 +609,9 @@ mod tests {
             .build();
 
         let selector = FeatureSelector::new(config);
-        let result = selector.select_features(&data).unwrap();
+        let result = selector
+            .select_features(&data)
+            .expect("operation should succeed");
 
         assert_eq!(result.n_selected, 2);
         assert_eq!(result.selected_features.len(), 2);
@@ -609,7 +622,9 @@ mod tests {
         let data = generate_test_data();
         let selector = FeatureSelector::with_method(FeatureSelectionMethod::Variance);
 
-        let result = selector.select_features(&data).unwrap();
+        let result = selector
+            .select_features(&data)
+            .expect("operation should succeed");
         let ranking = result.feature_ranking();
 
         assert_eq!(ranking.len(), 4);

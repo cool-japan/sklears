@@ -4,6 +4,7 @@
 //! composite kernels, graph kernels, and advanced kernel methods.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -61,34 +62,40 @@ pub enum KernelType {
 }
 
 /// Create a kernel instance from a KernelType
-pub fn create_kernel(kernel_type: KernelType) -> Box<dyn Kernel> {
+pub fn create_kernel(kernel_type: KernelType) -> Result<Box<dyn Kernel>> {
     match kernel_type {
-        KernelType::Linear => Box::new(LinearKernel),
-        KernelType::Rbf { gamma } => Box::new(RbfKernel { gamma }),
+        KernelType::Linear => Ok(Box::new(LinearKernel)),
+        KernelType::Rbf { gamma } => Ok(Box::new(RbfKernel { gamma })),
         KernelType::Polynomial {
             gamma,
             coef0,
             degree,
-        } => Box::new(PolynomialKernel {
+        } => Ok(Box::new(PolynomialKernel {
             gamma,
             coef0,
             degree,
-        }),
-        KernelType::Sigmoid { gamma, coef0 } => Box::new(SigmoidKernel { gamma, coef0 }),
-        KernelType::Cosine => Box::new(CosineKernel),
-        KernelType::ChiSquared { gamma } => Box::new(ChiSquaredKernel { gamma }),
-        KernelType::Intersection => Box::new(IntersectionKernel),
-        KernelType::Hellinger => Box::new(HellingerKernel),
-        KernelType::JensenShannon => Box::new(JensenShannonKernel),
+        })),
+        KernelType::Sigmoid { gamma, coef0 } => Ok(Box::new(SigmoidKernel { gamma, coef0 })),
+        KernelType::Cosine => Ok(Box::new(CosineKernel)),
+        KernelType::ChiSquared { gamma } => Ok(Box::new(ChiSquaredKernel { gamma })),
+        KernelType::Intersection => Ok(Box::new(IntersectionKernel)),
+        KernelType::Hellinger => Ok(Box::new(HellingerKernel)),
+        KernelType::JensenShannon => Ok(Box::new(JensenShannonKernel)),
         KernelType::Periodic {
             length_scale,
             period,
-        } => Box::new(PeriodicKernel {
+        } => Ok(Box::new(PeriodicKernel {
             length_scale,
             period,
+        })),
+        KernelType::Precomputed => Err(SklearsError::InvalidParameter {
+            name: "kernel_type".to_string(),
+            reason: "precomputed kernels must be created with data".to_string(),
         }),
-        KernelType::Precomputed => panic!("Precomputed kernels must be created with data"),
-        KernelType::Custom(name) => panic!("Custom kernel '{}' not implemented", name),
+        KernelType::Custom(name) => Err(SklearsError::InvalidParameter {
+            name: "kernel_type".to_string(),
+            reason: format!("custom kernel '{}' not implemented", name),
+        }),
     }
 }
 
@@ -743,8 +750,10 @@ mod tests {
     #[test]
     fn test_kernel_matrix() {
         let kernel_fn = KernelFunction::new(KernelType::Linear);
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let y = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("array shape mismatch");
+        let y =
+            Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("array shape mismatch");
 
         let kernel_matrix = kernel_fn.compute_matrix(&x, &y);
 

@@ -856,14 +856,14 @@ mod tests {
             checksum: Some("sha256:abc123".to_string()),
         };
 
-        let success = detector.add_evidence(&investigation_id.unwrap(), evidence);
+        let success = detector.add_evidence(&investigation_id.unwrap_or_default(), evidence);
         assert!(success);
 
         // Complete investigation
-        let success = detector.complete_investigation(&investigation_id.unwrap());
+        let success = detector.complete_investigation(&investigation_id.unwrap_or_default());
         assert!(success);
 
-        let investigation = detector.investigations.get(&investigation_id.unwrap()).unwrap();
+        let investigation = detector.investigations.get(&investigation_id.unwrap_or_default()).unwrap_or_default();
         assert_eq!(investigation.status, InvestigationStatus::Completed);
         assert!(investigation.ended_at.is_some());
     }

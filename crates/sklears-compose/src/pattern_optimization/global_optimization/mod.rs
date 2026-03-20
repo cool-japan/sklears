@@ -215,7 +215,7 @@
 //!
 //!     println!("Method used: {}", analysis.method_comparison.methods_tested[0]);
 //!     println!("Convergence rate: {:.4}",
-//!         analysis.convergence_analysis.convergence_rates.values().next().unwrap());
+//!         analysis.convergence_analysis.convergence_rates.values().next().unwrap_or_default());
 //! }
 //! ```
 //!
@@ -572,7 +572,7 @@ mod tests {
         let result = optimizer.optimize(&problem);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.unwrap_or_default();
         assert!(result.best_solution.fitness >= 0.0); // Sphere function is non-negative
     }
 
@@ -584,7 +584,7 @@ mod tests {
         let result = optimizer.optimize(&problem);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.unwrap_or_default();
         assert!(result.best_solution.parameters.len() == 3);
     }
 
@@ -678,7 +678,7 @@ mod tests {
         let result: SklResult<OptimizationResult> = optimizer.optimize(&problem);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.unwrap_or_default();
         let _solution: Solution = result.best_solution;
     }
 }

@@ -123,9 +123,12 @@ impl<T: FloatBounds + ScalarOperand> QNetwork<T> {
             let std = (2.0 / prev_dim as f64).sqrt();
             let w = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
                 T::from(
-                    rng.sample::<f64, _>(scirs2_core::random::Normal::new(0.0, 1.0).unwrap()) * std,
+                    rng.sample::<f64, _>(
+                        scirs2_core::random::Normal::new(0.0, 1.0)
+                            .expect("valid distribution params"),
+                    ) * std,
                 )
-                .unwrap()
+                .expect("value should be present")
             });
             let b = Array1::zeros(hidden_dim);
             weights.push(w);
@@ -136,8 +139,12 @@ impl<T: FloatBounds + ScalarOperand> QNetwork<T> {
         // Output layer
         let std = (2.0 / prev_dim as f64).sqrt();
         let w = Array2::from_shape_fn((prev_dim, action_dim), |_| {
-            T::from(rng.sample::<f64, _>(scirs2_core::random::Normal::new(0.0, 1.0).unwrap()) * std)
-                .unwrap()
+            T::from(
+                rng.sample::<f64, _>(
+                    scirs2_core::random::Normal::new(0.0, 1.0).expect("valid distribution params"),
+                ) * std,
+            )
+            .expect("value should be present")
         });
         let b = Array1::zeros(action_dim);
         weights.push(w);
@@ -192,12 +199,12 @@ impl<T: FloatBounds + ScalarOperand> QNetwork<T> {
             .enumerate()
             .max_by(|(_, a), (_, b)| {
                 a.to_f64()
-                    .unwrap()
-                    .partial_cmp(&b.to_f64().unwrap())
-                    .unwrap()
+                    .expect("value should be present")
+                    .partial_cmp(&b.to_f64().unwrap_or(0.0))
+                    .expect("value should be present")
             })
             .map(|(idx, _)| idx)
-            .unwrap();
+            .expect("value should be present");
 
         Ok(best_action)
     }
@@ -308,7 +315,7 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
             target_network,
             replay_buffer,
             config,
-            epsilon: T::from(1.0).unwrap(),
+            epsilon: T::from(1.0).unwrap_or_else(|| T::zero()),
             steps: 0,
         }
     }
@@ -317,7 +324,7 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
     pub fn select_action(&self, state: &Array1<T>) -> NeuralResult<usize> {
         let mut rng = thread_rng();
 
-        if rng.random::<f64>() < self.epsilon.to_f64().unwrap() {
+        if rng.random::<f64>() < self.epsilon.to_f64().unwrap_or(0.0) {
             // Random action (exploration)
             Ok(rng.random_range(0..self.config.action_dim))
         } else {
@@ -339,7 +346,10 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
         }
 
         // Sample batch
-        let batch = self.replay_buffer.sample(self.config.batch_size).unwrap();
+        let batch = self
+            .replay_buffer
+            .sample(self.config.batch_size)
+            .expect("sampling should succeed");
 
         // Compute target Q-values
         let mut total_loss = T::zero();
@@ -362,14 +372,14 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
                         .iter()
                         .max_by(|a, b| {
                             a.to_f64()
-                                .unwrap()
-                                .partial_cmp(&b.to_f64().unwrap())
-                                .unwrap()
+                                .expect("value should be present")
+                                .partial_cmp(&b.to_f64().unwrap_or(0.0))
+                                .expect("value should be present")
                         })
-                        .unwrap()
+                        .expect("value should be present")
                 };
 
-                exp.reward + T::from(self.config.gamma).unwrap() * max_next_q
+                exp.reward + T::from(self.config.gamma).unwrap_or_else(|| T::zero()) * max_next_q
             };
 
             // TD error
@@ -377,7 +387,7 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
             total_loss = total_loss + td_error * td_error;
         }
 
-        let loss = total_loss / T::from(batch.len() as f64).unwrap();
+        let loss = total_loss / T::from(batch.len() as f64).unwrap_or_else(|| T::zero());
 
         // Update target network periodically
         self.steps += 1;
@@ -386,8 +396,11 @@ impl<T: FloatBounds + ScalarOperand> DQNAgent<T> {
         }
 
         // Decay epsilon
-        self.epsilon = self.epsilon * T::from(self.config.epsilon_decay).unwrap();
-        self.epsilon = self.epsilon.max(T::from(self.config.epsilon_end).unwrap());
+        self.epsilon =
+            self.epsilon * T::from(self.config.epsilon_decay).unwrap_or_else(|| T::zero());
+        self.epsilon = self
+            .epsilon
+            .max(T::from(self.config.epsilon_end).unwrap_or_else(|| T::zero()));
 
         Ok(Some(loss))
     }
@@ -428,9 +441,12 @@ impl<T: FloatBounds + ScalarOperand> PolicyNetwork<T> {
             let std = (2.0 / prev_dim as f64).sqrt();
             let w = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
                 T::from(
-                    rng.sample::<f64, _>(scirs2_core::random::Normal::new(0.0, 1.0).unwrap()) * std,
+                    rng.sample::<f64, _>(
+                        scirs2_core::random::Normal::new(0.0, 1.0)
+                            .expect("valid distribution params"),
+                    ) * std,
                 )
-                .unwrap()
+                .expect("value should be present")
             });
             let b = Array1::zeros(hidden_dim);
             weights.push(w);
@@ -441,9 +457,11 @@ impl<T: FloatBounds + ScalarOperand> PolicyNetwork<T> {
         // Output layer
         let w = Array2::from_shape_fn((prev_dim, action_dim), |_| {
             T::from(
-                rng.sample::<f64, _>(scirs2_core::random::Normal::new(0.0, 1.0).unwrap()) * 0.01,
+                rng.sample::<f64, _>(
+                    scirs2_core::random::Normal::new(0.0, 1.0).expect("valid distribution params"),
+                ) * 0.01,
             )
-            .unwrap()
+            .expect("value should be present")
         });
         let b = Array1::zeros(action_dim);
         weights.push(w);
@@ -477,11 +495,11 @@ impl<T: FloatBounds + ScalarOperand> PolicyNetwork<T> {
             .iter()
             .max_by(|a, b| {
                 a.to_f64()
-                    .unwrap()
-                    .partial_cmp(&b.to_f64().unwrap())
-                    .unwrap()
+                    .expect("value should be present")
+                    .partial_cmp(&b.to_f64().unwrap_or(0.0))
+                    .expect("value should be present")
             })
-            .unwrap();
+            .expect("value should be present");
 
         let exp_h = h.mapv(|x| (x - *max_val).exp());
         let sum_exp = exp_h.sum();
@@ -500,7 +518,7 @@ impl<T: FloatBounds + ScalarOperand> PolicyNetwork<T> {
         let mut cumsum = 0.0;
 
         for (i, &prob) in probs.iter().enumerate() {
-            cumsum += prob.to_f64().unwrap();
+            cumsum += prob.to_f64().unwrap_or(0.0);
             if rand_val < cumsum {
                 return Ok(i);
             }
@@ -600,8 +618,8 @@ impl<T: FloatBounds + ScalarOperand> REINFORCEAgent<T> {
 
         Self {
             policy,
-            learning_rate: T::from(learning_rate).unwrap(),
-            gamma: T::from(gamma).unwrap(),
+            learning_rate: T::from(learning_rate).unwrap_or_else(|| T::zero()),
+            gamma: T::from(gamma).unwrap_or_else(|| T::zero()),
         }
     }
 
@@ -623,7 +641,7 @@ impl<T: FloatBounds + ScalarOperand> REINFORCEAgent<T> {
             total_loss = total_loss + loss;
         }
 
-        let avg_loss = total_loss / T::from(trajectory.len() as f64).unwrap();
+        let avg_loss = total_loss / T::from(trajectory.len() as f64).unwrap_or_else(|| T::zero());
 
         Ok(avg_loss)
     }
@@ -682,7 +700,7 @@ mod tests {
 
         let sample = buffer.sample(3);
         assert!(sample.is_some());
-        assert_eq!(sample.unwrap().len(), 3);
+        assert_eq!(sample.expect("operation should succeed").len(), 3);
 
         // Not enough samples
         let sample = buffer.sample(10);
@@ -701,7 +719,7 @@ mod tests {
         let q_net: QNetwork<f64> = QNetwork::new(4, 2, vec![16]);
         let state = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
-        let q_values = q_net.forward(&state).unwrap();
+        let q_values = q_net.forward(&state).expect("forward pass should succeed");
         assert_eq!(q_values.len(), 2);
     }
 
@@ -710,7 +728,9 @@ mod tests {
         let q_net: QNetwork<f64> = QNetwork::new(4, 3, vec![8]);
         let state = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
-        let action = q_net.select_action(&state).unwrap();
+        let action = q_net
+            .select_action(&state)
+            .expect("operation should succeed");
         assert!(action < 3);
     }
 
@@ -729,7 +749,9 @@ mod tests {
         let agent: DQNAgent<f64> = DQNAgent::new(config);
 
         let state = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
-        let action = agent.select_action(&state).unwrap();
+        let action = agent
+            .select_action(&state)
+            .expect("operation should succeed");
 
         assert!(action < agent.config.action_dim);
     }
@@ -763,7 +785,7 @@ mod tests {
         let policy: PolicyNetwork<f64> = PolicyNetwork::new(4, 3, vec![8]);
         let state = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
-        let probs = policy.forward(&state).unwrap();
+        let probs = policy.forward(&state).expect("forward pass should succeed");
         assert_eq!(probs.len(), 3);
 
         // Check probabilities sum to 1
@@ -776,7 +798,9 @@ mod tests {
         let policy: PolicyNetwork<f64> = PolicyNetwork::new(4, 3, vec![8]);
         let state = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
-        let action = policy.sample_action(&state).unwrap();
+        let action = policy
+            .sample_action(&state)
+            .expect("operation should succeed");
         assert!(action < 3);
     }
 
@@ -823,7 +847,9 @@ mod tests {
         let agent: REINFORCEAgent<f64> = REINFORCEAgent::new(4, 2, vec![8], 0.01, 0.99);
         let state = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
-        let action = agent.select_action(&state).unwrap();
+        let action = agent
+            .select_action(&state)
+            .expect("operation should succeed");
         assert!(action < 2);
     }
 

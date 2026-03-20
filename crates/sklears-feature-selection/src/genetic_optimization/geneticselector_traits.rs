@@ -93,9 +93,9 @@ where
             let best_idx = fitness_scores
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(i, _)| i)
-                .unwrap();
+                .expect("operation should succeed");
             new_population.push(population[best_idx].clone());
             while new_population.len() < self.population_size {
                 let parent1 = tournament_selection(
@@ -154,16 +154,16 @@ where
 
 impl<E> Transform<Array2<Float>> for GeneticSelector<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
-        let selected_features = self.best_features_.as_ref().unwrap();
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
+        let selected_features = self.best_features_.as_ref().expect("operation should succeed");
         extract_features(x, selected_features)
     }
 }
 
 impl<E> SelectorMixin for GeneticSelector<E, Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.best_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self.best_features_.as_ref().expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
         for &idx in selected_features {
             support[idx] = true;
@@ -171,7 +171,7 @@ impl<E> SelectorMixin for GeneticSelector<E, Trained> {
         Ok(support)
     }
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.best_features_.as_ref().unwrap();
+        let selected_features = self.best_features_.as_ref().expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))

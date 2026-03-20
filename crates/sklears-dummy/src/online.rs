@@ -599,13 +599,19 @@ mod tests {
                 drift_detection: None,
             });
 
-        regressor.partial_fit(1.0).unwrap();
+        regressor
+            .partial_fit(1.0)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(regressor.predict_single(), 1.0, epsilon = 1e-10);
 
-        regressor.partial_fit(3.0).unwrap();
+        regressor
+            .partial_fit(3.0)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(regressor.predict_single(), 2.0, epsilon = 1e-10);
 
-        regressor.partial_fit(2.0).unwrap();
+        regressor
+            .partial_fit(2.0)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(regressor.predict_single(), 2.0, epsilon = 1e-10);
     }
 
@@ -614,13 +620,19 @@ mod tests {
         let mut regressor: OnlineDummyRegressor =
             OnlineDummyRegressor::new(OnlineStrategy::EWMA { alpha: 0.5 });
 
-        regressor.partial_fit(1.0).unwrap();
+        regressor
+            .partial_fit(1.0)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(regressor.predict_single(), 1.0, epsilon = 1e-10);
 
-        regressor.partial_fit(3.0).unwrap();
+        regressor
+            .partial_fit(3.0)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(regressor.predict_single(), 2.0, epsilon = 1e-10);
 
-        regressor.partial_fit(1.0).unwrap();
+        regressor
+            .partial_fit(1.0)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(regressor.predict_single(), 1.5, epsilon = 1e-10);
     }
 
@@ -633,7 +645,9 @@ mod tests {
             });
 
         for value in [1.0, 2.0, 3.0, 4.0, 5.0] {
-            regressor.partial_fit(value).unwrap();
+            regressor
+                .partial_fit(value)
+                .expect("operation should succeed");
         }
 
         // Should approximate median (be more tolerant)
@@ -669,11 +683,15 @@ mod tests {
 
         // Add some normal data
         for value in [1.0, 1.1, 0.9, 1.0, 1.1] {
-            regressor.partial_fit(value).unwrap();
+            regressor
+                .partial_fit(value)
+                .expect("operation should succeed");
         }
 
         // Add drift
-        regressor.partial_fit(5.0).unwrap();
+        regressor
+            .partial_fit(5.0)
+            .expect("operation should succeed");
 
         // Window should be manageable (may grow initially then reduce)
         assert!(regressor.window_data.len() <= 10); // More tolerant of implementation details
@@ -684,10 +702,14 @@ mod tests {
         let mut regressor: OnlineDummyRegressor =
             OnlineDummyRegressor::new(OnlineStrategy::ForgettingFactor { lambda: 0.9 });
 
-        regressor.partial_fit(1.0).unwrap();
+        regressor
+            .partial_fit(1.0)
+            .expect("operation should succeed");
         let pred1 = regressor.predict_single();
 
-        regressor.partial_fit(10.0).unwrap();
+        regressor
+            .partial_fit(10.0)
+            .expect("operation should succeed");
         let pred2 = regressor.predict_single();
 
         // Second prediction should be closer to recent value due to forgetting
@@ -704,12 +726,16 @@ mod tests {
 
         // Add stable data
         for value in [1.0; 10] {
-            regressor.partial_fit(value).unwrap();
+            regressor
+                .partial_fit(value)
+                .expect("operation should succeed");
         }
 
         // Add drift
         for value in [5.0; 5] {
-            regressor.partial_fit(value).unwrap();
+            regressor
+                .partial_fit(value)
+                .expect("operation should succeed");
         }
 
         // Should have updated to handle drift
@@ -727,7 +753,9 @@ mod tests {
         let mut regressor = regressor;
 
         for value in [1.0, 2.0, 3.0, 4.0, 5.0] {
-            regressor.partial_fit(value).unwrap();
+            regressor
+                .partial_fit(value)
+                .expect("operation should succeed");
         }
 
         // Window should only contain last 3 values
@@ -739,15 +767,15 @@ mod tests {
 
     #[test]
     fn test_online_estimator_trait() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
         let regressor = OnlineDummyRegressor::new(OnlineStrategy::OnlineMean {
             drift_detection: None,
         });
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_abs_diff_eq!(predictions[0], 2.5, epsilon = 1e-10); // Mean of [1,2,3,4]

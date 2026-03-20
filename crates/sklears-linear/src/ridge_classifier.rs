@@ -407,10 +407,13 @@ mod tests {
         ];
         let y = array![1, 1, 1, 0, 0, 0];
 
-        let model = RidgeClassifier::new().alpha(1.0).fit(&x, &y).unwrap();
+        let model = RidgeClassifier::new()
+            .alpha(1.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let _predictions = model.predict(&x).unwrap();
-        let accuracy = model.score(&x, &y).unwrap();
+        let _predictions = model.predict(&x).expect("prediction should succeed");
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
 
         // Should achieve good classification on this simple data
         assert!(accuracy > 0.8);
@@ -432,9 +435,12 @@ mod tests {
         ];
         let y = array![0, 0, 1, 1, 2, 2];
 
-        let model = RidgeClassifier::new().alpha(0.1).fit(&x, &y).unwrap();
+        let model = RidgeClassifier::new()
+            .alpha(0.1)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let accuracy = model.score(&x, &y).unwrap();
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
         assert!(accuracy > 0.8);
 
         // Check that we have the right number of classes
@@ -450,9 +456,9 @@ mod tests {
         let model = RidgeClassifier::new()
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let intercept = model.intercept().unwrap();
+        let intercept = model.intercept().expect("intercept should be available");
         assert!(intercept.iter().all(|&v| v == 0.0));
     }
 
@@ -462,7 +468,10 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         // With very high alpha, coefficients should be small
-        let model = RidgeClassifier::new().alpha(1000.0).fit(&x, &y).unwrap();
+        let model = RidgeClassifier::new()
+            .alpha(1000.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         let coef = model.coef();
         assert!(coef.iter().all(|&c| c.abs() < 0.1));
@@ -473,23 +482,27 @@ mod tests {
         let x = array![[1.0, 1.0], [-1.0, -1.0],];
         let y = array![1, 0];
 
-        let model = RidgeClassifier::new().fit(&x, &y).unwrap();
+        let model = RidgeClassifier::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let decision = model.decision_function(&x).unwrap();
+        let decision = model
+            .decision_function(&x)
+            .expect("operation should succeed");
 
         // For binary classification, we should have 2 columns
         assert_eq!(decision.ncols(), 2);
 
         // The predicted class should have the highest score
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         for (i, &pred) in predictions.iter().enumerate() {
             let scores = decision.row(i);
             let max_idx = scores
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
-                .unwrap();
+                .expect("operation should succeed");
             assert_eq!(model.classes()[max_idx], pred);
         }
     }

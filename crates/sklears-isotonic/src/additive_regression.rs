@@ -309,8 +309,8 @@ impl Predict<Array2<Float>, Array1<Float>> for AdditiveIsotonicRegression<Traine
             )));
         }
 
-        let feature_functions = self.feature_functions_.as_ref().unwrap();
-        let feature_grids = self.feature_grids_.as_ref().unwrap();
+        let feature_functions = self.feature_functions_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let feature_grids = self.feature_grids_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let intercept = self.intercept_.unwrap_or(0.0);
 
         let mut predictions = Array1::from_elem(n_samples, intercept);

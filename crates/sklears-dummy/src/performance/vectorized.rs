@@ -4,12 +4,15 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 
 /// Vectorized prediction operations
 pub fn vectorized_predict_mean(data: &Array2<f64>) -> Array1<f64> {
-    data.mean_axis(Axis(1)).unwrap()
+    data.mean_axis(Axis(1))
+        .expect("array should have elements for mean computation")
 }
 
 /// Vectorized statistical computations
 pub fn vectorized_stats(data: &Array2<f64>) -> (Array1<f64>, Array1<f64>) {
-    let means = data.mean_axis(Axis(0)).unwrap();
+    let means = data
+        .mean_axis(Axis(0))
+        .expect("array should have elements for mean computation");
     let vars = data.var_axis(Axis(0), 1.0);
     (means, vars)
 }

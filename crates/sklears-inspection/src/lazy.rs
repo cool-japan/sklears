@@ -155,7 +155,7 @@ where
     pub fn get(&self) -> crate::SklResult<T> {
         // Check cache first
         {
-            let cache = self.cached_result.lock().unwrap();
+            let cache = self.cached_result.lock().expect("operation should succeed");
             if let Some(result) = cache.as_ref() {
                 return Ok(result.clone());
             }
@@ -165,7 +165,7 @@ where
         let result = (self.computation)()?;
 
         {
-            let mut cache = self.cached_result.lock().unwrap();
+            let mut cache = self.cached_result.lock().expect("operation should succeed");
             *cache = Some(result.clone());
         }
 
@@ -174,13 +174,13 @@ where
 
     /// Force recomputation
     pub fn invalidate(&self) {
-        let mut cache = self.cached_result.lock().unwrap();
+        let mut cache = self.cached_result.lock().expect("operation should succeed");
         *cache = None;
     }
 
     /// Check if result is cached
     pub fn is_cached(&self) -> bool {
-        let cache = self.cached_result.lock().unwrap();
+        let cache = self.cached_result.lock().expect("operation should succeed");
         cache.is_some()
     }
 
@@ -221,12 +221,15 @@ impl LazyComputationManager {
         let dependencies = computation.dependencies().to_vec();
 
         {
-            let mut computations = self.computations.lock().unwrap();
+            let mut computations = self.computations.lock().expect("operation should succeed");
             computations.insert(id.clone(), Box::new(computation));
         }
 
         {
-            let mut graph = self.dependency_graph.lock().unwrap();
+            let mut graph = self
+                .dependency_graph
+                .lock()
+                .expect("operation should succeed");
             graph.insert(id, dependencies);
         }
     }
@@ -237,9 +240,9 @@ impl LazyComputationManager {
 
         // Check cache first
         {
-            let cache = self.cache.lock().unwrap();
+            let cache = self.cache.lock().expect("operation should succeed");
             if let Some(_result) = cache.get(id) {
-                let mut stats = self.stats.lock().unwrap();
+                let mut stats = self.stats.lock().expect("operation should succeed");
                 stats.cache_hits += 1;
                 // For now, we'll skip the cache return and always recompute
                 // In a real implementation, you'd need proper type handling
@@ -251,7 +254,7 @@ impl LazyComputationManager {
 
         // Execute computation
         let result = {
-            let computations = self.computations.lock().unwrap();
+            let computations = self.computations.lock().expect("operation should succeed");
             let computation = computations.get(id).ok_or_else(|| {
                 SklearsError::InvalidInput(format!("Computation '{}' not found", id))
             })?;
@@ -261,7 +264,7 @@ impl LazyComputationManager {
 
         // Update cache (simplified for now)
         {
-            let _cache = self.cache.lock().unwrap();
+            let _cache = self.cache.lock().expect("operation should succeed");
             // Note: In a real implementation, you'd need proper cloning support
             // cache.insert(id.to_string(), result);
         }
@@ -269,7 +272,7 @@ impl LazyComputationManager {
         // Update statistics
         let execution_time = start_time.elapsed().as_secs_f64();
         {
-            let mut stats = self.stats.lock().unwrap();
+            let mut stats = self.stats.lock().expect("operation should succeed");
             stats.computations_executed += 1;
             stats.cache_misses += 1;
             stats.total_execution_time += execution_time;
@@ -283,7 +286,10 @@ impl LazyComputationManager {
     /// Execute dependencies recursively
     fn execute_dependencies(&self, id: &str) -> crate::SklResult<()> {
         let dependencies = {
-            let graph = self.dependency_graph.lock().unwrap();
+            let graph = self
+                .dependency_graph
+                .lock()
+                .expect("operation should succeed");
             graph.get(id).cloned().unwrap_or_default()
         };
 
@@ -296,12 +302,12 @@ impl LazyComputationManager {
 
     /// Get execution statistics
     pub fn get_statistics(&self) -> LazyExecutionStats {
-        self.stats.lock().unwrap().clone()
+        self.stats.lock().expect("operation should succeed").clone()
     }
 
     /// Clear cache
     pub fn clear_cache(&self) {
-        let mut cache = self.cache.lock().unwrap();
+        let mut cache = self.cache.lock().expect("operation should succeed");
         cache.clear();
     }
 
@@ -309,7 +315,7 @@ impl LazyComputationManager {
     pub fn invalidate(&self, id: &str) {
         // Remove from cache
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock().expect("operation should succeed");
             cache.remove(id);
         }
 
@@ -322,7 +328,10 @@ impl LazyComputationManager {
 
     /// Find computations that depend on the given computation
     fn find_dependents(&self, id: &str) -> Vec<String> {
-        let graph = self.dependency_graph.lock().unwrap();
+        let graph = self
+            .dependency_graph
+            .lock()
+            .expect("operation should succeed");
         graph
             .iter()
             .filter(|(_, deps)| deps.contains(&id.to_string()))
@@ -350,7 +359,10 @@ impl LazyFeatureImportance {
     pub fn get_importance(&self) -> crate::SklResult<Array1<Float>> {
         // Check cache
         {
-            let cache = self.importance_cache.lock().unwrap();
+            let cache = self
+                .importance_cache
+                .lock()
+                .expect("operation should succeed");
             if let Some(importance) = cache.as_ref() {
                 return Ok(importance.clone());
             }
@@ -361,7 +373,10 @@ impl LazyFeatureImportance {
 
         // Cache result
         {
-            let mut cache = self.importance_cache.lock().unwrap();
+            let mut cache = self
+                .importance_cache
+                .lock()
+                .expect("operation should succeed");
             *cache = Some(importance.clone());
         }
 
@@ -439,7 +454,10 @@ impl LazyFeatureImportance {
 
     /// Invalidate cache
     pub fn invalidate(&self) {
-        let mut cache = self.importance_cache.lock().unwrap();
+        let mut cache = self
+            .importance_cache
+            .lock()
+            .expect("operation should succeed");
         *cache = None;
     }
 }
@@ -463,7 +481,7 @@ impl LazyShapValues {
     pub fn get_shap_values(&self) -> crate::SklResult<Array2<Float>> {
         // Check cache
         {
-            let cache = self.shap_cache.lock().unwrap();
+            let cache = self.shap_cache.lock().expect("operation should succeed");
             if let Some(shap_values) = cache.as_ref() {
                 return Ok(shap_values.clone());
             }
@@ -474,7 +492,7 @@ impl LazyShapValues {
 
         // Cache result
         {
-            let mut cache = self.shap_cache.lock().unwrap();
+            let mut cache = self.shap_cache.lock().expect("operation should succeed");
             *cache = Some(shap_values.clone());
         }
 
@@ -512,7 +530,10 @@ impl LazyShapValues {
     /// Get or compute background data
     fn get_background_data(&self) -> crate::SklResult<Array2<Float>> {
         {
-            let cache = self.background_data.lock().unwrap();
+            let cache = self
+                .background_data
+                .lock()
+                .expect("operation should succeed");
             if let Some(bg_data) = cache.as_ref() {
                 return Ok(bg_data.clone());
             }
@@ -527,7 +548,10 @@ impl LazyShapValues {
 
         // Cache result
         {
-            let mut cache = self.background_data.lock().unwrap();
+            let mut cache = self
+                .background_data
+                .lock()
+                .expect("operation should succeed");
             *cache = Some(background_data.clone());
         }
 
@@ -536,10 +560,13 @@ impl LazyShapValues {
 
     /// Invalidate cache
     pub fn invalidate(&self) {
-        let mut cache = self.shap_cache.lock().unwrap();
+        let mut cache = self.shap_cache.lock().expect("operation should succeed");
         *cache = None;
 
-        let mut bg_cache = self.background_data.lock().unwrap();
+        let mut bg_cache = self
+            .background_data
+            .lock()
+            .expect("operation should succeed");
         *bg_cache = None;
     }
 }
@@ -612,12 +639,12 @@ mod tests {
         let lazy_exp =
             LazyExplanation::new("test_computation".to_string(), || Ok(vec![1.0, 2.0, 3.0]));
 
-        let result = lazy_exp.get().unwrap();
+        let result = lazy_exp.get().expect("operation should succeed");
         assert_eq!(result, vec![1.0, 2.0, 3.0]);
         assert!(lazy_exp.is_cached());
 
         // Second call should use cache
-        let result2 = lazy_exp.get().unwrap();
+        let result2 = lazy_exp.get().expect("operation should succeed");
         assert_eq!(result2, vec![1.0, 2.0, 3.0]);
     }
 
@@ -627,7 +654,7 @@ mod tests {
             LazyExplanation::new("test_computation".to_string(), || Ok(vec![1.0, 2.0, 3.0]));
 
         // Execute once
-        lazy_exp.get().unwrap();
+        lazy_exp.get().expect("operation should succeed");
         assert!(lazy_exp.is_cached());
 
         // Invalidate
@@ -647,7 +674,9 @@ mod tests {
 
         let lazy_importance = LazyFeatureImportance::new(data, target, model, config);
 
-        let importance = lazy_importance.get_importance().unwrap();
+        let importance = lazy_importance
+            .get_importance()
+            .expect("operation should succeed");
         assert_eq!(importance.len(), 2);
     }
 
@@ -662,7 +691,9 @@ mod tests {
 
         let lazy_shap = LazyShapValues::new(data, model, config);
 
-        let shap_values = lazy_shap.get_shap_values().unwrap();
+        let shap_values = lazy_shap
+            .get_shap_values()
+            .expect("operation should succeed");
         assert_eq!(shap_values.shape(), &[3, 2]);
     }
 
@@ -728,10 +759,14 @@ mod tests {
         let lazy_importance = LazyFeatureImportance::new(data, target, model, config);
 
         // First call should compute
-        let importance1 = lazy_importance.get_importance().unwrap();
+        let importance1 = lazy_importance
+            .get_importance()
+            .expect("operation should succeed");
 
         // Second call should use cache (same result)
-        let importance2 = lazy_importance.get_importance().unwrap();
+        let importance2 = lazy_importance
+            .get_importance()
+            .expect("operation should succeed");
 
         assert_eq!(importance1, importance2);
     }
@@ -748,10 +783,14 @@ mod tests {
         let lazy_shap = LazyShapValues::new(data, model, config);
 
         // First call should compute
-        let shap1 = lazy_shap.get_shap_values().unwrap();
+        let shap1 = lazy_shap
+            .get_shap_values()
+            .expect("operation should succeed");
 
         // Second call should use cache (same result)
-        let shap2 = lazy_shap.get_shap_values().unwrap();
+        let shap2 = lazy_shap
+            .get_shap_values()
+            .expect("operation should succeed");
 
         assert_eq!(shap1, shap2);
     }

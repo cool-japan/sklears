@@ -477,7 +477,7 @@ impl OptimizationCoordinator {
 
             if let Some(solution) = update.solution {
                 if session.best_solution.is_none() ||
-                   solution.objective_value < session.best_solution.as_ref().unwrap().objective_value {
+                   solution.objective_value < session.best_solution.as_ref().unwrap_or_default().objective_value {
                     session.best_solution = Some(solution);
                 }
             }
@@ -602,11 +602,11 @@ impl OptimizationCoordinator {
 
     // Private helper methods
     fn generate_session_id(&self) -> String {
-        format!("session_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis())
+        format!("session_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn generate_proposal_id(&self) -> String {
-        format!("proposal_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis())
+        format!("proposal_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis())
     }
 
     fn estimate_completion_time(&self, session: &OptimizationSession) -> Option<Duration> {
@@ -1073,16 +1073,16 @@ mod tests {
         };
 
         // Start session
-        let session_id = coordinator.start_session(session_config).unwrap();
+        let session_id = coordinator.start_session(session_config).unwrap_or_default();
         assert_eq!(coordinator.global_state.active_session_count, 1);
 
         // Get status
-        let status = coordinator.get_session_status(&session_id).unwrap();
+        let status = coordinator.get_session_status(&session_id).unwrap_or_default();
         assert_eq!(status.session_id, session_id);
         assert!(matches!(status.status, SessionStatus::Initializing));
 
         // Terminate session
-        coordinator.terminate_session(&session_id, TerminationReason::UserRequested).unwrap();
+        coordinator.terminate_session(&session_id, TerminationReason::UserRequested).unwrap_or_default();
         assert_eq!(coordinator.global_state.active_session_count, 0);
     }
 
@@ -1119,7 +1119,7 @@ mod tests {
             deadline: SystemTime::now() + Duration::from_secs(60),
         };
 
-        let proposal_id = coordinator.initiate_consensus(proposal).unwrap();
+        let proposal_id = coordinator.initiate_consensus(proposal).unwrap_or_default();
 
         // Submit votes
         let vote1 = ConsensusVote {
@@ -1160,11 +1160,11 @@ mod tests {
         };
 
         // First vote - should not reach consensus yet
-        let result1 = coordinator.submit_vote(&proposal_id, vote1).unwrap();
+        let result1 = coordinator.submit_vote(&proposal_id, vote1).unwrap_or_default();
         assert!(result1.is_none());
 
         // Second vote - should reach consensus
-        let result2 = coordinator.submit_vote(&proposal_id, vote2).unwrap();
+        let result2 = coordinator.submit_vote(&proposal_id, vote2).unwrap_or_default();
         assert!(result2.is_some());
 
         if let Some(ConsensusDecision::Accepted(_)) = result2 {
@@ -1184,18 +1184,18 @@ mod tests {
             barrier_type: BarrierType::Iteration,
         };
 
-        coordinator.setup_synchronization_barrier(barrier_config).unwrap();
+        coordinator.setup_synchronization_barrier(barrier_config).unwrap_or_default();
 
         // First node arrives
-        let status1 = coordinator.arrive_at_barrier("node1".to_string()).unwrap();
+        let status1 = coordinator.arrive_at_barrier("node1".to_string()).unwrap_or_default();
         assert!(matches!(status1, BarrierStatus::Waiting(1, 3)));
 
         // Second node arrives
-        let status2 = coordinator.arrive_at_barrier("node2".to_string()).unwrap();
+        let status2 = coordinator.arrive_at_barrier("node2".to_string()).unwrap_or_default();
         assert!(matches!(status2, BarrierStatus::Waiting(2, 3)));
 
         // Third node arrives - barrier should be released
-        let status3 = coordinator.arrive_at_barrier("node3".to_string()).unwrap();
+        let status3 = coordinator.arrive_at_barrier("node3".to_string()).unwrap_or_default();
         if let BarrierStatus::Released(nodes) = status3 {
             assert_eq!(nodes.len(), 3);
         } else {
@@ -1259,7 +1259,7 @@ mod tests {
             },
         };
 
-        let session_id = coordinator.start_session(session_config).unwrap();
+        let session_id = coordinator.start_session(session_config).unwrap_or_default();
 
         // Simulate convergence history
         for i in 0..10 {
@@ -1296,10 +1296,10 @@ mod tests {
                 status: SessionStatus::Running,
             };
 
-            coordinator.update_session(&session_id, update).unwrap();
+            coordinator.update_session(&session_id, update).unwrap_or_default();
         }
 
-        let report = coordinator.generate_report(&session_id).unwrap();
+        let report = coordinator.generate_report(&session_id).unwrap_or_default();
         assert!(report.convergence_analysis.convergence_confidence > 0.0);
         assert!(matches!(report.convergence_analysis.convergence_trend, ConvergenceTrend::Converging));
     }

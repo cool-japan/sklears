@@ -95,7 +95,7 @@ impl RetryStrategy for ExponentialBackoffStrategy {
     }
 
     fn update_state(&mut self, result: &RetryResult, context: &RetryContext) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         match result {
             Ok(()) => {
@@ -302,7 +302,7 @@ impl AdaptiveStrategy {
 
     /// Calculate adaptive delay based on context
     fn calculate_adaptive_delay(&self, attempt: u32, context: &RetryContext) -> Duration {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         // Base calculation using current strategy
         let base_delay = match state.current_strategy.as_str() {
@@ -334,7 +334,7 @@ impl AdaptiveStrategy {
             return;
         }
 
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         // Calculate current success rate
         let success = result.is_ok();
@@ -370,7 +370,7 @@ impl RetryStrategy for AdaptiveStrategy {
         }
 
         // Adaptive decision based on recent performance
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if state.performance_score < 0.1 && context.current_attempt > 1 {
             return false; // Stop early if performing very poorly
         }
@@ -444,13 +444,13 @@ impl CircuitBreakerStrategy {
 
     /// Check if circuit is open
     fn is_circuit_open(&self) -> bool {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         matches!(*state, CircuitBreakerState::Open { .. })
     }
 
     /// Check if recovery timeout has passed
     fn should_attempt_reset(&self) -> bool {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if let CircuitBreakerState::Open { opened_at } = *state {
             SystemTime::now().duration_since(opened_at).unwrap_or(Duration::ZERO)
                 >= self.circuit_config.recovery_timeout
@@ -476,7 +476,7 @@ impl RetryStrategy for CircuitBreakerStrategy {
     }
 
     fn update_state(&mut self, result: &RetryResult, _context: &RetryContext) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         match &mut *state {
             CircuitBreakerState::Closed { failure_count } => {

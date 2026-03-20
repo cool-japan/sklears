@@ -663,8 +663,8 @@ mod tests {
             .with_tol(1e-6)
             .with_random_state(42);
 
-        let trained = model.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = model.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         // Check that we have reasonable accuracy
         let accuracy = predictions
@@ -746,8 +746,8 @@ mod tests {
             .with_max_iter(1000)
             .with_random_state(42);
 
-        let trained = model.fit(&X, &y).unwrap();
-        let predictions = trained.predict(&X).unwrap();
+        let trained = model.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained.predict(&X).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), y.len());
         assert_eq!(trained.classes_.len(), 3);
@@ -762,8 +762,10 @@ mod tests {
             .with_max_iter(500)
             .with_random_state(42);
 
-        let trained = model.fit(&X, &y).unwrap();
-        let scores = trained.decision_function(&X).unwrap();
+        let trained = model.fit(&X, &y).expect("model fitting should succeed");
+        let scores = trained
+            .decision_function(&X)
+            .expect("decision function should succeed");
 
         assert_eq!(scores.shape(), &[4, 1]); // Binary classification
     }

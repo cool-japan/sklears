@@ -11,8 +11,10 @@ mod tests {
     #[test]
     fn test_basic_functionality() {
         // Basic test to ensure module compiles
-        let _x = Array2::from_shape_vec((10, 4), (0..40).map(|i| i as f64).collect()).unwrap();
-        let _y = Array1::from_shape_vec(10, (0..10).map(|i| i as f64).collect()).unwrap();
+        let _x = Array2::from_shape_vec((10, 4), (0..40).map(|i| i as f64).collect())
+            .expect("operation should succeed");
+        let _y = Array1::from_shape_vec(10, (0..10).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         // TODO: Add proper tests when imports are fixed
         assert!(true);

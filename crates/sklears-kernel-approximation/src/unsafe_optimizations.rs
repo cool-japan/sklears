@@ -216,8 +216,8 @@ pub fn safe_matvec_multiply(matrix: &Array2<f64>, vector: &Array1<f64>) -> Optio
     unsafe {
         matvec_multiply_fast(
             matrix,
-            vector.as_slice().unwrap(),
-            result.as_slice_mut().unwrap(),
+            vector.as_slice().expect("operation should succeed"),
+            result.as_slice_mut().expect("operation should succeed"),
         );
     }
     Some(result)
@@ -302,7 +302,7 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let result = safe_dot_product(&a, &b).unwrap();
+        let result = safe_dot_product(&a, &b).expect("operation should succeed");
         assert_eq!(result, 32.0); // 1*4 + 2*5 + 3*6
     }
 
@@ -327,7 +327,7 @@ mod tests {
         let matrix = array![[1.0, 2.0], [3.0, 4.0]];
         let vector = array![5.0, 6.0];
 
-        let result = safe_matvec_multiply(&matrix, &vector).unwrap();
+        let result = safe_matvec_multiply(&matrix, &vector).expect("operation should succeed");
         assert_eq!(result[0], 17.0); // 1*5 + 2*6
         assert_eq!(result[1], 39.0); // 3*5 + 4*6
     }

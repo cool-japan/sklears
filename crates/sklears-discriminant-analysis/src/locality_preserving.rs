@@ -317,7 +317,10 @@ impl LocalityPreservingDiscriminantAnalysis<Untrained> {
         let mut sw = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {
-            let class_idx = classes.iter().position(|&c| c == y[i]).unwrap();
+            let class_idx = classes
+                .iter()
+                .position(|&c| c == y[i])
+                .expect("element not found");
             let class_mean = class_means.row(class_idx);
             let sample = x.row(i);
             let diff = &sample - &class_mean;
@@ -631,7 +634,7 @@ impl Predict<Array2<Float>, Array1<i32>> for LocalityPreservingDiscriminantAnaly
                     .iter()
                     .enumerate()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
+                    .expect("value should be present")
                     .0;
                 classes[max_idx]
             })

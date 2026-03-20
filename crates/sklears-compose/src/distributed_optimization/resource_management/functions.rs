@@ -72,7 +72,7 @@ mod tests {
                 reliability_requirements: 0.9,
             },
         };
-        let result = scheduler.allocate_resources(request).unwrap();
+        let result = scheduler.allocate_resources(request).unwrap_or_default();
         match result {
             AllocationResult::Success(allocation) => {
                 assert_eq!(allocation.node_id, node_id);
@@ -86,7 +86,7 @@ mod tests {
             .resource_pool
             .available_resources
             .get(&node_id)
-            .unwrap();
+            .unwrap_or_default();
         assert_eq!(updated_resources.available_cpu_cores, 4);
         assert_eq!(updated_resources.available_memory_gb, 16.0);
         assert_eq!(updated_resources.available_gpu_count, 1);
@@ -150,13 +150,13 @@ mod tests {
             .available_resources
             .insert(node_id.clone(), available_resources);
         scheduler.resource_allocation.insert(node_id.clone(), allocation);
-        scheduler.deallocate_resources(&node_id).unwrap();
+        scheduler.deallocate_resources(&node_id).unwrap_or_default();
         assert!(! scheduler.resource_allocation.contains_key(& node_id));
         let updated_resources = scheduler
             .resource_pool
             .available_resources
             .get(&node_id)
-            .unwrap();
+            .unwrap_or_default();
         assert_eq!(updated_resources.available_cpu_cores, 8);
         assert_eq!(updated_resources.available_memory_gb, 32.0);
         assert_eq!(updated_resources.available_gpu_count, 2);
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_utilization_summary() {
         let mut scheduler = ResourceScheduler::new();
-        let summary = scheduler.get_utilization_summary().unwrap();
+        let summary = scheduler.get_utilization_summary().unwrap_or_default();
         assert_eq!(summary.total_nodes, 0);
         assert_eq!(summary.active_nodes, 0);
         assert_eq!(summary.average_cpu_utilization, 0.0);
@@ -204,7 +204,7 @@ mod tests {
             },
         };
         scheduler.resource_allocation.insert("node1".to_string(), allocation1);
-        let summary = scheduler.get_utilization_summary().unwrap();
+        let summary = scheduler.get_utilization_summary().unwrap_or_default();
         assert_eq!(summary.active_nodes, 1);
         assert_eq!(summary.average_cpu_utilization, 0.6);
         assert_eq!(summary.average_memory_utilization, 0.7);
@@ -273,7 +273,7 @@ mod tests {
                 reliability_requirements: 0.95,
             },
         };
-        let result = scheduler.find_suitable_nodes(&request).unwrap();
+        let result = scheduler.find_suitable_nodes(&request).unwrap_or_default();
         assert!(result.is_empty());
     }
     #[test]

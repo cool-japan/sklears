@@ -64,7 +64,7 @@ pub fn simd_weighted_sum_f32(values: &[f32], weights: &[f32], output: &mut [f32]
     let val_arr = ArrayView1::from(&values[..len]);
     let weight_arr = ArrayView1::from(&weights[..len]);
     let result = f32::simd_mul(&val_arr, &weight_arr);
-    output[..len].copy_from_slice(result.as_slice().unwrap());
+    output[..len].copy_from_slice(result.as_slice().expect("slice operation should succeed"));
 }
 
 /// Vector addition for probability combination using SciRS2 SIMD
@@ -73,7 +73,7 @@ pub fn simd_add_f32(a: &[f32], b: &[f32], output: &mut [f32]) {
     let a_arr = ArrayView1::from(&a[..len]);
     let b_arr = ArrayView1::from(&b[..len]);
     let result = f32::simd_add(&a_arr, &b_arr);
-    output[..len].copy_from_slice(result.as_slice().unwrap());
+    output[..len].copy_from_slice(result.as_slice().expect("slice operation should succeed"));
 }
 
 /// Scalar multiplication for weight application using SciRS2 SIMD
@@ -81,7 +81,7 @@ pub fn simd_scale_f32(input: &[f32], scalar: f32, output: &mut [f32]) {
     let len = input.len().min(output.len());
     let input_arr = ArrayView1::from(&input[..len]);
     let result = f32::simd_scalar_mul(&input_arr, scalar);
-    output[..len].copy_from_slice(result.as_slice().unwrap());
+    output[..len].copy_from_slice(result.as_slice().expect("slice operation should succeed"));
 }
 
 /// Argmax operation for finding maximum index
@@ -108,7 +108,7 @@ pub fn simd_normalize_f32(input: &[f32], output: &mut [f32]) {
 
     if norm > 1e-8 {
         let result = f32::simd_scalar_mul(&input_arr, 1.0 / norm);
-        output[..len].copy_from_slice(result.as_slice().unwrap());
+        output[..len].copy_from_slice(result.as_slice().expect("slice operation should succeed"));
     } else {
         output[..len].fill(0.0);
     }
@@ -203,7 +203,11 @@ pub fn simd_calculate_ranks(values: &[f32], ranks: &mut [f32]) -> Result<()> {
 
     let n = values.len();
     let mut indices: Vec<usize> = (0..n).collect();
-    indices.sort_by(|&a, &b| values[b].partial_cmp(&values[a]).unwrap());
+    indices.sort_by(|&a, &b| {
+        values[b]
+            .partial_cmp(&values[a])
+            .expect("operation should succeed")
+    });
 
     for (rank, &idx) in indices.iter().enumerate() {
         ranks[idx] = (rank + 1) as f32;

@@ -1612,8 +1612,8 @@ mod tests {
             .num_eigenvectors(3)
             .smoothness_lambda(0.1);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let fitted_values = fitted.fitted_values().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_values = fitted.fitted_values().expect("operation should succeed");
 
         // Check that fitting completes successfully
         assert_eq!(fitted_values.len(), y.len());
@@ -1633,14 +1633,16 @@ mod tests {
             .num_steps(50)
             .teleport_prob(0.15);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let fitted_values = fitted.fitted_values().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let fitted_values = fitted.fitted_values().expect("operation should succeed");
 
         // Check that fitting completes successfully
         assert_eq!(fitted_values.len(), y.len());
 
         // Check that stationary distribution exists
-        let stationary = fitted.stationary_distribution().unwrap();
+        let stationary = fitted
+            .stationary_distribution()
+            .expect("operation should succeed");
         assert_eq!(stationary.len(), y.len());
 
         // Stationary distribution should sum to approximately 1
@@ -1667,14 +1669,16 @@ mod tests {
                 .graph_edges(edges.clone())
                 .constraint_type(constraint_type);
 
-            let fitted = model.fit(&x, &y).unwrap();
-            let fitted_values = fitted.fitted_values().unwrap();
+            let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+            let fitted_values = fitted.fitted_values().expect("operation should succeed");
 
             // Check that fitting completes successfully
             assert_eq!(fitted_values.len(), y.len());
 
             // Check that centrality scores are computed
-            let centrality = fitted.centrality_scores().unwrap();
+            let centrality = fitted
+                .centrality_scores()
+                .expect("operation should succeed");
             assert_eq!(centrality.len(), y.len());
             assert!(centrality.iter().all(|&v| v >= 0.0 && v <= 1.0));
         }
@@ -1696,14 +1700,14 @@ mod tests {
             .enforce_isotonic(true)
             .activation(ActivationType::ReLU);
 
-        let fitted = model.fit(&x, &y).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that weights are initialized
-        let weights = fitted.weights().unwrap();
+        let weights = fitted.weights().expect("operation should succeed");
         assert_eq!(weights.dim(), (3, 8));
 
         // Check prediction
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), y.len());
 
         // Check monotonicity if enforced
@@ -1717,7 +1721,7 @@ mod tests {
         let edges = vec![(0, 1), (1, 2), (0, 2)];
         let n = 3;
 
-        let laplacian = build_graph_laplacian(&edges, &None, n).unwrap();
+        let laplacian = build_graph_laplacian(&edges, &None, n).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(laplacian.dim(), (3, 3));
@@ -1741,7 +1745,8 @@ mod tests {
         let edges = vec![(0, 1), (1, 2), (2, 0)];
         let n = 3;
 
-        let transition = build_transition_matrix(&edges, &None, n, 0.15).unwrap();
+        let transition =
+            build_transition_matrix(&edges, &None, n, 0.15).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(transition.dim(), (3, 3));
@@ -1802,12 +1807,13 @@ mod tests {
         let edges = vec![(0, 1), (1, 2), (2, 3)];
 
         // Test spectral method
-        let fitted_spectral =
-            spectral_graph_isotonic_regression(&y, edges.clone(), 2, 0.1).unwrap();
+        let fitted_spectral = spectral_graph_isotonic_regression(&y, edges.clone(), 2, 0.1)
+            .expect("operation should succeed");
         assert_eq!(fitted_spectral.len(), y.len());
 
         // Test random walk method
-        let fitted_rw = random_walk_isotonic_regression(&y, edges.clone(), 50, 0.15).unwrap();
+        let fitted_rw = random_walk_isotonic_regression(&y, edges.clone(), 50, 0.15)
+            .expect("operation should succeed");
         assert_eq!(fitted_rw.len(), y.len());
 
         // Test network-constrained method
@@ -1816,7 +1822,7 @@ mod tests {
             edges.clone(),
             NetworkConstraintType::Degree,
         )
-        .unwrap();
+        .expect("operation should succeed");
         assert_eq!(fitted_network.len(), y.len());
     }
 

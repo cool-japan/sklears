@@ -1219,13 +1219,13 @@ mod tests {
     fn test_auc() {
         let x = array![0.0, 0.25, 0.5, 0.75, 1.0];
         let y = array![0.0, 0.25, 0.5, 0.75, 1.0];
-        let area = auc(&x, &y).unwrap();
+        let area = auc(&x, &y).expect("operation should succeed");
         assert!((area - 0.5).abs() < 1e-6);
 
         // Test rectangle
         let x = array![0.0, 1.0];
         let y = array![1.0, 1.0];
-        let area = auc(&x, &y).unwrap();
+        let area = auc(&x, &y).expect("operation should succeed");
         assert!((area - 1.0).abs() < 1e-6);
     }
 
@@ -1233,13 +1233,13 @@ mod tests {
     fn test_roc_auc_score() {
         let y_true = array![0, 0, 1, 1];
         let y_score = array![0.1, 0.4, 0.35, 0.8];
-        let score = roc_auc_score(&y_true, &y_score).unwrap();
+        let score = roc_auc_score(&y_true, &y_score).expect("operation should succeed");
         assert!((score - 0.75).abs() < 1e-6);
 
         // Perfect classifier
         let y_true = array![0, 0, 1, 1];
         let y_score = array![0.0, 0.0, 1.0, 1.0];
-        let score = roc_auc_score(&y_true, &y_score).unwrap();
+        let score = roc_auc_score(&y_true, &y_score).expect("operation should succeed");
         assert!((score - 1.0).abs() < 1e-6);
     }
 
@@ -1247,7 +1247,7 @@ mod tests {
     fn test_average_precision_score() {
         let y_true = array![0, 0, 1, 1];
         let y_score = array![0.1, 0.4, 0.35, 0.8];
-        let score = average_precision_score(&y_true, &y_score).unwrap();
+        let score = average_precision_score(&y_true, &y_score).expect("operation should succeed");
         assert!(score > 0.0 && score <= 1.0);
     }
 
@@ -1256,14 +1256,14 @@ mod tests {
         let y_true = array![3.0, 2.0, 3.0, 0.0, 1.0, 2.0];
         let y_score = array![6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
 
-        let dcg = dcg_score(&y_true, &y_score, None).unwrap();
+        let dcg = dcg_score(&y_true, &y_score, None).expect("operation should succeed");
         assert!(dcg > 0.0);
 
-        let ndcg = ndcg_score(&y_true, &y_score, None).unwrap();
+        let ndcg = ndcg_score(&y_true, &y_score, None).expect("operation should succeed");
         assert!(ndcg > 0.0 && ndcg <= 1.0);
 
         // Test with k parameter
-        let dcg_k3 = dcg_score(&y_true, &y_score, Some(3)).unwrap();
+        let dcg_k3 = dcg_score(&y_true, &y_score, Some(3)).expect("operation should succeed");
         assert!(dcg_k3 > 0.0 && dcg_k3 <= dcg);
     }
 
@@ -1272,7 +1272,7 @@ mod tests {
         let y_true = array![[1, 0, 0], [0, 1, 1], [0, 0, 1]];
         let y_score = array![[0.9, 0.1, 0.2], [0.1, 0.9, 0.8], [0.2, 0.3, 0.9]];
 
-        let error = coverage_error(&y_true, &y_score).unwrap();
+        let error = coverage_error(&y_true, &y_score).expect("operation should succeed");
         assert!(error >= 1.0);
     }
 
@@ -1281,7 +1281,8 @@ mod tests {
         let y_true = array![0, 0, 1, 1];
         let y_score = array![0.1, 0.4, 0.35, 0.8];
 
-        let (precision, recall, thresholds) = precision_recall_curve(&y_true, &y_score).unwrap();
+        let (precision, recall, thresholds) =
+            precision_recall_curve(&y_true, &y_score).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(precision.len(), recall.len());
@@ -1298,7 +1299,8 @@ mod tests {
         let y_true = array![0, 0, 1, 1];
         let y_score = array![0.1, 0.4, 0.35, 0.8];
 
-        let (fpr, tpr, thresholds) = roc_curve(&y_true, &y_score).unwrap();
+        let (fpr, tpr, thresholds) =
+            roc_curve(&y_true, &y_score).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(fpr.len(), tpr.len());
@@ -1338,13 +1340,15 @@ mod tests {
     fn test_precision_recall_auc_score() {
         let y_true = array![0, 0, 1, 1];
         let y_score = array![0.1, 0.4, 0.35, 0.8];
-        let score = precision_recall_auc_score(&y_true, &y_score).unwrap();
+        let score =
+            precision_recall_auc_score(&y_true, &y_score).expect("operation should succeed");
         assert!(score > 0.0 && score <= 1.0);
 
         // Good classifier
         let y_true = array![0, 0, 1, 1];
         let y_score = array![0.1, 0.2, 0.8, 0.9];
-        let score = precision_recall_auc_score(&y_true, &y_score).unwrap();
+        let score =
+            precision_recall_auc_score(&y_true, &y_score).expect("operation should succeed");
         // Good classifiers should have high precision-recall AUC
         assert!(score > 0.5 && score <= 1.0);
     }
@@ -1364,17 +1368,19 @@ mod tests {
 
         // Test one-vs-rest with macro averaging
         let score_ovr_macro =
-            roc_auc_score_multiclass(&y_true, &y_score, Some(Average::Macro), "ovr").unwrap();
+            roc_auc_score_multiclass(&y_true, &y_score, Some(Average::Macro), "ovr")
+                .expect("operation should succeed");
         assert!(score_ovr_macro > 0.0 && score_ovr_macro <= 1.0);
 
         // Test one-vs-rest with weighted averaging
         let score_ovr_weighted =
-            roc_auc_score_multiclass(&y_true, &y_score, Some(Average::Weighted), "ovr").unwrap();
+            roc_auc_score_multiclass(&y_true, &y_score, Some(Average::Weighted), "ovr")
+                .expect("operation should succeed");
         assert!(score_ovr_weighted > 0.0 && score_ovr_weighted <= 1.0);
 
         // Test one-vs-one
-        let score_ovo =
-            roc_auc_score_multiclass(&y_true, &y_score, Some(Average::Macro), "ovo").unwrap();
+        let score_ovo = roc_auc_score_multiclass(&y_true, &y_score, Some(Average::Macro), "ovo")
+            .expect("operation should succeed");
         assert!((0.0..=1.0).contains(&score_ovo));
 
         // Binary case with 2 columns
@@ -1382,7 +1388,7 @@ mod tests {
         let y_score_binary = array![[0.8, 0.2], [0.7, 0.3], [0.3, 0.7], [0.2, 0.8]];
         let score_binary =
             roc_auc_score_multiclass(&y_true_binary, &y_score_binary, Some(Average::Macro), "ovr")
-                .unwrap();
+                .expect("operation should succeed");
         assert!(score_binary > 0.0 && score_binary <= 1.0);
 
         // Binary case with 1 column
@@ -1393,7 +1399,7 @@ mod tests {
             Some(Average::Macro),
             "ovr",
         )
-        .unwrap();
+        .expect("operation should succeed");
         assert!(score_binary_1col > 0.0 && score_binary_1col <= 1.0);
     }
 
@@ -1431,18 +1437,21 @@ mod tests {
         let y_true = array![[1, 0, 1], [0, 1, 1]];
         let y_score = array![[0.9, 0.1, 0.8], [0.2, 0.9, 0.7]];
 
-        let map_score = mean_average_precision(&y_true, &y_score).unwrap();
+        let map_score =
+            mean_average_precision(&y_true, &y_score).expect("operation should succeed");
         assert!((0.0..=1.0).contains(&map_score));
 
         // Perfect ranking should give MAP = 1.0
         let y_true_perfect = array![[1, 1, 0], [1, 1, 0]];
         let y_score_perfect = array![[0.9, 0.8, 0.1], [0.9, 0.8, 0.1]];
-        let map_perfect = mean_average_precision(&y_true_perfect, &y_score_perfect).unwrap();
+        let map_perfect = mean_average_precision(&y_true_perfect, &y_score_perfect)
+            .expect("operation should succeed");
         assert!((map_perfect - 1.0).abs() < 1e-6);
 
         // Worst ranking should give low MAP
         let y_score_worst = array![[0.1, 0.2, 0.9], [0.1, 0.2, 0.9]];
-        let map_worst = mean_average_precision(&y_true_perfect, &y_score_worst).unwrap();
+        let map_worst = mean_average_precision(&y_true_perfect, &y_score_worst)
+            .expect("operation should succeed");
         assert!(map_worst < map_perfect);
 
         // Test error cases
@@ -1466,31 +1475,35 @@ mod tests {
         let y_true = array![[1, 0, 0], [0, 1, 0]];
         let y_score = array![[0.9, 0.1, 0.2], [0.2, 0.9, 0.1]];
 
-        let mrr_score = mean_reciprocal_rank(&y_true, &y_score).unwrap();
+        let mrr_score = mean_reciprocal_rank(&y_true, &y_score).expect("operation should succeed");
         assert!((mrr_score - 1.0).abs() < 1e-6); // Should be 1.0 since relevant items are ranked first
 
         // Test case where relevant item is second
         let y_true_second = array![[1, 0, 0]];
         let y_score_second = array![[0.5, 0.9, 0.1]]; // relevant item (index 0) ranked second
-        let mrr_second = mean_reciprocal_rank(&y_true_second, &y_score_second).unwrap();
+        let mrr_second = mean_reciprocal_rank(&y_true_second, &y_score_second)
+            .expect("operation should succeed");
         assert!((mrr_second - 0.5).abs() < 1e-6); // 1/2 = 0.5
 
         // Test case where relevant item is third
         let y_true_third = array![[1, 0, 0]];
         let y_score_third = array![[0.1, 0.9, 0.8]]; // relevant item (index 0) ranked third
-        let mrr_third = mean_reciprocal_rank(&y_true_third, &y_score_third).unwrap();
+        let mrr_third =
+            mean_reciprocal_rank(&y_true_third, &y_score_third).expect("operation should succeed");
         assert!((mrr_third - 1.0 / 3.0).abs() < 1e-6); // 1/3
 
         // Test case with no relevant items
         let y_true_none = array![[0, 0, 0]];
         let y_score_none = array![[0.9, 0.5, 0.1]];
-        let mrr_none = mean_reciprocal_rank(&y_true_none, &y_score_none).unwrap();
+        let mrr_none =
+            mean_reciprocal_rank(&y_true_none, &y_score_none).expect("operation should succeed");
         assert_eq!(mrr_none, 0.0);
 
         // Test multiple samples
         let y_true_multi = array![[1, 0, 0], [0, 0, 1]];
         let y_score_multi = array![[0.9, 0.5, 0.1], [0.1, 0.5, 0.9]];
-        let mrr_multi = mean_reciprocal_rank(&y_true_multi, &y_score_multi).unwrap();
+        let mrr_multi =
+            mean_reciprocal_rank(&y_true_multi, &y_score_multi).expect("operation should succeed");
         assert!((mrr_multi - 1.0).abs() < 1e-6); // Both relevant items ranked first: (1 + 1) / 2 = 1.0
 
         // Test error cases
@@ -1514,17 +1527,47 @@ mod tests {
         let classes = vec![0, 1, 2];
         let cost_matrix = CostMatrix::uniform(classes.clone(), 1.0);
 
-        assert_eq!(cost_matrix.get_cost(0, 0).unwrap(), 0.0); // Correct classification
-        assert_eq!(cost_matrix.get_cost(0, 1).unwrap(), 1.0); // Misclassification
-        assert_eq!(cost_matrix.get_cost(1, 2).unwrap(), 1.0); // Misclassification
+        assert_eq!(
+            cost_matrix
+                .get_cost(0, 0)
+                .expect("operation should succeed"),
+            0.0
+        ); // Correct classification
+        assert_eq!(
+            cost_matrix
+                .get_cost(0, 1)
+                .expect("operation should succeed"),
+            1.0
+        ); // Misclassification
+        assert_eq!(
+            cost_matrix
+                .get_cost(1, 2)
+                .expect("operation should succeed"),
+            1.0
+        ); // Misclassification
 
         // Test custom cost matrix
         let costs = array![[0.0, 2.0, 1.0], [1.0, 0.0, 3.0], [2.0, 1.0, 0.0]];
-        let custom_cost_matrix = CostMatrix::new(costs, classes).unwrap();
+        let custom_cost_matrix = CostMatrix::new(costs, classes).expect("operation should succeed");
 
-        assert_eq!(custom_cost_matrix.get_cost(0, 1).unwrap(), 2.0);
-        assert_eq!(custom_cost_matrix.get_cost(1, 2).unwrap(), 3.0);
-        assert_eq!(custom_cost_matrix.get_cost(2, 0).unwrap(), 2.0);
+        assert_eq!(
+            custom_cost_matrix
+                .get_cost(0, 1)
+                .expect("operation should succeed"),
+            2.0
+        );
+        assert_eq!(
+            custom_cost_matrix
+                .get_cost(1, 2)
+                .expect("operation should succeed"),
+            3.0
+        );
+        assert_eq!(
+            custom_cost_matrix
+                .get_cost(2, 0)
+                .expect("operation should succeed"),
+            2.0
+        );
 
         // Test error cases
         let invalid_costs = array![[1.0, 2.0], [1.0, 0.0]]; // Non-zero diagonal
@@ -1541,22 +1584,24 @@ mod tests {
 
         // Uniform cost matrix
         let cost_matrix = CostMatrix::uniform(vec![0, 1, 2], 1.0);
-        let accuracy = cost_sensitive_accuracy(&y_true, &y_pred, &cost_matrix).unwrap();
+        let accuracy = cost_sensitive_accuracy(&y_true, &y_pred, &cost_matrix)
+            .expect("operation should succeed");
 
         // Perfect predictions would have accuracy 1.0, worst would have accuracy 0.0
         assert!((0.0..=1.0).contains(&accuracy));
 
         // Test perfect predictions
         let y_pred_perfect = array![0, 0, 1, 1, 2, 2];
-        let perfect_accuracy =
-            cost_sensitive_accuracy(&y_true, &y_pred_perfect, &cost_matrix).unwrap();
+        let perfect_accuracy = cost_sensitive_accuracy(&y_true, &y_pred_perfect, &cost_matrix)
+            .expect("operation should succeed");
         assert_eq!(perfect_accuracy, 1.0);
 
         // Test custom cost matrix with higher penalty for certain misclassifications
         let costs = array![[0.0, 5.0, 1.0], [1.0, 0.0, 1.0], [1.0, 1.0, 0.0]];
-        let custom_cost_matrix = CostMatrix::new(costs, vec![0, 1, 2]).unwrap();
-        let custom_accuracy =
-            cost_sensitive_accuracy(&y_true, &y_pred, &custom_cost_matrix).unwrap();
+        let custom_cost_matrix =
+            CostMatrix::new(costs, vec![0, 1, 2]).expect("operation should succeed");
+        let custom_accuracy = cost_sensitive_accuracy(&y_true, &y_pred, &custom_cost_matrix)
+            .expect("operation should succeed");
 
         // Should be different due to different costs
         assert!((0.0..=1.0).contains(&custom_accuracy));
@@ -1568,10 +1613,10 @@ mod tests {
         let y_pred = array![0, 1, 1, 0]; // 2 misclassifications
 
         let cost_matrix = CostMatrix::uniform(vec![0, 1], 2.0);
-        let total = total_cost(&y_true, &y_pred, &cost_matrix).unwrap();
+        let total = total_cost(&y_true, &y_pred, &cost_matrix).expect("operation should succeed");
         assert_eq!(total, 4.0); // 2 misclassifications * 2.0 cost each
 
-        let avg = average_cost(&y_true, &y_pred, &cost_matrix).unwrap();
+        let avg = average_cost(&y_true, &y_pred, &cost_matrix).expect("operation should succeed");
         assert_eq!(avg, 1.0); // 4.0 total cost / 4 samples
     }
 
@@ -1581,9 +1626,10 @@ mod tests {
         let y_pred = array![0, 1, 1, 0]; // 2 correct, 2 misclassifications
 
         let costs = array![[0.0, 3.0], [2.0, 0.0]]; // Different costs for different misclassifications
-        let cost_matrix = CostMatrix::new(costs, vec![0, 1]).unwrap();
+        let cost_matrix = CostMatrix::new(costs, vec![0, 1]).expect("operation should succeed");
 
-        let cost_cm = cost_confusion_matrix(&y_true, &y_pred, &cost_matrix).unwrap();
+        let cost_cm = cost_confusion_matrix(&y_true, &y_pred, &cost_matrix)
+            .expect("operation should succeed");
 
         // cost_cm[i][j] = total cost of predicting j when true class is i
         assert_eq!(cost_cm[[0, 0]], 0.0); // 1 correct prediction of class 0, cost = 0
@@ -1600,7 +1646,8 @@ mod tests {
         let cost_fp = 1.0; // Cost of false positive
         let cost_fn = 2.0; // Cost of false negative (higher penalty)
 
-        let (thresholds, costs) = cost_curve(&y_true, &y_prob, cost_fp, cost_fn, Some(11)).unwrap();
+        let (thresholds, costs) = cost_curve(&y_true, &y_prob, cost_fp, cost_fn, Some(11))
+            .expect("operation should succeed");
 
         assert_eq!(thresholds.len(), 11);
         assert_eq!(costs.len(), 11);

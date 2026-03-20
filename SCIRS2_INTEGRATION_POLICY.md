@@ -4,13 +4,13 @@
 
 **Sklears MUST use SciRS2 as its scientific computing foundation.** This document establishes the policy for proper, minimal, and effective integration of SciRS2 crates into Sklears, following the official SciRS2 Ecosystem Policy.
 
-**Important**: From v0.1.0, the SciRS2 POLICY is in effect. All non-core crates must use scirs2-core abstractions instead of direct external dependencies.
+**Important**: From v0.3.0, the SciRS2 POLICY is in effect. All non-core crates must use scirs2-core abstractions instead of direct external dependencies.
 
 ## Table of Contents
 
 ### Part I: Core Policies
 1. [Overview](#overview)
-2. [Pure Rust Migration (v0.1.0+)](#pure-rust-migration-v010)
+2. [Pure Rust Migration (v0.3.0+)](#pure-rust-migration-v010)
 3. [Dependency Abstraction Policy](#dependency-abstraction-policy)
 4. [Core Architectural Principles](#core-architectural-principles)
 5. [Implementation Guidelines](#implementation-guidelines)
@@ -52,9 +52,9 @@ This architecture ensures:
 - **Version Control**: Only SciRS2-core manages external dependency versions
 - **Type Safety**: Prevents mixing external types with SciRS2 types
 
-## Pure Rust Migration (v0.1.0+)
+## Pure Rust Migration (v0.3.0+)
 
-**Major architectural changes in SciRS2 v0.1.0 (January 2026):**
+**Major architectural changes in SciRS2 v0.3.0 (January 2026):**
 
 ### OxiBLAS Migration - Pure Rust BLAS/LAPACK
 
@@ -66,9 +66,9 @@ This architecture ensures:
 - ❌ `netlib-src` - Netlib reference implementation
 
 **ADDED Dependencies:**
-- ✅ `oxiblas-ndarray` v0.1.2+ - Pure Rust ndarray integration
-- ✅ `oxiblas-blas` v0.1.2+ - Pure Rust BLAS implementation
-- ✅ `oxiblas-lapack` v0.1.2+ - Pure Rust LAPACK implementation (supports Complex<f64>)
+- ✅ `oxiblas-ndarray` v0.3.0+ - Pure Rust ndarray integration
+- ✅ `oxiblas-blas` v0.3.0+ - Pure Rust BLAS implementation
+- ✅ `oxiblas-lapack` v0.3.0+ - Pure Rust LAPACK implementation (supports Complex<f64>)
 
 **Benefits:**
 - 🚀 **Zero System Dependencies** - No need to install OpenBLAS, MKL, or system BLAS
@@ -83,7 +83,7 @@ This architecture ensures:
 - ❌ `bincode` - Generic binary serialization
 
 **ADDED Dependencies:**
-- ✅ `oxicode` v0.1.1+ - SIMD-optimized binary serialization
+- ✅ `oxicode` v0.3.0+ - SIMD-optimized binary serialization
 - ✅ `oxicode_derive` - Derive macros for custom types
 
 **Benefits:**
@@ -101,7 +101,7 @@ let bytes = encode_to_vec(&data, standard())?;
 let (data, _bytes_read) = decode_from_slice(&bytes, standard())?;
 ```
 
-### SciRS2-Linalg Independent Implementation (v0.1.0+)
+### SciRS2-Linalg Independent Implementation (v0.3.0+)
 
 **Critical Change:** scirs2-linalg no longer depends on ndarray-linalg. It provides its own pure Rust implementation using OxiBLAS.
 
@@ -157,15 +157,15 @@ ndarray = { workspace = true }           # ❌ Use scirs2-core::ndarray
 ndarray-rand = { workspace = true }      # ❌ Use scirs2-core::ndarray
 ndarray-stats = { workspace = true }     # ❌ Use scirs2-core::ndarray
 ndarray-npy = { workspace = true }       # ❌ Use scirs2-core::ndarray
-ndarray-linalg = { workspace = true }    # ❌ REMOVED v0.1.0 - scirs2-linalg independent
+ndarray-linalg = { workspace = true }    # ❌ REMOVED v0.3.0 - scirs2-linalg independent
 num-traits = { workspace = true }        # ❌ Use scirs2-core::numeric
 num-complex = { workspace = true }       # ❌ Use scirs2-core::numeric
 num-integer = { workspace = true }       # ❌ Use scirs2-core::numeric
 nalgebra = { workspace = true }          # ❌ Use scirs2-core::linalg
-bincode = { workspace = true }           # ❌ REMOVED v0.1.0 - Use oxicode (COOLJAPAN Policy)
-openblas-src = { workspace = true }      # ❌ REMOVED v0.1.0 - Use OxiBLAS instead
-blas-src = { workspace = true }          # ❌ REMOVED v0.1.0 - Use OxiBLAS instead
-lapack-src = { workspace = true }        # ❌ REMOVED v0.1.0 - Use OxiBLAS instead
+bincode = { workspace = true }           # ❌ REMOVED v0.3.0 - Use oxicode (COOLJAPAN Policy)
+openblas-src = { workspace = true }      # ❌ REMOVED v0.3.0 - Use OxiBLAS instead
+blas-src = { workspace = true }          # ❌ REMOVED v0.3.0 - Use OxiBLAS instead
+lapack-src = { workspace = true }        # ❌ REMOVED v0.3.0 - Use OxiBLAS instead
 ```
 
 #### ✅ REQUIRED Core Dependency in Cargo.toml:
@@ -186,10 +186,10 @@ use rand_distr::{Beta, Normal, StudentT};
 use ndarray::*;
 use ndarray::{Array, Array1, Array2};
 use ndarray::{array, s};
-use ndarray_linalg::*;  // REMOVED v0.1.0
+use ndarray_linalg::*;  // REMOVED v0.3.0
 use num_complex::Complex;
 use num_traits::*;
-use bincode::*;  // REMOVED v0.1.0 - Use oxicode instead
+use bincode::*;  // REMOVED v0.3.0 - Use oxicode instead
 ```
 
 #### ✅ REQUIRED SciRS2-Core Abstractions:
@@ -205,7 +205,7 @@ use scirs2_core::random::*;           // Complete rand + rand_distr functionalit
 use scirs2_core::ndarray::*;          // Complete ndarray ecosystem
 // Includes: Array, Array1, Array2, ArrayView, array!, s!, azip! macros
 // Includes: ndarray-rand, ndarray-stats, ndarray-npy when array feature enabled
-// NOTE: ndarray-linalg removed v0.1.0 - scirs2-linalg provides independent implementation
+// NOTE: ndarray-linalg removed v0.3.0 - scirs2-linalg provides independent implementation
 
 // === Numerical Traits ===
 use scirs2_core::numeric::*;          // num-traits, num-complex, num-integer
@@ -234,7 +234,7 @@ use scirs2_core::linalg::*;           // Linear algebra (when needed)
 | `num-complex` | `scirs2_core::numeric` | Complex numbers |
 | `num-integer` | `scirs2_core::numeric` | Integer traits |
 | `nalgebra` | `scirs2_core::linalg` | When needed |
-| `oxiblas-*` | `scirs2_core::linalg` | Pure Rust BLAS/LAPACK (v0.1.0+) |
+| `oxiblas-*` | `scirs2_core::linalg` | Pure Rust BLAS/LAPACK (v0.3.0+) |
 | ~~`bincode`~~ | N/A | **REPLACED** by `oxicode` (SIMD-optimized) |
 | `oxicode` | Direct usage | COOLJAPAN Policy - Pure Rust serialization |
 
@@ -267,7 +267,7 @@ use scirs2_core::linalg::*;           // Linear algebra (when needed)
 - **NEVER add direct `rayon` dependency** to Cargo.toml
 - **NEVER use `rayon::prelude::*` directly**
 
-#### BLAS Operations Policy (v0.1.0+ Pure Rust)
+#### BLAS Operations Policy (v0.3.0+ Pure Rust)
 - **ALL BLAS operations go through `scirs2-linalg`**
 - **NEVER add direct BLAS dependencies** to individual modules
 - **OxiBLAS** (Pure Rust) is the default and only backend
@@ -297,12 +297,12 @@ When writing code in Sklears crates:
 use rand::thread_rng;
 use rand_distr::{Beta, Normal};
 use ndarray::{Array2, array, s};
-use bincode::{serialize, deserialize};  // REMOVED v0.1.0
+use bincode::{serialize, deserialize};  // REMOVED v0.3.0
 let mut rng = thread_rng();
 let arr = array![[1, 2], [3, 4]];
 let slice = arr.slice(s![.., 0]);
 
-// ✅ Correct - SciRS2-Core unified abstractions (v0.1.1+)
+// ✅ Correct - SciRS2-Core unified abstractions (v0.3.0+)
 use scirs2_core::random::*;
 use scirs2_core::ndarray::*;
 use oxicode::serde::{encode_to_vec, decode_from_slice};
@@ -324,13 +324,13 @@ let bytes = encode_to_vec(&data, standard())?;  // Oxicode serialization
 ### **ESSENTIAL (Always Required)**
 
 #### `scirs2-core` - FOUNDATION
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Core scientific primitives, random number generation, array operations
 - **Sklears Modules**: All modules use core utilities
 - **Status**: ✅ REQUIRED - Foundation crate
 
 #### `scirs2-linalg` - LINEAR ALGEBRA (Independent Implementation)
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Matrix operations, decompositions, eigenvalue problems
 - **Sklears Modules**: `sklears-linear`, `sklears-decomposition`, `sklears-gaussian-process`
 - **Status**: ✅ REQUIRED - Pure Rust linear algebra with OxiBLAS
@@ -339,32 +339,32 @@ let bytes = encode_to_vec(&data, standard())?;  // Oxicode serialization
 ### **HIGHLY LIKELY REQUIRED**
 
 #### `scirs2-autograd` - AUTOMATIC DIFFERENTIATION
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Gradient computation, automatic differentiation for neural networks
 - **Sklears Modules**: Gradient-based algorithms (neural networks, gradient descent)
 - **Status**: ✅ REQUIRED - Automatic differentiation functionality
 - **⚠️ CRITICAL**: NEVER import `scirs2_autograd::ndarray` - ALWAYS use `scirs2_core::ndarray` for arrays
 
 #### `scirs2-optimize` - OPTIMIZATION
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Optimization algorithms (SGD, LBFGS, etc.)
 - **Sklears Modules**: `sklears-linear`, `sklears-decomposition`, `sklears-neural`
 - **Status**: ✅ REQUIRED - Core optimization functionality
 
 #### `scirs2-stats` - STATISTICAL ANALYSIS
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Statistical functions, distributions, hypothesis testing
 - **Sklears Modules**: `sklears-metrics`, `sklears-model-selection`
 - **Status**: ✅ REQUIRED - Statistical computing
 
 #### `scirs2-cluster` - CLUSTERING ALGORITHMS
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: K-means, DBSCAN, hierarchical clustering
 - **Sklears Modules**: `sklears-clustering`
 - **Status**: ✅ REQUIRED - Clustering implementations
 
 #### `scirs2-metrics` - EVALUATION METRICS
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Classification, regression, clustering metrics
 - **Sklears Modules**: `sklears-metrics`
 - **Status**: ✅ REQUIRED - Comprehensive evaluation
@@ -372,19 +372,19 @@ let bytes = encode_to_vec(&data, standard())?;  // Oxicode serialization
 ### **CONDITIONALLY REQUIRED**
 
 #### `scirs2-datasets` - DATA HANDLING
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Built-in datasets, data generators
 - **Sklears Modules**: `sklears-datasets`
 - **Status**: ✅ REQUIRED - Data pipeline enhancement
 
 #### `scirs2-sparse` - SPARSE MATRICES
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Sparse matrix operations, CSR/CSC formats
 - **Sklears Modules**: `sklears-linear`, `sklears-feature-selection`
 - **Status**: ✅ REQUIRED - Sparse functionality
 
 #### `scirs2-neural` - NEURAL NETWORKS
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Neural network layers, activation functions
 - **Sklears Modules**: `sklears-neural`
 - **Status**: ✅ REQUIRED - Neural network features
@@ -392,43 +392,43 @@ let bytes = encode_to_vec(&data, standard())?;  // Oxicode serialization
 ### **SPECIALIZED DOMAIN-SPECIFIC**
 
 #### `scirs2-special` - SPECIAL FUNCTIONS
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Gamma, beta, error functions
 - **Sklears Modules**: `sklears-stats`
 - **Status**: ✅ REQUIRED - Special mathematical functions
 
 #### `scirs2-spatial` - SPATIAL DATA PROCESSING
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: KD-trees, spatial indexing, computational geometry
 - **Sklears Modules**: `sklears-neighbors`, `sklears-clustering`
 - **Status**: ✅ REQUIRED - Spatial operations
 
 #### `scirs2-signal` - SIGNAL PROCESSING
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: FFT, convolutions, signal processing
 - **Sklears Modules**: `sklears-feature-extraction`
 - **Status**: ✅ REQUIRED - Signal processing capabilities
 
 #### `scirs2-fft` - FAST FOURIER TRANSFORM
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: FFT operations, frequency domain transformations
 - **Sklears Modules**: `sklears-feature-extraction`
 - **Status**: ✅ REQUIRED - FFT operations
 
 #### `scirs2-series` - TIME SERIES ANALYSIS
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Time series decomposition, forecasting
 - **Sklears Modules**: `sklears-feature-extraction`
 - **Status**: ✅ REQUIRED - Time series capabilities
 
 #### `scirs2-text` - NLP PROCESSING
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Tokenization, text features
 - **Sklears Modules**: `sklears-feature-extraction`
 - **Status**: ✅ REQUIRED - NLP capabilities
 
 #### `scirs2-graph` - GRAPH ALGORITHMS
-- **Version**: v0.1.1 (stable)
+- **Version**: v0.3.0 (stable)
 - **Use Cases**: Graph representations, algorithms
 - **Sklears Modules**: `sklears-manifold`, `sklears-clustering`
 - **Status**: ✅ REQUIRED - Graph neural networks
@@ -490,10 +490,10 @@ use rand::thread_rng;  // FORBIDDEN
 use rand_distr::Normal;  // FORBIDDEN
 ```
 
-### Linear Algebra - **v0.1.1 API** (Pure Rust with OxiBLAS)
+### Linear Algebra - **v0.3.0 API** (Pure Rust with OxiBLAS)
 
 ```rust
-// ✅ CORRECT: scirs2-linalg v0.1.1 API
+// ✅ CORRECT: scirs2-linalg v0.3.0 API
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO, qr, svd};
 
 // SVD - Returns matrices directly (not Option-wrapped)
@@ -515,7 +515,7 @@ let inv_matrix = matrix.inv()?;
 // Cholesky - No UPLO parameter
 let chol = matrix.cholesky()?;
 
-// ❌ WRONG: Old ndarray-linalg API (REMOVED v0.1.0)
+// ❌ WRONG: Old ndarray-linalg API (REMOVED v0.3.0)
 use ndarray_linalg::*;  // FORBIDDEN - No longer exists
 let (u, s, vt) = matrix.svd(true, true)?;  // WRONG - Only takes 1 parameter
 let solution = solve(&a.view(), &b.view(), None)?;  // WRONG - Use a.solve(&b)
@@ -525,7 +525,7 @@ let (q, r) = qr(&a.view(), None)?;  // WRONG - No None parameter
 ### Serialization - **Oxicode API** (COOLJAPAN Policy)
 
 ```rust
-// ✅ CORRECT: oxicode v0.1.1 API
+// ✅ CORRECT: oxicode v0.3.0 API
 use oxicode::serde::{encode_to_vec, decode_from_slice};
 use oxicode::config::standard;
 use serde::{Serialize, Deserialize};
@@ -536,7 +536,7 @@ let bytes = encode_to_vec(&model, standard())?;
 // Deserialization (returns tuple with bytes read)
 let (model, _bytes_read) = decode_from_slice::<ModelType>(&bytes, standard())?;
 
-// ❌ WRONG: Old bincode API (REMOVED v0.1.0)
+// ❌ WRONG: Old bincode API (REMOVED v0.3.0)
 use bincode::{serialize, deserialize};  // FORBIDDEN
 let bytes = serialize(&model)?;  // WRONG - Use oxicode
 let model = deserialize(&bytes)?;  // WRONG - Use oxicode
@@ -617,7 +617,7 @@ These patterns have been proven successful across multiple projects:
    use scirs2_core::numeric::{Float, Zero, One, Num};
    ```
 
-4. **Linear Algebra (v0.1.1+ API)**
+4. **Linear Algebra (v0.3.0+ API)**
    ```rust
    // ✅ CORRECT
    use scirs2_linalg::compat::{ArrayLinalgExt, UPLO, qr, svd};
@@ -626,7 +626,7 @@ These patterns have been proven successful across multiple projects:
    let solution = a.solve(&b)?;          // Method call, not function
    ```
 
-5. **Serialization (v0.1.0+ Oxicode)**
+5. **Serialization (v0.3.0+ Oxicode)**
    ```rust
    // ✅ CORRECT
    use oxicode::serde::{encode_to_vec, decode_from_slice};
@@ -648,7 +648,7 @@ These patterns have been proven successful across multiple projects:
    # ndarray = "0.17"       # REMOVED: Use scirs2_core::ndarray
    # num-traits = "0.2"     # REMOVED: Use scirs2_core::numeric
    # num-complex = "0.4"    # REMOVED: Use scirs2_core::numeric
-   # bincode = "1.3"        # REMOVED: Use oxicode v0.1.1+
+   # bincode = "1.3"        # REMOVED: Use oxicode v0.3.0+
    # openblas-src = "0.10"  # REMOVED: OxiBLAS used via scirs2-linalg
 
    # ✅ SciRS2 POLICY COMPLIANT dependencies
@@ -666,7 +666,7 @@ These patterns have been proven successful across multiple projects:
    use num_traits::Float;
    use bincode::{serialize, deserialize};
 
-   // ✅ NEW PATTERN (SciRS2 v0.1.1 compliant)
+   // ✅ NEW PATTERN (SciRS2 v0.3.0 compliant)
    use scirs2_core::random::{CoreRandom, thread_rng};
    use scirs2_core::ndarray::{Array, Array1, Array2, array};
    use scirs2_core::numeric::Float;
@@ -710,12 +710,12 @@ These patterns have been proven successful across multiple projects:
 ```rust
 // ❌ WRONG - Direct dependencies (POLICY VIOLATIONS)
 use ndarray::{Array2, array, s};
-use ndarray_linalg::{SVD, Eig};  // REMOVED v0.1.0
+use ndarray_linalg::{SVD, Eig};  // REMOVED v0.3.0
 use rand::{Rng, thread_rng};
 use rand_distr::{Normal, Beta, StudentT};
 use num_traits::Float;
 use num_complex::Complex;
-use bincode::{serialize, deserialize};  // REMOVED v0.1.0
+use bincode::{serialize, deserialize};  // REMOVED v0.3.0
 
 // ❌ WRONG - Nested type confusion
 rng: CoreRandom<scirs2_core::Random<StdRng>>
@@ -731,7 +731,7 @@ let (u, s, vt) = matrix.svd(true, true)?;  // Old API
 let solution = solve(&a.view(), &b.view(), None)?;  // Old API
 ```
 
-### ✅ Correct Patterns (v0.1.1)
+### ✅ Correct Patterns (v0.3.0)
 
 ```rust
 // ✅ CORRECT - SciRS2 policy compliant
@@ -749,7 +749,7 @@ rng: CoreRandom<StdRng>
 // ✅ CORRECT - Proper initialization
 Self { rng: seeded_rng(42) }
 
-// ✅ CORRECT - New linalg API (v0.1.1)
+// ✅ CORRECT - New linalg API (v0.3.0)
 let (u, s, vt) = matrix.svd(true)?;  // Single parameter, direct return
 let solution = a.solve(&b)?;          // Method call
 let (eigenvals, eigenvecs) = matrix.eigh(UPLO::Lower)?;  // UPLO required
@@ -777,61 +777,61 @@ let (eigenvals, eigenvecs) = matrix.eigh(UPLO::Lower)?;  // UPLO required
 
 ## Current Workspace Integration
 
-### SciRS2 Dependencies (v0.1.1 Stable)
+### SciRS2 Dependencies (v0.3.0 Stable)
 ```toml
 [workspace.dependencies]
-# Essential SciRS2 dependencies for Sklears (SciRS2 Policy compliance) - v0.1.1 from crates.io
-scirs2-core = { version = "0.1.1", default-features = false, features = ["random", "linalg"] }
+# Essential SciRS2 dependencies for Sklears (SciRS2 Policy compliance) - v0.3.0 from crates.io
+scirs2-core = { version = "0.3.0", default-features = false, features = ["random", "linalg"] }
 
 # TRANSITIONAL: Keep scirs2-autograd during migration (will be removed when all crates use scirs2_core::ndarray)
-scirs2-autograd = { version = "0.1.1", default-features = false }
+scirs2-autograd = { version = "0.3.0", default-features = false }
 
 # HIGHLY LIKELY REQUIRED SciRS2 crates from crates.io
-scirs2-optimize = { version = "0.1.1", default-features = false }
-scirs2-linalg = { version = "0.1.1", default-features = false }
-scirs2-stats = { version = "0.1.1", default-features = false }
-scirs2-cluster = { version = "0.1.1", default-features = false }
-scirs2-metrics = { version = "0.1.1", default-features = false }
+scirs2-optimize = { version = "0.3.0", default-features = false }
+scirs2-linalg = { version = "0.3.0", default-features = false }
+scirs2-stats = { version = "0.3.0", default-features = false }
+scirs2-cluster = { version = "0.3.0", default-features = false }
+scirs2-metrics = { version = "0.3.0", default-features = false }
 
 # CONDITIONALLY REQUIRED SciRS2 crates from crates.io
-scirs2-datasets = { version = "0.1.1", default-features = false }
-scirs2-sparse = { version = "0.1.1", default-features = false }
-scirs2-neural = { version = "0.1.1", default-features = false }
+scirs2-datasets = { version = "0.3.0", default-features = false }
+scirs2-sparse = { version = "0.3.0", default-features = false }
+scirs2-neural = { version = "0.3.0", default-features = false }
 
 # SPECIALIZED DOMAIN-SPECIFIC SciRS2 crates from crates.io
-scirs2-special = { version = "0.1.1", default-features = false }
-scirs2-spatial = { version = "0.1.1", default-features = false }
-scirs2-signal = { version = "0.1.1", default-features = false }
-scirs2-series = { version = "0.1.1", default-features = false }
-scirs2-text = { version = "0.1.1", default-features = false }
-scirs2-fft = { version = "0.1.1", default-features = false }
-scirs2-graph = { version = "0.1.1", default-features = false }
+scirs2-special = { version = "0.3.0", default-features = false }
+scirs2-spatial = { version = "0.3.0", default-features = false }
+scirs2-signal = { version = "0.3.0", default-features = false }
+scirs2-series = { version = "0.3.0", default-features = false }
+scirs2-text = { version = "0.3.0", default-features = false }
+scirs2-fft = { version = "0.3.0", default-features = false }
+scirs2-graph = { version = "0.3.0", default-features = false }
 
 # Serialization (COOLJAPAN Policy)
-oxicode = { version = "0.1.1" }
+oxicode = { version = "0.3.0" }
 ```
 
 ## Migration Status & Current State
 
-### Sklears Migration Status (v0.1.0-rc.1)
+### Sklears Migration Status (v0.3.0)
 - **✅ SciRS2 Ecosystem**: 100% POLICY-compliant (All 23 crates)
-- **✅ Workspace Dependencies**: Updated to SciRS2 v0.1.3 from crates.io
+- **✅ Workspace Dependencies**: Updated to SciRS2 v0.3.0 from crates.io
 - **✅ scirs2_core::random**: ALL rand_distr distributions available
 - **✅ scirs2_core::ndarray**: Complete ndarray including macros (array!, s!, azip!)
 - **✅ Working Crates**: All 36 crates including sklears-core, sklears-compose, sklears-linear, sklears-neural, sklears-svm, sklears-decomposition, sklears-kernel-approximation, sklears-manifold, sklears-covariance, and 27 more
 - **✅ Build Status**: 36/36 crates building successfully (100%)
 - **✅ Test Status**: 4,409/4,410 tests passing (99.98%)
 
-### API Migration Complete (v0.1.1)
+### API Migration Complete (v0.3.0)
 - ✅ Oxicode API: 11 files migrated from bincode
 - ✅ SVD API: 100+ locations updated for new return types
 - ✅ Solve API: 30+ locations migrated to method calls
 - ✅ QR API: 5 locations updated
 - ✅ Eigh API: 50+ locations updated with UPLO parameter
 - ✅ All trait import conflicts resolved
-- ✅ Pure Rust dependencies only (OxiBLAS v0.1.2, no system BLAS required)
+- ✅ Pure Rust dependencies only (OxiBLAS v0.3.0, no system BLAS required)
 
-### Nalgebra → scirs2-linalg Migrations (v0.1.0-rc.1)
+### Nalgebra → scirs2-linalg Migrations (v0.3.0)
 Complete migration to Pure Rust stack:
 - **✅ sklears-decomposition**: 100% complete (6 files, 255 tests passing)
   - incremental_pca.rs, kernel_pca.rs, manifold.rs, tensor_decomposition.rs, matrix_completion.rs, pls.rs
@@ -844,7 +844,7 @@ Complete migration to Pure Rust stack:
 **Total**: 18 files migrated, 648 tests passing, zero system dependencies
 
 ### SciRS2 Policy Compliance Status
-As of SciRS2 v0.1.1 (Stable Release), **ALL 23 SciRS2 crates are POLICY-compliant (100%)**:
+As of SciRS2 v0.3.0 (Stable Release), **ALL 23 SciRS2 crates are POLICY-compliant (100%)**:
 - ✅ scirs2-core provides unified abstractions for all external dependencies
 - ✅ `scirs2_core::random` - ALL rand_distr distributions (Beta, Cauchy, StudentT, etc.)
 - ✅ `scirs2_core::ndarray` - Complete ndarray including macros (`array!`, `s!`, `azip!`)
@@ -859,12 +859,12 @@ Based on successful migrations:
 4. **sklears-covariance** ✅ - Fixed 37 compilation errors with trait consolidation
 5. **Workspace builds** ✅ - All 35/35 crates building successfully
 6. **array! macro** ✅ - Available through `scirs2_autograd::ndarray::array` (tests only) OR `scirs2_core::ndarray::array`
-7. **Pure Rust stack** ✅ - OxiBLAS v0.1.2 + Oxicode v0.1.1 fully integrated
+7. **Pure Rust stack** ✅ - OxiBLAS v0.3.0 + Oxicode v0.3.0 fully integrated
 
 ## Future Considerations
 
 ### SciRS2 Version Management
-- Track SciRS2 release cycle (currently on v0.1.1 stable)
+- Track SciRS2 release cycle (currently on v0.3.0 stable)
 - Test Sklears against SciRS2 releases
 - Coordinate breaking change migrations
 - Monitor OxiBLAS and Oxicode updates
@@ -875,27 +875,27 @@ Based on successful migrations:
 - Maintain architectural consistency with scientific Rust ecosystem
 - Follow COOLJAPAN Policy for preferred dependencies (OxiBLAS, Oxicode)
 
-## Recent Enhancements (v0.1.1 Stable)
+## Recent Enhancements (v0.3.0 Stable)
 
 ### Stable Core Abstractions (100% Complete)
-As of v0.1.1, `scirs2_core::random` provides:
+As of v0.3.0, `scirs2_core::random` provides:
 - ✅ All `rand_distr` distributions (Beta, Cauchy, ChiSquared, FisherF, LogNormal, StudentT, Weibull, etc.)
 - ✅ Unified distribution interface with enhanced sampling
 - ✅ Full compatibility with ecosystem projects
 - ✅ Production-ready stability and performance
 
 ### Unified NDArray Module (100% Complete)
-As of v0.1.1, `scirs2_core::ndarray` provides:
+As of v0.3.0, `scirs2_core::ndarray` provides:
 - ✅ Complete ndarray functionality including all macros (`array!`, `s!`, `azip!`)
 - ✅ All array types, views, and operations
 - ✅ Single unified import point for all array operations
 - ✅ Backward compatibility with existing `ndarray_ext`
 - ✅ Enhanced documentation and examples
 
-### Pure Rust Linear Algebra (v0.1.0+)
-As of v0.1.0, `scirs2_linalg` provides:
+### Pure Rust Linear Algebra (v0.3.0+)
+As of v0.3.0, `scirs2_linalg` provides:
 - ✅ Independent implementation (no ndarray-linalg dependency)
-- ✅ Pure Rust BLAS/LAPACK via OxiBLAS v0.1.2+
+- ✅ Pure Rust BLAS/LAPACK via OxiBLAS v0.3.0+
 - ✅ Zero system dependencies required
 - ✅ Cross-platform compatibility
 - ✅ Complete API: SVD, QR, Eigenvalue, Cholesky, Solve, Inverse
@@ -948,14 +948,14 @@ By following the official SciRS2 Ecosystem Policy v3.0.0, we achieve:
 ---
 
 **Document Version**: 3.0.1 - Aligned with Official SciRS2 Ecosystem Policy v3.0.0
-**Last Updated**: 2026-02-05 (Updated for SciRS2 v0.1.3 Stable + Sklears v0.1.0-rc.1)
+**Last Updated**: 2026-03-20 (Updated for SciRS2 v0.3.0 Stable + Sklears v0.1.0)
 **Based on**:
-- SciRS2 Ecosystem Policy v3.0.0 (v0.1.3 Stable - 100% Complete)
-- SciRS2 CLAUDE.md (v0.1.3 Stable)
+- SciRS2 Ecosystem Policy v3.0.0 (v0.3.0 Stable - 100% Complete)
+- SciRS2 CLAUDE.md (v0.3.0 Stable)
 - SciRS2 Core Module Usage Guidelines
 - Sklears successful migration to published crates.io versions
 - Complete nalgebra → scirs2-linalg migrations (18 files, 3 crates)
-- COOLJAPAN Policy: OxiBLAS v0.1.2+ and Oxicode v0.1.1+
+- COOLJAPAN Policy: OxiBLAS v0.3.0+ and Oxicode v0.3.0+
 **Next Review**: Q2 2026
 **Owner**: Sklears Architecture Team
-**Status**: ✅ ACTIVE - All 36 Sklears crates using SciRS2 v0.1.3 from crates.io
+**Status**: ✅ ACTIVE - All 36 Sklears crates using SciRS2 v0.3.0 from crates.io

@@ -845,7 +845,8 @@ mod tests {
     #[test]
     fn test_one_sample_ttest() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let result = StatisticalTests::one_sample_ttest(&data, 3.0, 0.05).unwrap();
+        let result =
+            StatisticalTests::one_sample_ttest(&data, 3.0, 0.05).expect("operation should succeed");
 
         assert_eq!(result.test_name, "One-sample t-test");
         assert!(!result.statistic.is_nan());
@@ -856,7 +857,8 @@ mod tests {
     fn test_two_sample_ttest() {
         let data1 = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let data2 = array![2.0, 3.0, 4.0, 5.0, 6.0];
-        let result = StatisticalTests::two_sample_ttest(&data1, &data2, 0.05).unwrap();
+        let result = StatisticalTests::two_sample_ttest(&data1, &data2, 0.05)
+            .expect("operation should succeed");
 
         assert_eq!(result.test_name, "Two-sample t-test");
         assert!(!result.statistic.is_nan());
@@ -867,7 +869,8 @@ mod tests {
     fn test_pearson_correlation() {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0];
-        let correlation = CorrelationAnalysis::pearson_correlation(&x, &y).unwrap();
+        let correlation =
+            CorrelationAnalysis::pearson_correlation(&x, &y).expect("operation should succeed");
 
         assert_abs_diff_eq!(correlation, 1.0, epsilon = 1e-10);
     }
@@ -876,7 +879,8 @@ mod tests {
     fn test_spearman_correlation() {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![1.0, 4.0, 9.0, 16.0, 25.0]; // y = x^2
-        let correlation = CorrelationAnalysis::spearman_correlation(&x, &y).unwrap();
+        let correlation =
+            CorrelationAnalysis::spearman_correlation(&x, &y).expect("operation should succeed");
 
         assert_abs_diff_eq!(correlation, 1.0, epsilon = 1e-10);
     }
@@ -884,7 +888,7 @@ mod tests {
     #[test]
     fn test_confidence_interval_mean() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let ci = ConfidenceIntervals::mean_ci(&data, 0.95).unwrap();
+        let ci = ConfidenceIntervals::mean_ci(&data, 0.95).expect("operation should succeed");
 
         assert_eq!(ci.parameter, "Mean");
         assert_eq!(ci.confidence_level, 0.95);
@@ -894,7 +898,8 @@ mod tests {
 
     #[test]
     fn test_confidence_interval_proportion() {
-        let ci = ConfidenceIntervals::proportion_ci(30, 100, 0.95).unwrap();
+        let ci =
+            ConfidenceIntervals::proportion_ci(30, 100, 0.95).expect("operation should succeed");
 
         assert_eq!(ci.parameter, "Proportion");
         assert!(ci.lower >= 0.0 && ci.upper <= 1.0);
@@ -905,8 +910,8 @@ mod tests {
     fn test_chi_square_goodness_of_fit() {
         let observed = array![10.0, 15.0, 8.0, 12.0];
         let expected = array![11.25, 11.25, 11.25, 11.25];
-        let result =
-            StatisticalTests::chi_square_goodness_of_fit(&observed, &expected, 0.05).unwrap();
+        let result = StatisticalTests::chi_square_goodness_of_fit(&observed, &expected, 0.05)
+            .expect("operation should succeed");
 
         assert_eq!(result.test_name, "Chi-square goodness of fit");
         assert!(result.statistic >= 0.0);
@@ -916,7 +921,8 @@ mod tests {
     #[test]
     fn test_correlation_matrix() {
         let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
-        let corr_matrix = CorrelationAnalysis::correlation_matrix(&data).unwrap();
+        let corr_matrix =
+            CorrelationAnalysis::correlation_matrix(&data).expect("operation should succeed");
 
         assert_eq!(corr_matrix.shape(), &[3, 3]);
 
@@ -937,11 +943,11 @@ mod tests {
     fn test_distribution_fitting() {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let (mean, std) = DistributionFitting::fit_normal(&data).unwrap();
+        let (mean, std) = DistributionFitting::fit_normal(&data).expect("operation should succeed");
         assert_abs_diff_eq!(mean, 3.0, epsilon = 1e-10);
         assert!(std > 0.0);
 
-        let (min, max) = DistributionFitting::fit_uniform(&data).unwrap();
+        let (min, max) = DistributionFitting::fit_uniform(&data).expect("operation should succeed");
         assert_eq!(min, 1.0);
         assert_eq!(max, 5.0);
     }
@@ -950,7 +956,7 @@ mod tests {
     fn test_kendall_tau() {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let tau = CorrelationAnalysis::kendall_tau(&x, &y).unwrap();
+        let tau = CorrelationAnalysis::kendall_tau(&x, &y).expect("operation should succeed");
 
         assert_abs_diff_eq!(tau, 1.0, epsilon = 1e-10);
     }

@@ -8,7 +8,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::RngExt;
+use scirs2_core::random::SeedableRng;
 use sklears_calibration::{
     bayesian::{BayesianModelAveragingCalibrator, VariationalInferenceCalibrator},
     beta::BetaCalibrator,
@@ -99,8 +100,10 @@ fn bench_basic_calibration_methods(c: &mut Criterion) {
                 b.iter(|| {
                     let calibrator = SigmoidCalibrator::new()
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -113,8 +116,10 @@ fn bench_basic_calibration_methods(c: &mut Criterion) {
                 b.iter(|| {
                     let calibrator = IsotonicCalibrator::new()
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -127,8 +132,10 @@ fn bench_basic_calibration_methods(c: &mut Criterion) {
                 b.iter(|| {
                     let calibrator = TemperatureScalingCalibrator::new()
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -141,8 +148,10 @@ fn bench_basic_calibration_methods(c: &mut Criterion) {
                 b.iter(|| {
                     let calibrator = HistogramBinningCalibrator::new(10)
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -166,8 +175,10 @@ fn bench_advanced_calibration_methods(c: &mut Criterion) {
             b.iter(|| {
                 let calibrator = BetaCalibrator::new()
                     .fit(black_box(&probabilities), black_box(&targets))
-                    .unwrap();
-                calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                    .expect("operation should succeed");
+                calibrator
+                    .predict_proba(black_box(&probabilities))
+                    .expect("predict_proba should succeed")
             })
         });
 
@@ -177,8 +188,10 @@ fn bench_advanced_calibration_methods(c: &mut Criterion) {
                 b.iter(|| {
                     let calibrator = KDECalibrator::new()
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             });
         }
@@ -192,8 +205,10 @@ fn bench_advanced_calibration_methods(c: &mut Criterion) {
                     let mut calibrator = LocalKNNCalibrator::new(5);
                     calibrator
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -222,8 +237,10 @@ fn bench_neural_calibration_methods(c: &mut Criterion) {
                         NeuralCalibrationLayer::new(1, 1).with_learning_params(0.01, 10); // Fewer epochs for benchmarking
                     calibrator
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -253,8 +270,10 @@ fn bench_multimodal_calibration_methods(c: &mut Criterion) {
                     calibrator.add_modal_calibrator(Box::new(SigmoidCalibrator::new()));
                     calibrator
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -272,8 +291,10 @@ fn bench_multimodal_calibration_methods(c: &mut Criterion) {
                     calibrator.add_calibrator(Box::new(IsotonicCalibrator::new()));
                     calibrator
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -305,8 +326,10 @@ fn bench_bayesian_calibration_methods(c: &mut Criterion) {
                     let mut calibrator = BayesianModelAveragingCalibrator::new(models);
                     calibrator
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -321,8 +344,10 @@ fn bench_bayesian_calibration_methods(c: &mut Criterion) {
                         let mut calibrator = VariationalInferenceCalibrator::new(); // Use default params
                         calibrator
                             .fit(black_box(&probabilities), black_box(&targets))
-                            .unwrap();
-                        calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                            .expect("operation should succeed");
+                        calibrator
+                            .predict_proba(black_box(&probabilities))
+                            .expect("predict_proba should succeed")
                     })
                 },
             );
@@ -340,13 +365,13 @@ fn bench_prediction_performance(c: &mut Criterion) {
     let (train_probs, train_targets) = generate_calibration_data(1000, 0.1);
     let sigmoid_calibrator = SigmoidCalibrator::new()
         .fit(&train_probs, &train_targets)
-        .unwrap();
+        .expect("operation should succeed");
     let isotonic_calibrator = IsotonicCalibrator::new()
         .fit(&train_probs, &train_targets)
-        .unwrap();
+        .expect("operation should succeed");
     let temp_calibrator = TemperatureScalingCalibrator::new()
         .fit(&train_probs, &train_targets)
-        .unwrap();
+        .expect("operation should succeed");
 
     for &n_samples in &[100, 1000, 10000, 100000] {
         let (test_probs, _) = generate_calibration_data(n_samples, 0.1);
@@ -361,7 +386,7 @@ fn bench_prediction_performance(c: &mut Criterion) {
                 b.iter(|| {
                     sigmoid_calibrator
                         .predict_proba(black_box(&test_probs))
-                        .unwrap()
+                        .expect("operation should succeed")
                 })
             },
         );
@@ -374,7 +399,7 @@ fn bench_prediction_performance(c: &mut Criterion) {
                 b.iter(|| {
                     isotonic_calibrator
                         .predict_proba(black_box(&test_probs))
-                        .unwrap()
+                        .expect("operation should succeed")
                 })
             },
         );
@@ -387,7 +412,7 @@ fn bench_prediction_performance(c: &mut Criterion) {
                 b.iter(|| {
                     temp_calibrator
                         .predict_proba(black_box(&test_probs))
-                        .unwrap()
+                        .expect("operation should succeed")
                 })
             },
         );
@@ -414,8 +439,10 @@ fn bench_scalability(c: &mut Criterion) {
                 b.iter(|| {
                     let calibrator = SigmoidCalibrator::new()
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -427,8 +454,10 @@ fn bench_scalability(c: &mut Criterion) {
                 b.iter(|| {
                     let calibrator = TemperatureScalingCalibrator::new()
                         .fit(black_box(&probabilities), black_box(&targets))
-                        .unwrap();
-                    calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                        .expect("operation should succeed");
+                    calibrator
+                        .predict_proba(black_box(&probabilities))
+                        .expect("predict_proba should succeed")
                 })
             },
         );
@@ -442,8 +471,10 @@ fn bench_scalability(c: &mut Criterion) {
                     b.iter(|| {
                         let calibrator = IsotonicCalibrator::new()
                             .fit(black_box(&probabilities), black_box(&targets))
-                            .unwrap();
-                        calibrator.predict_proba(black_box(&probabilities)).unwrap()
+                            .expect("operation should succeed");
+                        calibrator
+                            .predict_proba(black_box(&probabilities))
+                            .expect("predict_proba should succeed")
                     })
                 },
             );

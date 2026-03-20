@@ -91,15 +91,16 @@ where
                 SmoothingFunction::None => T::zero(),
                 SmoothingFunction::Method1 => {
                     // Add 1 to numerator and denominator
-                    T::one() / T::from(candidate_ngram_count + 1).unwrap()
+                    T::one() / T::from(candidate_ngram_count + 1).expect("operation should succeed")
                 }
                 SmoothingFunction::Method2 => {
                     // Use 1/2^n for zero matches
-                    T::one() / T::from(2_usize.pow(n as u32)).unwrap()
+                    T::one() / T::from(2_usize.pow(n as u32)).expect("operation should succeed")
                 }
             }
         } else {
-            T::from(matches).unwrap() / T::from(candidate_ngram_count).unwrap()
+            T::from(matches).expect("operation should succeed")
+                / T::from(candidate_ngram_count).expect("operation should succeed")
         };
 
         precisions.push(precision);
@@ -113,7 +114,7 @@ where
             if p > T::zero() {
                 w * p.ln()
             } else {
-                T::from(-f64::INFINITY).unwrap()
+                T::from(-f64::INFINITY).expect("operation should succeed")
             }
         })
         .fold(T::zero(), |acc, x| acc + x);
@@ -125,9 +126,9 @@ where
     let geometric_mean = log_precision_sum.exp();
 
     // Calculate brevity penalty
-    let candidate_length = T::from(candidate.len()).unwrap();
+    let candidate_length = T::from(candidate.len()).expect("operation should succeed");
     let closest_reference_length = find_closest_reference_length(references, candidate.len());
-    let reference_length = T::from(closest_reference_length).unwrap();
+    let reference_length = T::from(closest_reference_length).expect("operation should succeed");
 
     let brevity_penalty = if candidate_length >= reference_length {
         T::one()
@@ -227,7 +228,10 @@ where
         return Ok(T::zero());
     }
 
-    Ok(T::from(total_overlapping_ngrams).unwrap() / T::from(total_reference_ngrams).unwrap())
+    Ok(
+        T::from(total_overlapping_ngrams).expect("operation should succeed")
+            / T::from(total_reference_ngrams).expect("operation should succeed"),
+    )
 }
 
 /// ROUGE-L Score using Longest Common Subsequence
@@ -254,9 +258,9 @@ where
         return Ok(T::zero());
     }
 
-    let lcs_f = T::from(lcs_length).unwrap();
-    let system_len = T::from(system_summary.len()).unwrap();
-    let reference_len = T::from(reference_summary.len()).unwrap();
+    let lcs_f = T::from(lcs_length).expect("operation should succeed");
+    let system_len = T::from(system_summary.len()).expect("operation should succeed");
+    let reference_len = T::from(reference_summary.len()).expect("operation should succeed");
 
     let precision = lcs_f / system_len;
     let recall = lcs_f / reference_len;
@@ -266,7 +270,10 @@ where
     }
 
     // F1 score
-    Ok((T::from(2.0).unwrap() * precision * recall) / (precision + recall))
+    Ok(
+        (T::from(2.0).expect("operation should succeed") * precision * recall)
+            / (precision + recall),
+    )
 }
 
 /// Calculate longest common subsequence length
@@ -318,7 +325,8 @@ where
 
     // Calculate average log probability
     let sum_log_prob = log_probabilities.iter().fold(T::zero(), |acc, &x| acc + x);
-    let avg_log_prob = sum_log_prob / T::from(log_probabilities.len()).unwrap();
+    let avg_log_prob =
+        sum_log_prob / T::from(log_probabilities.len()).expect("operation should succeed");
 
     // Perplexity = exp(-avg_log_prob)
     Ok((-avg_log_prob).exp())
@@ -348,7 +356,8 @@ where
         return Ok(T::one()); // Both sets are empty, perfect similarity
     }
 
-    Ok(T::from(intersection).unwrap() / T::from(union).unwrap())
+    Ok(T::from(intersection).expect("operation should succeed")
+        / T::from(union).expect("operation should succeed"))
 }
 
 /// Cosine similarity for text using TF-IDF vectors
@@ -387,12 +396,12 @@ where
 
     // Calculate IDF for each term
     let mut idf_map = HashMap::new();
-    let corpus_size = T::from(corpus.len()).unwrap();
+    let corpus_size = T::from(corpus.len()).expect("operation should succeed");
 
     for &term in &vocab_vec {
         let doc_freq = corpus.iter().filter(|doc| doc.contains(&term)).count();
         let idf = if doc_freq > 0 {
-            (corpus_size / T::from(doc_freq).unwrap()).ln()
+            (corpus_size / T::from(doc_freq).expect("operation should succeed")).ln()
         } else {
             T::zero()
         };
@@ -436,13 +445,13 @@ fn calculate_tfidf_vector<T>(
 where
     T: Float + std::fmt::Debug,
 {
-    let text_len = T::from(text.len()).unwrap();
+    let text_len = T::from(text.len()).expect("operation should succeed");
     let mut tfidf_vector = Vec::new();
 
     for &term in vocabulary {
         let tf_count = text.iter().filter(|&&token| token == term).count();
         let tf = if tf_count > 0 {
-            T::from(tf_count).unwrap() / text_len
+            T::from(tf_count).expect("operation should succeed") / text_len
         } else {
             T::zero()
         };
@@ -516,7 +525,8 @@ where
         return T::zero();
     }
 
-    T::from(edit_dist).unwrap() / T::from(max_len).unwrap()
+    T::from(edit_dist).expect("operation should succeed")
+        / T::from(max_len).expect("operation should succeed")
 }
 
 #[allow(non_snake_case)]
@@ -531,8 +541,8 @@ mod tests {
         let references = vec![vec!["the", "cat", "is", "on", "the", "mat"]];
         let weights = [0.25, 0.25, 0.25, 0.25];
 
-        let score: f64 =
-            bleu_score(&candidate, &references, &weights, SmoothingFunction::None).unwrap();
+        let score: f64 = bleu_score(&candidate, &references, &weights, SmoothingFunction::None)
+            .expect("operation should succeed");
         assert_relative_eq!(score, 1.0, epsilon = 1e-6);
     }
 
@@ -542,8 +552,8 @@ mod tests {
         let references = vec![vec!["the", "cat", "is", "on", "the", "mat"]];
         let weights = [0.25, 0.25, 0.25, 0.25];
 
-        let score: f64 =
-            bleu_score(&candidate, &references, &weights, SmoothingFunction::None).unwrap();
+        let score: f64 = bleu_score(&candidate, &references, &weights, SmoothingFunction::None)
+            .expect("operation should succeed");
         assert_eq!(score, 0.0);
     }
 
@@ -552,7 +562,7 @@ mod tests {
         let system = vec!["the", "cat", "was", "found", "under", "the", "bed"];
         let references = vec![vec!["the", "cat", "was", "under", "the", "bed"]];
 
-        let score: f64 = rouge_n_score(&system, &references, 1).unwrap();
+        let score: f64 = rouge_n_score(&system, &references, 1).expect("operation should succeed");
         assert!(score > 0.0 && score <= 1.0);
     }
 
@@ -561,14 +571,14 @@ mod tests {
         let system = vec!["the", "cat", "was", "found", "under", "the", "bed"];
         let reference = vec!["the", "cat", "was", "under", "the", "bed"];
 
-        let score: f64 = rouge_l_score(&system, &reference).unwrap();
+        let score: f64 = rouge_l_score(&system, &reference).expect("operation should succeed");
         assert!(score > 0.0 && score <= 1.0);
     }
 
     #[test]
     fn test_perplexity() {
         let log_probs = vec![-1.2, -0.8, -1.5, -0.9, -1.1];
-        let perp: f64 = perplexity(&log_probs).unwrap();
+        let perp: f64 = perplexity(&log_probs).expect("operation should succeed");
         assert!(perp > 0.0);
     }
 
@@ -577,7 +587,7 @@ mod tests {
         let text1 = vec!["the", "cat", "is", "happy"];
         let text2 = vec!["the", "dog", "is", "happy"];
 
-        let similarity: f64 = jaccard_similarity(&text1, &text2).unwrap();
+        let similarity: f64 = jaccard_similarity(&text1, &text2).expect("operation should succeed");
         assert!(similarity > 0.0 && similarity <= 1.0);
         // Should be 3/5 = 0.6 (intersection: "the", "is", "happy"; union: "the", "cat", "dog", "is", "happy")
         assert_relative_eq!(similarity, 0.6, epsilon = 1e-6);

@@ -406,7 +406,7 @@ impl OutOfCoreSimpleImputer<Untrained> {
                     }
 
                     if !values.is_empty() {
-                        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let mid = values.len() / 2;
                         statistics[j] = if values.len() % 2 == 0 {
                             (values[mid - 1] + values[mid]) / 2.0
@@ -470,7 +470,8 @@ impl OutOfCoreSimpleImputer<Untrained> {
                     "mean" => valid_values.iter().sum::<f64>() / valid_values.len() as f64,
                     "median" => {
                         let mut sorted_values = valid_values.clone();
-                        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        sorted_values
+                            .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let mid = sorted_values.len() / 2;
                         if sorted_values.len() % 2 == 0 {
                             (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
@@ -856,7 +857,8 @@ impl OutOfCoreKNNImputer<OutOfCoreKNNImputerTrained> {
             // Sort chunks by distance to query
             let mut chunk_distances: Vec<(usize, f64)> =
                 query_distances.into_iter().enumerate().collect();
-            chunk_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            chunk_distances
+                .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Search the closest chunks
             let max_chunks_to_search = 3.min(chunk_distances.len());
@@ -872,7 +874,7 @@ impl OutOfCoreKNNImputer<OutOfCoreKNNImputerTrained> {
         }
 
         // Sort all neighbors by distance and take k best
-        all_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        all_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         all_neighbors.truncate(self.n_neighbors);
 
         Ok(all_neighbors)
@@ -900,7 +902,7 @@ impl OutOfCoreKNNImputer<OutOfCoreKNNImputerTrained> {
         }
 
         // Sort by distance and take k nearest
-        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         neighbors.truncate(self.n_neighbors);
 
         Ok(neighbors)
@@ -1030,7 +1032,7 @@ impl MemoryManager {
                 chunk.last_accessed = Instant::now();
             }
             self.update_lru_order(chunk_id);
-            return Ok(self.chunks.get(&chunk_id).unwrap());
+            return Ok(self.chunks.get(&chunk_id).expect("index should be valid"));
         }
 
         // Evict chunks if memory limit exceeded
@@ -1039,7 +1041,7 @@ impl MemoryManager {
         // Load chunk from disk
         self.load_chunk_from_disk(chunk_id)?;
 
-        Ok(self.chunks.get(&chunk_id).unwrap())
+        Ok(self.chunks.get(&chunk_id).expect("index should be valid"))
     }
 
     fn update_lru_order(&mut self, chunk_id: usize) {
@@ -1116,8 +1118,12 @@ mod tests {
             .strategy("mean".to_string())
             .max_memory_usage(1_000_000_000); // Large enough to process in memory
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Check that NaN was replaced with mean of column (2.0 + 8.0) / 2 = 5.0
         assert_abs_diff_eq!(X_imputed[[1, 1]], 5.0, epsilon = 1e-10);
@@ -1132,8 +1138,12 @@ mod tests {
 
         let imputer = OutOfCoreSimpleImputer::new().strategy("median".to_string());
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Median of [2.0, 8.0, 10.0] = 8.0
         assert_abs_diff_eq!(X_imputed[[1, 1]], 8.0, epsilon = 1e-10);
@@ -1154,8 +1164,12 @@ mod tests {
             .weights("uniform".to_string())
             .max_memory_usage(1_000_000_000); // Process in memory for test
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Verify that missing value was imputed
         assert!(!X_imputed[[1, 1]].is_nan());

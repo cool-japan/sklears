@@ -137,7 +137,7 @@ impl<T: FloatBounds + SparseElement> SparseMatrixCSR<T> {
         // Use try_from_triplets to construct CSR matrix
         let csmat = CsrMatrix::try_from_triplets(nrows, ncols, &triplets).unwrap_or_else(|_| {
             // Create empty matrix as fallback
-            CsrMatrix::try_from_triplets(nrows, ncols, &[]).unwrap()
+            CsrMatrix::try_from_triplets(nrows, ncols, &[]).expect("operation should succeed")
         });
 
         Self::new(csmat)
@@ -348,7 +348,9 @@ pub mod utils {
         let total_elements = dense.len() as f64;
         let non_zero = dense
             .iter()
-            .filter(|&&x| x.abs() > T::from(config.sparsity_threshold).unwrap())
+            .filter(|&&x| {
+                x.abs() > T::from(config.sparsity_threshold).expect("operation should succeed")
+            })
             .count() as f64;
         let sparsity = non_zero / total_elements;
         sparsity < config.min_sparsity_ratio

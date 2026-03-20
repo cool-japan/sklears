@@ -4,9 +4,9 @@
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -188,7 +188,7 @@ impl DeepWalk<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, _) in distances.iter().take(k) {
@@ -226,7 +226,7 @@ impl DeepWalk<Untrained> {
                     }
 
                     // Uniform random choice
-                    let next_node = neighbors[rng.gen_range(0..neighbors.len())];
+                    let next_node = neighbors[rng.random_range(0..neighbors.len())];
                     walk.push(next_node);
                     current_node = next_node;
                 }

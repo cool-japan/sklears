@@ -895,16 +895,16 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0, 4.0];
         let b = vec![5.0, 6.0, 7.0, 8.0];
 
-        let result = ops.add(&a, &b).unwrap();
+        let result = ops.add(&a, &b).expect("operation should succeed");
         assert_eq!(result, vec![6.0, 8.0, 10.0, 12.0]);
 
-        let result = ops.sub(&a, &b).unwrap();
+        let result = ops.sub(&a, &b).expect("operation should succeed");
         assert_eq!(result, vec![-4.0, -4.0, -4.0, -4.0]);
 
-        let result = ops.mul(&a, &b).unwrap();
+        let result = ops.mul(&a, &b).expect("operation should succeed");
         assert_eq!(result, vec![5.0, 12.0, 21.0, 32.0]);
 
-        let result = ops.scale(&a, 2.0).unwrap();
+        let result = ops.scale(&a, 2.0).expect("operation should succeed");
         assert_eq!(result, vec![2.0, 4.0, 6.0, 8.0]);
     }
 
@@ -914,19 +914,23 @@ mod tests {
 
         let vector = vec![1.0, 2.0, 3.0, 4.0];
 
-        let sum = ops.sum(&vector).unwrap();
+        let sum = ops.sum(&vector).expect("operation should succeed");
         assert_eq!(sum, 10.0);
 
-        let mean = ops.mean(&vector).unwrap();
+        let mean = ops.mean(&vector).expect("operation should succeed");
         assert_eq!(mean, 2.5);
 
-        let min = ops.min(&vector).unwrap();
+        let min = ops
+            .min(&vector)
+            .expect("collection should not be empty for min/max");
         assert_eq!(min, 1.0);
 
-        let max = ops.max(&vector).unwrap();
+        let max = ops
+            .max(&vector)
+            .expect("collection should not be empty for min/max");
         assert_eq!(max, 4.0);
 
-        let norm = ops.norm(&vector).unwrap();
+        let norm = ops.norm(&vector).expect("operation should succeed");
         assert!((norm - (1.0 + 4.0 + 9.0 + 16.0_f32).sqrt()).abs() < 1e-6);
     }
 
@@ -938,7 +942,7 @@ mod tests {
         let b = vec![2.0, 3.0, 4.0, 5.0];
         let c = vec![1.0, 1.0, 1.0, 1.0];
 
-        let result = ops.fma(&a, &b, &c).unwrap();
+        let result = ops.fma(&a, &b, &c).expect("operation should succeed");
         assert_eq!(result, vec![3.0, 7.0, 13.0, 21.0]); // a*b + c
     }
 

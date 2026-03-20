@@ -5,7 +5,7 @@
 //! strategies as arms in a bandit problem.
 
 use scirs2_core::ndarray_ext::{Array1, ArrayView1};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, Rng, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -105,9 +105,9 @@ impl EpsilonGreedy {
         let current_epsilon =
             (self.epsilon * self.decay_rate.powi(self.total_rounds as i32)).max(self.min_epsilon);
 
-        if rng.gen::<f64>() < current_epsilon {
+        if rng.random::<f64>() < current_epsilon {
             // Explore: select random arm
-            Ok(rng.gen_range(0..self.arm_counts.len()))
+            Ok(rng.random_range(0..self.arm_counts.len()))
         } else {
             // Exploit: select arm with highest average reward
             let mut best_arm = 0;
@@ -451,9 +451,9 @@ impl ContextualBandit {
         };
 
         // Epsilon-greedy with linear contextual bandits
-        if rng.gen::<f64>() < self.exploration {
+        if rng.random::<f64>() < self.exploration {
             // Explore: select random arm
-            Ok(rng.gen_range(0..self.arm_weights.len()))
+            Ok(rng.random_range(0..self.arm_weights.len()))
         } else {
             // Exploit: select arm with highest predicted reward
             let mut best_arm = 0;
@@ -811,7 +811,7 @@ mod tests {
 
     #[test]
     fn test_epsilon_greedy_creation() {
-        let eg = EpsilonGreedy::new(0.1).unwrap();
+        let eg = EpsilonGreedy::new(0.1).expect("operation should succeed");
         assert_eq!(eg.epsilon, 0.1);
         assert_eq!(eg.decay_rate, 0.995);
         assert_eq!(eg.min_epsilon, 0.01);
@@ -825,16 +825,18 @@ mod tests {
 
     #[test]
     fn test_epsilon_greedy_basic_functionality() {
-        let mut eg = EpsilonGreedy::new(0.5).unwrap().random_state(42);
+        let mut eg = EpsilonGreedy::new(0.5)
+            .expect("operation should succeed")
+            .random_state(42);
         eg.initialize(3);
 
         // Select arms and update rewards
         for _ in 0..10 {
-            let arm = eg.select_arm().unwrap();
+            let arm = eg.select_arm().expect("operation should succeed");
             assert!(arm < 3);
 
             let reward = if arm == 0 { 1.0 } else { 0.0 }; // Arm 0 is best
-            eg.update(arm, reward).unwrap();
+            eg.update(arm, reward).expect("operation should succeed");
         }
 
         let stats = eg.get_arm_statistics();
@@ -848,7 +850,7 @@ mod tests {
 
     #[test]
     fn test_upper_confidence_bound_creation() {
-        let ucb = UpperConfidenceBound::new(2.0).unwrap();
+        let ucb = UpperConfidenceBound::new(2.0).expect("operation should succeed");
         assert_eq!(ucb.confidence, 2.0);
     }
 
@@ -860,16 +862,18 @@ mod tests {
 
     #[test]
     fn test_upper_confidence_bound_basic_functionality() {
-        let mut ucb = UpperConfidenceBound::new(2.0).unwrap().random_state(42);
+        let mut ucb = UpperConfidenceBound::new(2.0)
+            .expect("operation should succeed")
+            .random_state(42);
         ucb.initialize(3);
 
         // Select arms and update rewards
         for _ in 0..10 {
-            let arm = ucb.select_arm().unwrap();
+            let arm = ucb.select_arm().expect("operation should succeed");
             assert!(arm < 3);
 
             let reward = if arm == 0 { 0.8 } else { 0.2 }; // Arm 0 is best
-            ucb.update(arm, reward).unwrap();
+            ucb.update(arm, reward).expect("operation should succeed");
         }
 
         let stats = ucb.get_arm_statistics();
@@ -895,11 +899,11 @@ mod tests {
 
         // Select arms and update rewards
         for _ in 0..10 {
-            let arm = ts.select_arm().unwrap();
+            let arm = ts.select_arm().expect("operation should succeed");
             assert!(arm < 3);
 
             let reward = if arm == 0 { 0.9 } else { 0.1 }; // Arm 0 is best
-            ts.update(arm, reward).unwrap();
+            ts.update(arm, reward).expect("operation should succeed");
         }
 
         let stats = ts.get_arm_statistics();
@@ -915,7 +919,7 @@ mod tests {
 
     #[test]
     fn test_contextual_bandit_creation() {
-        let cb = ContextualBandit::new(0.1).unwrap();
+        let cb = ContextualBandit::new(0.1).expect("operation should succeed");
         assert_eq!(cb.exploration, 0.1);
         assert_eq!(cb.learning_rate, 0.1);
     }
@@ -927,7 +931,9 @@ mod tests {
 
     #[test]
     fn test_contextual_bandit_basic_functionality() {
-        let mut cb = ContextualBandit::new(0.1).unwrap().random_state(42);
+        let mut cb = ContextualBandit::new(0.1)
+            .expect("operation should succeed")
+            .random_state(42);
         cb.initialize(2, 3);
 
         let context1 = array![1.0, 0.0, 0.0];
@@ -936,7 +942,9 @@ mod tests {
         // Select arms and update rewards
         for i in 0..10 {
             let context = if i % 2 == 0 { &context1 } else { &context2 };
-            let arm = cb.select_arm(&context.view()).unwrap();
+            let arm = cb
+                .select_arm(&context.view())
+                .expect("operation should succeed");
             assert!(arm < 2);
 
             let reward = if (arm == 0 && i % 2 == 0) || (arm == 1 && i % 2 == 1) {
@@ -944,7 +952,8 @@ mod tests {
             } else {
                 0.0
             };
-            cb.update(arm, &context.view(), reward).unwrap();
+            cb.update(arm, &context.view(), reward)
+                .expect("operation should succeed");
         }
 
         let weights = cb.get_arm_weights();
@@ -953,7 +962,9 @@ mod tests {
         assert_eq!(weights[1].len(), 3);
 
         // Test prediction
-        let predicted = cb.predict_rewards(&context1.view()).unwrap();
+        let predicted = cb
+            .predict_rewards(&context1.view())
+            .expect("operation should succeed");
         assert_eq!(predicted.len(), 2);
     }
 
@@ -968,18 +979,24 @@ mod tests {
             BanditBasedActiveLearning::new(strategies.clone(), "epsilon_greedy".to_string())
                 .random_state(42);
 
-        bbal.initialize(Some(0.2), None, None).unwrap();
+        bbal.initialize(Some(0.2), None, None)
+            .expect("operation should succeed");
 
         // Select strategies and update rewards
         for _ in 0..10 {
-            let strategy_idx = bbal.select_strategy(None).unwrap();
+            let strategy_idx = bbal
+                .select_strategy(None)
+                .expect("operation should succeed");
             assert!(strategy_idx < strategies.len());
 
             let reward = if strategy_idx == 0 { 0.8 } else { 0.3 }; // Entropy is best
-            bbal.update_strategy(strategy_idx, reward, None).unwrap();
+            bbal.update_strategy(strategy_idx, reward, None)
+                .expect("operation should succeed");
         }
 
-        let performance = bbal.get_strategy_performance().unwrap();
+        let performance = bbal
+            .get_strategy_performance()
+            .expect("operation should succeed");
         assert_eq!(performance.len(), strategies.len());
 
         for strategy in strategies.iter() {
@@ -993,15 +1010,21 @@ mod tests {
         let mut bbal =
             BanditBasedActiveLearning::new(strategies.clone(), "ucb".to_string()).random_state(42);
 
-        bbal.initialize(None, Some(1.5), None).unwrap();
+        bbal.initialize(None, Some(1.5), None)
+            .expect("operation should succeed");
 
         // Test basic functionality
-        let strategy_idx = bbal.select_strategy(None).unwrap();
+        let strategy_idx = bbal
+            .select_strategy(None)
+            .expect("operation should succeed");
         assert!(strategy_idx < strategies.len());
 
-        bbal.update_strategy(strategy_idx, 0.5, None).unwrap();
+        bbal.update_strategy(strategy_idx, 0.5, None)
+            .expect("operation should succeed");
 
-        let performance = bbal.get_strategy_performance().unwrap();
+        let performance = bbal
+            .get_strategy_performance()
+            .expect("operation should succeed");
         assert_eq!(performance.len(), strategies.len());
     }
 
@@ -1012,15 +1035,21 @@ mod tests {
             BanditBasedActiveLearning::new(strategies.clone(), "thompson_sampling".to_string())
                 .random_state(42);
 
-        bbal.initialize(None, None, None).unwrap();
+        bbal.initialize(None, None, None)
+            .expect("operation should succeed");
 
         // Test basic functionality
-        let strategy_idx = bbal.select_strategy(None).unwrap();
+        let strategy_idx = bbal
+            .select_strategy(None)
+            .expect("operation should succeed");
         assert!(strategy_idx < strategies.len());
 
-        bbal.update_strategy(strategy_idx, 0.7, None).unwrap();
+        bbal.update_strategy(strategy_idx, 0.7, None)
+            .expect("operation should succeed");
 
-        let performance = bbal.get_strategy_performance().unwrap();
+        let performance = bbal
+            .get_strategy_performance()
+            .expect("operation should succeed");
         assert_eq!(performance.len(), strategies.len());
     }
 
@@ -1033,18 +1062,23 @@ mod tests {
         let mut bbal = BanditBasedActiveLearning::new(strategies.clone(), "contextual".to_string())
             .random_state(42);
 
-        bbal.initialize(None, None, Some(0.15)).unwrap();
+        bbal.initialize(None, None, Some(0.15))
+            .expect("operation should succeed");
 
         let context = array![0.5, 1.0, 0.2];
 
         // Test basic functionality
-        let strategy_idx = bbal.select_strategy(Some(&context.view())).unwrap();
+        let strategy_idx = bbal
+            .select_strategy(Some(&context.view()))
+            .expect("operation should succeed");
         assert!(strategy_idx < strategies.len());
 
         bbal.update_strategy(strategy_idx, 0.6, Some(&context.view()))
-            .unwrap();
+            .expect("operation should succeed");
 
-        let performance = bbal.get_strategy_performance().unwrap();
+        let performance = bbal
+            .get_strategy_performance()
+            .expect("operation should succeed");
         assert_eq!(performance.len(), strategies.len());
     }
 }

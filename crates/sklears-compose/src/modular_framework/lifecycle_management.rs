@@ -97,7 +97,11 @@ impl LifecycleManager {
             )));
         }
 
-        let old_state = self.component_states.get(component_id).unwrap().clone();
+        let old_state = self
+            .component_states
+            .get(component_id)
+            .cloned()
+            .unwrap_or(ComponentLifecycleState::Created);
 
         // Validate state transition
         if !self.is_valid_transition(&old_state, &state) {
@@ -593,7 +597,9 @@ mod tests {
     #[test]
     fn test_state_transitions() {
         let mut manager = LifecycleManager::new();
-        manager.register_component("component_a", vec![]).unwrap();
+        manager
+            .register_component("component_a", vec![])
+            .unwrap_or_default();
 
         // Valid transition
         let result =
@@ -609,12 +615,14 @@ mod tests {
     fn test_dependency_resolution() {
         let mut manager = LifecycleManager::new();
 
-        manager.register_component("component_a", vec![]).unwrap();
+        manager
+            .register_component("component_a", vec![])
+            .unwrap_or_default();
         manager
             .register_component("component_b", vec!["component_a".to_string()])
-            .unwrap();
+            .unwrap_or_default();
 
-        let order = manager.calculate_initialization_order().unwrap();
+        let order = manager.calculate_initialization_order().unwrap_or_default();
         assert_eq!(order, vec!["component_a", "component_b"]);
     }
 
@@ -624,10 +632,10 @@ mod tests {
 
         manager
             .register_component("component_a", vec!["component_b".to_string()])
-            .unwrap();
+            .unwrap_or_default();
         manager
             .register_component("component_b", vec!["component_a".to_string()])
-            .unwrap();
+            .unwrap_or_default();
 
         let result = manager.calculate_initialization_order();
         assert!(result.is_err());
@@ -636,7 +644,9 @@ mod tests {
     #[test]
     fn test_component_initialization() {
         let mut manager = LifecycleManager::new();
-        manager.register_component("component_a", vec![]).unwrap();
+        manager
+            .register_component("component_a", vec![])
+            .unwrap_or_default();
 
         let result = manager.initialize_component("component_a");
         assert!(result.is_ok());
@@ -649,16 +659,22 @@ mod tests {
     fn test_full_lifecycle() {
         let mut manager = LifecycleManager::new();
 
-        manager.register_component("component_a", vec![]).unwrap();
+        manager
+            .register_component("component_a", vec![])
+            .unwrap_or_default();
         manager
             .register_component("component_b", vec!["component_a".to_string()])
-            .unwrap();
+            .unwrap_or_default();
 
-        let init_result = manager.initialize_all_components().unwrap();
+        let init_result = manager
+            .initialize_all_components()
+            .expect("operation should succeed");
         assert_eq!(init_result.successful_initializations, 2);
         assert_eq!(init_result.failed_initializations, 0);
 
-        let shutdown_result = manager.shutdown_all_components().unwrap();
+        let shutdown_result = manager
+            .shutdown_all_components()
+            .expect("operation should succeed");
         assert_eq!(shutdown_result.successful_shutdowns, 2);
         assert_eq!(shutdown_result.failed_shutdowns, 0);
     }

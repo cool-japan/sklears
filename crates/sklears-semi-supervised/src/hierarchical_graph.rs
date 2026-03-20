@@ -151,7 +151,8 @@ impl HierarchicalGraphConstruction {
                         }
                     }
 
-                    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                    distances
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
                     for (dist, j) in distances.iter().take(k_neighbors.min(distances.len())) {
                         let weight = (-dist.powi(2) / 2.0).exp();
@@ -215,7 +216,7 @@ impl HierarchicalGraphConstruction {
             }
 
             if !distances.is_empty() {
-                distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let k_idx = k_neighbors.min(distances.len()) - 1;
                 kth_distances.push(distances[k_idx]);
             }
@@ -226,7 +227,7 @@ impl HierarchicalGraphConstruction {
         }
 
         // Use median of k-th nearest neighbor distances
-        kth_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        kth_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_idx = kth_distances.len() / 2;
         Ok(kth_distances[median_idx])
     }
@@ -255,7 +256,7 @@ impl HierarchicalGraphConstruction {
                 }
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, j) in distances.iter().take(adaptive_k.min(distances.len())) {
                 let weight = (-dist.powi(2) / 2.0).exp();
@@ -294,7 +295,7 @@ impl HierarchicalGraphConstruction {
             }
 
             if !distances.is_empty() {
-                distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let k_idx = k.min(distances.len()) - 1;
                 densities[i] = 1.0 / (1.0 + distances[k_idx]); // Inverse distance density
             }
@@ -963,12 +964,14 @@ mod tests {
         let result = hgc.fit(&X.view());
         assert!(result.is_ok());
 
-        let hierarchy = result.unwrap();
+        let hierarchy = result.expect("operation should succeed");
         assert_eq!(hierarchy.n_levels(), 3);
 
         // Check that each level has a valid graph
         for level in 0..hierarchy.n_levels() {
-            let graph = hierarchy.level_graph(level).unwrap();
+            let graph = hierarchy
+                .level_graph(level)
+                .expect("operation should succeed");
             assert!(graph.nrows() > 0);
             assert_eq!(graph.nrows(), graph.ncols());
         }
@@ -991,7 +994,7 @@ mod tests {
             let result = hgc.fit(&X.view());
             assert!(result.is_ok());
 
-            let hierarchy = result.unwrap();
+            let hierarchy = result.expect("operation should succeed");
             assert_eq!(hierarchy.n_levels(), 2);
         }
     }
@@ -1012,7 +1015,7 @@ mod tests {
             let result = hgc.fit(&X.view());
             assert!(result.is_ok());
 
-            let hierarchy = result.unwrap();
+            let hierarchy = result.expect("operation should succeed");
             assert_eq!(hierarchy.n_levels(), 2);
         }
     }
@@ -1045,7 +1048,7 @@ mod tests {
         let result = mssl.fit(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let labels = result.unwrap();
+        let labels = result.expect("operation should succeed");
         assert_eq!(labels.len(), 6);
 
         // Check that labeled samples retain their labels
@@ -1075,7 +1078,7 @@ mod tests {
             let result = mssl.fit(&X.view(), &y.view());
             assert!(result.is_ok());
 
-            let labels = result.unwrap();
+            let labels = result.expect("operation should succeed");
             assert_eq!(labels.len(), 4);
             // Check that labeled samples retain their original labels (or reasonable prediction)
             // In semi-supervised learning, exact results can vary based on graph construction

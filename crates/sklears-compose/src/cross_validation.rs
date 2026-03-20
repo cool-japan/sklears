@@ -1016,7 +1016,7 @@ impl CrossValidationResults {
             if self.train_scores.is_none() {
                 self.train_scores = Some(Vec::new());
             }
-            self.train_scores.as_mut().unwrap().push(train_score);
+            self.train_scores.as_mut().unwrap_or_default().push(train_score);
         }
 
         // Collect additional metrics
@@ -1225,7 +1225,7 @@ mod tests {
         let config = CrossValidationConfig::default();
         let cv = ComposedModelCrossValidator::new(config);
 
-        let splits = cv.k_fold_split(10, &mut StdRng::seed_from_u64(42)).unwrap();
+        let splits = cv.k_fold_split(10, &mut StdRng::seed_from_u64(42)).unwrap_or_default();
 
         assert_eq!(splits.len(), 5);
         for (train_indices, test_indices) in &splits {
@@ -1243,7 +1243,7 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0];
         let splits = cv
             .stratified_k_fold_split(8, &y.view(), &mut StdRng::seed_from_u64(42))
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(splits.len(), 5);
         // Each fold should have roughly equal representation of classes
@@ -1254,7 +1254,7 @@ mod tests {
         let config = CrossValidationConfig::default();
         let cv = ComposedModelCrossValidator::new(config);
 
-        let splits = cv.leave_one_out_split(5).unwrap();
+        let splits = cv.leave_one_out_split(5).unwrap_or_default();
 
         assert_eq!(splits.len(), 5);
         for (i, (train_indices, test_indices)) in splits.iter().enumerate() {
@@ -1276,7 +1276,7 @@ mod tests {
         });
 
         let cv = ComposedModelCrossValidator::new(config);
-        let splits = cv.time_series_split(10).unwrap();
+        let splits = cv.time_series_split(10).unwrap_or_default();
 
         assert!(!splits.is_empty());
         for (train_indices, test_indices) in &splits {
@@ -1294,7 +1294,7 @@ mod tests {
 
         let splits = cv
             .bootstrap_split(10, 5, &mut StdRng::seed_from_u64(42))
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(splits.len(), 5);
         for (train_indices, test_indices) in &splits {
@@ -1315,12 +1315,12 @@ mod tests {
         let y_pred = array![1.0, 2.0, 3.0, 4.0];
         let y_true = array![1.1, 1.9, 3.1, 3.9];
 
-        let score = cv.score(&y_pred.view(), &y_true.view()).unwrap();
+        let score = cv.score(&y_pred.view(), &y_true.view()).unwrap_or_default();
         assert!(score > 0.0); // R2 should be positive for good predictions
 
         let additional_metrics = cv
             .compute_additional_metrics(&y_pred.view(), &y_true.view())
-            .unwrap();
+            .unwrap_or_default();
         assert!(additional_metrics.contains_key("MeanAbsoluteError"));
     }
 

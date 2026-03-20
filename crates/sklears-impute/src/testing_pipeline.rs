@@ -5,7 +5,7 @@
 
 // ✅ SciRS2 Policy compliant imports
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 // use scirs2_core::parallel::{ParallelExecutor, ChunkStrategy}; // Note: not available
 
 use crate::benchmarks::{MissingPattern, MissingPatternGenerator};
@@ -456,7 +456,7 @@ impl AutomatedTestPipeline {
 
         // Update total test count
         {
-            let mut results = self.test_results.write().unwrap();
+            let mut results = self.test_results.write().expect("operation should succeed");
             results.total_tests = test_cases.len();
         }
 
@@ -562,7 +562,7 @@ impl AutomatedTestPipeline {
 
         // Update results
         {
-            let mut test_results = self.test_results.write().unwrap();
+            let mut test_results = self.test_results.write().expect("operation should succeed");
             for completed_test in completed_tests {
                 match completed_test.status {
                     TestStatus::Completed => test_results.passed_tests += 1,
@@ -585,7 +585,7 @@ impl AutomatedTestPipeline {
 
             // Update results
             {
-                let mut test_results = self.test_results.write().unwrap();
+                let mut test_results = self.test_results.write().expect("operation should succeed");
                 match completed_test.status {
                     TestStatus::Completed => test_results.passed_tests += 1,
                     _ => test_results.failed_tests += 1,
@@ -717,8 +717,8 @@ impl AutomatedTestPipeline {
                 let base_value = if j == 0 {
                     {
                         // Box-Muller transform for normal distribution
-                        let u1: f64 = rng.gen();
-                        let u2: f64 = rng.gen();
+                        let u1: f64 = rng.random();
+                        let u2: f64 = rng.random();
                         let mag = 1.0 * (-2.0 * u1.ln()).sqrt();
                         mag * (2.0 * std::f64::consts::PI * u2).cos() + 0.0
                     }
@@ -726,8 +726,8 @@ impl AutomatedTestPipeline {
                     0.5 * X_true[[i, j - 1]]
                         + 0.5 * {
                             // Box-Muller transform for normal distribution
-                            let u1: f64 = rng.gen();
-                            let u2: f64 = rng.gen();
+                            let u1: f64 = rng.random();
+                            let u2: f64 = rng.random();
                             let mag = 1.0 * (-2.0 * u1.ln()).sqrt();
                             mag * (2.0 * std::f64::consts::PI * u2).cos() + 0.0
                         }
@@ -736,8 +736,8 @@ impl AutomatedTestPipeline {
                 X_true[[i, j]] = base_value
                     + noise_level * {
                         // Box-Muller transform for normal distribution
-                        let u1: f64 = rng.gen();
-                        let u2: f64 = rng.gen();
+                        let u1: f64 = rng.random();
+                        let u2: f64 = rng.random();
                         let mag = 1.0 * (-2.0 * u1.ln()).sqrt();
                         mag * (2.0 * std::f64::consts::PI * u2).cos() + 0.0
                     };
@@ -890,7 +890,7 @@ impl AutomatedTestPipeline {
 
     /// Generate final test report
     fn generate_final_report(&self) -> Result<TestResults, ImputationError> {
-        let mut results = self.test_results.write().unwrap();
+        let mut results = self.test_results.write().expect("operation should succeed");
         results.end_time = Some(SystemTime::now());
 
         // Compute summary statistics
@@ -1115,7 +1115,9 @@ mod tests {
         };
 
         let pipeline = AutomatedTestPipeline::new(config);
-        let test_cases = pipeline.generate_test_cases().unwrap();
+        let test_cases = pipeline
+            .generate_test_cases()
+            .expect("operation should succeed");
 
         assert_eq!(test_cases.len(), 2); // 1 dataset × 1 pattern × 1 imputer × 2 repetitions
         assert!(test_cases
@@ -1160,7 +1162,7 @@ mod tests {
         let result = pipeline.generate_test_data(&test_case);
         assert!(result.is_ok());
 
-        let (X_true, X_missing) = result.unwrap();
+        let (X_true, X_missing) = result.expect("operation should succeed");
         assert_eq!(X_true.shape(), &[100, 5]);
         assert_eq!(X_missing.shape(), &[100, 5]);
 

@@ -234,9 +234,8 @@ impl ProfileGuidedOptimizer {
         }
 
         // Sample based on configured rate
-        use scirs2_core::random::Rng;
         let mut rng = scirs2_core::random::thread_rng();
-        rng.gen::<Float>() < self.config.sample_rate
+        rng.random::<Float>() < self.config.sample_rate
     }
 
     /// Record execution data
@@ -249,7 +248,10 @@ impl ProfileGuidedOptimizer {
     ) {
         // Update method profile
         {
-            let mut profiles = self.method_profiles.lock().unwrap();
+            let mut profiles = self
+                .method_profiles
+                .lock()
+                .expect("operation should succeed");
             let profile = profiles
                 .entry(method_id.to_string())
                 .or_insert_with(|| MethodProfile {
@@ -276,7 +278,7 @@ impl ProfileGuidedOptimizer {
 
         // Update runtime statistics
         {
-            let mut stats = self.runtime_stats.lock().unwrap();
+            let mut stats = self.runtime_stats.lock().expect("operation should succeed");
             stats.total_executions += 1;
             stats.avg_execution_time = (stats.avg_execution_time
                 * (stats.total_executions - 1) as f64
@@ -302,7 +304,7 @@ impl ProfileGuidedOptimizer {
 
     /// Update hot path detection
     fn update_hot_paths(&self, method_id: &str, execution_time: Duration) {
-        let mut hot_paths = self.hot_paths.lock().unwrap();
+        let mut hot_paths = self.hot_paths.lock().expect("operation should succeed");
 
         // Find existing hot path or create new one
         if let Some(hot_path) = hot_paths.iter_mut().find(|hp| hp.path_id == method_id) {
@@ -338,7 +340,12 @@ impl ProfileGuidedOptimizer {
         let mut suggestions = Vec::new();
 
         // Analyze method profile
-        if let Some(profile) = self.method_profiles.lock().unwrap().get(method_id) {
+        if let Some(profile) = self
+            .method_profiles
+            .lock()
+            .expect("operation should succeed")
+            .get(method_id)
+        {
             // Check for vectorization opportunities
             if method_id.contains("permutation") || method_id.contains("shap") {
                 suggestions.push("Consider SIMD vectorization for batch operations".to_string());
@@ -376,13 +383,16 @@ impl ProfileGuidedOptimizer {
         let mut opportunities = Vec::new();
 
         // Analyze method profiles
-        let profiles = self.method_profiles.lock().unwrap();
+        let profiles = self
+            .method_profiles
+            .lock()
+            .expect("operation should succeed");
         for profile in profiles.values() {
             opportunities.extend(self.analyze_method_profile(profile));
         }
 
         // Analyze runtime statistics
-        let stats = self.runtime_stats.lock().unwrap();
+        let stats = self.runtime_stats.lock().expect("operation should succeed");
         opportunities.extend(self.analyze_runtime_statistics(&stats));
 
         opportunities
@@ -514,17 +524,27 @@ impl ProfileGuidedOptimizer {
 
     /// Get method profile
     pub fn get_method_profile(&self, method_id: &str) -> Option<MethodProfile> {
-        self.method_profiles.lock().unwrap().get(method_id).cloned()
+        self.method_profiles
+            .lock()
+            .expect("operation should succeed")
+            .get(method_id)
+            .cloned()
     }
 
     /// Get runtime statistics
     pub fn get_runtime_statistics(&self) -> RuntimeStatistics {
-        self.runtime_stats.lock().unwrap().clone()
+        self.runtime_stats
+            .lock()
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Get hot paths
     pub fn get_hot_paths(&self) -> Vec<HotPath> {
-        self.hot_paths.lock().unwrap().clone()
+        self.hot_paths
+            .lock()
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Apply automatic optimizations
@@ -645,12 +665,15 @@ mod tests {
         for i in 0..5 {
             optimizer
                 .profile_execution("test_method", 100 * i, || Ok(()))
-                .unwrap();
+                .expect("operation should succeed");
         }
 
         let profile = optimizer.get_method_profile("test_method");
         assert!(profile.is_some());
-        assert_eq!(profile.unwrap().execution_count, 5);
+        assert_eq!(
+            profile.expect("operation should succeed").execution_count,
+            5
+        );
     }
 
     #[test]
@@ -660,7 +683,10 @@ mod tests {
 
         // Create a method profile with many executions
         {
-            let mut profiles = optimizer.method_profiles.lock().unwrap();
+            let mut profiles = optimizer
+                .method_profiles
+                .lock()
+                .expect("operation should succeed");
             profiles.insert(
                 "frequent_method".to_string(),
                 MethodProfile {

@@ -10,7 +10,7 @@ use crate::SklResult;
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -326,7 +326,7 @@ pub struct CoverageMetrics {
 }
 
 /// Comprehensive validation framework
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ValidationFramework {
     config: ValidationConfig,
     rng: StdRng,
@@ -716,17 +716,17 @@ impl ValidationFramework {
 
         // Combine metrics with some noise
         let base_quality = (explanation_variance * 0.3 + explanation_magnitude * 0.7).min(1.0);
-        (base_quality + self.rng.gen_range(-0.1..0.1)).clamp(0.0, 1.0)
+        (base_quality + self.rng.random_range(-0.1..0.1)).clamp(0.0, 1.0)
     }
 
     fn sample_evaluator_noise(&mut self) -> Float {
-        self.rng.gen_range(-0.2..0.2)
+        self.rng.random_range(-0.2..0.2)
     }
 
     fn compute_inter_rater_reliability(&mut self, n_evaluators: usize) -> Float {
         // Simulate inter-rater reliability (ICC)
         let base_reliability: Float = 0.75;
-        let noise: Float = self.rng.gen_range(-0.1..0.1);
+        let noise: Float = self.rng.random_range(-0.1..0.1);
         (base_reliability + noise).clamp(0.0, 1.0)
     }
 
@@ -815,7 +815,7 @@ impl ValidationFramework {
         let mut X = Array2::zeros((n_samples, n_features));
         for i in 0..n_samples {
             for j in 0..n_features {
-                X[[i, j]] = self.rng.gen_range(-1.0..1.0);
+                X[[i, j]] = self.rng.random_range(-1.0..1.0);
             }
         }
 
@@ -833,7 +833,7 @@ impl ValidationFramework {
                 prediction += X[[i, j]] * true_importance[j];
             }
             // Add noise
-            prediction += self.rng.gen_range(-0.1..0.1);
+            prediction += self.rng.random_range(-0.1..0.1);
             y[i] = prediction;
         }
 
@@ -866,7 +866,7 @@ impl ValidationFramework {
             .map(|(i, &val)| (i, val))
             .collect();
 
-        indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         indexed_values.into_iter().take(k).map(|(i, _)| i).collect()
     }
 
@@ -941,7 +941,7 @@ impl ValidationFramework {
             .map(|(i, &val)| (i, val))
             .collect();
 
-        indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut ranks = Array1::zeros(values.len());
         for (rank, (original_idx, _)) in indexed_values.iter().enumerate() {
@@ -1011,7 +1011,7 @@ impl ValidationFramework {
             _ => 0.75,
         };
 
-        (base_score * domain_factor + self.rng.gen_range(-0.1..0.1)).clamp(0.0, 1.0)
+        (base_score * domain_factor + self.rng.random_range(-0.1..0.1)).clamp(0.0, 1.0)
     }
 
     fn simulate_utility_assessment(
@@ -1028,7 +1028,7 @@ impl ValidationFramework {
             _ => 0.7,
         };
 
-        (explanation_variance * task_factor + self.rng.gen_range(-0.1..0.1)).clamp(0.0, 1.0)
+        (explanation_variance * task_factor + self.rng.random_range(-0.1..0.1)).clamp(0.0, 1.0)
     }
 
     fn simulate_time_to_insight(
@@ -1039,7 +1039,7 @@ impl ValidationFramework {
         // Time inversely related to explanation clarity
         let clarity = explanations.var(0.0).max(0.01);
         let base_time = 30.0; // 30 seconds base
-        base_time / clarity + self.rng.gen_range(-5.0..5.0)
+        base_time / clarity + self.rng.random_range(-5.0..5.0)
     }
 
     fn simulate_user_satisfaction(
@@ -1049,7 +1049,7 @@ impl ValidationFramework {
     ) -> Float {
         // Satisfaction based on explanation quality
         let quality = explanations.mean().unwrap_or(0.5);
-        (quality * 0.8 + 0.2 + self.rng.gen_range(-0.1..0.1)).clamp(0.0, 1.0)
+        (quality * 0.8 + 0.2 + self.rng.random_range(-0.1..0.1)).clamp(0.0, 1.0)
     }
 
     fn compute_decision_quality_improvement(&self, expert_scores: &Array1<Float>) -> Float {
@@ -1066,7 +1066,7 @@ impl ValidationFramework {
         for time_point in 0..12 {
             // 12 months
             let trend = 0.02 * time_point as Float; // Slight improvement over time
-            let noise = self.rng.gen_range(-0.05..0.05);
+            let noise = self.rng.random_range(-0.05..0.05);
             let value: Float = (base_value + trend + noise).clamp(0.0 as Float, 1.0 as Float);
 
             results.push(LongitudinalResult {
@@ -1193,8 +1193,8 @@ impl ValidationFramework {
         edge_case_results.push(empty_result);
 
         // Test with single sample
-        let single_X = Array2::from_shape_fn((1, 5), |_| self.rng.gen_range(-1.0..1.0));
-        let single_y = Array1::from_vec(vec![self.rng.gen_range(-1.0..1.0)]);
+        let single_X = Array2::from_shape_fn((1, 5), |_| self.rng.random_range(-1.0..1.0));
+        let single_y = Array1::from_vec(vec![self.rng.random_range(-1.0..1.0)]);
 
         let single_result = match explanation_fn(&single_X.view(), &single_y.view()) {
             Ok(_) => EdgeCaseResult {
@@ -1265,7 +1265,7 @@ mod tests {
         let result = framework.validate_synthetic_ground_truth(explanation_fn);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.dataset_results.len(), 2);
         assert!(result.ground_truth_accuracy >= 0.0);
         assert!(result.ground_truth_accuracy <= 1.0);
@@ -1296,7 +1296,7 @@ mod tests {
         );
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.method_correlations.shape(), &[3, 3]);
         assert!(result.average_consistency >= -1.0);
         assert!(result.average_consistency <= 1.0);
@@ -1319,7 +1319,7 @@ mod tests {
         let result = framework.run_automated_testing(explanation_fn, test_datasets);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(!result.test_results.is_empty());
         assert!(result.overall_pass_rate >= 0.0);
         assert!(result.overall_pass_rate <= 1.0);
@@ -1347,7 +1347,7 @@ mod tests {
         let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let (lower, upper) = framework.compute_confidence_interval(&data);
 
-        let mean = data.mean().unwrap();
+        let mean = data.mean().expect("operation should succeed");
         assert!(lower <= mean);
         assert!(upper >= mean);
         assert!(lower < upper);

@@ -489,8 +489,11 @@ impl MLPClassifier<sklears_core::traits::Untrained> {
         }
 
         // Output layer (softmax for classification)
-        let z_out =
-            activations.last().unwrap().dot(weights.last().unwrap()) + biases.last().unwrap();
+        let z_out = activations
+            .last()
+            .expect("empty collection")
+            .dot(weights.last().expect("empty collection"))
+            + biases.last().expect("empty collection");
         let y_pred = softmax(&z_out);
         activations.push(y_pred.clone());
 
@@ -612,8 +615,8 @@ impl MLPClassifier<TrainedMLPClassifier> {
         }
 
         // Output layer with softmax
-        let z_out =
-            activations.dot(self.state.weights.last().unwrap()) + self.state.biases.last().unwrap();
+        let z_out = activations.dot(self.state.weights.last().expect("empty collection"))
+            + self.state.biases.last().expect("empty collection");
         let probabilities = softmax(&z_out);
 
         Ok(probabilities)
@@ -669,9 +672,12 @@ impl VersionedModel for MLPClassifier<TrainedMLPClassifier> {
         self.state.model_version.is_compatible_with(version)
     }
 
+    /// Migrate model state to a new version.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     fn migrate_to_version(&mut self, _version: ModelVersion) -> VersioningResult<()> {
-        // Migration logic would be implemented here for production use
-        // For now, return an error indicating manual migration is needed
         Err(sklears_core::error::SklearsError::NotImplemented(
             "Model migration not yet implemented for MLPClassifier".to_string(),
         ))
@@ -733,8 +739,8 @@ mod tests {
             .learning_rate_init(0.01)
             .random_state(123);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = trained_mlp.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         // Check that we get reasonable predictions (not all the same)
@@ -742,7 +748,9 @@ mod tests {
         // Test should pass if model learns some diversity - be more lenient for now
         if unique_predictions.len() == 1 {
             // If still getting all same predictions, check probabilities to ensure the model ran
-            let probabilities = trained_mlp.predict_proba(&x).unwrap();
+            let probabilities = trained_mlp
+                .predict_proba(&x)
+                .expect("probability prediction should succeed");
             assert!(probabilities.nrows() == 8);
             assert!(probabilities.ncols() == 2);
             // At least verify that probabilities sum to 1 for each sample
@@ -768,8 +776,10 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let probabilities = trained_mlp.predict_proba(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("model fitting should succeed");
+        let probabilities = trained_mlp
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probabilities.dim(), (2, 2));
 

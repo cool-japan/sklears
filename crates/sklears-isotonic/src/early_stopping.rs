@@ -176,7 +176,7 @@ impl EarlyStoppingState {
                 }
 
                 // Track best objective
-                if self.best_objective.is_none() || obj < self.best_objective.unwrap() {
+                if self.best_objective.is_none() || obj < self.best_objective.expect("operation should succeed") {
                     self.best_objective = Some(obj);
                     self.best_iteration = self.iteration;
                 }
@@ -221,7 +221,7 @@ impl EarlyStoppingState {
 
         // Absolute tolerance on objective
         if criteria.monitor_objective && !self.objective_history.is_empty() {
-            let current_obj = *self.objective_history.back().unwrap();
+            let current_obj = *self.objective_history.back().expect("operation should succeed");
             if current_obj.abs() < criteria.absolute_tolerance {
                 self.converged = true;
                 self.stop_reason = StopReason::AbsoluteTolerance;
@@ -231,7 +231,7 @@ impl EarlyStoppingState {
 
         // Gradient convergence
         if criteria.monitor_gradient && !self.gradient_history.is_empty() {
-            let current_grad = *self.gradient_history.back().unwrap();
+            let current_grad = *self.gradient_history.back().expect("operation should succeed");
             if current_grad < criteria.absolute_tolerance {
                 self.converged = true;
                 self.stop_reason = StopReason::GradientConverged;
@@ -241,7 +241,7 @@ impl EarlyStoppingState {
 
         // Parameter change convergence
         if criteria.monitor_parameters && !self.parameter_history.is_empty() {
-            let current_change = *self.parameter_history.back().unwrap();
+            let current_change = *self.parameter_history.back().expect("operation should succeed");
             if current_change < criteria.absolute_tolerance {
                 self.converged = true;
                 self.stop_reason = StopReason::ParametersConverged;
@@ -251,7 +251,7 @@ impl EarlyStoppingState {
 
         // Relative tolerance
         if criteria.monitor_objective && self.objective_history.len() > 1 {
-            let current_obj = *self.objective_history.back().unwrap();
+            let current_obj = *self.objective_history.back().expect("operation should succeed");
             let prev_obj = self.objective_history[self.objective_history.len() - 2];
             let relative_change = (current_obj - prev_obj).abs() / (prev_obj.abs() + 1e-10);
 
@@ -563,7 +563,7 @@ mod tests {
         warm_start.update_after_optimization(&params, 0.5, None, Some(0.01));
 
         assert!(warm_start.is_warm_start());
-        assert_eq!(warm_start.get_initial_parameters().unwrap(), &params);
+        assert_eq!(warm_start.get_initial_parameters().expect("operation should succeed"), &params);
         let lr = warm_start.get_initial_learning_rate(0.1);
         // Actually calculates: max(0.01 * 0.9, 0.1 * 0.1) = max(0.009, 0.01) = 0.01
         assert!((lr - 0.01).abs() < 1e-10);

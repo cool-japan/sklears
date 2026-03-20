@@ -127,7 +127,7 @@ impl PBFTConsensus {
 
         // Store proposal
         {
-            let mut proposals = self.proposals.write().unwrap();
+            let mut proposals = self.proposals.write().unwrap_or_else(|e| e.into_inner());
             proposals.insert(proposal.proposal_id.clone(), proposal.clone());
         }
 
@@ -145,7 +145,7 @@ impl PBFTConsensus {
         digest_data.push_str(&solution.objective_value.to_string());
 
         // Use SIMD for faster hash computation on large solution vectors
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         let digest = simd_accelerator.compute_fast_digest(&solution.variables)?;
 
         Ok(format!("{}_{}", digest_data, digest))
@@ -156,7 +156,7 @@ impl PBFTConsensus {
         // Implementation would send pre-prepare messages to all backup nodes
         // For this example, we'll simulate the broadcast
 
-        let mut stats = self.statistics.lock().unwrap();
+        let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
         stats.messages_sent += self.participating_nodes.len() as u64 - 1; // Exclude self
         stats.total_proposals += 1;
 
@@ -178,7 +178,7 @@ impl PBFTConsensus {
         };
 
         {
-            let mut prepare_msgs = self.prepare_messages.write().unwrap();
+            let mut prepare_msgs = self.prepare_messages.write().unwrap_or_else(|e| e.into_inner());
             prepare_msgs.entry(proposal_id.clone())
                 .or_insert_with(Vec::new)
                 .push(prepare_msg);
@@ -187,7 +187,7 @@ impl PBFTConsensus {
         // Check if we have enough prepare messages (2f + 1, where f is max Byzantine nodes)
         let required_prepares = 2 * self.max_byzantine_nodes + 1;
         let prepare_count = {
-            let prepare_msgs = self.prepare_messages.read().unwrap();
+            let prepare_msgs = self.prepare_messages.read().unwrap_or_else(|e| e.into_inner());
             prepare_msgs.get(proposal_id).map(|msgs| msgs.len()).unwrap_or(0)
         };
 
@@ -212,7 +212,7 @@ impl PBFTConsensus {
         };
 
         {
-            let mut commit_msgs = self.commit_messages.write().unwrap();
+            let mut commit_msgs = self.commit_messages.write().unwrap_or_else(|e| e.into_inner());
             commit_msgs.entry(proposal.proposal_id.clone())
                 .or_insert_with(Vec::new)
                 .push(commit_msg);
@@ -227,7 +227,7 @@ impl PBFTConsensus {
     /// Broadcast commit message
     fn broadcast_commit_message(&self, proposal_id: &str) -> SklResult<()> {
         // Simulate broadcasting commit message
-        let mut stats = self.statistics.lock().unwrap();
+        let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
         stats.messages_sent += self.participating_nodes.len() as u64 - 1;
 
         Ok(())
@@ -237,7 +237,7 @@ impl PBFTConsensus {
     fn check_commit_complete(&self, proposal_id: &str) -> SklResult<bool> {
         let required_commits = 2 * self.max_byzantine_nodes + 1;
         let commit_count = {
-            let commit_msgs = self.commit_messages.read().unwrap();
+            let commit_msgs = self.commit_messages.read().unwrap_or_else(|e| e.into_inner());
             commit_msgs.get(proposal_id).map(|msgs| msgs.len()).unwrap_or(0)
         };
 
@@ -259,7 +259,7 @@ impl PBFTConsensus {
         };
 
         {
-            let mut view_change_msgs = self.view_change_messages.write().unwrap();
+            let mut view_change_msgs = self.view_change_messages.write().unwrap_or_else(|e| e.into_inner());
             view_change_msgs.entry(self.current_view)
                 .or_insert_with(Vec::new)
                 .push(view_change_msg);
@@ -267,7 +267,7 @@ impl PBFTConsensus {
 
         // Update statistics
         {
-            let mut stats = self.statistics.lock().unwrap();
+            let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.view_changes += 1;
         }
 
@@ -276,7 +276,7 @@ impl PBFTConsensus {
 
     /// Get prepared proposals for view change
     fn get_prepared_proposals(&self) -> SklResult<Vec<String>> {
-        let prepare_msgs = self.prepare_messages.read().unwrap();
+        let prepare_msgs = self.prepare_messages.read().unwrap_or_else(|e| e.into_inner());
         let required_prepares = 2 * self.max_byzantine_nodes + 1;
 
         let prepared: Vec<String> = prepare_msgs.iter()
@@ -337,7 +337,7 @@ impl ConsensusAlgorithm for PBFTConsensus {
 
         // Initialize statistics
         {
-            let mut stats = self.statistics.lock().unwrap();
+            let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.participating_nodes = n;
             stats.max_byzantine_tolerance = self.max_byzantine_nodes;
         }
@@ -390,13 +390,13 @@ impl ConsensusAlgorithm for PBFTConsensus {
 
     fn reach_consensus(&mut self) -> SklResult<Solution> {
         // Check all proposals for consensus completion
-        let proposals = self.proposals.read().unwrap();
+        let proposals = self.proposals.read().unwrap_or_else(|e| e.into_inner());
 
         for (proposal_id, proposal) in proposals.iter() {
             if self.check_commit_complete(proposal_id)? {
                 // Consensus reached on this proposal
                 {
-                    let mut stats = self.statistics.lock().unwrap();
+                    let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
                     stats.successful_consensus += 1;
                     stats.average_consensus_time = Duration::from_millis(500); // Simplified
                 }
@@ -407,7 +407,7 @@ impl ConsensusAlgorithm for PBFTConsensus {
 
         // No consensus reached
         {
-            let mut stats = self.statistics.lock().unwrap();
+            let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.failed_consensus += 1;
         }
 
@@ -432,7 +432,7 @@ impl ConsensusAlgorithm for PBFTConsensus {
 
         // Update statistics
         {
-            let mut stats = self.statistics.lock().unwrap();
+            let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.node_failures += 1;
             stats.participating_nodes = n;
         }
@@ -443,15 +443,15 @@ impl ConsensusAlgorithm for PBFTConsensus {
     fn stop(&mut self) -> SklResult<()> {
         // Clear all data structures
         {
-            let mut proposals = self.proposals.write().unwrap();
+            let mut proposals = self.proposals.write().unwrap_or_else(|e| e.into_inner());
             proposals.clear();
         }
         {
-            let mut prepare_msgs = self.prepare_messages.write().unwrap();
+            let mut prepare_msgs = self.prepare_messages.write().unwrap_or_else(|e| e.into_inner());
             prepare_msgs.clear();
         }
         {
-            let mut commit_msgs = self.commit_messages.write().unwrap();
+            let mut commit_msgs = self.commit_messages.write().unwrap_or_else(|e| e.into_inner());
             commit_msgs.clear();
         }
 
@@ -459,7 +459,7 @@ impl ConsensusAlgorithm for PBFTConsensus {
     }
 
     fn get_consensus_statistics(&self) -> ConsensusStatistics {
-        let stats = self.statistics.lock().unwrap();
+        let stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 
@@ -536,8 +536,8 @@ impl AveragingConsensus {
 
     /// Perform one averaging iteration with SIMD acceleration
     fn averaging_iteration(&self, values: &HashMap<String, Array1<f64>>) -> SklResult<HashMap<String, Array1<f64>>> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
-        simd_accelerator.accelerated_averaging(values, &self.mixing_matrix.read().unwrap())
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
+        simd_accelerator.accelerated_averaging(values, &self.mixing_matrix.read().unwrap_or_else(|e| e.into_inner()))
     }
 
     /// Check convergence of averaging consensus
@@ -582,13 +582,13 @@ impl ConsensusAlgorithm for AveragingConsensus {
         // Compute mixing matrix
         let mixing_matrix = self.compute_mixing_matrix()?;
         {
-            let mut matrix = self.mixing_matrix.write().unwrap();
+            let mut matrix = self.mixing_matrix.write().unwrap_or_else(|e| e.into_inner());
             *matrix = mixing_matrix;
         }
 
         // Initialize statistics
         {
-            let mut stats = self.statistics.lock().unwrap();
+            let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.participating_nodes = nodes.len();
             stats.algorithm_type = "averaging_consensus".to_string();
         }
@@ -599,7 +599,7 @@ impl ConsensusAlgorithm for AveragingConsensus {
     fn propose_solution(&mut self, solution: &Solution) -> SklResult<()> {
         // Store this node's value
         {
-            let mut values = self.current_values.write().unwrap();
+            let mut values = self.current_values.write().unwrap_or_else(|e| e.into_inner());
             values.insert(self.node_id.clone(), solution.variables.clone());
         }
         Ok(())
@@ -608,7 +608,7 @@ impl ConsensusAlgorithm for AveragingConsensus {
     fn process_proposal(&mut self, proposal: &Proposal) -> SklResult<ConsensusResponse> {
         // Store the proposed value
         {
-            let mut values = self.current_values.write().unwrap();
+            let mut values = self.current_values.write().unwrap_or_else(|e| e.into_inner());
             values.insert(proposal.proposer_node.clone(), proposal.proposed_solution.variables.clone());
         }
 
@@ -630,7 +630,7 @@ impl ConsensusAlgorithm for AveragingConsensus {
         while iteration < self.max_iterations {
             // Get current values
             let current_values = {
-                let values = self.current_values.read().unwrap();
+                let values = self.current_values.read().unwrap_or_else(|e| e.into_inner());
                 values.clone()
             };
 
@@ -663,7 +663,7 @@ impl ConsensusAlgorithm for AveragingConsensus {
 
                 // Update statistics
                 {
-                    let mut stats = self.statistics.lock().unwrap();
+                    let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
                     stats.successful_consensus += 1;
                     stats.average_consensus_time = Duration::from_millis(iteration as u64 * 10);
                     stats.total_iterations = iteration as u64;
@@ -677,7 +677,7 @@ impl ConsensusAlgorithm for AveragingConsensus {
 
             // Update values
             {
-                let mut values = self.current_values.write().unwrap();
+                let mut values = self.current_values.write().unwrap_or_else(|e| e.into_inner());
                 *values = new_values;
             }
 
@@ -686,7 +686,7 @@ impl ConsensusAlgorithm for AveragingConsensus {
 
         // Max iterations reached
         {
-            let mut stats = self.statistics.lock().unwrap();
+            let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.failed_consensus += 1;
         }
 
@@ -699,20 +699,20 @@ impl ConsensusAlgorithm for AveragingConsensus {
 
         // Remove failed node's values
         {
-            let mut values = self.current_values.write().unwrap();
+            let mut values = self.current_values.write().unwrap_or_else(|e| e.into_inner());
             values.remove(&failed_node.node_id);
         }
 
         // Recompute mixing matrix
         let new_mixing_matrix = self.compute_mixing_matrix()?;
         {
-            let mut matrix = self.mixing_matrix.write().unwrap();
+            let mut matrix = self.mixing_matrix.write().unwrap_or_else(|e| e.into_inner());
             *matrix = new_mixing_matrix;
         }
 
         // Update statistics
         {
-            let mut stats = self.statistics.lock().unwrap();
+            let mut stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.node_failures += 1;
             stats.participating_nodes = self.participating_nodes.len();
         }
@@ -721,13 +721,13 @@ impl ConsensusAlgorithm for AveragingConsensus {
     }
 
     fn stop(&mut self) -> SklResult<()> {
-        let mut values = self.current_values.write().unwrap();
+        let mut values = self.current_values.write().unwrap_or_else(|e| e.into_inner());
         values.clear();
         Ok(())
     }
 
     fn get_consensus_statistics(&self) -> ConsensusStatistics {
-        let stats = self.statistics.lock().unwrap();
+        let stats = self.statistics.lock().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 
@@ -884,7 +884,7 @@ impl SimdConsensusAccelerator {
             return Ok(result);
         }
 
-        let dimension = values.values().next().unwrap().len();
+        let dimension = values.values().next().unwrap_or_default().len();
         let mut value_matrix = Array2::zeros((n_nodes, dimension));
 
         // Fill value matrix

@@ -3,17 +3,17 @@
 //! This module provides stub implementations for feature interaction analysis.
 //! Full implementations are planned for future releases.
 
-use scirs2_core::error::CoreError;
-type Result<T> = std::result::Result<T, CoreError>;
+use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Feature interaction analysis (stub implementation)
 #[derive(Debug, Clone)]
 pub struct FeatureInteractionAnalysis;
 
 impl FeatureInteractionAnalysis {
-    pub fn analyze_interactions(_features: &[usize]) -> Result<f64> {
-        // Stub implementation
-        Ok(0.5)
+    pub fn analyze_interactions(_features: &[usize]) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "FeatureInteractionAnalysis::analyze_interactions is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -22,8 +22,10 @@ impl FeatureInteractionAnalysis {
 pub struct PairwiseInteractions;
 
 impl PairwiseInteractions {
-    pub fn compute_pairwise(_features: &[usize]) -> Result<Vec<(usize, usize, f64)>> {
-        Ok(vec![(0, 1, 0.5)])
+    pub fn compute_pairwise(_features: &[usize]) -> SklResult<Vec<(usize, usize, f64)>> {
+        Err(SklearsError::NotImplemented(
+            "PairwiseInteractions::compute_pairwise is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -32,8 +34,10 @@ impl PairwiseInteractions {
 pub struct HigherOrderInteractions;
 
 impl HigherOrderInteractions {
-    pub fn compute_higher_order(_features: &[usize]) -> Result<f64> {
-        Ok(0.5)
+    pub fn compute_higher_order(_features: &[usize]) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "HigherOrderInteractions::compute_higher_order is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -42,8 +46,10 @@ impl HigherOrderInteractions {
 pub struct InteractionStrength;
 
 impl InteractionStrength {
-    pub fn compute_strength(_feature1: usize, _feature2: usize) -> Result<f64> {
-        Ok(0.5)
+    pub fn compute_strength(_feature1: usize, _feature2: usize) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "InteractionStrength::compute_strength is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -52,7 +58,9 @@ impl InteractionStrength {
 pub struct SynergyDetection;
 
 impl SynergyDetection {
-    pub fn detect_synergy(_features: &[usize]) -> Result<Vec<Vec<usize>>> {
-        Ok(vec![vec![0, 1]])
+    pub fn detect_synergy(_features: &[usize]) -> SklResult<Vec<Vec<usize>>> {
+        Err(SklearsError::NotImplemented(
+            "SynergyDetection::detect_synergy is not yet implemented".to_string(),
+        ))
     }
 }

@@ -622,8 +622,8 @@ mod tests {
     #[test]
     fn test_apply_global_constraint_increasing() {
         let values = array![1.0, 3.0, 2.0, 4.0, 3.5];
-        let result =
-            apply_global_constraint(&values, MonotonicityConstraint::Increasing, None).unwrap();
+        let result = apply_global_constraint(&values, MonotonicityConstraint::Increasing, None)
+            .expect("operation should succeed");
 
         // Result should be increasing
         for i in 0..result.len() - 1 {
@@ -634,8 +634,8 @@ mod tests {
     #[test]
     fn test_apply_global_constraint_decreasing() {
         let values = array![4.0, 2.0, 3.0, 1.0, 1.5];
-        let result =
-            apply_global_constraint(&values, MonotonicityConstraint::Decreasing, None).unwrap();
+        let result = apply_global_constraint(&values, MonotonicityConstraint::Decreasing, None)
+            .expect("operation should succeed");
 
         // Result should be decreasing
         for i in 0..result.len() - 1 {

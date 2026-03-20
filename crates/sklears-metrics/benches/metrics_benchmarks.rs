@@ -18,21 +18,21 @@ use std::hint::black_box;
 // Helper function to generate random f64 arrays
 fn generate_random_f64(size: usize, seed: u64) -> Array1<f64> {
     let mut rng = seeded_rng(seed);
-    let dist = Uniform::new(0.0, 1.0).unwrap();
+    let dist = Uniform::new(0.0, 1.0).expect("operation should succeed");
     Array1::from_iter((0..size).map(|_| rng.sample(dist)))
 }
 
 // Helper function to generate random i32 arrays for classification
 fn generate_random_labels(size: usize, n_classes: i32, seed: u64) -> Array1<i32> {
     let mut rng = seeded_rng(seed);
-    let dist = Uniform::new(0, n_classes).unwrap();
+    let dist = Uniform::new(0, n_classes).expect("operation should succeed");
     Array1::from_iter((0..size).map(|_| rng.sample(dist)))
 }
 
 // Helper function to generate random 2D array for clustering
 fn generate_random_2d(n_samples: usize, n_features: usize, seed: u64) -> Array2<f64> {
     let mut rng = seeded_rng(seed);
-    let dist = Uniform::new(-1.0, 1.0).unwrap();
+    let dist = Uniform::new(-1.0, 1.0).expect("operation should succeed");
     Array2::from_shape_fn((n_samples, n_features), |_| rng.sample(dist))
 }
 

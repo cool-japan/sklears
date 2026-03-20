@@ -671,7 +671,7 @@ impl FeatureInteractionDetector {
 
 impl Default for FeatureInteractionDetector {
     fn default() -> Self {
-        Self::new(InteractionConfig::default()).unwrap()
+        Self::new(InteractionConfig::default()).expect("operation should succeed")
     }
 }
 
@@ -1382,12 +1382,19 @@ mod tests {
 
         let significance = Array1::from_vec(vec![0.01, 0.03]);
         results.set_significance_values(significance.clone());
-        assert_eq!(results.significance_values().unwrap(), &significance);
+        assert_eq!(
+            results
+                .significance_values()
+                .expect("operation should succeed"),
+            &significance
+        );
 
         results.add_metadata("method".to_string(), 1.0);
         assert_eq!(results.interaction_metadata().get("method"), Some(&1.0));
 
-        let strongest = results.strongest_interaction().unwrap();
+        let strongest = results
+            .strongest_interaction()
+            .expect("operation should succeed");
         assert_eq!(strongest.0, vec![0, 1]);
         assert_eq!(strongest.1, 0.8);
     }
@@ -1395,14 +1402,16 @@ mod tests {
     #[test]
     fn test_feature_interaction_detector() {
         let config = InteractionConfig::default();
-        let mut detector = FeatureInteractionDetector::new(config).unwrap();
+        let mut detector =
+            FeatureInteractionDetector::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 5].into_iter().chain(vec![1.0; 5]).collect());
 
         let results = detector
             .detect_interactions(&x.view(), Some(&y.view()))
-            .unwrap();
+            .expect("operation should succeed");
         assert!(detector.is_fitted());
         assert!(detector.interaction_results().is_some());
     }
@@ -1411,8 +1420,11 @@ mod tests {
     fn test_pairwise_interactions() {
         let mut pairwise = PairwiseInteractions::new(0.1);
 
-        let x = Array2::from_shape_vec((8, 4), (0..32).map(|i| i as f64).collect()).unwrap();
-        let pairs = pairwise.detect(&x.view()).unwrap();
+        let x = Array2::from_shape_vec((8, 4), (0..32).map(|i| i as f64).collect())
+            .expect("operation should succeed");
+        let pairs = pairwise
+            .detect(&x.view())
+            .expect("operation should succeed");
 
         assert!(pairwise.interaction_matrix().is_some());
         // Results depend on implementation details
@@ -1422,10 +1434,13 @@ mod tests {
     fn test_higher_order_interactions() {
         let mut higher_order = HighOrderInteractions::new(3, 0.05);
 
-        let x = Array2::from_shape_vec((12, 5), (0..60).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((12, 5), (0..60).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 6].into_iter().chain(vec![1.0; 6]).collect());
 
-        let interactions = higher_order.detect(&x.view(), Some(&y.view())).unwrap();
+        let interactions = higher_order
+            .detect(&x.view(), Some(&y.view()))
+            .expect("operation should succeed");
         assert_eq!(
             higher_order.detected_interactions().len(),
             interactions.len()
@@ -1458,8 +1473,10 @@ mod tests {
                 16.0, 17.0, 18.0,
             ],
         )
-        .unwrap();
-        let correlations = correlation.analyze(&x.view()).unwrap();
+        .expect("operation should succeed");
+        let correlations = correlation
+            .analyze(&x.view())
+            .expect("operation should succeed");
 
         assert!(correlation.correlation_matrix().is_some());
         // Results depend on implementation
@@ -1469,8 +1486,11 @@ mod tests {
     fn test_dependency_analysis() {
         let mut dependency = DependencyAnalysis::new(0.15);
 
-        let x = Array2::from_shape_vec((8, 4), (0..32).map(|i| i as f64).collect()).unwrap();
-        let graph = dependency.analyze_dependencies(&x.view()).unwrap();
+        let x = Array2::from_shape_vec((8, 4), (0..32).map(|i| i as f64).collect())
+            .expect("operation should succeed");
+        let graph = dependency
+            .analyze_dependencies(&x.view())
+            .expect("operation should succeed");
 
         assert!(dependency.dependency_matrix().is_some());
         assert_eq!(dependency.dependency_graph().len(), graph.len());
@@ -1480,13 +1500,14 @@ mod tests {
     fn test_interaction_optimizer() {
         let mut optimizer = InteractionOptimizer::new("greedy".to_string());
 
-        let x = Array2::from_shape_vec((10, 4), (0..40).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 4), (0..40).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 5].into_iter().chain(vec![1.0; 5]).collect());
 
         let candidates = vec![vec![0, 1], vec![1, 2], vec![2, 3], vec![0, 2]];
         let optimal = optimizer
             .optimize_interactions(&x.view(), &y.view(), &candidates)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(!optimal.is_empty());
         assert!(optimizer.optimization_results().contains_key("n_selected"));
@@ -1502,12 +1523,12 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let interactions = vec![vec![0, 1], vec![1, 2]];
 
         let combined = combination
             .generate_combinations(&x.view(), &interactions)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(combined.dim(), (4, 2));
         assert!(combination.generated_features().is_some());
         assert_eq!(combination.combination_map().len(), 2);

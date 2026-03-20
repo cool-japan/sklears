@@ -541,8 +541,8 @@ mod tests {
             .alpha(0.1)
             .robust_loss(RobustLoss::Huber { delta: 1.0 });
 
-        let fitted = robust_krr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = robust_krr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
 
@@ -552,7 +552,7 @@ mod tests {
         }
 
         // Check that outlier has lower weight
-        let sample_weights = fitted.sample_weights().unwrap();
+        let sample_weights = fitted.sample_weights().expect("operation should succeed");
         assert!(sample_weights[3] < sample_weights[0]); // Outlier should have lower weight
     }
 
@@ -579,8 +579,8 @@ mod tests {
                 .alpha(0.1)
                 .robust_loss(loss);
 
-            let fitted = robust_krr.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = robust_krr.fit(&x, &y).expect("operation should succeed");
+            let predictions = fitted.predict(&x).expect("operation should succeed");
 
             assert_eq!(predictions.len(), 3);
         }
@@ -613,8 +613,8 @@ mod tests {
             .alpha(0.1)
             .robust_loss(RobustLoss::Huber { delta: 1.0 });
 
-        let fitted = robust_krr.fit(&x, &y).unwrap();
-        let outlier_scores = fitted.outlier_scores().unwrap();
+        let fitted = robust_krr.fit(&x, &y).expect("operation should succeed");
+        let outlier_scores = fitted.outlier_scores().expect("operation should succeed");
 
         // Outlier should have higher score
         assert!(outlier_scores[3] > outlier_scores[0]);
@@ -638,8 +638,8 @@ mod tests {
             .max_iter(5) // Small number of iterations
             .tolerance(1e-3);
 
-        let fitted = robust_krr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = robust_krr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
         // Should converge even with few iterations for this simple case
@@ -662,15 +662,15 @@ mod tests {
             .alpha(0.1)
             .robust_loss(RobustLoss::Huber { delta: 1.0 })
             .random_state(42);
-        let fitted1 = robust_krr1.fit(&x, &y).unwrap();
-        let pred1 = fitted1.predict(&x).unwrap();
+        let fitted1 = robust_krr1.fit(&x, &y).expect("operation should succeed");
+        let pred1 = fitted1.predict(&x).expect("operation should succeed");
 
         let robust_krr2 = RobustKernelRidgeRegression::new(approximation)
             .alpha(0.1)
             .robust_loss(RobustLoss::Huber { delta: 1.0 })
             .random_state(42);
-        let fitted2 = robust_krr2.fit(&x, &y).unwrap();
-        let pred2 = fitted2.predict(&x).unwrap();
+        let fitted2 = robust_krr2.fit(&x, &y).expect("operation should succeed");
+        let pred2 = fitted2.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred1.len(), pred2.len());
         for i in 0..pred1.len() {

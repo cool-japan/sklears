@@ -260,7 +260,12 @@ impl MetaLearningCalibrator {
         self.task_embeddings = Array2::zeros((n_tasks, embedding_dim));
 
         // Compute mean-centered features
-        let feature_means = self.meta_features.mean_axis(Axis(0)).unwrap();
+        let feature_means =
+            self.meta_features
+                .mean_axis(Axis(0))
+                .ok_or(SklearsError::InvalidInput(
+                    "empty array for mean computation".to_string(),
+                ))?;
 
         for task_idx in 0..n_tasks {
             for emb_dim in 0..embedding_dim {
@@ -320,7 +325,7 @@ impl MetaLearningCalibrator {
         let best_method_idx = method_scores
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -765,7 +770,7 @@ impl AutomatedCalibrationSelector {
                 self.validation_scores
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx % self.method_configs.len())
                     .unwrap_or(0)
             };
@@ -839,11 +844,19 @@ impl AutomatedCalibrationSelector {
             for _ in 0..population_size {
                 // Tournament selection
                 let parent1_idx = (0..population_size)
-                    .max_by(|&a, &b| fitness_scores[a].partial_cmp(&fitness_scores[b]).unwrap())
-                    .unwrap();
+                    .max_by(|&a, &b| {
+                        fitness_scores[a]
+                            .partial_cmp(&fitness_scores[b])
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .expect("operation should succeed");
                 let parent2_idx = (0..population_size)
                     .filter(|&i| i != parent1_idx)
-                    .max_by(|&a, &b| fitness_scores[a].partial_cmp(&fitness_scores[b]).unwrap())
+                    .max_by(|&a, &b| {
+                        fitness_scores[a]
+                            .partial_cmp(&fitness_scores[b])
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    })
                     .unwrap_or(0);
 
                 // Crossover and mutation
@@ -1118,7 +1131,7 @@ impl DifferentiableECEMetaCalibrator {
         }
 
         let mut sorted_probs = probabilities.to_vec();
-        sorted_probs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_probs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n_samples = sorted_probs.len();
         self.bin_boundaries[0] = 0.0;
@@ -1242,9 +1255,15 @@ mod tests {
         meta_calibrator.add_calibration_method(Box::new(SigmoidCalibrator::new()));
         meta_calibrator.add_calibration_method(Box::new(SigmoidCalibrator::new()));
 
-        meta_calibrator.meta_train(&tasks).unwrap();
-        meta_calibrator.fit(&test_probs, &test_targets).unwrap();
-        let predictions = meta_calibrator.predict_proba(&test_probs).unwrap();
+        meta_calibrator
+            .meta_train(&tasks)
+            .expect("operation should succeed");
+        meta_calibrator
+            .fit(&test_probs, &test_targets)
+            .expect("fit should succeed");
+        let predictions = meta_calibrator
+            .predict_proba(&test_probs)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), test_probs.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1255,8 +1274,12 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut calibrator = FewShotCalibrator::new(2);
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1278,8 +1301,12 @@ mod tests {
         config2.insert("param2".to_string(), 0.5);
         selector.add_method_config("Method2".to_string(), config2);
 
-        selector.fit(&probabilities, &targets).unwrap();
-        let predictions = selector.predict_proba(&probabilities).unwrap();
+        selector
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = selector
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1303,8 +1330,12 @@ mod tests {
             config.insert("param".to_string(), 1.0);
             selector.add_method_config("Method".to_string(), config);
 
-            selector.fit(&probabilities, &targets).unwrap();
-            let predictions = selector.predict_proba(&probabilities).unwrap();
+            selector
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
+            let predictions = selector
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1329,8 +1360,12 @@ mod tests {
         let mut calibrator =
             DifferentiableECEMetaCalibrator::new(5).with_params(5, 0.01, 100, 1e-6);
 
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1345,8 +1380,12 @@ mod tests {
             .with_adaptive_bins()
             .with_params(5, 0.01, 50, 1e-6);
 
-        calibrator.fit(&probabilities, &targets).unwrap();
-        let predictions = calibrator.predict_proba(&probabilities).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1360,7 +1399,9 @@ mod tests {
         let mut calibrator =
             DifferentiableECEMetaCalibrator::new(3).with_params(3, 0.05, 200, 1e-8);
 
-        calibrator.fit(&probabilities, &targets).unwrap();
+        calibrator
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
         // Test that temperature parameters are learned (should not all be 1.0)
         let temp_params = &calibrator.temperature_params;

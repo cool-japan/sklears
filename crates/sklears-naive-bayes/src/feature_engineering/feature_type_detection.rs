@@ -285,7 +285,7 @@ impl FeatureTypeDetector {
 
 impl Default for FeatureTypeDetector {
     fn default() -> Self {
-        Self::new(TypeDetectionConfig::default()).unwrap()
+        Self::new(TypeDetectionConfig::default()).expect("operation should succeed")
     }
 }
 
@@ -646,7 +646,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut detector = FeatureTypeDetector::new(config).unwrap();
+        let mut detector = FeatureTypeDetector::new(config).expect("operation should succeed");
 
         // Test data with different feature types
         let data = Array2::from_shape_vec(
@@ -656,9 +656,11 @@ mod tests {
                 1.0, 0.0, 2.2, 0.0, 1.0, 3.3, 1.0, 0.0, 4.4, 0.0, 1.0, 5.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let types = detector.detect_types(&data.view()).unwrap();
+        let types = detector
+            .detect_types(&data.view())
+            .expect("operation should succeed");
         assert_eq!(types.len(), 3);
 
         // Check that types were detected (exact values may vary based on implementation)
@@ -688,7 +690,7 @@ mod tests {
             data_vec.push(((i % 2) + 1) as f64); // First column: alternating 1, 2
             data_vec.push((i * 10 + 10) as f64); // Second column: increasing values
         }
-        let data = Array2::from_shape_vec((30, 2), data_vec).unwrap();
+        let data = Array2::from_shape_vec((30, 2), data_vec).expect("operation should succeed");
 
         assert!(characterization.characterize_features(&data.view()).is_ok());
 

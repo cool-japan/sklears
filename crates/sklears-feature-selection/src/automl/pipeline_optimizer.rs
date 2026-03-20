@@ -35,7 +35,11 @@ impl PipelineOptimizer {
         let best_idx = performances
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.score.partial_cmp(&b.score).unwrap())
+            .max_by(|(_, a), (_, b)| {
+                a.score
+                    .partial_cmp(&b.score)
+                    .expect("operation should succeed")
+            })
             .map(|(idx, _)| idx)
             .ok_or(AutoMLError::OptimizationFailed)?;
 

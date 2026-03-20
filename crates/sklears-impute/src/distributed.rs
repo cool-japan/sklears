@@ -808,7 +808,9 @@ impl Fit<ArrayView2<'_, Float>, ()> for DistributedSimpleImputer<Untrained> {
                         "mean" => valid_values.iter().sum::<f64>() / valid_values.len() as f64,
                         "median" => {
                             let mut sorted_values = valid_values.clone();
-                            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                            sorted_values.sort_by(|a, b| {
+                                a.partial_cmp(b).expect("operation should succeed")
+                            });
                             let mid = sorted_values.len() / 2;
                             if sorted_values.len() % 2 == 0 {
                                 (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
@@ -914,8 +916,12 @@ mod tests {
                 ..Default::default()
             });
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Check that NaN was replaced with mean of column (2.0 + 8.0) / 2 = 5.0
         assert_abs_diff_eq!(X_imputed[[1, 1]], 5.0, epsilon = 1e-10);
@@ -942,8 +948,12 @@ mod tests {
                 ..Default::default()
             });
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let X_imputed = fitted.transform(&X.view()).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let X_imputed = fitted
+            .transform(&X.view())
+            .expect("transformation should succeed");
 
         // Verify that missing value was imputed
         assert!(!X_imputed[[1, 1]].is_nan());
@@ -962,8 +972,12 @@ mod tests {
             ..Default::default()
         });
 
-        let fitted = imputer.fit(&X.view(), &()).unwrap();
-        let partitions = fitted.partition_data(&X.mapv(|x| x)).unwrap();
+        let fitted = imputer
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let partitions = fitted
+            .partition_data(&X.mapv(|x| x))
+            .expect("operation should succeed");
 
         assert_eq!(partitions.len(), 2);
         assert_eq!(partitions[0].data.nrows(), 2);

@@ -300,11 +300,18 @@ impl Fit<Array2<Float>, ()> for OutlierTransformer<Untrained> {
         // Compute transformation parameters based on method
         let feature_params = if self.config.feature_wise {
             (0..n_features)
-                .map(|j| self.fit_feature_params(x.column(j).to_owned().as_slice().unwrap()))
+                .map(|j| {
+                    self.fit_feature_params(
+                        x.column(j)
+                            .to_owned()
+                            .as_slice()
+                            .expect("matrix indexing should be valid"),
+                    )
+                })
                 .collect::<Result<Vec<_>>>()?
         } else {
             // For non-feature-wise, we'll use global parameters
-            vec![self.fit_feature_params(x.as_slice().unwrap())?]
+            vec![self.fit_feature_params(x.as_slice().expect("slice operation should succeed"))?]
         };
 
         self.transformation_params_ = Some(TransformationParameters {
@@ -354,7 +361,7 @@ impl OutlierTransformer<Untrained> {
 
         // Calculate median and IQR for robust methods
         let mut sorted_data = valid_data.clone();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let median = if sorted_data.len() % 2 == 0 {
             let mid = sorted_data.len() / 2;
@@ -600,14 +607,17 @@ impl Transform<Array2<Float>, Array2<Float>> for OutlierTransformer<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
 
-        if n_features != self.n_features_in().unwrap() {
+        if n_features != self.n_features_in().expect("operation should succeed") {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in().unwrap(),
+                expected: self.n_features_in().expect("operation should succeed"),
                 actual: n_features,
             });
         }
 
-        let params = self.transformation_params_.as_ref().unwrap();
+        let params = self
+            .transformation_params_
+            .as_ref()
+            .expect("operation should succeed");
         let mut result = x.clone();
 
         if self.config.feature_wise {
@@ -716,8 +726,11 @@ impl OutlierTransformer<Trained> {
         value: Float,
         params: &FeatureTransformationParams,
     ) -> Result<Float> {
-        let quantiles = params.quantiles.as_ref().unwrap();
-        let references = params.references.as_ref().unwrap();
+        let quantiles = params.quantiles.as_ref().expect("operation should succeed");
+        let references = params
+            .references
+            .as_ref()
+            .expect("operation should succeed");
 
         // Find position in quantiles
         let mut pos = 0;
@@ -787,11 +800,15 @@ mod tests {
                 4.0, 40.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let transformer = OutlierTransformer::log();
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
@@ -804,11 +821,16 @@ mod tests {
 
     #[test]
     fn test_log1p_transformation() {
-        let data = Array2::from_shape_vec((4, 1), vec![0.0, 1.0, 10.0, 100.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 1), vec![0.0, 1.0, 10.0, 100.0])
+            .expect("shape and data length should match");
 
         let transformer = OutlierTransformer::log1p();
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
@@ -821,11 +843,16 @@ mod tests {
 
     #[test]
     fn test_sqrt_transformation() {
-        let data = Array2::from_shape_vec((4, 1), vec![1.0, 4.0, 9.0, 100.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 1), vec![1.0, 4.0, 9.0, 100.0])
+            .expect("shape and data length should match");
 
         let transformer = OutlierTransformer::sqrt();
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
@@ -844,27 +871,36 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 100.0, // 100 is outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let transformer = OutlierTransformer::robust_scale();
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
         // Should be scaled by median and IQR, making it robust to outliers
-        let params = fitted.feature_stats(0).unwrap();
+        let params = fitted.feature_stats(0).expect("operation should succeed");
         assert!(params.median.is_some());
         assert!(params.iqr.is_some());
     }
 
     #[test]
     fn test_interpolate_transformation() {
-        let data = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 100.0]).unwrap();
+        let data = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 100.0])
+            .expect("shape and data length should match");
 
         let transformer = OutlierTransformer::interpolate(2.0, "z-score");
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
@@ -873,7 +909,7 @@ mod tests {
         assert_relative_eq!(result[[1, 0]], 2.0, epsilon = 1e-10);
 
         // Outlier should be capped
-        let params = fitted.feature_stats(0).unwrap();
+        let params = fitted.feature_stats(0).expect("operation should succeed");
         assert!(params.upper_bound.is_some());
     }
 
@@ -886,47 +922,65 @@ mod tests {
                 .chain(std::iter::once(1000.0))
                 .collect(),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let transformer = OutlierTransformer::trim(10.0, 90.0);
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
         // Values should be trimmed to percentile bounds
-        let params = fitted.feature_stats(0).unwrap();
+        let params = fitted.feature_stats(0).expect("operation should succeed");
         assert!(params.lower_bound.is_some());
         assert!(params.upper_bound.is_some());
     }
 
     #[test]
     fn test_box_cox_transformation() {
-        let data = Array2::from_shape_vec((6, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0]).unwrap();
+        let data = Array2::from_shape_vec((6, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0])
+            .expect("shape and data length should match");
 
         let transformer = OutlierTransformer::box_cox_fixed(0.5);
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
-        let params = fitted.feature_stats(0).unwrap();
+        let params = fitted.feature_stats(0).expect("operation should succeed");
         assert!(params.lambda.is_some());
-        assert_relative_eq!(params.lambda.unwrap(), 0.5, epsilon = 1e-10);
+        assert_relative_eq!(
+            params.lambda.expect("operation should succeed"),
+            0.5,
+            epsilon = 1e-10
+        );
     }
 
     #[test]
     fn test_handle_negative_values() {
-        let data = Array2::from_shape_vec((4, 1), vec![-2.0, -1.0, 1.0, 100.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 1), vec![-2.0, -1.0, 1.0, 100.0])
+            .expect("shape and data length should match");
 
         let transformer = OutlierTransformer::log().handle_negatives(true);
-        let fitted = transformer.fit(&data, &()).unwrap();
-        let result = fitted.transform(&data).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result = fitted
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result.dim(), data.dim());
 
         // Should have applied shift to handle negatives
-        let params = fitted.feature_stats(0).unwrap();
+        let params = fitted.feature_stats(0).expect("operation should succeed");
         assert!(params.shift > 0.0);
     }
 
@@ -934,17 +988,25 @@ mod tests {
     fn test_feature_wise_vs_global() {
         let data =
             Array2::from_shape_vec((4, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 100.0, 1000.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         // Feature-wise transformation
         let transformer_fw = OutlierTransformer::log().feature_wise(true);
-        let fitted_fw = transformer_fw.fit(&data, &()).unwrap();
-        let result_fw = fitted_fw.transform(&data).unwrap();
+        let fitted_fw = transformer_fw
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result_fw = fitted_fw
+            .transform(&data)
+            .expect("transformation should succeed");
 
         // Global transformation
         let transformer_global = OutlierTransformer::log().feature_wise(false);
-        let fitted_global = transformer_global.fit(&data, &()).unwrap();
-        let result_global = fitted_global.transform(&data).unwrap();
+        let fitted_global = transformer_global
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let result_global = fitted_global
+            .transform(&data)
+            .expect("transformation should succeed");
 
         assert_eq!(result_fw.dim(), data.dim());
         assert_eq!(result_global.dim(), data.dim());
@@ -955,32 +1017,39 @@ mod tests {
 
     #[test]
     fn test_transformation_error_handling() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
         let transformer = OutlierTransformer::log();
-        let fitted = transformer.fit(&data, &()).unwrap();
+        let fitted = transformer
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         // Test dimension mismatch
-        let wrong_data =
-            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let wrong_data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         assert!(fitted.transform(&wrong_data).is_err());
     }
 
     #[test]
     fn test_detection_methods() {
-        let data =
-            Array2::from_shape_vec((7, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 100.0]).unwrap();
+        let data = Array2::from_shape_vec((7, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 100.0])
+            .expect("shape and data length should match");
 
         // Test different detection methods
         let methods = vec!["z-score", "iqr", "percentile"];
 
         for method in methods {
             let transformer = OutlierTransformer::interpolate(2.0, method);
-            let fitted = transformer.fit(&data, &()).unwrap();
-            let result = fitted.transform(&data).unwrap();
+            let fitted = transformer
+                .fit(&data, &())
+                .expect("model fitting should succeed");
+            let result = fitted
+                .transform(&data)
+                .expect("transformation should succeed");
 
             assert_eq!(result.dim(), data.dim());
 
-            let params = fitted.feature_stats(0).unwrap();
+            let params = fitted.feature_stats(0).expect("operation should succeed");
             assert!(params.lower_bound.is_some());
             assert!(params.upper_bound.is_some());
         }

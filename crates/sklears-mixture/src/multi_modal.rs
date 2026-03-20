@@ -274,7 +274,7 @@ impl Fit<HashMap<String, Array2<f64>>, Option<Array1<usize>>>
         }
 
         // Get sample size (assuming all modalities have same number of samples)
-        let n_samples = X.values().next().unwrap().nrows();
+        let n_samples = X.values().next().expect("sampling should succeed").nrows();
         for (name, data) in X.iter() {
             if data.nrows() != n_samples {
                 return Err(SklearsError::InvalidInput(format!(
@@ -305,7 +305,7 @@ impl MultiModalGaussianMixture<Untrained> {
         HashMap<String, Array2<f64>>,
         HashMap<String, Array3<f64>>,
     )> {
-        let n_samples = X.values().next().unwrap().nrows();
+        let n_samples = X.values().next().expect("sampling should succeed").nrows();
         let n_components = self.config.n_components;
 
         // Initialize component weights uniformly
@@ -374,7 +374,7 @@ impl MultiModalGaussianMixture<Untrained> {
         X: &HashMap<String, Array2<f64>>,
         _y: &Option<Array1<usize>>,
     ) -> SklResult<MultiModalGaussianMixtureTrained> {
-        let n_samples = X.values().next().unwrap().nrows();
+        let n_samples = X.values().next().expect("sampling should succeed").nrows();
 
         // Concatenate all modality data
         let mut concatenated_features = Vec::new();
@@ -419,7 +419,9 @@ impl MultiModalGaussianMixture<Untrained> {
             let old_log_likelihood = if log_likelihood_history.is_empty() {
                 f64::NEG_INFINITY
             } else {
-                *log_likelihood_history.last().unwrap()
+                *log_likelihood_history
+                    .last()
+                    .expect("collection should not be empty")
             };
 
             // E-step: Compute responsibilities
@@ -547,7 +549,7 @@ impl MultiModalGaussianMixture<Untrained> {
         X: &HashMap<String, Array2<f64>>,
         _y: &Option<Array1<usize>>,
     ) -> SklResult<MultiModalGaussianMixtureTrained> {
-        let n_samples = X.values().next().unwrap().nrows();
+        let n_samples = X.values().next().expect("sampling should succeed").nrows();
         let (weights, mut modality_means, mut modality_covariances) =
             self.initialize_parameters(X)?;
         let mut log_likelihood_history = Vec::new();
@@ -708,8 +710,11 @@ impl MultiModalGaussianMixture<Untrained> {
         X: &HashMap<String, Array2<f64>>,
         _y: &Option<Array1<usize>>,
     ) -> SklResult<MultiModalGaussianMixtureTrained> {
-        let _n_samples = X.values().next().unwrap().nrows();
-        let latent_dim = self.config.shared_latent_dim.unwrap();
+        let _n_samples = X.values().next().expect("sampling should succeed").nrows();
+        let latent_dim = self
+            .config
+            .shared_latent_dim
+            .expect("operation should succeed");
         let (weights, modality_means, modality_covariances) = self.initialize_parameters(X)?;
 
         // Initialize projection matrices for each modality to latent space
@@ -775,7 +780,7 @@ impl MultiModalGaussianMixture<Untrained> {
         X: &HashMap<String, Array2<f64>>,
         _y: &Option<Array1<usize>>,
     ) -> SklResult<MultiModalGaussianMixtureTrained> {
-        let n_samples = X.values().next().unwrap().nrows();
+        let n_samples = X.values().next().expect("sampling should succeed").nrows();
         let (mut weights, mut modality_means, mut modality_covariances) =
             self.initialize_parameters(X)?;
         let mut log_likelihood_history = Vec::new();
@@ -797,7 +802,9 @@ impl MultiModalGaussianMixture<Untrained> {
             let old_log_likelihood = if log_likelihood_history.is_empty() {
                 f64::NEG_INFINITY
             } else {
-                *log_likelihood_history.last().unwrap()
+                *log_likelihood_history
+                    .last()
+                    .expect("collection should not be empty")
             };
 
             let mut total_log_likelihood = 0.0;
@@ -1009,7 +1016,7 @@ impl MultiModalGaussianMixtureTrained {
             }
         }
 
-        let n_samples = X.values().next().unwrap().nrows();
+        let n_samples = X.values().next().expect("sampling should succeed").nrows();
         let mut probabilities = Array2::zeros((n_samples, self.config.n_components));
 
         match self.config.fusion_strategy {
@@ -1144,7 +1151,7 @@ impl MultiModalGaussianMixtureTrained {
 
     /// Get model selection criteria
     pub fn model_selection(&self, X: &HashMap<String, Array2<f64>>) -> SklResult<ModelSelection> {
-        let n_samples = X.values().next().unwrap().nrows();
+        let n_samples = X.values().next().expect("sampling should succeed").nrows();
         let total_features: usize = self.config.modalities.iter().map(|m| m.n_features).sum();
 
         // Simplified parameter counting
@@ -1178,7 +1185,8 @@ mod tests {
 
         // Visual modality: 2D features
         let visual_data =
-            Array2::from_shape_vec((100, 2), (0..200).map(|i| i as f64 * 0.1).collect()).unwrap();
+            Array2::from_shape_vec((100, 2), (0..200).map(|i| i as f64 * 0.1).collect())
+                .expect("shape and data length should match");
         data.insert("visual".to_string(), visual_data);
 
         // Textual modality: 3D features
@@ -1186,7 +1194,7 @@ mod tests {
             (100, 3),
             (0..300).map(|i| (i as f64 * 0.05).sin()).collect(),
         )
-        .unwrap();
+        .expect("operation should succeed");
         data.insert("textual".to_string(), textual_data);
 
         data
@@ -1201,7 +1209,7 @@ mod tests {
             .coupling_strength(0.2)
             .max_iter(10)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.config.n_components, 3);
         assert_eq!(model.config.modalities.len(), 2);
@@ -1218,9 +1226,11 @@ mod tests {
             .fusion_strategy(FusionStrategy::EarlyFusion)
             .max_iter(5)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let trained = model.fit(&data, &None).unwrap();
+        let trained = model
+            .fit(&data, &None)
+            .expect("model fitting should succeed");
 
         assert_eq!(trained.weights.len(), 2);
         assert!(trained.modality_means.contains_key("visual"));
@@ -1238,9 +1248,11 @@ mod tests {
             .fusion_strategy(FusionStrategy::LateFusion)
             .max_iter(5)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let trained = model.fit(&data, &None).unwrap();
+        let trained = model
+            .fit(&data, &None)
+            .expect("model fitting should succeed");
 
         assert_eq!(trained.weights.len(), 2);
         assert!(trained.modality_means.contains_key("visual"));
@@ -1257,13 +1269,18 @@ mod tests {
             .shared_latent_dim(4)
             .max_iter(5)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let trained = model.fit(&data, &None).unwrap();
+        let trained = model
+            .fit(&data, &None)
+            .expect("model fitting should succeed");
 
         assert_eq!(trained.weights.len(), 2);
         assert!(trained.shared_latent_means.is_some());
-        let latent_means = trained.shared_latent_means.as_ref().unwrap();
+        let latent_means = trained
+            .shared_latent_means
+            .as_ref()
+            .expect("operation should succeed");
         assert_eq!(latent_means.nrows(), 2); // n_components
         assert_eq!(latent_means.ncols(), 4); // latent_dim
     }
@@ -1278,9 +1295,11 @@ mod tests {
             .coupling_strength(0.3)
             .max_iter(5)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let trained = model.fit(&data, &None).unwrap();
+        let trained = model
+            .fit(&data, &None)
+            .expect("model fitting should succeed");
 
         assert_eq!(trained.weights.len(), 2);
         assert_eq!(trained.coupling_parameters.nrows(), 2); // n_modalities
@@ -1296,10 +1315,12 @@ mod tests {
             .fusion_strategy(FusionStrategy::LateFusion)
             .max_iter(3)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let trained = model.fit(&data, &None).unwrap();
-        let predictions = trained.predict(&data).unwrap();
+        let trained = model
+            .fit(&data, &None)
+            .expect("model fitting should succeed");
+        let predictions = trained.predict(&data).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 100);
 
@@ -1318,10 +1339,14 @@ mod tests {
             .fusion_strategy(FusionStrategy::LateFusion)
             .max_iter(3)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let trained = model.fit(&data, &None).unwrap();
-        let probabilities = trained.predict_proba(&data).unwrap();
+        let trained = model
+            .fit(&data, &None)
+            .expect("model fitting should succeed");
+        let probabilities = trained
+            .predict_proba(&data)
+            .expect("operation should succeed");
 
         assert_eq!(probabilities.nrows(), 100);
         assert_eq!(probabilities.ncols(), 3);
@@ -1342,10 +1367,14 @@ mod tests {
             .fusion_strategy(FusionStrategy::EarlyFusion)
             .max_iter(3)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let trained = model.fit(&data, &None).unwrap();
-        let model_selection = trained.model_selection(&data).unwrap();
+        let trained = model
+            .fit(&data, &None)
+            .expect("model fitting should succeed");
+        let model_selection = trained
+            .model_selection(&data)
+            .expect("operation should succeed");
 
         assert!(model_selection.log_likelihood.is_finite());
         assert!(model_selection.aic.is_finite());
@@ -1363,7 +1392,7 @@ mod tests {
             .add_modality_simple("textual", 3)
             .fusion_strategy(FusionStrategy::EarlyFusion) // Use early fusion to avoid latent dim requirement
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         let result = model.fit(&data, &None);
         assert!(result.is_err());
@@ -1378,7 +1407,7 @@ mod tests {
             .add_modality_simple("textual", 3)
             .fusion_strategy(FusionStrategy::EarlyFusion) // Use early fusion to avoid latent dim requirement
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         let result = model.fit(&data, &None);
         assert!(result.is_err());

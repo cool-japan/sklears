@@ -446,8 +446,14 @@ impl Transform<Array2<Float>, Array2<Float>> for FeatureUnion<Trained> {
             });
         }
 
-        let fitted_transformers = self.fitted_transformers_.as_ref().unwrap();
-        let transformer_weights = self.transformer_weights_.as_ref().unwrap();
+        let fitted_transformers = self
+            .fitted_transformers_
+            .as_ref()
+            .expect("operation should succeed");
+        let transformer_weights = self
+            .transformer_weights_
+            .as_ref()
+            .expect("operation should succeed");
 
         if fitted_transformers.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -510,7 +516,7 @@ fn concatenate_features(parts: Vec<Array2<Float>>) -> Result<Array2<Float>> {
     }
 
     if parts.len() == 1 {
-        return Ok(parts.into_iter().next().unwrap());
+        return Ok(parts.into_iter().next().expect("operation should succeed"));
     }
 
     // Calculate total columns
@@ -539,22 +545,26 @@ fn concatenate_features(parts: Vec<Array2<Float>>) -> Result<Array2<Float>> {
 impl FeatureUnion<Trained> {
     /// Get the number of input features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_.expect("operation should succeed")
     }
 
     /// Get the number of output features
     pub fn n_features_out(&self) -> usize {
-        self.n_features_out_.unwrap()
+        self.n_features_out_.expect("operation should succeed")
     }
 
     /// Get the fitted transformers
     pub fn get_transformers(&self) -> &Vec<FeatureUnionStep> {
-        self.fitted_transformers_.as_ref().unwrap()
+        self.fitted_transformers_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the weights used for each transformer
     pub fn get_weights(&self) -> &Vec<Float> {
-        self.transformer_weights_.as_ref().unwrap()
+        self.transformer_weights_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the selected feature indices (if feature selection is enabled)
@@ -647,8 +657,10 @@ mod tests {
                 },
             );
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let result = fitted_fu.transform(&x).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_fu
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 4 features: [original*2, original*3]
         assert_eq!(result.dim(), (3, 4));
@@ -675,8 +687,10 @@ mod tests {
             2.0,
         );
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let result = fitted_fu.transform(&x).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_fu
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Features should be scaled by weight (2.0)
         assert_eq!(result[[0, 0]], 2.0); // 1.0 * 1.0 * 2.0
@@ -703,8 +717,10 @@ mod tests {
                 },
             ); // 3 features out
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let result = fitted_fu.transform(&x).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_fu
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should have 5 features total (2 + 3)
         assert_eq!(result.dim(), (2, 5));
@@ -754,7 +770,7 @@ mod tests {
             },
         );
 
-        let fitted_fu = fu.fit(&x_train, &()).unwrap();
+        let fitted_fu = fu.fit(&x_train, &()).expect("model fitting should succeed");
         let result = fitted_fu.transform(&x_test);
 
         assert!(result.is_err());
@@ -775,7 +791,7 @@ mod tests {
         let part3 = array![[7.0, 8.0, 9.0], [10.0, 11.0, 12.0],];
 
         let parts = vec![part1, part2, part3];
-        let result = concatenate_features(parts).unwrap();
+        let result = concatenate_features(parts).expect("operation should succeed");
 
         assert_eq!(result.dim(), (2, 6)); // 2 + 1 + 3 columns
 
@@ -808,8 +824,10 @@ mod tests {
             .feature_selection(FeatureSelectionStrategy::VarianceThreshold(0.1))
             .importance_method(FeatureImportanceMethod::Variance);
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let _result = fitted_fu.transform(&x).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let _result = fitted_fu
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should select only features with variance > 0.1 (likely just the last column)
         assert!(fitted_fu.is_feature_selection_enabled());
@@ -840,8 +858,10 @@ mod tests {
             .feature_selection(FeatureSelectionStrategy::TopK(2))
             .importance_method(FeatureImportanceMethod::L2Norm);
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let result = fitted_fu.transform(&x).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_fu
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should select exactly 2 features
         assert_eq!(fitted_fu.n_features_selected(), 2);
@@ -864,8 +884,10 @@ mod tests {
             .feature_selection(FeatureSelectionStrategy::TopPercentile(50.0))
             .importance_method(FeatureImportanceMethod::AbsoluteMean);
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let result = fitted_fu.transform(&x).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_fu
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should select 50% of features (3 out of 6)
         assert_eq!(fitted_fu.n_features_selected(), 3);
@@ -887,8 +909,10 @@ mod tests {
             )
             .feature_selection(FeatureSelectionStrategy::None);
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let result = fitted_fu.transform(&x).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let result = fitted_fu
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Should keep all features
         assert!(!fitted_fu.is_feature_selection_enabled());
@@ -913,8 +937,10 @@ mod tests {
             .enable_feature_selection(true)
             .importance_method(FeatureImportanceMethod::Variance);
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
-        let importances = fitted_fu.get_feature_importances().unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
+        let importances = fitted_fu
+            .get_feature_importances()
+            .expect("operation should succeed");
 
         // Third column should have highest variance
         assert!(importances[2] > importances[0]);
@@ -942,7 +968,7 @@ mod tests {
                 },
             );
 
-        let fitted_fu = fu.fit(&x, &()).unwrap();
+        let fitted_fu = fu.fit(&x, &()).expect("model fitting should succeed");
 
         assert_eq!(fitted_fu.n_features_in(), 2);
         assert_eq!(fitted_fu.n_features_out(), 5); // 2 + 3

@@ -358,7 +358,7 @@ impl AdaptiveParameterSelector<Untrained> {
 
             // Outlier detection using IQR method
             let mut sorted_values = valid_values.clone();
-            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let q1_idx = sorted_values.len() / 4;
             let q3_idx = 3 * sorted_values.len() / 4;
@@ -749,7 +749,11 @@ impl AdaptiveParameterSelector<Untrained> {
         }
 
         // Sort by overall score
-        evaluations.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        evaluations.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .expect("operation should succeed")
+        });
 
         Ok(evaluations)
     }
@@ -1253,12 +1257,16 @@ mod tests {
                 9.0, 90.0, 900.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let selector = AdaptiveParameterSelector::balanced();
-        let fitted = selector.fit(&data, &()).unwrap();
+        let fitted = selector
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
-        let characteristics = fitted.data_characteristics().unwrap();
+        let characteristics = fitted
+            .data_characteristics()
+            .expect("operation should succeed");
         assert_eq!(characteristics.shape, (10, 3));
         assert_eq!(characteristics.distribution_types.len(), 3);
         assert_eq!(characteristics.skewness.len(), 3);
@@ -1275,12 +1283,16 @@ mod tests {
                 7.0, 70.0, 8.0, 80.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let selector = AdaptiveParameterSelector::balanced();
-        let fitted = selector.fit(&data, &()).unwrap();
+        let fitted = selector
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
-        let recommendations = fitted.recommend_parameters().unwrap();
+        let recommendations = fitted
+            .recommend_parameters()
+            .expect("operation should succeed");
         assert!(recommendations.confidence >= 0.0 && recommendations.confidence <= 1.0);
         assert!(!recommendations.scaling.method.is_empty());
         assert!(!recommendations.imputation.strategy.is_empty());
@@ -1295,12 +1307,16 @@ mod tests {
                 1000.0, // Outliers
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let selector = AdaptiveParameterSelector::aggressive();
-        let fitted = selector.fit(&data, &()).unwrap();
+        let fitted = selector
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
-        let optimal_params = fitted.optimal_parameters().unwrap();
+        let optimal_params = fitted
+            .optimal_parameters()
+            .expect("operation should succeed");
         assert!(optimal_params.contains_key("scaling_method"));
         assert!(optimal_params.contains_key("outlier_threshold"));
         assert!(optimal_params.contains_key("contamination_rate"));
@@ -1308,12 +1324,17 @@ mod tests {
 
     #[test]
     fn test_distribution_classification() {
-        let data = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
+        let data = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            .expect("shape and data length should match");
 
         let selector = AdaptiveParameterSelector::new();
-        let fitted = selector.fit(&data, &()).unwrap();
+        let fitted = selector
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
-        let characteristics = fitted.data_characteristics().unwrap();
+        let characteristics = fitted
+            .data_characteristics()
+            .expect("operation should succeed");
         // Should classify as normal or uniform for this simple case
         assert!(matches!(
             characteristics.distribution_types[0],
@@ -1340,12 +1361,16 @@ mod tests {
                 60.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let selector = AdaptiveParameterSelector::balanced();
-        let fitted = selector.fit(&data, &()).unwrap();
+        let fitted = selector
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
-        let characteristics = fitted.data_characteristics().unwrap();
+        let characteristics = fitted
+            .data_characteristics()
+            .expect("operation should succeed");
         // Should detect missing values
         assert!(
             characteristics.missing_percentages[0] > 0.0
@@ -1361,12 +1386,16 @@ mod tests {
                 1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 4.0, 40.0, 5.0, 50.0, 100.0, 1000.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let selector = AdaptiveParameterSelector::balanced();
-        let fitted = selector.fit(&data, &()).unwrap();
+        let fitted = selector
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
-        let report = fitted.adaptation_report().unwrap();
+        let report = fitted
+            .adaptation_report()
+            .expect("operation should succeed");
         assert!(report.contains("Adaptive Parameter Selection Report"));
         assert!(report.contains("Data Characteristics"));
         assert!(report.contains("Parameter Recommendations"));
@@ -1375,10 +1404,12 @@ mod tests {
     #[test]
     fn test_insights_generation() {
         let data = Array2::from_shape_vec((4, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 4.0, 40.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let selector = AdaptiveParameterSelector::conservative();
-        let fitted = selector.fit(&data, &()).unwrap();
+        let fitted = selector
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         let insights = fitted.get_insights();
         assert!(!insights.is_empty());
@@ -1404,7 +1435,8 @@ mod tests {
         let selector = AdaptiveParameterSelector::new();
 
         // Test empty input
-        let empty_data = Array2::from_shape_vec((0, 0), vec![]).unwrap();
+        let empty_data =
+            Array2::from_shape_vec((0, 0), vec![]).expect("shape and data length should match");
         assert!(selector.fit(&empty_data, &()).is_err());
     }
 

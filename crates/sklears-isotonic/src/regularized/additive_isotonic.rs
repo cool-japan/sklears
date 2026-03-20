@@ -397,8 +397,14 @@ impl Predict<Array2<Float>, Array1<Float>> for AdditiveIsotonicRegression<Traine
             )));
         }
 
-        let feature_functions = self.feature_functions_.as_ref().unwrap();
-        let feature_grids = self.feature_grids_.as_ref().unwrap();
+        let feature_functions = self
+            .feature_functions_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let feature_grids = self
+            .feature_grids_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let intercept = self.intercept_.unwrap_or(0.0);
 
         let mut predictions = Array1::from_elem(n_samples, intercept);
@@ -497,8 +503,14 @@ impl AdditiveIsotonicRegression<Trained> {
             )));
         }
 
-        let feature_functions = self.feature_functions_.as_ref().unwrap();
-        let feature_grids = self.feature_grids_.as_ref().unwrap();
+        let feature_functions = self
+            .feature_functions_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let feature_grids = self
+            .feature_grids_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         let mut contributions = Array2::zeros((n_samples, n_features));
 
@@ -624,33 +636,36 @@ mod tests {
 
     #[test]
     fn test_additive_isotonic_regression_fit_predict() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("valid array shape");
         let y = Array1::from_vec(vec![1.0, 3.0, 5.0, 7.0]);
 
         let model = AdditiveIsotonicRegression::new(2);
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let predictions = fitted_model.predict(&x).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), y.len());
     }
 
     #[test]
     fn test_additive_isotonic_regression_feature_contributions() {
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0])
+            .expect("valid array shape");
         let y = Array1::from_vec(vec![1.0, 3.0, 5.0]);
 
         let model = AdditiveIsotonicRegression::new(2);
-        let fitted_model = model.fit(&x, &y).unwrap();
-        let contributions = fitted_model.feature_contributions(&x).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
+        let contributions = fitted_model
+            .feature_contributions(&x)
+            .expect("operation should succeed");
 
         assert_eq!(contributions.shape(), &[3, 2]);
     }
 
     #[test]
     fn test_additive_isotonic_regression_function_api() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("valid array shape");
         let y = Array1::from_vec(vec![1.0, 3.0, 5.0, 7.0]);
         let constraints = vec![
             MonotonicityConstraint::Global { increasing: true },
@@ -660,7 +675,7 @@ mod tests {
         let result = additive_isotonic_regression(&x, &y, constraints, true);
         assert!(result.is_ok());
 
-        let fitted_values = result.unwrap();
+        let fitted_values = result.expect("operation should succeed");
         assert_eq!(fitted_values.len(), y.len());
     }
 
@@ -670,7 +685,7 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0, 6.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![1.0, 3.0, 5.0, 7.0]);
 
         let model = AdditiveIsotonicRegression::new(2); // Expect 2 features, got 3
@@ -680,8 +695,8 @@ mod tests {
 
     #[test]
     fn test_additive_isotonic_regression_mismatched_samples() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("valid array shape");
         let y = Array1::from_vec(vec![1.0, 3.0, 5.0]); // 3 samples vs 4 in x
 
         let model = AdditiveIsotonicRegression::new(2);
@@ -691,12 +706,12 @@ mod tests {
 
     #[test]
     fn test_additive_isotonic_regression_total_variation() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("valid array shape");
         let y = Array1::from_vec(vec![1.0, 3.0, 5.0, 7.0]);
 
         let model = AdditiveIsotonicRegression::new(2);
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
         let total_variation = fitted_model.total_variation();
 
         assert!(total_variation >= 0.0);

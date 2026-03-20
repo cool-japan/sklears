@@ -695,7 +695,9 @@ mod tests {
         assert_eq!(stats.current_bytes, 1024);
         assert_eq!(stats.total_allocations, 1);
 
-        let checkpoint_stats = profiler.checkpoint_stats("after_allocation").unwrap();
+        let checkpoint_stats = profiler
+            .checkpoint_stats("after_allocation")
+            .expect("operation should succeed");
         assert_eq!(checkpoint_stats.current_bytes, 1024);
     }
 
@@ -716,7 +718,8 @@ mod tests {
 
         assert_eq!(estimates.len(), 3);
 
-        let most_efficient = MemoryAnalyzer::most_efficient_algorithm(&estimates).unwrap();
+        let most_efficient =
+            MemoryAnalyzer::most_efficient_algorithm(&estimates).expect("operation should succeed");
         assert!(estimates
             .iter()
             .all(|est| est.total_bytes >= most_efficient.total_bytes));

@@ -718,14 +718,23 @@ impl CompressedMetrics {
         let mut cursor = 0;
 
         // Read min, max, scale
-        let min_val =
-            f64::from_le_bytes(self.compressed_data[cursor..cursor + 8].try_into().unwrap());
+        let min_val = f64::from_le_bytes(
+            self.compressed_data[cursor..cursor + 8]
+                .try_into()
+                .expect("operation should succeed"),
+        );
         cursor += 8;
-        let _max_val =
-            f64::from_le_bytes(self.compressed_data[cursor..cursor + 8].try_into().unwrap());
+        let _max_val = f64::from_le_bytes(
+            self.compressed_data[cursor..cursor + 8]
+                .try_into()
+                .expect("operation should succeed"),
+        );
         cursor += 8;
-        let scale =
-            f64::from_le_bytes(self.compressed_data[cursor..cursor + 8].try_into().unwrap());
+        let scale = f64::from_le_bytes(
+            self.compressed_data[cursor..cursor + 8]
+                .try_into()
+                .expect("operation should succeed"),
+        );
         cursor += 8;
 
         let mut data = Array2::zeros(self.original_shape);
@@ -734,13 +743,16 @@ impl CompressedMetrics {
         for val in data.iter_mut() {
             let quantized = match bits {
                 8 => self.compressed_data[cursor] as u32,
-                16 => {
-                    u16::from_le_bytes(self.compressed_data[cursor..cursor + 2].try_into().unwrap())
-                        as u32
-                }
-                32 => {
-                    u32::from_le_bytes(self.compressed_data[cursor..cursor + 4].try_into().unwrap())
-                }
+                16 => u16::from_le_bytes(
+                    self.compressed_data[cursor..cursor + 2]
+                        .try_into()
+                        .expect("operation should succeed"),
+                ) as u32,
+                32 => u32::from_le_bytes(
+                    self.compressed_data[cursor..cursor + 4]
+                        .try_into()
+                        .expect("operation should succeed"),
+                ),
                 _ => {
                     return Err(MetricsError::InvalidParameter(
                         "Unsupported bit depth".to_string(),
@@ -760,8 +772,11 @@ impl CompressedMetrics {
         let mut data = Array2::zeros(self.original_shape);
 
         // Read first value
-        let first_val =
-            f64::from_le_bytes(self.compressed_data[cursor..cursor + 8].try_into().unwrap());
+        let first_val = f64::from_le_bytes(
+            self.compressed_data[cursor..cursor + 8]
+                .try_into()
+                .expect("operation should succeed"),
+        );
         cursor += 8;
 
         let mut current_val = first_val;
@@ -770,7 +785,9 @@ impl CompressedMetrics {
 
             if cursor < self.compressed_data.len() {
                 let delta = f64::from_le_bytes(
-                    self.compressed_data[cursor..cursor + 8].try_into().unwrap(),
+                    self.compressed_data[cursor..cursor + 8]
+                        .try_into()
+                        .expect("operation should succeed"),
                 );
                 current_val += delta;
                 cursor += 8;
@@ -786,17 +803,23 @@ impl CompressedMetrics {
         let mut data_idx = 0;
 
         while cursor < self.compressed_data.len() && data_idx < data.len() {
-            let val =
-                f64::from_le_bytes(self.compressed_data[cursor..cursor + 8].try_into().unwrap());
+            let val = f64::from_le_bytes(
+                self.compressed_data[cursor..cursor + 8]
+                    .try_into()
+                    .expect("operation should succeed"),
+            );
             cursor += 8;
 
-            let count =
-                u32::from_le_bytes(self.compressed_data[cursor..cursor + 4].try_into().unwrap());
+            let count = u32::from_le_bytes(
+                self.compressed_data[cursor..cursor + 4]
+                    .try_into()
+                    .expect("operation should succeed"),
+            );
             cursor += 4;
 
             for _ in 0..count {
                 if data_idx < data.len() {
-                    data.as_slice_mut().unwrap()[data_idx] = val;
+                    data.as_slice_mut().expect("operation should succeed")[data_idx] = val;
                     data_idx += 1;
                 }
             }
@@ -817,11 +840,15 @@ impl CompressedMetrics {
 
                 // Read mean and std
                 let mean = f64::from_le_bytes(
-                    self.compressed_data[cursor..cursor + 8].try_into().unwrap(),
+                    self.compressed_data[cursor..cursor + 8]
+                        .try_into()
+                        .expect("operation should succeed"),
                 );
                 cursor += 8;
                 let std = f64::from_le_bytes(
-                    self.compressed_data[cursor..cursor + 8].try_into().unwrap(),
+                    self.compressed_data[cursor..cursor + 8]
+                        .try_into()
+                        .expect("operation should succeed"),
                 );
                 cursor += 8;
 
@@ -880,13 +907,19 @@ mod tests {
         let y_true = vec![1.0, 2.0, 3.0];
         let y_pred = vec![1.1, 1.9, 3.1];
 
-        let sum_result = lazy.evaluate_metric("sum", &y_true, &y_pred).unwrap();
+        let sum_result = lazy
+            .evaluate_metric("sum", &y_true, &y_pred)
+            .expect("operation should succeed");
         assert!((sum_result - 12.1).abs() < 1e-10);
 
-        let diff_result = lazy.evaluate_metric("diff", &y_true, &y_pred).unwrap();
+        let diff_result = lazy
+            .evaluate_metric("diff", &y_true, &y_pred)
+            .expect("operation should succeed");
         assert!((diff_result - 0.3).abs() < 1e-10);
 
-        let all_results = lazy.evaluate_all(&y_true, &y_pred).unwrap();
+        let all_results = lazy
+            .evaluate_all(&y_true, &y_pred)
+            .expect("operation should succeed");
         assert_eq!(all_results.len(), 2);
     }
 
@@ -920,11 +953,11 @@ mod tests {
             metric_names.clone(),
             CompressionMethod::Quantized(8),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(compressed.compression_ratio() > 1.0);
 
-        let decompressed = compressed.decompress().unwrap();
+        let decompressed = compressed.decompress().expect("operation should succeed");
         assert_eq!(decompressed.dim(), data.dim());
 
         // Check that values are approximately equal (quantization introduces some error)

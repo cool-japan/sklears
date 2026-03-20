@@ -425,7 +425,7 @@ impl RealTimeCalibrationMonitor {
 
         // Update error window
         if self.error_window.len() >= self.window_size {
-            let old_error = self.error_window.pop_front().unwrap();
+            let old_error = self.error_window.pop_front().unwrap_or(0.0);
             self.total_error -= old_error;
         }
         self.error_window.push_back(error);
@@ -626,18 +626,24 @@ mod tests {
         // Initial fit
         let initial_probs = Array1::from(probabilities[..10].to_vec());
         let initial_targets = Array1::from(targets[..10].to_vec());
-        calibrator.fit(&initial_probs, &initial_targets).unwrap();
+        calibrator
+            .fit(&initial_probs, &initial_targets)
+            .expect("fit should succeed");
 
         // Incremental updates
         for (prob, target) in probabilities[10..].iter().zip(targets[10..].iter()) {
-            calibrator.partial_fit(*prob, *target).unwrap();
+            calibrator
+                .partial_fit(*prob, *target)
+                .expect("operation should succeed");
         }
 
         assert_eq!(calibrator.n_samples_seen(), 10 + (probabilities.len() - 10));
 
         // Test prediction
         let test_probs = Array1::from(vec![0.3, 0.7]);
-        let predictions = calibrator.predict_proba(&test_probs).unwrap();
+        let predictions = calibrator
+            .predict_proba(&test_probs)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -654,18 +660,24 @@ mod tests {
         // Initial fit
         let initial_probs = Array1::from(probabilities[..5].to_vec());
         let initial_targets = Array1::from(targets[..5].to_vec());
-        calibrator.fit(&initial_probs, &initial_targets).unwrap();
+        calibrator
+            .fit(&initial_probs, &initial_targets)
+            .expect("fit should succeed");
 
         // Incremental updates
         for (prob, target) in probabilities[5..].iter().zip(targets[5..].iter()) {
-            calibrator.partial_fit(*prob, *target).unwrap();
+            calibrator
+                .partial_fit(*prob, *target)
+                .expect("operation should succeed");
         }
 
         assert_eq!(calibrator.n_samples_seen(), probabilities.len());
 
         // Test prediction
         let test_probs = Array1::from(vec![0.4, 0.8]);
-        let predictions = calibrator.predict_proba(&test_probs).unwrap();
+        let predictions = calibrator
+            .predict_proba(&test_probs)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -683,7 +695,9 @@ mod tests {
         // Simulate real-time monitoring
         let mut _alert_triggered = false;
         for (prob, target) in probabilities.iter().zip(targets.iter()) {
-            let alert = monitor.update(*prob, *target).unwrap();
+            let alert = monitor
+                .update(*prob, *target)
+                .expect("operation should succeed");
             if alert {
                 _alert_triggered = true;
             }
@@ -726,18 +740,24 @@ mod tests {
             // Initial fit
             let initial_probs = Array1::from(probabilities[..5].to_vec());
             let initial_targets = Array1::from(targets[..5].to_vec());
-            calibrator.fit(&initial_probs, &initial_targets).unwrap();
+            calibrator
+                .fit(&initial_probs, &initial_targets)
+                .expect("fit should succeed");
 
             // Incremental updates
             for (prob, target) in probabilities[5..].iter().zip(targets[5..].iter()) {
-                calibrator.partial_fit(*prob, *target).unwrap();
+                calibrator
+                    .partial_fit(*prob, *target)
+                    .expect("operation should succeed");
             }
 
             assert!(calibrator.n_samples_seen() > 0);
 
             // Test prediction
             let test_probs = Array1::from(vec![0.3, 0.7]);
-            let predictions = calibrator.predict_proba(&test_probs).unwrap();
+            let predictions = calibrator
+                .predict_proba(&test_probs)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), 2);
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));

@@ -1192,8 +1192,10 @@ mod tests {
         let mobile = AccuracyMetrics::mobile();
         let high_acc = AccuracyMetrics::high_accuracy();
 
-        assert!(high_acc.top1_accuracy.unwrap() > mobile.top1_accuracy.unwrap());
-        assert!(high_acc.f1_score.unwrap() > mobile.f1_score.unwrap());
+        assert!(
+            high_acc.top1_accuracy.unwrap_or_default() > mobile.top1_accuracy.unwrap_or_default()
+        );
+        assert!(high_acc.f1_score.unwrap_or_default() > mobile.f1_score.unwrap_or_default());
     }
 
     #[test]

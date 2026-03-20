@@ -13,7 +13,7 @@
 //! - Anomaly detection baselines (statistical thresholds, isolation methods)
 
 use scirs2_core::ndarray::{Array1, Array2, Array3};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{error::SklearsError, traits::Estimator, traits::Fit, traits::Predict};
 use std::collections::HashMap;
 
@@ -615,7 +615,7 @@ impl DomainClassifier {
 
             // IQR-based threshold
             let mut sorted_values = feature.to_vec();
-            sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let q1_idx = sorted_values.len() / 4;
             let q3_idx = 3 * sorted_values.len() / 4;
             let q1 = sorted_values[q1_idx];
@@ -643,7 +643,7 @@ impl DomainClassifier {
             PixelStatistic::Mean => Ok(x.mean().unwrap_or(0.0)),
             PixelStatistic::Median => {
                 let mut values: Vec<f64> = x.iter().cloned().collect();
-                values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let mid = values.len() / 2;
                 Ok(if values.len() % 2 == 0 {
                     (values[mid - 1] + values[mid]) / 2.0
@@ -786,7 +786,7 @@ impl TrainedDomainClassifier {
 
                 let total_count: usize = self.class_counts.values().sum();
                 for i in 0..predictions.len() {
-                    let rand_val = rng.gen_range(0..total_count);
+                    let rand_val = rng.random_range(0..total_count);
                     let mut cumsum = 0;
                     for (&class, &count) in &self.class_counts {
                         cumsum += count;
@@ -842,7 +842,7 @@ impl TrainedDomainClassifier {
                 // Use document length (sum of features) to predict
                 let median_length = {
                     let mut lengths: Vec<f64> = (0..x.nrows()).map(|i| x.row(i).sum()).collect();
-                    lengths.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    lengths.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     lengths[lengths.len() / 2]
                 };
 
@@ -893,7 +893,7 @@ impl TrainedDomainClassifier {
                 };
 
                 for i in 0..predictions.len() {
-                    current_value += drift + rng.gen_range(-0.1..0.1);
+                    current_value += drift + rng.random_range(-0.1..0.1);
                     predictions[i] = if current_value > 0.0 { 1 } else { 0 };
                 }
             }
@@ -936,7 +936,9 @@ impl TrainedDomainClassifier {
                         if popularities.is_empty() {
                             0.0
                         } else {
-                            popularities.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                            popularities.sort_by(|a, b| {
+                                a.partial_cmp(b).expect("operation should succeed")
+                            });
                             popularities[popularities.len() / 2]
                         }
                     };
@@ -984,7 +986,7 @@ impl TrainedDomainClassifier {
                 };
 
                 for i in 0..predictions.len() {
-                    predictions[i] = if rng.gen::<f64>() < *contamination {
+                    predictions[i] = if rng.random::<f64>() < *contamination {
                         1
                     } else {
                         0
@@ -1094,14 +1096,16 @@ mod tests {
                 0.1, 0.2, 0.3, 0.4, 0.8, 0.9, 0.7, 0.6, 0.2, 0.1, 0.4, 0.3, 0.9, 0.8, 0.6, 0.7,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 1, 0, 1];
 
         let classifier = DomainClassifier::computer_vision(CVStrategy::PixelIntensity {
             statistic: PixelStatistic::Mean,
         });
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -1112,12 +1116,14 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 1, 0, 1];
 
         let classifier = DomainClassifier::nlp(NLPStrategy::DocumentLength);
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -1131,7 +1137,7 @@ mod tests {
                 2.0, 3.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 0]; // 1 indicates anomaly
 
         let classifier =
@@ -1139,22 +1145,26 @@ mod tests {
                 method: ThresholdMethod::ZScore,
                 contamination: 0.25,
             });
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_time_series_seasonal_classifier() {
-        let x =
-            Array2::from_shape_vec((8, 1), vec![1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((8, 1), vec![1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 1, 0, 0, 1, 1, 0];
 
         let classifier =
             DomainClassifier::time_series(TimeSeriesStrategy::SeasonalPattern { period: 4 });
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
     }
@@ -1168,12 +1178,14 @@ mod tests {
                 0.0, 1.0, 5.0, 1.0, 0.0, 3.0, 1.0, 1.0, 2.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1, 1, 0, 0]; // 1 = recommend, 0 = don't recommend
 
         let classifier = DomainClassifier::recommendation(RecStrategy::GlobalAverage);
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -1182,12 +1194,14 @@ mod tests {
     fn test_domain_preprocessor() {
         // Test image preprocessing
         let images = Array3::zeros((2, 4, 4)); // 2 images of 4x4
-        let flattened = DomainPreprocessor::preprocess_images(&images).unwrap();
+        let flattened =
+            DomainPreprocessor::preprocess_images(&images).expect("operation should succeed");
         assert_eq!(flattened.shape(), &[2, 16]);
 
         // Test text preprocessing
         let texts = vec!["hello".to_string(), "world".to_string()];
-        let text_features = DomainPreprocessor::preprocess_text(&texts).unwrap();
+        let text_features =
+            DomainPreprocessor::preprocess_text(&texts).expect("operation should succeed");
         assert_eq!(text_features.shape(), &[2, 5]);
 
         // Test time series preprocessing
@@ -1197,8 +1211,9 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
-        let windowed = DomainPreprocessor::preprocess_timeseries(&series, 3).unwrap();
+        .expect("operation should succeed");
+        let windowed = DomainPreprocessor::preprocess_timeseries(&series, 3)
+            .expect("operation should succeed");
         assert_eq!(windowed.shape(), &[8, 3]); // 2 series * 4 windows, window size 3
     }
 }

@@ -245,10 +245,14 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
     /// Create new knowledge distiller
     pub fn new(config: DistillationConfig) -> Self {
         let initial_temperature = match config.temperature_schedule {
-            TemperatureSchedule::Fixed(temp) => T::from(temp).unwrap(),
-            TemperatureSchedule::Linear { start, .. } => T::from(start).unwrap(),
-            TemperatureSchedule::Exponential { start, .. } => T::from(start).unwrap(),
-            TemperatureSchedule::Adaptive => T::from(3.0).unwrap(),
+            TemperatureSchedule::Fixed(temp) => T::from(temp).unwrap_or_else(|| T::zero()),
+            TemperatureSchedule::Linear { start, .. } => {
+                T::from(start).unwrap_or_else(|| T::zero())
+            }
+            TemperatureSchedule::Exponential { start, .. } => {
+                T::from(start).unwrap_or_else(|| T::zero())
+            }
+            TemperatureSchedule::Adaptive => T::from(3.0).unwrap_or_else(|| T::zero()),
         };
 
         Self {
@@ -417,9 +421,13 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
             + 0.1 * loss.attention; // Fixed weight for attention
 
         // Convert total loss to gradients (would need automatic differentiation)
-        let grad_output = Array2::from_elem(student_outputs.dim(), T::from(total_loss).unwrap());
+        let grad_output = Array2::from_elem(
+            student_outputs.dim(),
+            T::from(total_loss).unwrap_or_else(|| T::zero()),
+        );
         student.backward(&grad_output)?;
-        student.update_parameters(T::from(self.config.learning_rate).unwrap())?;
+        student
+            .update_parameters(T::from(self.config.learning_rate).unwrap_or_else(|| T::zero()))?;
 
         Ok(loss)
     }
@@ -470,18 +478,18 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
             TemperatureSchedule::Linear { start, end } => {
                 let progress = epoch as f64 / self.config.n_epochs as f64;
                 let temp = start + (end - start) * progress;
-                self.current_temperature = T::from(temp).unwrap();
+                self.current_temperature = T::from(temp).unwrap_or_else(|| T::zero());
             }
             TemperatureSchedule::Exponential { start, decay } => {
                 let temp = start * decay.powf(epoch as f64);
-                self.current_temperature = T::from(temp).unwrap();
+                self.current_temperature = T::from(temp).unwrap_or_else(|| T::zero());
             }
             TemperatureSchedule::Adaptive => {
                 // Adapt temperature based on training progress
                 // This would be more sophisticated in practice
                 let base_temp = 3.0;
                 let temp = base_temp * (1.0 + epoch as f64 / 100.0).recip();
-                self.current_temperature = T::from(temp).unwrap();
+                self.current_temperature = T::from(temp).unwrap_or_else(|| T::zero());
             }
         }
     }
@@ -491,7 +499,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
         match self.best_loss {
             Some(best) => {
                 if val_loss < best.to_f64().unwrap_or(f64::INFINITY) {
-                    self.best_loss = Some(T::from(val_loss).unwrap());
+                    self.best_loss = Some(T::from(val_loss).unwrap_or_else(|| T::zero()));
                     self.patience_counter = 0;
                     false
                 } else {
@@ -500,7 +508,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
                 }
             }
             None => {
-                self.best_loss = Some(T::from(val_loss).unwrap());
+                self.best_loss = Some(T::from(val_loss).unwrap_or_else(|| T::zero()));
                 self.patience_counter = 0;
                 false
             }
@@ -536,7 +544,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
         let student_soft =
             self.softmax_with_temperature(student_logits, self.current_temperature)?;
 
-        let eps = T::from(1e-8).unwrap();
+        let eps = T::from(1e-8).unwrap_or_else(|| T::zero());
         let kl_div = teacher_soft
             .iter()
             .zip(student_soft.iter())
@@ -560,7 +568,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
         predictions: &Array2<T>,
         targets: &Array2<T>,
     ) -> NeuralResult<f64> {
-        let eps = T::from(1e-8).unwrap();
+        let eps = T::from(1e-8).unwrap_or_else(|| T::zero());
         let loss = targets
             .iter()
             .zip(predictions.iter())
@@ -636,7 +644,7 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
     /// Normalize attention maps
     fn normalize_attention(&self, attention: &Array2<T>) -> NeuralResult<Array2<T>> {
         let sum = attention.sum();
-        if sum > T::from(0.0).unwrap() {
+        if sum > T::from(0.0).unwrap_or_else(|| T::zero()) {
             Ok(attention / sum)
         } else {
             Ok(attention.clone())
@@ -654,9 +662,10 @@ impl<T: FloatBounds + ScalarOperand + Sum> KnowledgeDistiller<T> {
 
         for (i, mut row) in result.rows_mut().into_iter().enumerate() {
             let logit_row = scaled_logits.row(i);
-            let max_logit = logit_row
-                .iter()
-                .fold(T::from(f64::NEG_INFINITY).unwrap(), |a, &b| a.max(b));
+            let max_logit = logit_row.iter().fold(
+                T::from(f64::NEG_INFINITY).unwrap_or_else(|| T::zero()),
+                |a, &b| a.max(b),
+            );
 
             let exp_sum = logit_row.iter().map(|&x| (x - max_logit).exp()).sum::<T>();
 
@@ -930,7 +939,13 @@ mod tests {
 
         history.epochs_completed = 1;
 
-        assert_eq!(history.final_train_loss().unwrap().total(), 2.0);
+        assert_eq!(
+            history
+                .final_train_loss()
+                .expect("operation should succeed")
+                .total(),
+            2.0
+        );
         assert!(!history.has_converged(5, 0.1)); // Not enough data for convergence check
     }
 

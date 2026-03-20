@@ -69,7 +69,7 @@ impl AdaptiveDensityDistance {
             }
 
             // Sort distances and take k-th nearest neighbor distance
-            distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let k_neighbor_dist = distances
                 .get(std::cmp::min(self.k_density, distances.len()) - 1)
                 .copied()
@@ -567,10 +567,12 @@ mod tests {
     #[test]
     fn test_adaptive_density_distance() {
         let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 0.1, 0.1, 10.0, 10.0, 10.1, 10.1])
-            .unwrap();
+            .expect("operation should succeed");
 
         let mut adaptive_dist = AdaptiveDensityDistance::new(Distance::Euclidean, 2);
-        adaptive_dist.fit(&data.view()).unwrap();
+        adaptive_dist
+            .fit(&data.view())
+            .expect("operation should succeed");
 
         let a = data.row(0);
         let b = data.row(1);
@@ -587,10 +589,12 @@ mod tests {
                 0.0, 0.0, 0.1, 0.1, 0.0, 0.1, 10.0, 10.0, 10.1, 10.1, 10.0, 10.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let mut context_dist = ContextDependentDistance::new(Distance::Euclidean, 2);
-        context_dist.fit(&data.view()).unwrap();
+        context_dist
+            .fit(&data.view())
+            .expect("operation should succeed");
 
         let a = data.row(0);
         let b = data.row(1);
@@ -604,7 +608,7 @@ mod tests {
         let distances = vec![Distance::Euclidean, Distance::Manhattan];
         let weights = vec![0.6, 0.4];
 
-        let ensemble = EnsembleDistance::new(distances, weights).unwrap();
+        let ensemble = EnsembleDistance::new(distances, weights).expect("operation should succeed");
 
         let a = array![1.0, 2.0];
         let b = array![3.0, 4.0];
@@ -647,7 +651,7 @@ mod tests {
 
         for method in methods {
             let ensemble = EnsembleDistance::new(distances.clone(), weights.clone())
-                .unwrap()
+                .expect("operation should succeed")
                 .with_combination_method(method);
 
             let distance = ensemble.calculate(&a.view(), &b.view());

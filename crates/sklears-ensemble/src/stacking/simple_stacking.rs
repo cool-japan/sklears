@@ -6,6 +6,7 @@
 use super::config::StackingConfig;
 use crate::simd_stacking;
 use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result, SklearsError},
     prelude::Predict,
@@ -86,7 +87,7 @@ impl Fit<Array2<Float>, Array1<i32>> for SimpleStackingClassifier<Untrained> {
         }
 
         let (n_samples, n_features) = x.dim();
-        let n_base_estimators = self.n_base_estimators_.unwrap();
+        let n_base_estimators = self.n_base_estimators_.expect("operation should succeed");
 
         if n_samples < 10 {
             return Err(SklearsError::InvalidInput(
@@ -142,7 +143,7 @@ impl SimpleStackingClassifier<Untrained> {
         y: &Array1<Float>,
     ) -> Result<(Array2<Float>, Array1<Float>)> {
         let (n_samples, n_features) = x.dim();
-        let n_base_estimators = self.n_base_estimators_.unwrap();
+        let n_base_estimators = self.n_base_estimators_.expect("operation should succeed");
 
         let mut base_weights = Array2::<Float>::zeros((n_base_estimators, n_features));
         let mut base_intercepts = Array1::<Float>::zeros(n_base_estimators);
@@ -155,7 +156,7 @@ impl SimpleStackingClassifier<Untrained> {
 
             // Simulate different base estimators with random feature weighting
             for j in 0..n_features {
-                base_weights[[i, j]] = (scirs2_core::random::Rng::gen::<f64>(&mut rng) - 0.5) * 2.0;
+                base_weights[[i, j]] = (rng.random::<f64>() - 0.5) * 2.0;
             }
 
             // Compute intercept using mean target
@@ -336,21 +337,30 @@ impl SimpleStackingClassifier<Trained> {
 
 impl Predict<Array2<Float>, Array1<i32>> for SimpleStackingClassifier<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols() != self.n_features_in_.expect("operation should succeed") {
             return Err(SklearsError::FeatureMismatch {
-                expected: self.n_features_in_.unwrap(),
+                expected: self.n_features_in_.expect("operation should succeed"),
                 actual: x.ncols(),
             });
         }
 
         let n_samples = x.nrows();
-        let n_base_estimators = self.n_base_estimators_.unwrap();
+        let n_base_estimators = self.n_base_estimators_.expect("operation should succeed");
 
-        let base_weights = self.base_weights_.as_ref().unwrap();
-        let base_intercepts = self.base_intercepts_.as_ref().unwrap();
-        let meta_weights = self.meta_weights_.as_ref().unwrap();
-        let meta_intercept = self.meta_intercept_.unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let base_weights = self
+            .base_weights_
+            .as_ref()
+            .expect("operation should succeed");
+        let base_intercepts = self
+            .base_intercepts_
+            .as_ref()
+            .expect("operation should succeed");
+        let meta_weights = self
+            .meta_weights_
+            .as_ref()
+            .expect("operation should succeed");
+        let meta_intercept = self.meta_intercept_.expect("operation should succeed");
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Step 1: Generate meta-features using SIMD-accelerated base estimators (6.1x-7.6x speedup)
         let meta_features = simd_stacking::simd_generate_meta_features(
@@ -411,37 +421,43 @@ impl Predict<Array2<Float>, Array1<i32>> for SimpleStackingClassifier<Trained> {
 impl SimpleStackingClassifier<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of features in the training data
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_.expect("operation should succeed")
     }
 
     /// Get the number of base estimators
     pub fn n_base_estimators(&self) -> usize {
-        self.n_base_estimators_.unwrap()
+        self.n_base_estimators_.expect("operation should succeed")
     }
 
     /// Get the base estimator weights
     pub fn base_weights(&self) -> &Array2<Float> {
-        self.base_weights_.as_ref().unwrap()
+        self.base_weights_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the base estimator intercepts
     pub fn base_intercepts(&self) -> &Array1<Float> {
-        self.base_intercepts_.as_ref().unwrap()
+        self.base_intercepts_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the meta-learner weights
     pub fn meta_weights(&self) -> &Array1<Float> {
-        self.meta_weights_.as_ref().unwrap()
+        self.meta_weights_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the meta-learner intercept
     pub fn meta_intercept(&self) -> Float {
-        self.meta_intercept_.unwrap()
+        self.meta_intercept_.expect("operation should succeed")
     }
 }
 
@@ -464,7 +480,12 @@ mod tests {
         assert_eq!(stacking.config.cv, 5);
         assert_eq!(stacking.config.random_state, Some(42));
         assert_eq!(stacking.config.passthrough, true);
-        assert_eq!(stacking.n_base_estimators_.unwrap(), 3);
+        assert_eq!(
+            stacking
+                .n_base_estimators_
+                .expect("operation should succeed"),
+            3
+        );
     }
 
     #[test]
@@ -486,12 +507,12 @@ mod tests {
         let y = array![0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1];
 
         let stacking = StackingClassifier::new(2);
-        let fitted_model = stacking.fit(&x, &y).unwrap();
+        let fitted_model = stacking.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert_eq!(fitted_model.classes().len(), 2);
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 12);
     }
 
@@ -527,7 +548,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
         let stacking = StackingClassifier::new(1);
-        let fitted_model = stacking.fit(&x_train, &y_train).unwrap();
+        let fitted_model = stacking
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         let result = fitted_model.predict(&x_test);
 
         assert!(result.is_err());

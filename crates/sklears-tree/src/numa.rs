@@ -303,7 +303,7 @@ impl NumaAllocator {
 
         // Track allocation
         {
-            let mut allocations = self.allocations.lock().unwrap();
+            let mut allocations = self.allocations.lock().expect("lock should not be poisoned");
             allocations.insert(ptr, (node_id, layout));
         }
 
@@ -317,7 +317,7 @@ impl NumaAllocator {
     /// The caller must ensure that `ptr` was allocated with this allocator and is valid
     pub unsafe fn deallocate(&self, ptr: *mut u8) -> Result<()> {
         let (node_id, layout) = {
-            let mut allocations = self.allocations.lock().unwrap();
+            let mut allocations = self.allocations.lock().expect("lock should not be poisoned");
             allocations.remove(&ptr).ok_or_else(|| {
                 sklears_core::error::SklearsError::InvalidData {
                     reason: "Pointer not found in allocations".to_string(),
@@ -599,7 +599,7 @@ impl NumaAffinityManager {
         let thread_id = thread::current().id();
 
         {
-            let mut assignments = self.thread_assignments.lock().unwrap();
+            let mut assignments = self.thread_assignments.lock().expect("lock should not be poisoned");
             assignments.insert(thread_id, node_id);
         }
 
@@ -628,7 +628,7 @@ impl NumaAffinityManager {
     /// Get current thread's NUMA node assignment
     pub fn get_current_thread_node(&self) -> Option<usize> {
         let thread_id = thread::current().id();
-        let assignments = self.thread_assignments.lock().unwrap();
+        let assignments = self.thread_assignments.lock().expect("lock should not be poisoned");
         assignments.get(&thread_id).copied()
     }
 
@@ -718,7 +718,7 @@ mod tests {
         let topology = NumaTopology::detect();
         assert!(topology.is_ok());
 
-        let topo = topology.unwrap();
+        let topo = topology.expect("operation should succeed");
         assert!(topo.num_nodes > 0);
         assert!(!topo.node_cpus.is_empty());
     }
@@ -737,7 +737,7 @@ mod tests {
         let numa_data = NumaTreeData::new(data, strategy);
         assert!(numa_data.is_ok());
 
-        let numa_data = numa_data.unwrap();
+        let numa_data = numa_data.expect("operation should succeed");
         assert!(!numa_data.segments().is_empty());
     }
 
@@ -755,7 +755,7 @@ mod tests {
         let manager = NumaAffinityManager::new();
         assert!(manager.is_ok());
 
-        let manager = manager.unwrap();
+        let manager = manager.expect("operation should succeed");
         let assignments = manager.get_optimal_node_assignment();
         assert!(assignments.is_ok());
     }
@@ -765,14 +765,14 @@ mod tests {
         let optimizer = NumaOptimizer::new();
         assert!(optimizer.is_ok());
 
-        let optimizer = optimizer.unwrap();
+        let optimizer = optimizer.expect("operation should succeed");
         let result = optimizer.optimize_tree_construction(1024, || {
             // Simulate tree construction work
             42
         });
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.expect("operation should succeed"), 42);
     }
 }
 

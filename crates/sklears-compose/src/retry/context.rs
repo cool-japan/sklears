@@ -53,7 +53,7 @@ impl RetryContextManager {
 
         // Store in active contexts
         {
-            let mut active = self.active_contexts.write().unwrap();
+            let mut active = self.active_contexts.write().unwrap_or_else(|e| e.into_inner());
             active.insert(id, context.clone());
         }
 
@@ -62,7 +62,7 @@ impl RetryContextManager {
 
     /// Update context with attempt result
     pub fn update_context(&self, context_id: &str, attempt: RetryAttempt) -> SklResult<()> {
-        let mut active = self.active_contexts.write().unwrap();
+        let mut active = self.active_contexts.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(context) = active.get_mut(context_id) {
             context.attempts.push(attempt);
@@ -87,11 +87,11 @@ impl RetryContextManager {
 
     /// Complete context and move to history
     pub fn complete_context(&self, context_id: &str) -> SklResult<()> {
-        let mut active = self.active_contexts.write().unwrap();
+        let mut active = self.active_contexts.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(context) = active.remove(context_id) {
             // Move to history
-            let mut history = self.context_history.lock().unwrap();
+            let mut history = self.context_history.lock().unwrap_or_else(|e| e.into_inner());
             history.push_back(context);
 
             // Limit history size
@@ -110,13 +110,13 @@ impl RetryContextManager {
 
     /// Get context by ID
     pub fn get_context(&self, context_id: &str) -> Option<RetryContext> {
-        let active = self.active_contexts.read().unwrap();
+        let active = self.active_contexts.read().unwrap_or_else(|e| e.into_inner());
         active.get(context_id).cloned()
     }
 
     /// Get active context count
     pub fn active_count(&self) -> usize {
-        let active = self.active_contexts.read().unwrap();
+        let active = self.active_contexts.read().unwrap_or_else(|e| e.into_inner());
         active.len()
     }
 
@@ -202,8 +202,8 @@ impl RetryContextManager {
 
     /// Get aggregated statistics
     pub fn get_statistics(&self) -> ContextManagerStatistics {
-        let active = self.active_contexts.read().unwrap();
-        let history = self.context_history.lock().unwrap();
+        let active = self.active_contexts.read().unwrap_or_else(|e| e.into_inner());
+        let history = self.context_history.lock().unwrap_or_else(|e| e.into_inner());
 
         let total_contexts = active.len() + history.len();
         let completed_contexts = history.len();
@@ -441,7 +441,7 @@ impl SuccessRateAnalyzer {
         let current_rate = success_count as f64 / recent_attempts.len() as f64;
 
         // Get historical data
-        let historical_rates = self.historical_rates.lock().unwrap();
+        let historical_rates = self.historical_rates.lock().unwrap_or_else(|e| e.into_inner());
         let context_history = historical_rates.get(&context.id).cloned().unwrap_or_default();
 
         let historical_avg = if !context_history.is_empty() {
@@ -483,7 +483,7 @@ impl SuccessRateAnalyzer {
 
     /// Update historical data
     pub fn update_historical_data(&self, context_id: &str, success_rate: f64) {
-        let mut historical_rates = self.historical_rates.lock().unwrap();
+        let mut historical_rates = self.historical_rates.lock().unwrap_or_else(|e| e.into_inner());
         let rates = historical_rates.entry(context_id.to_string()).or_insert_with(Vec::new);
         rates.push(success_rate);
 

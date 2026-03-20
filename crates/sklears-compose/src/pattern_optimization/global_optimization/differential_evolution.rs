@@ -663,7 +663,7 @@ mod tests {
             .scaling_factor(0.8)
             .crossover_rate(0.9)
             .build()
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(params.population_size, 50);
         assert_eq!(params.max_generations, 500);

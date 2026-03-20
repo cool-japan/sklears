@@ -456,8 +456,8 @@ impl BenchmarkingSuite {
         let std_dev = Duration::from_nanos(variance.sqrt() as u64);
 
         let median_time = sorted_times[times.len() / 2];
-        let min_time = *sorted_times.first().unwrap();
-        let max_time = *sorted_times.last().unwrap();
+        let min_time = *sorted_times.first().expect("operation should succeed");
+        let max_time = *sorted_times.last().expect("operation should succeed");
         let percentile_95 = sorted_times[(times.len() as f64 * 0.95) as usize];
 
         let throughput = if mean_time.as_secs_f64() > 0.0 {
@@ -575,9 +575,9 @@ impl BenchmarkingSuite {
                 a.timing_stats
                     .throughput
                     .partial_cmp(&b.timing_stats.throughput)
-                    .unwrap()
+                    .expect("operation should succeed")
             })
-            .unwrap()
+            .expect("operation should succeed")
             .method_name
             .clone();
 
@@ -587,9 +587,9 @@ impl BenchmarkingSuite {
                 a.timing_stats
                     .throughput
                     .partial_cmp(&b.timing_stats.throughput)
-                    .unwrap()
+                    .expect("operation should succeed")
             })
-            .unwrap()
+            .expect("operation should succeed")
             .method_name
             .clone();
 
@@ -609,7 +609,8 @@ impl BenchmarkingSuite {
             .iter()
             .map(|r| (r.method_name.clone(), r.timing_stats.throughput))
             .collect();
-        performance_ranking.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        performance_ranking
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         CategorySummary {
             best_method,
@@ -628,7 +629,7 @@ impl BenchmarkingSuite {
             a.timing_stats
                 .throughput
                 .partial_cmp(&b.timing_stats.throughput)
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         if let Some(method) = fastest_method {
@@ -647,7 +648,7 @@ impl BenchmarkingSuite {
             a.quality_metrics
                 .overall_score
                 .partial_cmp(&b.quality_metrics.overall_score)
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         if let Some(method) = highest_quality {
@@ -927,7 +928,7 @@ mod tests {
 
         let metrics = suite
             .calculate_quality_metrics("SHAP", &test_config)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(metrics.overall_score > 0.0);
         assert!(metrics.fidelity > 0.0);
     }

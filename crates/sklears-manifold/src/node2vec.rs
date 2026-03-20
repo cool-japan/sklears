@@ -5,8 +5,8 @@
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -228,7 +228,7 @@ impl Node2Vec<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, dist) in distances.iter().take(k) {
@@ -284,7 +284,7 @@ impl Node2Vec<Untrained> {
                 self.biased_choice(current_node, prev, &neighbors, adjacency, rng)?
             } else {
                 // First step: uniform random choice
-                neighbors[rng.gen_range(0..neighbors.len())]
+                neighbors[rng.random_range(0..neighbors.len())]
             };
 
             walk.push(next_node);
@@ -336,12 +336,12 @@ impl Node2Vec<Untrained> {
 
         if total_weight <= 0.0 {
             // Fallback to uniform choice
-            return Ok(neighbors[rng.gen_range(0..neighbors.len())]);
+            return Ok(neighbors[rng.random_range(0..neighbors.len())]);
         }
 
         // Weighted random choice
         let mut cumulative = 0.0;
-        let threshold = rng.gen::<f64>() * total_weight;
+        let threshold = rng.random::<f64>() * total_weight;
 
         for (i, &weight) in weights.iter().enumerate() {
             cumulative += weight;

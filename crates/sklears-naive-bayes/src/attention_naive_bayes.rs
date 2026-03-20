@@ -315,7 +315,7 @@ where
     /// Initialize attention parameters
     fn initialize_attention_parameters(&mut self) -> Result<()> {
         let mut rng = scirs2_core::random::thread_rng();
-        let uniform = Uniform::new(-0.1f64, 0.1f64).unwrap();
+        let uniform = Uniform::new(-0.1f64, 0.1f64).expect("operation should succeed");
 
         for &class in &self.classes {
             // Initialize query, key, and value matrices
@@ -774,17 +774,17 @@ mod tests {
                 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 10.0, 11.0, 11.0, 12.0, 12.0, 13.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = vec![0, 0, 0, 1, 1, 1];
 
         // Fit and predict
         assert!(model.fit(&X, &y).is_ok());
         assert!(model.is_fitted);
 
-        let predictions = model.predict(&X).unwrap();
+        let predictions = model.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = model.predict_proba(&X).unwrap();
+        let probabilities = model.predict_proba(&X).expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 2));
 
         // Check that probabilities sum to approximately 1
@@ -805,14 +805,14 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 10.0, 0.0, 0.0, 0.0, 10.0, 0.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = vec![0, 0, 1, 1];
 
-        model.fit(&X, &y).unwrap();
+        model.fit(&X, &y).expect("operation should succeed");
 
         let importance = model.feature_importance();
         assert!(importance.is_some());
-        let importance = importance.unwrap();
+        let importance = importance.expect("operation should succeed");
         assert_eq!(importance.len(), 3);
     }
 
@@ -832,7 +832,7 @@ mod tests {
 
             let X =
                 Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 10.0, 11.0, 11.0, 12.0])
-                    .unwrap();
+                    .expect("operation should succeed");
             let y = vec![0, 0, 1, 1];
 
             assert!(model.fit(&X, &y).is_ok());
@@ -845,15 +845,18 @@ mod tests {
         let mut model = AttentionNBBuilder::<f64>::new().build();
 
         // Test prediction before fitting
-        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let X = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         assert!(model.predict(&X).is_err());
 
         // Test dimension mismatch
-        let X_wrong = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let X_wrong = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let y = vec![0, 1];
-        let X_fit = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let X_fit = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
-        model.fit(&X_fit, &y).unwrap();
+        model.fit(&X_fit, &y).expect("operation should succeed");
         assert!(model.predict(&X_wrong).is_err());
     }
 }

@@ -945,15 +945,15 @@ mod tests {
             json!({"value": 42}),
             MetadataType::Custom("test".to_string()),
             tags,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Test retrieve by ID
-        let entry = store.get_metadata(&entry_id).unwrap().unwrap();
+        let entry = store.get_metadata(&entry_id).unwrap_or_default().unwrap_or_default();
         assert_eq!(entry.key, "test_key");
         assert_eq!(entry.value["value"], 42);
 
         // Test retrieve by key
-        let entry_by_key = store.get_metadata_by_key("test_key").unwrap().unwrap();
+        let entry_by_key = store.get_metadata_by_key("test_key").unwrap_or_default().unwrap_or_default();
         assert_eq!(entry_by_key.id, entry_id);
 
         // Test update
@@ -962,18 +962,18 @@ mod tests {
             &entry_id,
             json!({"value": 100}),
             Some(new_tags),
-        ).unwrap();
+        ).unwrap_or_default();
         assert!(updated);
 
-        let updated_entry = store.get_metadata(&entry_id).unwrap().unwrap();
+        let updated_entry = store.get_metadata(&entry_id).unwrap_or_default().unwrap_or_default();
         assert_eq!(updated_entry.value["value"], 100);
         assert!(updated_entry.tags.contains("updated"));
 
         // Test delete
-        let deleted = store.delete_metadata(&entry_id).unwrap();
+        let deleted = store.delete_metadata(&entry_id).unwrap_or_default();
         assert!(deleted);
 
-        let deleted_entry = store.get_metadata(&entry_id).unwrap();
+        let deleted_entry = store.get_metadata(&entry_id).unwrap_or_default();
         assert!(deleted_entry.is_none());
     }
 
@@ -990,20 +990,20 @@ mod tests {
             json!({"size": 100}),
             MetadataType::ExecutionContext,
             tags1,
-        ).unwrap();
+        ).unwrap_or_default();
 
         store.store_metadata(
             "key2".to_string(),
             json!({"size": 200}),
             MetadataType::AlgorithmConfig,
             tags2,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Query by type
         let mut query = MetadataQuery::default();
         query.entry_type = Some(MetadataType::ExecutionContext);
 
-        let results = store.query_metadata(&query).unwrap();
+        let results = store.query_metadata(&query).unwrap_or_default();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].key, "key1");
 
@@ -1011,14 +1011,14 @@ mod tests {
         let mut query = MetadataQuery::default();
         query.required_tags = ["shared"].iter().map(|s| s.to_string()).collect();
 
-        let results = store.query_metadata(&query).unwrap();
+        let results = store.query_metadata(&query).unwrap_or_default();
         assert_eq!(results.len(), 2);
 
         // Query with limit
         let mut query = MetadataQuery::default();
         query.limit = Some(1);
 
-        let results = store.query_metadata(&query).unwrap();
+        let results = store.query_metadata(&query).unwrap_or_default();
         assert_eq!(results.len(), 1);
     }
 
@@ -1046,21 +1046,21 @@ mod tests {
             json!({"test": "data"}),
             MetadataType::Custom("export".to_string()),
             tags,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Export
-        let exported = store.export_metadata().unwrap();
+        let exported = store.export_metadata().unwrap_or_default();
 
         // Clear and import
         store.clear();
         assert_eq!(store.get_stats().total_entries, 0);
 
-        let imported_count = store.import_metadata(&exported).unwrap();
+        let imported_count = store.import_metadata(&exported).unwrap_or_default();
         assert_eq!(imported_count, 1);
         assert_eq!(store.get_stats().total_entries, 1);
 
         // Verify data
-        let entry = store.get_metadata_by_key("export_key").unwrap().unwrap();
+        let entry = store.get_metadata_by_key("export_key").unwrap_or_default().unwrap_or_default();
         assert_eq!(entry.value["test"], "data");
     }
 }

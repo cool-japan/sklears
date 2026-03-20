@@ -376,7 +376,7 @@ impl AttentionLayer {
 
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {
             let mut sorted: Vec<Float> = row.iter().copied().collect();
-            sorted.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            sorted.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
 
             let mut k = 0;
             let mut cumsum = 0.0;
@@ -634,8 +634,14 @@ impl CrossModalAttention {
         let fused_output = fused_input.dot(&self.fusion_weights);
 
         // Compute fusion attention weights (simple averaging for now)
-        let fusion_attention_weights = (&x_to_y.attention_weights.mean_axis(Axis(0)).unwrap()
-            + &y_to_x.attention_weights.mean_axis(Axis(0)).unwrap())
+        let fusion_attention_weights = (&x_to_y
+            .attention_weights
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array")
+            + &y_to_x
+                .attention_weights
+                .mean_axis(Axis(0))
+                .expect("mean_axis requires non-empty array"))
             / 2.0;
 
         CrossModalAttentionOutput {
@@ -754,7 +760,9 @@ impl TransformerEncoderBlock {
     /// Layer normalization
     fn layer_norm(x: &Array2<Float>, gamma: &Array1<Float>, beta: &Array1<Float>) -> Array2<Float> {
         let eps = 1e-5;
-        let mean = x.mean_axis(Axis(1)).unwrap();
+        let mean = x
+            .mean_axis(Axis(1))
+            .expect("mean_axis requires non-empty array");
         let var = x.var_axis(Axis(1), 0.0);
 
         let normalized =
@@ -1039,7 +1047,7 @@ mod tests {
 
         // Check that each row has mean close to 0
         for i in 0..normalized.nrows() {
-            let row_mean = normalized.row(i).mean().unwrap();
+            let row_mean = normalized.row(i).mean().expect("operation should succeed");
             assert!(row_mean.abs() < 1e-5);
         }
     }

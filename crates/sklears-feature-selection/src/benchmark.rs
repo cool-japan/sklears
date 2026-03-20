@@ -5,7 +5,7 @@
 //! All implementations follow the SciRS2 policy using scirs2-core for numerical computations.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::error::{Result as SklResult, SklearsError};
 type Result<T> = SklResult<T>;
 use std::collections::HashMap;
@@ -270,18 +270,18 @@ impl FeatureSelectionBenchmark {
             let mut target = 0.0;
 
             for j in 0..n_relevant {
-                let value = thread_rng().gen::<f64>() * 10.0 - 5.0; // Range [-5, 5]
+                let value = thread_rng().random::<f64>() * 10.0 - 5.0; // Range [-5, 5]
                 X[[i, j]] = value;
                 target += value * (j + 1) as f64; // Different coefficients for each feature
             }
 
             // Add noise features
             for j in n_relevant..n_features {
-                X[[i, j]] = thread_rng().gen::<f64>() * 10.0 - 5.0;
+                X[[i, j]] = thread_rng().random::<f64>() * 10.0 - 5.0;
             }
 
             // Add noise to target
-            target += (thread_rng().gen::<f64>() - 0.5) * 2.0;
+            target += (thread_rng().random::<f64>() - 0.5) * 2.0;
             y[i] = target;
         }
 
@@ -318,7 +318,7 @@ impl FeatureSelectionBenchmark {
 
             // Generate relevant features with nonlinear relationship
             for j in 0..n_relevant {
-                let value = thread_rng().gen::<f64>() * 6.0 - 3.0; // Range [-3, 3]
+                let value = thread_rng().random::<f64>() * 6.0 - 3.0; // Range [-3, 3]
                 X[[i, j]] = value;
 
                 // Nonlinear relationships: quadratic, sine, exponential
@@ -332,10 +332,10 @@ impl FeatureSelectionBenchmark {
 
             // Noise features
             for j in n_relevant..n_features {
-                X[[i, j]] = thread_rng().gen::<f64>() * 6.0 - 3.0;
+                X[[i, j]] = thread_rng().random::<f64>() * 6.0 - 3.0;
             }
 
-            y[i] = target + (thread_rng().gen::<f64>() - 0.5) * 0.5;
+            y[i] = target + (thread_rng().random::<f64>() - 0.5) * 0.5;
         }
 
         let ground_truth = Some((0..n_relevant).collect());
@@ -371,14 +371,14 @@ impl FeatureSelectionBenchmark {
 
             // Sparse relevant features
             for j in 0..n_relevant {
-                let value = thread_rng().gen::<f64>() * 4.0 - 2.0;
+                let value = thread_rng().random::<f64>() * 4.0 - 2.0;
                 X[[i, j]] = value;
                 target += value * (1.0 / (j + 1) as f64); // Decreasing importance
             }
 
             // Many noise features
             for j in n_relevant..n_features {
-                X[[i, j]] = thread_rng().gen::<f64>() * 4.0 - 2.0;
+                X[[i, j]] = thread_rng().random::<f64>() * 4.0 - 2.0;
             }
 
             y[i] = if target > 0.0 { 1.0 } else { 0.0 }; // Binary classification
@@ -417,7 +417,7 @@ impl FeatureSelectionBenchmark {
 
             // Generate base relevant features
             let base_features: Vec<f64> = (0..n_relevant)
-                .map(|_| thread_rng().gen::<f64>() * 4.0 - 2.0)
+                .map(|_| thread_rng().random::<f64>() * 4.0 - 2.0)
                 .collect();
 
             for j in 0..n_relevant {
@@ -431,7 +431,7 @@ impl FeatureSelectionBenchmark {
                 if feature_idx < n_features {
                     // Highly correlated copy with noise
                     X[[i, feature_idx]] =
-                        base_features[j] + (thread_rng().gen::<f64>() - 0.5) * 0.2;
+                        base_features[j] + (thread_rng().random::<f64>() - 0.5) * 0.2;
                     feature_idx += 1;
                 }
 
@@ -444,10 +444,10 @@ impl FeatureSelectionBenchmark {
 
             // Fill remaining with noise
             for j in feature_idx..n_features {
-                X[[i, j]] = thread_rng().gen::<f64>() * 4.0 - 2.0;
+                X[[i, j]] = thread_rng().random::<f64>() * 4.0 - 2.0;
             }
 
-            y[i] = target + (thread_rng().gen::<f64>() - 0.5) * 1.0;
+            y[i] = target + (thread_rng().random::<f64>() - 0.5) * 1.0;
         }
 
         let ground_truth = Some((0..n_relevant).collect());
@@ -482,18 +482,18 @@ impl FeatureSelectionBenchmark {
             let mut target = 0.0;
 
             for j in 0..n_relevant {
-                let value = thread_rng().gen::<f64>() * 8.0 - 4.0;
+                let value = thread_rng().random::<f64>() * 8.0 - 4.0;
                 X[[i, j]] = value;
                 target += value * (j + 1) as f64;
             }
 
             // Noise features
             for j in n_relevant..n_features {
-                X[[i, j]] = thread_rng().gen::<f64>() * 8.0 - 4.0;
+                X[[i, j]] = thread_rng().random::<f64>() * 8.0 - 4.0;
             }
 
             // Heavy noise on target
-            let noise = (thread_rng().gen::<f64>() - 0.5) * target.abs() * 0.5;
+            let noise = (thread_rng().random::<f64>() - 0.5) * target.abs() * 0.5;
             y[i] = target + noise;
         }
 
@@ -668,7 +668,7 @@ impl FeatureSelectionBenchmark {
         }
 
         if !importances.is_empty() {
-            importances.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            importances.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
             metrics.importance_distribution = ImportanceDistribution {
                 mean: importances.iter().sum::<f64>() / importances.len() as f64,
                 std: {
@@ -745,7 +745,11 @@ impl FeatureSelectionBenchmark {
                 Some(
                     results
                         .iter()
-                        .map(|r| r.evaluation_metrics.jaccard_score.unwrap())
+                        .map(|r| {
+                            r.evaluation_metrics
+                                .jaccard_score
+                                .expect("operation should succeed")
+                        })
                         .sum::<f64>()
                         / results.len() as f64,
                 )
@@ -759,7 +763,11 @@ impl FeatureSelectionBenchmark {
                 Some(
                     results
                         .iter()
-                        .map(|r| r.evaluation_metrics.precision.unwrap())
+                        .map(|r| {
+                            r.evaluation_metrics
+                                .precision
+                                .expect("operation should succeed")
+                        })
                         .sum::<f64>()
                         / results.len() as f64,
                 )
@@ -773,7 +781,11 @@ impl FeatureSelectionBenchmark {
                 Some(
                     results
                         .iter()
-                        .map(|r| r.evaluation_metrics.recall.unwrap())
+                        .map(|r| {
+                            r.evaluation_metrics
+                                .recall
+                                .expect("operation should succeed")
+                        })
                         .sum::<f64>()
                         / results.len() as f64,
                 )
@@ -787,7 +799,11 @@ impl FeatureSelectionBenchmark {
                 Some(
                     results
                         .iter()
-                        .map(|r| r.evaluation_metrics.f1_score.unwrap())
+                        .map(|r| {
+                            r.evaluation_metrics
+                                .f1_score
+                                .expect("operation should succeed")
+                        })
                         .sum::<f64>()
                         / results.len() as f64,
                 )
@@ -866,7 +882,11 @@ impl FeatureSelectionBenchmark {
             });
         }
 
-        method_rankings.sort_by(|a, b| b.mean_score.partial_cmp(&a.mean_score).unwrap());
+        method_rankings.sort_by(|a, b| {
+            b.mean_score
+                .partial_cmp(&a.mean_score)
+                .expect("operation should succeed")
+        });
 
         // Compute dataset difficulties
         let mut dataset_rankings = Vec::new();
@@ -880,8 +900,11 @@ impl FeatureSelectionBenchmark {
             });
         }
 
-        dataset_rankings
-            .sort_by(|a, b| b.difficulty_score.partial_cmp(&a.difficulty_score).unwrap());
+        dataset_rankings.sort_by(|a, b| {
+            b.difficulty_score
+                .partial_cmp(&a.difficulty_score)
+                .expect("operation should succeed")
+        });
 
         let overall_best_method = method_rankings.first().map(|r| r.method_name.clone());
 
@@ -961,7 +984,11 @@ impl FeatureSelectionBenchmark {
             });
         }
 
-        rankings.sort_by(|a, b| b.mean_score.partial_cmp(&a.mean_score).unwrap());
+        rankings.sort_by(|a, b| {
+            b.mean_score
+                .partial_cmp(&a.mean_score)
+                .expect("operation should succeed")
+        });
         Ok(rankings)
     }
 }
@@ -1307,7 +1334,7 @@ impl BenchmarkableMethod for UnivariateFilterMethod {
             correlations.push((i, correlation.abs()));
         }
 
-        correlations.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        correlations.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         Ok(correlations
             .into_iter()
@@ -1379,7 +1406,7 @@ impl BenchmarkableMethod for RandomSelectionMethod {
 
         // Simple random shuffling
         for i in (1..features.len()).rev() {
-            let j = (thread_rng().gen::<f64>() * (i + 1) as f64) as usize;
+            let j = (thread_rng().random::<f64>() * (i + 1) as f64) as usize;
             features.swap(i, j);
         }
 
@@ -1409,12 +1436,19 @@ mod tests {
 
         let dataset = benchmark
             .create_synthetic_linear_dataset(100, 20, 5)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(dataset.X.nrows(), 100);
         assert_eq!(dataset.X.ncols(), 20);
         assert_eq!(dataset.y.len(), 100);
-        assert_eq!(dataset.ground_truth.as_ref().unwrap().len(), 5);
+        assert_eq!(
+            dataset
+                .ground_truth
+                .as_ref()
+                .expect("operation should succeed")
+                .len(),
+            5
+        );
         assert_eq!(dataset.properties.n_informative_features, 5);
     }
 
@@ -1431,7 +1465,9 @@ mod tests {
         ];
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let selected = method.select_features(X.view(), y.view()).unwrap();
+        let selected = method
+            .select_features(X.view(), y.view())
+            .expect("operation should succeed");
 
         assert!(!selected.is_empty());
         assert!(selected.len() <= 4); // Can't select more than available
@@ -1469,7 +1505,9 @@ mod tests {
             },
         };
 
-        benchmark.add_dataset(dataset).unwrap();
+        benchmark
+            .add_dataset(dataset)
+            .expect("operation should succeed");
         benchmark.register_method(
             "UnivariateFilt".to_string(),
             Box::new(UnivariateFilterMethod::new(2)),
@@ -1479,7 +1517,7 @@ mod tests {
             Box::new(RandomSelectionMethod::new(2)),
         );
 
-        let results = benchmark.run_benchmark().unwrap();
+        let results = benchmark.run_benchmark().expect("operation should succeed");
 
         assert_eq!(results.individual_results.len(), 2); // 2 methods
         assert_eq!(results.rankings.len(), 2);
@@ -1513,7 +1551,7 @@ mod tests {
                 &selected_features,
                 &ground_truth,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(metrics.relevance_score >= 0.0);
         assert!(metrics.redundancy_score >= 0.0);

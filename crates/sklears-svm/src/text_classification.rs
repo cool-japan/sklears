@@ -494,7 +494,12 @@ impl TfIdfVectorizer {
         // Sort terms and limit by max_features
         let mut terms_with_freq: Vec<(String, usize)> = filtered_terms
             .iter()
-            .map(|term| (term.clone(), *term_doc_freq.get(term).unwrap()))
+            .map(|term| {
+                (
+                    term.clone(),
+                    *term_doc_freq.get(term).expect("key not found"),
+                )
+            })
             .collect();
 
         terms_with_freq.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by frequency (descending)
@@ -734,18 +739,24 @@ mod tests {
 
         let text1 = "hello";
         let text2 = "hello";
-        let similarity = kernel.compute_text_similarity(text1, text2).unwrap();
+        let similarity = kernel
+            .compute_text_similarity(text1, text2)
+            .expect("operation should succeed");
         assert_eq!(similarity, 1.0); // Identical texts should have similarity 1.0
 
         let text3 = "world";
-        let similarity2 = kernel.compute_text_similarity(text1, text3).unwrap();
+        let similarity2 = kernel
+            .compute_text_similarity(text1, text3)
+            .expect("operation should succeed");
         assert!(similarity2 < 1.0); // Different texts should have lower similarity
     }
 
     #[test]
     fn test_ngram_extraction() {
         let kernel = NGramKernel::new(2).with_char_level(true);
-        let ngrams = kernel.extract_ngrams("hello").unwrap();
+        let ngrams = kernel
+            .extract_ngrams("hello")
+            .expect("operation should succeed");
 
         assert!(ngrams.contains_key("he"));
         assert!(ngrams.contains_key("el"));
@@ -757,7 +768,9 @@ mod tests {
     #[test]
     fn test_word_level_ngrams() {
         let kernel = NGramKernel::new(2).with_char_level(false);
-        let ngrams = kernel.extract_ngrams("hello world test").unwrap();
+        let ngrams = kernel
+            .extract_ngrams("hello world test")
+            .expect("operation should succeed");
 
         assert!(ngrams.contains_key("hello world"));
         assert!(ngrams.contains_key("world test"));
@@ -791,7 +804,7 @@ mod tests {
         let result = vectorizer.fit_transform(&documents);
         assert!(result.is_ok());
 
-        let matrix = result.unwrap();
+        let matrix = result.expect("operation should succeed");
         assert_eq!(matrix.nrows(), 3);
         assert!(matrix.ncols() > 0);
     }
@@ -802,8 +815,12 @@ mod tests {
 
         let documents = vec!["hello world".to_string(), "world test".to_string()];
 
-        vectorizer.fit(&documents).unwrap();
-        let feature_names = vectorizer.get_feature_names().unwrap();
+        vectorizer
+            .fit(&documents)
+            .expect("model fitting should succeed");
+        let feature_names = vectorizer
+            .get_feature_names()
+            .expect("operation should succeed");
 
         assert!(feature_names.contains(&"hello".to_string()));
         assert!(feature_names.contains(&"world".to_string()));
@@ -822,11 +839,17 @@ mod tests {
             "completely different text".to_string(),
         ];
 
-        kernel.fit(&documents).unwrap();
+        kernel
+            .fit(&documents)
+            .expect("model fitting should succeed");
 
         // Documents 0 and 1 should be more similar (both contain "hello")
-        let sim_01 = kernel.compute_document_similarity(0, 1).unwrap();
-        let sim_02 = kernel.compute_document_similarity(0, 2).unwrap();
+        let sim_01 = kernel
+            .compute_document_similarity(0, 1)
+            .expect("operation should succeed");
+        let sim_02 = kernel
+            .compute_document_similarity(0, 2)
+            .expect("operation should succeed");
 
         assert!(sim_01 > sim_02);
     }
@@ -842,7 +865,7 @@ mod tests {
         let result = kernel.texts_to_features(&texts);
         assert!(result.is_ok());
 
-        let (features, feature_names) = result.unwrap();
+        let (features, feature_names) = result.expect("operation should succeed");
         assert_eq!(features.nrows(), 2);
         assert!(features.ncols() > 0);
         assert_eq!(features.ncols(), feature_names.len());
@@ -863,10 +886,10 @@ mod tests {
 
         let sim_sensitive = kernel_sensitive
             .compute_text_similarity(text1, text2)
-            .unwrap();
+            .expect("operation should succeed");
         let sim_insensitive = kernel_insensitive
             .compute_text_similarity(text1, text2)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(sim_insensitive > sim_sensitive);
         assert_eq!(sim_insensitive, 1.0); // Should be identical when case-insensitive

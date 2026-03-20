@@ -576,7 +576,9 @@ mod tests {
     // Test helper: create a simple quadratic objective
     fn create_test_objective() -> CompositeObjective<'static> {
         let loss = Box::leak(Box::new(SquaredLoss));
-        let reg = Box::leak(Box::new(L2Regularization::new(0.1).unwrap()));
+        let reg = Box::leak(Box::new(
+            L2Regularization::new(0.1).expect("operation should succeed"),
+        ));
         CompositeObjective::new(loss, Some(reg))
     }
 

@@ -6,7 +6,6 @@
 use crate::*;
 // use rayon::prelude::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
 use sklears_core::prelude::{SklearsError, Transform};
 use sklears_core::types::Float;
 use std::collections::HashMap;
@@ -513,7 +512,7 @@ impl ReservoirSampler {
 
         // Replace elements with gradually decreasing probability
         for i in actual_size..dataset_size {
-            let j = rng.gen_range(0..i + 1);
+            let j = rng.random_range(0..i + 1);
             if j < actual_size {
                 reservoir[j] = i;
             }
@@ -641,7 +640,7 @@ impl ImportanceSampler {
         let mut used_indices = std::collections::HashSet::new();
 
         for _ in 0..self.sample_size {
-            let random_value: Float = rng.gen();
+            let random_value: Float = rng.random();
 
             // Find index using binary search on cumulative distribution
             let mut idx = 0;
@@ -781,7 +780,7 @@ impl StratifiedSampler {
                 let mut stratum_indices = indices.clone();
                 // Simple Fisher-Yates shuffle
                 for i in (1..stratum_indices.len()).rev() {
-                    let j = rng.gen_range(0..i + 1);
+                    let j = rng.random_range(0..i + 1);
                     stratum_indices.swap(i, j);
                 }
                 selected_indices.extend(stratum_indices.into_iter().take(stratum_sample_size));
@@ -802,7 +801,7 @@ impl StratifiedSampler {
 
             // Simple Fisher-Yates shuffle
             for i in (1..remaining.len()).rev() {
-                let j = rng.gen_range(0..i + 1);
+                let j = rng.random_range(0..i + 1);
                 remaining.swap(i, j);
             }
             let needed = self.sample_size - selected_indices.len();
@@ -1161,8 +1160,8 @@ mod tests {
 
     #[test]
     fn test_count_min_sketch_basic() {
-        let data =
-            Array2::from_shape_vec((50, 3), (0..150).map(|x| (x % 20) as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((50, 3), (0..150).map(|x| (x % 20) as f64).collect())
+            .expect("operation should succeed");
 
         let sketch = CountMinSketch::new()
             .width(50)
@@ -1170,7 +1169,9 @@ mod tests {
             .include_frequency_statistics(true)
             .include_sketch_properties(true);
 
-        let features = sketch.transform(&data.view()).unwrap();
+        let features = sketch
+            .transform(&data.view())
+            .expect("operation should succeed");
 
         // Should have 8 features: 5 frequency stats + 3 sketch properties
         assert_eq!(features.len(), 8);
@@ -1186,7 +1187,8 @@ mod tests {
 
     #[test]
     fn test_count_min_sketch_configuration() {
-        let data = Array2::from_shape_vec((20, 2), (0..40).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((20, 2), (0..40).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         // Test with different configurations
         let sketch1 = CountMinSketch::new()
@@ -1195,7 +1197,9 @@ mod tests {
             .include_frequency_statistics(true)
             .include_sketch_properties(false);
 
-        let features1 = sketch1.transform(&data.view()).unwrap();
+        let features1 = sketch1
+            .transform(&data.view())
+            .expect("operation should succeed");
         assert_eq!(features1.len(), 5); // Only frequency stats
 
         let sketch2 = CountMinSketch::new()
@@ -1204,7 +1208,9 @@ mod tests {
             .include_frequency_statistics(false)
             .include_sketch_properties(true);
 
-        let features2 = sketch2.transform(&data.view()).unwrap();
+        let features2 = sketch2
+            .transform(&data.view())
+            .expect("operation should succeed");
         assert_eq!(features2.len(), 3); // Only sketch properties
     }
 
@@ -1219,14 +1225,17 @@ mod tests {
 
     #[test]
     fn test_fast_johnson_lindenstrauss_basic() {
-        let data = Array2::from_shape_vec((10, 8), (0..80).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 8), (0..80).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let fjlt = FastJohnsonLindenstrauss::new()
             .target_dimension(4)
             .sparsity_parameter(0.2)
             .include_transform_stats(false);
 
-        let features = fjlt.transform(&data.view()).unwrap();
+        let features = fjlt
+            .transform(&data.view())
+            .expect("operation should succeed");
 
         // Should have 10 * 4 = 40 features (flattened transformed data)
         assert_eq!(features.len(), 40);
@@ -1239,13 +1248,16 @@ mod tests {
 
     #[test]
     fn test_fast_johnson_lindenstrauss_stats() {
-        let data = Array2::from_shape_vec((5, 4), (0..20).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((5, 4), (0..20).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let fjlt = FastJohnsonLindenstrauss::new()
             .target_dimension(2)
             .include_transform_stats(true);
 
-        let features = fjlt.transform(&data.view()).unwrap();
+        let features = fjlt
+            .transform(&data.view())
+            .expect("operation should succeed");
 
         // Should have 6 features: mean, std, min, max, target_dim, sparsity
         assert_eq!(features.len(), 6);
@@ -1279,15 +1291,19 @@ mod tests {
 
     #[test]
     fn test_sketching_methods_consistency() {
-        let data =
-            Array2::from_shape_vec((30, 4), (0..120).map(|x| (x % 10) as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((30, 4), (0..120).map(|x| (x % 10) as f64).collect())
+            .expect("operation should succeed");
 
         // Test Count-Min Sketch with fixed seed
         let sketch1 = CountMinSketch::new().hash_seed(123);
         let sketch2 = CountMinSketch::new().hash_seed(123);
 
-        let features1 = sketch1.transform(&data.view()).unwrap();
-        let features2 = sketch2.transform(&data.view()).unwrap();
+        let features1 = sketch1
+            .transform(&data.view())
+            .expect("operation should succeed");
+        let features2 = sketch2
+            .transform(&data.view())
+            .expect("operation should succeed");
 
         // Should be identical with same seed
         assert_eq!(features1.len(), features2.len());
@@ -1306,8 +1322,12 @@ mod tests {
             .random_state(456)
             .target_dimension(3);
 
-        let fjlt_features1 = fjlt1.transform(&data.view()).unwrap();
-        let fjlt_features2 = fjlt2.transform(&data.view()).unwrap();
+        let fjlt_features1 = fjlt1
+            .transform(&data.view())
+            .expect("operation should succeed");
+        let fjlt_features2 = fjlt2
+            .transform(&data.view())
+            .expect("operation should succeed");
 
         // Should be identical with same seed
         assert_eq!(fjlt_features1.len(), fjlt_features2.len());
@@ -1323,7 +1343,9 @@ mod tests {
     fn test_reservoir_sampler_basic() {
         let mut sampler = ReservoirSampler::new().reservoir_size(10).random_state(42);
 
-        let indices = sampler.sample_indices(20).unwrap();
+        let indices = sampler
+            .sample_indices(20)
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 10);
         assert_eq!(sampler.get_seen_count(), 20);
 
@@ -1338,7 +1360,9 @@ mod tests {
         let weights = Array1::from_vec(vec![0.1, 0.3, 0.2, 0.4]);
         let sampler = ImportanceSampler::new().sample_size(3).random_state(42);
 
-        let indices = sampler.sample_indices(&weights.view()).unwrap();
+        let indices = sampler
+            .sample_indices(&weights.view())
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 3);
 
         // All indices should be valid
@@ -1352,7 +1376,9 @@ mod tests {
         let strata = Array1::from_vec(vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]);
         let sampler = StratifiedSampler::new().sample_size(4).random_state(42);
 
-        let indices = sampler.sample_indices(&strata.view()).unwrap();
+        let indices = sampler
+            .sample_indices(&strata.view())
+            .expect("operation should succeed");
         assert_eq!(indices.len(), 4);
 
         // All indices should be valid
@@ -1363,14 +1389,17 @@ mod tests {
 
     #[test]
     fn test_fast_transform_extractor_fft() {
-        let data = Array2::from_shape_vec((3, 8), (0..24).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((3, 8), (0..24).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let extractor = FastTransformExtractor::new()
             .transform_type(TransformType::FFT)
             .include_magnitude(true)
             .include_phase(false);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
 
@@ -1382,13 +1411,16 @@ mod tests {
 
     #[test]
     fn test_fast_transform_extractor_dct() {
-        let data = Array2::from_shape_vec((2, 4), (0..8).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((2, 4), (0..8).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let extractor = FastTransformExtractor::new()
             .transform_type(TransformType::DCT)
             .normalize(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor
+            .extract_features(&data.view())
+            .expect("operation should succeed");
         assert_eq!(features.nrows(), 2);
         assert_eq!(features.ncols(), 4);
 

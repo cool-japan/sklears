@@ -405,7 +405,7 @@ impl FailoverManagementSystem {
         let instance_id = instance.instance_id.clone();
 
         {
-            let mut instances = self.instances.write().unwrap();
+            let mut instances = self.instances.write().unwrap_or_else(|e| e.into_inner());
             instances.insert(instance_id.clone(), instance);
         }
 
@@ -421,7 +421,7 @@ impl FailoverManagementSystem {
     /// Remove service instance from management
     pub async fn remove_instance(&self, instance_id: &str) -> Result<(), FailoverError> {
         {
-            let mut instances = self.instances.write().unwrap();
+            let mut instances = self.instances.write().unwrap_or_else(|e| e.into_inner());
             if instances.remove(instance_id).is_none() {
                 return Err(FailoverError::InstanceNotFound {
                     instance_id: instance_id.to_string(),
@@ -431,7 +431,7 @@ impl FailoverManagementSystem {
 
         // Update current primary if it was removed
         {
-            let mut primary = self.current_primary.write().unwrap();
+            let mut primary = self.current_primary.write().unwrap_or_else(|e| e.into_inner());
             if primary.as_ref() == Some(&instance_id.to_string()) {
                 *primary = None;
             }
@@ -452,7 +452,7 @@ impl FailoverManagementSystem {
 
                 // Update metrics
                 {
-                    let mut metrics = self.metrics.write().unwrap();
+                    let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
                     metrics.total_operations += 1;
                     metrics.successful_failovers += 1;
 
@@ -475,7 +475,7 @@ impl FailoverManagementSystem {
 
                 // Update metrics
                 {
-                    let mut metrics = self.metrics.write().unwrap();
+                    let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
                     metrics.total_operations += 1;
                     metrics.failed_failovers += 1;
                 }
@@ -493,7 +493,7 @@ impl FailoverManagementSystem {
 
     /// Select instance based on configured strategy
     async fn select_instance_by_strategy(&self) -> Result<ServiceInstance, FailoverError> {
-        let instances = self.instances.read().unwrap();
+        let instances = self.instances.read().unwrap_or_else(|e| e.into_inner());
         let healthy_instances: Vec<&ServiceInstance> = instances
             .values()
             .filter(|i| i.is_available())
@@ -539,7 +539,7 @@ impl FailoverManagementSystem {
     async fn select_active_passive(&self, instances: &[&ServiceInstance]) -> Result<ServiceInstance, FailoverError> {
         // Try current primary first
         {
-            let primary = self.current_primary.read().unwrap();
+            let primary = self.current_primary.read().unwrap_or_else(|e| e.into_inner());
             if let Some(primary_id) = primary.as_ref() {
                 if let Some(instance) = instances.iter().find(|i| &i.instance_id == primary_id) {
                     return Ok((*instance).clone());
@@ -549,7 +549,7 @@ impl FailoverManagementSystem {
 
         // Select new primary (first healthy instance)
         if let Some(new_primary) = instances.first() {
-            *self.current_primary.write().unwrap() = Some(new_primary.instance_id.clone());
+            *self.current_primary.write().unwrap_or_else(|e| e.into_inner()) = Some(new_primary.instance_id.clone());
             Ok((*new_primary).clone())
         } else {
             Err(FailoverError::NoHealthyInstances)
@@ -586,7 +586,7 @@ impl FailoverManagementSystem {
             return Err(FailoverError::NoHealthyInstances);
         }
 
-        let mut position = self.round_robin_position.write().unwrap();
+        let mut position = self.round_robin_position.write().unwrap_or_else(|e| e.into_inner());
         *position = (*position + 1) % instances.len();
         Ok(instances[*position].clone())
     }
@@ -665,7 +665,7 @@ impl FailoverManagementSystem {
         let start_time = Instant::now();
 
         {
-            let instances = self.instances.read().unwrap();
+            let instances = self.instances.read().unwrap_or_else(|e| e.into_inner());
             if !instances.contains_key(target_instance_id) {
                 return Err(FailoverError::InstanceNotFound {
                     instance_id: target_instance_id.to_string(),
@@ -675,7 +675,7 @@ impl FailoverManagementSystem {
 
         // Update current primary
         let old_primary = {
-            let mut primary = self.current_primary.write().unwrap();
+            let mut primary = self.current_primary.write().unwrap_or_else(|e| e.into_inner());
             let old = primary.clone();
             *primary = Some(target_instance_id.to_string());
             old
@@ -693,7 +693,7 @@ impl FailoverManagementSystem {
 
         let duration = start_time.elapsed();
         let selected_instance = {
-            let instances = self.instances.read().unwrap();
+            let instances = self.instances.read().unwrap_or_else(|e| e.into_inner());
             instances.get(target_instance_id).cloned()
         };
 
@@ -720,7 +720,7 @@ impl FailoverManagementSystem {
                 interval.tick().await;
 
                 let instance_ids: Vec<String> = {
-                    let instances = instances_clone.read().unwrap();
+                    let instances = instances_clone.read().unwrap_or_else(|e| e.into_inner());
                     instances.keys().cloned().collect()
                 };
 
@@ -733,7 +733,7 @@ impl FailoverManagementSystem {
 
                     // Update metrics
                     {
-                        let mut metrics = metrics_clone.write().unwrap();
+                        let mut metrics = metrics_clone.write().unwrap_or_else(|e| e.into_inner());
                         metrics.total_health_checks += 1;
                         if !health_result {
                             metrics.failed_health_checks += 1;
@@ -746,7 +746,7 @@ impl FailoverManagementSystem {
                         &instance_id,
                         health_result,
                     ).await {
-                        let mut history = event_history_clone.write().unwrap();
+                        let mut history = event_history_clone.write().unwrap_or_else(|e| e.into_inner());
                         history.push_back(event);
                         if history.len() > 100 { // Keep last 100 events
                             history.pop_front();
@@ -756,14 +756,14 @@ impl FailoverManagementSystem {
             }
         });
 
-        *self.health_check_handle.write().unwrap() = Some(handle);
+        *self.health_check_handle.write().unwrap_or_else(|e| e.into_inner()) = Some(handle);
     }
 
     /// Ensure health checking is running
     async fn ensure_health_checking(&self) {
         let handle_exists = {
-            let handle = self.health_check_handle.read().unwrap();
-            handle.is_some() && !handle.as_ref().unwrap().is_finished()
+            let handle = self.health_check_handle.read().unwrap_or_else(|e| e.into_inner());
+            handle.is_some() && !handle.as_ref().unwrap_or_default().is_finished()
         };
 
         if !handle_exists {
@@ -773,7 +773,7 @@ impl FailoverManagementSystem {
 
     /// Stop health checking
     pub async fn stop_health_checking(&self) {
-        if let Some(handle) = self.health_check_handle.write().unwrap().take() {
+        if let Some(handle) = self.health_check_handle.write().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
     }
@@ -786,7 +786,7 @@ impl FailoverManagementSystem {
     ) -> bool {
         // Get instance for health check
         let instance = {
-            let instances_guard = instances.read().unwrap();
+            let instances_guard = instances.read().unwrap_or_else(|e| e.into_inner());
             instances_guard.get(instance_id).cloned()
         };
 
@@ -817,7 +817,7 @@ impl FailoverManagementSystem {
 
             // Update instance in collection
             {
-                let mut instances_guard = instances.write().unwrap();
+                let mut instances_guard = instances.write().unwrap_or_else(|e| e.into_inner());
                 instances_guard.insert(instance_id.to_string(), instance);
             }
 
@@ -847,7 +847,7 @@ impl FailoverManagementSystem {
         current_health: bool,
     ) -> Option<FailoverEvent> {
         let instance = {
-            let instances_guard = instances.read().unwrap();
+            let instances_guard = instances.read().unwrap_or_else(|e| e.into_inner());
             instances_guard.get(instance_id).cloned()
         };
 
@@ -875,7 +875,7 @@ impl FailoverManagementSystem {
 
     /// Record failover event
     async fn record_event(&self, event: FailoverEvent) {
-        let mut history = self.event_history.write().unwrap();
+        let mut history = self.event_history.write().unwrap_or_else(|e| e.into_inner());
         history.push_back(event);
         if history.len() > 100 { // Keep last 100 events
             history.pop_front();
@@ -884,7 +884,7 @@ impl FailoverManagementSystem {
 
     /// Update instance counts in metrics
     async fn update_instance_counts(&self) {
-        let instances = self.instances.read().unwrap();
+        let instances = self.instances.read().unwrap_or_else(|e| e.into_inner());
         let mut healthy_count = 0;
         let mut unhealthy_count = 0;
 
@@ -896,7 +896,7 @@ impl FailoverManagementSystem {
             }
         }
 
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.healthy_instances = healthy_count;
         metrics.unhealthy_instances = unhealthy_count;
     }
@@ -904,14 +904,14 @@ impl FailoverManagementSystem {
     /// Get current metrics
     pub async fn get_metrics(&self) -> FailoverMetrics {
         self.update_instance_counts().await;
-        let mut metrics = self.metrics.read().unwrap().clone();
+        let mut metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone();
 
         // Add recent events
-        let history = self.event_history.read().unwrap();
+        let history = self.event_history.read().unwrap_or_else(|e| e.into_inner());
         metrics.recent_events = history.iter().rev().take(10).cloned().collect();
 
         // Update instance stats
-        let instances = self.instances.read().unwrap();
+        let instances = self.instances.read().unwrap_or_else(|e| e.into_inner());
         for (id, instance) in instances.iter() {
             let stats = InstanceStats {
                 instance_id: id.clone(),
@@ -933,7 +933,7 @@ impl FailoverManagementSystem {
         let mut status = HashMap::new();
         status.insert("system_id".to_string(), self.system_id.clone());
 
-        let instances = self.instances.read().unwrap();
+        let instances = self.instances.read().unwrap_or_else(|e| e.into_inner());
         let healthy_count = instances.values().filter(|i| i.is_healthy()).count();
         let total_count = instances.len();
 
@@ -946,7 +946,7 @@ impl FailoverManagementSystem {
             status.insert("health_percentage".to_string(), format!("{:.1}", health_percentage));
         }
 
-        let primary = self.current_primary.read().unwrap();
+        let primary = self.current_primary.read().unwrap_or_else(|e| e.into_inner());
         if let Some(primary_id) = primary.as_ref() {
             status.insert("current_primary".to_string(), primary_id.clone());
         } else {
@@ -969,8 +969,8 @@ mod tests {
         let instance1 = ServiceInstance::new("instance1".to_string(), "endpoint1".to_string());
         let instance2 = ServiceInstance::new("instance2".to_string(), "endpoint2".to_string());
 
-        system.add_instance(instance1).await.unwrap();
-        system.add_instance(instance2).await.unwrap();
+        system.add_instance(instance1).await.unwrap_or_default();
+        system.add_instance(instance2).await.unwrap_or_default();
 
         let result = system.get_next_instance().await;
         assert!(result.success);
@@ -987,12 +987,12 @@ mod tests {
         instance1.health_status = HealthStatus::Healthy;
         instance2.health_status = HealthStatus::Healthy;
 
-        system.add_instance(instance1).await.unwrap();
-        system.add_instance(instance2).await.unwrap();
+        system.add_instance(instance1).await.unwrap_or_default();
+        system.add_instance(instance2).await.unwrap_or_default();
 
-        let result = system.manual_failover("instance2").await.unwrap();
+        let result = system.manual_failover("instance2").await.unwrap_or_default();
         assert!(result.success);
-        assert_eq!(result.selected_instance.unwrap().instance_id, "instance2");
+        assert_eq!(result.selected_instance.unwrap_or_default().instance_id, "instance2");
         assert_eq!(result.events.len(), 1);
     }
 
@@ -1003,7 +1003,7 @@ mod tests {
         let mut instance1 = ServiceInstance::new("instance1".to_string(), "endpoint1".to_string());
         instance1.health_status = HealthStatus::Unhealthy;
 
-        system.add_instance(instance1).await.unwrap();
+        system.add_instance(instance1).await.unwrap_or_default();
 
         let result = system.get_next_instance().await;
         assert!(!result.success);
@@ -1032,16 +1032,16 @@ mod tests {
         instance2.health_status = HealthStatus::Healthy;
         instance3.health_status = HealthStatus::Healthy;
 
-        system.add_instance(instance1).await.unwrap();
-        system.add_instance(instance2).await.unwrap();
-        system.add_instance(instance3).await.unwrap();
+        system.add_instance(instance1).await.unwrap_or_default();
+        system.add_instance(instance2).await.unwrap_or_default();
+        system.add_instance(instance3).await.unwrap_or_default();
 
         // Test round-robin behavior
         let mut selected_instances = Vec::new();
         for _ in 0..6 {
             let result = system.get_next_instance().await;
             assert!(result.success);
-            selected_instances.push(result.selected_instance.unwrap().instance_id);
+            selected_instances.push(result.selected_instance.unwrap_or_default().instance_id);
         }
 
         // Should have cycled through instances
@@ -1074,13 +1074,13 @@ mod tests {
         instance2.health_status = HealthStatus::Healthy;
         instance2.active_connections = 5;
 
-        system.add_instance(instance1).await.unwrap();
-        system.add_instance(instance2).await.unwrap();
+        system.add_instance(instance1).await.unwrap_or_default();
+        system.add_instance(instance2).await.unwrap_or_default();
 
         let result = system.get_next_instance().await;
         assert!(result.success);
         // Should select instance with fewer connections
-        assert_eq!(result.selected_instance.unwrap().instance_id, "instance2");
+        assert_eq!(result.selected_instance.unwrap_or_default().instance_id, "instance2");
     }
 
     #[tokio::test]
@@ -1090,7 +1090,7 @@ mod tests {
         let mut instance1 = ServiceInstance::new("instance1".to_string(), "endpoint1".to_string());
         instance1.health_status = HealthStatus::Healthy;
 
-        system.add_instance(instance1).await.unwrap();
+        system.add_instance(instance1).await.unwrap_or_default();
 
         // Perform some operations
         for _ in 0..5 {
@@ -1114,13 +1114,13 @@ mod tests {
         instance1.health_status = HealthStatus::Healthy;
         instance2.health_status = HealthStatus::Unhealthy;
 
-        system.add_instance(instance1).await.unwrap();
-        system.add_instance(instance2).await.unwrap();
+        system.add_instance(instance1).await.unwrap_or_default();
+        system.add_instance(instance2).await.unwrap_or_default();
 
         let health = system.get_health_status().await;
-        assert_eq!(health.get("total_instances").unwrap(), "2");
-        assert_eq!(health.get("healthy_instances").unwrap(), "1");
-        assert_eq!(health.get("unhealthy_instances").unwrap(), "1");
-        assert_eq!(health.get("health_percentage").unwrap(), "50.0");
+        assert_eq!(health.get("total_instances").unwrap_or_default(), "2");
+        assert_eq!(health.get("healthy_instances").unwrap_or_default(), "1");
+        assert_eq!(health.get("unhealthy_instances").unwrap_or_default(), "1");
+        assert_eq!(health.get("health_percentage").unwrap_or_default(), "50.0");
     }
 }

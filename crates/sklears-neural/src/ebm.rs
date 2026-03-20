@@ -112,7 +112,11 @@ impl<T: FloatBounds + ScalarOperand> EnergyNetwork<T> {
         for &hidden_dim in &hidden_dims {
             let std = (2.0 / prev_dim as f64).sqrt();
             let w = Array2::from_shape_fn((prev_dim, hidden_dim), |_| {
-                T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * std).unwrap()
+                T::from(
+                    rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                        * std,
+                )
+                .unwrap_or_else(|| T::zero())
             });
             let b = Array1::zeros(hidden_dim);
             weights.push(w);
@@ -122,7 +126,11 @@ impl<T: FloatBounds + ScalarOperand> EnergyNetwork<T> {
 
         // Output layer (maps to single energy value)
         let w = Array2::from_shape_fn((prev_dim, 1), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()) * 0.01).unwrap()
+            T::from(
+                rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params"))
+                    * 0.01,
+            )
+            .unwrap_or_else(|| T::zero())
         });
         let b = Array1::zeros(1);
         weights.push(w);
@@ -275,7 +283,7 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
                 // Sample from conditional probability
                 for j in 0..n_samples {
                     let prob_1 = T::one() / (T::one() + (energy_1[j] - energy_0[j]).exp());
-                    samples[[j, i]] = if rng.random::<f64>() < prob_1.to_f64().unwrap() {
+                    samples[[j, i]] = if rng.random::<f64>() < prob_1.to_f64().unwrap_or(0.0) {
                         T::one()
                     } else {
                         T::zero()
@@ -298,11 +306,12 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
 
         // Initialize from random noise
         let mut samples = Array2::from_shape_fn((n_samples, self.config.input_dim), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap())).unwrap()
+            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params")))
+                .unwrap_or_else(|| T::zero())
         });
 
-        let step_size_t = T::from(step_size).unwrap();
-        let noise_scale = T::from((2.0 * step_size).sqrt()).unwrap();
+        let step_size_t = T::from(step_size).unwrap_or_else(|| T::zero());
+        let noise_scale = T::from((2.0 * step_size).sqrt()).unwrap_or_else(|| T::zero());
 
         // Langevin dynamics iterations
         for _ in 0..num_steps {
@@ -311,7 +320,10 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
 
             // Add noise
             let noise = Array2::from_shape_fn(samples.dim(), |_| {
-                T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap())).unwrap()
+                T::from(
+                    rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params")),
+                )
+                .unwrap_or_else(|| T::zero())
             });
 
             // Update: x_{t+1} = x_t - step_size * ∇E(x_t) + noise
@@ -332,16 +344,20 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
 
         // Initialize positions
         let mut q = Array2::from_shape_fn((n_samples, self.config.input_dim), |_| {
-            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap())).unwrap()
+            T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params")))
+                .unwrap_or_else(|| T::zero())
         });
 
         let num_iterations = 100;
-        let step_size_t = T::from(step_size).unwrap();
+        let step_size_t = T::from(step_size).unwrap_or_else(|| T::zero());
 
         for _ in 0..num_iterations {
             // Sample momentum
             let mut p = Array2::from_shape_fn(q.dim(), |_| {
-                T::from(rng.sample::<f64, _>(Normal::new(0.0, 1.0).unwrap())).unwrap()
+                T::from(
+                    rng.sample::<f64, _>(Normal::new(0.0, 1.0).expect("valid distribution params")),
+                )
+                .unwrap_or_else(|| T::zero())
             });
 
             let q_old = q.clone();
@@ -349,7 +365,8 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
 
             // Compute initial energy
             let grad = self.energy_net.energy_gradient(&q)?;
-            let p_half = &p - &grad.mapv(|g| g * step_size_t * T::from(0.5).unwrap());
+            let p_half =
+                &p - &grad.mapv(|g| g * step_size_t * T::from(0.5).unwrap_or_else(|| T::zero()));
 
             // Leapfrog integration
             for i in 0..num_leapfrog {
@@ -365,7 +382,8 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
 
             // Half step for momentum at end
             let grad = self.energy_net.energy_gradient(&q)?;
-            p = &p_half - &grad.mapv(|g| g * step_size_t * T::from(0.5).unwrap());
+            p = &p_half
+                - &grad.mapv(|g| g * step_size_t * T::from(0.5).unwrap_or_else(|| T::zero()));
 
             // Metropolis-Hastings acceptance
             let energy_old = self.energy(&q_old)?;
@@ -375,12 +393,12 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
             let kinetic_new = p.mapv(|pi| pi * pi).sum();
 
             for j in 0..n_samples {
-                let h_old = energy_old[j] + kinetic_old / T::from(2.0).unwrap();
-                let h_new = energy_new[j] + kinetic_new / T::from(2.0).unwrap();
+                let h_old = energy_old[j] + kinetic_old / T::from(2.0).unwrap_or_else(|| T::zero());
+                let h_new = energy_new[j] + kinetic_new / T::from(2.0).unwrap_or_else(|| T::zero());
 
                 let accept_prob = (-(h_new - h_old)).exp();
 
-                if rng.random::<f64>() > accept_prob.to_f64().unwrap() {
+                if rng.random::<f64>() > accept_prob.to_f64().unwrap_or(0.0) {
                     // Reject - restore old position
                     for k in 0..self.config.input_dim {
                         q[[j, k]] = q_old[[j, k]];
@@ -417,11 +435,13 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
                 for _ in 0..k_steps {
                     let grad = self.energy_net.energy_gradient(&chain)?;
                     let noise = Array2::from_shape_fn(chain.dim(), |_| {
-                        T::from(thread_rng().sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()))
-                            .unwrap()
+                        T::from(thread_rng().sample::<f64, _>(
+                            Normal::new(0.0, 1.0).expect("valid distribution params"),
+                        ))
+                        .expect("value should be present")
                     });
-                    chain = &chain - &grad.mapv(|g| g * T::from(0.01).unwrap())
-                        + &noise.mapv(|n| n * T::from(0.1).unwrap());
+                    chain = &chain - &grad.mapv(|g| g * T::from(0.01).unwrap_or_else(|| T::zero()))
+                        + &noise.mapv(|n| n * T::from(0.1).unwrap_or_else(|| T::zero()));
                 }
                 self.persistent_chain = Some(chain.clone());
                 chain
@@ -432,11 +452,13 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
                 for _ in 0..k_steps {
                     let grad = self.energy_net.energy_gradient(&x_neg)?;
                     let noise = Array2::from_shape_fn(x_neg.dim(), |_| {
-                        T::from(thread_rng().sample::<f64, _>(Normal::new(0.0, 1.0).unwrap()))
-                            .unwrap()
+                        T::from(thread_rng().sample::<f64, _>(
+                            Normal::new(0.0, 1.0).expect("valid distribution params"),
+                        ))
+                        .expect("value should be present")
                     });
-                    x_neg = &x_neg - &grad.mapv(|g| g * T::from(0.01).unwrap())
-                        + &noise.mapv(|n| n * T::from(0.1).unwrap());
+                    x_neg = &x_neg - &grad.mapv(|g| g * T::from(0.01).unwrap_or_else(|| T::zero()))
+                        + &noise.mapv(|n| n * T::from(0.1).unwrap_or_else(|| T::zero()));
                 }
                 x_neg
             }
@@ -445,7 +467,13 @@ impl<T: FloatBounds + ScalarOperand> EnergyBasedModel<T> {
         let energy_neg = self.energy(&x_neg)?;
 
         // Compute loss (difference in energies)
-        let loss = (energy_pos.mean().unwrap() - energy_neg.mean().unwrap()).abs();
+        let loss = (energy_pos
+            .mean()
+            .expect("mean should not fail on non-empty array")
+            - energy_neg
+                .mean()
+                .expect("mean should not fail on non-empty array"))
+        .abs();
 
         Ok(loss)
     }
@@ -510,7 +538,7 @@ impl<T: FloatBounds + ScalarOperand> HopfieldNetwork<T> {
         }
 
         // Normalize weights
-        let n_patterns = T::from(self.patterns.len() as f64).unwrap();
+        let n_patterns = T::from(self.patterns.len() as f64).unwrap_or_else(|| T::zero());
         self.weights.mapv_inplace(|w| w / n_patterns);
 
         Ok(())
@@ -566,7 +594,7 @@ impl<T: FloatBounds + ScalarOperand> HopfieldNetwork<T> {
             }
         }
 
-        energy / T::from(2.0).unwrap()
+        energy / T::from(2.0).unwrap_or_else(|| T::zero())
     }
 
     /// Get number of stored patterns
@@ -592,7 +620,7 @@ mod tests {
         let mut network: EnergyNetwork<f64> = EnergyNetwork::new(8, vec![16]);
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
 
-        let energy = network.energy(&x).unwrap();
+        let energy = network.energy(&x).expect("operation should succeed");
         assert_eq!(energy.len(), 4);
         assert!(energy.iter().all(|&e| e.is_finite()));
     }
@@ -602,7 +630,9 @@ mod tests {
         let mut network: EnergyNetwork<f64> = EnergyNetwork::new(6, vec![12]);
         let x = Array2::from_shape_fn((3, 6), |(i, j)| (i + j) as f64 * 0.1);
 
-        let grad = network.energy_gradient(&x).unwrap();
+        let grad = network
+            .energy_gradient(&x)
+            .expect("operation should succeed");
         assert_eq!(grad.dim(), x.dim());
         assert!(grad.iter().all(|&g| g.is_finite()));
     }
@@ -632,7 +662,7 @@ mod tests {
         };
 
         let mut ebm: EnergyBasedModel<f64> = EnergyBasedModel::new(config);
-        let samples = ebm.sample(5).unwrap();
+        let samples = ebm.sample(5).expect("sampling should succeed");
 
         assert_eq!(samples.nrows(), 5);
         assert_eq!(samples.ncols(), 8);
@@ -648,7 +678,7 @@ mod tests {
         };
 
         let mut ebm: EnergyBasedModel<f64> = EnergyBasedModel::new(config);
-        let samples = ebm.sample(4).unwrap();
+        let samples = ebm.sample(4).expect("sampling should succeed");
 
         assert_eq!(samples.nrows(), 4);
         assert_eq!(samples.ncols(), 6);
@@ -667,7 +697,9 @@ mod tests {
         let mut ebm: EnergyBasedModel<f64> = EnergyBasedModel::new(config);
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
 
-        let loss = ebm.train_contrastive_divergence(&x, 1).unwrap();
+        let loss = ebm
+            .train_contrastive_divergence(&x, 1)
+            .expect("operation should succeed");
         assert!(loss.is_finite());
         assert!(loss >= 0.0);
     }
@@ -684,7 +716,9 @@ mod tests {
         let mut network: HopfieldNetwork<f64> = HopfieldNetwork::new(5);
         let pattern = Array1::from_vec(vec![1.0, -1.0, 1.0, -1.0, 1.0]);
 
-        network.store_pattern(&pattern).unwrap();
+        network
+            .store_pattern(&pattern)
+            .expect("operation should succeed");
         assert_eq!(network.num_patterns(), 1);
     }
 
@@ -694,11 +728,15 @@ mod tests {
 
         // Store a pattern
         let pattern = Array1::from_vec(vec![1.0, 1.0, -1.0, -1.0]);
-        network.store_pattern(&pattern).unwrap();
+        network
+            .store_pattern(&pattern)
+            .expect("operation should succeed");
 
         // Recall from noisy version
         let noisy = Array1::from_vec(vec![1.0, -1.0, -1.0, -1.0]);
-        let recalled = network.recall(&noisy, 10).unwrap();
+        let recalled = network
+            .recall(&noisy, 10)
+            .expect("operation should succeed");
 
         assert_eq!(recalled.len(), 4);
         // Should recall close to original pattern
@@ -709,7 +747,9 @@ mod tests {
     fn test_hopfield_energy() {
         let mut network: HopfieldNetwork<f64> = HopfieldNetwork::new(4);
         let pattern = Array1::from_vec(vec![1.0, -1.0, 1.0, -1.0]);
-        network.store_pattern(&pattern).unwrap();
+        network
+            .store_pattern(&pattern)
+            .expect("operation should succeed");
 
         let energy = network.energy(&pattern);
         assert!(energy.is_finite());
@@ -734,7 +774,7 @@ mod tests {
         };
 
         let mut ebm: EnergyBasedModel<f64> = EnergyBasedModel::new(config);
-        let samples = ebm.sample(3).unwrap();
+        let samples = ebm.sample(3).expect("sampling should succeed");
 
         assert_eq!(samples.nrows(), 3);
         assert_eq!(samples.ncols(), 6);

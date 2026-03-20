@@ -1558,7 +1558,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
         assert_eq!(fitted.n_samples(), 50);
@@ -1590,7 +1592,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         let correlation = fitted.correlation();
@@ -1618,7 +1622,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         let correlation = fitted.correlation();
@@ -1647,7 +1653,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         let correlation = fitted.correlation();
@@ -1668,13 +1676,15 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert!(fitted.ranks().is_some());
         assert!(fitted.copula_parameters().is_some());
 
-        let ranks = fitted.ranks().unwrap();
+        let ranks = fitted.ranks().expect("operation should succeed");
         assert_eq!(ranks.shape(), &[40, 2]);
 
         // Check that ranks are in reasonable range
@@ -1695,7 +1705,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
         let correlation = fitted.correlation();
@@ -1721,13 +1733,17 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         let covariance = fitted.covariance();
 
         // Check that covariance matrix is positive definite
-        let eigenvals = covariance.eigvalsh(UPLO::Lower).unwrap();
+        let eigenvals = covariance
+            .eigvalsh(UPLO::Lower)
+            .expect("operation should succeed");
         assert!(eigenvals.iter().all(|&x| x > 0.0));
     }
 
@@ -1741,7 +1757,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         let correlation = fitted.correlation();
@@ -1769,12 +1787,14 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert!(fitted.p_values().is_some());
 
-        let p_values = fitted.p_values().unwrap();
+        let p_values = fitted.p_values().expect("operation should succeed");
         assert_eq!(p_values.shape(), &[2, 2]);
 
         // P-values should be between 0 and 1
@@ -1799,7 +1819,9 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         let correlation = fitted.correlation();
@@ -1822,8 +1844,12 @@ mod tests {
             .random_state(42)
             .build();
 
-        let fitted = estimator.fit(&data, &()).unwrap();
-        let (lower, upper) = fitted.robust_correlation_ci(0.05).unwrap();
+        let fitted = estimator
+            .fit(&data, &())
+            .expect("model fitting should succeed");
+        let (lower, upper) = fitted
+            .robust_correlation_ci(0.05)
+            .expect("operation should succeed");
 
         assert_eq!(lower.shape(), &[2, 2]);
         assert_eq!(upper.shape(), &[2, 2]);

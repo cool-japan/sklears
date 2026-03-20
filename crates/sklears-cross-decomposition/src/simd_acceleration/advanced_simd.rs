@@ -5,7 +5,7 @@
 //! multiply-add operations, and auto-vectorization hints.
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Random, Rng};
+use scirs2_core::random::{thread_rng, Random, Rng, RngExt};
 // TODO: Check if these SIMD functions are available in scirs2_core
 // use scirs2_core::simd::{auto_vectorize, SimdOps};
 // use scirs2_core::simd_ops::{simd_dot_product, simd_matrix_multiply, SimdUnifiedOps};
@@ -106,7 +106,12 @@ impl AdvancedSimdOps {
 
         if self.config.auto_vectorization {
             // Use auto-vectorization hint
-            Ok(self.simd_dot_product_impl(a.as_slice().unwrap(), b.as_slice().unwrap()))
+            Ok(self.simd_dot_product_impl(
+                a.as_slice()
+                    .ok_or(SklearsError::Other("array not contiguous".to_string()))?,
+                b.as_slice()
+                    .ok_or(SklearsError::Other("array not contiguous".to_string()))?,
+            ))
         } else {
             Ok(self.scalar_dot_product(a, b))
         }
@@ -193,8 +198,10 @@ impl AdvancedSimdOps {
 
         for i in 0..m {
             let row = matrix.row(i);
-            result[i] =
-                self.simd_dot_product_impl(row.as_slice().unwrap(), vector.as_slice().unwrap());
+            result[i] = self.simd_dot_product_impl(
+                row.as_slice().expect("operation should succeed"),
+                vector.as_slice().expect("operation should succeed"),
+            );
         }
     }
 
@@ -368,9 +375,9 @@ impl AdvancedSimdOps {
         let simd_elements = total_elements - (total_elements % self.config.simd_width);
 
         // Flatten arrays for SIMD processing
-        let a_flat = a.as_slice().unwrap();
-        let b_flat = b.as_slice().unwrap();
-        let result_flat = result.as_slice_mut().unwrap();
+        let a_flat = a.as_slice().expect("operation should succeed");
+        let b_flat = b.as_slice().expect("operation should succeed");
+        let result_flat = result.as_slice_mut().expect("operation should succeed");
 
         // SIMD portion
         for i in (0..simd_elements).step_by(self.config.simd_width) {
@@ -506,12 +513,14 @@ impl AdvancedSimdOps {
     /// Benchmark SIMD performance against scalar implementation
     pub fn benchmark_performance(&self, size: usize) -> SimdBenchmarkResults {
         let mut rng = thread_rng();
-        let a = Array2::<Float>::from_shape_fn((size, size), |_| rng.gen::<Float>());
-        let b = Array2::<Float>::from_shape_fn((size, size), |_| rng.gen::<Float>());
+        let a = Array2::<Float>::from_shape_fn((size, size), |_| rng.random::<Float>());
+        let b = Array2::<Float>::from_shape_fn((size, size), |_| rng.random::<Float>());
 
         // Benchmark SIMD implementation
         let start_time = std::time::Instant::now();
-        let _simd_result = self.blocked_matmul(&a, &b).unwrap();
+        let _simd_result = self
+            .blocked_matmul(&a, &b)
+            .expect("matrix multiplication should succeed");
         let simd_time = start_time.elapsed();
 
         // Benchmark scalar implementation
@@ -550,7 +559,7 @@ mod tests {
     use super::*;
     use scirs2_core::essentials::Normal;
     use scirs2_core::ndarray::Array2;
-    use scirs2_core::random::thread_rng;
+    use scirs2_core::random::{thread_rng, RngExt};
 
     #[test]
     fn test_vectorized_dot_product() {
@@ -558,7 +567,9 @@ mod tests {
         let a = Array1::<Float>::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
         let b = Array1::<Float>::from_vec(vec![2.0, 3.0, 4.0, 5.0]);
 
-        let result = simd_ops.vectorized_dot(&a, &b).unwrap();
+        let result = simd_ops
+            .vectorized_dot(&a, &b)
+            .expect("operation should succeed");
         let expected = 1.0 * 2.0 + 2.0 * 3.0 + 3.0 * 4.0 + 4.0 * 5.0;
 
         assert!((result - expected).abs() < 1e-10);
@@ -567,11 +578,13 @@ mod tests {
     #[test]
     fn test_vectorized_matvec() {
         let simd_ops = AdvancedSimdOps::new();
-        let matrix =
-            Array2::<Float>::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let matrix = Array2::<Float>::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape should match data length");
         let vector = Array1::<Float>::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let result = simd_ops.vectorized_matvec(&matrix, &vector).unwrap();
+        let result = simd_ops
+            .vectorized_matvec(&matrix, &vector)
+            .expect("operation should succeed");
         let expected = matrix.dot(&vector);
 
         for (r, e) in result.iter().zip(expected.iter()) {
@@ -584,14 +597,16 @@ mod tests {
         let simd_ops = AdvancedSimdOps::new();
         let a = Array2::from_shape_fn((50, 60), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let b = Array2::from_shape_fn((60, 40), |_| {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
-        let result = simd_ops.blocked_matmul(&a, &b).unwrap();
+        let result = simd_ops
+            .blocked_matmul(&a, &b)
+            .expect("matrix multiplication should succeed");
         let expected = a.dot(&b);
 
         assert_eq!(result.dim(), expected.dim());
@@ -607,7 +622,9 @@ mod tests {
         let a = Array2::<Float>::ones((10, 10));
         let b = Array2::<Float>::ones((10, 10)) * 2.0;
 
-        let result = simd_ops.vectorized_add(&a, &b).unwrap();
+        let result = simd_ops
+            .vectorized_add(&a, &b)
+            .expect("operation should succeed");
         let expected = &a + &b;
 
         for (r, e) in result.iter().zip(expected.iter()) {
@@ -623,7 +640,7 @@ mod tests {
 
         let result = simd_ops
             .vectorized_tensor_contract(&tensor, &matrix, 0)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(result.dim(), (4, 6, 7));
 
         // All elements should be equal to the contracted dimension (5.0)

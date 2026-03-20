@@ -138,7 +138,7 @@ impl BaselineStrategy for MostFrequentStrategy {
             .iter()
             .max_by_key(|(_, &count)| count)
             .map(|(&class, _)| class)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Calculate class priors
         let class_priors = class_counts
@@ -716,15 +716,19 @@ mod tests {
             random_state: Some(42),
         };
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0.0, 1.0, 1.0, 0.0]; // More 0s and 1s equally
 
-        let fitted = strategy.fit(&config, &x.view(), &y.view()).unwrap();
+        let fitted = strategy
+            .fit(&config, &x.view(), &y.view())
+            .expect("model fitting should succeed");
         assert!(fitted.class_counts.contains_key(&0));
         assert!(fitted.class_counts.contains_key(&1));
 
-        let predictions = strategy.predict(&fitted, &x.view()).unwrap();
+        let predictions = strategy
+            .predict(&fitted, &x.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p == 0 || p == 1));
     }
@@ -736,14 +740,18 @@ mod tests {
             random_state: Some(42),
         };
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let fitted = strategy.fit(&config, &x.view(), &y.view()).unwrap();
+        let fitted = strategy
+            .fit(&config, &x.view(), &y.view())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.target_mean, 2.5);
 
-        let predictions = strategy.predict(&fitted, &x.view()).unwrap();
+        let predictions = strategy
+            .predict(&fitted, &x.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p == 2.5));
     }
@@ -758,12 +766,16 @@ mod tests {
         let pipeline = PredictionPipeline::new(strategy)
             .with_postprocessor(Box::new(ClippingPostprocessor::new(0.0, 10.0)));
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let fitted_pipeline = pipeline.fit(&config, &x.view(), &y.view()).unwrap();
-        let predictions = fitted_pipeline.predict(&x.view()).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&config, &x.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = fitted_pipeline
+            .predict(&x.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(predictions.iter().all(|&p| p >= 0.0 && p <= 10.0));
@@ -771,10 +783,11 @@ mod tests {
 
     #[test]
     fn test_trimmed_mean_estimator() {
-        let estimator = statistical_methods::TrimmedMeanEstimator::new(0.1).unwrap();
+        let estimator =
+            statistical_methods::TrimmedMeanEstimator::new(0.1).expect("operation should succeed");
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0]; // Outlier at end
 
-        let result = estimator.estimate(&data).unwrap();
+        let result = estimator.estimate(&data).expect("operation should succeed");
         // With 10% trimming on each side of 6 values, we trim 0.6 -> 0 values from each side
         // So we still include all values. Let's be more lenient with the test
         assert!(result > 0.0 && result < 50.0); // Should be reasonable value
@@ -785,16 +798,17 @@ mod tests {
         let estimator = statistical_methods::MedianAbsoluteDeviationEstimator;
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let result = estimator.estimate(&data).unwrap();
+        let result = estimator.estimate(&data).expect("operation should succeed");
         assert!(result > 0.0);
     }
 
     #[test]
     fn test_quantile_estimator() {
-        let estimator = statistical_methods::QuantileEstimator::new(0.5).unwrap(); // Median
+        let estimator =
+            statistical_methods::QuantileEstimator::new(0.5).expect("operation should succeed"); // Median
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
 
-        let result = estimator.estimate(&data).unwrap();
+        let result = estimator.estimate(&data).expect("operation should succeed");
         assert_eq!(result, 3.0);
     }
 
@@ -813,11 +827,13 @@ mod tests {
     #[test]
     fn test_standard_scaler() {
         let mut scaler = StandardScaler::new();
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
 
-        scaler.fit(&x.view()).unwrap();
-        let transformed = scaler.transform(&x.view()).unwrap();
+        scaler.fit(&x.view()).expect("model fitting should succeed");
+        let transformed = scaler
+            .transform(&x.view())
+            .expect("transformation should succeed");
 
         assert_eq!(transformed.shape(), x.shape());
 
@@ -833,7 +849,9 @@ mod tests {
         let clipper = ClippingPostprocessor::new(-1.0, 1.0);
         let predictions = vec![-2.0, -0.5, 0.0, 0.5, 2.0];
 
-        let clipped = clipper.transform(&predictions).unwrap();
+        let clipped = clipper
+            .transform(&predictions)
+            .expect("transformation should succeed");
         assert_eq!(clipped, vec![-1.0, -0.5, 0.0, 0.5, 1.0]);
     }
 }

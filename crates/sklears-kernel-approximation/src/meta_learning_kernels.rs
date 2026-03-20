@@ -381,7 +381,7 @@ impl MetaLearningKernelSelector<Untrained> {
             let perf_b = self.task_history[b.0].performance;
             (a.1 * perf_a)
                 .partial_cmp(&(b.1 * perf_b))
-                .unwrap()
+                .expect("operation should succeed")
                 .reverse()
         });
 
@@ -534,26 +534,28 @@ impl MetaLearningKernelSelector<Untrained> {
         match kernel_type {
             MetaKernelType::RBF | MetaKernelType::Laplacian => {
                 let gamma = hyperparams.get("gamma").copied().unwrap_or(1.0);
-                let normal = Normal::new(0.0, 1.0).unwrap();
+                let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
                 let weights = Array2::from_shape_fn((n_features, n_components), |_| {
                     rng.sample(normal) * (2.0 * gamma).sqrt()
                 });
 
-                let uniform = Uniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+                let uniform = Uniform::new(0.0, 2.0 * std::f64::consts::PI)
+                    .expect("operation should succeed");
                 let offset = Array1::from_shape_fn(n_components, |_| rng.sample(uniform));
 
                 Ok((weights, offset))
             }
             MetaKernelType::Polynomial => {
                 let gamma = hyperparams.get("gamma").copied().unwrap_or(1.0);
-                let normal = Normal::new(0.0, 1.0).unwrap();
+                let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
                 let weights = Array2::from_shape_fn((n_features, n_components), |_| {
                     rng.sample(normal) * (2.0 * gamma).sqrt()
                 });
 
-                let uniform = Uniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+                let uniform = Uniform::new(0.0, 2.0 * std::f64::consts::PI)
+                    .expect("operation should succeed");
                 let offset = Array1::from_shape_fn(n_components, |_| rng.sample(uniform));
 
                 Ok((weights, offset))
@@ -561,17 +563,21 @@ impl MetaLearningKernelSelector<Untrained> {
             MetaKernelType::Linear => {
                 // Linear kernel doesn't need random features, use identity-like projection
                 let weights = Array2::from_shape_fn((n_features, n_components), |_| {
-                    rng.sample(Normal::new(0.0, 1.0 / (n_features as Float).sqrt()).unwrap())
+                    rng.sample(
+                        Normal::new(0.0, 1.0 / (n_features as Float).sqrt())
+                            .expect("operation should succeed"),
+                    )
                 });
                 let offset = Array1::zeros(n_components);
                 Ok((weights, offset))
             }
             _ => {
                 // Default to RBF-like initialization
-                let normal = Normal::new(0.0, 1.0).unwrap();
+                let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
                 let weights =
                     Array2::from_shape_fn((n_features, n_components), |_| rng.sample(normal));
-                let uniform = Uniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+                let uniform = Uniform::new(0.0, 2.0 * std::f64::consts::PI)
+                    .expect("operation should succeed");
                 let offset = Array1::from_shape_fn(n_components, |_| rng.sample(uniform));
                 Ok((weights, offset))
             }
@@ -581,8 +587,14 @@ impl MetaLearningKernelSelector<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for MetaLearningKernelSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let kernel_weights = self.kernel_weights.as_ref().unwrap();
-        let kernel_offset = self.kernel_offset.as_ref().unwrap();
+        let kernel_weights = self
+            .kernel_weights
+            .as_ref()
+            .expect("operation should succeed");
+        let kernel_offset = self
+            .kernel_offset
+            .as_ref()
+            .expect("operation should succeed");
 
         if x.ncols() != kernel_weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -613,22 +625,28 @@ impl Transform<Array2<Float>, Array2<Float>> for MetaLearningKernelSelector<Trai
 impl MetaLearningKernelSelector<Trained> {
     /// Get the selected kernel type
     pub fn selected_kernel(&self) -> MetaKernelType {
-        self.selected_kernel.unwrap()
+        self.selected_kernel.expect("operation should succeed")
     }
 
     /// Get the selected hyperparameters
     pub fn selected_hyperparameters(&self) -> &HashMap<String, Float> {
-        self.selected_hyperparams.as_ref().unwrap()
+        self.selected_hyperparams
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get kernel weights
     pub fn kernel_weights(&self) -> &Array2<Float> {
-        self.kernel_weights.as_ref().unwrap()
+        self.kernel_weights
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get kernel offset
     pub fn kernel_offset(&self) -> &Array1<Float> {
-        self.kernel_offset.as_ref().unwrap()
+        self.kernel_offset
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -646,7 +664,7 @@ mod tests {
             [10.0, 11.0, 12.0]
         ];
 
-        let meta_features = DatasetMetaFeatures::extract(&x).unwrap();
+        let meta_features = DatasetMetaFeatures::extract(&x).expect("operation should succeed");
 
         assert_eq!(meta_features.n_samples, 4);
         assert_eq!(meta_features.n_features, 3);
@@ -662,8 +680,8 @@ mod tests {
 
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let fitted = selector.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = selector.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 100]);
     }
@@ -685,7 +703,8 @@ mod tests {
 
         // Add historical task data with very similar dataset
         let x_hist = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let meta_features = DatasetMetaFeatures::extract(&x_hist).unwrap();
+        let meta_features =
+            DatasetMetaFeatures::extract(&x_hist).expect("operation should succeed");
 
         let mut hyperparams = HashMap::new();
         hyperparams.insert("gamma".to_string(), 0.5);
@@ -702,7 +721,7 @@ mod tests {
 
         // Use same dataset to ensure high similarity
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
-        let fitted = selector.fit(&x, &()).unwrap();
+        let fitted = selector.fit(&x, &()).expect("operation should succeed");
 
         // Should select RBF from historical data or heuristic (both are valid)
         let selected = fitted.selected_kernel();
@@ -734,8 +753,8 @@ mod tests {
             };
 
             let selector = MetaLearningKernelSelector::new(config);
-            let fitted = selector.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = selector.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 2);
         }
@@ -746,7 +765,9 @@ mod tests {
         let x_sparse = array![[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]];
 
         let selector = MetaLearningKernelSelector::with_components(50);
-        let fitted = selector.fit(&x_sparse, &()).unwrap();
+        let fitted = selector
+            .fit(&x_sparse, &())
+            .expect("operation should succeed");
 
         // Should select linear kernel for sparse data
         assert!(
@@ -782,7 +803,9 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]];
 
-        let fitted = selector.fit(&x_train, &()).unwrap();
+        let fitted = selector
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         assert!(fitted.transform(&x_test).is_err());
     }
 }

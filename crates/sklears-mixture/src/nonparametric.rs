@@ -6,7 +6,7 @@
 //! Pitman-Yor Process, and Hierarchical Dirichlet Process.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -158,7 +158,7 @@ impl ChineseRestaurantProcess<Untrained> {
             // Sample table assignment
             let cumsum: f64 = probabilities.iter().sum();
             let mut cumulative = 0.0;
-            let target = rng.gen::<f64>() * cumsum;
+            let target = rng.random::<f64>() * cumsum;
 
             let mut chosen_table = 0;
             for k in 0..=n_tables {
@@ -553,7 +553,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for ChineseRestaurantProcess<Untrained> {
                 // Sample new assignment
                 let cumsum: f64 = probabilities.iter().sum();
                 let mut cumulative = 0.0;
-                let target = rng.gen::<f64>() * cumsum;
+                let target = rng.random::<f64>() * cumsum;
 
                 let mut new_table = 0;
                 for k in 0..=n_tables {
@@ -1040,7 +1040,9 @@ impl Fit<ArrayView2<'_, Float>, ()> for DirichletProcessGaussianMixture<Untraine
         };
 
         let mut means = Array2::zeros((self.max_components, n_features));
-        means.row_mut(0).assign(&X.row(rng.gen_range(0..n_samples)));
+        means
+            .row_mut(0)
+            .assign(&X.row(rng.random_range(0..n_samples)));
 
         for k in 1..self.max_components {
             let mut distances = Array1::zeros(n_samples);
@@ -1056,7 +1058,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for DirichletProcessGaussianMixture<Untraine
             }
 
             let total_dist: f64 = distances.sum();
-            let target = rng.gen::<f64>() * total_dist;
+            let target = rng.random::<f64>() * total_dist;
             let mut cumulative = 0.0;
 
             for i in 0..n_samples {
@@ -1141,7 +1143,9 @@ impl Fit<ArrayView2<'_, Float>, ()> for DirichletProcessGaussianMixture<Untraine
 impl DirichletProcessGaussianMixture<Untrained> {
     fn compute_sample_covariance(&self, X: &Array2<f64>) -> SklResult<Array2<f64>> {
         let (n_samples, n_features) = X.dim();
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let mut cov = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {

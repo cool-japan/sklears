@@ -253,7 +253,7 @@ impl FuzzySVM<Untrained> {
             }
 
             if !distances.is_empty() {
-                distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let k = (distances.len() / 3).clamp(1, 5); // Use up to top 5 nearest neighbors
                 let avg_distance = distances.iter().take(k).sum::<Float>() / k as Float;
 
@@ -293,7 +293,7 @@ impl FuzzySVM<Untrained> {
             }
 
             // Sort by distance and get k nearest neighbors
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
             let k = k_neighbors.min(distances.len());
 
             if k == 0 {
@@ -470,7 +470,11 @@ impl FuzzySVM<Untrained> {
 
 impl Predict<Array2<Float>, Array1<i32>> for FuzzySVM<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
@@ -478,7 +482,10 @@ impl Predict<Array2<Float>, Array1<i32>> for FuzzySVM<Trained> {
         }
 
         let decision_values = self.decision_function(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
 
         let predictions = Array1::from_vec(
             decision_values
@@ -494,42 +501,56 @@ impl Predict<Array2<Float>, Array1<i32>> for FuzzySVM<Trained> {
 impl FuzzySVM<Trained> {
     /// Get the support vectors
     pub fn support_vectors(&self) -> &Array2<Float> {
-        self.support_vectors_.as_ref().unwrap()
+        self.support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted")
     }
 
     /// Get the support vector indices
     pub fn support(&self) -> &Array1<usize> {
-        self.support_.as_ref().unwrap()
+        self.support_
+            .as_ref()
+            .expect("support_ not available - model not fitted")
     }
 
     /// Get the dual coefficients
     pub fn dual_coef(&self) -> &Array1<Float> {
-        self.dual_coef_.as_ref().unwrap()
+        self.dual_coef_
+            .as_ref()
+            .expect("dual_coef_ not available - model not fitted")
     }
 
     /// Get the intercept
     pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+        self.intercept_
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the fuzzy membership values
     pub fn fuzzy_memberships(&self) -> &Array1<Float> {
-        self.fuzzy_memberships_.as_ref().unwrap()
+        self.fuzzy_memberships_
+            .as_ref()
+            .expect("fuzzy_memberships_ not available - model not fitted")
     }
 
     /// Get the number of support vectors for each class
     pub fn n_support(&self) -> &Array1<usize> {
-        self.n_support_.as_ref().unwrap()
+        self.n_support_
+            .as_ref()
+            .expect("n_support_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 
     /// Compute the decision function values
@@ -597,7 +618,9 @@ mod tests {
 
         let fsvm = FuzzySVM::new().fuzzy_strategy(FuzzyMembershipStrategy::Constant { value: 0.8 });
 
-        let memberships = fsvm.calculate_fuzzy_memberships(&x, &y, None).unwrap();
+        let memberships = fsvm
+            .calculate_fuzzy_memberships(&x, &y, None)
+            .expect("operation should succeed");
         assert_eq!(memberships.len(), 2);
         assert!((memberships[0] - 0.8).abs() < 1e-6);
         assert!((memberships[1] - 0.8).abs() < 1e-6);
@@ -613,7 +636,7 @@ mod tests {
 
         let memberships = fsvm
             .calculate_fuzzy_memberships(&x, &y, Some(&custom_memberships))
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(memberships.len(), 2);
         assert!((memberships[0] - 0.9).abs() < 1e-6);
         assert!((memberships[1] - 0.7).abs() < 1e-6);
@@ -640,13 +663,13 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let fitted_model = fsvm.fit(&x, &y).unwrap();
+        let fitted_model = fsvm.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert_eq!(fitted_model.classes().len(), 2);
         assert_eq!(fitted_model.fuzzy_memberships().len(), 6);
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Check that predictions are valid class labels
@@ -694,7 +717,9 @@ mod tests {
         let fsvm =
             FuzzySVM::new().fuzzy_strategy(FuzzyMembershipStrategy::DistanceBased { sigma: 1.0 });
 
-        let memberships = fsvm.calculate_fuzzy_memberships(&x, &y, None).unwrap();
+        let memberships = fsvm
+            .calculate_fuzzy_memberships(&x, &y, None)
+            .expect("operation should succeed");
         assert_eq!(memberships.len(), 4);
 
         // All memberships should be in valid range

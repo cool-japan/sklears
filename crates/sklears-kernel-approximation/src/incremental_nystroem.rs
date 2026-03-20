@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -127,7 +127,7 @@ impl Fit<Array2<Float>, ()> for IncrementalNystroem<Untrained> {
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Select initial landmark points
@@ -259,7 +259,7 @@ impl IncrementalNystroem<Untrained> {
 
         // Fill remaining slots randomly if needed
         while selected_indices.len() < n_components {
-            let random_idx = rng.gen_range(0..n_samples);
+            let random_idx = rng.random_range(0..n_samples);
             if !selected_indices.contains(&random_idx) {
                 selected_indices.push(random_idx);
             }
@@ -303,7 +303,7 @@ impl IncrementalNystroem<Untrained> {
 
         let mut selected_indices = Vec::new();
         for _ in 0..n_components {
-            let r = thread_rng().gen::<Float>();
+            let r = thread_rng().random::<Float>();
             // Find index where cumulative probability >= r
             let mut idx = cumulative
                 .iter()
@@ -312,7 +312,7 @@ impl IncrementalNystroem<Untrained> {
 
             // Ensure no duplicates
             while selected_indices.contains(&idx) {
-                let r = thread_rng().gen::<Float>();
+                let r = thread_rng().random::<Float>();
                 idx = cumulative
                     .iter()
                     .position(|&cum| cum >= r)
@@ -346,7 +346,7 @@ impl IncrementalNystroem<Untrained> {
             .enumerate()
             .map(|(i, &norm)| (i, norm))
             .collect();
-        indices_with_norms.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indices_with_norms.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut selected_indices = Vec::new();
         let step = n_samples.max(1) / n_components.max(1);
@@ -358,7 +358,7 @@ impl IncrementalNystroem<Untrained> {
 
         // Fill remaining with random if needed
         while selected_indices.len() < n_components {
-            let random_idx = rng.gen_range(0..n_samples);
+            let random_idx = rng.random_range(0..n_samples);
             if !selected_indices.contains(&random_idx) {
                 selected_indices.push(random_idx);
             }
@@ -416,7 +416,11 @@ impl IncrementalNystroem<Untrained> {
 
         // Sort eigenvalues and eigenvectors in descending order
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&i, &j| eigenvals[j].partial_cmp(&eigenvals[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvals[j]
+                .partial_cmp(&eigenvals[i])
+                .expect("operation should succeed")
+        });
 
         let mut sorted_eigenvals = Array1::zeros(n);
         let mut sorted_eigenvecs = Array2::zeros((n, n));
@@ -634,7 +638,7 @@ impl IncrementalNystroem<Trained> {
 
         // Fill remaining slots randomly if needed
         while selected_indices.len() < n_components {
-            let random_idx = rng.gen_range(0..n_samples);
+            let random_idx = rng.random_range(0..n_samples);
             if !selected_indices.contains(&random_idx) {
                 selected_indices.push(random_idx);
             }
@@ -678,7 +682,7 @@ impl IncrementalNystroem<Trained> {
 
         let mut selected_indices = Vec::new();
         for _ in 0..n_components {
-            let r = thread_rng().gen::<Float>();
+            let r = thread_rng().random::<Float>();
             // Find index where cumulative probability >= r
             let mut idx = cumulative
                 .iter()
@@ -687,7 +691,7 @@ impl IncrementalNystroem<Trained> {
 
             // Ensure no duplicates
             while selected_indices.contains(&idx) {
-                let r = thread_rng().gen::<Float>();
+                let r = thread_rng().random::<Float>();
                 idx = cumulative
                     .iter()
                     .position(|&cum| cum >= r)
@@ -721,7 +725,7 @@ impl IncrementalNystroem<Trained> {
             .enumerate()
             .map(|(i, &norm)| (i, norm))
             .collect();
-        indices_with_norms.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indices_with_norms.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut selected_indices = Vec::new();
         let step = n_samples.max(1) / n_components.max(1);
@@ -733,7 +737,7 @@ impl IncrementalNystroem<Trained> {
 
         // Fill remaining with random if needed
         while selected_indices.len() < n_components {
-            let random_idx = rng.gen_range(0..n_samples);
+            let random_idx = rng.random_range(0..n_samples);
             if !selected_indices.contains(&random_idx) {
                 selected_indices.push(random_idx);
             }
@@ -785,7 +789,10 @@ impl IncrementalNystroem<Trained> {
 
     /// Append new landmarks (if space available)
     fn append_update(mut self, new_data: &Array2<Float>) -> Result<Self> {
-        let current_landmarks = self.landmark_data_.as_ref().unwrap();
+        let current_landmarks = self
+            .landmark_data_
+            .as_ref()
+            .expect("operation should succeed");
         let current_components = current_landmarks.nrows();
 
         if current_components >= self.n_components {
@@ -803,7 +810,7 @@ impl IncrementalNystroem<Trained> {
         // Select new landmarks from new data
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed.wrapping_add(1000)),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let mut indices: Vec<usize> = (0..new_data.nrows()).collect();
@@ -824,7 +831,11 @@ impl IncrementalNystroem<Trained> {
         let (components, normalization) = self.compute_decomposition(kernel_matrix)?;
 
         // Update indices
-        let mut new_component_indices = self.component_indices_.as_ref().unwrap().clone();
+        let mut new_component_indices = self
+            .component_indices_
+            .as_ref()
+            .expect("operation should succeed")
+            .clone();
         let base_index = current_landmarks.nrows();
         for &idx in selected_indices {
             new_component_indices.push(base_index + idx);
@@ -840,7 +851,10 @@ impl IncrementalNystroem<Trained> {
 
     /// Sliding window update (replace oldest landmarks)
     fn sliding_window_update(mut self, new_data: &Array2<Float>) -> Result<Self> {
-        let current_landmarks = self.landmark_data_.as_ref().unwrap();
+        let current_landmarks = self
+            .landmark_data_
+            .as_ref()
+            .expect("operation should succeed");
         let n_new = new_data.nrows().min(self.n_components);
 
         if n_new == 0 {
@@ -850,7 +864,7 @@ impl IncrementalNystroem<Trained> {
         // Select new landmarks
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed.wrapping_add(2000)),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         let mut indices: Vec<usize> = (0..new_data.nrows()).collect();
@@ -890,16 +904,22 @@ impl IncrementalNystroem<Trained> {
         // Sophisticated merging strategy that combines existing and new Nyström approximations
         // This is based on the idea of merging two kernel approximations optimally
 
-        let current_landmarks = self.landmark_data_.as_ref().unwrap();
-        let _current_components = self.components_.as_ref().unwrap();
-        let _current_normalization = self.normalization_.as_ref().unwrap();
+        let current_landmarks = self
+            .landmark_data_
+            .as_ref()
+            .expect("operation should succeed");
+        let _current_components = self.components_.as_ref().expect("operation should succeed");
+        let _current_normalization = self
+            .normalization_
+            .as_ref()
+            .expect("operation should succeed");
 
         // Step 1: Create a new Nyström approximation from the new data
         let n_new_components = (new_data.nrows().min(self.n_components) / 2).max(1);
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed.wrapping_add(3000)),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Select new landmarks using the same strategy
@@ -983,7 +1003,7 @@ impl IncrementalNystroem<Trained> {
         let mut available: Vec<usize> = (0..n_landmarks).collect();
 
         // Start with a random landmark
-        let first_idx = rng.gen_range(0..available.len());
+        let first_idx = rng.random_range(0..available.len());
         selected.push(available.remove(first_idx));
 
         // Greedily select landmarks that are maximally distant from already selected ones
@@ -1019,7 +1039,10 @@ impl IncrementalNystroem<Trained> {
     fn selective_update(self, new_data: &Array2<Float>, threshold: Float) -> Result<Self> {
         // Quality-based selective update that only incorporates new data if it improves approximation
 
-        let current_landmarks = self.landmark_data_.as_ref().unwrap();
+        let current_landmarks = self
+            .landmark_data_
+            .as_ref()
+            .expect("operation should succeed");
 
         // Step 1: Evaluate current approximation quality on new data
         let current_quality = self.evaluate_approximation_quality(current_landmarks, new_data)?;
@@ -1031,7 +1054,10 @@ impl IncrementalNystroem<Trained> {
         // Try append update
         let append_candidate = self.clone().append_update(new_data)?;
         let append_quality = append_candidate.evaluate_approximation_quality(
-            append_candidate.landmark_data_.as_ref().unwrap(),
+            append_candidate
+                .landmark_data_
+                .as_ref()
+                .expect("operation should succeed"),
             new_data,
         )?;
 
@@ -1044,7 +1070,10 @@ impl IncrementalNystroem<Trained> {
         if new_data.nrows() >= 3 {
             let merge_candidate = self.clone().merge_update(new_data)?;
             let merge_quality = merge_candidate.evaluate_approximation_quality(
-                merge_candidate.landmark_data_.as_ref().unwrap(),
+                merge_candidate
+                    .landmark_data_
+                    .as_ref()
+                    .expect("operation should succeed"),
                 new_data,
             )?;
 
@@ -1057,7 +1086,10 @@ impl IncrementalNystroem<Trained> {
         // Try sliding window update
         let sliding_candidate = self.clone().sliding_window_update(new_data)?;
         let sliding_quality = sliding_candidate.evaluate_approximation_quality(
-            sliding_candidate.landmark_data_.as_ref().unwrap(),
+            sliding_candidate
+                .landmark_data_
+                .as_ref()
+                .expect("operation should succeed"),
             new_data,
         )?;
 
@@ -1184,7 +1216,11 @@ impl IncrementalNystroem<Trained> {
 
         // Sort eigenvalues and eigenvectors in descending order
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&i, &j| eigenvals[j].partial_cmp(&eigenvals[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvals[j]
+                .partial_cmp(&eigenvals[i])
+                .expect("operation should succeed")
+        });
 
         let mut sorted_eigenvals = Array1::zeros(n);
         let mut sorted_eigenvecs = Array2::zeros((n, n));
@@ -1359,10 +1395,12 @@ mod tests {
             .update_strategy(UpdateStrategy::Append)
             .min_update_size(1);
 
-        let fitted = nystroem.fit(&x_initial, &()).unwrap();
+        let fitted = nystroem
+            .fit(&x_initial, &())
+            .expect("operation should succeed");
         assert_eq!(fitted.n_landmarks(), 3);
 
-        let updated = fitted.update(&x_new).unwrap();
+        let updated = fitted.update(&x_new).expect("operation should succeed");
         assert_eq!(updated.n_landmarks(), 5);
         assert_eq!(updated.update_count(), 1);
     }
@@ -1373,9 +1411,11 @@ mod tests {
         let x_test = array![[1.5, 2.5], [2.5, 3.5]];
 
         let nystroem = IncrementalNystroem::new(Kernel::Rbf { gamma: 1.0 }, 3);
-        let fitted = nystroem.fit(&x_train, &()).unwrap();
+        let fitted = nystroem
+            .fit(&x_train, &())
+            .expect("operation should succeed");
 
-        let transformed = fitted.transform(&x_test).unwrap();
+        let transformed = fitted.transform(&x_test).expect("operation should succeed");
         assert_eq!(transformed.shape()[0], 2);
         assert!(transformed.shape()[1] <= 3);
     }
@@ -1389,8 +1429,10 @@ mod tests {
             .update_strategy(UpdateStrategy::SlidingWindow)
             .min_update_size(1);
 
-        let fitted = nystroem.fit(&x_initial, &()).unwrap();
-        let updated = fitted.update(&x_new).unwrap();
+        let fitted = nystroem
+            .fit(&x_initial, &())
+            .expect("operation should succeed");
+        let updated = fitted.update(&x_new).expect("operation should succeed");
 
         assert_eq!(updated.n_landmarks(), 3);
         assert_eq!(updated.update_count(), 1);
@@ -1402,8 +1444,8 @@ mod tests {
 
         // Test with RBF kernel
         let rbf_nystroem = IncrementalNystroem::new(Kernel::Rbf { gamma: 0.5 }, 3);
-        let rbf_fitted = rbf_nystroem.fit(&x, &()).unwrap();
-        let rbf_transformed = rbf_fitted.transform(&x).unwrap();
+        let rbf_fitted = rbf_nystroem.fit(&x, &()).expect("operation should succeed");
+        let rbf_transformed = rbf_fitted.transform(&x).expect("operation should succeed");
         assert_eq!(rbf_transformed.shape()[0], 3);
 
         // Test with polynomial kernel
@@ -1415,8 +1457,10 @@ mod tests {
             },
             3,
         );
-        let poly_fitted = poly_nystroem.fit(&x, &()).unwrap();
-        let poly_transformed = poly_fitted.transform(&x).unwrap();
+        let poly_fitted = poly_nystroem
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let poly_transformed = poly_fitted.transform(&x).expect("operation should succeed");
         assert_eq!(poly_transformed.shape()[0], 3);
     }
 
@@ -1428,15 +1472,19 @@ mod tests {
 
         let nystroem = IncrementalNystroem::new(Kernel::Linear, 5).min_update_size(2);
 
-        let fitted = nystroem.fit(&x_initial, &()).unwrap();
+        let fitted = nystroem
+            .fit(&x_initial, &())
+            .expect("operation should succeed");
 
         // Small update should not trigger recomputation
-        let after_small = fitted.update(&x_small).unwrap();
+        let after_small = fitted.update(&x_small).expect("operation should succeed");
         assert_eq!(after_small.update_count(), 0);
         assert_eq!(after_small.n_landmarks(), 2);
 
         // Large update should trigger recomputation
-        let after_large = after_small.update(&x_large).unwrap();
+        let after_large = after_small
+            .update(&x_large)
+            .expect("operation should succeed");
         assert_eq!(after_large.update_count(), 1);
         assert_eq!(after_large.n_landmarks(), 5);
     }
@@ -1449,16 +1497,16 @@ mod tests {
         let nystroem1 = IncrementalNystroem::new(Kernel::Rbf { gamma: 1.0 }, 3)
             .random_state(42)
             .min_update_size(1);
-        let fitted1 = nystroem1.fit(&x, &()).unwrap();
-        let updated1 = fitted1.update(&x_new).unwrap();
-        let result1 = updated1.transform(&x).unwrap();
+        let fitted1 = nystroem1.fit(&x, &()).expect("operation should succeed");
+        let updated1 = fitted1.update(&x_new).expect("operation should succeed");
+        let result1 = updated1.transform(&x).expect("operation should succeed");
 
         let nystroem2 = IncrementalNystroem::new(Kernel::Rbf { gamma: 1.0 }, 3)
             .random_state(42)
             .min_update_size(1);
-        let fitted2 = nystroem2.fit(&x, &()).unwrap();
-        let updated2 = fitted2.update(&x_new).unwrap();
-        let result2 = updated2.transform(&x).unwrap();
+        let fitted2 = nystroem2.fit(&x, &()).expect("operation should succeed");
+        let updated2 = fitted2.update(&x_new).expect("operation should succeed");
+        let result2 = updated2.transform(&x).expect("operation should succeed");
 
         // Results should be very similar with same random seed (allowing for numerical precision)
         // Note: eigendecomposition can produce results that differ by a sign flip
@@ -1469,8 +1517,8 @@ mod tests {
         let mut sign_flip_match = true;
 
         for i in 0..result1.len() {
-            let val1 = result1.as_slice().unwrap()[i];
-            let val2 = result2.as_slice().unwrap()[i];
+            let val1 = result1.as_slice().expect("operation should succeed")[i];
+            let val2 = result2.as_slice().expect("operation should succeed")[i];
 
             if (val1 - val2).abs() > 1e-6 {
                 direct_match = false;

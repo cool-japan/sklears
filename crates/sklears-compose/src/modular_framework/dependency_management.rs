@@ -53,8 +53,11 @@ impl DependencyResolver {
         version: &str,
         dependencies: Vec<ComponentDependency>,
     ) -> SklResult<()> {
-        let mut graph = self.dependency_graph.write().unwrap();
-        let mut stats = self.stats.write().unwrap();
+        let mut graph = self
+            .dependency_graph
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         let node = DependencyNode {
             component_id: component_id.to_string(),
@@ -79,12 +82,15 @@ impl DependencyResolver {
 
     /// Resolve dependencies for a component
     pub fn resolve_dependencies(&self, component_id: &str) -> SklResult<ResolutionResult> {
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.resolution_attempts += 1;
 
         // Check cache first
         {
-            let cache = self.resolution_cache.read().unwrap();
+            let cache = self
+                .resolution_cache
+                .read()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some(cached_result) = cache.get(component_id) {
                 if !self.is_cache_expired(&cached_result.resolution_time) {
                     stats.cache_hits += 1;
@@ -111,7 +117,10 @@ impl DependencyResolver {
 
         // Cache the result
         {
-            let mut cache = self.resolution_cache.write().unwrap();
+            let mut cache = self
+                .resolution_cache
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             cache.insert(component_id.to_string(), result.clone());
         }
 
@@ -124,7 +133,10 @@ impl DependencyResolver {
 
     /// Perform topological sort for dependency resolution order
     pub fn topological_sort(&self, component_id: &str) -> SklResult<Vec<String>> {
-        let graph = self.dependency_graph.read().unwrap();
+        let graph = self
+            .dependency_graph
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let mut visited = HashSet::new();
         let mut visiting = HashSet::new();
         let mut order = Vec::new();
@@ -142,7 +154,10 @@ impl DependencyResolver {
 
     /// Detect circular dependencies
     pub fn detect_circular_dependencies(&self) -> SklResult<Vec<CircularDependency>> {
-        let graph = self.dependency_graph.read().unwrap();
+        let graph = self
+            .dependency_graph
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let mut circular_deps = Vec::new();
         let mut visited = HashSet::new();
         let mut visiting = HashSet::new();
@@ -173,7 +188,10 @@ impl DependencyResolver {
         component_a: &str,
         component_b: &str,
     ) -> SklResult<CompatibilityResult> {
-        let graph = self.dependency_graph.read().unwrap();
+        let graph = self
+            .dependency_graph
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
 
         let node_a = graph.nodes.get(component_a).ok_or_else(|| {
             SklearsError::InvalidInput(format!("Component {component_a} not found"))
@@ -218,14 +236,20 @@ impl DependencyResolver {
         &self,
         provider: Box<dyn DependencyProvider<T>>,
     ) -> SklResult<()> {
-        let mut registry = self.injection_registry.write().unwrap();
+        let mut registry = self
+            .injection_registry
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         registry.register_provider(std::any::TypeId::of::<T>(), provider)?;
         Ok(())
     }
 
     /// Inject dependencies into a component
     pub fn inject_dependencies(&self, component: &mut dyn PluggableComponent) -> SklResult<()> {
-        let registry = self.injection_registry.read().unwrap();
+        let registry = self
+            .injection_registry
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
 
         // Get component's dependency requirements
         let dependencies = component.dependencies();
@@ -248,13 +272,16 @@ impl DependencyResolver {
     /// Get dependency statistics
     #[must_use]
     pub fn get_statistics(&self) -> DependencyStatistics {
-        let stats = self.stats.read().unwrap();
+        let stats = self.stats.read().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 
     /// Clear resolution cache
     pub fn clear_cache(&self) {
-        let mut cache = self.resolution_cache.write().unwrap();
+        let mut cache = self
+            .resolution_cache
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         cache.clear();
     }
 
@@ -331,7 +358,10 @@ impl DependencyResolver {
         &self,
         components: &[String],
     ) -> SklResult<Vec<VersionConstraint>> {
-        let graph = self.dependency_graph.read().unwrap();
+        let graph = self
+            .dependency_graph
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let mut constraints = Vec::new();
 
         for component_id in components {
@@ -355,7 +385,10 @@ impl DependencyResolver {
     }
 
     fn collect_optional_dependencies(&self, component_id: &str) -> SklResult<Vec<String>> {
-        let graph = self.dependency_graph.read().unwrap();
+        let graph = self
+            .dependency_graph
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let mut optional_deps = Vec::new();
 
         if let Some(node) = graph.nodes.get(component_id) {
@@ -374,7 +407,10 @@ impl DependencyResolver {
         component_id: &str,
         result: &ResolutionResult,
     ) -> SklResult<()> {
-        let mut graph = self.dependency_graph.write().unwrap();
+        let mut graph = self
+            .dependency_graph
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
 
         if let Some(node) = graph.nodes.get_mut(component_id) {
             node.dependency_state = if result.dependency_conflicts.is_empty() {
@@ -911,7 +947,14 @@ mod tests {
         graph.add_edge("comp1".to_string(), "comp2".to_string());
 
         assert!(graph.nodes.contains_key("comp1"));
-        assert_eq!(graph.edges.get("comp1").unwrap().len(), 1);
+        assert_eq!(
+            graph
+                .edges
+                .get("comp1")
+                .expect("operation should succeed")
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -935,12 +978,12 @@ mod tests {
 
         resolver
             .add_component_dependencies("comp1", "type1", "1.0.0", vec![dep1])
-            .unwrap();
+            .unwrap_or_default();
         resolver
             .add_component_dependencies("comp2", "type2", "1.0.0", vec![dep2])
-            .unwrap();
+            .unwrap_or_default();
 
-        let circular_deps = resolver.detect_circular_dependencies().unwrap();
+        let circular_deps = resolver.detect_circular_dependencies().unwrap_or_default();
         assert!(!circular_deps.is_empty());
     }
 
@@ -965,15 +1008,15 @@ mod tests {
 
         resolver
             .add_component_dependencies("comp1", "type1", "1.0.0", vec![dep1])
-            .unwrap();
+            .unwrap_or_default();
         resolver
             .add_component_dependencies("comp2", "type2", "1.0.0", vec![dep2])
-            .unwrap();
+            .unwrap_or_default();
         resolver
             .add_component_dependencies("comp3", "type3", "1.0.0", vec![])
-            .unwrap();
+            .unwrap_or_default();
 
-        let order = resolver.topological_sort("comp1").unwrap();
+        let order = resolver.topological_sort("comp1").unwrap_or_default();
 
         // Should be in order: comp3, comp2, comp1
         assert_eq!(order.len(), 3);

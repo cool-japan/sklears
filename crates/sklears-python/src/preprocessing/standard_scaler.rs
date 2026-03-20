@@ -145,7 +145,7 @@ impl PyStandardScaler {
 
         // Compute mean
         let mean = if self.with_mean {
-            x_array.mean_axis(Axis(0)).unwrap()
+            x_array.mean_axis(Axis(0)).expect("array should have elements for mean computation")
         } else {
             Array1::zeros(n_features)
         };

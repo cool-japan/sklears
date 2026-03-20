@@ -882,7 +882,7 @@ mod tests {
     #[test]
     fn test_progressive_rbf_sampler() {
         let x = Array2::from_shape_vec((100, 4), (0..400).map(|i| (i as f64) * 0.01).collect())
-            .unwrap();
+            .expect("operation should succeed");
 
         let config = ProgressiveConfig {
             initial_components: 5,
@@ -896,8 +896,8 @@ mod tests {
 
         let sampler = ProgressiveRBFSampler::new().gamma(0.5).config(config);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 100);
         assert!(fitted.final_components() >= 5);
@@ -907,8 +907,8 @@ mod tests {
 
     #[test]
     fn test_progressive_nystroem() {
-        let x =
-            Array2::from_shape_vec((80, 3), (0..240).map(|i| (i as f64) * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((80, 3), (0..240).map(|i| (i as f64) * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = ProgressiveConfig {
             initial_components: 10,
@@ -920,8 +920,8 @@ mod tests {
 
         let nystroem = ProgressiveNystroem::new().gamma(1.0).config(config);
 
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.nrows(), 80);
         assert!(fitted.final_components() >= 10);
@@ -930,8 +930,8 @@ mod tests {
 
     #[test]
     fn test_progressive_strategies() {
-        let x =
-            Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.05).collect())
+            .expect("operation should succeed");
 
         let strategies = vec![
             ProgressiveStrategy::Doubling,
@@ -951,7 +951,9 @@ mod tests {
 
             let sampler = ProgressiveRBFSampler::new().gamma(0.8).config(config);
 
-            let result = sampler.run_progressive_approximation(&x).unwrap();
+            let result = sampler
+                .run_progressive_approximation(&x)
+                .expect("operation should succeed");
 
             assert!(result.final_components >= 5);
             assert!(result.final_quality >= 0.0);
@@ -961,8 +963,8 @@ mod tests {
 
     #[test]
     fn test_stopping_criteria() {
-        let x =
-            Array2::from_shape_vec((60, 3), (0..180).map(|i| (i as f64) * 0.03).collect()).unwrap();
+        let x = Array2::from_shape_vec((60, 3), (0..180).map(|i| (i as f64) * 0.03).collect())
+            .expect("operation should succeed");
 
         let criteria = vec![
             StoppingCriterion::TargetQuality { quality: 0.8 },
@@ -982,7 +984,9 @@ mod tests {
 
             let sampler = ProgressiveRBFSampler::new().gamma(0.5).config(config);
 
-            let result = sampler.run_progressive_approximation(&x).unwrap();
+            let result = sampler
+                .run_progressive_approximation(&x)
+                .expect("operation should succeed");
 
             assert!(result.final_components >= 10);
             assert!(result.final_quality >= 0.0);
@@ -992,8 +996,8 @@ mod tests {
 
     #[test]
     fn test_quality_metrics() {
-        let x =
-            Array2::from_shape_vec((40, 2), (0..80).map(|i| (i as f64) * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((40, 2), (0..80).map(|i| (i as f64) * 0.05).collect())
+            .expect("operation should succeed");
 
         let metrics = vec![
             ProgressiveQualityMetric::KernelAlignment,
@@ -1014,7 +1018,9 @@ mod tests {
 
             let sampler = ProgressiveRBFSampler::new().gamma(0.3).config(config);
 
-            let result = sampler.run_progressive_approximation(&x).unwrap();
+            let result = sampler
+                .run_progressive_approximation(&x)
+                .expect("operation should succeed");
 
             assert!(result.final_components >= 5);
             assert!(result.final_quality >= 0.0);
@@ -1029,8 +1035,8 @@ mod tests {
 
     #[test]
     fn test_progressive_improvement() {
-        let x =
-            Array2::from_shape_vec((70, 3), (0..210).map(|i| (i as f64) * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((70, 3), (0..210).map(|i| (i as f64) * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = ProgressiveConfig {
             initial_components: 10,
@@ -1043,7 +1049,9 @@ mod tests {
 
         let sampler = ProgressiveRBFSampler::new().gamma(0.7).config(config);
 
-        let result = sampler.run_progressive_approximation(&x).unwrap();
+        let result = sampler
+            .run_progressive_approximation(&x)
+            .expect("operation should succeed");
 
         // Quality should generally improve or stay stable
         for i in 1..result.steps.len() {
@@ -1062,8 +1070,8 @@ mod tests {
 
     #[test]
     fn test_progressive_reproducibility() {
-        let x =
-            Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.04).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 2), (0..100).map(|i| (i as f64) * 0.04).collect())
+            .expect("operation should succeed");
 
         let config = ProgressiveConfig {
             initial_components: 5,
@@ -1080,8 +1088,12 @@ mod tests {
 
         let sampler2 = ProgressiveRBFSampler::new().gamma(0.6).config(config);
 
-        let result1 = sampler1.run_progressive_approximation(&x).unwrap();
-        let result2 = sampler2.run_progressive_approximation(&x).unwrap();
+        let result1 = sampler1
+            .run_progressive_approximation(&x)
+            .expect("operation should succeed");
+        let result2 = sampler2
+            .run_progressive_approximation(&x)
+            .expect("operation should succeed");
 
         assert_eq!(result1.final_components, result2.final_components);
         assert_abs_diff_eq!(

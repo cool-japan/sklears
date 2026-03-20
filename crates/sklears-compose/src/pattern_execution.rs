@@ -1209,7 +1209,7 @@ pub struct ExecutionStatistics {
 impl Default for PatternExecutionEngine {
     fn default() -> Self {
         Self {
-            engine_id: format!("exec_engine_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            engine_id: format!("exec_engine_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             execution_context_manager: Arc::new(RwLock::new(ExecutionContextManager::default())),
             system_state_monitor: Arc::new(Mutex::new(SystemStateMonitor::default())),
             resource_manager: Arc::new(Mutex::new(ResourceManager::default())),
@@ -1233,7 +1233,7 @@ impl Default for PatternExecutionEngine {
 impl Default for ExecutionContextManager {
     fn default() -> Self {
         Self {
-            context_id: format!("ctx_mgr_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            context_id: format!("ctx_mgr_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             context_providers: HashMap::new(),
             context_cache: LruCache::new(1000),
             context_templates: HashMap::new(),
@@ -1250,7 +1250,7 @@ impl Default for ExecutionContextManager {
 impl Default for SystemStateMonitor {
     fn default() -> Self {
         Self {
-            monitor_id: format!("state_mon_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            monitor_id: format!("state_mon_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             current_state: SystemState::default(),
             state_providers: HashMap::new(),
             state_aggregators: vec![],
@@ -1334,7 +1334,7 @@ impl Default for CacheStatistics {
 impl Default for SystemState {
     fn default() -> Self {
         Self {
-            state_id: format!("state_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            state_id: format!("state_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             timestamp: SystemTime::now(),
             system_metrics: SystemMetrics::default(),
             resource_metrics: ResourceMetrics::default(),
@@ -1368,7 +1368,7 @@ impl Default for SystemMetrics {
 // Utility functions for execution management
 pub fn create_execution_context() -> ExecutionContext {
     ExecutionContext {
-        execution_id: format!("exec_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+        execution_id: format!("exec_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
         timestamp: SystemTime::now(),
         system_state: super::pattern_core::SystemState::default(),
         business_context: super::pattern_core::BusinessContextData::default(),

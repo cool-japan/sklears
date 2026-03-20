@@ -98,7 +98,8 @@ impl Fit<Array2<Float>, ()> for GenomicKernel<Untrained> {
 
         // Generate random projection matrix for dimensionality reduction
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (vocab_size as Float).sqrt()).unwrap();
+        let normal =
+            Normal::new(0.0, 1.0 / (vocab_size as Float).sqrt()).expect("operation should succeed");
 
         let mut projection = Array2::zeros((vocab_size, self.n_components));
         for i in 0..vocab_size {
@@ -129,7 +130,7 @@ impl Transform<Array2<Float>, Array2<Float>> for GenomicKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let vocab_size = projection.nrows();
 
         // Extract k-mer features from input (simulated)
@@ -228,7 +229,8 @@ impl Fit<Array2<Float>, ()> for ProteinKernel<Untrained> {
         let feature_dim = if self.use_properties { 20 + 5 } else { 20 };
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim * self.pattern_length, self.n_components));
@@ -267,7 +269,7 @@ impl Transform<Array2<Float>, Array2<Float>> for ProteinKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
 
         // Extract protein features
@@ -366,7 +368,8 @@ impl Fit<Array2<Float>, ()> for PhylogeneticKernel<Untrained> {
         let feature_dim = 2usize.pow(self.tree_depth as u32);
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim, self.n_components));
@@ -409,7 +412,7 @@ impl Transform<Array2<Float>, Array2<Float>> for PhylogeneticKernel<Trained> {
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
 
         // Extract phylogenetic features
@@ -509,7 +512,8 @@ impl Fit<Array2<Float>, ()> for MetabolicNetworkKernel<Untrained> {
         let feature_dim = base_dim + pathway_dim;
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt()).unwrap();
+        let normal = Normal::new(0.0, 1.0 / (feature_dim as Float).sqrt())
+            .expect("operation should succeed");
 
         // Generate random projection
         let mut projection = Array2::zeros((feature_dim, self.n_components));
@@ -553,7 +557,7 @@ impl Transform<Array2<Float>, Array2<Float>> for MetabolicNetworkKernel<Trained>
             ));
         }
 
-        let projection = self.projection.as_ref().unwrap();
+        let projection = self.projection.as_ref().expect("operation should succeed");
         let feature_dim = projection.nrows();
 
         // Extract network features
@@ -673,7 +677,8 @@ impl Fit<Array2<Float>, ()> for MultiOmicsKernel<Untrained> {
         // Generate separate projection for each omics type
         let mut projections = Vec::new();
         for _ in 0..self.n_omics_types {
-            let normal = Normal::new(0.0, 1.0 / (features_per_omics as Float).sqrt()).unwrap();
+            let normal = Normal::new(0.0, 1.0 / (features_per_omics as Float).sqrt())
+                .expect("operation should succeed");
             let mut projection = Array2::zeros((features_per_omics, self.n_components));
 
             for i in 0..features_per_omics {
@@ -713,8 +718,11 @@ impl Transform<Array2<Float>, Array2<Float>> for MultiOmicsKernel<Trained> {
             ));
         }
 
-        let projections = self.projections.as_ref().unwrap();
-        let omics_weights = self.omics_weights.as_ref().unwrap();
+        let projections = self.projections.as_ref().expect("operation should succeed");
+        let omics_weights = self
+            .omics_weights
+            .as_ref()
+            .expect("operation should succeed");
         let features_per_omics = n_features / self.n_omics_types;
 
         let mut result = Array2::zeros((n_samples, self.n_components));
@@ -852,8 +860,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
         let kernel = GenomicKernel::new(3, 50);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 50]);
     }
@@ -863,8 +871,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         let kernel = GenomicKernel::new(3, 30).normalize(false);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 30]);
     }
@@ -874,8 +882,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
         let kernel = ProteinKernel::new(2, 40);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 40]);
     }
@@ -885,8 +893,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let kernel = ProteinKernel::new(2, 30).use_properties(true);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 30]);
         assert!(fitted.property_weights.is_some());
@@ -897,8 +905,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         let kernel = PhylogeneticKernel::new(50, 4);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
     }
@@ -908,8 +916,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let kernel = PhylogeneticKernel::new(40, 3).use_branch_lengths(true);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 40]);
         assert!(fitted.branch_weights.is_some());
@@ -920,8 +928,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
 
         let kernel = MetabolicNetworkKernel::new(60, 3);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 60]);
     }
@@ -931,8 +939,8 @@ mod tests {
         let x = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         let kernel = MetabolicNetworkKernel::new(50, 3).use_pathway_enrichment(true);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 50]);
         assert!(fitted.pathway_weights.is_some());
@@ -946,8 +954,8 @@ mod tests {
         ];
 
         let kernel = MultiOmicsKernel::new(40, 3);
-        let fitted = kernel.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[2, 40]);
     }
@@ -965,8 +973,8 @@ mod tests {
 
         for method in methods {
             let kernel = MultiOmicsKernel::new(30, 2).integration_method(method);
-            let fitted = kernel.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
+            let fitted = kernel.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
             assert_eq!(features.shape(), &[2, 30]);
         }
     }

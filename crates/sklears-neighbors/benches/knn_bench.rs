@@ -28,7 +28,7 @@ fn generate_classification_data(n_samples: usize, n_features: usize) -> (Array2<
     }
 
     (
-        Array2::from_shape_vec((n_samples, n_features), data).unwrap(),
+        Array2::from_shape_vec((n_samples, n_features), data).expect("operation should succeed"),
         Array1::from(labels),
     )
 }
@@ -51,7 +51,7 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
     }
 
     (
-        Array2::from_shape_vec((n_samples, n_features), data).unwrap(),
+        Array2::from_shape_vec((n_samples, n_features), data).expect("operation should succeed"),
         Array1::from(targets),
     )
 }
@@ -70,7 +70,7 @@ fn bench_knn_classification_fit(c: &mut Criterion) {
                 |b, (X, y)| {
                     b.iter(|| {
                         let classifier = KNeighborsClassifier::new(5);
-                        black_box(classifier.fit(X, y).unwrap())
+                        black_box(classifier.fit(X, y).expect("operation should succeed"))
                     })
                 },
             );
@@ -86,13 +86,15 @@ fn bench_knn_classification_predict(c: &mut Criterion) {
         for &n_features in &[5, 10, 20] {
             let (X, y) = generate_classification_data(n_samples, n_features);
             let classifier = KNeighborsClassifier::new(5);
-            let fitted_classifier = classifier.fit(&X, &y).unwrap();
+            let fitted_classifier = classifier.fit(&X, &y).expect("operation should succeed");
 
             group.throughput(Throughput::Elements(n_samples as u64));
             group.bench_with_input(
                 BenchmarkId::new("predict", format!("{}x{}", n_samples, n_features)),
                 &(&X, &fitted_classifier),
-                |b, (X, classifier)| b.iter(|| black_box(classifier.predict(X).unwrap())),
+                |b, (X, classifier)| {
+                    b.iter(|| black_box(classifier.predict(X).expect("operation should succeed")))
+                },
             );
         }
     }
@@ -113,7 +115,7 @@ fn bench_knn_regression_fit(c: &mut Criterion) {
                 |b, (X, y)| {
                     b.iter(|| {
                         let regressor = KNeighborsRegressor::new(5);
-                        black_box(regressor.fit(X, y).unwrap())
+                        black_box(regressor.fit(X, y).expect("operation should succeed"))
                     })
                 },
             );
@@ -128,13 +130,21 @@ fn bench_knn_predict_proba(c: &mut Criterion) {
     for &n_samples in &[100, 500, 1000] {
         let (X, y) = generate_classification_data(n_samples, 10);
         let classifier = KNeighborsClassifier::new(5);
-        let fitted_classifier = classifier.fit(&X, &y).unwrap();
+        let fitted_classifier = classifier.fit(&X, &y).expect("operation should succeed");
 
         group.throughput(Throughput::Elements(n_samples as u64));
         group.bench_with_input(
             BenchmarkId::new("predict_proba", n_samples),
             &(&X, &fitted_classifier),
-            |b, (X, classifier)| b.iter(|| black_box(classifier.predict_proba(X).unwrap())),
+            |b, (X, classifier)| {
+                b.iter(|| {
+                    black_box(
+                        classifier
+                            .predict_proba(X)
+                            .expect("operation should succeed"),
+                    )
+                })
+            },
         );
     }
     group.finish();
@@ -147,8 +157,14 @@ fn bench_different_k_values(c: &mut Criterion) {
     for &k in &[1, 3, 5, 10, 20] {
         group.bench_with_input(BenchmarkId::new("predict", k), &k, |b, &k| {
             let classifier = KNeighborsClassifier::new(k);
-            let fitted_classifier = classifier.fit(&X, &y).unwrap();
-            b.iter(|| black_box(fitted_classifier.predict(&X).unwrap()))
+            let fitted_classifier = classifier.fit(&X, &y).expect("operation should succeed");
+            b.iter(|| {
+                black_box(
+                    fitted_classifier
+                        .predict(&X)
+                        .expect("operation should succeed"),
+                )
+            })
         });
     }
     group.finish();

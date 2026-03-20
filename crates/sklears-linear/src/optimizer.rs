@@ -676,7 +676,9 @@ mod tests {
         let optimizer = LbfgsOptimizer::default();
         let x0 = array![0.0, 0.0];
 
-        let result = optimizer.minimize(f, grad_f, x0).unwrap();
+        let result = optimizer
+            .minimize(f, grad_f, x0)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(result[0], 0.5, epsilon = 1e-6);
         assert_abs_diff_eq!(result[1], 0.5, epsilon = 1e-6);
@@ -728,7 +730,9 @@ mod tests {
         let optimizer = ProximalGradientOptimizer::default();
         let x0 = array![0.0, 0.0];
 
-        let result = optimizer.minimize(f, grad_f, prox_g, x0).unwrap();
+        let result = optimizer
+            .minimize(f, grad_f, prox_g, x0)
+            .expect("operation should succeed");
 
         // Check that solution is reasonable
         assert!(result[0] > 1.0 && result[0] < 2.0);
@@ -759,7 +763,9 @@ mod tests {
         let optimizer = ProximalGradientOptimizer::accelerated();
         let x0 = array![0.0, 0.0];
 
-        let result = optimizer.minimize(f, grad_f, prox_g, x0).unwrap();
+        let result = optimizer
+            .minimize(f, grad_f, prox_g, x0)
+            .expect("operation should succeed");
 
         // Check that solution is reasonable
         assert!(result[0] > 1.0 && result[0] < 2.0);
@@ -786,7 +792,9 @@ mod tests {
         };
         let x0 = array![0.0, 0.0];
 
-        let result = optimizer.minimize(f, grad_f, x0).unwrap();
+        let result = optimizer
+            .minimize(f, grad_f, x0)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(result[0], 0.5, epsilon = 1e-4);
         assert_abs_diff_eq!(result[1], 1.0, epsilon = 1e-4);
@@ -806,7 +814,9 @@ mod tests {
         optimizer.momentum = 0.9; // Standard momentum
         let x0 = array![1.0, 1.0]; // Start point
 
-        let result = optimizer.minimize(f, grad_f, x0).unwrap();
+        let result = optimizer
+            .minimize(f, grad_f, x0)
+            .expect("operation should succeed");
 
         // Should converge to (0, 0) with reasonable tolerance
         assert_abs_diff_eq!(result[0], 0.0, epsilon = 0.1);

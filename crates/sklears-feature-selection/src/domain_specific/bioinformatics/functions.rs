@@ -712,22 +712,27 @@ mod tests {
                 11.0, 12.0, 13.0, 14.0, 12.0, 13.0, 14.0, 15.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
         let selector = BioinformaticsFeatureSelector::builder()
             .data_type("gene_expression")
             .analysis_method("differential_expression")
             .k(2)
             .build();
-        let trained = selector.fit(&expression_data, &labels).unwrap();
-        let transformed = trained.transform(&expression_data).unwrap();
+        let trained = selector
+            .fit(&expression_data, &labels)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&expression_data)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 2);
         assert_eq!(transformed.nrows(), 6);
     }
     #[test]
     fn test_apply_normalization() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 8.0, 4.0, 16.0]).unwrap();
-        let log_normalized = apply_normalization(&data, "log2").unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 8.0, 4.0, 16.0])
+            .expect("operation should succeed");
+        let log_normalized = apply_normalization(&data, "log2").expect("operation should succeed");
         assert_eq!(log_normalized.dim(), (3, 2));
         assert!((log_normalized[[0, 0]] - (2.0_f64).log2()).abs() < 1e-6);
         assert!((log_normalized[[0, 1]] - (5.0_f64).log2()).abs() < 1e-6);
@@ -735,10 +740,11 @@ mod tests {
     #[test]
     fn test_multiple_testing_correction() {
         let p_values = Array1::from_vec(vec![0.01, 0.05, 0.1, 0.2, 0.5]);
-        let fdr_corrected = apply_multiple_testing_correction(&p_values, "fdr").unwrap();
+        let fdr_corrected =
+            apply_multiple_testing_correction(&p_values, "fdr").expect("operation should succeed");
         assert_eq!(fdr_corrected.len(), 5);
-        let bonferroni_corrected =
-            apply_multiple_testing_correction(&p_values, "bonferroni").unwrap();
+        let bonferroni_corrected = apply_multiple_testing_correction(&p_values, "bonferroni")
+            .expect("operation should succeed");
         assert_eq!(bonferroni_corrected.len(), 5);
         assert!(bonferroni_corrected[0] >= p_values[0]);
     }
@@ -763,11 +769,13 @@ mod tests {
                 14.0, 15.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0]);
         let selector = BioinformaticsFeatureSelector::builder().k(3).build();
-        let trained = selector.fit(&expression_data, &labels).unwrap();
-        let support = trained.get_support().unwrap();
+        let trained = selector
+            .fit(&expression_data, &labels)
+            .expect("operation should succeed");
+        let support = trained.get_support().expect("operation should succeed");
         assert_eq!(support.len(), 6);
         assert_eq!(support.iter().filter(|&&x| x).count(), 3);
     }
@@ -780,15 +788,19 @@ mod tests {
                 0.0, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let phenotype = Array1::from_vec(vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
         let selector = BioinformaticsFeatureSelector::builder()
             .data_type("snp")
             .analysis_method("association_test")
             .k(2)
             .build();
-        let trained = selector.fit(&snp_data, &phenotype).unwrap();
-        let transformed = trained.transform(&snp_data).unwrap();
+        let trained = selector
+            .fit(&snp_data, &phenotype)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&snp_data)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 2);
         assert_eq!(transformed.nrows(), 6);
     }

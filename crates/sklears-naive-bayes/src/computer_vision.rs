@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, Zip};
 use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -188,8 +188,8 @@ impl ImageNaiveBayes {
             let best_class_idx = log_probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .unwrap()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = self.classes[best_class_idx];
         }
@@ -811,8 +811,8 @@ impl SpatialNaiveBayes {
             let best_class_idx = log_probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .unwrap()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = self.classes[best_class_idx];
         }
@@ -1126,7 +1126,7 @@ pub mod utils {
                 for i in 0..height {
                     for j in 0..width {
                         for c in 0..3 {
-                            pixels[[i, j, c]] = rng.gen();
+                            pixels[[i, j, c]] = rng.random();
                         }
                     }
                 }
@@ -1182,13 +1182,13 @@ mod tests {
         let images = vec![image1.clone(), image2.clone(), image3.clone()];
         let labels = Array1::from_vec(vec![0, 1, 0]);
 
-        nb.fit(&images, &labels).unwrap();
+        nb.fit(&images, &labels).expect("operation should succeed");
         assert!(nb.is_fitted);
 
-        let predictions = nb.predict(&images).unwrap();
+        let predictions = nb.predict(&images).expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
 
-        let probabilities = nb.predict_proba(&images).unwrap();
+        let probabilities = nb.predict_proba(&images).expect("operation should succeed");
         assert_eq!(probabilities.dim(), (3, 2));
 
         // Check probabilities sum to 1
@@ -1215,10 +1215,10 @@ mod tests {
         let images = vec![image1.clone(), image2.clone()];
         let labels = Array1::from_vec(vec![0, 1]);
 
-        nb.fit(&images, &labels).unwrap();
+        nb.fit(&images, &labels).expect("operation should succeed");
         assert!(nb.is_fitted);
 
-        let predictions = nb.predict(&images).unwrap();
+        let predictions = nb.predict(&images).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -1226,11 +1226,11 @@ mod tests {
     fn test_color_space_conversions() {
         let rgb_image = create_test_image(10, 10, TestPattern::Gradient);
 
-        let gray_image = rgb_to_grayscale(&rgb_image).unwrap();
+        let gray_image = rgb_to_grayscale(&rgb_image).expect("operation should succeed");
         assert_eq!(gray_image.metadata.channels, 1);
         assert_eq!(gray_image.metadata.color_space, ColorSpace::Grayscale);
 
-        let hsv_image = rgb_to_hsv(&rgb_image).unwrap();
+        let hsv_image = rgb_to_hsv(&rgb_image).expect("operation should succeed");
         assert_eq!(hsv_image.metadata.channels, 3);
         assert_eq!(hsv_image.metadata.color_space, ColorSpace::HSV);
     }
@@ -1241,7 +1241,9 @@ mod tests {
         let nb = ImageNaiveBayes::new(config);
         let image = create_test_image(10, 10, TestPattern::Random);
 
-        let histogram = nb.extract_color_histogram(&image).unwrap();
+        let histogram = nb
+            .extract_color_histogram(&image)
+            .expect("operation should succeed");
         assert_eq!(histogram.dim(), (3, 64)); // 3 channels, 64 bins
 
         // Check histogram is normalized
@@ -1254,7 +1256,9 @@ mod tests {
         let nb = ImageNaiveBayes::new(ImageNBConfig::default());
         let image = create_test_image(16, 16, TestPattern::Gradient);
 
-        let features = nb.extract_spatial_features(&image).unwrap();
+        let features = nb
+            .extract_spatial_features(&image)
+            .expect("operation should succeed");
         assert!(features.len() > 0);
     }
 
@@ -1263,7 +1267,9 @@ mod tests {
         let nb = ImageNaiveBayes::new(ImageNBConfig::default());
         let image = create_test_image(16, 16, TestPattern::Checkerboard);
 
-        let features = nb.extract_texture_features(&image).unwrap();
+        let features = nb
+            .extract_texture_features(&image)
+            .expect("operation should succeed");
         assert!(features.len() > 0);
     }
 
@@ -1274,7 +1280,9 @@ mod tests {
         let nb = ImageNaiveBayes::new(config);
         let image = create_test_image(32, 32, TestPattern::Gradient);
 
-        let pyramid_features = nb.extract_pyramid_features(&image).unwrap();
+        let pyramid_features = nb
+            .extract_pyramid_features(&image)
+            .expect("operation should succeed");
         assert_eq!(pyramid_features.len(), 2);
     }
 
@@ -1283,7 +1291,9 @@ mod tests {
         let nb = ImageNaiveBayes::new(ImageNBConfig::default());
         let image = create_test_image(16, 16, TestPattern::Gradient);
 
-        let downsampled = nb.downsample_image(&image, 8, 8).unwrap();
+        let downsampled = nb
+            .downsample_image(&image, 8, 8)
+            .expect("operation should succeed");
         assert_eq!(downsampled.dim(), (8, 8, 3));
     }
 
@@ -1318,7 +1328,9 @@ mod tests {
         let nb = SpatialNaiveBayes::new(config.clone());
         let image = create_test_image(16, 16, TestPattern::Gradient);
 
-        let features = nb.extract_spatial_grid_features(&image).unwrap();
+        let features = nb
+            .extract_spatial_grid_features(&image)
+            .expect("operation should succeed");
         assert_eq!(features.dim(), config.grid_size);
     }
 

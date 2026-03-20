@@ -516,7 +516,10 @@ pub fn generate_model_comparison_report(
     }
 
     // Use first model's metrics as base for generating overall report
-    let first_model_metrics = model_metrics.values().next().unwrap();
+    let first_model_metrics = model_metrics
+        .values()
+        .next()
+        .expect("operation should succeed");
     let mut base_report = generate_metric_report(first_model_metrics, config)?;
     base_report.model_comparisons = comparisons;
 
@@ -867,7 +870,11 @@ pub fn generate_comprehensive_model_comparison(
                         // Use the most appropriate test result
                         let significance_test = test_results
                             .into_iter()
-                            .min_by(|a, b| a.p_value.partial_cmp(&b.p_value).unwrap())
+                            .min_by(|a, b| {
+                                a.p_value
+                                    .partial_cmp(&b.p_value)
+                                    .expect("operation should succeed")
+                            })
                             .unwrap_or(basic_test);
 
                         let comparison = ModelComparison {
@@ -891,7 +898,10 @@ pub fn generate_comprehensive_model_comparison(
     }
 
     // Generate comprehensive report
-    let first_model_metrics = model_metrics.values().next().unwrap();
+    let first_model_metrics = model_metrics
+        .values()
+        .next()
+        .expect("operation should succeed");
     let mut base_report = generate_metric_report(first_model_metrics, config)?;
     base_report.model_comparisons = comparisons;
     base_report.statistical_analysis.significance_tests = significance_tests;
@@ -1183,7 +1193,7 @@ mod tests {
         metrics.insert("recall".to_string(), 0.88);
 
         let config = ReportConfig::default();
-        let report = generate_metric_report(&metrics, &config).unwrap();
+        let report = generate_metric_report(&metrics, &config).expect("operation should succeed");
 
         assert_eq!(report.metadata.title, config.title);
         assert_eq!(report.metrics.len(), 3);
@@ -1239,7 +1249,8 @@ mod tests {
         model_metrics.insert("Model2".to_string(), model2_metrics);
 
         let config = ReportConfig::default();
-        let report = generate_model_comparison_report(&model_metrics, &config).unwrap();
+        let report = generate_model_comparison_report(&model_metrics, &config)
+            .expect("operation should succeed");
 
         assert!(!report.model_comparisons.is_empty());
         assert_eq!(report.model_comparisons[0].metric_name, "accuracy");
@@ -1251,7 +1262,7 @@ mod tests {
         metrics.insert("accuracy".to_string(), 0.85);
 
         let config = ReportConfig::default();
-        let report = generate_metric_report(&metrics, &config).unwrap();
+        let report = generate_metric_report(&metrics, &config).expect("operation should succeed");
         let html = report.to_html();
 
         assert!(html.contains("<!DOCTYPE html>"));
@@ -1265,7 +1276,7 @@ mod tests {
         metrics.insert("accuracy".to_string(), 0.85);
 
         let config = ReportConfig::default();
-        let report = generate_metric_report(&metrics, &config).unwrap();
+        let report = generate_metric_report(&metrics, &config).expect("operation should succeed");
         let markdown = report.to_markdown();
 
         assert!(markdown.contains("#"));
@@ -1279,7 +1290,7 @@ mod tests {
         metrics.insert("accuracy".to_string(), 0.75); // Should trigger recommendation
         metrics.insert("precision".to_string(), 0.6); // Should trigger recommendation
 
-        let recommendations = generate_recommendations(&metrics).unwrap();
+        let recommendations = generate_recommendations(&metrics).expect("operation should succeed");
 
         assert!(!recommendations.is_empty());
         assert!(recommendations
@@ -1296,7 +1307,7 @@ mod tests {
         metrics.insert("accuracy".to_string(), 0.95);
         metrics.insert("precision".to_string(), 0.55); // Low precision
 
-        let summary = generate_executive_summary(&metrics).unwrap();
+        let summary = generate_executive_summary(&metrics).expect("operation should succeed");
 
         assert!(!summary.key_findings.is_empty());
         assert!(!summary.critical_issues.is_empty());

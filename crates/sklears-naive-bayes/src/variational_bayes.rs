@@ -136,7 +136,7 @@ impl VariationalParameters {
         self.gamma = Array2::zeros((n_samples, n_classes));
 
         // Initialize with some noise
-        let normal = RandNormal::new(0.0, 0.1).unwrap();
+        let normal = RandNormal::new(0.0, 0.1).expect("operation should succeed");
 
         for (sample_idx, &true_class) in y.iter().enumerate() {
             for (class_idx, &class) in classes.iter().enumerate() {
@@ -362,7 +362,10 @@ impl VariationalBayesNB {
             return Err(VariationalError::DimensionMismatch);
         }
 
-        let var_params = self.variational_params.as_ref().unwrap();
+        let var_params = self
+            .variational_params
+            .as_ref()
+            .expect("operation should succeed");
         let mut log_probabilities = Array2::zeros((X.nrows(), self.classes.len()));
 
         for (sample_idx, sample) in X.axis_iter(Axis(0)).enumerate() {
@@ -525,8 +528,9 @@ impl VariationalBayesNB {
 
                 // Check convergence
                 if self.config.early_stopping && self.elbo_history.len() > 2 {
-                    let recent_improvement = self.elbo_history.last().unwrap()
-                        - self.elbo_history[self.elbo_history.len() - 2];
+                    let recent_improvement =
+                        self.elbo_history.last().expect("operation should succeed")
+                            - self.elbo_history[self.elbo_history.len() - 2];
                     if recent_improvement.abs() < self.config.elbo_tolerance {
                         break;
                     }
@@ -551,7 +555,10 @@ impl VariationalBayesNB {
         for (sample_idx, sample) in X.axis_iter(Axis(0)).enumerate() {
             let mut sample_log_values = Vec::new();
             for (class_idx, _) in self.classes.iter().enumerate() {
-                let var_params = self.variational_params.as_ref().unwrap();
+                let var_params = self
+                    .variational_params
+                    .as_ref()
+                    .expect("operation should succeed");
                 let log_prior = self.compute_expected_log_prior(class_idx, var_params);
                 let log_likelihood = self.compute_expected_log_likelihood(
                     &sample.to_owned(),
@@ -564,7 +571,10 @@ impl VariationalBayesNB {
         }
 
         // Now update gamma with the computed values
-        let var_params = self.variational_params.as_mut().unwrap();
+        let var_params = self
+            .variational_params
+            .as_mut()
+            .expect("operation should succeed");
         for (sample_idx, sample_log_values) in log_values.iter().enumerate() {
             for (class_idx, &log_value) in sample_log_values.iter().enumerate() {
                 var_params.gamma[[sample_idx, class_idx]] = log_value;
@@ -594,7 +604,10 @@ impl VariationalBayesNB {
     }
 
     fn update_alpha(&mut self, y: &Array1<i32>) -> Result<(), VariationalError> {
-        let var_params = self.variational_params.as_mut().unwrap();
+        let var_params = self
+            .variational_params
+            .as_mut()
+            .expect("operation should succeed");
 
         for (class_idx, _) in self.classes.iter().enumerate() {
             let sum_gamma: f64 = var_params.gamma.column(class_idx).sum();
@@ -609,7 +622,10 @@ impl VariationalBayesNB {
         X: &Array2<f64>,
         y: &Array1<i32>,
     ) -> Result<(), VariationalError> {
-        let var_params = self.variational_params.as_mut().unwrap();
+        let var_params = self
+            .variational_params
+            .as_mut()
+            .expect("operation should succeed");
 
         for (class_idx, _) in self.classes.iter().enumerate() {
             for feature_idx in 0..self.n_features {
@@ -657,7 +673,10 @@ impl VariationalBayesNB {
         X: &Array2<f64>,
         y: &Array1<i32>,
     ) -> Result<(), VariationalError> {
-        let var_params = self.variational_params.as_mut().unwrap();
+        let var_params = self
+            .variational_params
+            .as_mut()
+            .expect("operation should succeed");
 
         for (class_idx, _) in self.classes.iter().enumerate() {
             for feature_idx in 0..self.n_features {
@@ -743,7 +762,10 @@ impl VariationalBayesNB {
     }
 
     fn compute_elbo(&self, X: &Array2<f64>, y: &Array1<i32>) -> Result<f64, VariationalError> {
-        let var_params = self.variational_params.as_ref().unwrap();
+        let var_params = self
+            .variational_params
+            .as_ref()
+            .expect("operation should succeed");
 
         // Compute expected log likelihood
         let mut expected_log_likelihood = 0.0;
@@ -800,7 +822,10 @@ impl VariationalBayesNB {
 
         // This is a placeholder for actual gradient computation
         // In a full implementation, this would compute gradients w.r.t. all variational parameters
-        let var_params = self.variational_params.as_ref().unwrap();
+        let var_params = self
+            .variational_params
+            .as_ref()
+            .expect("operation should succeed");
         let grad_mu = Array2::zeros(var_params.mu_mean.dim());
         gradients.insert("mu_mean".to_string(), grad_mu);
 
@@ -884,7 +909,10 @@ impl VariationalBayesNB {
         for (sample_idx, sample) in X.axis_iter(Axis(0)).enumerate() {
             let mut sample_log_values = Vec::new();
             for (class_idx, _) in self.classes.iter().enumerate() {
-                let global_params = self.global_params.as_ref().unwrap();
+                let global_params = self
+                    .global_params
+                    .as_ref()
+                    .expect("operation should succeed");
                 let log_prior = self.compute_expected_log_prior(class_idx, global_params);
                 let log_likelihood = self.compute_expected_log_likelihood(
                     &sample.to_owned(),
@@ -935,8 +963,14 @@ impl VariationalBayesNB {
         y: &Array1<i32>,
     ) -> Result<VariationalParameters, VariationalError> {
         // Compute natural gradients for global parameters
-        let var_params = self.variational_params.as_ref().unwrap();
-        let global_params = self.global_params.as_ref().unwrap();
+        let var_params = self
+            .variational_params
+            .as_ref()
+            .expect("operation should succeed");
+        let global_params = self
+            .global_params
+            .as_ref()
+            .expect("operation should succeed");
         let minibatch_size = X.nrows();
         let scaling_factor = self.data_size as f64 / minibatch_size as f64;
 
@@ -1178,8 +1212,8 @@ mod tests {
         let mut var_params = VariationalParameters::new(3, 2, 5);
         let mut rng = scirs2_core::random::CoreRandom::seed_from_u64(42);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
         let classes = vec![0, 1];
 
@@ -1202,17 +1236,17 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 3.0, 3.0, 3.1, 3.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 
         assert!(vb_nb.fit(&X, &y).is_ok());
         assert!(vb_nb.is_fitted);
         assert!(!vb_nb.elbo_history.is_empty());
 
-        let predictions = vb_nb.predict(&X).unwrap();
+        let predictions = vb_nb.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probabilities = vb_nb.predict_proba(&X).unwrap();
+        let probabilities = vb_nb.predict_proba(&X).expect("operation should succeed");
         assert_eq!(probabilities.dim(), (6, 3));
     }
 
@@ -1226,8 +1260,8 @@ mod tests {
         let mut vb_nb = VariationalBayesNB::new(config);
         vb_nb.set_feature_types(vec![FeatureType::Continuous, FeatureType::Continuous]);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(vb_nb.fit(&X, &y).is_ok());
@@ -1243,13 +1277,13 @@ mod tests {
         // Set mixed feature types
         vb_nb.set_feature_types(vec![FeatureType::Discrete(3), FeatureType::Binary]);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 0.0, 0.0, 1.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(vb_nb.fit(&X, &y).is_ok());
 
-        let predictions = vb_nb.predict(&X).unwrap();
+        let predictions = vb_nb.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -1261,8 +1295,8 @@ mod tests {
         let mut vb_nb = VariationalBayesNB::new(config);
         vb_nb.set_feature_types(vec![FeatureType::Continuous, FeatureType::Continuous]);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         assert!(vb_nb.fit(&X, &y).is_ok());
@@ -1298,17 +1332,17 @@ mod tests {
                 1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.3, 1.3, 2.0, 2.0, 2.1, 2.1, 2.2, 2.2, 2.3, 2.3,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         assert!(vb_nb.fit(&X, &y).is_ok());
         assert!(vb_nb.is_fitted);
 
         // Test predictions
-        let predictions = vb_nb.predict(&X).unwrap();
+        let predictions = vb_nb.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 8);
 
-        let probabilities = vb_nb.predict_proba(&X).unwrap();
+        let probabilities = vb_nb.predict_proba(&X).expect("operation should succeed");
         assert_eq!(probabilities.dim(), (8, 2));
 
         // Check that probabilities sum to 1
@@ -1341,7 +1375,7 @@ mod tests {
             (5, 2),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 0, 1, 0]);
 
         let indices = vec![0, 2, 4];

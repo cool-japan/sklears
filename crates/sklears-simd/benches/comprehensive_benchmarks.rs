@@ -236,8 +236,10 @@ fn bench_matrix_memory_analysis(c: &mut Criterion) {
         let b_flat: Vec<f32> = (0..*size * *size).map(|i| (i + 1) as f32).collect();
 
         // Convert to ndarray for compatibility
-        let a = sklears_core::prelude::Array2::from_shape_vec((*size, *size), a_flat).unwrap();
-        let b = sklears_core::prelude::Array2::from_shape_vec((*size, *size), b_flat).unwrap();
+        let a = sklears_core::prelude::Array2::from_shape_vec((*size, *size), a_flat)
+            .expect("shape and data length should match");
+        let b = sklears_core::prelude::Array2::from_shape_vec((*size, *size), b_flat)
+            .expect("shape and data length should match");
 
         // Benchmark matrix multiplication with memory analysis
         let mm_result = suite.benchmark(&format!("matrix_multiply_{}", size), 100, || {

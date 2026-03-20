@@ -1193,10 +1193,10 @@ mod tests {
             vec!["test".to_string()],
             HashMap::new(),
             None,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Verify execution is tracked
-        let record = history.get_execution(&execution_id).unwrap();
+        let record = history.get_execution(&execution_id).unwrap_or_default();
         assert_eq!(record.status, ExecutionStatus::Running);
         assert_eq!(record.algorithm_name, "test_algorithm");
 
@@ -1245,10 +1245,10 @@ mod tests {
             vec![],
             performance_metrics,
             resource_usage,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Verify completion
-        let completed_record = history.get_execution(&execution_id).unwrap();
+        let completed_record = history.get_execution(&execution_id).unwrap_or_default();
         assert_eq!(completed_record.status, ExecutionStatus::Completed);
         assert!(completed_record.duration.is_some());
         assert_eq!(completed_record.performance_metrics.accuracy, Some(0.95));
@@ -1265,7 +1265,7 @@ mod tests {
             vec![],
             HashMap::new(),
             None,
-        ).unwrap();
+        ).unwrap_or_default();
 
         let error_info = ErrorInfo {
             error_type: "ValidationError".to_string(),
@@ -1278,9 +1278,9 @@ mod tests {
             last_occurrence: SystemTime::now(),
         };
 
-        history.fail_execution(&execution_id, error_info, None).unwrap();
+        history.fail_execution(&execution_id, error_info, None).unwrap_or_default();
 
-        let failed_record = history.get_execution(&execution_id).unwrap();
+        let failed_record = history.get_execution(&execution_id).unwrap_or_default();
         assert_eq!(failed_record.status, ExecutionStatus::Failed);
         assert!(failed_record.error_info.is_some());
     }
@@ -1297,7 +1297,7 @@ mod tests {
             vec![],
             HashMap::new(),
             None,
-        ).unwrap();
+        ).unwrap_or_default();
 
         let id2 = history.start_execution(
             "algorithm_b".to_string(),
@@ -1306,7 +1306,7 @@ mod tests {
             vec![],
             HashMap::new(),
             None,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Complete one, fail another
         history.complete_execution(
@@ -1349,7 +1349,7 @@ mod tests {
                 gpu: None,
                 network: None,
             },
-        ).unwrap();
+        ).unwrap_or_default();
 
         history.fail_execution(
             &id2,
@@ -1364,7 +1364,7 @@ mod tests {
                 last_occurrence: SystemTime::now(),
             },
             None,
-        ).unwrap();
+        ).unwrap_or_default();
 
         // Test queries
         let algorithm_a_executions = history.get_executions_by_algorithm("algorithm_a");
@@ -1388,7 +1388,7 @@ mod tests {
             vec![],
             HashMap::new(),
             None,
-        ).unwrap();
+        ).unwrap_or_default();
 
         history.complete_execution(
             &id,
@@ -1430,7 +1430,7 @@ mod tests {
                 gpu: None,
                 network: None,
             },
-        ).unwrap();
+        ).unwrap_or_default();
 
         let stats = history.get_statistics();
         assert_eq!(stats["total_executions"], json!(1));

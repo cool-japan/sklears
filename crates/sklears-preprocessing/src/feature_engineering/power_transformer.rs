@@ -380,7 +380,9 @@ impl Fit<Array2<Float>, ()> for PowerTransformer<Untrained> {
                 transformed_data.column_mut(j).assign(&transformed_column);
             }
 
-            let means = transformed_data.mean_axis(Axis(0)).unwrap();
+            let means = transformed_data
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             let stds = transformed_data.std_axis(Axis(0), 0.0);
             (Some(means), Some(stds))
         } else {
@@ -503,7 +505,9 @@ mod tests {
         let transformed = fitted.transform(&x)?;
 
         // Check that standardization was applied (mean ≈ 0, std ≈ 1)
-        let mean = transformed.mean_axis(Axis(0)).unwrap();
+        let mean = transformed
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let std = transformed.std_axis(Axis(0), 0.0);
 
         assert_abs_diff_eq!(mean[0], 0.0, epsilon = 1e-10);

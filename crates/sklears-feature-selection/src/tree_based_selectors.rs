@@ -95,7 +95,7 @@ where
         } else {
             // Use median as default threshold
             let mut sorted_importances = importances.to_vec();
-            sorted_importances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_importances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             sorted_importances[sorted_importances.len() / 2]
         };
 
@@ -109,7 +109,7 @@ where
             if selected_features.len() > max_feat {
                 // Sort by importance and take top max_feat
                 selected_features
-                    .sort_by(|&a, &b| importances[b].partial_cmp(&importances[a]).unwrap());
+                    .sort_by(|&a, &b| importances[b].partial_cmp(&importances[a]).expect("operation should succeed"));
                 selected_features.truncate(max_feat);
                 selected_features.sort(); // Restore original order
             }
@@ -137,9 +137,9 @@ where
 
 impl<E> Transform<Array2<Float>> for TreeSelector<E, Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         let n_samples = x.nrows();
         let k = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, k));
@@ -154,8 +154,8 @@ impl<E> Transform<Array2<Float>> for TreeSelector<E, Trained> {
 
 impl<E> SelectorMixin for TreeSelector<E, Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -166,7 +166,7 @@ impl<E> SelectorMixin for TreeSelector<E, Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -177,8 +177,8 @@ impl<E> SelectorMixin for TreeSelector<E, Trained> {
 impl<E> TreeSelector<E, Trained> {
     /// Get the support mask
     pub fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -190,12 +190,12 @@ impl<E> TreeSelector<E, Trained> {
 
     /// Get the threshold used for selection
     pub fn threshold(&self) -> f64 {
-        self.threshold_.unwrap()
+        self.threshold_.expect("operation should succeed")
     }
 
     /// Get selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_.as_ref().expect("operation should succeed")
     }
 }
 
@@ -262,57 +262,69 @@ impl GradientBoostingSelector<Untrained> {
     }
 
     /// Set the number of boosting estimators
-    pub fn n_estimators(mut self, n_estimators: usize) -> Self {
+    pub fn n_estimators(mut self, n_estimators: usize) -> Result<Self, SklearsError> {
         if n_estimators < 1 {
-            panic!("n_estimators must be at least 1");
+            return Err(SklearsError::InvalidInput(
+                "n_estimators must be at least 1".to_string(),
+            ));
         }
         self.n_estimators = n_estimators;
-        self
+        Ok(self)
     }
 
     /// Set the learning rate
-    pub fn learning_rate(mut self, learning_rate: f64) -> Self {
+    pub fn learning_rate(mut self, learning_rate: f64) -> Result<Self, SklearsError> {
         if learning_rate <= 0.0 {
-            panic!("learning_rate must be positive");
+            return Err(SklearsError::InvalidInput(
+                "learning_rate must be positive".to_string(),
+            ));
         }
         self.learning_rate = learning_rate;
-        self
+        Ok(self)
     }
 
     /// Set the maximum depth of decision stumps
-    pub fn max_depth(mut self, max_depth: usize) -> Self {
+    pub fn max_depth(mut self, max_depth: usize) -> Result<Self, SklearsError> {
         if max_depth < 1 {
-            panic!("max_depth must be at least 1");
+            return Err(SklearsError::InvalidInput(
+                "max_depth must be at least 1".to_string(),
+            ));
         }
         self.max_depth = max_depth;
-        self
+        Ok(self)
     }
 
     /// Set the minimum samples required to split a node
-    pub fn min_samples_split(mut self, min_samples_split: usize) -> Self {
+    pub fn min_samples_split(mut self, min_samples_split: usize) -> Result<Self, SklearsError> {
         if min_samples_split < 2 {
-            panic!("min_samples_split must be at least 2");
+            return Err(SklearsError::InvalidInput(
+                "min_samples_split must be at least 2".to_string(),
+            ));
         }
         self.min_samples_split = min_samples_split;
-        self
+        Ok(self)
     }
 
     /// Set the minimum samples required at a leaf
-    pub fn min_samples_leaf(mut self, min_samples_leaf: usize) -> Self {
+    pub fn min_samples_leaf(mut self, min_samples_leaf: usize) -> Result<Self, SklearsError> {
         if min_samples_leaf < 1 {
-            panic!("min_samples_leaf must be at least 1");
+            return Err(SklearsError::InvalidInput(
+                "min_samples_leaf must be at least 1".to_string(),
+            ));
         }
         self.min_samples_leaf = min_samples_leaf;
-        self
+        Ok(self)
     }
 
     /// Set the subsample ratio for training each estimator
-    pub fn subsample(mut self, subsample: f64) -> Self {
+    pub fn subsample(mut self, subsample: f64) -> Result<Self, SklearsError> {
         if !(0.0..=1.0).contains(&subsample) {
-            panic!("subsample must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "subsample must be between 0 and 1".to_string(),
+            ));
         }
         self.subsample = subsample;
-        self
+        Ok(self)
     }
 
     /// Set the threshold for feature selection
@@ -408,7 +420,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingSelector<Untrained> {
             for feature_idx in 0..n_features {
                 // Get unique values for this feature
                 let mut feature_values: Vec<f64> = x_sample.column(feature_idx).to_vec();
-                feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 feature_values.dedup();
 
                 // Try different thresholds
@@ -512,7 +524,7 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingSelector<Untrained> {
                 selected_features.sort_by(|&a, &b| {
                     feature_importances[b]
                         .partial_cmp(&feature_importances[a])
-                        .unwrap()
+                        .expect("operation should succeed")
                 });
                 selected_features.truncate(max_feat);
                 selected_features.sort(); // Restore original order
@@ -546,17 +558,17 @@ impl Fit<Array2<Float>, Array1<Float>> for GradientBoostingSelector<Untrained> {
 
 impl Transform<Array2<Float>> for GradientBoostingSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         extract_features(x, selected_features)
     }
 }
 
 impl SelectorMixin for GradientBoostingSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -567,7 +579,7 @@ impl SelectorMixin for GradientBoostingSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self.selected_features_.as_ref().expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -578,17 +590,17 @@ impl SelectorMixin for GradientBoostingSelector<Trained> {
 impl GradientBoostingSelector<Trained> {
     /// Get feature importances
     pub fn feature_importances(&self) -> &Array1<Float> {
-        self.feature_importances_.as_ref().unwrap()
+        self.feature_importances_.as_ref().expect("operation should succeed")
     }
 
     /// Get selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_.as_ref().expect("operation should succeed")
     }
 
     /// Get the trained estimators (decision stumps)
     pub(crate) fn estimators(&self) -> &[DecisionStump] {
-        self.estimators_.as_ref().unwrap()
+        self.estimators_.as_ref().expect("operation should succeed")
     }
 }
 

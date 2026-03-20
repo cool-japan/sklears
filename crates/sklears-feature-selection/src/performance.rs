@@ -397,7 +397,7 @@ impl ParallelSelector {
 
         // Sort by MI score and select top k
         let mut sorted_scores = mi_scores;
-        sorted_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        sorted_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut selection = Array1::from_elem(n_features, false);
         for (feature_idx, _) in sorted_scores.into_iter().take(k) {
@@ -443,7 +443,7 @@ impl ParallelSelector {
 
         // Sort by chi-square score and select top k
         let mut sorted_scores = chi_scores;
-        sorted_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        sorted_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut selection = Array1::from_elem(n_features, false);
         for (feature_idx, _) in sorted_scores.into_iter().take(k) {
@@ -483,7 +483,8 @@ impl ParallelSelector {
                 .map(|(&idx, &imp)| (idx, imp))
                 .collect();
 
-            indexed_importances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            indexed_importances
+                .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Remove features with lowest importance
             for i in 0..n_to_remove {
@@ -875,8 +876,16 @@ impl PerformanceProfiler {
     }
 
     pub fn get_report(&self) -> PerformanceReport {
-        let timings = self.timings.lock().unwrap().clone();
-        let memory_usage = self.memory_usage.lock().unwrap().clone();
+        let timings = self
+            .timings
+            .lock()
+            .expect("operation should succeed")
+            .clone();
+        let memory_usage = self
+            .memory_usage
+            .lock()
+            .expect("operation should succeed")
+            .clone();
 
         PerformanceReport {
             timings: timings.clone(),

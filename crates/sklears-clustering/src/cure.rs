@@ -637,7 +637,7 @@ mod tests {
 
     fn create_sample_data() -> Array2<f64> {
         let data = vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 8.0, 8.0, 1.0, 0.6, 9.0, 11.0];
-        Array2::from_shape_vec((6, 2), data).unwrap()
+        Array2::from_shape_vec((6, 2), data).expect("operation should succeed")
     }
 
     #[test]
@@ -649,7 +649,7 @@ mod tests {
             .shrink_factor(0.2)
             .build();
 
-        let result = cure.fit(&data, &()).unwrap();
+        let result = cure.fit(&data, &()).expect("operation should succeed");
         assert_eq!(result.labels().len(), 6);
         assert_eq!(result.cluster_centers().nrows(), 2);
         assert_eq!(result.cluster_centers().ncols(), 2);
@@ -660,8 +660,8 @@ mod tests {
         let data = create_sample_data();
         let cure = CURE::builder().n_clusters(2).build();
 
-        let fitted = cure.fit(&data, &()).unwrap();
-        let predictions = fitted.predict(&data).unwrap();
+        let fitted = cure.fit(&data, &()).expect("operation should succeed");
+        let predictions = fitted.predict(&data).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
     }
 
@@ -695,7 +695,7 @@ mod tests {
             .random_seed(Some(42))
             .build();
 
-        let result = cure.fit(&data, &()).unwrap();
+        let result = cure.fit(&data, &()).expect("operation should succeed");
         assert_eq!(result.labels().len(), 6);
     }
 
@@ -715,8 +715,8 @@ mod tests {
         let data = create_sample_data();
         let cure = CURE::builder().n_clusters(2).build();
 
-        let fitted = cure.fit(&data, &()).unwrap();
-        let inertia = fitted.inertia(&data).unwrap();
+        let fitted = cure.fit(&data, &()).expect("operation should succeed");
+        let inertia = fitted.inertia(&data).expect("operation should succeed");
         assert!(inertia >= 0.0);
     }
 }

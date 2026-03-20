@@ -238,7 +238,7 @@ impl QuadraticDiscriminantAnalysis<Untrained> {
             .max(n_features + 1)
             .min(n_samples);
 
-        let mut best_mean = data.mean_axis(Axis(0)).unwrap();
+        let mut best_mean = data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
         let mut best_cov = Array2::eye(n_features);
         let mut best_det = Float::INFINITY;
         let mut best_weights = Array1::ones(n_samples);
@@ -258,7 +258,7 @@ impl QuadraticDiscriminantAnalysis<Untrained> {
             let subset_data: Array2<Float> =
                 Array2::from_shape_fn((subset_size, n_features), |(i, j)| data[[indices[i], j]]);
 
-            let subset_mean = subset_data.mean_axis(Axis(0)).unwrap();
+            let subset_mean = subset_data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
             let mut subset_cov = Array2::zeros((n_features, n_features));
 
             // Compute covariance for subset
@@ -675,7 +675,7 @@ impl Predict<Array2<Float>, Array1<i32>> for QuadraticDiscriminantAnalysis<Train
                     .iter()
                     .enumerate()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
+                    .expect("value should be present")
                     .0;
                 classes[max_idx]
             })
@@ -791,9 +791,9 @@ mod tests {
         ];
         let y = array![0, 0, 0, 0, 1, 1, 1, 1];
 
-        let trained_qda = qda.fit(&X, &y).unwrap();
-        let predictions = trained_qda.predict(&X).unwrap();
-        let probabilities = trained_qda.predict_proba(&X).unwrap();
+        let trained_qda = qda.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained_qda.predict(&X).expect("prediction should succeed");
+        let probabilities = trained_qda.predict_proba(&X).expect("probability prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(probabilities.dim(), (8, 2));
@@ -897,7 +897,7 @@ mod tests {
         ];
         let y = array![0, 0, 1, 1];
 
-        let trained_qda = qda.fit(&X, &y).unwrap();
+        let trained_qda = qda.fit(&X, &y).expect("model fitting should succeed");
 
         assert_eq!(trained_qda.classes().len(), 2);
         assert_eq!(trained_qda.means().dim(), (2, 2));

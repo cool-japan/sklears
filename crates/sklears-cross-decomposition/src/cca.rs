@@ -40,8 +40,8 @@ fn safe_mean_axis(arr: &Array2<Float>, axis: Axis) -> Result<Array1<Float>> {
 /// let Y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0]];
 ///
 /// let cca = CCA::new(1);
-/// let fitted = cca.fit(&X, &Y).unwrap();
-/// let X_c = fitted.transform(&X).unwrap();
+/// let fitted = cca.fit(&X, &Y).expect("fit should succeed");
+/// let X_c = fitted.transform(&X).expect("transform should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct CCA<State = Untrained> {
@@ -460,8 +460,8 @@ impl CCA<Trained> {
 /// let Y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0]];
 ///
 /// let cca = RidgeCCA::new(1, 0.1, 0.1);
-/// let fitted = cca.fit(&X, &Y).unwrap();
-/// let X_c = fitted.transform(&X).unwrap();
+/// let fitted = cca.fit(&X, &Y).expect("fit should succeed");
+/// let X_c = fitted.transform(&X).expect("transform should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RidgeCCA<State = Untrained> {
@@ -969,8 +969,8 @@ impl RidgeCCA<Trained> {
 /// let Y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0]];
 ///
 /// let cca = SparseCCA::new(1, 0.1, 0.1);
-/// let fitted = cca.fit(&X, &Y).unwrap();
-/// let X_c = fitted.transform(&X).unwrap();
+/// let fitted = cca.fit(&X, &Y).expect("fit should succeed");
+/// let X_c = fitted.transform(&X).expect("transform should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SparseCCA<State = Untrained> {
@@ -1433,10 +1433,10 @@ mod tests {
         let y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0],];
 
         let cca = CCA::new(1);
-        let fitted = cca.fit(&x, &y).unwrap();
+        let fitted = cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
-        let y_canonical = fitted.transform_y(&y).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
+        let y_canonical = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 1]);
         assert_eq!(y_canonical.shape(), &[4, 1]);
@@ -1455,10 +1455,10 @@ mod tests {
         let y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0], [10.0, 9.0],];
 
         let cca = CCA::new(2);
-        let fitted = cca.fit(&x, &y).unwrap();
+        let fitted = cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
-        let y_canonical = fitted.transform_y(&y).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
+        let y_canonical = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[5, 2]);
         assert_eq!(y_canonical.shape(), &[5, 2]);
@@ -1471,16 +1471,18 @@ mod tests {
         let y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0],];
 
         let ridge_cca = RidgeCCA::new(1, 0.1, 0.1);
-        let fitted = ridge_cca.fit(&x, &y).unwrap();
+        let fitted = ridge_cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
-        let y_canonical = fitted.transform_y(&y).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
+        let y_canonical = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 1]);
         assert_eq!(y_canonical.shape(), &[4, 1]);
 
         // Check that canonical correlations are computed
-        let correlations = fitted.canonical_correlations().unwrap();
+        let correlations = fitted
+            .canonical_correlations()
+            .expect("operation should succeed");
         assert_eq!(correlations.len(), 1);
         assert!(correlations[0] >= -1.0 && correlations[0] <= 1.0);
     }
@@ -1498,16 +1500,18 @@ mod tests {
 
         // High regularization should still work
         let ridge_cca = RidgeCCA::new(2, 1.0, 1.0);
-        let fitted = ridge_cca.fit(&x, &y).unwrap();
+        let fitted = ridge_cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
-        let y_canonical = fitted.transform_y(&y).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
+        let y_canonical = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 2]);
         assert_eq!(y_canonical.shape(), &[4, 2]);
 
         // Check canonical correlations
-        let correlations = fitted.canonical_correlations().unwrap();
+        let correlations = fitted
+            .canonical_correlations()
+            .expect("operation should succeed");
         assert_eq!(correlations.len(), 2);
         for &corr in correlations.iter() {
             assert!(corr >= -1.0 && corr <= 1.0);
@@ -1521,9 +1525,9 @@ mod tests {
         let y = array![[2.0], [4.0], [6.0], [8.0],];
 
         let ridge_cca = RidgeCCA::new(1, 0.1, 0.1).scale(false);
-        let fitted = ridge_cca.fit(&x, &y).unwrap();
+        let fitted = ridge_cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 1]);
     }
@@ -1536,13 +1540,17 @@ mod tests {
 
         // Low regularization
         let ridge_cca_low = RidgeCCA::new(1, 0.001, 0.001);
-        let fitted_low = ridge_cca_low.fit(&x, &y).unwrap();
-        let corr_low = fitted_low.canonical_correlations().unwrap()[0];
+        let fitted_low = ridge_cca_low.fit(&x, &y).expect("fit should succeed");
+        let corr_low = fitted_low
+            .canonical_correlations()
+            .expect("operation should succeed")[0];
 
         // High regularization
         let ridge_cca_high = RidgeCCA::new(1, 1.0, 1.0);
-        let fitted_high = ridge_cca_high.fit(&x, &y).unwrap();
-        let corr_high = fitted_high.canonical_correlations().unwrap()[0];
+        let fitted_high = ridge_cca_high.fit(&x, &y).expect("fit should succeed");
+        let corr_high = fitted_high
+            .canonical_correlations()
+            .expect("operation should succeed")[0];
 
         // Both should be valid correlations
         assert!(corr_low >= -1.0 && corr_low <= 1.0);
@@ -1708,8 +1716,8 @@ mod tests {
             let ridge_high = RidgeCCA::new(1, reg_high, reg_high);
 
             if let (Ok(fitted_low), Ok(fitted_high)) = (ridge_low.fit(&x, &y), ridge_high.fit(&x, &y)) {
-                let corr_low = fitted_low.canonical_correlations().unwrap()[0];
-                let corr_high = fitted_high.canonical_correlations().unwrap()[0];
+                let corr_low = fitted_low.canonical_correlations().expect("operation should succeed")[0];
+                let corr_high = fitted_high.canonical_correlations().expect("operation should succeed")[0];
 
                 // Both should be valid correlations
                 prop_assert!(corr_low >= -1.0 && corr_low <= 1.0);
@@ -1784,16 +1792,18 @@ mod tests {
         let y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0],];
 
         let sparse_cca = SparseCCA::new(1, 0.1, 0.1);
-        let fitted = sparse_cca.fit(&x, &y).unwrap();
+        let fitted = sparse_cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
-        let y_canonical = fitted.transform_y(&y).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
+        let y_canonical = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 1]);
         assert_eq!(y_canonical.shape(), &[4, 1]);
 
         // Check that canonical correlations are computed
-        let correlations = fitted.canonical_correlations().unwrap();
+        let correlations = fitted
+            .canonical_correlations()
+            .expect("operation should succeed");
         assert_eq!(correlations.len(), 1);
         assert!(correlations[0] >= -1.0 && correlations[0] <= 1.0);
     }
@@ -1811,19 +1821,19 @@ mod tests {
 
         // High regularization should produce sparse weights
         let sparse_cca = SparseCCA::new(1, 0.5, 0.5);
-        let fitted = sparse_cca.fit(&x, &y).unwrap();
+        let fitted = sparse_cca.fit(&x, &y).expect("fit should succeed");
 
         // Check sparsity
-        let x_sparsity = fitted.x_sparsity().unwrap();
-        let y_sparsity = fitted.y_sparsity().unwrap();
+        let x_sparsity = fitted.x_sparsity().expect("operation should succeed");
+        let y_sparsity = fitted.y_sparsity().expect("operation should succeed");
 
         // With high regularization, we should have fewer non-zero weights
         assert!(x_sparsity <= 4); // Should be less than total features
         assert!(y_sparsity <= 2); // Should be less than total features
 
         // Weights should be finite
-        let x_weights = fitted.x_weights().unwrap();
-        let y_weights = fitted.y_weights().unwrap();
+        let x_weights = fitted.x_weights().expect("operation should succeed");
+        let y_weights = fitted.y_weights().expect("operation should succeed");
 
         for val in x_weights.iter() {
             assert!(val.is_finite());
@@ -1846,15 +1856,15 @@ mod tests {
 
         // Low regularization
         let sparse_cca_low = SparseCCA::new(1, 0.01, 0.01);
-        let fitted_low = sparse_cca_low.fit(&x, &y).unwrap();
-        let sparsity_low_x = fitted_low.x_sparsity().unwrap();
-        let sparsity_low_y = fitted_low.y_sparsity().unwrap();
+        let fitted_low = sparse_cca_low.fit(&x, &y).expect("fit should succeed");
+        let sparsity_low_x = fitted_low.x_sparsity().expect("operation should succeed");
+        let sparsity_low_y = fitted_low.y_sparsity().expect("operation should succeed");
 
         // High regularization
         let sparse_cca_high = SparseCCA::new(1, 0.5, 0.5);
-        let fitted_high = sparse_cca_high.fit(&x, &y).unwrap();
-        let sparsity_high_x = fitted_high.x_sparsity().unwrap();
-        let sparsity_high_y = fitted_high.y_sparsity().unwrap();
+        let fitted_high = sparse_cca_high.fit(&x, &y).expect("fit should succeed");
+        let sparsity_high_x = fitted_high.x_sparsity().expect("operation should succeed");
+        let sparsity_high_y = fitted_high.y_sparsity().expect("operation should succeed");
 
         // High regularization should produce more sparsity (fewer non-zero weights)
         assert!(sparsity_high_x <= sparsity_low_x);
@@ -1874,16 +1884,18 @@ mod tests {
         let y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0], [10.0, 9.0],];
 
         let sparse_cca = SparseCCA::new(2, 0.1, 0.1);
-        let fitted = sparse_cca.fit(&x, &y).unwrap();
+        let fitted = sparse_cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
-        let y_canonical = fitted.transform_y(&y).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
+        let y_canonical = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[5, 2]);
         assert_eq!(y_canonical.shape(), &[5, 2]);
 
         // Check canonical correlations
-        let correlations = fitted.canonical_correlations().unwrap();
+        let correlations = fitted
+            .canonical_correlations()
+            .expect("operation should succeed");
         assert_eq!(correlations.len(), 2);
         for &corr in correlations.iter() {
             assert!(corr >= -1.0 && corr <= 1.0);
@@ -1897,9 +1909,9 @@ mod tests {
         let y = array![[2.0], [4.0], [6.0], [8.0],];
 
         let sparse_cca = SparseCCA::new(1, 0.1, 0.1).scale(false);
-        let fitted = sparse_cca.fit(&x, &y).unwrap();
+        let fitted = sparse_cca.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 1]);
     }

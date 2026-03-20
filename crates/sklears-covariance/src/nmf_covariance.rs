@@ -228,7 +228,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for NMFCovariance<Untrained> {
         }
 
         // Compute empirical covariance matrix
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = x - &mean;
         let cov_matrix = centered.t().dot(&centered) / (n_samples - 1) as f64;
 

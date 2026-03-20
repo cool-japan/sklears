@@ -209,7 +209,7 @@ impl MixedTypeFeatureExtractor {
             }
             (MissingValueStrategy::Median, FeatureType::Numerical) => {
                 let mut sorted = valid_values.clone();
-                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let mid = sorted.len() / 2;
                 if sorted.len() % 2 == 0 {
                     (sorted[mid - 1] + sorted[mid]) / 2.0
@@ -567,7 +567,7 @@ mod tests {
                 2.0, 3.0, 4.0, 3.0, 1.0, 2.0, // numerical: 2,3,4  categorical: 3,1  ordinal: 2
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,   // col 0
@@ -583,8 +583,8 @@ mod tests {
             .normalize_numerical(true)
             .encoding_strategy(CategoricalEncoding::OneHot);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 4);
         assert!(features.ncols() > 6); // Should be expanded due to one-hot encoding
@@ -601,7 +601,7 @@ mod tests {
             (3, 4),
             vec![1.0, 1.0, 0.0, 5.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 0.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,
@@ -621,8 +621,8 @@ mod tests {
                 .feature_types(feature_types.clone())
                 .encoding_strategy(encoding);
 
-            let fitted = extractor.fit(&data, &()).unwrap();
-            let features = fitted.transform(&data).unwrap();
+            let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+            let features = fitted.transform(&data).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 3);
             assert!(features.ncols() > 0);
@@ -653,7 +653,7 @@ mod tests {
                 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,
@@ -674,8 +674,8 @@ mod tests {
                 .handle_missing_values(true)
                 .missing_value_strategy(strategy);
 
-            let fitted = extractor.fit(&data, &()).unwrap();
-            let features = fitted.transform(&data).unwrap();
+            let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+            let features = fitted.transform(&data).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 4);
 
@@ -704,7 +704,7 @@ mod tests {
             (3, 4),
             vec![1.0, 1.0, 0.0, 5.0, 2.0, 2.0, 1.0, 3.0, 3.0, 1.0, 0.0, 4.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let feature_types = vec![
             FeatureType::Numerical,
@@ -717,9 +717,9 @@ mod tests {
             .feature_types(feature_types)
             .random_state(42);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features1 = fitted.transform(&data).unwrap();
-        let features2 = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features1 = fitted.transform(&data).expect("operation should succeed");
+        let features2 = fitted.transform(&data).expect("operation should succeed");
 
         // Results should be identical
         assert_eq!(features1.shape(), features2.shape());

@@ -1436,7 +1436,8 @@ mod tests {
         let X = array![[0., 0.], [3., 4.], [1., 1.]];
         let Y = array![[1., 0.], [0., 1.]];
 
-        let distances = euclidean_distances(&X.view(), Some(&Y.view())).unwrap();
+        let distances =
+            euclidean_distances(&X.view(), Some(&Y.view())).expect("operation should succeed");
 
         assert_eq!(distances.dim(), (3, 2));
         assert!((distances[[0, 0]] - 1.0).abs() < 1e-10);
@@ -1451,7 +1452,7 @@ mod tests {
     fn test_euclidean_distances_self() {
         let X = array![[0., 0.], [1., 1.], [2., 2.]];
 
-        let distances = euclidean_distances(&X.view(), None).unwrap();
+        let distances = euclidean_distances(&X.view(), None).expect("operation should succeed");
 
         assert_eq!(distances.dim(), (3, 3));
         // Diagonal should be zero
@@ -1471,7 +1472,8 @@ mod tests {
         let X = array![[1., 2., f64::NAN], [4., f64::NAN, 6.]];
         let Y = array![[1., 2., 3.]];
 
-        let distances = nan_euclidean_distances(&X.view(), Some(&Y.view())).unwrap();
+        let distances =
+            nan_euclidean_distances(&X.view(), Some(&Y.view())).expect("operation should succeed");
 
         assert_eq!(distances.dim(), (2, 1));
         // First distance: only first two features are valid
@@ -1487,8 +1489,8 @@ mod tests {
         let X = array![[0., 0.], [1., 1.], [2., 2.]];
         let Y = array![[1., 0.], [0., 1.]];
 
-        let distances =
-            pairwise_distances(&X.view(), Some(&Y.view()), DistanceMetric::Manhattan).unwrap();
+        let distances = pairwise_distances(&X.view(), Some(&Y.view()), DistanceMetric::Manhattan)
+            .expect("operation should succeed");
 
         assert_eq!(distances.dim(), (3, 2));
         assert!((distances[[0, 0]] - 1.0).abs() < 1e-10);
@@ -1504,8 +1506,8 @@ mod tests {
         let X = array![[0., 0.], [1., 1.], [3., 4.]];
         let Y = array![[1., 0.], [0., 1.]];
 
-        let distances =
-            pairwise_distances(&X.view(), Some(&Y.view()), DistanceMetric::Chebyshev).unwrap();
+        let distances = pairwise_distances(&X.view(), Some(&Y.view()), DistanceMetric::Chebyshev)
+            .expect("operation should succeed");
 
         assert_eq!(distances.dim(), (3, 2));
         assert!((distances[[0, 0]] - 1.0).abs() < 1e-10);
@@ -1520,7 +1522,8 @@ mod tests {
     fn test_cosine_distances() {
         let X = array![[1., 0.], [0., 1.], [1., 1.]];
 
-        let distances = pairwise_distances(&X.view(), None, DistanceMetric::Cosine).unwrap();
+        let distances = pairwise_distances(&X.view(), None, DistanceMetric::Cosine)
+            .expect("operation should succeed");
 
         assert_eq!(distances.dim(), (3, 3));
         // Diagonal should be zero (perfect similarity with self)
@@ -1539,7 +1542,7 @@ mod tests {
 
         let argmin =
             pairwise_distances_argmin(&X.view(), Some(&Y.view()), DistanceMetric::Euclidean)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(argmin.dim(), 2);
         assert_eq!(argmin[0], 0); // [0, 0] is closest to [1, 1]
@@ -1553,7 +1556,7 @@ mod tests {
 
         let (argmin, min_dists) =
             pairwise_distances_argmin_min(&X.view(), Some(&Y.view()), DistanceMetric::Euclidean)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(argmin.dim(), 2);
         assert_eq!(min_dists.dim(), 2);
@@ -1568,8 +1571,8 @@ mod tests {
         let X = array![[1., 2.], [3., 4.]];
         let Y = array![[5., 6.], [7., 8.]];
 
-        let kernel_matrix =
-            pairwise_kernels(&X.view(), Some(&Y.view()), KernelFunction::Linear).unwrap();
+        let kernel_matrix = pairwise_kernels(&X.view(), Some(&Y.view()), KernelFunction::Linear)
+            .expect("operation should succeed");
 
         assert_eq!(kernel_matrix.dim(), (2, 2));
         assert!((kernel_matrix[[0, 0]] - 17.0).abs() < 1e-10); // 1*5 + 2*6
@@ -1582,8 +1585,8 @@ mod tests {
     fn test_rbf_kernel() {
         let X = array![[0., 0.], [1., 1.]];
 
-        let kernel_matrix =
-            pairwise_kernels(&X.view(), None, KernelFunction::RBF { gamma: 0.5 }).unwrap();
+        let kernel_matrix = pairwise_kernels(&X.view(), None, KernelFunction::RBF { gamma: 0.5 })
+            .expect("operation should succeed");
 
         assert_eq!(kernel_matrix.dim(), (2, 2));
         // Diagonal should be 1 (identical points)
@@ -1607,7 +1610,7 @@ mod tests {
                 coef0: 1.0,
             },
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(kernel_matrix.dim(), (2, 2));
         // Diagonal: (1*1 + 1)^2 = 4
@@ -1633,7 +1636,9 @@ mod tests {
 
     #[test]
     fn test_empty_input() {
-        let X = array![[]].into_shape((0, 2)).unwrap();
+        let X = array![[]]
+            .into_shape((0, 2))
+            .expect("operation should succeed");
 
         let result = euclidean_distances(&X.view(), None);
         assert!(result.is_err());

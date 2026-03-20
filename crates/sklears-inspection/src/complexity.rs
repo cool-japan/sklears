@@ -251,7 +251,7 @@ where
     }
 
     // Return median estimate
-    df_estimates.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    df_estimates.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     Ok(df_estimates[df_estimates.len() / 2])
 }
 
@@ -474,7 +474,7 @@ mod tests {
             n_params,
             &ComplexityConfig::default(),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.complexity_score > 0.0);
         assert!(result.effective_degrees_freedom > 0.0);

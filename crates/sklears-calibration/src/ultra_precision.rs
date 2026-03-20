@@ -1085,7 +1085,8 @@ mod tests {
     #[test]
     fn test_ultra_precision_string_parsing() {
         // Test that string parsing completes without panicking
-        let num = UltraPrecisionFloat::from_string("3.14159265", 10).unwrap();
+        let num =
+            UltraPrecisionFloat::from_string("3.14159265", 10).expect("operation should succeed");
         let pi_val = num.to_float();
         assert!(
             pi_val.is_finite(),
@@ -1093,7 +1094,8 @@ mod tests {
             pi_val
         );
 
-        let sci_num = UltraPrecisionFloat::from_string("1.23e-4", 10).unwrap();
+        let sci_num =
+            UltraPrecisionFloat::from_string("1.23e-4", 10).expect("operation should succeed");
         let sci_val = sci_num.to_float();
         assert!(
             sci_val.is_finite(),
@@ -1101,7 +1103,8 @@ mod tests {
             sci_val
         );
 
-        let neg_num = UltraPrecisionFloat::from_string("-2.718", 10).unwrap();
+        let neg_num =
+            UltraPrecisionFloat::from_string("-2.718", 10).expect("operation should succeed");
         assert!(neg_num.is_negative);
         let neg_val = neg_num.to_float();
         assert!(

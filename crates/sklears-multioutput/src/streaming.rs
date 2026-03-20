@@ -164,7 +164,9 @@ impl Fit<ArrayView2<'_, Float>, ArrayView2<'_, Float>>
         let mut intercept = Array1::zeros(n_outputs);
 
         // Compute feature statistics
-        let feature_mean = X.mean_axis(Axis(0)).unwrap();
+        let feature_mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let feature_std = X.std_axis(Axis(0), 0.0);
 
         let mut current_learning_rate = self.config.learning_rate;
@@ -253,7 +255,9 @@ impl IncrementalMultiOutputRegression<IncrementalMultiOutputRegressionTrained> {
         let n_new = n_samples as Float;
         let n_total = n_old + n_new;
 
-        let new_mean = X.mean_axis(Axis(0)).unwrap();
+        let new_mean = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         self.state.feature_mean = (&self.state.feature_mean * n_old + &new_mean * n_new) / n_total;
 
         // Perform incremental updates
@@ -551,8 +555,16 @@ impl StreamingMultiOutput<StreamingMultiOutputTrained> {
         let mut y_batch = Array2::zeros((batch_size, self.state.base_model.n_outputs));
 
         for i in 0..batch_size {
-            let x = self.state.buffer_X.pop_front().unwrap();
-            let y = self.state.buffer_y.pop_front().unwrap();
+            let x = self
+                .state
+                .buffer_X
+                .pop_front()
+                .expect("operation should succeed");
+            let y = self
+                .state
+                .buffer_y
+                .pop_front()
+                .expect("operation should succeed");
             X_batch.row_mut(i).assign(&x);
             y_batch.row_mut(i).assign(&y);
         }
@@ -560,7 +572,10 @@ impl StreamingMultiOutput<StreamingMultiOutputTrained> {
         // Detect drift if enabled
         if self.state.config.detect_drift {
             let pred = self.predict(&X_batch.view())?;
-            let error: Float = (&y_batch - &pred).mapv(|x| x.powi(2)).mean().unwrap();
+            let error: Float = (&y_batch - &pred)
+                .mapv(|x| x.powi(2))
+                .mean()
+                .expect("array should have elements for mean computation");
 
             self.state.error_history.push_back(error);
             if self.state.error_history.len() > self.state.config.drift_window_size {
@@ -683,8 +698,12 @@ mod tests {
             .learning_rate(0.1)
             .alpha(0.0001);
 
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (3, 2));
         assert_eq!(trained.n_samples_seen(), 3);
@@ -697,16 +716,22 @@ mod tests {
         let y1 = array![[1.0, 2.0], [2.0, 3.0]];
 
         let model = IncrementalMultiOutputRegression::new().learning_rate(0.1);
-        let trained = model.fit(&X1.view(), &y1.view()).unwrap();
+        let trained = model
+            .fit(&X1.view(), &y1.view())
+            .expect("model fitting should succeed");
 
         // Partial fit with new data
         let X2 = array![[3.0, 4.0], [4.0, 5.0]];
         let y2 = array![[3.0, 4.0], [4.0, 5.0]];
-        let updated = trained.partial_fit(&X2.view(), &y2.view()).unwrap();
+        let updated = trained
+            .partial_fit(&X2.view(), &y2.view())
+            .expect("operation should succeed");
 
         assert_eq!(updated.n_samples_seen(), 4);
 
-        let predictions = updated.predict(&X2.view()).unwrap();
+        let predictions = updated
+            .predict(&X2.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (2, 2));
     }
 
@@ -717,14 +742,18 @@ mod tests {
         let y = array![[1.0, 2.0], [2.0, 3.0]];
 
         let model = IncrementalMultiOutputRegression::new().learning_rate(0.1);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         let initial_lr = trained.current_learning_rate();
 
         // Partial fit should decay learning rate
         let X2 = array![[3.0, 4.0]];
         let y2 = array![[3.0, 4.0]];
-        let updated = trained.partial_fit(&X2.view(), &y2.view()).unwrap();
+        let updated = trained
+            .partial_fit(&X2.view(), &y2.view())
+            .expect("operation should succeed");
 
         assert!(updated.current_learning_rate() < initial_lr);
     }
@@ -737,8 +766,12 @@ mod tests {
 
         let model = StreamingMultiOutput::new().batch_size(2).learning_rate(0.1);
 
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (3, 2));
     }
@@ -750,16 +783,20 @@ mod tests {
         let y = array![[1.0, 2.0], [2.0, 3.0]];
 
         let model = StreamingMultiOutput::new().batch_size(2);
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         // Stream new data
         let X_stream = array![[3.0, 4.0], [4.0, 5.0]];
         let y_stream = array![[3.0, 4.0], [4.0, 5.0]];
         let updated = trained
             .update_stream(&X_stream.view(), &y_stream.view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = updated.predict(&X_stream.view()).unwrap();
+        let predictions = updated
+            .predict(&X_stream.view())
+            .expect("prediction should succeed");
         assert_eq!(predictions.dim(), (2, 2));
     }
 
@@ -770,19 +807,21 @@ mod tests {
         let y = array![[1.0, 2.0], [2.0, 3.0]];
 
         let model = StreamingMultiOutput::new().batch_size(5); // Large batch size
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         // Add small amount of data (should buffer)
         let X_stream = array![[3.0, 4.0]];
         let y_stream = array![[3.0, 4.0]];
         let updated = trained
             .update_stream(&X_stream.view(), &y_stream.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(updated.buffer_size(), 1);
 
         // Flush buffer
-        let flushed = updated.flush_buffer().unwrap();
+        let flushed = updated.flush_buffer().expect("operation should succeed");
         assert_eq!(flushed.buffer_size(), 0);
     }
 
@@ -797,7 +836,9 @@ mod tests {
             .detect_drift(true)
             .learning_rate(0.1);
 
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         // The model should track drift events
         assert_eq!(trained.n_drift_events(), 0);
@@ -820,7 +861,9 @@ mod tests {
         let y = array![[1.0, 2.0], [2.0, 3.0]];
 
         let model = IncrementalMultiOutputRegression::new();
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         // Wrong number of features
         let X_test = array![[1.0]];

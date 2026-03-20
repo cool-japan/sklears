@@ -459,10 +459,11 @@ mod tests {
             ..Default::default()
         };
 
-        let matrix = CacheFriendlyMatrix::from_array(&array, config).unwrap();
+        let matrix =
+            CacheFriendlyMatrix::from_array(&array, config).expect("operation should succeed");
         assert_eq!(matrix.dim(), (2, 3));
-        assert_eq!(matrix.get(0, 0).unwrap(), 1.0);
-        assert_eq!(matrix.get(1, 2).unwrap(), 6.0);
+        assert_eq!(matrix.get(0, 0).expect("operation should succeed"), 1.0);
+        assert_eq!(matrix.get(1, 2).expect("operation should succeed"), 6.0);
     }
 
     #[test]
@@ -473,9 +474,10 @@ mod tests {
             ..Default::default()
         };
 
-        let matrix = CacheFriendlyMatrix::from_array(&array, config).unwrap();
-        assert_eq!(matrix.get(0, 0).unwrap(), 1.0);
-        assert_eq!(matrix.get(1, 2).unwrap(), 6.0);
+        let matrix =
+            CacheFriendlyMatrix::from_array(&array, config).expect("operation should succeed");
+        assert_eq!(matrix.get(0, 0).expect("operation should succeed"), 1.0);
+        assert_eq!(matrix.get(1, 2).expect("operation should succeed"), 6.0);
     }
 
     #[test]
@@ -491,9 +493,10 @@ mod tests {
             ..Default::default()
         };
 
-        let matrix = CacheFriendlyMatrix::from_array(&array, config).unwrap();
-        assert_eq!(matrix.get(0, 0).unwrap(), 1.0);
-        assert_eq!(matrix.get(3, 3).unwrap(), 16.0);
+        let matrix =
+            CacheFriendlyMatrix::from_array(&array, config).expect("operation should succeed");
+        assert_eq!(matrix.get(0, 0).expect("operation should succeed"), 1.0);
+        assert_eq!(matrix.get(3, 3).expect("operation should succeed"), 16.0);
     }
 
     #[test]
@@ -502,8 +505,11 @@ mod tests {
         let vector = array![1.0, 2.0];
         let config = CacheConfig::default();
 
-        let matrix = CacheFriendlyMatrix::from_array(&array, config).unwrap();
-        let result = matrix.dot_vector(&vector).unwrap();
+        let matrix =
+            CacheFriendlyMatrix::from_array(&array, config).expect("operation should succeed");
+        let result = matrix
+            .dot_vector(&vector)
+            .expect("operation should succeed");
 
         assert_eq!(result[0], 5.0); // 1*1 + 2*2
         assert_eq!(result[1], 11.0); // 3*1 + 4*2
@@ -511,7 +517,7 @@ mod tests {
 
     #[test]
     fn test_aligned_buffer() {
-        let buffer = AlignedBuffer::new(10, 64).unwrap();
+        let buffer = AlignedBuffer::new(10, 64).expect("operation should succeed");
         assert_eq!(buffer.len(), 10);
         assert!(!buffer.is_empty());
 
@@ -522,7 +528,7 @@ mod tests {
     #[test]
     fn test_transpose_blocked() {
         let matrix = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
-        let transposed = utils::transpose_blocked(&matrix, 2).unwrap();
+        let transposed = utils::transpose_blocked(&matrix, 2).expect("operation should succeed");
 
         assert_eq!(transposed.dim(), (3, 2));
         assert_eq!(transposed[[0, 0]], 1.0);

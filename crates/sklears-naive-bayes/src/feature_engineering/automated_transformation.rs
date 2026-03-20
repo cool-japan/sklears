@@ -9,7 +9,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use serde::{Deserialize, Serialize};
 use sklears_core::error::Result;
 use sklears_core::prelude::SklearsError;
@@ -259,7 +259,7 @@ where
         let mut best_transforms = vec!["standard_scale".to_string()];
 
         for _ in 0..self.config.max_iterations {
-            let random_idx = rng.gen_range(0..candidates.len());
+            let random_idx = rng.random_range(0..candidates.len());
             let transform = candidates[random_idx].clone();
 
             let score = self.evaluate_transform_combination(std::slice::from_ref(&transform))?;
@@ -619,7 +619,7 @@ impl<T> AutomatedOptimization<T> {
             let mut neighbor = current_solution.clone();
             for value in neighbor.values_mut() {
                 let mut temp_rng = StdRng::seed_from_u64(42);
-                *value += (temp_rng.gen::<f64>() - 0.5) * 0.1; // Small random perturbation
+                *value += (temp_rng.random::<f64>() - 0.5) * 0.1; // Small random perturbation
             }
 
             let neighbor_score = self.evaluate_solution(&neighbor)?;
@@ -627,7 +627,7 @@ impl<T> AutomatedOptimization<T> {
 
             // Accept or reject
             let mut temp_rng = StdRng::seed_from_u64(42);
-            if delta > 0.0 || temp_rng.gen::<f64>() < (-delta / temperature).exp() {
+            if delta > 0.0 || temp_rng.random::<f64>() < (-delta / temperature).exp() {
                 current_solution = neighbor;
                 current_score = neighbor_score;
 
@@ -1371,7 +1371,8 @@ mod tests {
     #[test]
     fn test_auto_feature_transformer_creation() {
         let config = AutoTransformConfig::default();
-        let transformer = AutoFeatureTransformer::<f64>::new(config).unwrap();
+        let transformer =
+            AutoFeatureTransformer::<f64>::new(config).expect("operation should succeed");
 
         assert!(!transformer.is_fitted());
         assert!(transformer.selected_transforms().is_none());
@@ -1389,7 +1390,9 @@ mod tests {
         initial_solution.insert("learning_rate".to_string(), 0.1);
         initial_solution.insert("regularization".to_string(), 0.01);
 
-        let result = optimizer.optimize(initial_solution).unwrap();
+        let result = optimizer
+            .optimize(initial_solution)
+            .expect("operation should succeed");
         assert!(result.contains_key("learning_rate"));
         assert!(result.contains_key("regularization"));
         assert!(optimizer.optimization_history().len() > 0);
@@ -1400,10 +1403,13 @@ mod tests {
         let objectives = vec!["accuracy".to_string(), "interpretability".to_string()];
         let mut optimizer = FeatureOptimizer::new(objectives);
 
-        let x = Array2::from_shape_vec((10, 5), (0..50).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 5), (0..50).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0]);
 
-        let selected = optimizer.optimize_features(&x.view(), &y.view()).unwrap();
+        let selected = optimizer
+            .optimize_features(&x.view(), &y.view())
+            .expect("operation should succeed");
         assert!(!selected.is_empty());
         assert!(optimizer.feature_importance_scores().is_some());
     }
@@ -1412,7 +1418,8 @@ mod tests {
     fn test_automated_pipeline() {
         let mut pipeline = AutomatedPipeline::new();
 
-        let x = Array2::from_shape_vec((20, 8), (0..160).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 8), (0..160).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0; 10].into_iter().chain(vec![1.0; 10]).collect());
 
         assert!(pipeline.build_pipeline(&x.view(), Some(&y.view())).is_ok());
@@ -1459,7 +1466,7 @@ mod tests {
         assert!(adaptive.should_adapt(0.7)); // Below threshold
         assert!(!adaptive.should_adapt(0.9)); // Above threshold
 
-        let result = adaptive.adapt(0.7).unwrap();
+        let result = adaptive.adapt(0.7).expect("operation should succeed");
         assert!(result.contains_key("regularization") || result.contains_key("learning_rate"));
         assert_eq!(adaptive.adaptation_count(), 1);
     }
@@ -1474,7 +1481,9 @@ mod tests {
         let mut characteristics = HashMap::new();
         characteristics.insert("n_features".to_string(), 1500.0);
 
-        let strategy = intelligent.recommend_strategy(&characteristics).unwrap();
+        let strategy = intelligent
+            .recommend_strategy(&characteristics)
+            .expect("operation should succeed");
         assert_eq!(strategy, "dimensionality_reduction_pipeline");
 
         intelligent.add_adaptation_rule(

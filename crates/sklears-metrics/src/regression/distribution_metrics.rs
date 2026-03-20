@@ -23,8 +23,8 @@ pub fn wasserstein_distance(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Metri
     let mut y_true_sorted = y_true.to_vec();
     let mut y_pred_sorted = y_pred.to_vec();
 
-    y_true_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    y_pred_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    y_true_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+    y_pred_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let distance = y_true_sorted
         .iter()
@@ -89,7 +89,7 @@ mod tests {
     fn test_wasserstein_distance() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let dist = wasserstein_distance(&y_true, &y_pred).unwrap();
+        let dist = wasserstein_distance(&y_true, &y_pred).expect("operation should succeed");
         assert!((dist - 0.0).abs() < f64::EPSILON);
     }
 }

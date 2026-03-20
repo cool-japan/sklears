@@ -207,7 +207,7 @@ mod tests {
     fn test_huber_loss() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let loss = huber_loss(&y_true, &y_pred, 1.0).unwrap();
+        let loss = huber_loss(&y_true, &y_pred, 1.0).expect("operation should succeed");
         assert!((loss - 0.0).abs() < f64::EPSILON);
     }
 
@@ -216,7 +216,7 @@ mod tests {
         let y_true = array![0.0];
         let y_pred = array![10.0]; // Large error
         let delta = 1.0;
-        let loss = huber_loss(&y_true, &y_pred, delta).unwrap();
+        let loss = huber_loss(&y_true, &y_pred, delta).expect("operation should succeed");
         let expected = delta * (10.0 - 0.5 * delta); // Linear region
         assert!((loss - expected).abs() < f64::EPSILON);
     }
@@ -225,7 +225,7 @@ mod tests {
     fn test_quantile_loss_median() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let loss = quantile_loss(&y_true, &y_pred, 0.5).unwrap();
+        let loss = quantile_loss(&y_true, &y_pred, 0.5).expect("operation should succeed");
         assert!((loss - 0.0).abs() < f64::EPSILON);
     }
 
@@ -233,7 +233,7 @@ mod tests {
     fn test_quantile_loss_upper_quantile() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![0.5, 1.5, 2.5]; // Under-predictions
-        let loss = quantile_loss(&y_true, &y_pred, 0.9).unwrap();
+        let loss = quantile_loss(&y_true, &y_pred, 0.9).expect("operation should succeed");
         assert!(loss > 0.0);
     }
 
@@ -241,7 +241,7 @@ mod tests {
     fn test_mean_pinball_loss() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let loss = mean_pinball_loss(&y_true, &y_pred, 0.5).unwrap();
+        let loss = mean_pinball_loss(&y_true, &y_pred, 0.5).expect("operation should succeed");
         assert!((loss - 0.0).abs() < f64::EPSILON);
     }
 
@@ -250,7 +250,8 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9]; // Small errors
         let epsilon = 0.2;
-        let loss = epsilon_insensitive_loss(&y_true, &y_pred, epsilon).unwrap();
+        let loss =
+            epsilon_insensitive_loss(&y_true, &y_pred, epsilon).expect("operation should succeed");
         assert!((loss - 0.0).abs() < f64::EPSILON); // All errors within epsilon
     }
 
@@ -259,7 +260,8 @@ mod tests {
         let y_true = array![1.0];
         let y_pred = array![2.0]; // Error = 1.0
         let epsilon = 0.5;
-        let loss = epsilon_insensitive_loss(&y_true, &y_pred, epsilon).unwrap();
+        let loss =
+            epsilon_insensitive_loss(&y_true, &y_pred, epsilon).expect("operation should succeed");
         assert!((loss - 0.5).abs() < f64::EPSILON); // 1.0 - 0.5 = 0.5
     }
 
@@ -267,7 +269,7 @@ mod tests {
     fn test_hinge_loss() {
         let y_true = array![1.0, -1.0, 1.0];
         let y_pred = array![2.0, -2.0, 0.5]; // Margins: 2.0, 2.0, 0.5
-        let loss = hinge_loss(&y_true, &y_pred).unwrap();
+        let loss = hinge_loss(&y_true, &y_pred).expect("operation should succeed");
         let expected = (0.0 + 0.0 + 0.5) / 3.0; // Only last has loss
         assert!((loss - expected).abs() < f64::EPSILON);
     }
@@ -276,7 +278,7 @@ mod tests {
     fn test_squared_hinge_loss() {
         let y_true = array![1.0, -1.0];
         let y_pred = array![0.5, -0.5]; // Margins: 0.5, 0.5
-        let loss = squared_hinge_loss(&y_true, &y_pred).unwrap();
+        let loss = squared_hinge_loss(&y_true, &y_pred).expect("operation should succeed");
         let expected = ((1.0f64 - 0.5).powi(2) + (1.0f64 - 0.5).powi(2)) / 2.0;
         assert!((loss - expected).abs() < f64::EPSILON);
     }

@@ -441,7 +441,7 @@ fn demo_advanced_ensemble() -> SklResult<()> {
         "   • Prediction variance: {:.3}",
         stacking_predictions
             .iter()
-            .map(|&x| (x - stacking_predictions.mean().unwrap()).powi(2))
+            .map(|&x| (x - stacking_predictions.mean().unwrap_or_default()).powi(2))
             .sum::<f64>()
             / stacking_predictions.len() as f64
     );

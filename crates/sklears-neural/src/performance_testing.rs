@@ -704,7 +704,7 @@ mod tests {
         profiler.record_operation();
         profiler.record_samples(100);
 
-        let metrics = profiler.stop().unwrap();
+        let metrics = profiler.stop().expect("operation should succeed");
         assert!(metrics.execution_time >= Duration::from_millis(10));
         assert!(metrics.ops_per_second > 0.0);
         assert!(metrics.samples_per_second > 0.0);
@@ -763,7 +763,9 @@ mod tests {
         suite.set_baseline("simple_add".to_string(), baseline);
 
         // Run the benchmark
-        suite.run_benchmark("simple_add").unwrap();
+        suite
+            .run_benchmark("simple_add")
+            .expect("operation should succeed");
 
         let results = suite.get_results();
         assert!(results.contains_key("simple_add"));
@@ -781,7 +783,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let metrics = result.unwrap();
+        let metrics = result.expect("operation should succeed");
         assert!(metrics.ops_per_second > 0.0);
     }
 }

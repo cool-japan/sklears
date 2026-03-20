@@ -576,11 +576,15 @@ mod tests {
         let y_true = Array::from_vec(vec![1.0, 2.0, 3.0]);
         let y_pred = Array::from_vec(vec![1.1, 1.9, 3.1]);
 
-        let loss_value = loss.loss(&y_true, &y_pred).unwrap();
+        let loss_value = loss
+            .loss(&y_true, &y_pred)
+            .expect("operation should succeed");
         let expected = ((0.1 * 0.1) + (0.1 * 0.1) + (0.1 * 0.1)) / (2.0 * 3.0);
         assert!((loss_value - expected).abs() < 1e-10);
 
-        let derivative = loss.loss_derivative(&y_true, &y_pred).unwrap();
+        let derivative = loss
+            .loss_derivative(&y_true, &y_pred)
+            .expect("operation should succeed");
         let expected_grad = Array::from_vec(vec![0.1, -0.1, 0.1]) / 3.0;
         for (actual, expected) in derivative.iter().zip(expected_grad.iter()) {
             assert!((actual - expected).abs() < 1e-10);
@@ -593,7 +597,9 @@ mod tests {
         let y_true = Array::from_vec(vec![1.0, 2.0, 3.0]);
         let y_pred = Array::from_vec(vec![1.2, 1.8, 3.1]);
 
-        let loss_value = loss.loss(&y_true, &y_pred).unwrap();
+        let loss_value = loss
+            .loss(&y_true, &y_pred)
+            .expect("operation should succeed");
         let expected = (0.2 + 0.2 + 0.1) / 3.0;
         assert!((loss_value - expected).abs() < 1e-10);
     }
@@ -604,7 +610,9 @@ mod tests {
         let y_true = Array::from_vec(vec![0.0, 0.0]);
         let y_pred = Array::from_vec(vec![0.5, 2.0]); // First within delta, second outside
 
-        let loss_value = loss.loss(&y_true, &y_pred).unwrap();
+        let loss_value = loss
+            .loss(&y_true, &y_pred)
+            .expect("operation should succeed");
         // First: 0.5 * 0.5^2 = 0.125
         // Second: 1.0 * 2.0 - 0.5 * 1.0^2 = 1.5
         let expected = (0.125 + 1.5) / 2.0;
@@ -617,18 +625,22 @@ mod tests {
         let y_true = Array::from_vec(vec![1.0, -1.0]);
         let y_pred = Array::from_vec(vec![2.0, -2.0]); // Strong correct predictions
 
-        let loss_value = loss.loss(&y_true, &y_pred).unwrap();
+        let loss_value = loss
+            .loss(&y_true, &y_pred)
+            .expect("operation should succeed");
         // Should be small for correct predictions
         assert!(loss_value < 0.5);
     }
 
     #[test]
     fn test_quantile_loss() {
-        let loss = QuantileLoss::new(0.7).unwrap();
+        let loss = QuantileLoss::new(0.7).expect("operation should succeed");
         let y_true = Array::from_vec(vec![1.0, 2.0]);
         let y_pred = Array::from_vec(vec![0.5, 2.5]); // Under-predict, over-predict
 
-        let loss_value = loss.loss(&y_true, &y_pred).unwrap();
+        let loss_value = loss
+            .loss(&y_true, &y_pred)
+            .expect("operation should succeed");
         // Under-prediction: 0.7 * 0.5 = 0.35
         // Over-prediction: (0.7 - 1.0) * (-0.5) = 0.15
         let expected = (0.35 + 0.15) / 2.0;
@@ -643,7 +655,7 @@ mod tests {
         let huber = LossFactory::huber(1.5);
         assert_eq!(huber.name(), "HuberLoss");
 
-        let quantile = LossFactory::quantile(0.8).unwrap();
+        let quantile = LossFactory::quantile(0.8).expect("operation should succeed");
         assert_eq!(quantile.name(), "QuantileLoss");
     }
 

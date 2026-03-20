@@ -6,8 +6,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -355,7 +355,7 @@ impl EnsembleEvaluator {
         for _ in 0..bootstrap_samples {
             // Generate bootstrap sample
             let bootstrap_indices: Vec<usize> = (0..n_samples)
-                .map(|_| self.rng.gen_range(0..n_samples))
+                .map(|_| self.rng.random_range(0..n_samples))
                 .collect();
 
             // Find out-of-bag samples
@@ -712,7 +712,7 @@ impl EnsembleEvaluator {
         for _ in 0..n_bootstrap_samples {
             // Generate bootstrap sample
             let bootstrap_indices: Vec<usize> = (0..n_samples)
-                .map(|_| self.rng.gen_range(0..n_samples))
+                .map(|_| self.rng.random_range(0..n_samples))
                 .collect();
 
             let bootstrap_preds = self.calculate_ensemble_predictions(
@@ -816,7 +816,9 @@ impl EnsembleEvaluator {
                     let selected_predictions =
                         Array2::from_shape_vec((model_preds.nrows(), size), selected_data)?;
 
-                    let ensemble_preds = selected_predictions.mean_axis(Axis(1)).unwrap();
+                    let ensemble_preds = selected_predictions
+                        .mean_axis(Axis(1))
+                        .expect("operation should succeed");
                     let performance = evaluation_fn(&ensemble_preds, true_labels)?;
                     performance_curve.push(performance);
 
@@ -830,7 +832,7 @@ impl EnsembleEvaluator {
             let optimal_size_idx = performance_curve
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             let optimal_size = ensemble_sizes[optimal_size_idx];
@@ -952,7 +954,9 @@ impl EnsembleEvaluator {
             Ok(selected_predictions.dot(w))
         } else {
             // Simple average
-            Ok(selected_predictions.mean_axis(Axis(1)).unwrap())
+            Ok(selected_predictions
+                .mean_axis(Axis(1))
+                .expect("operation should succeed"))
         }
     }
 
@@ -1360,7 +1364,7 @@ mod tests {
                 0.5, 0.7, 0.9, 0.2, 0.3, 0.7, 0.2, 0.9, 0.1, 0.8, 0.4, 0.5, 0.6, 0.3,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let true_labels = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0]);
 
         let config = EnsembleEvaluationConfig {
@@ -1379,10 +1383,10 @@ mod tests {
             mock_evaluation_function,
             Some(config),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.out_of_bag_scores.is_some());
-        let oob_scores = result.out_of_bag_scores.unwrap();
+        let oob_scores = result.out_of_bag_scores.expect("operation should succeed");
         assert!(oob_scores.oob_score >= 0.0 && oob_scores.oob_score <= 1.0);
     }
 
@@ -1395,7 +1399,7 @@ mod tests {
                 0.5, 0.7, 0.9, 0.2, 0.3, 0.7, 0.2, 0.9, 0.1, 0.8, 0.4, 0.5, 0.6, 0.3,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let true_labels = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0]);
         let model_predictions = ensemble_predictions.clone();
 
@@ -1418,7 +1422,7 @@ mod tests {
             mock_evaluation_function,
             Some(config),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(!result.diversity_analysis.diversity_by_measure.is_empty());
         assert!(result.diversity_analysis.overall_diversity >= 0.0);
@@ -1433,7 +1437,7 @@ mod tests {
                 0.5, 0.7, 0.9, 0.2, 0.3, 0.7, 0.2, 0.9, 0.1, 0.8, 0.4, 0.5, 0.6, 0.3,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let true_labels = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0]);
 
         let config = EnsembleEvaluationConfig {
@@ -1452,7 +1456,7 @@ mod tests {
             mock_evaluation_function,
             Some(config),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(!result
             .ensemble_performance

@@ -68,7 +68,7 @@ impl MetricsMonitor {
                 interval.tick().await;
 
                 // Collect metrics
-                let collectors = collectors.read().unwrap();
+                let collectors = collectors.read().unwrap_or_else(|e| e.into_inner());
                 for (name, collector) in collectors.iter() {
                     if let Err(e) = collector.collect().await {
                         eprintln!("Failed to collect metrics from {}: {}", name, e);
@@ -76,7 +76,7 @@ impl MetricsMonitor {
                 }
 
                 // Aggregate metrics
-                let mut aggregators = aggregators.write().unwrap();
+                let mut aggregators = aggregators.write().unwrap_or_else(|e| e.into_inner());
                 for aggregator in aggregators.values_mut() {
                     if let Err(e) = aggregator.aggregate().await {
                         eprintln!("Failed to aggregate metrics: {}", e);
@@ -89,7 +89,7 @@ impl MetricsMonitor {
                 }
 
                 // Export metrics
-                let exporters = exporters.read().unwrap();
+                let exporters = exporters.read().unwrap_or_else(|e| e.into_inner());
                 for exporter in exporters.iter() {
                     if let Err(e) = exporter.export().await {
                         eprintln!("Failed to export metrics: {}", e);
@@ -98,7 +98,7 @@ impl MetricsMonitor {
             }
         });
 
-        *self.monitor_handle.lock().unwrap() = Some(handle);
+        *self.monitor_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
         // Start subsystems
         self.alerting_system.start().await?;
@@ -113,7 +113,7 @@ impl MetricsMonitor {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.monitor_handle.lock().unwrap().take() {
+        if let Some(handle) = self.monitor_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -128,14 +128,14 @@ impl MetricsMonitor {
 
     /// Register a metric collector
     pub async fn register_collector(&self, name: String, collector: Box<dyn MetricCollector>) -> SklResult<()> {
-        let mut collectors = self.collectors.write().unwrap();
+        let mut collectors = self.collectors.write().unwrap_or_else(|e| e.into_inner());
         collectors.insert(name, collector);
         Ok(())
     }
 
     /// Register a metric exporter
     pub async fn register_exporter(&self, exporter: Box<dyn MetricExporter>) -> SklResult<()> {
-        let mut exporters = self.exporters.write().unwrap();
+        let mut exporters = self.exporters.write().unwrap_or_else(|e| e.into_inner());
         exporters.push(exporter);
         Ok(())
     }
@@ -146,7 +146,7 @@ impl MetricsMonitor {
         let mut metrics = HashMap::new();
 
         // Collect from all aggregators
-        let aggregators = self.aggregators.read().unwrap();
+        let aggregators = self.aggregators.read().unwrap_or_else(|e| e.into_inner());
         for (name, aggregator) in aggregators.iter() {
             metrics.insert(name.clone(), aggregator.get_current_values());
         }
@@ -239,7 +239,7 @@ impl MetricAggregator {
 
     /// Add a data point
     pub fn add_data_point(&self, value: f64) {
-        let mut data_points = self.data_points.write().unwrap();
+        let mut data_points = self.data_points.write().unwrap_or_else(|e| e.into_inner());
         let data_point = MetricDataPoint {
             value,
             timestamp: Instant::now(),
@@ -264,19 +264,19 @@ impl MetricAggregator {
     /// Aggregate current data points
     pub async fn aggregate(&mut self) -> SklResult<()> {
         self.update_current_value();
-        *self.last_update.write().unwrap() = Instant::now();
+        *self.last_update.write().unwrap_or_else(|e| e.into_inner()) = Instant::now();
         Ok(())
     }
 
     /// Get current aggregated value
     pub fn get_current_values(&self) -> HashMap<String, f64> {
         let mut values = HashMap::new();
-        values.insert(self.name.clone(), *self.current_value.read().unwrap());
+        values.insert(self.name.clone(), *self.current_value.read().unwrap_or_else(|e| e.into_inner()));
         values
     }
 
     fn update_current_value(&self) {
-        let data_points = self.data_points.read().unwrap();
+        let data_points = self.data_points.read().unwrap_or_else(|e| e.into_inner());
         if data_points.is_empty() {
             return;
         }
@@ -291,13 +291,13 @@ impl MetricAggregator {
             AggregationType::Count => values.len() as f64,
             AggregationType::Percentile(p) => {
                 let mut sorted_values = values.clone();
-                sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 let index = ((p / 100.0) * sorted_values.len() as f64) as usize;
                 sorted_values[index.min(sorted_values.len() - 1)]
             }
         };
 
-        *self.current_value.write().unwrap() = aggregated_value;
+        *self.current_value.write().unwrap_or_else(|e| e.into_inner()) = aggregated_value;
     }
 }
 
@@ -358,7 +358,7 @@ impl MetricAlertingSystem {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.alerting_handle.lock().unwrap().take() {
+        if let Some(handle) = self.alerting_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -366,12 +366,12 @@ impl MetricAlertingSystem {
     }
 
     pub fn add_alert_rule(&self, rule: MetricAlertRule) {
-        let mut rules = self.alert_rules.write().unwrap();
+        let mut rules = self.alert_rules.write().unwrap_or_else(|e| e.into_inner());
         rules.push(rule);
     }
 
     pub async fn check_alerts(&self) -> SklResult<()> {
-        let rules = self.alert_rules.read().unwrap();
+        let rules = self.alert_rules.read().unwrap_or_else(|e| e.into_inner());
 
         for rule in rules.iter() {
             if rule.should_trigger() {
@@ -396,7 +396,7 @@ impl MetricAlertingSystem {
         };
 
         // Add to active alerts
-        let mut active_alerts = self.active_alerts.write().unwrap();
+        let mut active_alerts = self.active_alerts.write().unwrap_or_else(|e| e.into_inner());
         active_alerts.insert(alert_id.clone(), alert);
 
         // Add to history
@@ -407,7 +407,7 @@ impl MetricAlertingSystem {
             details: HashMap::new(),
         };
 
-        let mut history = self.alert_history.write().unwrap();
+        let mut history = self.alert_history.write().unwrap_or_else(|e| e.into_inner());
         history.push_back(event);
         if history.len() > 1000 {
             history.pop_front();
@@ -420,8 +420,8 @@ impl MetricAlertingSystem {
     }
 
     async fn send_alert_notifications(&self, alert_id: &str) -> SklResult<()> {
-        let channels = self.notification_channels.read().unwrap();
-        let active_alerts = self.active_alerts.read().unwrap();
+        let channels = self.notification_channels.read().unwrap_or_else(|e| e.into_inner());
+        let active_alerts = self.active_alerts.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(alert) = active_alerts.get(alert_id) {
             for channel in channels.iter() {
@@ -573,7 +573,7 @@ impl MetricRetentionManager {
                 interval.tick().await;
 
                 // Apply retention policies
-                let policies = retention_policies.read().unwrap();
+                let policies = retention_policies.read().unwrap_or_else(|e| e.into_inner());
                 for policy in policies.iter() {
                     if let Err(e) = storage_backend.apply_retention_policy(policy).await {
                         eprintln!("Failed to apply retention policy {}: {}", policy.name, e);
@@ -582,7 +582,7 @@ impl MetricRetentionManager {
             }
         });
 
-        *self.cleanup_handle.lock().unwrap() = Some(handle);
+        *self.cleanup_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
         Ok(())
     }
@@ -590,7 +590,7 @@ impl MetricRetentionManager {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.cleanup_handle.lock().unwrap().take() {
+        if let Some(handle) = self.cleanup_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -598,7 +598,7 @@ impl MetricRetentionManager {
     }
 
     pub fn add_retention_policy(&self, policy: RetentionPolicy) {
-        let mut policies = self.retention_policies.write().unwrap();
+        let mut policies = self.retention_policies.write().unwrap_or_else(|e| e.into_inner());
         policies.push(policy);
     }
 }
@@ -657,7 +657,7 @@ impl MetricStorageBackend for InMemoryStorageBackend {
         let name = name.to_string();
 
         Box::pin(async move {
-            let mut data = data.write().unwrap();
+            let mut data = data.write().unwrap_or_else(|e| e.into_inner());
             let metric_data = data.entry(name).or_insert_with(VecDeque::new);
             metric_data.push_back(MetricDataPoint { value, timestamp });
 
@@ -676,7 +676,7 @@ impl MetricStorageBackend for InMemoryStorageBackend {
         let name = name.to_string();
 
         Box::pin(async move {
-            let data = data.read().unwrap();
+            let data = data.read().unwrap_or_else(|e| e.into_inner());
             if let Some(metric_data) = data.get(&name) {
                 let filtered_data: Vec<MetricDataPoint> = metric_data
                     .iter()
@@ -696,7 +696,7 @@ impl MetricStorageBackend for InMemoryStorageBackend {
         let retention_period = policy.retention_period;
 
         Box::pin(async move {
-            let mut data = data.write().unwrap();
+            let mut data = data.write().unwrap_or_else(|e| e.into_inner());
             let cutoff_time = Instant::now() - retention_period;
 
             for metric_data in data.values_mut() {
@@ -718,7 +718,7 @@ impl MetricStorageBackend for InMemoryStorageBackend {
         let data = self.data.clone();
 
         Box::pin(async move {
-            let data = data.read().unwrap();
+            let data = data.read().unwrap_or_else(|e| e.into_inner());
             Ok(data.keys().cloned().collect())
         })
     }
@@ -759,7 +759,7 @@ impl PerformanceAnalyzer {
                 interval.tick().await;
 
                 // Perform performance analysis
-                let baselines = baseline_metrics.read().unwrap();
+                let baselines = baseline_metrics.read().unwrap_or_else(|e| e.into_inner());
                 for (name, baseline) in baselines.iter() {
                     let analysis = PerformanceAnalysisResult {
                         metric_name: name.clone(),
@@ -771,7 +771,7 @@ impl PerformanceAnalyzer {
                         recommendations: baseline.get_recommendations(),
                     };
 
-                    let mut results = analysis_results.write().unwrap();
+                    let mut results = analysis_results.write().unwrap_or_else(|e| e.into_inner());
                     results.push_back(analysis);
                     if results.len() > 1000 {
                         results.pop_front();
@@ -780,7 +780,7 @@ impl PerformanceAnalyzer {
             }
         });
 
-        *self.analysis_handle.lock().unwrap() = Some(handle);
+        *self.analysis_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
         Ok(())
     }
@@ -788,7 +788,7 @@ impl PerformanceAnalyzer {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.analysis_handle.lock().unwrap().take() {
+        if let Some(handle) = self.analysis_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -796,7 +796,7 @@ impl PerformanceAnalyzer {
     }
 
     pub async fn generate_report(&self) -> SklResult<PerformanceReport> {
-        let analysis_results = self.analysis_results.read().unwrap();
+        let analysis_results = self.analysis_results.read().unwrap_or_else(|e| e.into_inner());
         let recent_results: Vec<PerformanceAnalysisResult> = analysis_results
             .iter()
             .rev()
@@ -818,7 +818,7 @@ impl PerformanceAnalyzer {
     }
 
     pub fn update_baseline(&self, metric_name: String, value: f64) {
-        let mut baselines = self.baseline_metrics.write().unwrap();
+        let mut baselines = self.baseline_metrics.write().unwrap_or_else(|e| e.into_inner());
         let baseline = baselines.entry(metric_name).or_insert_with(BaselineMetric::new);
         baseline.update(value);
     }
@@ -957,7 +957,7 @@ impl MetricTrendDetector {
                 interval.tick().await;
 
                 // Analyze trends
-                let mut data = trend_data.write().unwrap();
+                let mut data = trend_data.write().unwrap_or_else(|e| e.into_inner());
                 let current_time = Instant::now();
 
                 for (metric_name, trend_analysis) in data.iter_mut() {
@@ -972,7 +972,7 @@ impl MetricTrendDetector {
                         data_points: trend_analysis.data_points.len(),
                     };
 
-                    let mut results = trend_results.write().unwrap();
+                    let mut results = trend_results.write().unwrap_or_else(|e| e.into_inner());
                     results.push_back(result);
                     if results.len() > 1000 {
                         results.pop_front();
@@ -981,7 +981,7 @@ impl MetricTrendDetector {
             }
         });
 
-        *self.detection_handle.lock().unwrap() = Some(handle);
+        *self.detection_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
         Ok(())
     }
@@ -989,7 +989,7 @@ impl MetricTrendDetector {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.detection_handle.lock().unwrap().take() {
+        if let Some(handle) = self.detection_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -997,13 +997,13 @@ impl MetricTrendDetector {
     }
 
     pub fn add_data_point(&self, metric_name: String, value: f64) {
-        let mut data = self.trend_data.write().unwrap();
+        let mut data = self.trend_data.write().unwrap_or_else(|e| e.into_inner());
         let trend_analysis = data.entry(metric_name).or_insert_with(TrendAnalysis::new);
         trend_analysis.add_data_point(value);
     }
 
     pub async fn get_analysis(&self) -> SklResult<TrendAnalysisReport> {
-        let results = self.trend_results.read().unwrap();
+        let results = self.trend_results.read().unwrap_or_else(|e| e.into_inner());
         let recent_results: Vec<TrendDetectionResult> = results
             .iter()
             .rev()

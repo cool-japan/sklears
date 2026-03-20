@@ -303,7 +303,7 @@ impl InformationTheoreticDiscriminantAnalysis<Untrained> {
     ) -> Result<(Array1<i32>, Array1<Float>)> {
         let n_bins = self.config.n_bins;
         let mut feature_values = feature.to_vec();
-        feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let thresholds = match self.config.discretization_method {
             DiscretizationMethod::EqualWidth => {
@@ -984,7 +984,7 @@ impl InformationTheoreticDiscriminantAnalysis<Untrained> {
         }
 
         // Convert centroids to thresholds (midpoints between consecutive centroids)
-        centroids.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        centroids.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let mut thresholds = Vec::new();
         for i in 0..centroids.len() - 1 {
             thresholds.push((centroids[i] + centroids[i + 1]) / 2.0);
@@ -1097,7 +1097,10 @@ impl Estimator for InformationTheoreticDiscriminantAnalysis<Trained> {
 impl Predict<Array2<Float>, Array1<i32>> for InformationTheoreticDiscriminantAnalysis<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
         let probas = self.predict_proba(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
 
         let mut predictions = Vec::new();
         for row in probas.axis_iter(Axis(0)) {
@@ -1105,7 +1108,7 @@ impl Predict<Array2<Float>, Array1<i32>> for InformationTheoreticDiscriminantAna
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions.push(classes[max_idx]);
         }
@@ -1119,12 +1122,27 @@ impl PredictProba<Array2<Float>, Array2<Float>>
 {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let n_samples = x.nrows();
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
         let n_classes = classes.len();
-        let thresholds = self.discretization_thresholds_.as_ref().unwrap();
-        let feature_distributions = self.feature_distributions_.as_ref().unwrap();
-        let class_priors = self.class_priors_.as_ref().unwrap();
-        let entropy_weights = self.entropy_weights_.as_ref().unwrap();
+        let thresholds = self
+            .discretization_thresholds_
+            .as_ref()
+            .expect("discretization_thresholds_ not available - model not fitted");
+        let feature_distributions = self
+            .feature_distributions_
+            .as_ref()
+            .expect("feature_distributions_ not available - model not fitted");
+        let class_priors = self
+            .class_priors_
+            .as_ref()
+            .expect("class_priors_ not available - model not fitted");
+        let entropy_weights = self
+            .entropy_weights_
+            .as_ref()
+            .expect("entropy_weights_ not available - model not fitted");
 
         if x.ncols() != thresholds.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -1194,7 +1212,10 @@ impl PredictProba<Array2<Float>, Array2<Float>>
 
 impl Transform<Array2<Float>, Array2<Float>> for InformationTheoreticDiscriminantAnalysis<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("selected_features_ not available - model not fitted");
         let n_components = self.config.n_components.unwrap_or(
             selected_features
                 .iter()
@@ -1232,49 +1253,64 @@ impl Transform<Array2<Float>, Array2<Float>> for InformationTheoreticDiscriminan
 impl InformationTheoreticDiscriminantAnalysis<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get feature scores based on information criteria
     pub fn feature_scores(&self) -> &Array1<Float> {
-        self.feature_scores_.as_ref().unwrap()
+        self.feature_scores_
+            .as_ref()
+            .expect("feature_scores_ not available - model not fitted")
     }
 
     /// Get selected features mask
     pub fn selected_features(&self) -> &Array1<bool> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("selected_features_ not available - model not fitted")
     }
 
     /// Get discretization thresholds for each feature
     pub fn discretization_thresholds(&self) -> &[Array1<Float>] {
-        self.discretization_thresholds_.as_ref().unwrap()
+        self.discretization_thresholds_
+            .as_ref()
+            .expect("discretization_thresholds_ not available - model not fitted")
     }
 
     /// Get class priors
     pub fn class_priors(&self) -> &Array1<Float> {
-        self.class_priors_.as_ref().unwrap()
+        self.class_priors_
+            .as_ref()
+            .expect("class_priors_ not available - model not fitted")
     }
 
     /// Get mutual information matrix
     pub fn mutual_information_matrix(&self) -> &Array2<Float> {
-        self.mutual_information_matrix_.as_ref().unwrap()
+        self.mutual_information_matrix_
+            .as_ref()
+            .expect("mutual_information_matrix_ not available - model not fitted")
     }
 
     /// Get entropy-based feature weights
     pub fn entropy_weights(&self) -> &Array1<Float> {
-        self.entropy_weights_.as_ref().unwrap()
+        self.entropy_weights_
+            .as_ref()
+            .expect("entropy_weights_ not available - model not fitted")
     }
 
     /// Get number of features
     pub fn n_features(&self) -> usize {
-        self.n_features_.unwrap()
+        self.n_features_
+            .expect("n_features_ not available - model not fitted")
     }
 
     /// Get number of selected features
     pub fn n_selected_features(&self) -> usize {
         self.selected_features_
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .iter()
             .filter(|&&selected| selected)
             .count()
@@ -1296,15 +1332,15 @@ mod tests {
                 4.2, 5.2,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
             .criterion(InformationCriterion::MutualInformation)
             .n_bins(3);
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -1319,7 +1355,7 @@ mod tests {
                 1.0, 1.0, 1.5, 1.5, 2.0, 2.0, 2.5, 2.5, 5.0, 5.0, 5.5, 5.5, 6.0, 6.0, 6.5, 6.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
@@ -1327,8 +1363,10 @@ mod tests {
             .n_bins(4)
             .information_threshold(0.1);
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (8, 2));
 
@@ -1350,7 +1388,7 @@ mod tests {
                 3.1, 4.1, 104.0, 202.0, 3.2, 4.2, 105.0, 197.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
@@ -1358,8 +1396,8 @@ mod tests {
             .information_threshold(0.01)
             .n_components(Some(2));
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert!(fitted.n_selected_features() >= 1);
         assert!(transformed.ncols() <= 4);
@@ -1375,7 +1413,7 @@ mod tests {
                 80.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         let methods = vec![
@@ -1388,8 +1426,8 @@ mod tests {
                 .discretization_method(method)
                 .n_bins(4);
 
-            let fitted = itda.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 8);
             assert_eq!(fitted.classes().len(), 2);
@@ -1405,11 +1443,11 @@ mod tests {
                 4.2, 5.2,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new();
-        let fitted = itda.fit(&x, &y).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
 
         let mi_matrix = fitted.mutual_information_matrix();
         assert_eq!(mi_matrix.dim(), (3, 3));
@@ -1431,12 +1469,12 @@ mod tests {
                 2.0, 100.1, 5.0, 200.0, 6.0, 200.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new().n_bins(2);
 
-        let fitted = itda.fit(&x, &y).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
         let weights = fitted.entropy_weights();
 
         assert_eq!(weights.len(), 2);
@@ -1457,15 +1495,15 @@ mod tests {
                 4.1, 3.1, 3.2, 4.2, 3.2, 3.3, 4.3, 3.3,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
             .criterion(InformationCriterion::ConditionalMutualInformation)
             .n_bins(3);
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.classes().len(), 2);
@@ -1486,15 +1524,15 @@ mod tests {
                 4.2, 5.2,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
             .criterion(InformationCriterion::JointMutualInformation)
             .n_bins(3);
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -1507,15 +1545,17 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 1.1, 2.1, 1.2, 2.2, 3.0, 4.0, 3.1, 4.1, 3.2, 4.2],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
             .criterion(InformationCriterion::MaximumEntropy { lambda: 0.5 })
             .n_bins(3);
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (6, 2));
 
@@ -1535,15 +1575,15 @@ mod tests {
                 11.0, 110.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
             .discretization_method(DiscretizationMethod::KMeans)
             .n_bins(3);
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.classes().len(), 2);
@@ -1558,15 +1598,15 @@ mod tests {
                 11.0, 110.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         let itda = InformationTheoreticDiscriminantAnalysis::new()
             .discretization_method(DiscretizationMethod::EntropyBased)
             .n_bins(4);
 
-        let fitted = itda.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(fitted.classes().len(), 2);
@@ -1588,7 +1628,7 @@ mod tests {
                 7.0, 1.0, 2.0, 7.5, 1.5, 2.5, 8.0, 2.0, 3.0, 8.5, 2.5, 3.5, 9.0, 3.0, 4.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
 
         let methods = vec![
@@ -1604,8 +1644,8 @@ mod tests {
                 .criterion(InformationCriterion::InformationGain)
                 .n_bins(3);
 
-            let fitted = itda.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = itda.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 10);
             assert_eq!(fitted.classes().len(), 2);

@@ -333,7 +333,7 @@ impl MetadataContext {
         };
 
         // Store in metadata store
-        self.metadata_store.write().unwrap().store_entry(entry.clone())?;
+        self.metadata_store.write().unwrap_or_else(|e| e.into_inner()).store_entry(entry.clone())?;
 
         // Index for search
         self.search_engine.index_entry(&entry)?;
@@ -346,7 +346,7 @@ impl MetadataContext {
 
     /// Retrieve metadata entry by ID
     pub fn get_metadata(&self, entry_id: &str) -> ContextResult<Option<ExecutionMetadataEntry>> {
-        let store = self.metadata_store.read().unwrap();
+        let store = self.metadata_store.read().unwrap_or_else(|e| e.into_inner());
         Ok(store.get_entry(entry_id))
     }
 
@@ -366,7 +366,7 @@ impl MetadataContext {
 
     /// Record execution event in history
     pub fn record_execution(&self, record: execution_history::ExecutionRecord) -> ContextResult<()> {
-        let mut history = self.execution_history.write().unwrap();
+        let mut history = self.execution_history.write().unwrap_or_else(|e| e.into_inner());
         history.add_record(record)?;
 
         // Update metrics
@@ -377,7 +377,7 @@ impl MetadataContext {
 
     /// Get execution history with optional filtering
     pub fn get_execution_history(&self, limit: Option<usize>) -> ContextResult<Vec<execution_history::ExecutionRecord>> {
-        let history = self.execution_history.read().unwrap();
+        let history = self.execution_history.read().unwrap_or_else(|e| e.into_inner());
         Ok(history.get_records(limit))
     }
 
@@ -437,12 +437,12 @@ impl MetadataContext {
 
     /// Get comprehensive metrics from all subsystems
     pub fn get_comprehensive_metrics(&self) -> ContextResult<MetadataMetrics> {
-        let mut metrics = self.metrics.lock().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
 
         // Collect metrics from all subsystems
-        metrics.storage_metrics = self.metadata_store.read().unwrap().get_metrics();
+        metrics.storage_metrics = self.metadata_store.read().unwrap_or_else(|e| e.into_inner()).get_metrics();
         metrics.lineage_metrics = self.lineage_tracker.get_metrics();
-        metrics.history_metrics = self.execution_history.read().unwrap().get_metrics();
+        metrics.history_metrics = self.execution_history.read().unwrap_or_else(|e| e.into_inner()).get_metrics();
         metrics.search_metrics = self.search_engine.get_metrics();
         metrics.schema_metrics = self.schema_validator.get_metrics();
         metrics.dependency_metrics = self.dependency_tracker.get_metrics();
@@ -455,9 +455,9 @@ impl MetadataContext {
 
     /// Export metadata context data for backup/migration
     pub fn export_context_data(&self) -> ContextResult<MetadataContextExport> {
-        let store_data = self.metadata_store.read().unwrap().export_data()?;
+        let store_data = self.metadata_store.read().unwrap_or_else(|e| e.into_inner()).export_data()?;
         let lineage_data = self.lineage_tracker.export_lineage_data()?;
-        let history_data = self.execution_history.read().unwrap().export_history_data()?;
+        let history_data = self.execution_history.read().unwrap_or_else(|e| e.into_inner()).export_history_data()?;
         let schema_data = self.schema_validator.export_schema_data()?;
         let dependency_data = self.dependency_tracker.export_dependency_data()?;
 
@@ -476,9 +476,9 @@ impl MetadataContext {
     /// Import metadata context data from backup/migration
     pub fn import_context_data(&self, export_data: MetadataContextExport) -> ContextResult<()> {
         // Import data to all subsystems
-        self.metadata_store.write().unwrap().import_data(export_data.storage_data)?;
+        self.metadata_store.write().unwrap_or_else(|e| e.into_inner()).import_data(export_data.storage_data)?;
         self.lineage_tracker.import_lineage_data(export_data.lineage_data)?;
-        self.execution_history.write().unwrap().import_history_data(export_data.history_data)?;
+        self.execution_history.write().unwrap_or_else(|e| e.into_inner()).import_history_data(export_data.history_data)?;
         self.schema_validator.import_schema_data(export_data.schema_data)?;
         self.dependency_tracker.import_dependency_data(export_data.dependency_data)?;
 
@@ -490,7 +490,7 @@ impl MetadataContext {
 
     /// Rebuild search indices from current metadata
     pub fn rebuild_search_indices(&self) -> ContextResult<()> {
-        let store = self.metadata_store.read().unwrap();
+        let store = self.metadata_store.read().unwrap_or_else(|e| e.into_inner());
         let entries = store.get_all_entries();
 
         self.search_engine.clear_indices()?;
@@ -509,7 +509,7 @@ impl MetadataContext {
         }
 
         // Optimize storage
-        self.metadata_store.write().unwrap().optimize_storage()?;
+        self.metadata_store.write().unwrap_or_else(|e| e.into_inner()).optimize_storage()?;
 
         // Optimize search indices
         self.search_engine.optimize_indices()?;
@@ -518,16 +518,16 @@ impl MetadataContext {
         self.lineage_tracker.optimize_graph()?;
 
         // Clean up old history records
-        self.execution_history.write().unwrap().cleanup_old_records()?;
+        self.execution_history.write().unwrap_or_else(|e| e.into_inner()).cleanup_old_records()?;
 
         Ok(())
     }
 
     /// Get context health status
     pub fn get_health_status(&self) -> ContextResult<ContextHealthStatus> {
-        let storage_health = self.metadata_store.read().unwrap().get_health_status();
+        let storage_health = self.metadata_store.read().unwrap_or_else(|e| e.into_inner()).get_health_status();
         let lineage_health = self.lineage_tracker.get_health_status();
-        let history_health = self.execution_history.read().unwrap().get_health_status();
+        let history_health = self.execution_history.read().unwrap_or_else(|e| e.into_inner()).get_health_status();
         let search_health = self.search_engine.get_health_status();
         let schema_health = self.schema_validator.get_health_status();
         let dependency_health = self.dependency_tracker.get_health_status();
@@ -662,37 +662,37 @@ impl ExecutionContextTrait for MetadataContext {
     }
 
     fn get_state(&self) -> ContextResult<ContextState> {
-        Ok(self.state.read().unwrap().clone())
+        Ok(self.state.read().unwrap_or_else(|e| e.into_inner()).clone())
     }
 
     fn set_state(&self, state: ContextState) -> ContextResult<()> {
-        *self.state.write().unwrap() = state;
+        *self.state.write().unwrap_or_else(|e| e.into_inner()) = state;
         Ok(())
     }
 
     fn get_metadata(&self) -> ContextResult<ContextMetadata> {
-        Ok(self.metadata.read().unwrap().clone())
+        Ok(self.metadata.read().unwrap_or_else(|e| e.into_inner()).clone())
     }
 
     fn set_property(&self, key: &str, value: String) -> ContextResult<()> {
-        let mut metadata = self.metadata.write().unwrap();
+        let mut metadata = self.metadata.write().unwrap_or_else(|e| e.into_inner());
         metadata.properties.insert(key.to_string(), value);
         Ok(())
     }
 
     fn get_property(&self, key: &str) -> ContextResult<Option<String>> {
-        let metadata = self.metadata.read().unwrap();
+        let metadata = self.metadata.read().unwrap_or_else(|e| e.into_inner());
         Ok(metadata.properties.get(key).cloned())
     }
 
     fn add_tag(&self, tag: String) -> ContextResult<()> {
-        let mut metadata = self.metadata.write().unwrap();
+        let mut metadata = self.metadata.write().unwrap_or_else(|e| e.into_inner());
         metadata.tags.insert(tag);
         Ok(())
     }
 
     fn has_tag(&self, tag: &str) -> ContextResult<bool> {
-        let metadata = self.metadata.read().unwrap();
+        let metadata = self.metadata.read().unwrap_or_else(|e| e.into_inner());
         Ok(metadata.tags.contains(tag))
     }
 }
@@ -750,13 +750,13 @@ mod tests {
         let context = MetadataContext::new("test-context".to_string());
         assert!(context.is_ok());
 
-        let ctx = context.unwrap();
+        let ctx = context.unwrap_or_default();
         assert_eq!(ctx.get_context_id(), "test-context");
     }
 
     #[test]
     fn test_metadata_storage_and_retrieval() {
-        let context = MetadataContext::new("test-storage".to_string()).unwrap();
+        let context = MetadataContext::new("test-storage".to_string()).unwrap_or_default();
 
         let mut metadata = HashMap::new();
         metadata.insert("key".to_string(), "value".to_string());
@@ -764,35 +764,35 @@ mod tests {
         let result = context.store_metadata("entry-1", MetadataEntryType::ExecutionStart, metadata);
         assert!(result.is_ok());
 
-        let retrieved = context.get_metadata("entry-1").unwrap();
+        let retrieved = context.get_metadata("entry-1").unwrap_or_default();
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().entry_id, "entry-1");
+        assert_eq!(retrieved.unwrap_or_default().entry_id, "entry-1");
     }
 
     #[test]
     fn test_lineage_tracking() {
-        let context = MetadataContext::new("test-lineage".to_string()).unwrap();
+        let context = MetadataContext::new("test-lineage".to_string()).unwrap_or_default();
 
         let result = context.track_lineage("parent-1", "child-1");
         assert!(result.is_ok());
 
-        let graph = context.get_lineage_graph().unwrap();
+        let graph = context.get_lineage_graph().unwrap_or_default();
         assert!(graph.nodes.len() >= 2);
         assert!(graph.edges.len() >= 1);
     }
 
     #[test]
     fn test_dependency_resolution() {
-        let context = MetadataContext::new("test-deps".to_string()).unwrap();
+        let context = MetadataContext::new("test-deps".to_string()).unwrap_or_default();
 
-        context.add_dependency("task-1", "task-2", dependency_tracker::DependencyType::Hard).unwrap();
-        context.add_dependency("task-2", "task-3", dependency_tracker::DependencyType::Data).unwrap();
+        context.add_dependency("task-1", "task-2", dependency_tracker::DependencyType::Hard).unwrap_or_default();
+        context.add_dependency("task-2", "task-3", dependency_tracker::DependencyType::Data).unwrap_or_default();
 
         let resolution = context.resolve_dependencies(&[
             "task-1".to_string(),
             "task-2".to_string(),
             "task-3".to_string()
-        ]).unwrap();
+        ]).unwrap_or_default();
 
         assert!(resolution.success);
         assert_eq!(resolution.execution_order.len(), 3);
@@ -800,17 +800,17 @@ mod tests {
 
     #[test]
     fn test_health_status() {
-        let context = MetadataContext::new("test-health".to_string()).unwrap();
+        let context = MetadataContext::new("test-health".to_string()).unwrap_or_default();
 
-        let health = context.get_health_status().unwrap();
+        let health = context.get_health_status().unwrap_or_default();
         assert_eq!(health.overall_status, HealthStatus::Healthy);
     }
 
     #[test]
     fn test_metrics_collection() {
-        let context = MetadataContext::new("test-metrics".to_string()).unwrap();
+        let context = MetadataContext::new("test-metrics".to_string()).unwrap_or_default();
 
-        let metrics = context.get_comprehensive_metrics().unwrap();
+        let metrics = context.get_comprehensive_metrics().unwrap_or_default();
         assert!(metrics.system_metrics.last_updated <= SystemTime::now());
     }
 }

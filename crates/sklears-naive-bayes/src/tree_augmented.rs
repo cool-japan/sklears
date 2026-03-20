@@ -192,7 +192,10 @@ impl TreeAugmentedNB {
                         }
                     } else {
                         // Add conditional log probabilities for dependent features
-                        let parent_idx = self.dependency_tree.get_parent(feature_idx).unwrap();
+                        let parent_idx = self
+                            .dependency_tree
+                            .get_parent(feature_idx)
+                            .expect("operation should succeed");
                         let parent_value = sample[parent_idx] as usize;
                         let feature_value = sample[feature_idx] as usize;
 
@@ -507,27 +510,27 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0, 6.0, 7.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let mut tan = TreeAugmentedNB::new(TANConfig::default());
         assert!(tan.fit(&X, &y).is_ok());
 
-        let predictions = tan.predict(&X).unwrap();
+        let predictions = tan.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_tan_predict_proba() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let mut tan = TreeAugmentedNB::new(TANConfig::default());
-        tan.fit(&X, &y).unwrap();
+        tan.fit(&X, &y).expect("operation should succeed");
 
-        let log_proba = tan.predict_log_proba(&X).unwrap();
+        let log_proba = tan.predict_log_proba(&X).expect("operation should succeed");
         assert_eq!(log_proba.shape(), &[4, 2]);
 
         // Check that log probabilities are reasonable (not all negative infinity)
@@ -563,7 +566,7 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_empty_dataset() {
-        let X = Array2::from_shape_vec((0, 2), vec![]).unwrap();
+        let X = Array2::from_shape_vec((0, 2), vec![]).expect("operation should succeed");
         let y = Array1::from_vec(vec![]);
 
         let mut tan = TreeAugmentedNB::new(TANConfig::default());

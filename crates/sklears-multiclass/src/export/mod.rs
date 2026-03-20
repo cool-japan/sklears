@@ -97,7 +97,7 @@ impl ModelMetadata {
             n_classes: 0,
             created_at: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs()
                 .to_string(),
             properties: std::collections::HashMap::new(),

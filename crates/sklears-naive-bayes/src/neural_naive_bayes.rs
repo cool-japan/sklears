@@ -112,7 +112,7 @@ impl NeuralLayer {
         rng: &mut impl Rng,
     ) -> Self {
         let std_dev = (2.0 / input_size as f64).sqrt(); // Xavier initialization
-        let normal = RandNormal::new(0.0, std_dev).unwrap();
+        let normal = RandNormal::new(0.0, std_dev).expect("operation should succeed");
 
         let weights = Array2::from_shape_fn((output_size, input_size), |_| normal.sample(rng));
 
@@ -726,12 +726,12 @@ mod tests {
                 4.9, 5.2, // class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         // Fit model
-        nb.fit(&x, &y).unwrap();
+        nb.fit(&x, &y).expect("operation should succeed");
         assert!(nb.is_fitted());
 
         // Test prediction
@@ -742,12 +742,12 @@ mod tests {
                 5.05, 5.05, // Should be close to class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = nb.predict(&test_x).unwrap();
+        let predictions = nb.predict(&test_x).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
 
-        let probabilities = nb.predict_proba(&test_x).unwrap();
+        let probabilities = nb.predict_proba(&test_x).expect("operation should succeed");
         assert_eq!(probabilities.shape(), &[2, 2]);
 
         // Check that probabilities sum to 1 for each sample
@@ -761,7 +761,8 @@ mod tests {
     fn test_neural_nb_invalid_dimensions() {
         let mut nb = NeuralNBBuilder::new().build_with_seed(42);
 
-        let x = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0]); // Wrong length
 
         let result = nb.fit(&x, &y);
@@ -783,12 +784,12 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1]);
 
-        nb.fit(&x, &y).unwrap();
+        nb.fit(&x, &y).expect("operation should succeed");
 
-        let network_info = nb.get_network_info(0).unwrap();
+        let network_info = nb.get_network_info(0).expect("operation should succeed");
 
         // Should have 3 layers: input->8, 8->4, 4->1
         assert_eq!(network_info.len(), 3);

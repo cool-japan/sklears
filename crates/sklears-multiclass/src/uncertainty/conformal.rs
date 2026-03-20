@@ -278,7 +278,7 @@ impl ConformalPredictor {
             .enumerate()
             .map(|(i, &score)| (i, score))
             .collect();
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Find position of true label in sorted order
         let mut _position = 0;
@@ -316,7 +316,7 @@ impl ConformalPredictor {
             .enumerate()
             .map(|(i, &score)| (i, score))
             .collect();
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Find position of true label and compute regularized score
         let mut cumulative_score = 0.0;
@@ -342,7 +342,7 @@ impl ConformalPredictor {
         }
 
         let mut sorted_scores = conformity_scores.to_vec();
-        sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Compute the quantile for the desired confidence level
         let alpha = 1.0 - self.confidence_level;
@@ -363,7 +363,7 @@ impl ConformalPredictor {
             max_scores.push(1.0 - row_max); // Convert to conformity score
         }
 
-        max_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        max_scores.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_idx = max_scores.len() / 2;
         Ok(max_scores[median_idx])
     }
@@ -396,7 +396,8 @@ impl ConformalPredictor {
                     .enumerate()
                     .map(|(i, &score)| (i, score))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                 let mut cumulative = 0.0;
                 for (class_idx, score) in indexed_scores {
@@ -415,7 +416,8 @@ impl ConformalPredictor {
                     .enumerate()
                     .map(|(i, &score)| (i, score))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                 let mut cumulative = 0.0;
                 for (class_idx, score) in indexed_scores {
@@ -434,7 +436,8 @@ impl ConformalPredictor {
                     .enumerate()
                     .map(|(i, &score)| (i, score))
                     .collect();
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                 let mut cumulative = 0.0;
                 let mut regularization = 0.0;
@@ -457,7 +460,7 @@ impl ConformalPredictor {
             let max_idx = scores
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(i, _)| i)
                 .unwrap_or(0);
             prediction_set.push(max_idx as i32);
@@ -587,13 +590,17 @@ mod tests {
         let cal_labels = array![0, 1, 2, 0];
 
         // Fit the predictor
-        predictor.fit(&cal_scores, &cal_labels).unwrap();
+        predictor
+            .fit(&cal_scores, &cal_labels)
+            .expect("operation should succeed");
         assert!(predictor.fitted);
 
         // Test data
         let test_scores = array![[0.9, 0.05, 0.05], [0.3, 0.4, 0.3]];
 
-        let result = predictor.predict(&test_scores, None).unwrap();
+        let result = predictor
+            .predict(&test_scores, None)
+            .expect("operation should succeed");
 
         assert_eq!(result.prediction_sets.len(), 2);
         assert_eq!(result.set_sizes.len(), 2);
@@ -615,7 +622,7 @@ mod tests {
 
         let conformity_score = predictor
             .compute_jackknife_score(&scores, true_label)
-            .unwrap();
+            .expect("operation should succeed");
 
         // True class has highest score, so rank should be 1
         // Conformity score = 1/3 = 0.333...
@@ -633,7 +640,7 @@ mod tests {
 
         let conformity_score = predictor
             .compute_raps_score(&scores, true_label, 0.1)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should include regularization term
         assert!(conformity_score > 0.5); // Base score + regularization
@@ -655,10 +662,14 @@ mod tests {
         ];
         let cal_labels = array![0, 1, 2, 0];
 
-        predictor.fit(&cal_scores, &cal_labels).unwrap();
+        predictor
+            .fit(&cal_scores, &cal_labels)
+            .expect("operation should succeed");
 
         // Test with same data to check coverage
-        let result = predictor.predict(&cal_scores, None).unwrap();
+        let result = predictor
+            .predict(&cal_scores, None)
+            .expect("operation should succeed");
 
         // Check that empirical coverage is close to desired level
         assert!(result.empirical_coverage >= 0.5); // Should have reasonable coverage

@@ -203,7 +203,7 @@ impl DiffusionMaps<Untrained> {
         }
 
         // Use median distance as epsilon estimate
-        distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         distances[distances.len() / 2]
     }
 
@@ -283,7 +283,7 @@ impl DiffusionMaps<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Create sorted eigenvalue and eigenvector matrices
         let n = eigenvals.len();

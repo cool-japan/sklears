@@ -1258,7 +1258,9 @@ impl GpuDecomposition {
         }
 
         // Center the data
-        let col_means = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let col_means = data
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .expect("array should have elements for mean computation");
         let centered_data = data - &col_means.insert_axis(scirs2_core::ndarray::Axis(0));
 
         // Perform GPU SVD
@@ -1305,7 +1307,8 @@ impl Default for GpuDecomposition {
                 ..AccelerationConfig::default()
             };
             Self {
-                gpu_acceleration: GpuAcceleration::with_config(config).unwrap(),
+                gpu_acceleration: GpuAcceleration::with_config(config)
+                    .expect("operation should succeed"),
             }
         })
     }
@@ -1323,7 +1326,9 @@ mod tests {
         let a = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
         let b = Array1::from_vec(vec![5.0, 6.0, 7.0, 8.0]);
 
-        let result = simd_ops.dot_product_simd(&a, &b).unwrap();
+        let result = simd_ops
+            .dot_product_simd(&a, &b)
+            .expect("operation should succeed");
         let expected = 1.0 * 5.0 + 2.0 * 6.0 + 3.0 * 7.0 + 4.0 * 8.0;
 
         assert!((result - expected).abs() < 1e-10);
@@ -1335,7 +1340,9 @@ mod tests {
         let a = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
         let b = Array1::from_vec(vec![5.0, 6.0, 7.0, 8.0]);
 
-        let result = simd_ops.elementwise_add_simd(&a, &b).unwrap();
+        let result = simd_ops
+            .elementwise_add_simd(&a, &b)
+            .expect("operation should succeed");
         let expected = Array1::from_vec(vec![6.0, 8.0, 10.0, 12.0]);
 
         for (r, e) in result.iter().zip(expected.iter()) {
@@ -1349,7 +1356,9 @@ mod tests {
         let a = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
         let b = Array1::from_vec(vec![5.0, 6.0, 7.0, 8.0]);
 
-        let result = simd_ops.elementwise_mul_simd(&a, &b).unwrap();
+        let result = simd_ops
+            .elementwise_mul_simd(&a, &b)
+            .expect("operation should succeed");
         let expected = Array1::from_vec(vec![5.0, 12.0, 21.0, 32.0]);
 
         for (r, e) in result.iter().zip(expected.iter()) {
@@ -1360,10 +1369,13 @@ mod tests {
     #[test]
     fn test_matrix_vector_mul_simd() {
         let simd_ops = SimdMatrixOps::new();
-        let matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let vector = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
-        let result = simd_ops.matrix_vector_mul_simd(&matrix, &vector).unwrap();
+        let result = simd_ops
+            .matrix_vector_mul_simd(&matrix, &vector)
+            .expect("operation should succeed");
         let expected = Array1::from_vec(vec![14.0, 32.0]); // [1*1+2*2+3*3, 4*1+5*2+6*3]
 
         for (r, e) in result.iter().zip(expected.iter()) {
@@ -1380,7 +1392,7 @@ mod tests {
         let result = parallel_ops.parallel_eigendecomposition(&matrix);
         assert!(result.is_ok());
 
-        let (eigenvals, eigenvecs) = result.unwrap();
+        let (eigenvals, eigenvecs) = result.expect("operation should succeed");
         assert_eq!(eigenvals.len(), 3);
         assert_eq!(eigenvecs.dim(), (3, 3));
     }
@@ -1411,7 +1423,10 @@ mod tests {
         assert_eq!(aligned_array.len(), array.len());
         assert!(aligned_ops.is_aligned(&aligned_array));
 
-        assert_eq!(aligned_array.as_slice(), array.as_slice().unwrap());
+        assert_eq!(
+            aligned_array.as_slice(),
+            array.as_slice().expect("slice operation should succeed")
+        );
     }
 
     #[test]
@@ -1452,7 +1467,9 @@ mod tests {
         let b = Array1::from_vec(vec![4.0, 5.0, 6.0]);
 
         // Should use fallback when SIMD is disabled
-        let result = simd_ops.dot_product_simd(&a, &b).unwrap();
+        let result = simd_ops
+            .dot_product_simd(&a, &b)
+            .expect("operation should succeed");
         let expected = 32.0; // 1*4 + 2*5 + 3*6
         assert!((result - expected).abs() < 1e-10);
     }
@@ -1491,7 +1508,8 @@ mod tests {
         };
 
         if let Ok(gpu_acc) = GpuAcceleration::with_config(config) {
-            let array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+            let array = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+                .expect("shape and data length should match");
 
             // Test array to tensor conversion (will use CPU tensor)
             if let Ok(tensor) = gpu_acc.array_to_tensor(&array) {
@@ -1511,7 +1529,7 @@ mod tests {
 
         let matrix =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         // This should work with fallback even without GPU
         if let Ok((factor_a, factor_b)) = gpu_decomp.gpu_factorize(&matrix) {
@@ -1531,7 +1549,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Test GPU PCA with 2 components
         if let Ok((u, s, vt)) = gpu_decomp.gpu_pca(&data, 2) {

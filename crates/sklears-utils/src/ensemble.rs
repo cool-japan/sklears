@@ -6,7 +6,7 @@
 use crate::{UtilsError, UtilsResult};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::collections::HashMap;
 
 /// Bootstrap sample generator
@@ -56,7 +56,7 @@ impl Bootstrap {
         let mut in_bag_set = vec![false; n_population];
 
         for _ in 0..n_samples {
-            let idx = rng.gen_range(0..n_population);
+            let idx = rng.random_range(0..n_population);
             in_bag.push(idx);
             in_bag_set[idx] = true;
         }
@@ -146,12 +146,12 @@ impl BaggingPredictor {
         match &self.aggregation {
             AggregationStrategy::Mean => Ok(predictions
                 .mean_axis(scirs2_core::ndarray::Axis(1))
-                .unwrap()),
+                .expect("operation should succeed")),
             AggregationStrategy::Median => {
                 let mut result = Array1::zeros(predictions.nrows());
                 for (i, row) in predictions.outer_iter().enumerate() {
                     let mut sorted: Vec<f64> = row.to_vec();
-                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     let mid = sorted.len() / 2;
                     result[i] = if sorted.len() % 2 == 0 {
                         (sorted[mid - 1] + sorted[mid]) / 2.0
@@ -304,7 +304,7 @@ impl OOBScoreEstimator {
         }
 
         // Compute R² score
-        let y_mean = y_true.mean().unwrap();
+        let y_mean = y_true.mean().expect("operation should succeed");
         let ss_tot: f64 = y_true.iter().map(|&y| (y - y_mean).powi(2)).sum();
         let ss_res: f64 = y_true
             .iter()
@@ -392,7 +392,7 @@ impl StackingHelper {
 
         // Fisher-Yates shuffle
         for i in (1..indices.len()).rev() {
-            let j = rng.gen_range(0..=i);
+            let j = rng.random_range(0..=i);
             indices.swap(i, j);
         }
 
@@ -442,7 +442,7 @@ mod tests {
     #[test]
     fn test_bootstrap_sample() {
         let bootstrap = Bootstrap::new(Some(10), Some(42));
-        let (in_bag, out_of_bag) = bootstrap.sample(10).unwrap();
+        let (in_bag, out_of_bag) = bootstrap.sample(10).expect("operation should succeed");
 
         assert_eq!(in_bag.len(), 10);
         assert!(!out_of_bag.is_empty()); // Typically ~37% are OOB
@@ -460,7 +460,9 @@ mod tests {
     #[test]
     fn test_bootstrap_multiple() {
         let bootstrap = Bootstrap::new(None, Some(42));
-        let samples = bootstrap.sample_multiple(10, 5).unwrap();
+        let samples = bootstrap
+            .sample_multiple(10, 5)
+            .expect("operation should succeed");
 
         assert_eq!(samples.len(), 5);
 
@@ -482,7 +484,9 @@ mod tests {
             [1.0, 3.0, 2.0, 4.0]
         ];
 
-        let result = predictor.aggregate_regression(&predictions, None).unwrap();
+        let result = predictor
+            .aggregate_regression(&predictions, None)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(result[0], 2.5, epsilon = 1e-10);
         assert_abs_diff_eq!(result[1], 2.0, epsilon = 1e-10);
@@ -499,7 +503,9 @@ mod tests {
             [1.0, 2.0, 3.0, 4.0]    // Median = 2.5
         ];
 
-        let result = predictor.aggregate_regression(&predictions, None).unwrap();
+        let result = predictor
+            .aggregate_regression(&predictions, None)
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(result[0], 2.5, epsilon = 1e-10);
         assert_abs_diff_eq!(result[1], 2.5, epsilon = 1e-10);
@@ -510,7 +516,9 @@ mod tests {
             [10.0, 1.0, 2.0, 3.0, 100.0]  // Median = 3.0 (robust to outliers)
         ];
 
-        let result2 = predictor.aggregate_regression(&predictions2, None).unwrap();
+        let result2 = predictor
+            .aggregate_regression(&predictions2, None)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(result2[0], 3.0, epsilon = 1e-10);
         assert_abs_diff_eq!(result2[1], 3.0, epsilon = 1e-10);
     }
@@ -524,7 +532,7 @@ mod tests {
 
         let result = predictor
             .aggregate_regression(&predictions, Some(&weights))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Sample 0: 1.0*0.5 + 2.0*0.3 + 3.0*0.2 = 0.5 + 0.6 + 0.6 = 1.7
         assert_abs_diff_eq!(result[0], 1.7, epsilon = 1e-10);
@@ -542,7 +550,9 @@ mod tests {
             [2, 2, 2, 0, 1]  // Majority: 2 (3 votes)
         ];
 
-        let result = predictor.aggregate_classification(&predictions).unwrap();
+        let result = predictor
+            .aggregate_classification(&predictions)
+            .expect("operation should succeed");
 
         assert_eq!(result[0], 0);
         assert_eq!(result[1], 1);
@@ -558,7 +568,7 @@ mod tests {
 
         let result = predictor
             .aggregate_probabilities(&[probs1, probs2])
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_abs_diff_eq!(result[[0, 0]], 0.7, epsilon = 1e-10);
         assert_abs_diff_eq!(result[[0, 1]], 0.3, epsilon = 1e-10);
@@ -571,7 +581,8 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y_pred = array![1.1, 1.9, 3.1, 3.9, 5.1];
 
-        let score = OOBScoreEstimator::oob_score_regression(&y_true, &y_pred).unwrap();
+        let score = OOBScoreEstimator::oob_score_regression(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         // Should be close to 1.0 (perfect predictions)
         assert!(score > 0.95);
@@ -582,14 +593,16 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1];
         let y_pred = array![0, 1, 2, 0, 2]; // 4/5 correct
 
-        let accuracy = OOBScoreEstimator::oob_accuracy(&y_true, &y_pred).unwrap();
+        let accuracy =
+            OOBScoreEstimator::oob_accuracy(&y_true, &y_pred).expect("operation should succeed");
 
         assert_abs_diff_eq!(accuracy, 0.8, epsilon = 1e-10);
     }
 
     #[test]
     fn test_stacking_cv_folds() {
-        let folds = StackingHelper::generate_cv_folds(10, 3, Some(42)).unwrap();
+        let folds =
+            StackingHelper::generate_cv_folds(10, 3, Some(42)).expect("operation should succeed");
 
         assert_eq!(folds.len(), 3);
 

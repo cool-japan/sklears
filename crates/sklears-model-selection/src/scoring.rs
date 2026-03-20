@@ -2,8 +2,8 @@
 
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result, SklearsError},
     // traits::Score,
@@ -292,7 +292,10 @@ impl EnhancedScorer {
             // Additional metrics
             for metric in &self.config.additional {
                 let score = self.compute_metric_score(metric, y_true, y_pred, task_type)?;
-                additional_scores.get_mut(metric).unwrap().push(score);
+                additional_scores
+                    .get_mut(metric)
+                    .expect("operation should succeed")
+                    .push(score);
             }
         }
 
@@ -322,11 +325,19 @@ impl EnhancedScorer {
         let mut mean_scores = HashMap::new();
         let mut std_scores = HashMap::new();
 
-        mean_scores.insert("primary".to_string(), primary_scores_array.mean().unwrap());
+        mean_scores.insert(
+            "primary".to_string(),
+            primary_scores_array
+                .mean()
+                .expect("operation should succeed"),
+        );
         std_scores.insert("primary".to_string(), primary_scores_array.std(1.0));
 
         for (metric, scores) in &additional_scores_arrays {
-            mean_scores.insert(metric.clone(), scores.mean().unwrap());
+            mean_scores.insert(
+                metric.clone(),
+                scores.mean().expect("operation should succeed"),
+            );
             std_scores.insert(metric.clone(), scores.std(1.0));
         }
 
@@ -430,7 +441,7 @@ impl EnhancedScorer {
         for _ in 0..self.config.n_bootstrap {
             let mut bootstrap_sample = Vec::with_capacity(n_scores);
             for _ in 0..n_scores {
-                let idx = rng.gen_range(0..n_scores);
+                let idx = rng.random_range(0..n_scores);
                 bootstrap_sample.push(scores[idx]);
             }
 
@@ -438,7 +449,7 @@ impl EnhancedScorer {
             bootstrap_means.push(mean);
         }
 
-        bootstrap_means.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        bootstrap_means.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let alpha = 1.0 - self.config.confidence_level;
         let lower_idx = ((alpha / 2.0) * self.config.n_bootstrap as f64) as usize;
@@ -496,7 +507,7 @@ pub fn paired_ttest(
 
     // Compute differences
     let differences: Array1<f64> = scores1 - scores2;
-    let mean_diff = differences.mean().unwrap();
+    let mean_diff = differences.mean().expect("operation should succeed");
     let std_diff = differences.std(1.0);
 
     if std_diff == 0.0 {
@@ -591,7 +602,7 @@ pub fn wilcoxon_signed_rank_test(
         .map(|(i, &d)| (d.abs(), i, d))
         .collect();
 
-    abs_diffs_with_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    abs_diffs_with_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     let mut ranks = vec![0.0; n];
     let mut i = 0;

@@ -641,13 +641,17 @@ fn compute_feature_importance_stability(
     perturbed_explanations: &[Array2<Float>],
 ) -> SklResult<Float> {
     // Compute rank correlation of feature importance rankings
-    let original_importance = original_explanations.mean_axis(Axis(0)).unwrap();
+    let original_importance = original_explanations
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
 
     let mut rank_correlations = Vec::new();
 
     for perturbed in perturbed_explanations {
         if perturbed.shape() == original_explanations.shape() {
-            let perturbed_importance = perturbed.mean_axis(Axis(0)).unwrap();
+            let perturbed_importance = perturbed
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
             let correlation =
                 compute_rank_correlation(&original_importance, &perturbed_importance)?;
             rank_correlations.push(correlation);
@@ -762,8 +766,10 @@ fn analyze_stability_trend(
     }
 
     // Simple linear regression
-    let x_mean = perturbation_levels.mean().unwrap();
-    let y_mean = stability_scores.mean().unwrap();
+    let x_mean = perturbation_levels
+        .mean()
+        .expect("operation should succeed");
+    let y_mean = stability_scores.mean().expect("operation should succeed");
 
     let mut numerator = 0.0;
     let mut denominator = 0.0;
@@ -895,7 +901,7 @@ where
     }
 
     // Compute bounds from empirical distribution
-    predictions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    predictions.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let lower_bound = predictions[0];
     let upper_bound = predictions[predictions.len() - 1];
@@ -958,7 +964,8 @@ mod tests {
         let min_val = -0.1;
         let max_val = 0.1;
 
-        let perturbation = generate_random_perturbation(shape, min_val, max_val).unwrap();
+        let perturbation = generate_random_perturbation(shape, min_val, max_val)
+            .expect("operation should succeed");
 
         assert_eq!(perturbation.shape(), &[2, 3]);
 
@@ -973,7 +980,8 @@ mod tests {
         let config = AdversarialConfig::default();
 
         let (adversarial_example, perturbation) =
-            generate_fgsm_attack(&input.view(), mock_model_fn, &config).unwrap();
+            generate_fgsm_attack(&input.view(), mock_model_fn, &config)
+                .expect("operation should succeed");
 
         assert_eq!(adversarial_example.shape(), input.shape());
         assert_eq!(perturbation.shape(), input.shape());
@@ -1001,7 +1009,7 @@ mod tests {
             AdversarialAttack::RandomNoise,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.adversarial_examples.len(), 5);
         assert_eq!(result.perturbations.len(), 5);
@@ -1017,8 +1025,8 @@ mod tests {
         let perturbed2 = array![[0.9, 1.9], [2.9, 3.9]];
         let perturbed_explanations = vec![perturbed1, perturbed2];
 
-        let consistency =
-            compute_explanation_consistency(&original, &perturbed_explanations).unwrap();
+        let consistency = compute_explanation_consistency(&original, &perturbed_explanations)
+            .expect("operation should succeed");
 
         assert!(consistency >= 0.0 && consistency <= 1.0);
         assert!(consistency > 0.8); // Should be high for similar explanations
@@ -1029,7 +1037,7 @@ mod tests {
         let a = array![1.0, 2.0, 3.0, 4.0];
         let b = array![1.1, 2.1, 3.1, 4.1];
 
-        let correlation = compute_rank_correlation(&a, &b).unwrap();
+        let correlation = compute_rank_correlation(&a, &b).expect("operation should succeed");
 
         assert!(correlation >= -1.0 && correlation <= 1.0);
         assert!(correlation > 0.9); // Should be high for similar rankings
@@ -1045,7 +1053,7 @@ mod tests {
 
         let result =
             test_explanation_robustness(&input.view(), mock_model_fn, mock_explanation_fn, &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(result.perturbed_explanations.len(), 10);
         assert!(!result.robustness_scores.is_empty());
@@ -1068,7 +1076,7 @@ mod tests {
             mock_explanation_fn,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.stability_scores.len(), 20); // Default number of levels
         assert_eq!(result.perturbation_levels.len(), 20);
@@ -1088,7 +1096,7 @@ mod tests {
             CertificationMethod::RandomizedSmoothing,
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.robustness_lower_bounds.len(), input.nrows());
         assert_eq!(result.robustness_upper_bounds.len(), input.nrows());
@@ -1109,12 +1117,13 @@ mod tests {
             ..Default::default()
         };
 
-        let is_successful = check_attack_success(&original, &adversarial, &config).unwrap();
+        let is_successful = check_attack_success(&original, &adversarial, &config)
+            .expect("operation should succeed");
         assert!(is_successful); // 0.2 change > 0.1 epsilon
 
         let adversarial_close = array![1.05];
-        let is_not_successful =
-            check_attack_success(&original, &adversarial_close, &config).unwrap();
+        let is_not_successful = check_attack_success(&original, &adversarial_close, &config)
+            .expect("operation should succeed");
         assert!(!is_not_successful); // 0.05 change < 0.1 epsilon
     }
 
@@ -1124,12 +1133,12 @@ mod tests {
         let mean = 0.0;
         let std = 1.0;
 
-        let noise = generate_gaussian_noise(shape, mean, std).unwrap();
+        let noise = generate_gaussian_noise(shape, mean, std).expect("operation should succeed");
 
         assert_eq!(noise.shape(), &[3, 2]);
 
         // Basic statistical checks (allow for more variance with small samples)
-        let sample_mean = noise.mean().unwrap();
+        let sample_mean = noise.mean().expect("operation should succeed");
         assert!((sample_mean - mean).abs() < 1.0); // Allow more tolerance for small samples
     }
 

@@ -1033,7 +1033,7 @@ mod tests {
         const MAX_FEATURES: usize = 10;
 
         // Valid index
-        let valid_index = FeatureIndex::<MAX_FEATURES>::new(5).unwrap();
+        let valid_index = FeatureIndex::<MAX_FEATURES>::new(5).expect("operation should succeed");
         assert_eq!(valid_index.get(), 5);
 
         // Invalid index

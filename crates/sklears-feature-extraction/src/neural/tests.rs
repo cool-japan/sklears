@@ -45,11 +45,11 @@ fn test_softmax() {
 
 #[test]
 fn test_layer_norm() {
-    let x = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+    let x = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("operation should succeed");
     let normalized = layer_norm(&x);
 
     for i in 0..x.nrows() {
-        let row_mean = normalized.row(i).mean().unwrap();
+        let row_mean = normalized.row(i).mean().expect("operation should succeed");
         assert!(row_mean.abs() < 1e-10);
     }
 }
@@ -76,10 +76,10 @@ fn test_autoencoder_fit_and_transform() {
         1.0, 2.0, 3.0, 4.0,
         5.0, 6.0, 7.0, 8.0,
         9.0, 10.0, 11.0, 12.0,
-    ]).unwrap();
+    ]).expect("operation should succeed");
 
-    let fitted = extractor.fit(&x, &()).unwrap();
-    let transformed = fitted.transform(&x).unwrap();
+    let fitted = extractor.fit(&x, &()).expect("operation should succeed");
+    let transformed = fitted.transform(&x).expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (3, 2));
 }
@@ -105,8 +105,8 @@ fn test_neural_embedding_fit_and_transform() {
 
     let x = array![0, 1, 2, 3, 4];
 
-    let fitted = extractor.fit(&x, &()).unwrap();
-    let transformed = fitted.transform(&x).unwrap();
+    let fitted = extractor.fit(&x, &()).expect("operation should succeed");
+    let transformed = fitted.transform(&x).expect("operation should succeed");
 
     assert_eq!(transformed.dim(), (5, 4));
 }
@@ -200,7 +200,7 @@ fn test_dense_layer_creation() {
 #[test]
 fn test_dense_layer_forward() {
     let layer = DenseLayer::new(3, 2, None);
-    let input = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+    let input = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("operation should succeed");
 
     let output = layer.forward(&input);
     assert_eq!(output.dim(), (2, 2));
@@ -249,7 +249,7 @@ fn test_dropout_layer() {
 #[test]
 fn test_batch_norm_layer() {
     let mut layer = BatchNormLayer::new(3, 1e-5, 0.1, true);
-    let input = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+    let input = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("operation should succeed");
 
     let output = layer.forward_2d(&input);
     assert_eq!(output.dim(), (2, 3));
@@ -303,7 +303,7 @@ fn test_manhattan_distance() {
 
 #[test]
 fn test_l2_regularization_loss() {
-    let weights = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+    let weights = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("operation should succeed");
     let loss = l2_regularization_loss(&weights, 0.01);
 
     let expected = 0.01 * (1.0 + 4.0 + 9.0 + 16.0);
@@ -312,20 +312,20 @@ fn test_l2_regularization_loss() {
 
 #[test]
 fn test_standard_scaler() {
-    let data = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]).unwrap();
+    let data = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]).expect("operation should succeed");
     let (means, stds) = standard_scaler_fit(&data);
 
     assert!((means[0] - 2.0).abs() < 1e-10);
     assert!((means[1] - 5.0).abs() < 1e-10);
 
     let scaled = standard_scaler_transform(&data, &means, &stds);
-    let scaled_mean_0 = scaled.column(0).mean().unwrap();
+    let scaled_mean_0 = scaled.column(0).mean().expect("operation should succeed");
     assert!(scaled_mean_0.abs() < 1e-10);
 }
 
 #[test]
 fn test_min_max_scaler() {
-    let data = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]).unwrap();
+    let data = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]).expect("operation should succeed");
     let (mins, maxs) = min_max_scaler_fit(&data);
 
     assert!((mins[0] - 1.0).abs() < 1e-10);
@@ -350,7 +350,7 @@ fn test_create_batches() {
 
 #[test]
 fn test_train_test_split() {
-    let data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
+    let data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).expect("operation should succeed");
     let (train, test) = train_test_split(&data, 0.3, Some(42));
 
     assert_eq!(train.nrows(), 7);
@@ -394,7 +394,7 @@ fn test_positional_embedding() {
 #[test]
 fn test_sgd_optimizer() {
     let mut optimizer = SGD::new(0.01).with_momentum(0.9);
-    let mut params = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+    let mut params = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("operation should succeed");
     let gradients = Array2::ones((2, 2));
 
     let initial_param = params[(0, 0)];
@@ -406,7 +406,7 @@ fn test_sgd_optimizer() {
 #[test]
 fn test_adam_optimizer() {
     let mut optimizer = Adam::new(0.01);
-    let mut params = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+    let mut params = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("operation should succeed");
     let gradients = Array2::ones((2, 2));
 
     let initial_param = params[(0, 0)];
@@ -486,13 +486,13 @@ fn test_layer_norm_layer() {
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
         9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
         17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
-    ]).unwrap();
+    ]).expect("operation should succeed");
 
     let output = layer_norm.forward(&input);
     assert_eq!(output.dim(), (3, 8));
 
     for i in 0..3 {
-        let row_mean = output.row(i).mean().unwrap();
+        let row_mean = output.row(i).mean().expect("operation should succeed");
         assert!(row_mean.abs() < 1e-10);
     }
 }
@@ -530,7 +530,7 @@ fn test_attention_entropy() {
     let attention_weights = Array2::from_shape_vec((2, 3), vec![
         0.5, 0.3, 0.2,
         0.8, 0.1, 0.1,
-    ]).unwrap();
+    ]).expect("operation should succeed");
 
     let entropy = attention_entropy(&attention_weights);
     assert_eq!(entropy.len(), 2);
@@ -551,7 +551,7 @@ fn test_create_causal_mask() {
 
 #[test]
 fn test_interpolate_positional_encoding() {
-    let original = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+    let original = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("operation should succeed");
     let interpolated = interpolate_positional_encoding(&original, 5);
 
     assert_eq!(interpolated.dim(), (5, 2));
@@ -571,16 +571,16 @@ mod integration_tests {
             .n_epochs(2)
             .learning_rate(0.1);
 
-        let data = Array2::from_shape_vec((5, 8), (0..40).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((5, 8), (0..40).map(|x| x as f64).collect()).expect("operation should succeed");
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
-        let reconstructed = fitted.reconstruct(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
+        let reconstructed = fitted.reconstruct(&data).expect("operation should succeed");
 
         assert_eq!(features.dim(), (5, 4));
         assert_eq!(reconstructed.dim(), (5, 8));
 
-        let error = fitted.reconstruction_error(&data).unwrap();
+        let error = fitted.reconstruction_error(&data).expect("operation should succeed");
         assert!(error >= 0.0);
     }
 
@@ -595,12 +595,12 @@ mod integration_tests {
 
         let data = Array2::ones((6, 8));
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.dim(), (8,));
 
-        let layer_outputs = fitted.get_layer_outputs(&data).unwrap();
+        let layer_outputs = fitted.get_layer_outputs(&data).expect("operation should succeed");
         assert!(!layer_outputs.is_empty());
     }
 }

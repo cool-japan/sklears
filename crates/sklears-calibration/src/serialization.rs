@@ -360,7 +360,13 @@ mod tests {
 
         assert!(!metadata.is_fitted);
         assert_eq!(metadata.n_classes, 2);
-        assert_eq!(metadata.custom.get("author").unwrap(), "test");
+        assert_eq!(
+            metadata
+                .custom
+                .get("author")
+                .expect("index should be valid"),
+            "test"
+        );
     }
 
     #[cfg(feature = "serde")]
@@ -370,11 +376,12 @@ mod tests {
         model.set_parameter("temperature".to_string(), SerializableParameter::Float(2.0));
         model.mark_fitted(3, 1000);
 
-        let json = CalibrationSerializer::to_json(&model).unwrap();
+        let json = CalibrationSerializer::to_json(&model).expect("operation should succeed");
         assert!(json.contains("Temperature"));
         assert!(json.contains("temperature"));
 
-        let deserialized = CalibrationSerializer::from_json(&json).unwrap();
+        let deserialized =
+            CalibrationSerializer::from_json(&json).expect("operation should succeed");
         assert_eq!(deserialized.method, CalibrationMethod::Temperature);
         assert!(deserialized.metadata.is_fitted);
         assert_eq!(deserialized.metadata.n_classes, 3);
@@ -383,7 +390,8 @@ mod tests {
     #[test]
     fn test_model_factory() {
         let model = SerializableCalibrationModel::new(CalibrationMethod::Sigmoid);
-        let calibrator = CalibrationModelFactory::create_from_serializable(&model).unwrap();
+        let calibrator = CalibrationModelFactory::create_from_serializable(&model)
+            .expect("operation should succeed");
 
         // The calibrator should be created successfully - just check it exists
         let _cloned = calibrator.clone_box();

@@ -970,7 +970,6 @@ impl Default for MetricsHook {
 
 // Add uuid dependency to Cargo.toml (we'll need to add this)
 mod uuid {
-    use scirs2_core::random::Rng;
 
     pub struct Uuid;
 
@@ -1044,7 +1043,9 @@ mod tests {
     fn test_hook_execution() {
         let registry = HookRegistry::new();
         let logging_hook = LoggingHook::new(LogLevel::Info);
-        registry.register_hook(logging_hook).unwrap();
+        registry
+            .register_hook(logging_hook)
+            .expect("operation should succeed");
 
         let mut context = HookContext::new("test_id".to_string(), "test_method".to_string());
 
@@ -1066,7 +1067,7 @@ mod tests {
         executor
             .hook_registry()
             .register_hook(logging_hook)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Execute with hooks
         let result = executor.execute_with_hooks("test_method", |context| {
@@ -1075,7 +1076,7 @@ mod tests {
         });
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "test_result");
+        assert_eq!(result.expect("operation should succeed"), "test_result");
     }
 
     #[test]
@@ -1103,7 +1104,9 @@ mod tests {
     fn test_custom_event() {
         let registry = HookRegistry::new();
         let logging_hook = LoggingHook::new(LogLevel::Debug);
-        registry.register_hook(logging_hook).unwrap();
+        registry
+            .register_hook(logging_hook)
+            .expect("operation should succeed");
 
         let mut context = HookContext::new("test_id".to_string(), "test_method".to_string());
         let custom_event = CustomEvent {
@@ -1125,11 +1128,18 @@ mod tests {
         let high_priority_hook = LoggingHook::new(LogLevel::Info); // Priority 100
         let low_priority_hook = MetricsHook::new(); // Priority 50
 
-        registry.register_hook(low_priority_hook).unwrap();
-        registry.register_hook(high_priority_hook).unwrap();
+        registry
+            .register_hook(low_priority_hook)
+            .expect("operation should succeed");
+        registry
+            .register_hook(high_priority_hook)
+            .expect("operation should succeed");
 
         // Check execution order (high priority first)
-        let execution_hooks = registry.execution_hooks.read().unwrap();
+        let execution_hooks = registry
+            .execution_hooks
+            .read()
+            .expect("operation should succeed");
         assert_eq!(execution_hooks[0], "logging_hook"); // Higher priority
         assert_eq!(execution_hooks[1], "metrics_hook"); // Lower priority
     }
@@ -1138,7 +1148,9 @@ mod tests {
     fn test_hook_event_subscriptions() {
         let registry = HookRegistry::new();
         let logging_hook = LoggingHook::new(LogLevel::Info);
-        registry.register_hook(logging_hook).unwrap();
+        registry
+            .register_hook(logging_hook)
+            .expect("operation should succeed");
 
         // Check event subscriptions
         let before_hooks = registry.get_event_hooks(HookEvent::BeforeExplanation);

@@ -487,12 +487,18 @@ impl LoadBalancer {
             LoadBalancingStrategy::Equal => Ok(devices[0].id),
             LoadBalancingStrategy::ComputeWeighted => {
                 // Select device with most compute units
-                let best_device = devices.iter().max_by_key(|d| d.compute_units).unwrap();
+                let best_device = devices
+                    .iter()
+                    .max_by_key(|d| d.compute_units)
+                    .expect("operation should succeed");
                 Ok(best_device.id)
             }
             LoadBalancingStrategy::BandwidthWeighted => {
                 // Select device with most memory (proxy for bandwidth)
-                let best_device = devices.iter().max_by_key(|d| d.memory_mb).unwrap();
+                let best_device = devices
+                    .iter()
+                    .max_by_key(|d| d.memory_mb)
+                    .expect("operation should succeed");
                 Ok(best_device.id)
             }
             LoadBalancingStrategy::Dynamic => {
@@ -504,7 +510,7 @@ impl LoadBalancer {
                         let b_perf = self.get_average_performance(b.id);
                         a_perf.partial_cmp(&b_perf).unwrap_or(Ordering::Equal)
                     })
-                    .unwrap();
+                    .expect("operation should succeed");
                 Ok(best_device.id)
             }
             LoadBalancingStrategy::Custom => {
@@ -516,7 +522,7 @@ impl LoadBalancer {
                         let b_weight = self.device_weights.get(&b.id).unwrap_or(&1.0);
                         a_weight.partial_cmp(b_weight).unwrap_or(Ordering::Equal)
                     })
-                    .unwrap();
+                    .expect("operation should succeed");
                 Ok(best_device.id)
             }
         }
@@ -774,7 +780,9 @@ mod tests {
             dependencies: Vec::new(),
         };
 
-        let selected = balancer.select_device(&devices, &task).unwrap();
+        let selected = balancer
+            .select_device(&devices, &task)
+            .expect("operation should succeed");
         assert_eq!(selected, 0); // Device 0 has more compute units
     }
 
@@ -839,10 +847,10 @@ mod tests {
 
         sync_manager
             .create_barrier("test_barrier".to_string(), 2)
-            .unwrap();
+            .expect("operation should succeed");
         sync_manager
             .create_event("test_event".to_string(), 0)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(sync_manager.barriers.contains_key("test_barrier"));
         assert!(sync_manager.events.contains_key("test_event"));

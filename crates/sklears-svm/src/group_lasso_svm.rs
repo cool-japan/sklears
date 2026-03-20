@@ -350,7 +350,10 @@ impl Fit<Array2<Float>, Array1<i32>> for GroupLassoSVM<Untrained> {
             self.group_structure = Some(GroupStructure::create_blocks(n_features, 5)?);
         }
 
-        let group_structure = self.group_structure.as_ref().unwrap();
+        let group_structure = self
+            .group_structure
+            .as_ref()
+            .expect("group_structure not available - model not fitted");
 
         // Find unique classes
         let mut unique_classes: Vec<i32> = y.iter().cloned().collect();
@@ -693,16 +696,29 @@ impl GroupLassoSVM<Untrained> {
 
 impl Predict<Array2<Float>, Array1<i32>> for GroupLassoSVM<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
             ));
         }
 
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
-        let classes = self.classes_.as_ref().unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .as_ref()
+            .expect("intercept_ not available - model not fitted");
+        let classes = self
+            .classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted");
 
         let mut predictions = Array1::zeros(x.nrows());
 
@@ -731,55 +747,79 @@ impl Predict<Array2<Float>, Array1<i32>> for GroupLassoSVM<Trained> {
 impl GroupLassoSVM<Trained> {
     /// Get the learned coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("coef_ not available - model not fitted")
     }
 
     /// Get the intercept
     pub fn intercept(&self) -> &Array1<Float> {
-        self.intercept_.as_ref().unwrap()
+        self.intercept_
+            .as_ref()
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the selected groups
     pub fn selected_groups(&self) -> &Vec<usize> {
-        self.selected_groups_.as_ref().unwrap()
+        self.selected_groups_
+            .as_ref()
+            .expect("selected_groups_ not available - model not fitted")
     }
 
     /// Get the group norms
     pub fn group_norms(&self) -> &Array1<Float> {
-        self.group_norms_.as_ref().unwrap()
+        self.group_norms_
+            .as_ref()
+            .expect("group_norms_ not available - model not fitted")
     }
 
     /// Get the group structure
     pub fn group_structure(&self) -> &GroupStructure {
-        self.group_structure.as_ref().unwrap()
+        self.group_structure
+            .as_ref()
+            .expect("group_structure not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 
     /// Get the number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_
+            .expect("n_iter_ not available - model not fitted")
     }
 
     /// Get the decision function values
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
             ));
         }
 
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.as_ref().unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .as_ref()
+            .expect("intercept_ not available - model not fitted");
 
         let mut decision_values = Array1::zeros(x.nrows());
 
@@ -802,9 +842,18 @@ impl GroupLassoSVM<Trained> {
 
     /// Get sparsity information
     pub fn sparsity_info(&self) -> HashMap<String, Float> {
-        let coef = self.coef_.as_ref().unwrap();
-        let group_structure = self.group_structure.as_ref().unwrap();
-        let selected_groups = self.selected_groups_.as_ref().unwrap();
+        let coef = self
+            .coef_
+            .as_ref()
+            .expect("coef_ not available - model not fitted");
+        let group_structure = self
+            .group_structure
+            .as_ref()
+            .expect("group_structure not available - model not fitted");
+        let selected_groups = self
+            .selected_groups_
+            .as_ref()
+            .expect("selected_groups_ not available - model not fitted");
 
         let total_features = coef.ncols();
         let total_groups = group_structure.groups.len();
@@ -858,7 +907,7 @@ mod tests {
             FeatureGroup::new(2, vec![4]),
         ];
 
-        let group_structure = GroupStructure::new(groups, 5).unwrap();
+        let group_structure = GroupStructure::new(groups, 5).expect("construction should succeed");
 
         assert_eq!(group_structure.groups.len(), 3);
         assert_eq!(group_structure.n_features, 5);
@@ -869,7 +918,8 @@ mod tests {
 
     #[test]
     fn test_group_structure_blocks() {
-        let group_structure = GroupStructure::create_blocks(10, 3).unwrap();
+        let group_structure =
+            GroupStructure::create_blocks(10, 3).expect("operation should succeed");
 
         assert_eq!(group_structure.groups.len(), 4); // [0,1,2], [3,4,5], [6,7,8], [9]
         assert_eq!(group_structure.groups[0].features, vec![0, 1, 2]);
@@ -913,7 +963,7 @@ mod tests {
             FeatureGroup::new(1, vec![2, 3]).name("Group2".to_string()),
             FeatureGroup::new(2, vec![4]).name("Group3".to_string()),
         ];
-        let group_structure = GroupStructure::new(groups, 5).unwrap();
+        let group_structure = GroupStructure::new(groups, 5).expect("construction should succeed");
 
         let svm = GroupLassoSVM::new()
             .c(1.0)
@@ -924,18 +974,20 @@ mod tests {
             .max_iter(100)
             .learning_rate(0.01);
 
-        let fitted_model = svm.fit(&x, &y).unwrap();
+        let fitted_model = svm.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 5);
         assert!(fitted_model.n_iter() > 0);
         assert!(!fitted_model.selected_groups().is_empty());
 
         // Test predictions
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test decision function
-        let decision_values = fitted_model.decision_function(&x).unwrap();
+        let decision_values = fitted_model
+            .decision_function(&x)
+            .expect("decision function should succeed");
         assert_eq!(decision_values.len(), 6);
 
         // Test sparsity info
@@ -969,7 +1021,7 @@ mod tests {
 
         let result = svm
             .apply_sparse_group_lasso(&coef, &group, 0.1, 0.5)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should apply both L1 and group penalties
         assert_eq!(result.len(), 3);

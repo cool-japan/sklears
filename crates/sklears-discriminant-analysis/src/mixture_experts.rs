@@ -155,36 +155,60 @@ pub type TrainedMixtureOfExpertsDiscriminantAnalysis =
 
 impl MixtureOfExpertsDiscriminantAnalysis<Trained> {
     pub fn experts(&self) -> &Vec<ExpertModel> {
-        &self.data.as_ref().unwrap().experts
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .experts
     }
 
     pub fn gating_network(&self) -> &GatingNetwork {
-        &self.data.as_ref().unwrap().gating_network
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .gating_network
     }
 
     pub fn classes(&self) -> &Array1<i32> {
-        &self.data.as_ref().unwrap().classes
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .classes
     }
 
     pub fn n_features(&self) -> usize {
-        self.data.as_ref().unwrap().n_features
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .n_features
     }
 
     pub fn log_likelihood_history(&self) -> &Vec<Float> {
-        &self.data.as_ref().unwrap().log_likelihood_history
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .log_likelihood_history
     }
 
     pub fn expert_weights(&self, expert_idx: usize) -> Option<&Array2<Float>> {
         self.data
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .experts
             .get(expert_idx)
             .map(|expert| &expert.weights)
     }
 
     pub fn gating_weights(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().gating_network.weights
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .gating_network
+            .weights
     }
 }
 
@@ -451,7 +475,9 @@ impl MixtureOfExpertsDiscriminantAnalysis<Untrained> {
 
                 if !class_mask.is_empty() {
                     let class_data = x.select(Axis(0), &class_mask);
-                    let mean = class_data.mean_axis(Axis(0)).unwrap();
+                    let mean = class_data
+                        .mean_axis(Axis(0))
+                        .expect("mean should not fail on non-empty array");
                     expert.means.row_mut(class_idx).assign(&mean);
                 } else {
                     // If no samples for this class, use random initialization
@@ -500,7 +526,10 @@ impl MixtureOfExpertsDiscriminantAnalysis<Untrained> {
         for i in 0..n_samples {
             let sample = x.row(i).to_owned().insert_axis(Axis(0));
             let true_class = y[i];
-            let class_idx = classes.iter().position(|&c| c == true_class).unwrap();
+            let class_idx = classes
+                .iter()
+                .position(|&c| c == true_class)
+                .expect("element not found");
 
             let mut expert_likelihoods = Array1::zeros(n_experts);
 
@@ -602,7 +631,9 @@ impl MixtureOfExpertsDiscriminantAnalysis<Untrained> {
             }
 
             // Update bias
-            let bias_gradient = expert_responsibilities.mean().unwrap();
+            let bias_gradient = expert_responsibilities
+                .mean()
+                .expect("mean should not fail on non-empty array");
             gating_network.bias[expert_idx] += self.config.learning_rate * bias_gradient;
         }
 
@@ -620,7 +651,7 @@ impl Predict<Array2<Float>, Array1<i32>> for MixtureOfExpertsDiscriminantAnalysi
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes()[max_idx];
         }
@@ -708,8 +739,8 @@ mod tests {
             .expert_type(ExpertType::LDA)
             .max_iter(10);
 
-        let fitted = moe.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = moe.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -726,8 +757,10 @@ mod tests {
             .expert_type(ExpertType::QDA)
             .max_iter(5);
 
-        let fitted = moe.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = moe.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -747,8 +780,8 @@ mod tests {
             .n_experts(3)
             .max_iter(5);
 
-        let fitted = moe.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = moe.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (4, 3)); // 4 samples, 3 experts
 
@@ -772,8 +805,8 @@ mod tests {
                 .expert_type(expert_type)
                 .max_iter(5);
 
-            let fitted = moe.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = moe.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert_eq!(fitted.classes().len(), 2);
@@ -797,8 +830,8 @@ mod tests {
                 .gating_type(gating_type)
                 .max_iter(5);
 
-            let fitted = moe.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = moe.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 4);
             assert_eq!(fitted.classes().len(), 2);
@@ -822,14 +855,14 @@ mod tests {
             .max_iter(50)
             .tol(1e-6);
 
-        let fitted = moe.fit(&x, &y).unwrap();
+        let fitted = moe.fit(&x, &y).expect("model fitting should succeed");
         let history = fitted.log_likelihood_history();
 
         // Check that log likelihood generally increases
         assert!(history.len() > 0);
         if history.len() > 1 {
             let initial_ll = history[0];
-            let final_ll = *history.last().unwrap();
+            let final_ll = *history.last().expect("operation should succeed");
             // Final likelihood should be at least as good as initial
             assert!(final_ll >= initial_ll - 1e-6);
         }
@@ -844,13 +877,13 @@ mod tests {
             .n_experts(3)
             .max_iter(5);
 
-        let fitted = moe.fit(&x, &y).unwrap();
+        let fitted = moe.fit(&x, &y).expect("model fitting should succeed");
 
         // Test expert weights access
         for expert_idx in 0..3 {
             let weights = fitted.expert_weights(expert_idx);
             assert!(weights.is_some());
-            let weights = weights.unwrap();
+            let weights = weights.expect("operation should succeed");
             assert_eq!(weights.dim(), (2, 2)); // 2 classes, 2 features
         }
 

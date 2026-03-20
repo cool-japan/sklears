@@ -155,7 +155,7 @@ impl ImbalancedCrossValidator {
         let majority_class = *class_counts
             .iter()
             .max_by_key(|(_, &count)| count)
-            .unwrap()
+            .expect("operation should succeed")
             .0;
 
         let majority_count = class_counts[&majority_class];
@@ -201,7 +201,7 @@ impl ImbalancedCrossValidator {
     }
 
     fn stratified_sampling_split(&mut self, y: &ArrayView1<i32>) -> Result<Vec<ImbalancedSplit>> {
-        let class_stats = self.class_stats.as_ref().unwrap();
+        let class_stats = self.class_stats.as_ref().expect("operation should succeed");
         let _n_samples = y.len();
 
         let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();
@@ -304,7 +304,7 @@ impl ImbalancedCrossValidator {
         y: &ArrayView1<i32>,
         train_indices: &[usize],
     ) -> Result<(Vec<usize>, HashMap<i32, f64>)> {
-        let class_stats = self.class_stats.as_ref().unwrap();
+        let class_stats = self.class_stats.as_ref().expect("operation should succeed");
         let mut train_class_counts: HashMap<i32, usize> = HashMap::new();
 
         for &idx in train_indices {
@@ -335,7 +335,7 @@ impl ImbalancedCrossValidator {
 
                 for _ in 0..needed_samples {
                     if !minority_indices.is_empty() {
-                        let idx = self.rng.gen_range(0..minority_indices.len());
+                        let idx = self.rng.random_range(0..minority_indices.len());
                         resampled_indices.push(minority_indices[idx]);
                         _synthetic_count += 1;
                     }
@@ -353,7 +353,7 @@ impl ImbalancedCrossValidator {
         y: &ArrayView1<i32>,
         train_indices: &[usize],
     ) -> Result<(Vec<usize>, HashMap<i32, f64>)> {
-        let class_stats = self.class_stats.as_ref().unwrap();
+        let class_stats = self.class_stats.as_ref().expect("operation should succeed");
         let mut train_class_counts: HashMap<i32, usize> = HashMap::new();
         let mut class_train_indices: HashMap<i32, Vec<usize>> = HashMap::new();
 
@@ -380,7 +380,7 @@ impl ImbalancedCrossValidator {
                 let minority_indices = &class_train_indices[&minority_class];
 
                 for _ in 0..needed_samples {
-                    let idx = minority_indices[self.rng.gen_range(0..minority_indices.len())];
+                    let idx = minority_indices[self.rng.random_range(0..minority_indices.len())];
                     resampled_indices.push(idx);
                 }
             }
@@ -396,7 +396,7 @@ impl ImbalancedCrossValidator {
         y: &ArrayView1<i32>,
         train_indices: &[usize],
     ) -> Result<(Vec<usize>, HashMap<i32, f64>)> {
-        let class_stats = self.class_stats.as_ref().unwrap();
+        let class_stats = self.class_stats.as_ref().expect("operation should succeed");
         let mut train_class_counts: HashMap<i32, usize> = HashMap::new();
         let mut class_train_indices: HashMap<i32, Vec<usize>> = HashMap::new();
 
@@ -484,7 +484,9 @@ impl ImbalancedValidationResult {
         let avg_train_size = total_train_size as f64 / splits.len() as f64;
         let avg_test_size = total_test_size as f64 / splits.len() as f64;
 
-        let class_stats = validator.get_class_statistics().unwrap();
+        let class_stats = validator
+            .get_class_statistics()
+            .expect("operation should succeed");
 
         let avg_resampled_train_size = if splits.iter().any(|s| s.resampled_train_indices.is_some())
         {
@@ -515,7 +517,7 @@ impl ImbalancedValidationResult {
                         .minority_classes
                         .iter()
                         .map(|&c| dist.get(&c).copied().unwrap_or(0.0))
-                        .min_by(|a, b| a.partial_cmp(b).unwrap())
+                        .min_by(|a, b| a.partial_cmp(b).expect("operation should succeed"))
                         .unwrap_or(0.0);
                     if majority_prop > 0.0 {
                         min_minority_prop / majority_prop
@@ -633,7 +635,9 @@ mod tests {
         };
 
         let mut validator = ImbalancedCrossValidator::new(config);
-        let splits = validator.split(&y.view()).unwrap();
+        let splits = validator
+            .split(&y.view())
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -662,7 +666,9 @@ mod tests {
         };
 
         let mut validator = ImbalancedCrossValidator::new(config);
-        let splits = validator.split(&y.view()).unwrap();
+        let splits = validator
+            .split(&y.view())
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -672,7 +678,11 @@ mod tests {
             assert!(split.resampled_train_indices.is_some());
             assert!(split.resampled_train_class_distribution.is_some());
 
-            let resampled_size = split.resampled_train_indices.as_ref().unwrap().len();
+            let resampled_size = split
+                .resampled_train_indices
+                .as_ref()
+                .expect("operation should succeed")
+                .len();
             assert!(resampled_size >= split.train_indices.len());
         }
     }
@@ -689,7 +699,9 @@ mod tests {
         };
 
         let mut validator = ImbalancedCrossValidator::new(config);
-        let splits = validator.split(&y.view()).unwrap();
+        let splits = validator
+            .split(&y.view())
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -698,7 +710,11 @@ mod tests {
             assert!(!split.test_indices.is_empty());
             assert!(split.resampled_train_indices.is_some());
 
-            let resampled_size = split.resampled_train_indices.as_ref().unwrap().len();
+            let resampled_size = split
+                .resampled_train_indices
+                .as_ref()
+                .expect("operation should succeed")
+                .len();
             assert!(resampled_size <= split.train_indices.len());
         }
     }
@@ -712,9 +728,11 @@ mod tests {
         };
 
         let mut validator = ImbalancedCrossValidator::new(config);
-        validator.fit(&y.view()).unwrap();
+        validator.fit(&y.view()).expect("operation should succeed");
 
-        let stats = validator.get_class_statistics().unwrap();
+        let stats = validator
+            .get_class_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.majority_class, 0);
         assert!(stats.minority_classes.contains(&1));
         assert!(stats.imbalance_ratio < 1.0);

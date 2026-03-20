@@ -13,20 +13,25 @@ use sklears::utils::data_generation::make_classification;
 fn test_basic_knn_pipeline() {
     // Generate simple synthetic data with well-separated classes
     // Use class_sep=3.0 for better separation and larger dataset
-    let (X, y) = make_classification(50, 2, 2, None, None, 0.0, 3.0, Some(42)).unwrap();
+    let (X, y) = make_classification(50, 2, 2, None, None, 0.0, 3.0, Some(42))
+        .expect("operation should succeed");
 
     // Verify data consistency
     assert_eq!(X.nrows(), y.len());
 
     // Train KNN classifier with k=5 for more stability
     let classifier = KNeighborsClassifier::new(5);
-    let fitted_classifier = classifier.fit(&X, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X, &y)
+        .expect("model fitting should succeed");
 
     // Make predictions
-    let predictions = fitted_classifier.predict(&X).unwrap();
+    let predictions = fitted_classifier
+        .predict(&X)
+        .expect("prediction should succeed");
 
     // Evaluate performance
-    let accuracy = accuracy_score(&y, &predictions).unwrap();
+    let accuracy = accuracy_score(&y, &predictions).expect("operation should succeed");
 
     // Should have reasonable accuracy on training data with well-separated classes
     // Lowered expectation to 0.7 as KNN can still make mistakes on training data
@@ -53,8 +58,10 @@ fn test_basic_knn_pipeline() {
 #[allow(non_snake_case)]
 fn test_data_generation_consistency() {
     // Test that data generation functions produce consistent outputs with same seed
-    let (X1, y1) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(123)).unwrap();
-    let (X2, y2) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(123)).unwrap();
+    let (X1, y1) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(123))
+        .expect("operation should succeed");
+    let (X2, y2) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(123))
+        .expect("operation should succeed");
 
     // With same random seed, should produce identical results
     assert_eq!(X1, X2);
@@ -79,7 +86,7 @@ fn test_metrics_basic_functionality() {
     let y_pred = array![0, 1, 0, 0, 1, 1, 1, 1, 0, 1];
 
     // Calculate accuracy
-    let accuracy = accuracy_score(&y_true, &y_pred).unwrap();
+    let accuracy = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
 
     // Basic sanity checks
     assert!((0.0..=1.0).contains(&accuracy));
@@ -115,7 +122,8 @@ fn test_utility_functions() {
     assert_eq!(data.len(), 7);
 
     // Test array creation
-    let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+    let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("shape and data length should match");
     assert_eq!(x.shape(), &[3, 2]);
     assert_eq!(x[[0, 0]], 1.0);
     assert_eq!(x[[2, 1]], 6.0);

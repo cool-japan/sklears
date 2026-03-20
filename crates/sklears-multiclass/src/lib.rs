@@ -10,10 +10,18 @@
 //! This module provides meta-estimators for multiclass classification problems.
 //! It implements strategies like One-vs-Rest and One-vs-One for transforming
 //! binary classifiers into multiclass ones.
+//!
+//! ## Known Limitations
+//!
+//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `advanced`, `calibration`, `core`, `ensemble` - Core multiclass strategies
+//! - `boosting`, `dynamic_ensemble`, `ecoc` - Ensemble multiclass methods
+//! - `one_vs_one`, `one_vs_rest`, `rotation_forest` - Classification strategies
 
 // #![warn(missing_docs)]
 
-// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// KNOWN ISSUE (v0.1.0): Modules disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod advanced;
 // pub mod calibration;
 // pub mod core;
@@ -26,7 +34,7 @@ pub mod simd;
 pub mod uncertainty;
 pub mod utils;
 
-// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// KNOWN ISSUE (v0.1.0): Modules disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod boosting;
 // pub mod dynamic_ensemble;
 // pub mod ecoc;
@@ -34,14 +42,14 @@ pub mod utils;
 // pub mod one_vs_rest;
 // pub mod rotation_forest;
 
-// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// KNOWN ISSUE (v0.1.0): Modules disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use advanced::*;
 // pub use calibration::*;
 // pub use core::ecoc::*;
 // pub use ensemble::*;
 pub use utils::*;
 
-// TODO: ndarray 0.17 HRTB trait bound issues - re-enable after fixing Fit/Predict/Score trait bounds
+// KNOWN ISSUE (v0.1.0): Modules disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use one_vs_rest::{
 //     OneVsRestBuilder, OneVsRestClassifier, OneVsRestConfig, OneVsRestTrainedData, TrainedOneVsRest,
 // };

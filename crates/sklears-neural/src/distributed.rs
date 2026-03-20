@@ -44,8 +44,8 @@ impl<T: FloatBounds> Default for DistributedConfig<T> {
             sync_frequency: 1,
             lr_scaling: LearningRateScaling::Linear,
             gradient_compression: false,
-            compression_threshold: T::from(0.01).unwrap(),
-            max_grad_norm: Some(T::from(1.0).unwrap()),
+            compression_threshold: T::from(0.01).unwrap_or_else(|| T::zero()),
+            max_grad_norm: Some(T::from(1.0).unwrap_or_else(|| T::zero())),
             warmup_steps: 0,
         }
     }
@@ -234,7 +234,7 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
         for (name, grad) in gradients.iter_mut() {
             // Simulate all-reduce by averaging gradients across workers
             let sum: T = grad.iter().copied().sum();
-            let mean = sum / T::from(self.config.num_workers).unwrap();
+            let mean = sum / T::from(self.config.num_workers).unwrap_or_else(|| T::zero());
             grad.fill(mean);
 
             // Store gradient norm before sync
@@ -268,7 +268,7 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
             let group_size = 2_usize.pow(level as u32);
             for (name, grad) in gradients.iter_mut() {
                 // Simulate hierarchical reduction
-                let reduction_factor = T::from(group_size).unwrap();
+                let reduction_factor = T::from(group_size).unwrap_or_else(|| T::zero());
                 grad.mapv_inplace(|x| x / reduction_factor);
             }
         }
@@ -317,9 +317,14 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
     /// Scale learning rate based on number of workers
     pub fn scale_learning_rate(&self, base_lr: T) -> T {
         match self.config.lr_scaling {
-            LearningRateScaling::Linear => base_lr * T::from(self.config.num_workers).unwrap(),
+            LearningRateScaling::Linear => {
+                base_lr * T::from(self.config.num_workers).unwrap_or_else(|| T::zero())
+            }
             LearningRateScaling::SquareRoot => {
-                base_lr * T::from(self.config.num_workers as f64).unwrap().sqrt()
+                base_lr
+                    * T::from(self.config.num_workers as f64)
+                        .unwrap_or_else(|| T::zero())
+                        .sqrt()
             }
             LearningRateScaling::Custom(factor) => base_lr * factor,
             LearningRateScaling::None => base_lr,
@@ -347,8 +352,8 @@ impl<T: FloatBounds + Default + std::iter::Sum<T> + scirs2_core::ndarray::Scalar
             .stats
             .computation_time_ms
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .expect("value should be present");
         let avg_time = self.stats.computation_time_ms.iter().sum::<f64>()
             / self.stats.computation_time_ms.len() as f64;
 
@@ -466,7 +471,7 @@ impl<T: FloatBounds + scirs2_core::ndarray::ScalarOperand + Copy> ParameterServe
         for (name, grad) in gradients.iter_mut() {
             if let Some(accumulated) = self.accumulated_gradients.get(name) {
                 // Average accumulated gradients
-                let avg_grad = accumulated / T::from(self.num_workers).unwrap();
+                let avg_grad = accumulated / T::from(self.num_workers).unwrap_or_else(|| T::zero());
                 *grad = avg_grad;
             }
         }
@@ -514,10 +519,12 @@ mod tests {
             ..Default::default()
         };
 
-        let trainer = DistributedTrainer::new(config).unwrap();
+        let trainer = DistributedTrainer::new(config).expect("construction should succeed");
         let data = Array2::<f64>::ones((100, 10));
 
-        let distributed_data = trainer.distribute_data(&data).unwrap();
+        let distributed_data = trainer
+            .distribute_data(&data)
+            .expect("operation should succeed");
         assert_eq!(distributed_data.len(), 2);
         assert_eq!(distributed_data[0].nrows(), 50);
         assert_eq!(distributed_data[1].nrows(), 50);
@@ -531,7 +538,7 @@ mod tests {
             ..Default::default()
         };
 
-        let trainer = DistributedTrainer::new(config).unwrap();
+        let trainer = DistributedTrainer::new(config).expect("construction should succeed");
         let base_lr = 0.01;
         let scaled_lr = trainer.scale_learning_rate(base_lr);
 
@@ -546,14 +553,14 @@ mod tests {
             ..Default::default()
         };
 
-        let trainer = DistributedTrainer::new(config).unwrap();
+        let trainer = DistributedTrainer::new(config).expect("construction should succeed");
         let mut gradients = HashMap::new();
         gradients.insert(
             "test".to_string(),
             Array1::from_vec(vec![0.05, 0.15, 0.02, 0.2]),
         );
 
-        let grad = gradients.get("test").unwrap();
+        let grad = gradients.get("test").expect("operation should succeed");
         assert_eq!(grad[0], 0.05); // Should be compressed to 0
         assert_eq!(grad[1], 0.15); // Should remain
     }
@@ -564,7 +571,7 @@ mod tests {
         let worker = WorkerCoordinator::new(0, &config);
 
         assert!(worker.is_ok());
-        assert_eq!(worker.unwrap().get_rank(), 0);
+        assert_eq!(worker.expect("operation should succeed").get_rank(), 0);
     }
 
     #[test]

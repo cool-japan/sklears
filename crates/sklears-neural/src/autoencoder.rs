@@ -9,7 +9,7 @@
 use crate::activation::Activation;
 use crate::SklearsError;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use sklears_core::{
     error::Result,
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -203,13 +203,13 @@ impl Fit<Array2<Float>, ()> for Autoencoder<Untrained> {
 
         for i in 0..n_features {
             for j in 0..encoding_dim {
-                encoder_weights[[i, j]] = rng.gen_range(-limit_enc..limit_enc);
+                encoder_weights[[i, j]] = rng.random_range(-limit_enc..limit_enc);
             }
         }
 
         for i in 0..encoding_dim {
             for j in 0..n_features {
-                decoder_weights[[i, j]] = rng.gen_range(-limit_dec..limit_dec);
+                decoder_weights[[i, j]] = rng.random_range(-limit_dec..limit_dec);
             }
         }
 
@@ -360,8 +360,8 @@ mod tests {
 
     #[test]
     fn test_autoencoder_fit_transform() {
-        let x =
-            Array2::from_shape_vec((10, 5), (0..50).map(|i| i as Float / 10.0).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 5), (0..50).map(|i| i as Float / 10.0).collect())
+            .expect("array shape mismatch");
 
         let ae = Autoencoder::new()
             .encoding_dim(3)
@@ -369,14 +369,14 @@ mod tests {
             .learning_rate(0.1)
             .random_state(42);
 
-        let fitted = ae.fit(&x, &()).unwrap();
+        let fitted = ae.fit(&x, &()).expect("model fitting should succeed");
 
         // Check encoding
-        let encoded = fitted.transform(&x).unwrap();
+        let encoded = fitted.transform(&x).expect("transform should succeed");
         assert_eq!(encoded.shape(), &[10, 3]);
 
         // Check reconstruction
-        let reconstructed = fitted.reconstruct(&x).unwrap();
+        let reconstructed = fitted.reconstruct(&x).expect("operation should succeed");
         assert_eq!(reconstructed.shape(), x.shape());
     }
 }

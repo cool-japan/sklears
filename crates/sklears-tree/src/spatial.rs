@@ -667,7 +667,7 @@ impl SpatialDataStructure {
             } else {
                 self.points[b].y
             };
-            coord_a.partial_cmp(&coord_b).unwrap()
+            coord_a.partial_cmp(&coord_b).expect("operation should succeed")
         });
 
         let median = point_indices.len() / 2;

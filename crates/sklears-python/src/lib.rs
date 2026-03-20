@@ -63,7 +63,7 @@ pub use utils::*;
 #[pymodule]
 fn _sklears(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Set module metadata
-    m.add("__version__", "0.1.0-rc.1")?;
+    m.add("__version__", "0.1.0")?;
     m.add(
         "__doc__",
         "High-performance machine learning library with scikit-learn compatibility",

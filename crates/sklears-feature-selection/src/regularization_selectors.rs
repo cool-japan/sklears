@@ -42,12 +42,14 @@ impl LassoSelector<Untrained> {
     }
 
     /// Set the regularization parameter alpha
-    pub fn alpha(mut self, alpha: f64) -> Self {
+    pub fn alpha(mut self, alpha: f64) -> Result<Self, SklearsError> {
         if alpha < 0.0 {
-            panic!("alpha must be non-negative");
+            return Err(SklearsError::InvalidInput(
+                "alpha must be non-negative".to_string(),
+            ));
         }
         self.alpha = alpha;
-        self
+        Ok(self)
     }
 
     /// Set maximum number of iterations
@@ -181,9 +183,12 @@ impl Fit<Array2<Float>, Array1<Float>> for LassoSelector<Untrained> {
 
 impl Transform<Array2<Float>> for LassoSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let k = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, k));
@@ -198,8 +203,11 @@ impl Transform<Array2<Float>> for LassoSelector<Trained> {
 
 impl SelectorMixin for LassoSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -210,7 +218,10 @@ impl SelectorMixin for LassoSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -221,12 +232,16 @@ impl SelectorMixin for LassoSelector<Trained> {
 impl LassoSelector<Trained> {
     /// Get LASSO coefficients
     pub fn coefficients(&self) -> &Array1<Float> {
-        self.coefficients_.as_ref().unwrap()
+        self.coefficients_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -263,21 +278,25 @@ impl ElasticNetSelector<Untrained> {
     }
 
     /// Set the regularization parameter alpha
-    pub fn alpha(mut self, alpha: f64) -> Self {
+    pub fn alpha(mut self, alpha: f64) -> Result<Self, SklearsError> {
         if alpha < 0.0 {
-            panic!("alpha must be non-negative");
+            return Err(SklearsError::InvalidInput(
+                "alpha must be non-negative".to_string(),
+            ));
         }
         self.alpha = alpha;
-        self
+        Ok(self)
     }
 
     /// Set the L1 ratio (0 = Ridge, 1 = LASSO)
-    pub fn l1_ratio(mut self, l1_ratio: f64) -> Self {
+    pub fn l1_ratio(mut self, l1_ratio: f64) -> Result<Self, SklearsError> {
         if !(0.0..=1.0).contains(&l1_ratio) {
-            panic!("l1_ratio must be between 0 and 1");
+            return Err(SklearsError::InvalidInput(
+                "l1_ratio must be between 0 and 1".to_string(),
+            ));
         }
         self.l1_ratio = l1_ratio;
-        self
+        Ok(self)
     }
 
     /// Set maximum number of iterations
@@ -415,9 +434,12 @@ impl Fit<Array2<Float>, Array1<Float>> for ElasticNetSelector<Untrained> {
 
 impl Transform<Array2<Float>> for ElasticNetSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let k = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, k));
@@ -432,8 +454,11 @@ impl Transform<Array2<Float>> for ElasticNetSelector<Trained> {
 
 impl SelectorMixin for ElasticNetSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -444,7 +469,10 @@ impl SelectorMixin for ElasticNetSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -455,12 +483,16 @@ impl SelectorMixin for ElasticNetSelector<Trained> {
 impl ElasticNetSelector<Trained> {
     /// Get Elastic Net coefficients
     pub fn coefficients(&self) -> &Array1<Float> {
-        self.coefficients_.as_ref().unwrap()
+        self.coefficients_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -543,12 +575,14 @@ impl RidgeSelector<Untrained> {
     }
 
     /// Set the regularization parameter alpha
-    pub fn alpha(mut self, alpha: f64) -> Self {
+    pub fn alpha(mut self, alpha: f64) -> Result<Self, SklearsError> {
         if alpha < 0.0 {
-            panic!("alpha must be non-negative");
+            return Err(SklearsError::InvalidInput(
+                "alpha must be non-negative".to_string(),
+            ));
         }
         self.alpha = alpha;
-        self
+        Ok(self)
     }
 
     /// Set threshold for feature selection (if None, uses mean of absolute coefficients)
@@ -672,7 +706,7 @@ impl Fit<Array2<Float>, Array1<Float>> for RidgeSelector<Untrained> {
                     coefficients[b]
                         .abs()
                         .partial_cmp(&coefficients[a].abs())
-                        .unwrap()
+                        .expect("operation should succeed")
                 });
                 selected_features.truncate(max_feat);
                 selected_features.sort(); // Restore original order
@@ -699,9 +733,12 @@ impl Fit<Array2<Float>, Array1<Float>> for RidgeSelector<Untrained> {
 
 impl Transform<Array2<Float>> for RidgeSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let k = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, k));
@@ -716,8 +753,11 @@ impl Transform<Array2<Float>> for RidgeSelector<Trained> {
 
 impl SelectorMixin for RidgeSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -728,7 +768,10 @@ impl SelectorMixin for RidgeSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -739,11 +782,15 @@ impl SelectorMixin for RidgeSelector<Trained> {
 impl RidgeSelector<Trained> {
     /// Get Ridge coefficients
     pub fn coefficients(&self) -> &Array1<Float> {
-        self.coefficients_.as_ref().unwrap()
+        self.coefficients_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get selected features
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }

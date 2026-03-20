@@ -50,7 +50,7 @@ pub struct HuberCovarianceConfig {
 /// let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [100.0, 100.0]]; // Last point is outlier
 ///
 /// let estimator = HuberCovariance::new().delta(1.345);
-/// let fitted = estimator.fit(&x.view(), &()).unwrap();
+/// let fitted = estimator.fit(&x.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// ```
 #[derive(Debug, Clone)]

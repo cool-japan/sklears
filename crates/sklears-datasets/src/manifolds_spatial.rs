@@ -73,7 +73,7 @@ pub fn make_custom_manifold<T: ManifoldGenerator>(
         // Add noise if specified
         if noise_level > 0.0 {
             for j in 0..embedding_dim {
-                let noise = rng.sample(Normal::new(0.0, noise_level).unwrap());
+                let noise = rng.sample(Normal::new(0.0, noise_level).expect("sampling should succeed"));
                 point[j] += noise;
             }
         }
@@ -137,7 +137,7 @@ pub fn make_n_sphere(
 
             // Add noise if specified
             if noise_level > 0.0 {
-                let noise = rng.sample(Normal::new(0.0, noise_level).unwrap());
+                let noise = rng.sample(Normal::new(0.0, noise_level).expect("sampling should succeed"));
                 point[j] += noise;
             }
 
@@ -206,8 +206,8 @@ pub fn make_n_torus(
 
             // Add noise if specified
             if noise_level > 0.0 {
-                let noise1 = rng.sample(Normal::new(0.0, noise_level).unwrap());
-                let noise2 = rng.sample(Normal::new(0.0, noise_level).unwrap());
+                let noise1 = rng.sample(Normal::new(0.0, noise_level).expect("sampling should succeed"));
+                let noise2 = rng.sample(Normal::new(0.0, noise_level).expect("sampling should succeed"));
                 samples[[i, j * 2]] += noise1;
                 samples[[i, j * 2 + 1]] += noise2;
             }
@@ -287,8 +287,8 @@ pub fn make_spatial_point_pattern(
 
                 // Add points with Gaussian dispersion around center
                 let cluster_std = domain_size / (10.0 * clustering_parameter.sqrt());
-                let dx = rng.sample(Normal::new(0.0, cluster_std).unwrap());
-                let dy = rng.sample(Normal::new(0.0, cluster_std).unwrap());
+                let dx = rng.sample(Normal::new(0.0, cluster_std).expect("sampling should succeed"));
+                let dy = rng.sample(Normal::new(0.0, cluster_std).expect("sampling should succeed"));
 
                 points[[i, 0]] = (center_x + dx).clamp(0.0, domain_size);
                 points[[i, 1]] = (center_y + dy).clamp(0.0, domain_size);

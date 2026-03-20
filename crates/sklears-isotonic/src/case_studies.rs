@@ -125,7 +125,7 @@ pub mod medical_dose_response {
         #[test]
         fn test_drug_dose_response_analysis() {
             let data = DrugDoseResponseData::sample_data();
-            let analysis = data.analyze().unwrap();
+            let analysis = data.analyze().expect("operation should succeed");
 
             // Check that responses are monotonic
             for i in 0..analysis.fitted_responses.len() - 1 {
@@ -260,7 +260,7 @@ pub mod credit_scoring {
         #[test]
         fn test_credit_scoring_analysis() {
             let data = CreditScoreData::sample_data();
-            let analysis = data.analyze().unwrap();
+            let analysis = data.analyze().expect("operation should succeed");
 
             // Check that probabilities are monotonically decreasing
             for i in 0..analysis.fitted_probs.len() - 1 {
@@ -382,7 +382,7 @@ pub mod pollution_monitoring {
         #[test]
         fn test_pollution_monitoring_analysis() {
             let data = PollutionData::sample_data();
-            let analysis = data.analyze().unwrap();
+            let analysis = data.analyze().expect("operation should succeed");
 
             // Check that concentrations are monotonically decreasing
             for i in 0..analysis.fitted_concentrations.len() - 1 {
@@ -519,7 +519,7 @@ pub mod classifier_calibration {
         #[test]
         fn test_classifier_calibration() {
             let data = CalibrationData::sample_data();
-            let analysis = data.calibrate().unwrap();
+            let analysis = data.calibrate().expect("operation should succeed");
 
             // Check that calibrated probabilities are monotonic
             for i in 0..analysis.calibrated_probs.len() - 1 {
@@ -663,7 +663,7 @@ pub mod demand_curve {
         #[test]
         fn test_demand_curve_analysis() {
             let data = DemandData::sample_data();
-            let analysis = data.analyze().unwrap();
+            let analysis = data.analyze().expect("operation should succeed");
 
             // Check that quantities are monotonically decreasing with price
             for i in 0..analysis.fitted_quantities.len() - 1 {

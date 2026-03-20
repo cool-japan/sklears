@@ -557,7 +557,7 @@ impl DeepLearningAnalyzer {
 
         // Try different thresholds
         let mut sorted_activations: Vec<Float> = activations.to_vec();
-        sorted_activations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_activations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         for &threshold in sorted_activations.iter() {
             let predictions: Array1<bool> = activations.mapv(|x| x > threshold);
@@ -721,16 +721,20 @@ impl DeepLearningAnalyzer {
                 .into_iter()
                 .fold(Array2::zeros((0, activations.ncols())), |acc, row| {
                     if acc.nrows() == 0 {
-                        Array2::from_shape_vec((1, row.len()), row.to_vec()).unwrap()
+                        Array2::from_shape_vec((1, row.len()), row.to_vec())
+                            .expect("operation should succeed")
                     } else {
                         let new_shape = (acc.nrows() + 1, acc.ncols());
                         let mut new_data = acc.into_raw_vec();
                         new_data.extend(row.iter().cloned());
-                        Array2::from_shape_vec(new_shape, new_data).unwrap()
+                        Array2::from_shape_vec(new_shape, new_data)
+                            .expect("operation should succeed")
                     }
                 });
 
-            cluster_activations.mean_axis(Axis(0)).unwrap()
+            cluster_activations
+                .mean_axis(Axis(0))
+                .expect("operation should succeed")
         };
 
         Ok(ConceptActivationVector::new(

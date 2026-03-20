@@ -249,7 +249,8 @@ impl PreprocessingIntegration {
                     let mut valid_values: Vec<f64> =
                         column.iter().filter(|&&x| !x.is_nan()).cloned().collect();
                     if !valid_values.is_empty() {
-                        valid_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                        valid_values
+                            .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                         let median = if valid_values.len() % 2 == 0 {
                             (valid_values[valid_values.len() / 2 - 1]
                                 + valid_values[valid_values.len() / 2])
@@ -296,7 +297,7 @@ impl PreprocessingIntegration {
                 for col in 0..X.ncols() {
                     let column = X.column(col);
                     let mut values: Vec<f64> = column.to_vec();
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                     let q1_idx = values.len() / 4;
                     let q3_idx = 3 * values.len() / 4;
@@ -370,7 +371,7 @@ impl PreprocessingIntegration {
             ScalerType::RobustScaler => {
                 for col in 0..X.ncols() {
                     let mut values: Vec<f64> = X.column(col).to_vec();
-                    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                     let median = if values.len() % 2 == 0 {
                         (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0

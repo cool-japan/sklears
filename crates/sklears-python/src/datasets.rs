@@ -3,7 +3,7 @@
 //! This module provides PyO3-based Python bindings for sklears dataset loading
 //! and synthetic data generation functions.
 
-use numpy::IntoPyArray;
+use crate::linear::common::{core_array1_to_py, core_array2_to_py};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyTuple};
@@ -39,8 +39,8 @@ fn make_blobs_py<'py>(
     let (data, labels) = make_blobs(n_samples, n_features, n_centers, cluster_std, random_state)
         .map_err(|e| PyRuntimeError::new_err(format!("Failed to generate blobs: {}", e)))?;
 
-    let data_py = data.into_pyarray(py).into_any();
-    let labels_py = labels.into_pyarray(py).into_any();
+    let data_py = core_array2_to_py(py, &data)?.into_bound(py).into_any();
+    let labels_py = core_array1_to_py(py, &labels).into_bound(py).into_any();
 
     Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }
@@ -97,8 +97,8 @@ fn make_classification_py<'py>(
         PyRuntimeError::new_err(format!("Failed to generate classification dataset: {}", e))
     })?;
 
-    let data_py = data.into_pyarray(py).into_any();
-    let labels_py = labels.into_pyarray(py).into_any();
+    let data_py = core_array2_to_py(py, &data)?.into_bound(py).into_any();
+    let labels_py = core_array1_to_py(py, &labels).into_bound(py).into_any();
 
     Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }
@@ -137,8 +137,8 @@ fn make_regression_py<'py>(
             PyRuntimeError::new_err(format!("Failed to generate regression dataset: {}", e))
         })?;
 
-    let data_py = data.into_pyarray(py).into_any();
-    let target_py = target.into_pyarray(py).into_any();
+    let data_py = core_array2_to_py(py, &data)?.into_bound(py).into_any();
+    let target_py = core_array1_to_py(py, &target).into_bound(py).into_any();
 
     Ok(PyTuple::new(py, &[data_py, target_py])?.into_any().unbind())
 }
@@ -156,8 +156,8 @@ fn make_moons_py<'py>(
     let (data, labels) = make_moons(n_samples, noise, random_state)
         .map_err(|e| PyRuntimeError::new_err(format!("Failed to generate moons dataset: {}", e)))?;
 
-    let data_py = data.into_pyarray(py).into_any();
-    let labels_py = labels.into_pyarray(py).into_any();
+    let data_py = core_array2_to_py(py, &data)?.into_bound(py).into_any();
+    let labels_py = core_array1_to_py(py, &labels).into_bound(py).into_any();
 
     Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }
@@ -177,8 +177,8 @@ fn make_circles_py<'py>(
         PyRuntimeError::new_err(format!("Failed to generate circles dataset: {}", e))
     })?;
 
-    let data_py = data.into_pyarray(py).into_any();
-    let labels_py = labels.into_pyarray(py).into_any();
+    let data_py = core_array2_to_py(py, &data)?.into_bound(py).into_any();
+    let labels_py = core_array1_to_py(py, &labels).into_bound(py).into_any();
 
     Ok(PyTuple::new(py, &[data_py, labels_py])?.into_any().unbind())
 }

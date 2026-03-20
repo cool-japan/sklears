@@ -68,7 +68,7 @@ impl AutoRecoveryManager {
                 interval.tick().await;
 
                 // Check for expired recoveries
-                let mut recoveries = active_recoveries.write().unwrap();
+                let mut recoveries = active_recoveries.write().unwrap_or_else(|e| e.into_inner());
                 let current_time = Instant::now();
 
                 let expired_recoveries: Vec<String> = recoveries
@@ -89,7 +89,7 @@ impl AutoRecoveryManager {
             }
         });
 
-        *self.manager_handle.lock().unwrap() = Some(handle);
+        *self.manager_handle.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
         Ok(())
     }
@@ -98,7 +98,7 @@ impl AutoRecoveryManager {
     pub async fn stop(&self) -> SklResult<()> {
         self.is_running.store(false, Ordering::SeqCst);
 
-        if let Some(handle) = self.manager_handle.lock().unwrap().take() {
+        if let Some(handle) = self.manager_handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             handle.abort();
         }
 
@@ -107,14 +107,14 @@ impl AutoRecoveryManager {
 
     /// Register a recovery strategy
     pub async fn register_strategy(&self, strategy: RecoveryStrategy) -> SklResult<()> {
-        let mut strategies = self.recovery_strategies.write().unwrap();
+        let mut strategies = self.recovery_strategies.write().unwrap_or_else(|e| e.into_inner());
         strategies.insert(strategy.name.clone(), strategy);
         Ok(())
     }
 
     /// Register a recovery policy
     pub async fn register_policy(&self, policy: RecoveryPolicy) -> SklResult<()> {
-        let mut policies = self.recovery_policies.write().unwrap();
+        let mut policies = self.recovery_policies.write().unwrap_or_else(|e| e.into_inner());
         policies.insert(policy.name.clone(), policy);
         Ok(())
     }
@@ -147,7 +147,7 @@ impl AutoRecoveryManager {
 
         // Add to active recoveries
         {
-            let mut active_recoveries = self.active_recoveries.write().unwrap();
+            let mut active_recoveries = self.active_recoveries.write().unwrap_or_else(|e| e.into_inner());
             active_recoveries.insert(recovery_id.clone(), active_recovery);
         }
 
@@ -224,13 +224,13 @@ impl AutoRecoveryManager {
 
     /// Get status of active recoveries
     pub async fn get_active_recoveries(&self) -> SklResult<Vec<ActiveRecovery>> {
-        let recoveries = self.active_recoveries.read().unwrap();
+        let recoveries = self.active_recoveries.read().unwrap_or_else(|e| e.into_inner());
         Ok(recoveries.values().cloned().collect())
     }
 
     /// Get recovery history
     pub async fn get_recovery_history(&self, limit: Option<usize>) -> SklResult<Vec<RecoveryExecution>> {
-        let history = self.recovery_history.read().unwrap();
+        let history = self.recovery_history.read().unwrap_or_else(|e| e.into_inner());
         let limit = limit.unwrap_or(100);
 
         Ok(history.iter().rev().take(limit).cloned().collect())
@@ -243,7 +243,7 @@ impl AutoRecoveryManager {
 
     /// Cancel an active recovery
     pub async fn cancel_recovery(&self, recovery_id: &str) -> SklResult<()> {
-        let mut recoveries = self.active_recoveries.write().unwrap();
+        let mut recoveries = self.active_recoveries.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(mut recovery) = recoveries.remove(recovery_id) {
             recovery.status = RecoveryStatus::Cancelled;
@@ -891,7 +891,7 @@ impl RecoveryStrategySelector {
         trigger: &RecoveryTrigger,
         strategies: &Arc<RwLock<HashMap<String, RecoveryStrategy>>>,
     ) -> SklResult<RecoveryStrategy> {
-        let strategies = strategies.read().unwrap();
+        let strategies = strategies.read().unwrap_or_else(|e| e.into_inner());
         let applicable_strategies: Vec<&RecoveryStrategy> = strategies
             .values()
             .filter(|strategy| strategy.applies_to(trigger))
@@ -906,11 +906,11 @@ impl RecoveryStrategySelector {
                 let strategy = applicable_strategies
                     .iter()
                     .max_by_key(|s| s.priority)
-                    .unwrap();
+                    .unwrap_or_default();
                 Ok((*strategy).clone())
             }
             SelectionAlgorithm::SuccessRateBased => {
-                let rankings = self.strategy_rankings.read().unwrap();
+                let rankings = self.strategy_rankings.read().unwrap_or_else(|e| e.into_inner());
                 let strategy = applicable_strategies
                     .iter()
                     .max_by(|a, b| {
@@ -918,7 +918,7 @@ impl RecoveryStrategySelector {
                         let b_ranking = rankings.get(&b.name).map(|r| r.success_rate).unwrap_or(0.5);
                         a_ranking.partial_cmp(&b_ranking).unwrap_or(std::cmp::Ordering::Equal)
                     })
-                    .unwrap();
+                    .unwrap_or_default();
                 Ok((*strategy).clone())
             }
             SelectionAlgorithm::Custom => {
@@ -929,7 +929,7 @@ impl RecoveryStrategySelector {
     }
 
     pub fn update_strategy_ranking(&self, strategy_name: String, success: bool, duration: Duration) {
-        let mut rankings = self.strategy_rankings.write().unwrap();
+        let mut rankings = self.strategy_rankings.write().unwrap_or_else(|e| e.into_inner());
         let ranking = rankings.entry(strategy_name).or_insert_with(StrategyRanking::new);
         ranking.update(success, duration);
     }
@@ -1027,7 +1027,7 @@ impl RecoveryExecutionEngine {
         let duration = start_time.elapsed();
 
         // Record execution metrics
-        let mut metrics = self.execution_metrics.write().unwrap();
+        let mut metrics = self.execution_metrics.write().unwrap_or_else(|e| e.into_inner());
         let execution_metric = metrics.entry(strategy.name.clone()).or_insert_with(ExecutionMetrics::new);
         execution_metric.record_execution(duration, result.is_ok());
 
@@ -1101,13 +1101,13 @@ impl RecoveryPolicyEnforcer {
         recovery_history: &Arc<RwLock<VecDeque<RecoveryExecution>>>,
     ) -> SklResult<bool> {
         // Check active recovery limits
-        let active_count = active_recoveries.read().unwrap().len();
+        let active_count = active_recoveries.read().unwrap_or_else(|e| e.into_inner()).len();
         if active_count >= 5 {  // Max concurrent recoveries
             return Ok(false);
         }
 
         // Check cooldown period
-        let history = recovery_history.read().unwrap();
+        let history = recovery_history.read().unwrap_or_else(|e| e.into_inner());
         let recent_recoveries = history
             .iter()
             .filter(|r| r.trigger.component_name == trigger.component_name)
@@ -1119,7 +1119,7 @@ impl RecoveryPolicyEnforcer {
         }
 
         // Check enforcement rules
-        let rules = self.enforcement_rules.read().unwrap();
+        let rules = self.enforcement_rules.read().unwrap_or_else(|e| e.into_inner());
         for rule in rules.iter() {
             if !rule.evaluate(trigger) {
                 return Ok(false);
@@ -1159,32 +1159,32 @@ impl RecoveryMetricsCollector {
     }
 
     pub async fn record_attempt(&self, _recovery_id: &str) -> SklResult<()> {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.total_attempts += 1;
         Ok(())
     }
 
     pub async fn record_success(&self, _recovery_id: &str, duration: Duration) -> SklResult<()> {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.successful_recoveries += 1;
         metrics.total_recovery_time += duration;
         Ok(())
     }
 
     pub async fn record_failure(&self, _recovery_id: &str, _duration: Duration) -> SklResult<()> {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.failed_recoveries += 1;
         Ok(())
     }
 
     pub async fn record_cancellation(&self, _recovery_id: &str) -> SklResult<()> {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.cancelled_recoveries += 1;
         Ok(())
     }
 
     pub async fn get_statistics(&self) -> SklResult<RecoveryStatistics> {
-        let metrics = self.metrics.read().unwrap();
+        let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
         Ok(RecoveryStatistics {
             total_attempts: metrics.total_attempts,
             successful_recoveries: metrics.successful_recoveries,
@@ -1261,7 +1261,7 @@ impl RecoveryNotificationSystem {
     }
 
     pub async fn notify_recovery_started(&self, recovery_id: &str, trigger: &RecoveryTrigger) -> SklResult<()> {
-        let channels = self.notification_channels.read().unwrap();
+        let channels = self.notification_channels.read().unwrap_or_else(|e| e.into_inner());
         for channel in channels.iter() {
             channel.send_notification(&format!(
                 "Recovery {} started for {} - {}",
@@ -1272,7 +1272,7 @@ impl RecoveryNotificationSystem {
     }
 
     pub async fn notify_recovery_success(&self, recovery_id: &str, result: &RecoveryResult) -> SklResult<()> {
-        let channels = self.notification_channels.read().unwrap();
+        let channels = self.notification_channels.read().unwrap_or_else(|e| e.into_inner());
         for channel in channels.iter() {
             channel.send_notification(&format!(
                 "Recovery {} completed successfully - {}",
@@ -1283,7 +1283,7 @@ impl RecoveryNotificationSystem {
     }
 
     pub async fn notify_recovery_failure(&self, recovery_id: &str, error: &str) -> SklResult<()> {
-        let channels = self.notification_channels.read().unwrap();
+        let channels = self.notification_channels.read().unwrap_or_else(|e| e.into_inner());
         for channel in channels.iter() {
             channel.send_notification(&format!(
                 "Recovery {} failed - {}",
@@ -1294,7 +1294,7 @@ impl RecoveryNotificationSystem {
     }
 
     pub async fn notify_recovery_cancelled(&self, recovery_id: &str) -> SklResult<()> {
-        let channels = self.notification_channels.read().unwrap();
+        let channels = self.notification_channels.read().unwrap_or_else(|e| e.into_inner());
         for channel in channels.iter() {
             channel.send_notification(&format!(
                 "Recovery {} was cancelled",

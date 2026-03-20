@@ -104,7 +104,11 @@ impl StressStrainIsotonicRegression {
 
         // Sort by strain
         let mut indices: Vec<usize> = (0..strain.len()).collect();
-        indices.sort_by(|&i, &j| strain[i].partial_cmp(&strain[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            strain[i]
+                .partial_cmp(&strain[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut sorted_strain = Array1::zeros(strain.len());
         let mut sorted_stress = Array1::zeros(stress.len());
@@ -293,7 +297,11 @@ impl FatigueLifeIsotonicRegression {
 
         // Sort by number of cycles
         let mut indices: Vec<usize> = (0..cycles.len()).collect();
-        indices.sort_by(|&i, &j| cycles[i].partial_cmp(&cycles[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            cycles[i]
+                .partial_cmp(&cycles[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut sorted_cycles = Array1::zeros(cycles.len());
         let mut sorted_stress = Array1::zeros(stress_amplitude.len());
@@ -487,7 +495,11 @@ impl ReliabilityIsotonicRegression {
 
         // Sort by time
         let mut indices: Vec<usize> = (0..time.len()).collect();
-        indices.sort_by(|&i, &j| time[i].partial_cmp(&time[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            time[i]
+                .partial_cmp(&time[j])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let mut sorted_time = Array1::zeros(time.len());
         let mut sorted_reliability = Array1::zeros(reliability.len());
@@ -571,8 +583,14 @@ impl ReliabilityIsotonicRegression {
     /// Compute hazard rate (failure rate)
     pub fn hazard_rate(&self, time: &Array1<f64>) -> Result<Array1<f64>, SklearsError> {
         let reliability = self.predict(time)?;
-        let fitted_time = self.fitted_time.as_ref().unwrap();
-        let fitted_reliability = self.fitted_reliability.as_ref().unwrap();
+        let fitted_time = self
+            .fitted_time
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let fitted_reliability = self
+            .fitted_reliability
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         let mut hazard = Array1::zeros(time.len());
 
@@ -742,7 +760,7 @@ impl ControlSystemIsotonic {
         indices.sort_by(|&i, &j| {
             operating_points[i]
                 .partial_cmp(&operating_points[j])
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let mut sorted_gains = Array1::zeros(desired_gains.len());
@@ -986,7 +1004,14 @@ pub fn stress_strain_isotonic_regression(
     let mut model = StressStrainIsotonicRegression::new().model_type(model_type);
     model.fit(strain, stress)?;
 
-    Ok((model.fitted_strain.unwrap(), model.fitted_stress.unwrap()))
+    Ok((
+        model
+            .fitted_strain
+            .ok_or_else(|| SklearsError::NumericalError("fitted_strain not set".into()))?,
+        model
+            .fitted_stress
+            .ok_or_else(|| SklearsError::NumericalError("fitted_stress not set".into()))?,
+    ))
 }
 
 /// Fit fatigue life S-N curve with isotonic regression
@@ -998,7 +1023,14 @@ pub fn fatigue_life_isotonic_regression(
     let mut model = FatigueLifeIsotonicRegression::new().model_type(model_type);
     model.fit(cycles, stress_amplitude)?;
 
-    Ok((model.fitted_cycles.unwrap(), model.fitted_stress.unwrap()))
+    Ok((
+        model
+            .fitted_cycles
+            .ok_or_else(|| SklearsError::NumericalError("fitted_cycles not set".into()))?,
+        model
+            .fitted_stress
+            .ok_or_else(|| SklearsError::NumericalError("fitted_stress not set".into()))?,
+    ))
 }
 
 /// Fit reliability curve with isotonic regression
@@ -1011,8 +1043,12 @@ pub fn reliability_isotonic_regression(
     model.fit(time, reliability)?;
 
     Ok((
-        model.fitted_time.unwrap(),
-        model.fitted_reliability.unwrap(),
+        model
+            .fitted_time
+            .ok_or_else(|| SklearsError::NumericalError("fitted_time not set".into()))?,
+        model
+            .fitted_reliability
+            .ok_or_else(|| SklearsError::NumericalError("fitted_reliability not set".into()))?,
     ))
 }
 
@@ -1058,11 +1094,15 @@ mod tests {
         let mut model =
             StressStrainIsotonicRegression::new().model_type(StressStrainModel::LinearElastic);
 
-        model.fit(&strain, &stress).unwrap();
+        model
+            .fit(&strain, &stress)
+            .expect("model fitting should succeed");
 
         // Predict at new strain values
         let test_strain = Array1::from_vec(vec![0.0015, 0.0025, 0.0035]);
-        let predictions = model.predict(&test_strain).unwrap();
+        let predictions = model
+            .predict(&test_strain)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), test_strain.len());
 
@@ -1080,11 +1120,15 @@ mod tests {
 
         let mut model = FatigueLifeIsotonicRegression::new().model_type(FatigueModel::Basquin);
 
-        model.fit(&cycles, &stress).unwrap();
+        model
+            .fit(&cycles, &stress)
+            .expect("model fitting should succeed");
 
         // Predict stress at intermediate cycles
         let test_cycles = Array1::from_vec(vec![5e3, 5e4, 5e5]);
-        let predictions = model.predict_stress(&test_cycles).unwrap();
+        let predictions = model
+            .predict_stress(&test_cycles)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), test_cycles.len());
 
@@ -1102,11 +1146,15 @@ mod tests {
 
         let mut model = ReliabilityIsotonicRegression::new().model_type(ReliabilityModel::Weibull);
 
-        model.fit(&time, &reliability).unwrap();
+        model
+            .fit(&time, &reliability)
+            .expect("model fitting should succeed");
 
         // Predict reliability at intermediate times
         let test_time = Array1::from_vec(vec![50.0, 150.0, 250.0]);
-        let predictions = model.predict(&test_time).unwrap();
+        let predictions = model
+            .predict(&test_time)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), test_time.len());
 
@@ -1121,7 +1169,9 @@ mod tests {
         }
 
         // Compute MTTF
-        let mttf = model.mean_time_to_failure().unwrap();
+        let mttf = model
+            .mean_time_to_failure()
+            .expect("operation should succeed");
         assert!(mttf > 0.0);
     }
 
@@ -1129,8 +1179,8 @@ mod tests {
     fn test_control_system_constraints() {
         let control_input = Array1::from_vec(vec![0.5, 1.2, -0.3, 0.8, 1.5]);
 
-        let constrained =
-            control_system_isotonic_constraints(&control_input, -1.0, 1.0, true).unwrap();
+        let constrained = control_system_isotonic_constraints(&control_input, -1.0, 1.0, true)
+            .expect("operation should succeed");
 
         // Check bounds
         for &c in constrained.iter() {
@@ -1150,7 +1200,7 @@ mod tests {
 
         let smoothed =
             signal_processing_isotonic(&signal, SignalProcessingMode::MonotonicSmoothing, 0.2)
-                .unwrap();
+                .expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..smoothed.len() {
@@ -1163,7 +1213,7 @@ mod tests {
 
         // Test trend extraction
         let trend = signal_processing_isotonic(&signal, SignalProcessingMode::TrendExtraction, 0.1)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(trend.len(), signal.len());
     }
@@ -1177,7 +1227,7 @@ mod tests {
 
         let monotonic_gains = controller
             .monotonic_gain_schedule(&operating_points, &desired_gains)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..monotonic_gains.len() {
@@ -1190,7 +1240,8 @@ mod tests {
         let signal = Array1::from_vec(vec![1.0, 2.0, 1.5, 3.0, 2.5, 4.0, 3.5, 5.0]);
 
         let upper_env =
-            signal_processing_isotonic(&signal, SignalProcessingMode::UpperEnvelope, 0.3).unwrap();
+            signal_processing_isotonic(&signal, SignalProcessingMode::UpperEnvelope, 0.3)
+                .expect("operation should succeed");
 
         // Upper envelope should be above or equal to signal
         for i in 0..signal.len() {
@@ -1199,7 +1250,8 @@ mod tests {
 
         // Test lower envelope
         let lower_env =
-            signal_processing_isotonic(&signal, SignalProcessingMode::LowerEnvelope, 0.3).unwrap();
+            signal_processing_isotonic(&signal, SignalProcessingMode::LowerEnvelope, 0.3)
+                .expect("operation should succeed");
 
         // Lower envelope should be below or equal to signal
         for i in 0..signal.len() {
@@ -1213,9 +1265,13 @@ mod tests {
         let stress = Array1::from_vec(vec![0.0, 200.0, 400.0, 600.0, 800.0]);
 
         let mut model = StressStrainIsotonicRegression::new();
-        model.fit(&strain, &stress).unwrap();
+        model
+            .fit(&strain, &stress)
+            .expect("model fitting should succeed");
 
-        let estimated_modulus = model.estimate_elastic_modulus().unwrap();
+        let estimated_modulus = model
+            .estimate_elastic_modulus()
+            .expect("operation should succeed");
 
         // Should be close to 200 GPa / 1e9 = 200,000
         assert!(estimated_modulus > 150_000.0 && estimated_modulus < 250_000.0);

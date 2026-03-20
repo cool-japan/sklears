@@ -33,8 +33,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configure EMD with custom parameters
     let emd = EmpiricalModeDecomposition::new()
         .max_sift_iter(100)
+        .expect("valid parameter")
         .tolerance(1e-6)
+        .expect("valid parameter")
         .max_imfs(6)
+        .expect("valid parameter")
         .boundary_condition(BoundaryCondition::Mirror)
         .interpolation(InterpolationMethod::CubicSpline);
 
@@ -67,7 +70,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for i in 0..result.n_imfs {
                 if let Some(imf) = result.imf(i) {
                     let energy = imf.mapv(|x| x * x).sum().sqrt();
-                    let mean_abs = imf.mapv(|x| x.abs()).mean().unwrap();
+                    let mean_abs = imf
+                        .mapv(|x| x.abs())
+                        .mean()
+                        .expect("array should have elements for mean computation");
                     println!(
                         "IMF {}: Energy = {:.6}, Mean Abs = {:.6}",
                         i + 1,

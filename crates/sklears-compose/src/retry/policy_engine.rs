@@ -39,14 +39,14 @@ impl RetryPolicyEngine {
 
     /// Register a retry policy
     pub fn register_policy(&self, policy: RetryPolicy) -> SklResult<()> {
-        let mut policies = self.policies.write().unwrap();
+        let mut policies = self.policies.write().unwrap_or_else(|e| e.into_inner());
         policies.insert(policy.id.clone(), policy);
         Ok(())
     }
 
     /// Evaluate policies for a given context
     pub fn evaluate_policies(&self, context: &RetryContext) -> SklResult<Vec<PolicyEvaluationResult>> {
-        let policies = self.policies.read().unwrap();
+        let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
         let mut results = Vec::new();
 
         for policy in policies.values() {
@@ -70,7 +70,7 @@ impl RetryPolicyEngine {
             .iter()
             .filter(|result| result.applies && result.confidence > 0.5)
             .map(|result| {
-                let policies = self.policies.read().unwrap();
+                let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
                 policies.values()
                     .find(|p| p.id == result.policy_id)
                     .cloned()
@@ -86,7 +86,7 @@ impl RetryPolicyEngine {
         let mut optimization_results = Vec::new();
 
         {
-            let policies = self.policies.read().unwrap();
+            let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
             for policy in policies.values() {
                 if let Ok(optimization_result) = self.optimizer.optimize_policy(policy, performance_data) {
                     optimization_results.push((policy.id.clone(), optimization_result.policy));
@@ -96,7 +96,7 @@ impl RetryPolicyEngine {
 
         // Update policies with optimized parameters
         if !optimization_results.is_empty() {
-            let mut policies_write = self.policies.write().unwrap();
+            let mut policies_write = self.policies.write().unwrap_or_else(|e| e.into_inner());
             for (policy_id, optimized_policy) in optimization_results {
                 policies_write.insert(policy_id, optimized_policy);
             }
@@ -107,7 +107,7 @@ impl RetryPolicyEngine {
 
     /// Get policy statistics
     pub fn get_statistics(&self) -> PolicyEngineStatistics {
-        let policies = self.policies.read().unwrap();
+        let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
         PolicyEngineStatistics {
             total_policies: policies.len(),
             active_policies: policies.values().filter(|p| p.enabled).count(),
@@ -501,7 +501,7 @@ impl PolicyEvaluator {
         // Check cache
         let cache_key = format!("{}_{}", policy.id, context.id);
         if self.config.cache.enabled {
-            let cache = self.cache.lock().unwrap();
+            let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
             if let Some(cached) = cache.evaluations.get(&cache_key) {
                 if SystemTime::now().duration_since(cached.cached_at).unwrap_or(Duration::MAX) < cached.ttl {
                     return Ok(cached.result.clone());
@@ -551,7 +551,7 @@ impl PolicyEvaluator {
 
         // Update cache
         if self.config.cache.enabled {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
             cache.evaluations.insert(cache_key.clone(), CachedEvaluation {
                 result: result.clone(),
                 cached_at: SystemTime::now(),
@@ -729,7 +729,7 @@ impl PolicyOptimizer {
 
         // Store in history
         {
-            let mut history = self.history.lock().unwrap();
+            let mut history = self.history.lock().unwrap_or_else(|e| e.into_inner());
             history.push(result.clone());
             if history.len() > 1000 {
                 history.remove(0);

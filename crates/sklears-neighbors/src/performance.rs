@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Random;
-use scirs2_core::random::Rng;
+use scirs2_core::RngExt;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -388,7 +388,7 @@ impl NeighborBenchmark {
         rng: &mut Random<scirs2_core::random::rngs::StdRng>,
     ) -> SyntheticData {
         use scirs2_core::random::RandNormal as Normal;
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         // Generate training data
         let x_train =
@@ -396,7 +396,10 @@ impl NeighborBenchmark {
 
         // Generate simple binary classification targets
         let y_train: Array1<i32> =
-            Array1::from_shape_simple_fn(n_samples, || if rng.gen::<f64>() < 0.5 { 0 } else { 1 });
+            Array1::from_shape_simple_fn(
+                n_samples,
+                || if rng.random::<f64>() < 0.5 { 0 } else { 1 },
+            );
 
         // Generate test data (smaller set)
         let n_test = (n_samples / 10).clamp(10, 100);
@@ -613,7 +616,7 @@ mod tests {
 
         let measurement = profiler.get_measurement("test_operation");
         assert!(measurement.is_some());
-        assert!(measurement.unwrap() >= Duration::from_millis(1));
+        assert!(measurement.expect("operation should succeed") >= Duration::from_millis(1));
     }
 
     #[test]
@@ -626,7 +629,7 @@ mod tests {
 
         let measurement = profiler.get_measurement("manual_timing");
         assert!(measurement.is_some());
-        assert!(measurement.unwrap() >= Duration::from_millis(1));
+        assert!(measurement.expect("operation should succeed") >= Duration::from_millis(1));
     }
 
     #[test]
@@ -642,7 +645,7 @@ mod tests {
         let results = benchmark.run();
         assert!(results.is_ok());
 
-        let results = results.unwrap();
+        let results = results.expect("operation should succeed");
         assert_eq!(results.len(), 1);
 
         let result = &results[0];
@@ -664,7 +667,7 @@ mod tests {
             .k_values(vec![1])
             .repetitions(1);
 
-        benchmark.run().unwrap();
+        benchmark.run().expect("operation should succeed");
         let report = benchmark.generate_report();
 
         assert!(report.contains("Performance Report"));

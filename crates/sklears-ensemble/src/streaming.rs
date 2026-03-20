@@ -563,7 +563,13 @@ impl StreamingEnsemble<Trained> {
 
         // Update performance tracking
         if let Some(performance_tracking) = &mut self.model_performance_ {
-            for (i, model) in self.models_.as_ref().unwrap().iter().enumerate() {
+            for (i, model) in self
+                .models_
+                .as_ref()
+                .expect("operation should succeed")
+                .iter()
+                .enumerate()
+            {
                 let perf = model.get_performance();
                 performance_tracking[i].push_back(perf);
 
@@ -650,7 +656,8 @@ impl StreamingEnsemble<Trained> {
                     .collect();
 
                 // Sort by performance (worst first)
-                performance_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                performance_scores
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 // Reset bottom 30% of models
                 let reset_count = (models.len() * 30 / 100).max(1);
@@ -698,7 +705,7 @@ impl StreamingEnsemble<Trained> {
             .collect();
 
         // Sort by utility (lowest first for removal)
-        utility_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        utility_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         // Decision logic for size adjustment
         let avg_performance =
@@ -767,11 +774,23 @@ impl StreamingEnsemble<Trained> {
 
         if sample_size > 0 {
             // Calculate pairwise prediction differences for diversity estimation
-            for (i, model_i) in self.models_.as_ref().unwrap().iter().enumerate() {
+            for (i, model_i) in self
+                .models_
+                .as_ref()
+                .expect("operation should succeed")
+                .iter()
+                .enumerate()
+            {
                 let mut total_diversity = 0.0;
                 let mut comparison_count = 0;
 
-                for (j, model_j) in self.models_.as_ref().unwrap().iter().enumerate() {
+                for (j, model_j) in self
+                    .models_
+                    .as_ref()
+                    .expect("operation should succeed")
+                    .iter()
+                    .enumerate()
+                {
                     if i != j {
                         // Calculate diversity based on prediction differences on recent samples
                         let mut diff_sum = 0.0;
@@ -1141,20 +1160,21 @@ mod tests {
                 16.0, 17.0, 17.0, 18.0, 18.0, 19.0, 19.0, 20.0, 20.0, 21.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let y = Array1::from_shape_vec(20, (0..20).map(|i| i as Float).collect()).unwrap();
+        let y = Array1::from_shape_vec(20, (0..20).map(|i| i as Float).collect())
+            .expect("shape and data length should match");
 
         let ensemble = StreamingEnsemble::new()
             .max_models(5)
             .enable_drift_detection(true);
 
-        let trained = ensemble.fit(&x, &y).unwrap();
+        let trained = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         assert!(trained.model_count() > 0);
         assert!(trained.samples_seen() == 20);
 
-        let predictions = trained.predict(&x).unwrap();
+        let predictions = trained.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.nrows());
     }
 
@@ -1169,14 +1189,16 @@ mod tests {
             (5, 2),
             vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0, 5.0, 6.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![3.0, 5.0, 7.0, 9.0, 11.0];
 
-        let mut trained = ensemble.fit(&x, &y).unwrap();
+        let mut trained = ensemble.fit(&x, &y).expect("model fitting should succeed");
 
         // Streaming updates
         let x_new = array![6.0, 7.0];
-        let prediction = trained.partial_fit(&x_new, 13.0).unwrap();
+        let prediction = trained
+            .partial_fit(&x_new, 13.0)
+            .expect("operation should succeed");
 
         assert!(trained.samples_seen() == 6);
         assert!(!prediction.is_nan());
@@ -1184,7 +1206,9 @@ mod tests {
         // More updates
         for i in 7..15 {
             let x_new = array![i as Float, (i + 1) as Float];
-            trained.partial_fit(&x_new, (2 * i + 1) as Float).unwrap();
+            trained
+                .partial_fit(&x_new, (2 * i + 1) as Float)
+                .expect("operation should succeed");
         }
 
         assert!(trained.samples_seen() == 14);
@@ -1203,10 +1227,13 @@ mod tests {
             y_data.push(i as Float * 2.0 + 1.0);
         }
 
-        let x1 = Array2::from_shape_vec((50, 2), x_data).unwrap();
+        let x1 =
+            Array2::from_shape_vec((50, 2), x_data).expect("shape and data length should match");
         let y1 = Array1::from_vec(y_data);
 
-        let mut trained = ensemble.fit(&x1, &y1).unwrap();
+        let mut trained = ensemble
+            .fit(&x1, &y1)
+            .expect("model fitting should succeed");
         let initial_models = trained.model_count();
 
         // Phase 2: Different relationship (concept drift)
@@ -1221,7 +1248,9 @@ mod tests {
         // Stream the new data
         for i in 0..50 {
             let x_sample = array![x_data2[i * 2], x_data2[i * 2 + 1]];
-            trained.partial_fit(&x_sample, y_data2[i]).unwrap();
+            trained
+                .partial_fit(&x_sample, y_data2[i])
+                .expect("sampling should succeed");
         }
 
         // Should detect drift and adapt
@@ -1238,12 +1267,12 @@ mod tests {
         for i in 0..20 {
             let x = array![i as Float, (i * 2) as Float];
             let y = i as Float * 2.0 + 1.0;
-            model.partial_fit(&x, y).unwrap();
+            model.partial_fit(&x, y).expect("operation should succeed");
         }
 
         // Test prediction
         let test_x = array![10.0, 20.0];
-        let prediction = model.predict(&test_x).unwrap();
+        let prediction = model.predict(&test_x).expect("prediction should succeed");
 
         // Debug output for prediction value
         println!(
@@ -1274,7 +1303,7 @@ mod tests {
         });
         let y = Array1::from_shape_fn(n_samples, |i| (i % 2) as Float);
 
-        let mut ensemble = ensemble.fit(&x, &y).unwrap();
+        let mut ensemble = ensemble.fit(&x, &y).expect("model fitting should succeed");
         let initial_count = ensemble.model_count();
 
         // Process additional samples to trigger size adjustment
@@ -1282,7 +1311,9 @@ mod tests {
             let x_sample = Array1::from_shape_fn(n_features, |j| (i as Float + j as Float) / 10.0);
             let y_sample = (i % 2) as Float;
 
-            let _pred = ensemble.partial_fit(&x_sample, y_sample).unwrap();
+            let _pred = ensemble
+                .partial_fit(&x_sample, y_sample)
+                .expect("sampling should succeed");
         }
 
         // The ensemble should have adjusted its size dynamically
@@ -1294,7 +1325,9 @@ mod tests {
 
         // Verify the ensemble is still functional
         let test_x = Array1::from_shape_fn(n_features, |j| j as Float);
-        let prediction = ensemble.predict_single(&test_x).unwrap();
+        let prediction = ensemble
+            .predict_single(&test_x)
+            .expect("operation should succeed");
         assert!(prediction.is_finite(), "Prediction should be finite");
     }
 }

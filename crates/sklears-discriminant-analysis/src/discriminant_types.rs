@@ -665,9 +665,9 @@ mod tests {
 
     #[test]
     fn test_lda_solver_conversion() {
-        assert_eq!("svd".parse::<LdaSolver>().unwrap(), LdaSolver::Svd);
-        assert_eq!("lsqr".parse::<LdaSolver>().unwrap(), LdaSolver::Lsqr);
-        assert_eq!("eigen".parse::<LdaSolver>().unwrap(), LdaSolver::Eigen);
+        assert_eq!("svd".parse::<LdaSolver>().expect("operation should succeed"), LdaSolver::Svd);
+        assert_eq!("lsqr".parse::<LdaSolver>().expect("operation should succeed"), LdaSolver::Lsqr);
+        assert_eq!("eigen".parse::<LdaSolver>().expect("operation should succeed"), LdaSolver::Eigen);
 
         assert!("invalid".parse::<LdaSolver>().is_err());
     }
@@ -675,11 +675,11 @@ mod tests {
     #[test]
     fn test_covariance_type_conversion() {
         assert_eq!(
-            utils::string_to_covariance_type("full").unwrap(),
+            utils::string_to_covariance_type("full").expect("operation should succeed"),
             CovarianceEstimationType::Full
         );
         assert_eq!(
-            utils::string_to_covariance_type("diagonal").unwrap(),
+            utils::string_to_covariance_type("diagonal").expect("operation should succeed"),
             CovarianceEstimationType::Diagonal
         );
 

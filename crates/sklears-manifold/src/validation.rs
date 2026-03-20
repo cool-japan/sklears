@@ -8,7 +8,7 @@ use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
 use scirs2_core::SliceRandomExt;
@@ -277,7 +277,7 @@ impl CrossValidationSplitter {
             let mut rng = if let Some(seed) = random_state {
                 StdRng::seed_from_u64(seed)
             } else {
-                StdRng::seed_from_u64(thread_rng().gen())
+                StdRng::seed_from_u64(thread_rng().random())
             };
 
             for group in label_groups.values_mut() {
@@ -611,7 +611,9 @@ impl HyperparameterOptimizer {
                     b.neighborhood_preservation,
                 )
                 .composite_score();
-                score_a.partial_cmp(&score_b).unwrap()
+                score_a
+                    .partial_cmp(&score_b)
+                    .expect("operation should succeed")
             })
             .map(|(idx, _)| idx)
             .unwrap_or(0);
@@ -681,7 +683,7 @@ impl HyperparameterOptimizer {
         let mut rng = if let Some(seed) = random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen())
+            StdRng::seed_from_u64(thread_rng().random())
         };
 
         for _ in 0..n_iter {
@@ -690,22 +692,22 @@ impl HyperparameterOptimizer {
             for (param_name, param_space) in &self.parameter_grid {
                 let value = match param_space {
                     ParameterSpace::Choice(values) => {
-                        values[rng.gen_range(0..values.len())].clone()
+                        values[rng.random_range(0..values.len())].clone()
                     }
                     ParameterSpace::Uniform { low, high } => {
-                        ParameterValue::Float(rng.gen_range(*low..*high))
+                        ParameterValue::Float(rng.random_range(*low..*high))
                     }
                     ParameterSpace::LogUniform { low, high } => {
-                        let log_val = rng.gen_range(low.ln()..high.ln());
+                        let log_val = rng.random_range(low.ln()..high.ln());
                         ParameterValue::Float(log_val.exp())
                     }
                     ParameterSpace::Normal { mean, std } => {
-                        let normal = Normal::new(*mean, *std).unwrap();
+                        let normal = Normal::new(*mean, *std).expect("operation should succeed");
                         let val = normal.sample(&mut rng);
                         ParameterValue::Float(val)
                     }
                     ParameterSpace::IntRange { low, high } => {
-                        ParameterValue::Int(rng.gen_range(*low..*high + 1))
+                        ParameterValue::Int(rng.random_range(*low..*high + 1))
                     }
                 };
 
@@ -746,7 +748,9 @@ impl HyperparameterOptimizer {
             .max_by(|(_, a), (_, b)| {
                 let score_a = self.extract_score(&a.mean_scores);
                 let score_b = self.extract_score(&b.mean_scores);
-                score_a.partial_cmp(&score_b).unwrap()
+                score_a
+                    .partial_cmp(&score_b)
+                    .expect("operation should succeed")
             })
             .map(|(idx, _)| idx)
             .unwrap_or(0)

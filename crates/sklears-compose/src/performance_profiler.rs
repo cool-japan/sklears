@@ -281,7 +281,10 @@ impl PerformanceProfiler {
         };
 
         {
-            let mut active = self.active_sessions.lock().unwrap();
+            let mut active = self
+                .active_sessions
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             active.insert(session_id.clone(), session);
         }
 
@@ -300,7 +303,10 @@ impl PerformanceProfiler {
         stage_name: &str,
         component_type: &str,
     ) -> Result<(), String> {
-        let mut active = self.active_sessions.lock().unwrap();
+        let mut active = self
+            .active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = active.get_mut(session_id) {
             let stage_profile = StageProfile {
                 stage_name: stage_name.to_string(),
@@ -326,7 +332,10 @@ impl PerformanceProfiler {
 
     /// End profiling a specific pipeline stage
     pub fn end_stage(&self, session_id: &str, stage_name: &str) -> Result<Duration, String> {
-        let mut active = self.active_sessions.lock().unwrap();
+        let mut active = self
+            .active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = active.get_mut(session_id) {
             if let Some(stage) = session.stages.get_mut(stage_name) {
                 let end_time = Utc::now();
@@ -353,7 +362,10 @@ impl PerformanceProfiler {
         stage_name: &str,
         parameters: HashMap<String, String>,
     ) -> Result<(), String> {
-        let mut active = self.active_sessions.lock().unwrap();
+        let mut active = self
+            .active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = active.get_mut(session_id) {
             if let Some(stage) = session.stages.get_mut(stage_name) {
                 stage.parameters = parameters;
@@ -374,7 +386,10 @@ impl PerformanceProfiler {
         input_shape: Option<(usize, usize)>,
         output_shape: Option<(usize, usize)>,
     ) -> Result<(), String> {
-        let mut active = self.active_sessions.lock().unwrap();
+        let mut active = self
+            .active_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(session) = active.get_mut(session_id) {
             if let Some(stage) = session.stages.get_mut(stage_name) {
                 stage.input_shape = input_shape;
@@ -391,7 +406,10 @@ impl PerformanceProfiler {
     /// End profiling session and generate analysis
     pub fn end_session(&self, session_id: &str) -> Result<ProfileSession, String> {
         let mut session = {
-            let mut active = self.active_sessions.lock().unwrap();
+            let mut active = self
+                .active_sessions
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             active
                 .remove(session_id)
                 .ok_or_else(|| format!("Session {session_id} not found"))?
@@ -414,7 +432,10 @@ impl PerformanceProfiler {
 
         // Store completed session
         {
-            let mut completed = self.completed_sessions.lock().unwrap();
+            let mut completed = self
+                .completed_sessions
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             completed.push(session.clone());
 
             // Maintain session limit
@@ -437,7 +458,7 @@ impl PerformanceProfiler {
 
             loop {
                 let should_continue = {
-                    let active = active_sessions.lock().unwrap();
+                    let active = active_sessions.lock().unwrap_or_else(|e| e.into_inner());
                     active.contains_key(&session_id)
                 };
 
@@ -507,13 +528,13 @@ impl PerformanceProfiler {
     fn get_process_memory() -> f64 {
         // This is a simplified implementation
         // In practice, you'd use sysinfo or similar
-        150.0 + (thread_rng().gen::<f64>() * 50.0)
+        150.0 + (thread_rng().random::<f64>() * 50.0)
     }
 
     /// Get current CPU usage (simplified)
     fn get_cpu_usage() -> f64 {
         // Simplified CPU usage simulation
-        30.0 + (thread_rng().gen::<f64>() * 40.0)
+        30.0 + (thread_rng().random::<f64>() * 40.0)
     }
 
     /// Add memory sample to active session
@@ -522,7 +543,7 @@ impl PerformanceProfiler {
         session_id: &str,
         sample: MemorySample,
     ) {
-        let mut active = active_sessions.lock().unwrap();
+        let mut active = active_sessions.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(session) = active.get_mut(session_id) {
             // Add to the currently active stage or overall session
             if let Some((_, stage)) = session.stages.iter_mut().last() {
@@ -539,7 +560,7 @@ impl PerformanceProfiler {
         session_id: &str,
         sample: CpuSample,
     ) {
-        let mut active = active_sessions.lock().unwrap();
+        let mut active = active_sessions.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(session) = active.get_mut(session_id) {
             if let Some((_, stage)) = session.stages.iter_mut().last() {
                 if stage.end_time.is_none() {
@@ -555,7 +576,7 @@ impl PerformanceProfiler {
         session_id: &str,
         sample: GpuSample,
     ) {
-        let mut active = active_sessions.lock().unwrap();
+        let mut active = active_sessions.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(session) = active.get_mut(session_id) {
             if let Some((_, stage)) = session.stages.iter_mut().last() {
                 if stage.end_time.is_none() {
@@ -808,7 +829,10 @@ impl PerformanceProfiler {
     /// Get all completed sessions
     #[must_use]
     pub fn get_completed_sessions(&self) -> Vec<ProfileSession> {
-        let completed = self.completed_sessions.lock().unwrap();
+        let completed = self
+            .completed_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         completed.clone()
     }
 
@@ -816,7 +840,10 @@ impl PerformanceProfiler {
     #[must_use]
     pub fn generate_report(&self, session_id: Option<&str>) -> PerformanceReport {
         let sessions = if let Some(id) = session_id {
-            let completed = self.completed_sessions.lock().unwrap();
+            let completed = self
+                .completed_sessions
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             completed
                 .iter()
                 .filter(|s| s.session_id == id)
@@ -969,8 +996,8 @@ impl PerformanceReport {
         /// SummaryMetrics
         SummaryMetrics {
             average_execution_time: average_execution,
-            fastest_execution_time: *execution_times.iter().min().unwrap(),
-            slowest_execution_time: *execution_times.iter().max().unwrap(),
+            fastest_execution_time: execution_times.iter().min().copied().unwrap_or_default(),
+            slowest_execution_time: execution_times.iter().max().copied().unwrap_or_default(),
             average_memory_usage: sessions
                 .iter()
                 .map(|s| s.overall_metrics.peak_memory_usage_mb)
@@ -1181,14 +1208,18 @@ mod tests {
         // Start and end a stage
         profiler
             .start_stage(&session_id, "preprocessing", "transformer")
-            .unwrap();
+            .unwrap_or_default();
         thread::sleep(Duration::from_millis(10));
-        let stage_duration = profiler.end_stage(&session_id, "preprocessing").unwrap();
+        let stage_duration = profiler
+            .end_stage(&session_id, "preprocessing")
+            .unwrap_or_default();
 
         assert!(stage_duration > Duration::from_millis(5));
 
         // End session
-        let completed_session = profiler.end_session(&session_id).unwrap();
+        let completed_session = profiler
+            .end_session(&session_id)
+            .expect("operation should succeed");
         assert_eq!(completed_session.pipeline_name, "test_pipeline");
         assert_eq!(completed_session.stages.len(), 1);
     }
@@ -1201,11 +1232,15 @@ mod tests {
         // Simulate a slow stage
         profiler
             .start_stage(&session_id, "slow_stage", "estimator")
-            .unwrap();
+            .unwrap_or_default();
         thread::sleep(Duration::from_millis(50)); // Simulate slow execution
-        profiler.end_stage(&session_id, "slow_stage").unwrap();
+        profiler
+            .end_stage(&session_id, "slow_stage")
+            .unwrap_or_default();
 
-        let completed_session = profiler.end_session(&session_id).unwrap();
+        let completed_session = profiler
+            .end_session(&session_id)
+            .expect("operation should succeed");
 
         // Check that bottlenecks were detected (though timing may be too short for actual detection)
         assert_eq!(completed_session.stages.len(), 1);
@@ -1220,10 +1255,12 @@ mod tests {
             let session_id = profiler.start_session(&format!("pipeline_{}", i));
             profiler
                 .start_stage(&session_id, "stage", "transformer")
-                .unwrap();
+                .unwrap_or_default();
             thread::sleep(Duration::from_millis(10));
-            profiler.end_stage(&session_id, "stage").unwrap();
-            profiler.end_session(&session_id).unwrap();
+            profiler.end_stage(&session_id, "stage").unwrap_or_default();
+            profiler
+                .end_session(&session_id)
+                .expect("operation should succeed");
         }
 
         let report = profiler.generate_report(None);

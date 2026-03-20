@@ -141,7 +141,7 @@ impl SelectKBest {
             .map(|(i, &score)| (i, score.abs()))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_features: Vec<usize> = indexed_scores
             .into_iter()
@@ -310,7 +310,7 @@ impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for SelectPercentile {
 
         // Calculate threshold based on percentile
         let mut sorted_scores: Vec<f64> = scores.to_vec();
-        sorted_scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_scores.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         let threshold_idx =
             ((100.0 - self.percentile) / 100.0 * sorted_scores.len() as f64) as usize;
@@ -650,9 +650,11 @@ impl Estimator for CorrelationThreshold {
 
 impl<'a> Fit<ArrayView2<'a, f64>, ArrayView1<'a, f64>> for CorrelationThreshold {
     type Fitted = CorrelationThresholdTrained;
-    fn fit(self, X: &ArrayView2<'a, f64>, _y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
-        let selected_features = (0..X.ncols().min(10)).collect(); // Stub
-        Ok(CorrelationThresholdTrained { selected_features })
+    fn fit(self, _X: &ArrayView2<'a, f64>, _y: &ArrayView1<'a, f64>) -> Result<Self::Fitted> {
+        Err(SklearsError::NotImplemented(
+            "CorrelationThreshold selector not yet implemented".to_string(),
+        )
+        .into())
     }
 }
 
@@ -696,11 +698,13 @@ macro_rules! impl_stub_selector {
             type Fitted = $trained;
             fn fit(
                 self,
-                X: &ArrayView2<'a, f64>,
+                _X: &ArrayView2<'a, f64>,
                 _y: &ArrayView1<'a, f64>,
             ) -> Result<Self::Fitted> {
-                let selected_features = (0..X.ncols().min(5)).collect();
-                Ok($trained { selected_features })
+                Err(SklearsError::NotImplemented(
+                    concat!(stringify!($name), " selector not yet implemented").to_string(),
+                )
+                .into())
             }
         }
 

@@ -54,8 +54,8 @@ pub struct NeighborhoodSelectionConfig {
 /// let X = array![[1.0, 2.0, 0.1], [3.0, 4.0, 0.2], [5.0, 6.0, 0.3]];
 ///
 /// let ns = NeighborhoodSelection::new().alpha(0.1);
-/// let fitted = ns.fit(&X.view(), &()).unwrap();
-/// let precision = fitted.get_precision().unwrap();
+/// let fitted = ns.fit(&X.view(), &()).expect("model fitting should succeed");
+/// let precision = fitted.get_precision().expect("operation should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct NeighborhoodSelection<S = Untrained> {
@@ -170,7 +170,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for NeighborhoodSelection<Untrained> {
         let location = if self.config.assume_centered {
             Array1::zeros(n_features)
         } else {
-            x.mean_axis(Axis(0)).unwrap()
+            x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?
         };
 
         let mut x_centered = x.to_owned();

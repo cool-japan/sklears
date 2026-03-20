@@ -10,7 +10,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::RngExt;
+use scirs2_core::random::SeedableRng;
 use sklears_compose::{Pipeline, PipelineStep};
 use sklears_core::error::Result as SklResult;
 use sklears_core::traits::Fit;
@@ -82,13 +83,15 @@ fn bench_sequential_pipeline(c: &mut Criterion) {
         // Benchmark 2-stage pipeline - pre-fit, then measure transform
         let fitted_2 = build_pipeline(&[("scale1", 2.0), ("scale2", 0.5)])
             .fit(&x_view, &y_opt)
-            .unwrap();
+            .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("2_stage", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted_2.transform(&x_view).unwrap()));
+                bench.iter(|| {
+                    black_box(fitted_2.transform(&x_view).expect("bench operation failed"))
+                });
             },
         );
 
@@ -101,13 +104,15 @@ fn bench_sequential_pipeline(c: &mut Criterion) {
             ("scale5", 1.2),
         ])
         .fit(&x_view, &y_opt)
-        .unwrap();
+        .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("5_stage", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted_5.transform(&x_view).unwrap()));
+                bench.iter(|| {
+                    black_box(fitted_5.transform(&x_view).expect("bench operation failed"))
+                });
             },
         );
 
@@ -117,13 +122,21 @@ fn bench_sequential_pipeline(c: &mut Criterion) {
             .collect();
         let step_refs: Vec<(&str, Float)> =
             steps_10.iter().map(|(n, s)| (n.as_str(), *s)).collect();
-        let fitted_10 = build_pipeline(&step_refs).fit(&x_view, &y_opt).unwrap();
+        let fitted_10 = build_pipeline(&step_refs)
+            .fit(&x_view, &y_opt)
+            .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("10_stage", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted_10.transform(&x_view).unwrap()));
+                bench.iter(|| {
+                    black_box(
+                        fitted_10
+                            .transform(&x_view)
+                            .expect("bench operation failed"),
+                    )
+                });
             },
         );
     }
@@ -147,13 +160,14 @@ fn bench_pipeline_memory(c: &mut Criterion) {
 
         let fitted = build_pipeline(&[("scale1", 2.0), ("scale2", 0.5)])
             .fit(&x_view, &y_opt)
-            .unwrap();
+            .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("minimal_copy", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+                bench
+                    .iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
             },
         );
     }
@@ -212,13 +226,14 @@ fn bench_data_scaling(c: &mut Criterion) {
 
         let fitted = build_pipeline(&[("scale1", 2.0), ("scale2", 0.5), ("scale3", 1.5)])
             .fit(&x_view, &y_opt)
-            .unwrap();
+            .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("3_stage", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+                bench
+                    .iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
             },
         );
     }
@@ -239,17 +254,21 @@ fn bench_fit_vs_transform(c: &mut Criterion) {
     group.bench_function("fit_operation", |bench| {
         bench.iter(|| {
             let pipeline = build_pipeline(&[("scale1", 2.0), ("scale2", 0.5), ("scale3", 1.5)]);
-            black_box(pipeline.fit(&x_view, &y_opt).unwrap())
+            black_box(
+                pipeline
+                    .fit(&x_view, &y_opt)
+                    .expect("bench operation failed"),
+            )
         });
     });
 
     // Benchmark transform operation (pre-fitted)
     let fitted = build_pipeline(&[("scale1", 2.0), ("scale2", 0.5), ("scale3", 1.5)])
         .fit(&x_view, &y_opt)
-        .unwrap();
+        .expect("bench operation failed");
 
     group.bench_function("transform_operation", |bench| {
-        bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+        bench.iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
     });
 
     group.finish();

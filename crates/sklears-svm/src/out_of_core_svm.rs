@@ -648,13 +648,13 @@ mod tests {
         assert_eq!(iterator.n_features(), 2);
 
         // Test first chunk
-        let chunk1 = iterator.next_chunk()?.unwrap();
+        let chunk1 = iterator.next_chunk()?.expect("operation should succeed");
         assert_eq!(chunk1.x.nrows(), 2);
         assert_eq!(chunk1.x.ncols(), 2);
         assert_eq!(chunk1.y.len(), 2);
 
         // Test second chunk
-        let chunk2 = iterator.next_chunk()?.unwrap();
+        let chunk2 = iterator.next_chunk()?.expect("operation should succeed");
         assert_eq!(chunk2.x.nrows(), 2);
 
         // Test end of iteration

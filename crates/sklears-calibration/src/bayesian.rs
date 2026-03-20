@@ -706,9 +706,12 @@ mod tests {
         ];
 
         let mut bma = BayesianModelAveragingCalibrator::new(models);
-        bma.fit(&probabilities, &targets).unwrap();
+        bma.fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let predictions = bma.predict_proba(&probabilities).unwrap();
+        let predictions = bma
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -719,9 +722,13 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut vi_cal = VariationalInferenceCalibrator::with_config(0.01, 5, 100);
-        vi_cal.fit(&probabilities, &targets).unwrap();
+        vi_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let predictions = vi_cal.predict_proba(&probabilities).unwrap();
+        let predictions = vi_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -732,9 +739,13 @@ mod tests {
         let (probabilities, targets) = create_test_data();
 
         let mut mcmc_cal = MCMCCalibrator::with_config(100, 20, 0.1);
-        mcmc_cal.fit(&probabilities, &targets).unwrap();
+        mcmc_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let predictions = mcmc_cal.predict_proba(&probabilities).unwrap();
+        let predictions = mcmc_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -753,9 +764,13 @@ mod tests {
         ];
 
         let mut hb_cal = HierarchicalBayesianCalibrator::new().with_groups(groups);
-        hb_cal.fit(&probabilities, &targets).unwrap();
+        hb_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let predictions = hb_cal.predict_proba(&probabilities).unwrap();
+        let predictions = hb_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -774,8 +789,12 @@ mod tests {
         ];
 
         for mut calibrator in calibrators {
-            calibrator.fit(&edge_probs, &edge_targets).unwrap();
-            let predictions = calibrator.predict_proba(&edge_probs).unwrap();
+            calibrator
+                .fit(&edge_probs, &edge_targets)
+                .expect("fit should succeed");
+            let predictions = calibrator
+                .predict_proba(&edge_probs)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), edge_probs.len());
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1325,7 +1344,9 @@ impl CalibrationEstimator for NonParametricGPCalibrator {
             ));
         }
 
-        let alpha = self.alpha.as_ref().unwrap();
+        let alpha = self.alpha.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
         let mut predictions = Array1::zeros(probabilities.len());
 
         for (i, &prob) in probabilities.iter().enumerate() {
@@ -1367,8 +1388,12 @@ mod nonparametric_tests {
             .with_concentration(2.0)
             .with_max_clusters(5);
 
-        dp_cal.fit(&probabilities, &targets).unwrap();
-        let predictions = dp_cal.predict_proba(&probabilities).unwrap();
+        dp_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = dp_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1383,8 +1408,12 @@ mod nonparametric_tests {
             .with_kernel(GPKernelType::SpectralMixture)
             .with_inducing_points(4);
 
-        gp_cal.fit(&probabilities, &targets).unwrap();
-        let predictions = gp_cal.predict_proba(&probabilities).unwrap();
+        gp_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
+        let predictions = gp_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(predictions.len(), probabilities.len());
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1407,8 +1436,12 @@ mod nonparametric_tests {
                 .with_kernel(kernel)
                 .with_inducing_points(3);
 
-            gp_cal.fit(&probabilities, &targets).unwrap();
-            let predictions = gp_cal.predict_proba(&probabilities).unwrap();
+            gp_cal
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
+            let predictions = gp_cal
+                .predict_proba(&probabilities)
+                .expect("predict_proba should succeed");
 
             assert_eq!(predictions.len(), probabilities.len());
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -1421,10 +1454,16 @@ mod nonparametric_tests {
 
         // Test that methods are consistent (repeated calls give same results)
         let mut dp_cal = DirichletProcessCalibrator::new();
-        dp_cal.fit(&probabilities, &targets).unwrap();
+        dp_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
-        let pred1 = dp_cal.predict_proba(&probabilities).unwrap();
-        let pred2 = dp_cal.predict_proba(&probabilities).unwrap();
+        let pred1 = dp_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
+        let pred2 = dp_cal
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         for (p1, p2) in pred1.iter().zip(pred2.iter()) {
             assert!(

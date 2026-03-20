@@ -496,7 +496,8 @@ mod tests {
     fn test_simd_eigenvalues_2x2() {
         let matrix = array![[3.0, 1.0], [1.0, 2.0]];
 
-        let (eigenvals, eigenvecs) = simd_sparse_gp::simd_small_eigenvalues(&matrix).unwrap();
+        let (eigenvals, eigenvecs) =
+            simd_sparse_gp::simd_small_eigenvalues(&matrix).expect("operation should succeed");
 
         assert_eq!(eigenvals.len(), 2);
         assert_eq!(eigenvecs.shape(), &[2, 2]);
@@ -507,7 +508,7 @@ mod tests {
         // Check that eigenvalues are approximately correct
         let expected_eigenvals = [3.618, 1.382]; // Approximate values
         let mut sorted_eigenvals = eigenvals.to_vec();
-        sorted_eigenvals.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_eigenvals.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         for (computed, expected) in sorted_eigenvals.iter().zip(expected_eigenvals.iter()) {
             assert_abs_diff_eq!(*computed, *expected, epsilon = 0.01);

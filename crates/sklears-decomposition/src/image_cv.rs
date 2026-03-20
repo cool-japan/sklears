@@ -8,7 +8,7 @@
 //! - Texture analysis decomposition (Local Binary Patterns with decomposition)
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -139,7 +139,7 @@ impl TwoDPCA {
             .projection_matrix_
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model must be fitted first".to_string()))?;
-        let mean_image = self.mean_image_.as_ref().unwrap();
+        let mean_image = self.mean_image_.as_ref().expect("operation should succeed");
 
         let (n_images, height, _width) = images.dim();
         let n_components = projection_matrix.ncols();
@@ -179,7 +179,7 @@ impl TwoDPCA {
             .projection_matrix_
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model must be fitted first".to_string()))?;
-        let mean_image = self.mean_image_.as_ref().unwrap();
+        let mean_image = self.mean_image_.as_ref().expect("operation should succeed");
 
         let (n_images, height, _n_components) = transformed.dim();
         let width = projection_matrix.nrows();
@@ -407,8 +407,11 @@ impl Bilateral2DPCA {
             .row_projection_matrix_
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model must be fitted first".to_string()))?;
-        let col_proj = self.col_projection_matrix_.as_ref().unwrap();
-        let mean_image = self.mean_image_.as_ref().unwrap();
+        let col_proj = self
+            .col_projection_matrix_
+            .as_ref()
+            .expect("operation should succeed");
+        let mean_image = self.mean_image_.as_ref().expect("operation should succeed");
 
         let (n_images, _height, _width) = images.dim();
         let n_row_components = row_proj.ncols();
@@ -742,7 +745,7 @@ impl ImageDenoising {
             for h in 0..height {
                 for w in 0..width {
                     let mut rng = thread_rng();
-                    let noise = (rng.gen::<Float>() - 0.5) * noise_level;
+                    let noise = (rng.random::<Float>() - 0.5) * noise_level;
                     image_variations[[i, h, w]] = image[[h, w]] + noise;
                 }
             }
@@ -838,7 +841,9 @@ impl Eigenfaces {
 
         // Compute mean face
         let mean_face = if self.center {
-            face_matrix.mean_axis(Axis(0)).unwrap()
+            face_matrix
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation")
         } else {
             Array1::zeros(n_pixels)
         };
@@ -900,7 +905,7 @@ impl Eigenfaces {
             .eigenfaces_
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model must be fitted first".to_string()))?;
-        let mean_face = self.mean_face_.as_ref().unwrap();
+        let mean_face = self.mean_face_.as_ref().expect("operation should succeed");
 
         let (n_faces, height, width) = face_images.dim();
         let n_pixels = height * width;
@@ -941,7 +946,7 @@ impl Eigenfaces {
             .eigenfaces_
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model must be fitted first".to_string()))?;
-        let mean_face = self.mean_face_.as_ref().unwrap();
+        let mean_face = self.mean_face_.as_ref().expect("operation should succeed");
 
         let (n_faces, n_components) = coefficients.dim();
         let n_pixels = height * width;
@@ -1134,7 +1139,9 @@ impl Fisherfaces {
 
         // Compute class means
         let mut class_means = HashMap::new();
-        let overall_mean = pca_coefficients.mean_axis(Axis(0)).unwrap();
+        let overall_mean = pca_coefficients
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         for &class_label in &unique_labels {
             let class_indices: Vec<usize> = labels
@@ -1219,8 +1226,11 @@ impl Fisherfaces {
             .fisherfaces_
             .as_ref()
             .ok_or_else(|| SklearsError::InvalidInput("Model must be fitted first".to_string()))?;
-        let pca_eigenfaces = self.pca_eigenfaces_.as_ref().unwrap();
-        let mean_face = self.mean_face_.as_ref().unwrap();
+        let pca_eigenfaces = self
+            .pca_eigenfaces_
+            .as_ref()
+            .expect("operation should succeed");
+        let mean_face = self.mean_face_.as_ref().expect("operation should succeed");
 
         let (n_faces, height, width) = face_images.dim();
         let n_pixels = height * width;
@@ -1500,7 +1510,9 @@ impl LBPDecomposition {
         let n_components = (n_features / 2).max(1);
 
         // Center the data
-        let mean = features.mean_axis(Axis(0)).unwrap();
+        let mean = features
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let mut centered = features.clone();
         for i in 0..n_samples {
             for j in 0..n_features {
@@ -1616,11 +1628,13 @@ mod tests {
         let result = pca.fit_transform(&images);
 
         assert!(result.is_ok());
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.dim(), (3, 4, 2));
 
         // Test reconstruction
-        let reconstructed = pca.inverse_transform(&transformed).unwrap();
+        let reconstructed = pca
+            .inverse_transform(&transformed)
+            .expect("operation should succeed");
         assert_eq!(reconstructed.dim(), (3, 4, 4));
     }
 
@@ -1643,7 +1657,7 @@ mod tests {
         let result = bilateral_pca.fit_transform(&images);
         assert!(result.is_ok());
 
-        let transformed = result.unwrap();
+        let transformed = result.expect("operation should succeed");
         assert_eq!(transformed.dim(), (2, 2, 2));
     }
 
@@ -1652,7 +1666,7 @@ mod tests {
         let image = Array2::from_shape_fn((3, 3), |(i, j)| (i + j) as Float);
 
         let svd = TwoDSvd::new().rank(2);
-        let result = svd.decompose(&image).unwrap();
+        let result = svd.decompose(&image).expect("operation should succeed");
 
         assert_eq!(result.rank, 2);
         assert_eq!(result.singular_values.len(), 2);
@@ -1672,12 +1686,14 @@ mod tests {
         for i in 0..4 {
             for j in 0..4 {
                 let mut rng = thread_rng();
-                noisy_image[[i, j]] = (i + j) as Float + 0.1 * rng.gen::<Float>();
+                noisy_image[[i, j]] = (i + j) as Float + 0.1 * rng.random::<Float>();
             }
         }
 
         let denoiser = ImageDenoising::new(DenoisingMethod::SVD).rank(2);
-        let denoised = denoiser.denoise(&noisy_image).unwrap();
+        let denoised = denoiser
+            .denoise(&noisy_image)
+            .expect("operation should succeed");
 
         assert_eq!(denoised.dim(), noisy_image.dim());
     }
@@ -1696,12 +1712,16 @@ mod tests {
         }
 
         let mut eigenfaces = Eigenfaces::new(2);
-        let coefficients = eigenfaces.fit_transform(&face_images).unwrap();
+        let coefficients = eigenfaces
+            .fit_transform(&face_images)
+            .expect("operation should succeed");
 
         assert_eq!(coefficients.dim(), (3, 2));
 
         // Test reconstruction
-        let reconstructed = eigenfaces.inverse_transform(&coefficients, 4, 4).unwrap();
+        let reconstructed = eigenfaces
+            .inverse_transform(&coefficients, 4, 4)
+            .expect("operation should succeed");
         assert_eq!(reconstructed.dim(), (3, 4, 4));
 
         // Test eigenfaces extraction
@@ -1726,7 +1746,7 @@ mod tests {
         let result = fisherfaces.fit_transform(&face_images, &labels);
 
         assert!(result.is_ok());
-        let coefficients = result.unwrap();
+        let coefficients = result.expect("operation should succeed");
         assert_eq!(coefficients.dim(), (4, 1));
     }
 
@@ -1749,7 +1769,9 @@ mod tests {
             .uniform(true)
             .decomposition_method(LBPDecompositionMethod::PCA);
 
-        let result = lbp.extract_features(&images).unwrap();
+        let result = lbp
+            .extract_features(&images)
+            .expect("operation should succeed");
 
         assert_eq!(result.features.nrows(), 2);
         assert_eq!(result.lbp_patterns.len(), 2);
@@ -1772,7 +1794,7 @@ mod tests {
             for h in 0..3 {
                 for w in 0..3 {
                     let mut rng = thread_rng();
-                    noisy_images[[i, h, w]] = (h + w) as Float + 0.1 * rng.gen::<Float>();
+                    noisy_images[[i, h, w]] = (h + w) as Float + 0.1 * rng.random::<Float>();
                 }
             }
         }
@@ -1789,7 +1811,7 @@ mod tests {
             let result = denoiser.denoise_batch(&noisy_images);
             assert!(result.is_ok());
 
-            let denoised = result.unwrap();
+            let denoised = result.expect("operation should succeed");
             assert_eq!(denoised.dim(), noisy_images.dim());
         }
     }

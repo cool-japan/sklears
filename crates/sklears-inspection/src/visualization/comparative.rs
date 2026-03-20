@@ -110,7 +110,11 @@ pub fn create_comparative_plot(
     }
 
     // Validate all data arrays have compatible dimensions
-    let first_shape = model_data.values().next().unwrap().dim();
+    let first_shape = model_data
+        .values()
+        .next()
+        .expect("operation should succeed")
+        .dim();
     for (model_name, data) in &model_data {
         if data.dim() != first_shape {
             return Err(crate::SklearsError::InvalidInput(format!(
@@ -149,7 +153,7 @@ mod tests {
             &config,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(plot.feature_name, "feature_1");
         assert_eq!(plot.feature_values.len(), 6);
@@ -167,7 +171,7 @@ mod tests {
         let config = PlotConfig::default();
 
         let plot = create_comparative_plot(model_data, labels, &config, ComparisonType::SideBySide)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(plot.model_data.len(), 2);
         assert_eq!(plot.labels.len(), 2);

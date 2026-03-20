@@ -31,14 +31,14 @@ use sklears_core::{
 /// use scirs2_core::ndarray::Array2;
 ///
 /// // Time series data: [time_points, regions]
-/// let time_series = Array2::from_shape_vec((100, 90), (0..9000).map(|x| x as f64).collect()).unwrap();
+/// let time_series = Array2::from_shape_vec((100, 90), (0..9000).map(|x| x as f64).collect()).expect("shape should match data length");
 ///
 /// let mut fc = FunctionalConnectivity::new()
 ///     .connectivity_type(ConnectivityType::Pearson)
 ///     .window_size(Some(50))
 ///     .overlap_ratio(0.5);
 ///
-/// let result = fc.compute(&time_series).unwrap();
+/// let result = fc.compute(&time_series).expect("operation should succeed");
 /// let connectivity_matrix = result.connectivity_matrix();
 /// let dynamic_connectivity = result.dynamic_connectivity();
 /// ```

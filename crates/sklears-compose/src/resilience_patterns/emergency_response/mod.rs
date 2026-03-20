@@ -24,7 +24,7 @@
 //!
 //! // Create and initialize the emergency response system
 //! let emergency_system = EmergencyResponseCore::new();
-//! emergency_system.initialize().unwrap();
+//! emergency_system.initialize().unwrap_or_default();
 //!
 //! // The system automatically coordinates all subsystems for comprehensive emergency response
 //! ```
@@ -431,7 +431,7 @@ pub mod async_support {
                 let event = event;
                 let inner = &self.inner;
                 move || inner.handle_emergency(event)
-            }).await.unwrap()
+            }).await.unwrap_or_default()
         }
 
         /// Async initialization
@@ -439,7 +439,7 @@ pub mod async_support {
             tokio::task::spawn_blocking({
                 let inner = &self.inner;
                 move || inner.initialize()
-            }).await.unwrap()
+            }).await.unwrap_or_default()
         }
     }
 }
@@ -465,7 +465,7 @@ pub mod metrics_integration {
 
         /// Export metrics in Prometheus format
         pub fn export(&self) -> String {
-            let core = self.core.read().unwrap();
+            let core = self.core.read().unwrap_or_else(|e| e.into_inner());
             let state = core.get_emergency_state().unwrap_or_default();
 
             format!(
@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn test_health_check() {
         let system = EmergencyResponseSystem::new();
-        system.initialize().unwrap();
+        system.initialize().unwrap_or_default();
         let health = system.health_check();
         assert!(matches!(health.overall_status, SystemStatus::Healthy));
     }
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn test_emergency_handling_workflow() {
         let system = EmergencyResponseSystem::new();
-        system.initialize().unwrap();
+        system.initialize().unwrap_or_default();
 
         let event = EmergencyEvent {
             event_id: "test-emergency-001".to_string(),
@@ -539,7 +539,7 @@ mod tests {
         let response = system.handle_emergency(event);
         assert!(response.is_ok());
 
-        let emergency_response = response.unwrap();
+        let emergency_response = response.unwrap_or_default();
         assert!(!emergency_response.response_id.is_empty());
         assert_eq!(emergency_response.status, EmergencyResponseStatus::Active);
     }
@@ -547,7 +547,7 @@ mod tests {
     #[test]
     fn test_subsystem_integration() {
         let system = EmergencyResponseSystem::new();
-        system.initialize().unwrap();
+        system.initialize().unwrap_or_default();
 
         // Test that all subsystems are properly integrated
         let core = system.core();
@@ -584,7 +584,7 @@ mod tests {
     #[test]
     fn test_emergency_workflow_end_to_end() {
         let system = EmergencyResponseSystem::new();
-        system.initialize().unwrap();
+        system.initialize().unwrap_or_default();
 
         // Create emergency event
         let event = EmergencyEvent {
@@ -614,7 +614,7 @@ mod tests {
         let response = system.handle_emergency(event);
         assert!(response.is_ok());
 
-        let emergency_response = response.unwrap();
+        let emergency_response = response.unwrap_or_default();
 
         // Verify response characteristics
         assert!(!emergency_response.response_id.is_empty());

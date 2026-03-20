@@ -638,13 +638,13 @@ mod tests {
 
     #[test]
     fn test_fast_transform_extractor_fft() {
-        let data = Array2::from_shape_vec((3, 8), (0..24).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((3, 8), (0..24).map(|x| x as f64).collect()).expect("operation should succeed");
         let extractor = FastTransformExtractor::new()
             .transform_type(TransformType::FFT)
             .include_magnitude(true)
             .include_phase(false);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor.extract_features(&data.view()).expect("operation should succeed");
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
 
@@ -656,12 +656,12 @@ mod tests {
 
     #[test]
     fn test_fast_transform_extractor_dct() {
-        let data = Array2::from_shape_vec((2, 4), (0..8).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((2, 4), (0..8).map(|x| x as f64).collect()).expect("operation should succeed");
         let extractor = FastTransformExtractor::new()
             .transform_type(TransformType::DCT)
             .normalize(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor.extract_features(&data.view()).expect("operation should succeed");
         assert_eq!(features.nrows(), 2);
         assert_eq!(features.ncols(), 4);
 
@@ -673,12 +673,12 @@ mod tests {
 
     #[test]
     fn test_fast_transform_extractor_walsh() {
-        let data = Array2::from_shape_vec((2, 8), (0..16).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((2, 8), (0..16).map(|x| x as f64).collect()).expect("operation should succeed");
         let extractor = FastTransformExtractor::new()
             .transform_type(TransformType::Walsh)
             .normalize(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor.extract_features(&data.view()).expect("operation should succeed");
         assert_eq!(features.nrows(), 2);
         assert!(features.ncols() > 0);
 
@@ -690,12 +690,12 @@ mod tests {
 
     #[test]
     fn test_fast_transform_extractor_haar() {
-        let data = Array2::from_shape_vec((2, 4), (0..8).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((2, 4), (0..8).map(|x| x as f64).collect()).expect("operation should succeed");
         let extractor = FastTransformExtractor::new()
             .transform_type(TransformType::Haar)
             .normalize(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor.extract_features(&data.view()).expect("operation should succeed");
         assert_eq!(features.nrows(), 2);
         assert_eq!(features.ncols(), 4);
 
@@ -708,7 +708,7 @@ mod tests {
     #[test]
     fn test_fast_hadamard_transform() {
         let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
-        let transformed = fast_hadamard_transform(data).unwrap();
+        let transformed = fast_hadamard_transform(data).expect("operation should succeed");
         assert_eq!(transformed.len(), 8);
 
         // All values should be finite
@@ -719,14 +719,14 @@ mod tests {
 
     #[test]
     fn test_spectral_features_extractor() {
-        let data = Array2::from_shape_vec((2, 16), (0..32).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((2, 16), (0..32).map(|x| x as f64).collect()).expect("operation should succeed");
         let extractor = SpectralFeaturesExtractor::new()
             .sample_rate(44100.0)
             .include_energy(true)
             .include_centroid(true)
             .include_rolloff(true);
 
-        let features = extractor.extract_features(&data.view()).unwrap();
+        let features = extractor.extract_features(&data.view()).expect("operation should succeed");
         assert_eq!(features.nrows(), 2);
         assert!(features.ncols() > 0);
 
@@ -748,13 +748,13 @@ mod tests {
 
     #[test]
     fn test_transform_consistency() {
-        let data = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((3, 4), (0..12).map(|x| x as f64).collect()).expect("operation should succeed");
         let extractor = FastTransformExtractor::new()
             .transform_type(TransformType::DCT)
             .normalize(true);
 
-        let features1 = extractor.extract_features(&data.view()).unwrap();
-        let features2 = extractor.extract_features(&data.view()).unwrap();
+        let features1 = extractor.extract_features(&data.view()).expect("operation should succeed");
+        let features2 = extractor.extract_features(&data.view()).expect("operation should succeed");
 
         // Results should be identical
         assert_eq!(features1.shape(), features2.shape());

@@ -841,7 +841,7 @@ mod tests {
         };
 
         let mut solver = SmoSolver::new(config, LinearKernel::new());
-        let result = solver.solve(&x, &y).unwrap();
+        let result = solver.solve(&x, &y).expect("solver should succeed");
 
         // Should converge for linearly separable data
         assert!(result.converged || result.n_iter < 1000);
@@ -873,7 +873,7 @@ mod tests {
             };
 
             let mut solver = SmoSolver::new(config, LinearKernel::new());
-            let result = solver.solve(&x, &y).unwrap();
+            let result = solver.solve(&x, &y).expect("solver should succeed");
 
             // Allow for the possibility that the algorithm converges without finding many support vectors
             // This can happen with perfectly separable data and lenient tolerance
@@ -925,13 +925,13 @@ mod tests {
 
         // First solve without warm start
         let mut solver1 = SmoSolver::new(config.clone(), LinearKernel::new());
-        let result1 = solver1.solve(&x, &y).unwrap();
+        let result1 = solver1.solve(&x, &y).expect("solver should succeed");
 
         // Now solve with warm start using the previous solution
         let mut solver2 = SmoSolver::new(config, LinearKernel::new());
         let result2 = solver2
             .solve_with_warm_start(&x, &y, Some(&result1.alpha))
-            .unwrap();
+            .expect("operation should succeed");
 
         // Warm start should converge faster (fewer iterations)
         assert!(result2.n_iter <= result1.n_iter);

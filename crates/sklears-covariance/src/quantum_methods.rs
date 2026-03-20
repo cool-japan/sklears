@@ -145,7 +145,8 @@ impl<'a> Fit<ArrayView2<'a, f64>, ()>
 
         // Generate quantum state information
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist =
+            Normal::new(0.0, 1.0).map_err(|e| SklearsError::NumericalError(e.to_string()))?;
         let quantum_amplitudes =
             Array1::from_shape_fn(self.n_qubits, |_| dist.sample(&mut local_rng));
         let measurement_probs = quantum_amplitudes.mapv(|x: f64| x.powi(2).abs());
@@ -191,7 +192,7 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
 
                 // Add quantum noise
                 cov_ij += Normal::new(0.0, self.noise_level)
-                    .unwrap()
+                    .map_err(|e| SklearsError::NumericalError(e.to_string()))?
                     .sample(&mut scirs2_core::random::thread_rng());
 
                 covariance[[i, j]] = cov_ij;
@@ -240,7 +241,7 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
             .cloned()
             .unwrap_or_else(|| {
                 let mut local_rng = thread_rng();
-                let uniform_dist = Uniform::new(-1.0, 1.0).unwrap();
+                let uniform_dist = Uniform::new(-1.0, 1.0).expect("valid uniform distribution");
                 Array1::from_shape_fn(self.n_qubits, |_| uniform_dist.sample(&mut local_rng))
             });
 
@@ -327,7 +328,11 @@ impl QuantumInspiredCovariance<QuantumInspiredCovarianceUntrained> {
         X: ArrayView2<f64>,
     ) -> Result<Array2<f64>, SklearsError> {
         let (n_samples, n_features) = X.dim();
-        let mean = X.mean_axis(Axis(0)).unwrap();
+        let mean = X.mean_axis(Axis(0)).ok_or_else(|| {
+            SklearsError::NumericalError(
+                "mean computation should succeed for non-empty array".into(),
+            )
+        })?;
         let centered = &X - &mean;
         let covariance = centered.t().dot(&centered) / (n_samples - 1) as f64;
         Ok(covariance)
@@ -504,7 +509,7 @@ mod tests {
     #[test]
     fn test_quantum_inspired_covariance() {
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((100, 5), |_| dist.sample(&mut local_rng));
 
         let estimator = QuantumInspiredCovariance::new()
@@ -516,7 +521,7 @@ mod tests {
         let result = estimator.fit(&X.view(), &());
         assert!(result.is_ok());
 
-        let trained = result.unwrap();
+        let trained = result.expect("operation should succeed");
         let covariance = trained.covariance();
 
         assert_eq!(covariance.shape(), &[5, 5]);
@@ -526,12 +531,14 @@ mod tests {
     #[test]
     fn test_quantum_advantage_analysis() {
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((50, 3), |_| dist.sample(&mut local_rng));
 
         let estimator = QuantumInspiredCovariance::new().with_algorithm(QuantumAlgorithmType::VQE);
 
-        let trained = estimator.fit(&X.view(), &()).unwrap();
+        let trained = estimator
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         let analysis = trained.analyze_quantum_advantage();
 
         assert!(analysis.speedup_factor > 0.0);
@@ -542,7 +549,7 @@ mod tests {
     #[test]
     fn test_different_quantum_algorithms() {
         let mut local_rng = thread_rng();
-        let dist = Normal::new(0.0, 1.0).unwrap();
+        let dist = Normal::new(0.0, 1.0).expect("operation should succeed");
         let X = Array2::from_shape_fn((30, 4), |_| dist.sample(&mut local_rng));
 
         let algorithms = vec![

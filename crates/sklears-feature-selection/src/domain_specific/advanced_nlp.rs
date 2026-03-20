@@ -1653,7 +1653,8 @@ mod tests {
     #[test]
     fn test_syntactic_analysis() {
         let nlp_features =
-            Array2::from_shape_vec((20, 10), (0..200).map(|x| x as f64 * 0.01).collect()).unwrap();
+            Array2::from_shape_vec((20, 10), (0..200).map(|x| x as f64 * 0.01).collect())
+                .expect("operation should succeed");
         let labels = Array1::from_iter((0..20).map(|i| (i % 3) as f64));
 
         let selector = AdvancedNLPFeatureSelector::builder()
@@ -1661,8 +1662,12 @@ mod tests {
             .k(5)
             .build();
 
-        let trained = selector.fit(&nlp_features, &labels).unwrap();
-        let transformed = trained.transform(&nlp_features).unwrap();
+        let trained = selector
+            .fit(&nlp_features, &labels)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&nlp_features)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 5);
         assert_eq!(transformed.nrows(), 20);
@@ -1672,7 +1677,7 @@ mod tests {
     fn test_semantic_analysis() {
         let nlp_features =
             Array2::from_shape_vec((15, 12), (0..180).map(|x| (x as f64) * 0.02).collect())
-                .unwrap();
+                .expect("operation should succeed");
         let labels = Array1::from_iter((0..15).map(|i| if i % 2 == 0 { 1.0 } else { 0.0 }));
 
         let selector = AdvancedNLPFeatureSelector::builder()
@@ -1682,8 +1687,12 @@ mod tests {
             .k(6)
             .build();
 
-        let trained = selector.fit(&nlp_features, &labels).unwrap();
-        let transformed = trained.transform(&nlp_features).unwrap();
+        let trained = selector
+            .fit(&nlp_features, &labels)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&nlp_features)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 6);
         assert_eq!(transformed.nrows(), 15);
@@ -1691,11 +1700,12 @@ mod tests {
 
     #[test]
     fn test_pos_pattern_scores() {
-        let features =
-            Array2::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect()).unwrap();
+        let features = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let target = Array1::from_iter((0..10).map(|i| (i % 2) as f64));
 
-        let scores = compute_pos_pattern_scores(&features, &target, (1, 2)).unwrap();
+        let scores = compute_pos_pattern_scores(&features, &target, (1, 2))
+            .expect("operation should succeed");
 
         assert_eq!(scores.len(), 3);
         for &score in scores.iter() {
@@ -1712,9 +1722,10 @@ mod tests {
                 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 0.5, 1.0, 1.5, 2.0, 4.0, 8.0, 12.0, 16.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let similarity_matrix = compute_semantic_similarity_matrix(&features, 0.5).unwrap();
+        let similarity_matrix =
+            compute_semantic_similarity_matrix(&features, 0.5).expect("operation should succeed");
 
         assert_eq!(similarity_matrix.dim(), (4, 4));
         // Check diagonal elements
@@ -1725,12 +1736,12 @@ mod tests {
 
     #[test]
     fn test_attention_scores() {
-        let features =
-            Array2::from_shape_vec((12, 6), (0..72).map(|x| x as f64).collect()).unwrap();
+        let features = Array2::from_shape_vec((12, 6), (0..72).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let target = Array1::from_iter((0..12).map(|i| (i % 3) as f64));
 
         let (scores, attention_matrix) =
-            compute_attention_scores(&features, &target, true).unwrap();
+            compute_attention_scores(&features, &target, true).expect("operation should succeed");
 
         assert_eq!(scores.len(), 6);
         assert_eq!(attention_matrix.dim(), (6, 6));
@@ -1743,7 +1754,8 @@ mod tests {
     #[test]
     fn test_discourse_features() {
         let nlp_features =
-            Array2::from_shape_vec((25, 8), (0..200).map(|x| (x as f64) * 0.05).collect()).unwrap();
+            Array2::from_shape_vec((25, 8), (0..200).map(|x| (x as f64) * 0.05).collect())
+                .expect("operation should succeed");
         let labels = Array1::from_iter((0..25).map(|i| (i % 4) as f64));
 
         let selector = AdvancedNLPFeatureSelector::builder()
@@ -1753,8 +1765,12 @@ mod tests {
             .k(4)
             .build();
 
-        let trained = selector.fit(&nlp_features, &labels).unwrap();
-        let transformed = trained.transform(&nlp_features).unwrap();
+        let trained = selector
+            .fit(&nlp_features, &labels)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&nlp_features)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 4);
         assert_eq!(transformed.nrows(), 25);
@@ -1762,14 +1778,16 @@ mod tests {
 
     #[test]
     fn test_get_support() {
-        let nlp_features =
-            Array2::from_shape_vec((10, 8), (0..80).map(|x| x as f64).collect()).unwrap();
+        let nlp_features = Array2::from_shape_vec((10, 8), (0..80).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let labels = Array1::from_iter((0..10).map(|i| (i % 2) as f64));
 
         let selector = AdvancedNLPFeatureSelector::builder().k(5).build();
 
-        let trained = selector.fit(&nlp_features, &labels).unwrap();
-        let support = trained.get_support().unwrap();
+        let trained = selector
+            .fit(&nlp_features, &labels)
+            .expect("operation should succeed");
+        let support = trained.get_support().expect("operation should succeed");
 
         assert_eq!(support.len(), 8);
         assert_eq!(support.iter().filter(|&&x| x).count(), 5);
@@ -1787,7 +1805,8 @@ mod tests {
     #[test]
     fn test_contextual_features() {
         let nlp_features =
-            Array2::from_shape_vec((18, 6), (0..108).map(|x| (x as f64) * 0.03).collect()).unwrap();
+            Array2::from_shape_vec((18, 6), (0..108).map(|x| (x as f64) * 0.03).collect())
+                .expect("operation should succeed");
         let labels = Array1::from_iter((0..18).map(|i| if i < 9 { 0.0 } else { 1.0 }));
 
         let selector = AdvancedNLPFeatureSelector::builder()
@@ -1797,8 +1816,12 @@ mod tests {
             .k(3)
             .build();
 
-        let trained = selector.fit(&nlp_features, &labels).unwrap();
-        let transformed = trained.transform(&nlp_features).unwrap();
+        let trained = selector
+            .fit(&nlp_features, &labels)
+            .expect("operation should succeed");
+        let transformed = trained
+            .transform(&nlp_features)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.ncols(), 3);
         assert_eq!(transformed.nrows(), 18);

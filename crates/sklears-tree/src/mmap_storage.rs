@@ -733,53 +733,53 @@ mod tests {
 
     #[test]
     fn test_mmap_tree_creation() {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir().expect("operation should succeed");
         let tree_path = temp_dir.path().join("test_tree.mmap");
 
         let metadata = TreeMetadata::new(4, 2, true, 10, 1);
-        let mut tree = MMapTree::create(&tree_path, metadata).unwrap();
+        let mut tree = MMapTree::create(&tree_path, metadata).expect("operation should succeed");
 
         // Create a simple tree: root -> left leaf, right leaf
         let left_leaf = MMapTreeNode::new_leaf(0.0, 10, 0.1, 1);
         let right_leaf = MMapTreeNode::new_leaf(1.0, 15, 0.2, 1);
 
-        let left_offset = tree.write_node(&left_leaf).unwrap();
-        let right_offset = tree.write_node(&right_leaf).unwrap();
+        let left_offset = tree.write_node(&left_leaf).expect("operation should succeed");
+        let right_offset = tree.write_node(&right_leaf).expect("operation should succeed");
 
         let root = MMapTreeNode::new_internal(0, 0.5, left_offset, right_offset, 25, 0.5, 0);
-        let root_offset = tree.write_node(&root).unwrap();
-        tree.set_root_offset(root_offset).unwrap();
+        let root_offset = tree.write_node(&root).expect("operation should succeed");
+        tree.set_root_offset(root_offset).expect("operation should succeed");
 
         // Test prediction
         let features = Array1::from(vec![0.3, 0.0, 0.0, 0.0]);
-        let prediction = tree.predict_sample(&features).unwrap();
+        let prediction = tree.predict_sample(&features).expect("sampling should succeed");
         assert_eq!(prediction, 0.0); // Should go to left leaf
 
         let features = Array1::from(vec![0.7, 0.0, 0.0, 0.0]);
-        let prediction = tree.predict_sample(&features).unwrap();
+        let prediction = tree.predict_sample(&features).expect("sampling should succeed");
         assert_eq!(prediction, 1.0); // Should go to right leaf
     }
 
     #[test]
     fn test_tree_persistence() {
-        let temp_dir = tempdir().unwrap();
+        let temp_dir = tempdir().expect("operation should succeed");
         let tree_path = temp_dir.path().join("persist_tree.mmap");
 
         // Create and save tree
         {
             let metadata = TreeMetadata::new(2, 2, true, 5, 1);
-            let mut tree = MMapTree::create(&tree_path, metadata).unwrap();
+            let mut tree = MMapTree::create(&tree_path, metadata).expect("operation should succeed");
 
             let leaf = MMapTreeNode::new_leaf(42.0, 100, 0.0, 0);
-            let root_offset = tree.write_node(&leaf).unwrap();
-            tree.set_root_offset(root_offset).unwrap();
+            let root_offset = tree.write_node(&leaf).expect("operation should succeed");
+            tree.set_root_offset(root_offset).expect("operation should succeed");
         }
 
         // Load and test tree
         {
-            let mut tree = MMapTree::open(&tree_path).unwrap();
+            let mut tree = MMapTree::open(&tree_path).expect("file operation should succeed");
             let features = Array1::from(vec![1.0, 2.0]);
-            let prediction = tree.predict_sample(&features).unwrap();
+            let prediction = tree.predict_sample(&features).expect("sampling should succeed");
             assert_eq!(prediction, 42.0);
         }
     }

@@ -228,9 +228,9 @@ impl EnsembleAnalyzer {
         let n_features = individual_importances.ncols();
 
         match &self.importance_method {
-            ImportanceAggregationMethod::Mean => {
-                Ok(individual_importances.mean_axis(Axis(0)).unwrap())
-            }
+            ImportanceAggregationMethod::Mean => Ok(individual_importances
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation")),
 
             ImportanceAggregationMethod::WeightedMean(weights) => {
                 if weights.len() != n_models {
@@ -255,7 +255,8 @@ impl EnsembleAnalyzer {
                 for j in 0..n_features {
                     let mut feature_importances: Vec<Float> =
                         individual_importances.column(j).iter().copied().collect();
-                    feature_importances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    feature_importances
+                        .sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                     let median = if feature_importances.len() % 2 == 0 {
                         let mid = feature_importances.len() / 2;
@@ -271,14 +272,17 @@ impl EnsembleAnalyzer {
 
             ImportanceAggregationMethod::TopK(k) => {
                 // Use mean aggregation but zero out features not in top-k
-                let mean_importances = individual_importances.mean_axis(Axis(0)).unwrap();
+                let mean_importances = individual_importances
+                    .mean_axis(Axis(0))
+                    .expect("array should have elements for mean computation");
                 let mut indexed_importances: Vec<(usize, Float)> = mean_importances
                     .iter()
                     .enumerate()
                     .map(|(i, &imp)| (i, imp))
                     .collect();
 
-                indexed_importances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_importances
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
                 let mut aggregated = Array1::zeros(n_features);
                 for i in 0..*k.min(&n_features) {
@@ -321,14 +325,18 @@ impl EnsembleAnalyzer {
             ImportanceAggregationMethod::PermutationBased { n_repeats } => {
                 // Placeholder for permutation-based importance
                 // In a real implementation, this would compute permutation importance
-                let mean_importances = individual_importances.mean_axis(Axis(0)).unwrap();
+                let mean_importances = individual_importances
+                    .mean_axis(Axis(0))
+                    .expect("array should have elements for mean computation");
                 Ok(mean_importances)
             }
 
             ImportanceAggregationMethod::SHAPBased { background_samples } => {
                 // Placeholder for SHAP-based importance
                 // In a real implementation, this would compute SHAP values
-                let mean_importances = individual_importances.mean_axis(Axis(0)).unwrap();
+                let mean_importances = individual_importances
+                    .mean_axis(Axis(0))
+                    .expect("array should have elements for mean computation");
                 Ok(mean_importances)
             }
         }
@@ -342,7 +350,7 @@ impl EnsembleAnalyzer {
             .map(|(i, &val)| (i, val))
             .collect();
 
-        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut ranks = Array1::zeros(importances.len());
         for (rank, &(idx, _)) in indexed.iter().enumerate() {
@@ -412,7 +420,7 @@ impl EnsembleAnalyzer {
             .map(|(i, &val)| (i, val))
             .collect();
 
-        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         indexed.into_iter().map(|(idx, _)| idx).collect()
     }
@@ -488,7 +496,7 @@ impl EnsembleAnalyzer {
             .map(|(i, &val)| (i, val))
             .collect();
 
-        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         indexed.into_iter().take(k).collect()
     }
@@ -520,7 +528,9 @@ impl EnsembleAnalyzer {
             }
 
             // Compute mean importance for this bootstrap sample
-            let mean_importance = bootstrap_matrix.mean_axis(Axis(0)).unwrap();
+            let mean_importance = bootstrap_matrix
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             bootstrap_importances.push(mean_importance);
         }
 
@@ -537,7 +547,7 @@ impl EnsembleAnalyzer {
                 .map(|importance| importance[j])
                 .collect();
 
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let lower_idx =
                 ((lower_percentile / 100.0) * (feature_values.len() - 1) as Float) as usize;
@@ -677,7 +687,9 @@ impl EnsembleAnalyzer {
 
         for i in 0..n_samples {
             let predictions = ensemble_predictions.column(i);
-            let mean_pred = predictions.mean().unwrap();
+            let mean_pred = predictions
+                .mean()
+                .expect("array should have elements for mean computation");
             let variance = predictions
                 .iter()
                 .map(|&pred| (pred - mean_pred).powi(2))
@@ -699,7 +711,9 @@ impl EnsembleAnalyzer {
         // In practice, this would require additional information about data noise
         for i in 0..n_samples {
             let predictions = ensemble_predictions.column(i);
-            let mean_pred = predictions.mean().unwrap();
+            let mean_pred = predictions
+                .mean()
+                .expect("array should have elements for mean computation");
 
             // Use prediction magnitude as a proxy for aleatoric uncertainty
             aleatoric[i] = mean_pred.abs() * 0.1; // Simplified heuristic
@@ -738,7 +752,7 @@ impl EnsembleAnalyzer {
 
         for i in 0..n_samples {
             let mut predictions: Vec<Float> = ensemble_predictions.column(i).to_vec();
-            predictions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            predictions.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let lower_idx = (lower_percentile * (predictions.len() - 1) as Float) as usize;
             let upper_idx = (upper_percentile * (predictions.len() - 1) as Float) as usize;
@@ -757,7 +771,9 @@ impl EnsembleAnalyzer {
 
         for i in 0..n_samples {
             let predictions = ensemble_predictions.column(i);
-            let mean_pred = predictions.mean().unwrap();
+            let mean_pred = predictions
+                .mean()
+                .expect("array should have elements for mean computation");
 
             // Coefficient of variation as diversity measure
             let std_pred = predictions
@@ -814,7 +830,9 @@ impl EnsembleAnalyzer {
         }
 
         // Compute mean predictions
-        let mean_predictions = ensemble_predictions.mean_axis(Axis(0)).unwrap();
+        let mean_predictions = ensemble_predictions
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
 
         // Convert to binary classification for calibration analysis
         let predicted_probs: Vec<Float> = mean_predictions.iter().copied().collect();
@@ -1181,7 +1199,7 @@ mod tests {
 
         let analysis = analyzer
             .analyze_feature_importance(&importances, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(analysis.feature_importances.len(), 3);
         assert_eq!(analysis.importance_std.len(), 3);
@@ -1199,11 +1217,13 @@ mod tests {
 
         let analysis = analyzer
             .analyze_feature_importance(&importances, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(analysis.feature_importances.len(), 3);
         // Weighted average should be different from simple mean
-        let simple_mean = importances.mean_axis(Axis(0)).unwrap();
+        let simple_mean = importances
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         assert!((analysis.feature_importances[0] - simple_mean[0]).abs() > 1e-10);
     }
 
@@ -1219,7 +1239,7 @@ mod tests {
 
         let analysis = analyzer
             .analyze_feature_importance(&importances, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(analysis.feature_importances.len(), 3);
         // Median should be more robust to outliers
@@ -1237,7 +1257,9 @@ mod tests {
             [0.1, 0.7, 0.5, 0.8]
         ];
 
-        let uncertainty = analyzer.quantify_uncertainty(&predictions, None).unwrap();
+        let uncertainty = analyzer
+            .quantify_uncertainty(&predictions, None)
+            .expect("operation should succeed");
 
         assert_eq!(uncertainty.epistemic_uncertainty.len(), 4);
         assert_eq!(uncertainty.aleatoric_uncertainty.len(), 4);
@@ -1261,7 +1283,7 @@ mod tests {
 
         let uncertainty = analyzer
             .quantify_uncertainty(&predictions, Some(&true_labels))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(uncertainty.calibration_metrics.expected_calibration_error >= 0.0);
         assert!(uncertainty.calibration_metrics.maximum_calibration_error >= 0.0);
@@ -1285,7 +1307,7 @@ mod tests {
 
         let analysis = analyzer
             .analyze_feature_importance(&importances, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(analysis.feature_importances.len(), 3);
         // Rank-based aggregation should handle different scales well
@@ -1300,11 +1322,15 @@ mod tests {
         let rank1 = array![1.0, 2.0, 3.0, 4.0];
         let rank2 = array![1.0, 2.0, 3.0, 4.0]; // Perfect correlation
 
-        let tau = analyzer.kendall_tau(&rank1, &rank2).unwrap();
+        let tau = analyzer
+            .kendall_tau(&rank1, &rank2)
+            .expect("operation should succeed");
         assert!((tau - 1.0).abs() < 1e-6);
 
         let rank3 = array![4.0, 3.0, 2.0, 1.0]; // Perfect negative correlation
-        let tau_neg = analyzer.kendall_tau(&rank1, &rank3).unwrap();
+        let tau_neg = analyzer
+            .kendall_tau(&rank1, &rank3)
+            .expect("operation should succeed");
         assert!((tau_neg + 1.0).abs() < 1e-6);
     }
 
@@ -1333,7 +1359,9 @@ mod tests {
             [0.4, 0.5, 0.1]
         ];
 
-        let intervals = analyzer.compute_confidence_intervals(&importances).unwrap();
+        let intervals = analyzer
+            .compute_confidence_intervals(&importances)
+            .expect("operation should succeed");
 
         assert_eq!(intervals.len(), 3); // 3 features
         for (lower, upper) in &intervals {
@@ -1354,7 +1382,7 @@ mod tests {
 
         let intervals = analyzer
             .compute_prediction_confidence_intervals(&predictions)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(intervals.nrows(), 3); // 3 samples
         assert_eq!(intervals.ncols(), 2); // Lower and upper bounds

@@ -338,7 +338,7 @@ impl EnsembleCrossValidator {
                     .zip(y_true.iter())
                     .map(|(&pred, &true_val)| (pred, true_val))
                     .collect();
-                pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
                 let mut auc = 0.0;
                 let mut tp = 0.0;
                 let mut fp = 0.0;
@@ -845,7 +845,7 @@ impl BiasVarianceAnalyzer {
         let optimal_idx = total_error_curve
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
         let optimal_size = ensemble_sizes[optimal_idx];
@@ -1131,8 +1131,8 @@ impl DiversityAnalyzer {
         let n_classes = classes.len();
         let mut confusion_matrix = vec![vec![0; n_classes]; n_classes];
         for k in 0..n {
-            let i = classes.iter().position(|&c| c == pred1[k]).unwrap();
-            let j = classes.iter().position(|&c| c == pred2[k]).unwrap();
+            let i = classes.iter().position(|&c| c == pred1[k]).expect("operation should succeed");
+            let j = classes.iter().position(|&c| c == pred2[k]).expect("operation should succeed");
             confusion_matrix[i][j] += 1;
         }
         let observed_agreement = (0..n_classes)
@@ -1171,7 +1171,7 @@ impl DiversityAnalyzer {
         for sample_idx in 0..n_samples {
             for classifier_idx in 0..n_classifiers {
                 let prediction = predictions[classifier_idx][sample_idx];
-                let class_idx = classes.iter().position(|&c| c == prediction).unwrap();
+                let class_idx = classes.iter().position(|&c| c == prediction).expect("operation should succeed");
                 agreement_matrix[sample_idx][class_idx] += 1;
             }
         }

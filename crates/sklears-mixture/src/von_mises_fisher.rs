@@ -6,7 +6,7 @@
 //! and geographical direction clustering.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -197,8 +197,8 @@ impl VonMisesFisher {
         let c = self.kappa * x0 + (d - 1.0) * (1.0 - x0 * x0).ln();
 
         loop {
-            let z: f64 = rng.gen(); // uniform [0,1]
-            let u: f64 = rng.gen(); // uniform [0,1]
+            let z: f64 = rng.random(); // uniform [0,1]
+            let u: f64 = rng.random(); // uniform [0,1]
             let w = (1.0 - (1.0 + b) * z) / (1.0 - (1.0 - b) * z);
 
             if self.kappa * w + (d - 1.0) * (1.0 - x0 * w).ln() - c >= (u * 2.0 - 1.0).ln() {
@@ -259,8 +259,8 @@ impl VonMisesFisher {
 
     /// Sample from standard normal distribution using Box-Muller transform
     fn sample_standard_normal(&self, rng: &mut impl scirs2_core::random::Rng) -> f64 {
-        let u1 = rng.gen::<f64>();
-        let u2 = rng.gen::<f64>();
+        let u1 = rng.random::<f64>();
+        let u2 = rng.random::<f64>();
         (-2.0 * u1.ln()).sqrt() * (2.0 * PI * u2).cos()
     }
 }
@@ -463,7 +463,7 @@ impl VonMisesFisherMixture<Untrained> {
         let mut mean_directions = Array2::zeros((self.n_components, n_features));
 
         // Choose first center randomly
-        let first_idx = rng.gen_range(0..n_samples);
+        let first_idx = rng.random_range(0..n_samples);
         mean_directions.row_mut(0).assign(&X.row(first_idx));
 
         // Choose remaining centers using k-means++ style selection
@@ -486,7 +486,7 @@ impl VonMisesFisherMixture<Untrained> {
             // Choose next center with probability proportional to squared distance
             let total_dist: f64 = distances.iter().map(|&d| d * d).sum();
             let mut cumulative = 0.0;
-            let target = rng.gen::<f64>() * total_dist;
+            let target = rng.random::<f64>() * total_dist;
 
             for i in 0..n_samples {
                 cumulative += distances[i] * distances[i];
@@ -684,7 +684,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for VonMisesFisherMixture<Untrained> {
             }
         }
 
-        let fitted_state = best_model.unwrap();
+        let fitted_state = best_model.expect("operation should succeed");
 
         Ok(VonMisesFisherMixture {
             state: fitted_state,
@@ -899,7 +899,7 @@ impl VonMisesFisherMixture<VonMisesFisherMixtureFitted> {
 
         for i in 0..n_samples {
             // Choose component based on weights
-            let u: f64 = rng.gen();
+            let u: f64 = rng.random();
             let mut cumulative = 0.0;
             let mut chosen_component = 0;
 

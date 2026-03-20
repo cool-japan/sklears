@@ -1351,7 +1351,7 @@ pub struct RegulatoryImpact {
 impl Default for PatternPredictionSystem {
     fn default() -> Self {
         Self {
-            system_id: format!("pred_sys_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            system_id: format!("pred_sys_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             time_series_forecaster: Arc::new(Mutex::new(TimeSeriesForecaster::default())),
             ml_predictor: Arc::new(Mutex::new(MachineLearningPredictor::default())),
             performance_modeler: Arc::new(Mutex::new(PerformanceModeler::default())),
@@ -1383,7 +1383,7 @@ impl Default for PatternPredictionSystem {
 impl Default for TimeSeriesForecaster {
     fn default() -> Self {
         Self {
-            forecaster_id: format!("ts_forecast_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            forecaster_id: format!("ts_forecast_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             forecasting_models: HashMap::new(),
             seasonal_decomposer: SeasonalDecomposer::default(),
             trend_extractor: TrendExtractor::default(),
@@ -1402,7 +1402,7 @@ impl Default for TimeSeriesForecaster {
 impl Default for MachineLearningPredictor {
     fn default() -> Self {
         Self {
-            predictor_id: format!("ml_pred_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            predictor_id: format!("ml_pred_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             regression_models: HashMap::new(),
             classification_models: HashMap::new(),
             ensemble_methods: HashMap::new(),

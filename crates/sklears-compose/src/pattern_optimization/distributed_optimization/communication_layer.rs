@@ -54,7 +54,7 @@ impl CommunicationManager {
     /// Initialize communication channels with nodes using SIMD optimization
     pub fn initialize_channels(&mut self, nodes: &[NodeInfo]) -> SklResult<()> {
         // Use SIMD for parallel channel initialization
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         match simd_accelerator.accelerated_channel_initialization(nodes) {
             Ok(channels) => {
                 for (node_id, channel) in channels {
@@ -81,7 +81,7 @@ impl CommunicationManager {
 
         // Initialize network topology
         {
-            let mut topology_mgr = self.network_topology_manager.lock().unwrap();
+            let mut topology_mgr = self.network_topology_manager.lock().unwrap_or_else(|e| e.into_inner());
             topology_mgr.initialize_topology(nodes)?;
         }
 
@@ -92,31 +92,31 @@ impl CommunicationManager {
     pub fn send_message(&mut self, to_node: &str, message: Message) -> SklResult<()> {
         // Pre-process message with SIMD acceleration
         let processed_message = {
-            let simd_accelerator = self.simd_accelerator.lock().unwrap();
+            let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
             simd_accelerator.preprocess_message(&message)?
         };
 
         // Apply security measures
         let secure_message = {
-            let security_monitor = self.security_monitor.lock().unwrap();
+            let security_monitor = self.security_monitor.lock().unwrap_or_else(|e| e.into_inner());
             security_monitor.validate_and_secure_message(&processed_message)?
         };
 
         // Encrypt message if required
         let encrypted_message = {
-            let encryption_mgr = self.encryption_manager.lock().unwrap();
+            let encryption_mgr = self.encryption_manager.lock().unwrap_or_else(|e| e.into_inner());
             encryption_mgr.encrypt_message(&secure_message)?
         };
 
         // Compress message if beneficial
         let compressed_message = {
-            let compression_mgr = self.compression_manager.lock().unwrap();
+            let compression_mgr = self.compression_manager.lock().unwrap_or_else(|e| e.into_inner());
             compression_mgr.compress_message(&encrypted_message)?
         };
 
         // Apply QoS policies
         let qos_message = {
-            let qos_mgr = self.quality_of_service.lock().unwrap();
+            let qos_mgr = self.quality_of_service.lock().unwrap_or_else(|e| e.into_inner());
             qos_mgr.apply_qos_policies(&compressed_message, to_node)?
         };
 
@@ -124,7 +124,7 @@ impl CommunicationManager {
         if let Some(queue) = self.message_queues.get_mut(to_node) {
             // Use SIMD for priority insertion if queue is large
             if queue.len() > 16 {
-                let simd_accelerator = self.simd_accelerator.lock().unwrap();
+                let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
                 match simd_accelerator.priority_insert_message(queue, qos_message.clone()) {
                     Ok(_) => {},
                     Err(_) => queue.push_back(qos_message),
@@ -136,13 +136,13 @@ impl CommunicationManager {
 
         // Update statistics with SIMD acceleration
         {
-            let mut stats = self.message_statistics.lock().unwrap();
+            let mut stats = self.message_statistics.lock().unwrap_or_else(|e| e.into_inner());
             stats.update_send_statistics(&message);
         }
 
         // Update bandwidth monitoring
         {
-            let mut bandwidth_monitor = self.bandwidth_monitor.lock().unwrap();
+            let mut bandwidth_monitor = self.bandwidth_monitor.lock().unwrap_or_else(|e| e.into_inner());
             bandwidth_monitor.record_transmission(&message)?;
         }
 
@@ -155,31 +155,31 @@ impl CommunicationManager {
             if let Some(compressed_message) = queue.pop_front() {
                 // Decompress message
                 let encrypted_message = {
-                    let compression_mgr = self.compression_manager.lock().unwrap();
+                    let compression_mgr = self.compression_manager.lock().unwrap_or_else(|e| e.into_inner());
                     compression_mgr.decompress_message(&compressed_message)?
                 };
 
                 // Decrypt message
                 let secure_message = {
-                    let encryption_mgr = self.encryption_manager.lock().unwrap();
+                    let encryption_mgr = self.encryption_manager.lock().unwrap_or_else(|e| e.into_inner());
                     encryption_mgr.decrypt_message(&encrypted_message)?
                 };
 
                 // Validate security
                 let validated_message = {
-                    let security_monitor = self.security_monitor.lock().unwrap();
+                    let security_monitor = self.security_monitor.lock().unwrap_or_else(|e| e.into_inner());
                     security_monitor.validate_received_message(&secure_message)?
                 };
 
                 // Post-process with SIMD acceleration
                 let final_message = {
-                    let simd_accelerator = self.simd_accelerator.lock().unwrap();
+                    let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
                     simd_accelerator.postprocess_message(&validated_message)?
                 };
 
                 // Update statistics
                 {
-                    let mut stats = self.message_statistics.lock().unwrap();
+                    let mut stats = self.message_statistics.lock().unwrap_or_else(|e| e.into_inner());
                     stats.update_receive_statistics(&final_message);
                 }
 
@@ -195,7 +195,7 @@ impl CommunicationManager {
         let node_ids: Vec<String> = self.active_channels.keys().cloned().collect();
 
         // Use SIMD for parallel broadcast optimization
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         match simd_accelerator.accelerated_broadcast(&node_ids, &message) {
             Ok(optimized_messages) => {
                 for (node_id, optimized_message) in optimized_messages {
@@ -215,8 +215,8 @@ impl CommunicationManager {
 
     /// Build optimized routing table using SIMD acceleration
     fn build_optimized_routing_table(&mut self, nodes: &[NodeInfo]) -> SklResult<()> {
-        let topology_mgr = self.network_topology_manager.lock().unwrap();
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let topology_mgr = self.network_topology_manager.lock().unwrap_or_else(|e| e.into_inner());
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for optimized routing table computation
         match simd_accelerator.compute_optimal_routing(nodes) {
@@ -241,9 +241,9 @@ impl CommunicationManager {
 
     /// Get comprehensive communication metrics
     pub fn get_metrics(&self) -> CommunicationMetrics {
-        let stats = self.message_statistics.lock().unwrap();
-        let bandwidth_monitor = self.bandwidth_monitor.lock().unwrap();
-        let qos_mgr = self.quality_of_service.lock().unwrap();
+        let stats = self.message_statistics.lock().unwrap_or_else(|e| e.into_inner());
+        let bandwidth_monitor = self.bandwidth_monitor.lock().unwrap_or_else(|e| e.into_inner());
+        let qos_mgr = self.quality_of_service.lock().unwrap_or_else(|e| e.into_inner());
 
         CommunicationMetrics {
             total_messages_sent: stats.messages_sent,
@@ -293,7 +293,7 @@ impl CommunicationManager {
     /// Shutdown all communication channels
     pub fn shutdown(&mut self) -> SklResult<()> {
         // Graceful shutdown with SIMD acceleration for cleanup
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
         simd_accelerator.accelerated_shutdown(&self.active_channels)?;
 
         self.active_channels.clear();
@@ -305,9 +305,9 @@ impl CommunicationManager {
 
     /// Optimize network performance using SIMD
     pub fn optimize_network_performance(&mut self) -> SklResult<NetworkOptimizationResult> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
-        let bandwidth_monitor = self.bandwidth_monitor.lock().unwrap();
-        let qos_mgr = self.quality_of_service.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
+        let bandwidth_monitor = self.bandwidth_monitor.lock().unwrap_or_else(|e| e.into_inner());
+        let qos_mgr = self.quality_of_service.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for parallel performance analysis
         let optimization_result = simd_accelerator.analyze_and_optimize_network(
@@ -321,7 +321,7 @@ impl CommunicationManager {
 
     /// Handle network partition recovery
     pub fn handle_network_partition(&mut self, partitioned_nodes: &[String]) -> SklResult<()> {
-        let simd_accelerator = self.simd_accelerator.lock().unwrap();
+        let simd_accelerator = self.simd_accelerator.lock().unwrap_or_else(|e| e.into_inner());
 
         // Use SIMD for rapid partition recovery planning
         let recovery_plan = simd_accelerator.compute_partition_recovery_plan(
@@ -367,7 +367,7 @@ impl CommunicationManager {
 
     /// Update topology after partition recovery
     fn update_topology_after_partition(&mut self, affected_nodes: &[String]) -> SklResult<()> {
-        let mut topology_mgr = self.network_topology_manager.lock().unwrap();
+        let mut topology_mgr = self.network_topology_manager.lock().unwrap_or_else(|e| e.into_inner());
         topology_mgr.handle_partition_recovery(affected_nodes)?;
         Ok(())
     }
@@ -516,7 +516,7 @@ pub struct Message {
 impl Message {
     pub fn new(from_node: String, to_node: String, message_type: MessageType, payload: Vec<u8>) -> Self {
         Self {
-            message_id: format!("msg_{}_{}", from_node, SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()),
+            message_id: format!("msg_{}_{}", from_node, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()),
             from_node,
             to_node,
             message_type,
@@ -1157,7 +1157,7 @@ impl CommunicationSimdAccelerator {
         for node_id in node_ids {
             let mut optimized_message = message.clone();
             optimized_message.to_node = node_id.clone();
-            optimized_message.message_id = format!("broadcast_{}_{}", node_id, message.timestamp.duration_since(UNIX_EPOCH).unwrap().as_nanos());
+            optimized_message.message_id = format!("broadcast_{}_{}", node_id, message.timestamp.duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos());
             optimized_messages.insert(node_id.clone(), optimized_message);
         }
 
@@ -1188,7 +1188,7 @@ impl CommunicationSimdAccelerator {
                     .map(|(idx, &dist)| (if idx >= i { idx + 1 } else { idx }, dist))
                     .collect();
 
-                neighbor_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                neighbor_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
                 // Select top 3 closest neighbors
                 let neighbors: Vec<String> = neighbor_distances.iter()

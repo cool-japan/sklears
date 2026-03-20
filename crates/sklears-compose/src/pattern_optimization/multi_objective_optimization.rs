@@ -455,7 +455,7 @@ pub struct FrontVisualizer {
 impl Default for MultiObjectiveOptimizer {
     fn default() -> Self {
         Self {
-            optimizer_id: format!("moo_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            optimizer_id: format!("moo_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             pareto_front_manager: ParetoFrontManager::default(),
             moo_algorithms: HashMap::new(),
             scalarization_methods: vec![],
@@ -472,7 +472,7 @@ impl Default for MultiObjectiveOptimizer {
 impl Default for ParetoFrontManager {
     fn default() -> Self {
         Self {
-            manager_id: format!("pareto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            manager_id: format!("pareto_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             current_front: vec![],
             archive_fronts: vec![],
             domination_analyzer: DominationAnalyzer::default(),
@@ -577,7 +577,7 @@ impl ScalarizationMethod {
     /// Create a new weighted sum scalarization method
     pub fn weighted_sum(weights: Array1<f64>) -> Self {
         Self {
-            method_id: format!("weighted_sum_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            method_id: format!("weighted_sum_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             method_type: ScalarizationType::WeightedSum,
             weights,
             reference_point: None,
@@ -589,7 +589,7 @@ impl ScalarizationMethod {
     /// Create a new Tchebycheff scalarization method
     pub fn tchebycheff(weights: Array1<f64>, reference_point: Array1<f64>) -> Self {
         Self {
-            method_id: format!("tchebycheff_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis()),
+            method_id: format!("tchebycheff_{}", SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis()),
             method_type: ScalarizationType::Tchebycheff,
             weights,
             reference_point: Some(reference_point),
@@ -709,7 +709,7 @@ mod tests {
         let method = ScalarizationMethod::tchebycheff(weights.clone(), reference.clone());
         assert!(matches!(method.method_type, ScalarizationType::Tchebycheff));
         assert_eq!(method.weights, weights);
-        assert_eq!(method.reference_point.unwrap(), reference);
+        assert_eq!(method.reference_point.unwrap_or_default(), reference);
     }
 
     #[test]

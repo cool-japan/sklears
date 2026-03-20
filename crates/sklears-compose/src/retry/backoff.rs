@@ -82,13 +82,13 @@ impl ExponentialBackoffAlgorithm {
             return min;
         }
         // Simple linear congruential generator for deterministic testing
-        let seed = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis() as u64;
+        let seed = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
         min + (seed % (max - min))
     }
 
     /// Auto-tune multiplier based on performance
     fn auto_tune_multiplier(&self) -> f64 {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if !state.auto_tuning_enabled || state.performance_history.len() < 10 {
             return self.parameters.multiplier;
         }
@@ -320,7 +320,7 @@ impl AdaptiveBackoffAlgorithm {
 
     /// Calculate adaptive multiplier based on recent performance
     fn calculate_adaptive_multiplier(&self) -> f64 {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         if state.performance_history.len() < 5 {
             return state.learned_multiplier;
@@ -350,7 +350,7 @@ impl AdaptiveBackoffAlgorithm {
 
     /// Update learned parameters based on performance feedback
     fn update_learning(&self, performance_feedback: &PerformanceDataPoint) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
 
         // Add to history
         state.performance_history.push(performance_feedback.clone());
@@ -377,7 +377,7 @@ impl BackoffAlgorithm for AdaptiveBackoffAlgorithm {
     }
 
     fn parameters(&self) -> BackoffParameters {
-        let state = self.state.lock().unwrap();
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let mut params = self.parameters.clone();
         params.multiplier = state.learned_multiplier;
         params

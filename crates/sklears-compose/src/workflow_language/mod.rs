@@ -87,16 +87,16 @@
 //!
 //! let data_loader = StepDefinition::new("data_loader", StepType::Input, "CsvReader")
 //!     .with_output("dataset");
-//! builder.add_step(data_loader).unwrap();
+//! builder.add_step(data_loader).unwrap_or_default();
 //!
 //! let trainer = StepDefinition::new("trainer", StepType::Trainer, "RandomForest")
 //!     .with_input("dataset")
 //!     .with_output("model");
-//! builder.add_step(trainer).unwrap();
+//! builder.add_step(trainer).unwrap_or_default();
 //!
 //! builder
 //!     .add_connection(Connection::direct("data_loader", "dataset", "trainer", "dataset"))
-//!     .unwrap();
+//!     .unwrap_or_default();
 //! ```
 //!
 //! ## Parsing DSL
@@ -111,7 +111,7 @@
 //! }"#;
 //!
 //! let mut dsl = PipelineDSL::new();
-//! let workflow = dsl.parse(dsl_code).unwrap();
+//! let workflow = dsl.parse(dsl_code).unwrap_or_default();
 //! assert_eq!(workflow.metadata.name, "ml_workflow");
 //! assert_eq!(workflow.inputs[0].name, "data");
 //! ```
@@ -125,7 +125,7 @@
 //!
 //! let mut generator = CodeGenerator::new(CodeGenerationConfig::default());
 //! let workflow = WorkflowDefinition::default();
-//! let GeneratedCode { language, .. } = generator.generate_code(&workflow).unwrap();
+//! let GeneratedCode { language, .. } = generator.generate_code(&workflow).unwrap_or_default();
 //! assert!(matches!(language, CodeLanguage::Rust));
 //! ```
 

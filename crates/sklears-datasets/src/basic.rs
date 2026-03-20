@@ -50,7 +50,7 @@ pub fn make_blobs(
             samples_per_center
         };
 
-        let normal = Normal::new(0.0, cluster_std).unwrap();
+        let normal = Normal::new(0.0, cluster_std).expect("operation should succeed");
 
         for _ in 0..n_samples_for_center {
             y[sample_idx] = center_idx as i32;
@@ -184,7 +184,7 @@ pub fn make_regression(
 
         // Add noise
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             target += rng.sample(noise_dist);
         }
 
@@ -245,7 +245,7 @@ pub fn make_circles(
 
     // Add noise if specified
     if noise > 0.0 {
-        let noise_dist = Normal::new(0.0, noise).unwrap();
+        let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
         for i in 0..n_samples {
             for j in 0..2 {
                 x[[i, j]] += rng.sample(noise_dist);
@@ -299,7 +299,7 @@ pub fn make_moons(
 
     // Add noise if specified
     if noise > 0.0 {
-        let noise_dist = Normal::new(0.0, noise).unwrap();
+        let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
         for i in 0..n_samples {
             for j in 0..2 {
                 x[[i, j]] += rng.sample(noise_dist);
@@ -362,7 +362,7 @@ pub fn make_gaussian_quantiles(
     }
 
     // Sort by distance
-    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     // Assign classes based on quantiles
     let mut y = Array1::zeros(n_samples);
@@ -473,7 +473,7 @@ pub fn make_friedman1(
 
         // Add noise
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             y[i] += rng.sample(noise_dist);
         }
     }
@@ -526,7 +526,7 @@ pub fn make_friedman2(
 
         // Add noise
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             y[i] += rng.sample(noise_dist);
         }
     }
@@ -578,7 +578,7 @@ pub fn make_friedman3(
 
         // Add noise
         if noise > 0.0 {
-            let noise_dist = Normal::new(0.0, noise).unwrap();
+            let noise_dist = Normal::new(0.0, noise).expect("operation should succeed");
             y[i] += rng.sample(noise_dist);
         }
     }

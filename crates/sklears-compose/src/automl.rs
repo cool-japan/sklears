@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, Rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::Estimator,
@@ -595,14 +595,14 @@ impl AutoMLOptimizer {
     fn generate_random_config(&mut self) -> SklResult<PipelineConfiguration> {
         // Sample random algorithm
         let algorithm = &self.search_space.algorithms
-            [self.rng.gen_range(0..self.search_space.algorithms.len())];
+            [self.rng.random_range(0..self.search_space.algorithms.len())];
 
         // Sample random preprocessing steps
         let preprocessing_steps: Vec<_> = self
             .search_space
             .preprocessing
             .iter()
-            .filter(|step| !step.optional || self.rng.gen_bool(0.5))
+            .filter(|step| !step.optional || self.rng.random_bool(0.5))
             .collect();
 
         // Sample random feature engineering steps
@@ -610,7 +610,7 @@ impl AutoMLOptimizer {
             .search_space
             .feature_engineering
             .iter()
-            .filter(|step| !step.optional || self.rng.gen_bool(0.3))
+            .filter(|step| !step.optional || self.rng.random_bool(0.3))
             .collect();
 
         // Create configuration
@@ -652,9 +652,9 @@ impl AutoMLOptimizer {
         // 2. Perform cross-validation or train/validation split
         // 3. Calculate the specified metric
 
-        let mock_score = self.rng.gen_range(0.5..1.0);
+        let mock_score = self.rng.random_range(0.5..1.0);
         let cv_scores = (0..self.config.cv_folds)
-            .map(|_| self.rng.gen_range(0.4..1.0))
+            .map(|_| self.rng.random_range(0.4..1.0))
             .collect();
 
         Ok(TrialResult {
@@ -846,7 +846,7 @@ impl NeuralArchitectureSearch {
         architectures.sort_by(|a, b| {
             b.estimated_performance
                 .partial_cmp(&a.estimated_performance)
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         Ok(architectures)
@@ -855,21 +855,21 @@ impl NeuralArchitectureSearch {
     /// Generate a neural architecture
     fn generate_architecture(&self, rng: &mut StdRng) -> SklResult<NeuralArchitecture> {
         let num_layers = match &self.search_space.num_layers {
-            ParameterRange::Integer { min, max } => rng.gen_range(*min..*max + 1) as usize,
+            ParameterRange::Integer { min, max } => rng.random_range(*min..*max + 1) as usize,
             _ => 3, // Default
         };
 
         let mut layers = Vec::new();
         for i in 0..num_layers {
             let layer_type = &self.search_space.layer_types
-                [rng.gen_range(0..self.search_space.layer_types.len())];
+                [rng.random_range(0..self.search_space.layer_types.len())];
 
             let activation = &self.search_space.activations
-                [rng.gen_range(0..self.search_space.activations.len())];
+                [rng.random_range(0..self.search_space.activations.len())];
 
             layers.push(NeuralLayer {
                 layer_type: layer_type.clone(),
-                units: Some(rng.gen_range(32..512)),
+                units: Some(rng.random_range(32..512)),
                 activation: activation.clone(),
                 layer_id: i,
             });
@@ -878,9 +878,9 @@ impl NeuralArchitectureSearch {
         Ok(NeuralArchitecture {
             layers,
             connection_pattern: ConnectionPattern::Sequential,
-            estimated_performance: rng.gen_range(0.5..1.0),
-            parameter_count: rng.gen_range(1000..1_000_000),
-            memory_usage_mb: rng.gen_range(10..500),
+            estimated_performance: rng.random_range(0.5..1.0),
+            parameter_count: rng.random_range(1000..1_000_000),
+            memory_usage_mb: rng.random_range(10..500),
         })
     }
 }
@@ -929,7 +929,7 @@ mod tests {
     #[test]
     fn test_automl_optimizer() {
         let config = AutoMLConfig::default();
-        let optimizer = AutoMLOptimizer::new(config).unwrap();
+        let optimizer = AutoMLOptimizer::new(config).expect("operation should succeed");
         assert_eq!(optimizer.history.trials.len(), 0);
         assert!(optimizer.history.best_score.is_none());
     }
@@ -953,7 +953,7 @@ mod tests {
         };
 
         let mut nas = NeuralArchitectureSearch::new(search_space, NASStrategy::Random);
-        let architectures = nas.search(5).unwrap();
+        let architectures = nas.search(5).unwrap_or_default();
 
         assert_eq!(architectures.len(), 5);
         assert!(architectures[0].estimated_performance >= architectures[1].estimated_performance);

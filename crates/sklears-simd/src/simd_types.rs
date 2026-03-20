@@ -767,7 +767,7 @@ mod tests {
         let success_result = VectorOperationResult::success(42);
         assert!(success_result.is_success());
         assert!(!success_result.is_error());
-        assert_eq!(success_result.into_result().unwrap(), 42);
+        assert_eq!(success_result.into_result().expect("operation should succeed"), 42);
 
         let error_result: VectorOperationResult<i32> = VectorOperationResult::error(
             VectorError::EmptyVector {

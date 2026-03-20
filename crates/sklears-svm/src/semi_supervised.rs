@@ -209,7 +209,7 @@ impl TransductiveSVM {
             let objective = self.calculate_objective(
                 &x_combined,
                 &y_pseudo,
-                decision_values.as_slice().unwrap(),
+                decision_values.as_slice().expect("non-contiguous array"),
                 n_labeled,
             )?;
 
@@ -297,7 +297,7 @@ impl TransductiveSVM {
         x: &DMatrix<f64>,
         result: &SemiSupervisedResult,
     ) -> Result<Vec<f64>> {
-        let kernel = self.kernel.as_ref().unwrap();
+        let kernel = self.kernel.as_ref().expect("kernel not available - model not fitted");
         let mut decision_values = Vec::with_capacity(x.nrows());
 
         for i in 0..x.nrows() {
@@ -558,18 +558,18 @@ impl SelfTrainingSVM {
         let final_predictions = self
             .base_classifier
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .predict(&x_unlabeled_ndarray)?;
         let final_decision_values = self
             .base_classifier
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .decision_function(&x_unlabeled_ndarray)?;
         let final_confidence_scores: Vec<f64> =
             final_decision_values.iter().map(|&val| val.abs()).collect();
 
         // Convert ndarray back to nalgebra for result
-        let classifier = self.base_classifier.as_ref().unwrap();
+        let classifier = self.base_classifier.as_ref().expect("base_classifier not available - model not fitted");
         let support_vectors_ndarray = classifier.support_vectors();
         let dual_coef_ndarray = classifier.dual_coef();
 
@@ -606,7 +606,7 @@ impl SelfTrainingSVM {
                 SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
             })?;
 
-        let predictions_ndarray = self.base_classifier.as_ref().unwrap().predict(&x_ndarray)?;
+        let predictions_ndarray = self.base_classifier.as_ref().expect("base_classifier not available - model not fitted").predict(&x_ndarray)?;
 
         // Convert ndarray back to nalgebra
         let predictions_nalgebra = DVector::from_vec(predictions_ndarray.iter().cloned().collect());
@@ -631,7 +631,7 @@ impl SelfTrainingSVM {
         let decision_values_ndarray = self
             .base_classifier
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .decision_function(&x_ndarray)?;
 
         // Convert ndarray back to nalgebra
@@ -959,18 +959,18 @@ impl CoTrainingSVM {
         let final_predictions = self
             .classifier1
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .predict(&x_unlabeled_ndarray)?;
         let final_decision_values = self
             .classifier1
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .decision_function(&x_unlabeled_ndarray)?;
         let final_confidence_scores: Vec<f64> =
             final_decision_values.iter().map(|&val| val.abs()).collect();
 
         // Convert ndarray back to nalgebra for result
-        let classifier = self.classifier1.as_ref().unwrap();
+        let classifier = self.classifier1.as_ref().expect("classifier1 not available - model not fitted");
         let support_vectors_ndarray = classifier.support_vectors();
         let dual_coef_ndarray = classifier.dual_coef();
 
@@ -1007,7 +1007,7 @@ impl CoTrainingSVM {
                 SklearsError::InvalidInput(format!("Failed to convert to ndarray: {e}"))
             })?;
 
-        let predictions_ndarray = self.classifier1.as_ref().unwrap().predict(&x_ndarray)?;
+        let predictions_ndarray = self.classifier1.as_ref().expect("classifier1 not available - model not fitted").predict(&x_ndarray)?;
 
         // Convert ndarray back to nalgebra
         let predictions_nalgebra = DVector::from_vec(predictions_ndarray.iter().cloned().collect());
@@ -1032,7 +1032,7 @@ impl CoTrainingSVM {
         let decision_values_ndarray = self
             .classifier1
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .decision_function(&x_ndarray)?;
 
         // Convert ndarray back to nalgebra
@@ -1063,7 +1063,7 @@ mod tests {
         let result = tsvm.fit(&x_labeled, &y_labeled, &x_unlabeled);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.unlabeled_predictions.len(), x_unlabeled.nrows());
         assert_eq!(result.confidence_scores.len(), x_unlabeled.nrows());
     }
@@ -1075,7 +1075,7 @@ mod tests {
         let result = stsvm.fit(&x_labeled, &y_labeled, &x_unlabeled);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.unlabeled_predictions.len(), x_unlabeled.nrows());
         assert_eq!(result.confidence_scores.len(), x_unlabeled.nrows());
     }
@@ -1087,7 +1087,7 @@ mod tests {
         let result = ctsvm.fit(&x_labeled, &y_labeled, &x_unlabeled);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.unlabeled_predictions.len(), x_unlabeled.nrows());
         assert_eq!(result.confidence_scores.len(), x_unlabeled.nrows());
     }
@@ -1096,12 +1096,12 @@ mod tests {
     fn test_tsvm_prediction() {
         let (x_labeled, y_labeled, x_unlabeled) = create_test_data();
         let mut tsvm = TransductiveSVM::default();
-        let result = tsvm.fit(&x_labeled, &y_labeled, &x_unlabeled).unwrap();
+        let result = tsvm.fit(&x_labeled, &y_labeled, &x_unlabeled).expect("model fitting should succeed");
 
         let predictions = tsvm.predict(&x_unlabeled, &result);
         assert!(predictions.is_ok());
 
-        let predictions = predictions.unwrap();
+        let predictions = predictions.expect("operation should succeed");
         assert_eq!(predictions.len(), x_unlabeled.nrows());
         assert!(predictions.iter().all(|&p| p == 1.0 || p == -1.0));
     }

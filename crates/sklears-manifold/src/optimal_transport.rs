@@ -165,7 +165,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for WassersteinEmbedding<Untrained> {
 
             // Sort eigenvalues in descending order
             let mut eigen_pairs: Vec<_> = vals.iter().zip(vecs.columns()).collect();
-            eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).unwrap());
+            eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).expect("operation should succeed"));
 
             let eigenvalues: Array1<f64> =
                 Array1::from_shape_fn(self.n_components.min(eigen_pairs.len()), |i| {
@@ -335,7 +335,7 @@ impl Fit<ArrayView2<'_, Float>, ()> for GromovWassersteinEmbedding<Untrained> {
 
         // Take top eigenvalues
         let mut sorted_eigenvalues = eigenvalues.to_vec();
-        sorted_eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_eigenvalues.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
         sorted_eigenvalues.truncate(self.n_components);
         let eigenvalues = Array1::from_vec(sorted_eigenvalues);
 
@@ -589,7 +589,7 @@ fn wasserstein_mds(distance_matrix: &Array2<f64>, n_components: usize) -> SklRes
 
     // Sort eigenvalues and eigenvectors in descending order
     let mut eigen_pairs: Vec<_> = eigenvalues.iter().zip(eigenvectors.columns()).collect();
-    eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).unwrap());
+    eigen_pairs.sort_by(|a, b| b.0.partial_cmp(a.0).expect("operation should succeed"));
 
     // Take the top n_components eigenvectors and scale by sqrt of eigenvalues
     let mut embedding = Array2::zeros((n_samples, n_components));
@@ -617,10 +617,12 @@ fn center_distance_matrix(distance_matrix: &Array2<f64>) -> Array2<f64> {
     let d_squared = distance_matrix.mapv(|x| x * x);
 
     // Compute row means
-    let row_means = d_squared.mean_axis(Axis(1)).unwrap();
+    let row_means = d_squared
+        .mean_axis(Axis(1))
+        .expect("operation should succeed");
 
     // Compute overall mean
-    let overall_mean = d_squared.mean().unwrap();
+    let overall_mean = d_squared.mean().expect("operation should succeed");
 
     // Apply double centering: -0.5 * (D^2 - row_mean - col_mean + overall_mean)
     for i in 0..n {
@@ -654,7 +656,7 @@ fn compute_neighborhood_distance_matrices(
             distances.push((j, dist));
         }
 
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         distances.truncate(n_neighbors.min(n_samples));
 
         // Create distance matrix for this neighborhood
@@ -903,7 +905,8 @@ mod tests {
 
     #[test]
     fn test_wasserstein_embedding() {
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let we = WassersteinEmbedding::new()
             .n_components(2)
@@ -911,8 +914,10 @@ mod tests {
             .n_neighbors(5)
             .random_state(42);
 
-        let fitted = we.fit(&x.view(), &()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = we.fit(&x.view(), &()).expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.dim(), (10, 2));
         assert!(fitted.state.eigenvalues.iter().all(|&x| x.is_finite()));
@@ -920,7 +925,8 @@ mod tests {
 
     #[test]
     fn test_gromov_wasserstein_embedding() {
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let gwe = GromovWassersteinEmbedding::new()
             .n_components(2)
@@ -928,8 +934,10 @@ mod tests {
             .n_iter(50)
             .random_state(42);
 
-        let fitted = gwe.fit(&x.view(), &()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = gwe.fit(&x.view(), &()).expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.dim(), (8, 2));
         assert!(fitted.state.eigenvalues.iter().all(|&x| x.is_finite()));
@@ -939,12 +947,13 @@ mod tests {
     fn test_sinkhorn_algorithm() {
         let a = Array1::from_vec(vec![0.5, 0.5]);
         let b = Array1::from_vec(vec![0.3, 0.7]);
-        let cost_matrix = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0]).unwrap();
+        let cost_matrix = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0])
+            .expect("operation should succeed");
 
         let sinkhorn = Sinkhorn::new(0.1, 100, 1e-6);
         let transport_plan = sinkhorn
             .compute_transport_plan(&a, &b, &cost_matrix)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(transport_plan.dim(), (2, 2));
 
@@ -963,10 +972,13 @@ mod tests {
 
     #[test]
     fn test_ground_cost_matrix() {
-        let x1 = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
-        let x2 = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0]).unwrap();
+        let x1 = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
+        let x2 = Array2::from_shape_vec((2, 2), vec![0.0, 1.0, 1.0, 0.0])
+            .expect("operation should succeed");
 
-        let cost_matrix = compute_ground_cost_matrix(&x1, &x2, 2, "euclidean").unwrap();
+        let cost_matrix =
+            compute_ground_cost_matrix(&x1, &x2, 2, "euclidean").expect("operation should succeed");
 
         assert_eq!(cost_matrix.dim(), (2, 2));
         assert!(cost_matrix.iter().all(|&x| x >= 0.0));
@@ -976,9 +988,9 @@ mod tests {
     fn test_wasserstein_mds() {
         let distance_matrix =
             Array2::from_shape_vec((3, 3), vec![0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0])
-                .unwrap();
+                .expect("operation should succeed");
 
-        let embedding = wasserstein_mds(&distance_matrix, 2).unwrap();
+        let embedding = wasserstein_mds(&distance_matrix, 2).expect("operation should succeed");
 
         assert_eq!(embedding.dim(), (3, 2));
         assert!(embedding.iter().all(|&x| x.is_finite()));
@@ -991,11 +1003,15 @@ mod tests {
         let b = Array1::from_vec(vec![0.3, 0.7]);
 
         // Support points for the distributions
-        let support_a = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
-        let support_b = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
+        let support_a = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
+        let support_b = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         let emd = EarthMoversDistance::new();
-        let distance = emd.distance(&a, &b, &support_a, &support_b).unwrap();
+        let distance = emd
+            .distance(&a, &b, &support_a, &support_b)
+            .expect("operation should succeed");
 
         // EMD should be non-negative and finite
         assert!(distance >= 0.0);
@@ -1007,11 +1023,15 @@ mod tests {
 
     #[test]
     fn test_earth_movers_distance_point_clouds() {
-        let points_a = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
-        let points_b = Array2::from_shape_vec((2, 2), vec![0.5, 0.5, 1.5, 1.5]).unwrap();
+        let points_a = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
+        let points_b = Array2::from_shape_vec((2, 2), vec![0.5, 0.5, 1.5, 1.5])
+            .expect("operation should succeed");
 
         let emd = EarthMoversDistance::new();
-        let distance = emd.point_cloud_distance(&points_a, &points_b).unwrap();
+        let distance = emd
+            .point_cloud_distance(&points_a, &points_b)
+            .expect("operation should succeed");
 
         // Distance should be non-negative and finite
         assert!(distance >= 0.0);
@@ -1021,10 +1041,13 @@ mod tests {
     #[test]
     fn test_earth_movers_distance_identical_distributions() {
         let a = Array1::from_vec(vec![0.5, 0.5]);
-        let support = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0]).unwrap();
+        let support = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 1.0, 1.0])
+            .expect("operation should succeed");
 
         let emd = EarthMoversDistance::new();
-        let distance = emd.distance(&a, &a, &support, &support).unwrap();
+        let distance = emd
+            .distance(&a, &a, &support, &support)
+            .expect("operation should succeed");
 
         // EMD between identical distributions should be close to zero
         assert_abs_diff_eq!(distance, 0.0, epsilon = 1e-6);

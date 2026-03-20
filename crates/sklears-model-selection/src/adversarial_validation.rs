@@ -4,6 +4,7 @@
 //! by training discriminators to distinguish between training and test data.
 
 use scirs2_core::ndarray::Array2;
+use scirs2_core::RngExt;
 use scirs2_core::SliceRandomExt;
 use sklears_core::error::{Result, SklearsError};
 
@@ -383,7 +384,7 @@ impl AdversarialValidator {
             return Ok((0.5, 0.5));
         }
 
-        bootstrap_aucs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        bootstrap_aucs.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let lower_idx = (self.config.n_bootstrap as f64 * 0.025) as usize;
         let upper_idx = (self.config.n_bootstrap as f64 * 0.975) as usize;
@@ -540,7 +541,6 @@ impl AdversarialValidator {
     /// Generate random index
     fn random_index(&self, max: usize) -> usize {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::Rng;
         use scirs2_core::random::SeedableRng;
         let mut rng = match self.config.random_state {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -549,7 +549,7 @@ impl AdversarialValidator {
                 StdRng::from_rng(&mut thread_rng())
             }
         };
-        rng.gen_range(0..max)
+        rng.random_range(0..max)
     }
 }
 
@@ -567,7 +567,9 @@ mod tests {
         let train_data = Array2::zeros((100, 5));
         let test_data = Array2::zeros((50, 5));
 
-        let result = validator.validate(&train_data, &test_data).unwrap();
+        let result = validator
+            .validate(&train_data, &test_data)
+            .expect("operation should succeed");
 
         // AUC should be close to 0.5 for identical distributions
         assert!(
@@ -605,7 +607,9 @@ mod tests {
             }
         }
 
-        let result = validator.validate(&train_data, &test_data).unwrap();
+        let result = validator
+            .validate(&train_data, &test_data)
+            .expect("operation should succeed");
 
         // AUC should be high for clearly different distributions
         assert!(

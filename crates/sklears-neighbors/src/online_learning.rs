@@ -447,7 +447,7 @@ impl AdaptiveKNeighborsClassifier<Trained> {
             .map(|(i, row)| (self.distance.calculate(query, &row), i))
             .collect();
 
-        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbor_indices: Vec<usize> = distances_indices
             .into_iter()
             .take(self.current_k.min(self.state.x_train.nrows()))
@@ -642,7 +642,7 @@ impl StreamingOutlierDetector {
             .map(|(i, x)| (self.distance.calculate(&sample.view(), &x.view()), i))
             .collect();
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k_neighbors: Vec<usize> = distances
             .into_iter()
             .take(self.k.min(self.window.len()))
@@ -673,7 +673,7 @@ impl StreamingOutlierDetector {
                 .iter()
                 .map(|x| self.distance.calculate(&neighbor.view(), &x.view()))
                 .collect();
-            neighbor_neighbors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            neighbor_neighbors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             for dist in neighbor_neighbors.iter().take(self.k) {
                 neighbor_lrd += dist;
             }
@@ -738,22 +738,23 @@ mod tests {
                 -1.0, -1.0, -0.5, -1.0, 0.0, 0.0, 1.0, 1.0, 0.5, 1.0, 1.5, 1.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 1, 1];
 
         let drift_method = DriftDetectionMethod::Adwin { delta: 0.002 };
         let classifier = AdaptiveKNeighborsClassifier::new(3, drift_method);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
-        let test_x = Array2::from_shape_vec((2, 2), vec![-0.8, -0.8, 0.8, 0.8]).unwrap();
-        let predictions = fitted.predict(&test_x).unwrap();
+        let test_x = Array2::from_shape_vec((2, 2), vec![-0.8, -0.8, 0.8, 0.8])
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&test_x).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
     #[test]
     fn test_adaptive_knn_partial_fit() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let y = array![0, 0, 1, 1];
 
         let drift_method = DriftDetectionMethod::DDM {
@@ -761,12 +762,15 @@ mod tests {
             drift_level: 3.0,
         };
         let classifier = AdaptiveKNeighborsClassifier::new(2, drift_method);
-        let mut fitted = classifier.fit(&x, &y).unwrap();
+        let mut fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Add new samples
-        let x_new = Array2::from_shape_vec((2, 2), vec![3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x_new = Array2::from_shape_vec((2, 2), vec![3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
         let y_new = array![1, 1];
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("operation should succeed");
 
         // K might have adapted
         assert!(fitted.current_k() > 0);
@@ -779,13 +783,17 @@ mod tests {
         // Add normal samples
         for i in 0..20 {
             let sample = array![i as Float, i as Float];
-            let _is_outlier = detector.is_outlier(&sample).unwrap();
+            let _is_outlier = detector
+                .is_outlier(&sample)
+                .expect("operation should succeed");
             // First few samples won't be classified as outliers
         }
 
         // Add an obvious outlier
         let outlier = array![100.0, 100.0];
-        let is_outlier = detector.is_outlier(&outlier).unwrap();
+        let is_outlier = detector
+            .is_outlier(&outlier)
+            .expect("operation should succeed");
         assert!(is_outlier);
     }
 

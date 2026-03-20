@@ -703,7 +703,7 @@ impl RegularizationStrategy for CompositeRegularization {
                 .filter_map(|(key, &value)| {
                     let prefix = format!("strategy_{}_", i);
                     if key.starts_with(&prefix) && !key.ends_with("_weight") {
-                        let param_name = key.strip_prefix(&prefix).unwrap();
+                        let param_name = key.strip_prefix(&prefix)?;
                         Some((param_name.to_string(), value))
                     } else {
                         None
@@ -811,7 +811,9 @@ mod tests {
         let covariance = array![[2.0, 1.5, 0.5], [1.5, 3.0, 0.8], [0.5, 0.8, 1.5]];
 
         let l1_reg = L1Regularization::new();
-        let result = l1_reg.apply(&covariance, 0.5).unwrap();
+        let result = l1_reg
+            .apply(&covariance, 0.5)
+            .expect("operation should succeed");
 
         // Check that small values are thresholded to zero
         assert_eq!(result[[0, 2]], 0.0);
@@ -827,7 +829,9 @@ mod tests {
         let covariance = array![[2.0, 1.5, 0.5], [1.5, 3.0, 0.8], [0.5, 0.8, 1.5]];
 
         let l2_reg = L2Regularization::new();
-        let result = l2_reg.apply(&covariance, 0.5).unwrap();
+        let result = l2_reg
+            .apply(&covariance, 0.5)
+            .expect("operation should succeed");
 
         // Check that diagonal elements are increased (ridge regularization)
         assert!(result[[0, 0]] > covariance[[0, 0]]);
@@ -845,7 +849,9 @@ mod tests {
 
         let groups = vec![0, 0, 1]; // First two variables in group 0, third in group 1
         let group_lasso = GroupLassoRegularization::new(groups);
-        let result = group_lasso.apply(&covariance, 0.1).unwrap();
+        let result = group_lasso
+            .apply(&covariance, 0.1)
+            .expect("operation should succeed");
 
         // Result should have proper dimensions
         assert_eq!(result.dim(), (3, 3));
@@ -860,7 +866,9 @@ mod tests {
             .add_strategy(L2Regularization::new(), 0.5)
             .combination_method(CombinationMethod::WeightedSum);
 
-        let result = composite.apply(&covariance, 0.2).unwrap();
+        let result = composite
+            .apply(&covariance, 0.2)
+            .expect("operation should succeed");
 
         // Result should have proper dimensions
         assert_eq!(result.dim(), (3, 3));
@@ -888,7 +896,9 @@ mod tests {
         let mut new_params = HashMap::new();
         new_params.insert("regularize_diagonal".to_string(), 1.0);
 
-        l1_reg.set_hyperparameters(new_params).unwrap();
+        l1_reg
+            .set_hyperparameters(new_params)
+            .expect("operation should succeed");
 
         let updated_params = l1_reg.hyperparameters();
         assert_eq!(updated_params["regularize_diagonal"], 1.0);

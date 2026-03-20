@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Generate synthetic classification data
 fn generate_synthetic_data(n_samples: usize) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     // Generate features
     let x = Array2::from_shape_fn((n_samples, 2), |_| normal.sample(&mut rng));

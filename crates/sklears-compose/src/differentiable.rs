@@ -874,7 +874,11 @@ impl ComputationGraph {
 
     /// Execute a single node
     fn execute_node(&mut self, node_id: &str) -> SklResult<()> {
-        let node = self.nodes.get(node_id).unwrap().clone();
+        let node = self
+            .nodes
+            .get(node_id)
+            .cloned()
+            .ok_or_else(|| SklearsError::InvalidInput(format!("node {node_id} not found")))?;
 
         // Collect input values
         let mut input_values = Vec::new();
@@ -1177,10 +1181,16 @@ impl DifferentiablePipeline {
                         }
 
                         // Bias correction
-                        let momentum_corrected =
-                            param.momentum.as_ref().unwrap() / (1.0 - beta1.powf(step));
-                        let velocity_corrected =
-                            param.velocity.as_ref().unwrap() / (1.0 - beta2.powf(step));
+                        let momentum_corrected = param
+                            .momentum
+                            .as_ref()
+                            .expect("momentum should be initialized")
+                            / (1.0 - beta1.powf(step));
+                        let velocity_corrected = param
+                            .velocity
+                            .as_ref()
+                            .expect("velocity should be initialized")
+                            / (1.0 - beta2.powf(step));
 
                         // Update parameters
                         param.values = &param.values
@@ -1469,20 +1479,20 @@ mod tests {
 
     #[test]
     fn test_activation_functions() {
-        let input = Array2::from_shape_vec((2, 2), vec![1.0, -1.0, 2.0, -2.0]).unwrap();
+        let input = Array2::from_shape_vec((2, 2), vec![1.0, -1.0, 2.0, -2.0]).unwrap_or_default();
         let graph = ComputationGraph::new("test".to_string());
 
         // Test ReLU
         let relu_result = graph
             .apply_activation(&ActivationFunction::ReLU, &input)
-            .unwrap();
+            .unwrap_or_default();
         assert_eq!(relu_result[[0, 0]], 1.0);
         assert_eq!(relu_result[[0, 1]], 0.0);
 
         // Test Sigmoid
         let sigmoid_result = graph
             .apply_activation(&ActivationFunction::Sigmoid, &input)
-            .unwrap();
+            .unwrap_or_default();
         assert!(sigmoid_result[[0, 0]] > 0.0 && sigmoid_result[[0, 0]] < 1.0);
     }
 
@@ -1551,8 +1561,8 @@ mod tests {
     #[test]
     fn test_dual_number() {
         let dual = DualNumber {
-            real: Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap(),
-            dual: Array2::from_shape_vec((2, 2), vec![0.1, 0.2, 0.3, 0.4]).unwrap(),
+            real: Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap_or_default(),
+            dual: Array2::from_shape_vec((2, 2), vec![0.1, 0.2, 0.3, 0.4]).unwrap_or_default(),
         };
 
         assert_eq!(dual.real.dim(), (2, 2));

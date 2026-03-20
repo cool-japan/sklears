@@ -3,17 +3,17 @@
 //! This module provides stub implementations for robustness evaluation.
 //! Full implementations are planned for future releases.
 
-use scirs2_core::error::CoreError;
-type Result<T> = std::result::Result<T, CoreError>;
+use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Robustness evaluation framework (stub implementation)
 #[derive(Debug, Clone)]
 pub struct RobustnessEvaluation;
 
 impl RobustnessEvaluation {
-    pub fn evaluate_robustness(_features: &[usize]) -> Result<f64> {
-        // Stub implementation
-        Ok(0.8) // robustness score
+    pub fn evaluate_robustness(_features: &[usize]) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "RobustnessEvaluation::evaluate_robustness is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -22,8 +22,10 @@ impl RobustnessEvaluation {
 pub struct NoiseResistance;
 
 impl NoiseResistance {
-    pub fn test_noise_resistance(_features: &[usize], _noise_level: f64) -> Result<f64> {
-        Ok(0.9 - _noise_level * 0.3) // decrease with noise
+    pub fn test_noise_resistance(_features: &[usize], _noise_level: f64) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "NoiseResistance::test_noise_resistance is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -32,8 +34,10 @@ impl NoiseResistance {
 pub struct OutlierSensitivity;
 
 impl OutlierSensitivity {
-    pub fn test_outlier_sensitivity(_features: &[usize], _outlier_fraction: f64) -> Result<f64> {
-        Ok(0.9 - _outlier_fraction * 0.5) // decrease with outliers
+    pub fn test_outlier_sensitivity(_features: &[usize], _outlier_fraction: f64) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "OutlierSensitivity::test_outlier_sensitivity is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -45,8 +49,10 @@ impl ParameterSensitivity {
     pub fn test_parameter_sensitivity(
         _features: &[usize],
         _parameter_variations: &[f64],
-    ) -> Result<Vec<f64>> {
-        Ok(vec![0.8; _parameter_variations.len()])
+    ) -> SklResult<Vec<f64>> {
+        Err(SklearsError::NotImplemented(
+            "ParameterSensitivity::test_parameter_sensitivity is not yet implemented".to_string(),
+        ))
     }
 }
 
@@ -55,7 +61,9 @@ impl ParameterSensitivity {
 pub struct StabilityUnderPerturbation;
 
 impl StabilityUnderPerturbation {
-    pub fn test_stability(_features: &[usize], _perturbation_level: f64) -> Result<f64> {
-        Ok(0.9 - _perturbation_level * 0.2) // decrease with perturbation
+    pub fn test_stability(_features: &[usize], _perturbation_level: f64) -> SklResult<f64> {
+        Err(SklearsError::NotImplemented(
+            "StabilityUnderPerturbation::test_stability is not yet implemented".to_string(),
+        ))
     }
 }

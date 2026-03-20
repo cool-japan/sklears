@@ -252,7 +252,10 @@ impl HookManager {
     /// Get global metrics snapshot
     #[must_use]
     pub fn global_metrics(&self) -> PerformanceMetrics {
-        self.global_metrics.lock().unwrap().clone()
+        self.global_metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 
@@ -742,7 +745,9 @@ mod tests {
             metrics: PerformanceMetrics::default(),
         };
 
-        let result = hook.execute(&context, None).unwrap();
+        let result = hook
+            .execute(&context, None)
+            .expect("operation should succeed");
         assert!(matches!(result, HookResult::Continue));
     }
 
@@ -763,12 +768,16 @@ mod tests {
 
         // Test with valid data
         let valid_data = HookData::Features(array![[1.0, 2.0], [3.0, 4.0]]);
-        let result = hook.execute(&context, Some(&valid_data)).unwrap();
+        let result = hook
+            .execute(&context, Some(&valid_data))
+            .expect("operation should succeed");
         assert!(matches!(result, HookResult::Continue));
 
         // Test with invalid shape
         let invalid_data = HookData::Features(array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
-        let result = hook.execute(&context, Some(&invalid_data)).unwrap();
+        let result = hook
+            .execute(&context, Some(&invalid_data))
+            .expect("operation should succeed");
         assert!(matches!(result, HookResult::Abort(_)));
     }
 
@@ -788,7 +797,9 @@ mod tests {
             metrics: PerformanceMetrics::default(),
         };
 
-        let result = hook.execute(&context, None).unwrap();
+        let result = hook
+            .execute(&context, None)
+            .expect("operation should succeed");
         assert!(matches!(result, HookResult::Continue));
     }
 
@@ -955,12 +966,18 @@ impl ResourceManagerHook {
     /// Get current resource usage
     #[must_use]
     pub fn get_usage(&self) -> ResourceUsage {
-        self.resource_usage.lock().unwrap().clone()
+        self.resource_usage
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Check resource limits and record violations
     fn check_limits(&self, context: &ExecutionContext) -> SklResult<HookResult> {
-        let mut usage = self.resource_usage.lock().unwrap();
+        let mut usage = self
+            .resource_usage
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         // Check execution time limit
         if let Some(time_limit) = self.max_execution_time {
@@ -1102,7 +1119,10 @@ impl SecurityAuditHook {
     /// Get audit log
     #[must_use]
     pub fn get_audit_log(&self) -> Vec<AuditEntry> {
-        self.audit_log.lock().unwrap().clone()
+        self.audit_log
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Check if operation is sensitive
@@ -1165,7 +1185,10 @@ impl ExecutionHook for SecurityAuditHook {
             if !has_auth {
                 let audit_entry =
                     self.create_audit_entry(context, AuditResult::Unauthorized, data_summary);
-                self.audit_log.lock().unwrap().push(audit_entry);
+                self.audit_log
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push(audit_entry);
 
                 return Ok(HookResult::Abort(format!(
                     "[{}] Unauthorized access to sensitive operation: {}",
@@ -1189,7 +1212,10 @@ impl ExecutionHook for SecurityAuditHook {
             };
 
             let audit_entry = self.create_audit_entry(context, result, data_summary);
-            self.audit_log.lock().unwrap().push(audit_entry);
+            self.audit_log
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push(audit_entry);
         }
 
         Ok(HookResult::Continue)
@@ -1280,7 +1306,10 @@ impl ErrorRecoveryHook {
     /// Get error history
     #[must_use]
     pub fn get_error_history(&self) -> Vec<ErrorRecord> {
-        self.error_history.lock().unwrap().clone()
+        self.error_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Record error for analysis
@@ -1300,7 +1329,10 @@ impl ErrorRecoveryHook {
             recovery_successful,
         };
 
-        self.error_history.lock().unwrap().push(record);
+        self.error_history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(record);
     }
 }
 

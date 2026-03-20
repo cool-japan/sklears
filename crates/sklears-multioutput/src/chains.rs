@@ -995,7 +995,9 @@ impl BayesianClassifierChain<Untrained> {
         }
 
         // Standardize features
-        let feature_means = X.mean_axis(Axis(0)).unwrap();
+        let feature_means = X
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let feature_stds = X.std_axis(Axis(0), 0.0);
         let X_standardized = standardize_features_simple(X, &feature_means, &feature_stds);
 

@@ -84,7 +84,7 @@ mod tests {
     fn test_mutual_information_score() {
         let x = array![1.0, 2.0, 3.0];
         let y = array![1.0, 2.0, 3.0];
-        let mi = mutual_information_score(&x, &y).unwrap();
+        let mi = mutual_information_score(&x, &y).expect("operation should succeed");
         assert!(mi >= 0.0);
     }
 }

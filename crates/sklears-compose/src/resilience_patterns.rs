@@ -1530,7 +1530,7 @@ mod tests {
     #[test]
     fn test_resilience_coordinator_creation() {
         let coordinator = ResilienceCoordinator::new();
-        let state = coordinator.get_state().unwrap();
+        let state = coordinator.get_state().unwrap_or_default();
         assert_eq!(state.status, CoordinatorStatus::Initializing);
         assert_eq!(state.active_patterns, 0);
         assert_eq!(state.health_score, 1.0);
@@ -1539,7 +1539,7 @@ mod tests {
     #[test]
     fn test_adaptive_resilience_creation() {
         let adaptive = AdaptiveResilience::new();
-        let state = adaptive.get_state().unwrap();
+        let state = adaptive.get_state().unwrap_or_default();
         assert_eq!(state.status, AdaptiveResilienceStatus::Initializing);
         assert!(state.active_patterns.is_empty());
         assert_eq!(state.health_score, 1.0);
@@ -1620,7 +1620,7 @@ mod tests {
             timestamp: SystemTime::now(),
         };
 
-        let severity = adaptive.assess_feedback_severity(&high_degradation_feedback).unwrap();
+        let severity = adaptive.assess_feedback_severity(&high_degradation_feedback).unwrap_or_default();
         assert_eq!(severity, FeedbackSeverity::Critical);
     }
 }

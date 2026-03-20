@@ -41,7 +41,7 @@ fn bench_data_generation(c: &mut Criterion) {
                             1.0,
                             Some(42),
                         )
-                        .unwrap(),
+                        .expect("operation should succeed"),
                     )
                 })
             },
@@ -61,7 +61,7 @@ fn bench_data_generation(c: &mut Criterion) {
                             0.0,
                             Some(42),
                         )
-                        .unwrap(),
+                        .expect("operation should succeed"),
                     )
                 })
             },
@@ -74,7 +74,7 @@ fn bench_data_generation(c: &mut Criterion) {
                 b.iter(|| {
                     black_box(
                         make_blobs(n_samples, n_features, Some(3), 1.0, (-5.0, 5.0), Some(42))
-                            .unwrap(),
+                            .expect("operation should succeed"),
                     )
                 })
             },
@@ -95,7 +95,10 @@ fn bench_random_sampling(c: &mut Criterion) {
             &n_samples,
             |b, &n_samples| {
                 b.iter(|| {
-                    black_box(train_test_split_indices(n_samples, 0.2, true, Some(42)).unwrap())
+                    black_box(
+                        train_test_split_indices(n_samples, 0.2, true, Some(42))
+                            .expect("operation should succeed"),
+                    )
                 })
             },
         );
@@ -112,7 +115,12 @@ fn bench_random_sampling(c: &mut Criterion) {
             BenchmarkId::new("k_fold_indices", n_samples),
             &(n_samples, n_splits),
             |b, &(n_samples, n_splits)| {
-                b.iter(|| black_box(k_fold_indices(n_samples, n_splits, true, Some(42)).unwrap()))
+                b.iter(|| {
+                    black_box(
+                        k_fold_indices(n_samples, n_splits, true, Some(42))
+                            .expect("operation should succeed"),
+                    )
+                })
             },
         );
 
@@ -123,7 +131,12 @@ fn bench_random_sampling(c: &mut Criterion) {
                 BenchmarkId::new("stratified_split", n_samples),
                 &labels,
                 |b, labels| {
-                    b.iter(|| black_box(stratified_split_indices(labels, 0.3, Some(42)).unwrap()))
+                    b.iter(|| {
+                        black_box(
+                            stratified_split_indices(labels, 0.3, Some(42))
+                                .expect("operation should succeed"),
+                        )
+                    })
                 },
             );
         }
@@ -146,7 +159,7 @@ fn bench_validation_functions(c: &mut Criterion) {
             &x,
             |b, x| {
                 b.iter(|| {
-                    check_array_2d(x).unwrap();
+                    check_array_2d(x).expect("operation should succeed");
                     black_box(());
                 })
             },
@@ -162,7 +175,7 @@ fn bench_validation_functions(c: &mut Criterion) {
             |b, (x, y)| {
                 let x_slice = x.row(0).to_owned();
                 b.iter(|| {
-                    check_consistent_length(&[&x_slice, y]).unwrap();
+                    check_consistent_length(&[&x_slice, y]).expect("operation should succeed");
                     black_box(());
                 })
             },
@@ -173,7 +186,7 @@ fn bench_validation_functions(c: &mut Criterion) {
             &x,
             |b, x| {
                 b.iter(|| {
-                    check_finite(x).unwrap();
+                    check_finite(x).expect("operation should succeed");
                     black_box(());
                 })
             },
@@ -247,7 +260,10 @@ fn bench_cross_validation_scaling(c: &mut Criterion) {
                     &(n_samples, n_splits),
                     |b, &(n_samples, n_splits)| {
                         b.iter(|| {
-                            black_box(k_fold_indices(n_samples, n_splits, true, Some(42)).unwrap())
+                            black_box(
+                                k_fold_indices(n_samples, n_splits, true, Some(42))
+                                    .expect("operation should succeed"),
+                            )
                         })
                     },
                 );
@@ -284,7 +300,7 @@ fn bench_data_generation_parameters(c: &mut Criterion) {
                                 1.0,
                                 Some(42),
                             )
-                            .unwrap(),
+                            .expect("operation should succeed"),
                         )
                     })
                 },
@@ -309,7 +325,7 @@ fn bench_data_generation_parameters(c: &mut Criterion) {
                             0.0,
                             Some(42),
                         )
-                        .unwrap(),
+                        .expect("operation should succeed"),
                     )
                 })
             },
@@ -333,7 +349,7 @@ fn bench_data_generation_parameters(c: &mut Criterion) {
                             (-5.0, 5.0),
                             Some(42),
                         )
-                        .unwrap(),
+                        .expect("operation should succeed"),
                     )
                 })
             },

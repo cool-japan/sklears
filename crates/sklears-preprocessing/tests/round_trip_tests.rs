@@ -15,13 +15,13 @@ use scirs2_core::random::{seeded_rng, Distribution};
 /// Helper function to generate test data
 fn generate_test_data(nrows: usize, ncols: usize, seed: u64) -> Array2<f64> {
     let mut rng = seeded_rng(seed);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     let data: Vec<f64> = (0..nrows * ncols)
         .map(|_| normal.sample(&mut rng))
         .collect();
 
-    Array2::from_shape_vec((nrows, ncols), data).unwrap()
+    Array2::from_shape_vec((nrows, ncols), data).expect("shape and data length should match")
 }
 
 /// Helper function to assert arrays are approximately equal

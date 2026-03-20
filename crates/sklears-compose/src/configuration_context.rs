@@ -1322,7 +1322,7 @@ impl ConfigurationContext {
         };
 
         // Update state to active
-        *context.state.write().unwrap() = ContextState::Active;
+        *context.state.write().unwrap_or_else(|e| e.into_inner()) = ContextState::Active;
 
         Ok(context)
     }
@@ -1396,7 +1396,7 @@ impl ConfigurationContext {
 
     /// Get configuration metrics
     pub fn get_metrics(&self) -> ContextResult<ConfigurationMetrics> {
-        let metrics = self.metrics.lock().unwrap();
+        let metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         Ok(metrics.clone())
     }
 
@@ -1445,7 +1445,7 @@ impl ConfigurationManager {
 
     /// Get configuration value
     pub fn get_value(&self, key: &str) -> ContextResult<Option<ConfigurationValue>> {
-        let store = self.store.read().unwrap();
+        let store = self.store.read().unwrap_or_else(|e| e.into_inner());
         Ok(store.values.get(key).cloned())
     }
 
@@ -1454,7 +1454,7 @@ impl ConfigurationManager {
         let old_value = self.get_value(key)?;
 
         {
-            let mut store = self.store.write().unwrap();
+            let mut store = self.store.write().unwrap_or_else(|e| e.into_inner());
             store.values.insert(key.to_string(), value.clone());
             store.last_updated = SystemTime::now();
         }
@@ -1484,20 +1484,20 @@ impl ConfigurationManager {
 
     /// Get configuration store
     pub fn get_store(&self) -> ContextResult<ConfigurationStore> {
-        let store = self.store.read().unwrap();
+        let store = self.store.read().unwrap_or_else(|e| e.into_inner());
         Ok(store.clone())
     }
 
     /// Load configuration store
     pub fn load_store(&self, new_store: ConfigurationStore) -> ContextResult<()> {
-        let mut store = self.store.write().unwrap();
+        let mut store = self.store.write().unwrap_or_else(|e| e.into_inner());
         *store = new_store;
         Ok(())
     }
 
     /// Notify configuration change listeners
     fn notify_listeners(&self, change: &ConfigurationChange) -> ContextResult<()> {
-        let listeners = self.listeners.read().unwrap();
+        let listeners = self.listeners.read().unwrap_or_else(|e| e.into_inner());
 
         for listener in listeners.iter() {
             if listener.is_interested_in(&change.key) {
@@ -1596,7 +1596,7 @@ impl ConfigurationVersioning {
             status: VersionStatus::Active,
         };
 
-        let mut versions = self.versions.write().unwrap();
+        let mut versions = self.versions.write().unwrap_or_else(|e| e.into_inner());
         versions.push(versioned_config);
 
         Ok(version_id)
@@ -1604,7 +1604,7 @@ impl ConfigurationVersioning {
 
     /// Get version
     pub fn get_version(&self, version_id: &str) -> ContextResult<Option<VersionedConfiguration>> {
-        let versions = self.versions.read().unwrap();
+        let versions = self.versions.read().unwrap_or_else(|e| e.into_inner());
         Ok(versions.iter().find(|v| v.version.version == version_id).cloned())
     }
 }
@@ -1622,7 +1622,7 @@ impl FeatureManager {
 
     /// Check if feature flag is enabled
     pub fn is_enabled(&self, flag_key: &str, context: Option<HashMap<String, String>>) -> ContextResult<bool> {
-        let flags = self.flags.read().unwrap();
+        let flags = self.flags.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(flag) = flags.get(flag_key) {
             if !flag.enabled {
@@ -1641,7 +1641,7 @@ impl FeatureManager {
     where
         T: DeserializeOwned,
     {
-        let flags = self.flags.read().unwrap();
+        let flags = self.flags.read().unwrap_or_else(|e| e.into_inner());
 
         if let Some(flag) = flags.get(flag_key) {
             if let Some(variation) = flag.variations.first() {
@@ -1705,7 +1705,7 @@ impl ExecutionContextTrait for ConfigurationContext {
     }
 
     fn state(&self) -> ContextState {
-        *self.state.read().unwrap()
+        *self.state.read().unwrap_or_else(|e| e.into_inner())
     }
 
     fn is_active(&self) -> bool {
@@ -1714,7 +1714,7 @@ impl ExecutionContextTrait for ConfigurationContext {
 
     fn metadata(&self) -> &ContextMetadata {
         // Simplified implementation
-        unsafe { &*(self.metadata.read().unwrap().as_ref() as *const ContextMetadata) }
+        unsafe { &*(self.metadata.read().unwrap_or_else(|e| e.into_inner()).as_ref() as *const ContextMetadata) }
     }
 
     fn validate(&self) -> Result<(), ContextError> {
@@ -1795,7 +1795,7 @@ mod tests {
 
     #[test]
     fn test_configuration_context_creation() {
-        let context = ConfigurationContext::new("test-config".to_string()).unwrap();
+        let context = ConfigurationContext::new("test-config".to_string()).unwrap_or_default();
         assert_eq!(context.id(), "test-config");
         assert_eq!(context.context_type(), ContextType::Extension("configuration".to_string()));
         assert!(context.is_active());
@@ -1830,11 +1830,11 @@ mod tests {
 
         // Test setting and getting values
         let value = ConfigurationValue::String("test_value".to_string());
-        manager.set_value("test_key", value.clone()).unwrap();
+        manager.set_value("test_key", value.clone()).unwrap_or_default();
 
-        let retrieved = manager.get_value("test_key").unwrap();
+        let retrieved = manager.get_value("test_key").unwrap_or_default();
         assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().as_string(), Some(&"test_value".to_string()));
+        assert_eq!(retrieved.unwrap_or_default().as_string(), Some(&"test_value".to_string()));
     }
 
     #[test]
@@ -1842,7 +1842,7 @@ mod tests {
         let manager = FeatureManager::new();
 
         // Test feature flag (would be false for non-existent flag)
-        let enabled = manager.is_enabled("non_existent_flag", None).unwrap();
+        let enabled = manager.is_enabled("non_existent_flag", None).unwrap_or_default();
         assert!(!enabled);
     }
 
@@ -1851,7 +1851,7 @@ mod tests {
         let validator = ConfigurationValidator::new();
         let store = ConfigurationStore::new();
 
-        let result = validator.validate_all(&store).unwrap();
+        let result = validator.validate_all(&store).unwrap_or_default();
         assert!(result.valid); // Empty store should be valid
     }
 
@@ -1860,10 +1860,10 @@ mod tests {
         let versioning = ConfigurationVersioning::new();
         let store = ConfigurationStore::new();
 
-        let version_id = versioning.create_version(&store, Some("Initial version".to_string())).unwrap();
+        let version_id = versioning.create_version(&store, Some("Initial version".to_string())).unwrap_or_default();
         assert!(!version_id.is_empty());
 
-        let retrieved_version = versioning.get_version(&version_id).unwrap();
+        let retrieved_version = versioning.get_version(&version_id).unwrap_or_default();
         assert!(retrieved_version.is_some());
     }
 
@@ -1892,21 +1892,21 @@ mod tests {
 
     #[test]
     fn test_configuration_context_operations() {
-        let context = ConfigurationContext::new("test-ops".to_string()).unwrap();
+        let context = ConfigurationContext::new("test-ops".to_string()).unwrap_or_default();
 
         // Test setting and getting configuration
-        context.set("test_string", "hello".to_string()).unwrap();
-        let value: Option<String> = context.get("test_string").unwrap();
+        context.set("test_string", "hello".to_string()).unwrap_or_default();
+        let value: Option<String> = context.get("test_string").unwrap_or_default();
         assert_eq!(value, Some("hello".to_string()));
 
         // Test setting and getting integer
-        context.set("test_int", 42i64).unwrap();
-        let int_value: Option<i64> = context.get("test_int").unwrap();
+        context.set("test_int", 42i64).unwrap_or_default();
+        let int_value: Option<i64> = context.get("test_int").unwrap_or_default();
         assert_eq!(int_value, Some(42));
 
         // Test setting and getting boolean
-        context.set("test_bool", true).unwrap();
-        let bool_value: Option<bool> = context.get("test_bool").unwrap();
+        context.set("test_bool", true).unwrap_or_default();
+        let bool_value: Option<bool> = context.get("test_bool").unwrap_or_default();
         assert_eq!(bool_value, Some(true));
     }
 

@@ -172,7 +172,7 @@ impl PartialLeastSquares {
     /// Center and scale data
     fn preprocess_data(&self, data: &Array2<f64>) -> (Array2<f64>, Array1<f64>, Array1<f64>) {
         let mean = if self.center {
-            data.mean_axis(Axis(0)).unwrap()
+            data.mean_axis(Axis(0)).expect("array should have elements for mean computation")
         } else {
             Array1::zeros(data.ncols())
         };
@@ -608,7 +608,7 @@ mod tests {
         let y = array![[2.1, 3.2], [5.1, 6.0], [8.0, 9.1], [11.1, 12.0], [3.5, 4.6],];
 
         let pls = PartialLeastSquares::new(2);
-        let fitted = pls.fit(&(x.clone(), y.clone()), &()).unwrap();
+        let fitted = pls.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features_x, 3);
         assert_eq!(fitted.n_features_y, 2);
@@ -618,14 +618,14 @@ mod tests {
         assert_eq!(fitted.coef.dim(), (3, 2));
 
         // Test transformation
-        let x_scores = fitted.transform(&x).unwrap();
-        let y_scores = fitted.transform_y(&y).unwrap();
+        let x_scores = fitted.transform(&x).expect("transformation should succeed");
+        let y_scores = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_scores.dim(), (5, 2));
         assert_eq!(y_scores.dim(), (5, 2));
 
         // Test prediction
-        let y_pred = fitted.predict(&x).unwrap();
+        let y_pred = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(y_pred.dim(), (5, 2));
     }
 
@@ -656,7 +656,7 @@ mod tests {
         let y = array![[2.0, 3.0], [5.0, 6.0],];
 
         let pls = PartialLeastSquares::new(1);
-        let fitted = pls.fit(&(x, y), &()).unwrap();
+        let fitted = pls.fit(&(x, y), &()).expect("model fitting should succeed");
 
         // Test with wrong number of features
         let x_wrong = array![[1.0, 2.0]]; // Should have 3 features
@@ -679,12 +679,12 @@ mod tests {
 
         // Test PLS1
         let pls1 = PartialLeastSquares::new(1).algorithm(PLSAlgorithm::PLS1);
-        let fitted1 = pls1.fit(&(x.clone(), y.clone()), &()).unwrap();
+        let fitted1 = pls1.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
         assert_eq!(fitted1.n_components, 1);
 
         // Test PLS2
         let pls2 = PartialLeastSquares::new(1).algorithm(PLSAlgorithm::PLS2);
-        let fitted2 = pls2.fit(&(x.clone(), y.clone()), &()).unwrap();
+        let fitted2 = pls2.fit(&(x.clone(), y.clone()), &()).expect("model fitting should succeed");
         assert_eq!(fitted2.n_components, 1);
     }
 
@@ -695,7 +695,7 @@ mod tests {
         let y = array![[2.1], [4.0], [6.1], [8.0], [3.5],];
 
         let pls = PartialLeastSquares::new(1);
-        let fitted = pls.fit(&(x, y), &()).unwrap();
+        let fitted = pls.fit(&(x, y), &()).expect("model fitting should succeed");
 
         let x_var = fitted.x_explained_variance_ratio();
         let y_var = fitted.y_explained_variance_ratio();

@@ -6,7 +6,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -159,7 +159,7 @@ where
     let baseline_predictions = model_fn(X);
 
     // Calculate feature means for mean occlusion strategy
-    let feature_means = X.mean_axis(Axis(0)).unwrap();
+    let feature_means = X.mean_axis(Axis(0)).expect("operation should succeed");
 
     let mut importance_scores = Array1::zeros(n_features);
 
@@ -182,7 +182,7 @@ where
                 OcclusionStrategy::Noise => {
                     let noise_std = feature_means[feature_idx] * 0.1; // 10% of mean as noise
                     X_occluded[[sample_idx, feature_idx]] =
-                        rng.gen_range(-noise_std..noise_std + 1.0);
+                        rng.random_range(-noise_std..noise_std + 1.0);
                 }
                 OcclusionStrategy::Baseline => {
                     if let Some(ref baseline) = config.baseline {
@@ -302,7 +302,9 @@ where
     }
 
     // Compute importance scores as mean saliency
-    let importance_scores = saliency_map.mean_axis(Axis(0)).unwrap();
+    let importance_scores = saliency_map
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
 
     Ok(OcclusionResult {
         importance_scores,
@@ -340,7 +342,9 @@ where
     }
 
     // Compute importance scores
-    let importance_scores = guided_gradients.mean_axis(Axis(0)).unwrap();
+    let importance_scores = guided_gradients
+        .mean_axis(Axis(0))
+        .expect("operation should succeed");
 
     Ok(OcclusionResult {
         importance_scores,
@@ -541,7 +545,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_occlusion(&simple_model, &X.view(), None, &config).unwrap();
+        let result = analyze_occlusion(&simple_model, &X.view(), None, &config)
+            .expect("operation should succeed");
         assert_eq!(result.importance_scores.len(), 3);
 
         // Feature 0 should have highest importance (coefficient 2.0)
@@ -560,11 +565,14 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_occlusion(&simple_model, &X.view(), None, &config).unwrap();
+        let result = analyze_occlusion(&simple_model, &X.view(), None, &config)
+            .expect("operation should succeed");
         assert_eq!(result.importance_scores.len(), 2);
         assert!(result.integrated_gradients.is_some());
 
-        let ig = result.integrated_gradients.unwrap();
+        let ig = result
+            .integrated_gradients
+            .expect("operation should succeed");
         assert_eq!(ig.dim(), (1, 2));
     }
 
@@ -577,7 +585,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_occlusion(&simple_model, &X.view(), None, &config).unwrap();
+        let result = analyze_occlusion(&simple_model, &X.view(), None, &config)
+            .expect("operation should succeed");
         assert_eq!(result.importance_scores.len(), 3);
         assert!(result.saliency_map.is_some());
         assert!(result.attribution_map.is_some());
@@ -592,7 +601,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_occlusion(&simple_model, &X.view(), None, &config).unwrap();
+        let result = analyze_occlusion(&simple_model, &X.view(), None, &config)
+            .expect("operation should succeed");
         assert_eq!(result.importance_scores.len(), 2);
         assert!(result.attribution_map.is_some());
     }
@@ -606,7 +616,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_occlusion(&simple_model, &X.view(), None, &config).unwrap();
+        let result = analyze_occlusion(&simple_model, &X.view(), None, &config)
+            .expect("operation should succeed");
         assert_eq!(result.importance_scores.len(), 2);
         assert!(result.attribution_map.is_some());
     }
@@ -644,7 +655,7 @@ mod tests {
             stride,
             0.0,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.dim(), (2, 2));
     }

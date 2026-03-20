@@ -1018,7 +1018,7 @@ mod tests {
         // Get plugin metadata
         let metadata = registry.get_plugin_metadata("example_custom_plugin");
         assert!(metadata.is_some());
-        let metadata = metadata.unwrap();
+        let metadata = metadata.expect("operation should succeed");
         assert_eq!(metadata.name, "Example Custom Plugin");
         assert_eq!(metadata.version, "1.0.0");
     }
@@ -1029,10 +1029,13 @@ mod tests {
 
         // Register plugin
         let plugin = ExampleCustomPlugin::new();
-        registry.register_plugin(plugin, None).unwrap();
+        registry
+            .register_plugin(plugin, None)
+            .expect("operation should succeed");
 
         // Create input data
-        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect()).unwrap();
+        let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect())
+            .expect("operation should succeed");
         let input = PluginInput {
             data: PluginData::Tabular(data),
             predictions: None,
@@ -1046,7 +1049,7 @@ mod tests {
         let result = registry.execute_plugin("example_custom_plugin", &input);
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert_eq!(output.output_type, OutputType::FeatureImportance);
 
         match output.data {
@@ -1096,10 +1099,14 @@ mod tests {
 
         // Register plugin
         let plugin = ExampleCustomPlugin::new();
-        manager.registry().register_plugin(plugin, None).unwrap();
+        manager
+            .registry()
+            .register_plugin(plugin, None)
+            .expect("operation should succeed");
 
         // Create input data
-        let data = Array2::from_shape_vec((5, 2), (0..10).map(|x| x as Float).collect()).unwrap();
+        let data = Array2::from_shape_vec((5, 2), (0..10).map(|x| x as Float).collect())
+            .expect("operation should succeed");
         let input = PluginInput {
             data: PluginData::Tabular(data),
             predictions: None,
@@ -1131,7 +1138,9 @@ mod tests {
 
         // Register plugin
         let plugin = ExampleCustomPlugin::new();
-        registry.register_plugin(plugin, None).unwrap();
+        registry
+            .register_plugin(plugin, None)
+            .expect("operation should succeed");
 
         // List by input type
         let tabular_plugins = registry.list_plugins_by_input_type(InputType::Tabular);
@@ -1155,7 +1164,7 @@ mod tests {
         let plugin = ExampleCustomPlugin::new();
 
         // Test empty data validation
-        let empty_data = Array2::from_shape_vec((0, 0), vec![]).unwrap();
+        let empty_data = Array2::from_shape_vec((0, 0), vec![]).expect("operation should succeed");
         let input = PluginInput {
             data: PluginData::Tabular(empty_data),
             predictions: None,
@@ -1169,8 +1178,8 @@ mod tests {
         assert!(result.is_err());
 
         // Test valid data
-        let valid_data =
-            Array2::from_shape_vec((5, 2), (0..10).map(|x| x as Float).collect()).unwrap();
+        let valid_data = Array2::from_shape_vec((5, 2), (0..10).map(|x| x as Float).collect())
+            .expect("operation should succeed");
         let input = PluginInput {
             data: PluginData::Tabular(valid_data),
             predictions: None,

@@ -15,20 +15,25 @@ use sklears::utils::data_generation::make_classification;
 #[allow(non_snake_case)]
 fn test_simple_classification_pipeline() {
     // Generate synthetic data
-    let (X, y) = make_classification(50, 4, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X, y) = make_classification(50, 4, 3, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Skip preprocessing (StandardScaler not available in facade)
     let X_scaled = X.clone();
 
     // Train classifier
     let classifier = KNeighborsClassifier::new(3);
-    let fitted_classifier = classifier.fit(&X_scaled, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X_scaled, &y)
+        .expect("model fitting should succeed");
 
     // Make predictions
-    let predictions = fitted_classifier.predict(&X_scaled).unwrap();
+    let predictions = fitted_classifier
+        .predict(&X_scaled)
+        .expect("prediction should succeed");
 
     // Evaluate performance
-    let accuracy = accuracy_score(&y, &predictions).unwrap();
+    let accuracy = accuracy_score(&y, &predictions).expect("operation should succeed");
 
     // Should have reasonable accuracy on training data
     assert!(
@@ -54,14 +59,19 @@ fn test_simple_classification_pipeline() {
 #[allow(non_snake_case)]
 fn test_knn_probability_predictions() {
     // Generate binary classification data
-    let (X, y) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X, y) = make_classification(30, 3, 2, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Train classifier
     let classifier = KNeighborsClassifier::new(5);
-    let fitted_classifier = classifier.fit(&X, &y).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X, &y)
+        .expect("model fitting should succeed");
 
     // Test probability predictions
-    let probabilities = fitted_classifier.predict_proba(&X).unwrap();
+    let probabilities = fitted_classifier
+        .predict_proba(&X)
+        .expect("operation should succeed");
 
     assert_eq!(probabilities.nrows(), X.nrows());
     assert_eq!(probabilities.ncols(), 2); // Binary classification
@@ -97,7 +107,8 @@ fn test_preprocessing_consistency() {
 #[allow(non_snake_case)]
 fn test_data_generation_functions() {
     // Test make_classification
-    let (X, y) = make_classification(20, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X, y) = make_classification(20, 3, 2, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     assert_eq!(X.shape(), &[20, 3]);
     assert_eq!(y.len(), 20);
@@ -109,7 +120,8 @@ fn test_data_generation_functions() {
     assert_eq!(classes.len(), 2);
 
     // Check reproducibility
-    let (X2, y2) = make_classification(20, 3, 2, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X2, y2) = make_classification(20, 3, 2, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
     assert_eq!(X, X2);
     assert_eq!(y, y2);
 }
@@ -119,18 +131,23 @@ fn test_data_generation_functions() {
 #[ignore = "StandardScaler not available in facade crate"]
 fn test_cross_crate_compatibility() {
     // Test that different crates work together seamlessly
-    let (X, y) = make_classification(30, 4, 3, None, None, 0.0, 1.0, Some(42)).unwrap();
+    let (X, y) = make_classification(30, 4, 3, None, None, 0.0, 1.0, Some(42))
+        .expect("operation should succeed");
 
     // Use preprocessing from one crate - disabled
     let X_scaled = X.clone();
 
     // Use classifier from another crate
     let classifier = KNeighborsClassifier::new(3);
-    let fitted_classifier = classifier.fit(&X_scaled, &y).unwrap();
-    let predictions = fitted_classifier.predict(&X_scaled).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X_scaled, &y)
+        .expect("model fitting should succeed");
+    let predictions = fitted_classifier
+        .predict(&X_scaled)
+        .expect("prediction should succeed");
 
     // Use metrics from yet another crate
-    let accuracy = accuracy_score(&y, &predictions).unwrap();
+    let accuracy = accuracy_score(&y, &predictions).expect("operation should succeed");
 
     // Everything should work together
     assert!(accuracy > 0.6, "Should achieve reasonable accuracy");
@@ -141,12 +158,16 @@ fn test_cross_crate_compatibility() {
 #[allow(non_snake_case)]
 fn test_error_handling() {
     // Test dimension mismatch errors
-    let X_train = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+    let X_train = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("shape and data length should match");
     let y_train = array![0, 1, 2];
-    let X_test = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap(); // Wrong shape
+    let X_test = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .expect("shape and data length should match"); // Wrong shape
 
     let classifier = KNeighborsClassifier::new(2);
-    let fitted_classifier = classifier.fit(&X_train, &y_train).unwrap();
+    let fitted_classifier = classifier
+        .fit(&X_train, &y_train)
+        .expect("model fitting should succeed");
 
     // This should fail due to dimension mismatch
     let result = fitted_classifier.predict(&X_test);

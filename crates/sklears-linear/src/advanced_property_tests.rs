@@ -99,7 +99,7 @@ proptest! {
             }
 
             // Test prediction consistency
-            let predictions = trained_model.predict(&X).unwrap();
+            let predictions = trained_model.predict(&X).expect("prediction should succeed");
             prop_assert_eq!(predictions.len(), y.len());
 
             for &pred in predictions.iter() {
@@ -247,7 +247,7 @@ proptest! {
             }
 
             // Test predictions
-            let predictions = trained_model.predict(&X).unwrap();
+            let predictions = trained_model.predict(&X).expect("prediction should succeed");
             prop_assert_eq!(predictions.nrows(), n_samples);
             prop_assert_eq!(predictions.ncols(), n_targets);
 
@@ -378,7 +378,7 @@ proptest! {
 
         // Final cost should be less than initial cost for reasonable learning rates
         if learning_rate < 0.2 && max_iter >= 20 {
-            prop_assert!(costs.last().unwrap() < &costs[0]);
+            prop_assert!(costs.last().expect("operation should succeed") < &costs[0]);
         }
     }
 
@@ -424,8 +424,8 @@ proptest! {
                 }
                 
                 // Test predictions
-                let pred1 = trained_model1.predict(&X).unwrap();
-                let pred2 = trained_model2.predict(&X).unwrap();
+                let pred1 = trained_model1.predict(&X).expect("prediction should succeed");
+                let pred2 = trained_model2.predict(&X).expect("prediction should succeed");
 
                 for i in 0..pred1.len() {
                     let expected_pred = scale * pred1[i] + shift;
@@ -541,7 +541,7 @@ proptest! {
             .alphas(vec![alpha])
             .fit_intercept(false)
             .cv(3);
-        let ridge_result = ridge_model.fit(&X, &y).unwrap();
+        let ridge_result = ridge_model.fit(&X, &y).expect("model fitting should succeed");
 
         // Fit Lasso (l1_ratio = 1)
         let lasso_model = LassoCV::new()
@@ -549,7 +549,7 @@ proptest! {
             .fit_intercept(false)
             .cv(3)
             .max_iter(1000);
-        let lasso_result = lasso_model.fit(&X, &y).unwrap();
+        let lasso_result = lasso_model.fit(&X, &y).expect("model fitting should succeed");
 
         let ridge_coeffs = ridge_result.coef();
         let lasso_coeffs = lasso_result.coef();
@@ -685,7 +685,7 @@ mod performance_tests {
                 }
 
                 // Predictions should be more accurate with tighter tolerance
-                let predictions = trained_model.predict(&X).unwrap();
+                let predictions = trained_model.predict(&X).expect("prediction should succeed");
                 let residuals = &y - &predictions;
                 let mse = residuals.norm_squared() / (n_samples as f64);
 

@@ -632,7 +632,7 @@ mod tests {
         parameters.insert("metric".to_string(), "cpu_usage".to_string());
         parameters.insert("threshold".to_string(), "80".to_string());
 
-        let rule = template.instantiate("instantiated_rule".to_string(), parameters).unwrap();
+        let rule = template.instantiate("instantiated_rule".to_string(), parameters).unwrap_or_default();
 
         assert_eq!(rule.name, "Alert for web-server");
         assert_eq!(rule.expression, "cpu_usage > 80");

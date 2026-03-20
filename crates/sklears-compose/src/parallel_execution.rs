@@ -286,7 +286,10 @@ impl TaskDispatcher {
     pub fn dispatch_task(&self, task: ParallelTask, workers: &mut [WorkerState]) -> SklResult<()> {
         let worker_index = match self.strategy {
             LoadBalancingStrategy::RoundRobin => {
-                let mut index = self.round_robin_index.lock().unwrap();
+                let mut index = self
+                    .round_robin_index
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 let selected = *index;
                 *index = (*index + 1) % workers.len();
                 selected
@@ -303,11 +306,14 @@ impl TaskDispatcher {
         };
 
         // Add task to selected worker's queue
-        let mut queue = workers[worker_index].task_queue.lock().unwrap();
+        let mut queue = workers[worker_index]
+            .task_queue
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         queue.push_back(task);
 
         // Update worker load
-        let mut loads = self.worker_loads.write().unwrap();
+        let mut loads = self.worker_loads.write().unwrap_or_else(|e| e.into_inner());
         loads[worker_index] += 1;
 
         Ok(())
@@ -315,7 +321,7 @@ impl TaskDispatcher {
 
     /// Find least loaded worker
     fn find_least_loaded_worker(&self, workers: &[WorkerState]) -> usize {
-        let loads = self.worker_loads.read().unwrap();
+        let loads = self.worker_loads.read().unwrap_or_else(|e| e.into_inner());
         loads
             .iter()
             .enumerate()
@@ -334,7 +340,7 @@ impl TaskDispatcher {
 
     /// Update worker load
     pub fn update_worker_load(&self, worker_index: usize, delta: i32) {
-        let mut loads = self.worker_loads.write().unwrap();
+        let mut loads = self.worker_loads.write().unwrap_or_else(|e| e.into_inner());
         if delta < 0 {
             loads[worker_index] = loads[worker_index].saturating_sub((-delta) as usize);
         } else {
@@ -365,7 +371,7 @@ impl ParallelExecutor {
     /// Start the parallel executor
     pub fn start(&mut self) -> SklResult<()> {
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock().unwrap_or_else(|e| e.into_inner());
             if *running {
                 return Ok(());
             }
@@ -389,7 +395,7 @@ impl ParallelExecutor {
     /// Stop the parallel executor
     pub fn stop(&mut self) -> SklResult<()> {
         {
-            let mut running = self.is_running.lock().unwrap();
+            let mut running = self.is_running.lock().unwrap_or_else(|e| e.into_inner());
             *running = false;
         }
 
@@ -475,10 +481,10 @@ impl ParallelExecutor {
     ) {
         let mut local_stats = WorkerStatistics::default();
 
-        while *is_running.lock().unwrap() {
+        while *is_running.lock().unwrap_or_else(|e| e.into_inner()) {
             // Try to get task from local queue
             let task = {
-                let mut queue = task_queue.lock().unwrap();
+                let mut queue = task_queue.lock().unwrap_or_else(|e| e.into_inner());
                 queue.pop_front()
             };
 
@@ -489,10 +495,10 @@ impl ParallelExecutor {
                 Self::steal_work(&other_workers, worker_id, &mut local_stats)
             } else {
                 // Wait for work
-                let queue = task_queue.lock().unwrap();
+                let queue = task_queue.lock().unwrap_or_else(|e| e.into_inner());
                 let _guard = shutdown_signal
                     .wait_timeout(queue, config.idle_timeout)
-                    .unwrap();
+                    .unwrap_or_else(|e| e.into_inner());
                 continue;
             };
 
@@ -533,13 +539,13 @@ impl ParallelExecutor {
 
                 // Store completed task
                 {
-                    let mut completed = completed_tasks.lock().unwrap();
+                    let mut completed = completed_tasks.lock().unwrap_or_else(|e| e.into_inner());
                     completed.insert(task_id, result);
                 }
 
                 // Update global statistics
                 {
-                    let mut stats = statistics.write().unwrap();
+                    let mut stats = statistics.write().unwrap_or_else(|e| e.into_inner());
                     stats.tasks_completed += 1;
                     stats.last_updated = SystemTime::now();
                 }
@@ -567,7 +573,7 @@ impl ParallelExecutor {
     /// Submit a task for parallel execution
     pub fn submit_task(&mut self, task: ParallelTask) -> SklResult<()> {
         {
-            let mut stats = self.statistics.write().unwrap();
+            let mut stats = self.statistics.write().unwrap_or_else(|e| e.into_inner());
             stats.tasks_submitted += 1;
         }
 
@@ -577,13 +583,16 @@ impl ParallelExecutor {
 
     /// Get task result
     pub fn get_task_result(&self, task_id: &str) -> Option<TaskResult> {
-        let completed = self.completed_tasks.lock().unwrap();
+        let completed = self
+            .completed_tasks
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         completed.get(task_id).cloned()
     }
 
     /// Get executor statistics
     pub fn statistics(&self) -> ExecutorStatistics {
-        let stats = self.statistics.read().unwrap();
+        let stats = self.statistics.read().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 

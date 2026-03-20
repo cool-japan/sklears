@@ -10,8 +10,8 @@ fn test_lda_with_shrinkage() {
     let (x, y) = create_simple_2d_data();
 
     let lda = LinearDiscriminantAnalysis::new().shrinkage(Some(0.1));
-    let fitted = lda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = lda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -22,8 +22,8 @@ fn test_qda_with_regularization() {
     let (x, y) = create_simple_2d_data();
 
     let qda = QuadraticDiscriminantAnalysis::new().reg_param(0.1);
-    let fitted = qda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = qda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -34,8 +34,8 @@ fn test_sparse_lda() {
     let (x, y) = create_simple_2d_data();
 
     let lda = LinearDiscriminantAnalysis::new().l1_reg(0.1).max_iter(50);
-    let fitted = lda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = lda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -51,8 +51,8 @@ fn test_elastic_net_lda() {
         .elastic_net_ratio(0.5)
         .max_iter(50);
 
-    let fitted = lda.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = lda.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -69,8 +69,8 @@ fn test_adaptive_regularization_ledoit_wolf() {
         })
         .initial_learning_rate(0.01);
 
-    let fitted = ada.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -84,8 +84,8 @@ fn test_adaptive_regularization_oas() {
         .base_discriminant(BaseDiscriminant::RegularizedLDA { reg_param: 0.1 })
         .adaptation_strategy(AdaptationStrategy::ExponentialMovingAverage { decay_rate: 0.9 });
 
-    let fitted = ada.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);
@@ -102,8 +102,8 @@ fn test_adaptive_regularization_mcd() {
         })
         .adaptation_frequency(10);
 
-    let fitted = ada.fit(&x, &y).unwrap();
-    let predictions = fitted.predict(&x).unwrap();
+    let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+    let predictions = fitted.predict(&x).expect("prediction should succeed");
 
     assert_eq!(predictions.len(), 4);
     assert_eq!(fitted.classes().len(), 2);

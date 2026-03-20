@@ -6,7 +6,7 @@
 // use crate::*;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::SeedableRng;
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::Result as SklResult,
     prelude::{SklearsError, Transform},
@@ -109,7 +109,7 @@ impl<S> TangentSpaceExtractor<S> {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k = self.n_neighbors.min(distances.len());
 
         // Create matrix of centered neighborhood points
@@ -483,7 +483,7 @@ impl<S> GeodesicDistanceExtractor<S> {
                 }
             }
 
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(dist, j) in neighbors.iter().take(self.n_neighbors) {
@@ -543,10 +543,8 @@ impl<S> GeodesicDistanceExtractor<S> {
             StdRng::seed_from_u64(42)
         };
 
-        use scirs2_core::random::Rng;
-
         // Start with random point
-        let first_point = rng.gen_range(0..n_samples);
+        let first_point = rng.random_range(0..n_samples);
         reference_points.push(first_point);
 
         // Add points that are farthest from already selected points
@@ -761,7 +759,7 @@ impl<S> RiemannianFeatureExtractor<S> {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k = self.n_neighbors.min(distances.len());
 
         // Create matrix of centered neighborhood points
@@ -814,7 +812,7 @@ impl<S> RiemannianFeatureExtractor<S> {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let k = self.n_neighbors.min(distances.len());
 
         if k < 3 {
@@ -976,8 +974,8 @@ mod tests {
 
         let extractor = TangentSpaceExtractor::new().tangent_dim(1).n_neighbors(3);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 10);
         assert!(features.ncols() > 0);
@@ -1002,8 +1000,8 @@ mod tests {
             .n_neighbors(3)
             .n_reference_points(3);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 8);
         assert_eq!(features.ncols(), 3);
@@ -1030,8 +1028,8 @@ mod tests {
             .include_curvature(true)
             .include_metric_tensor(true);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 6);
         assert!(features.ncols() > 0);
@@ -1053,11 +1051,12 @@ mod tests {
 
     #[test]
     fn test_geodesic_distance_extractor_single_point() {
-        let data = Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).unwrap();
+        let data =
+            Array2::from_shape_vec((1, 2), vec![1.0, 2.0]).expect("operation should succeed");
         let extractor = GeodesicDistanceExtractor::new().n_reference_points(1);
 
-        let fitted = extractor.fit(&data, &()).unwrap();
-        let features = fitted.transform(&data).unwrap();
+        let fitted = extractor.fit(&data, &()).expect("operation should succeed");
+        let features = fitted.transform(&data).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 1);
         assert_eq!(features.ncols(), 1);

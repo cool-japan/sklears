@@ -29,7 +29,7 @@ pub fn trimmed_mean_error(
         .map(|(t, p)| (t - p).abs())
         .collect();
 
-    errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = errors.len();
     let trim_count = (n as f64 * trim_fraction) as usize;
@@ -65,7 +65,7 @@ pub fn winsorized_mean_error(
         .map(|(t, p)| (t - p).abs())
         .collect();
 
-    errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = errors.len();
     let lower_idx = (n as f64 * limits.0) as usize;
@@ -111,7 +111,7 @@ pub fn biweight_midvariance(
 
     // Calculate median
     let mut sorted_residuals = residuals.clone();
-    sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_residuals.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let n = sorted_residuals.len();
     let median = if n % 2 == 0 {
         (sorted_residuals[n / 2 - 1] + sorted_residuals[n / 2]) / 2.0
@@ -122,7 +122,7 @@ pub fn biweight_midvariance(
     // Calculate MAD
     let mad_values: Vec<f64> = residuals.iter().map(|r| (r - median).abs()).collect();
     let mut sorted_mad = mad_values;
-    sorted_mad.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_mad.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let mad = if n % 2 == 0 {
         (sorted_mad[n / 2 - 1] + sorted_mad[n / 2]) / 2.0
     } else {
@@ -188,7 +188,7 @@ pub fn theil_sen_slope(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> MetricsRes
         ));
     }
 
-    slopes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    slopes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let n_slopes = slopes.len();
     let median_slope = if n_slopes % 2 == 0 {
         (slopes[n_slopes / 2 - 1] + slopes[n_slopes / 2]) / 2.0
@@ -247,7 +247,7 @@ mod tests {
     fn test_trimmed_mean_error() {
         let y_true = array![1.0, 2.0, 3.0, 100.0]; // One outlier
         let y_pred = array![1.0, 2.0, 3.0, 3.0];
-        let error = trimmed_mean_error(&y_true, &y_pred, 0.25).unwrap();
+        let error = trimmed_mean_error(&y_true, &y_pred, 0.25).expect("operation should succeed");
         assert!(error < 1.0); // Should be small after trimming outlier
     }
 
@@ -255,7 +255,7 @@ mod tests {
     fn test_theil_sen_slope() {
         let y_true = array![1.0, 2.0, 3.0, 4.0];
         let y_pred = array![1.0, 2.0, 3.0, 4.0]; // Perfect correlation
-        let slope = theil_sen_slope(&y_true, &y_pred).unwrap();
+        let slope = theil_sen_slope(&y_true, &y_pred).expect("operation should succeed");
         assert!((slope - 1.0).abs() < 0.1);
     }
 
@@ -263,7 +263,7 @@ mod tests {
     fn test_kendall_tau_distance_perfect() {
         let y_true = array![1.0, 2.0, 3.0, 4.0];
         let y_pred = array![1.0, 2.0, 3.0, 4.0]; // Perfect correlation
-        let distance = kendall_tau_distance(&y_true, &y_pred).unwrap();
+        let distance = kendall_tau_distance(&y_true, &y_pred).expect("operation should succeed");
         assert!(distance < 0.1); // Should be close to 0
     }
 }

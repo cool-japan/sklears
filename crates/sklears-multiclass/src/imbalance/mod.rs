@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn test_class_distribution() {
         let y = vec![0, 0, 0, 1, 1, 2];
-        let dist = ClassDistribution::new(&y).unwrap();
+        let dist = ClassDistribution::new(&y).expect("operation should succeed");
         
         assert_eq!(dist.total_samples, 6);
         assert_eq!(dist.num_classes, 3);
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn test_imbalance_detection() {
         let y = vec![0, 0, 0, 0, 1];
-        let dist = ClassDistribution::new(&y).unwrap();
+        let dist = ClassDistribution::new(&y).expect("operation should succeed");
         
         assert!(dist.is_imbalanced(3.0));
         assert!(!dist.is_imbalanced(5.0));
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn test_strategy_recommendation() {
         let y_balanced = vec![0, 0, 1, 1, 2, 2];
-        let dist_balanced = ClassDistribution::new(&y_balanced).unwrap();
+        let dist_balanced = ClassDistribution::new(&y_balanced).expect("operation should succeed");
         
         match recommend_strategy(&dist_balanced) {
             ImbalanceStrategy::None => {},
@@ -244,7 +244,7 @@ mod tests {
         }
         
         let y_imbalanced = vec![0, 0, 0, 0, 1, 2];
-        let dist_imbalanced = ClassDistribution::new(&y_imbalanced).unwrap();
+        let dist_imbalanced = ClassDistribution::new(&y_imbalanced).expect("operation should succeed");
         
         match recommend_strategy(&dist_imbalanced) {
             ImbalanceStrategy::CostSensitive => {},
@@ -255,11 +255,11 @@ mod tests {
     #[test]
     fn test_gini_coefficient() {
         let y_balanced = vec![0, 0, 1, 1, 2, 2];
-        let dist_balanced = ClassDistribution::new(&y_balanced).unwrap();
+        let dist_balanced = ClassDistribution::new(&y_balanced).expect("operation should succeed");
         let gini_balanced = dist_balanced.gini_coefficient();
         
         let y_imbalanced = vec![0, 0, 0, 0, 1, 2];
-        let dist_imbalanced = ClassDistribution::new(&y_imbalanced).unwrap();
+        let dist_imbalanced = ClassDistribution::new(&y_imbalanced).expect("operation should succeed");
         let gini_imbalanced = dist_imbalanced.gini_coefficient();
         
         assert!(gini_imbalanced < gini_balanced);
@@ -268,11 +268,11 @@ mod tests {
     #[test]
     fn test_effective_number_of_classes() {
         let y_balanced = vec![0, 0, 1, 1, 2, 2];
-        let dist_balanced = ClassDistribution::new(&y_balanced).unwrap();
+        let dist_balanced = ClassDistribution::new(&y_balanced).expect("operation should succeed");
         let enc_balanced = dist_balanced.effective_number_of_classes();
         
         let y_imbalanced = vec![0, 0, 0, 0, 1, 2];
-        let dist_imbalanced = ClassDistribution::new(&y_imbalanced).unwrap();
+        let dist_imbalanced = ClassDistribution::new(&y_imbalanced).expect("operation should succeed");
         let enc_imbalanced = dist_imbalanced.effective_number_of_classes();
         
         assert!(enc_balanced > enc_imbalanced);

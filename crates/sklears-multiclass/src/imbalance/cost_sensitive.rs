@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn test_cost_matrix_from_distribution() {
         let y = vec![0, 0, 0, 1, 1, 2];
-        let distribution = ClassDistribution::new(&y).unwrap();
+        let distribution = ClassDistribution::new(&y).expect("operation should succeed");
         let cost_matrix = CostMatrix::from_distribution(&distribution);
         
         assert_eq!(cost_matrix.num_classes, 3);
@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn test_balanced_weights() {
         let y = vec![0, 0, 0, 1, 1, 2];
-        let distribution = ClassDistribution::new(&y).unwrap();
+        let distribution = ClassDistribution::new(&y).expect("operation should succeed");
         let weights = CostMatrix::balanced_weights(&distribution);
         
         assert!(weights[&2] > weights[&0]);
@@ -358,7 +358,7 @@ mod tests {
     fn test_cost_sensitive_wrapper() {
         let mock_classifier = MockClassifier::new();
         let y = vec![0, 0, 0, 1, 1, 2];
-        let distribution = ClassDistribution::new(&y).unwrap();
+        let distribution = ClassDistribution::new(&y).expect("operation should succeed");
         
         let result = create_cost_sensitive_wrapper(
             mock_classifier,

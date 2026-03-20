@@ -310,24 +310,38 @@ impl ImbalancedEnsembleClassifier<Untrained> {
 
     /// Analyze class distribution in the dataset
     fn analyze_class_distribution(&mut self, y: &[usize]) -> SklResult<()> {
-        self.class_distributions.as_mut().unwrap().clear();
+        self.class_distributions
+            .as_mut()
+            .expect("operation should succeed")
+            .clear();
 
         for &class in y {
             *self
                 .class_distributions
                 .as_mut()
-                .unwrap()
+                .expect("operation should succeed")
                 .entry(class)
                 .or_insert(0) += 1;
         }
 
         // Calculate class weights for imbalanced data
         let total_samples = y.len();
-        let n_classes = self.class_distributions.as_ref().unwrap().len();
+        let n_classes = self
+            .class_distributions
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
 
-        for (&class, &count) in self.class_distributions.as_ref().unwrap() {
+        for (&class, &count) in self
+            .class_distributions
+            .as_ref()
+            .expect("operation should succeed")
+        {
             let weight = total_samples as f64 / (n_classes as f64 * count as f64);
-            self.class_weights.as_mut().unwrap().insert(class, weight);
+            self.class_weights
+                .as_mut()
+                .expect("operation should succeed")
+                .insert(class, weight);
         }
 
         Ok(())
@@ -370,7 +384,7 @@ impl ImbalancedEnsembleClassifier<Untrained> {
         let min_class_size = self
             .class_distributions
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .values()
             .min()
             .copied()
@@ -380,7 +394,11 @@ impl ImbalancedEnsembleClassifier<Untrained> {
 
         let mut resampled_indices = Vec::new();
 
-        for (&class, &count) in self.class_distributions.as_ref().unwrap() {
+        for (&class, &count) in self
+            .class_distributions
+            .as_ref()
+            .expect("operation should succeed")
+        {
             let class_indices: Vec<usize> = y
                 .iter()
                 .enumerate()
@@ -441,7 +459,7 @@ impl ImbalancedEnsembleClassifier<Untrained> {
         let max_class_size = self
             .class_distributions
             .as_ref()
-            .unwrap()
+            .expect("operation should succeed")
             .values()
             .max()
             .copied()
@@ -451,7 +469,11 @@ impl ImbalancedEnsembleClassifier<Untrained> {
         let mut resampled_X = Vec::new();
         let mut resampled_y = Vec::new();
 
-        for (&class, &count) in self.class_distributions.as_ref().unwrap() {
+        for (&class, &count) in self
+            .class_distributions
+            .as_ref()
+            .expect("operation should succeed")
+        {
             let class_indices: Vec<usize> = y
                 .iter()
                 .enumerate()
@@ -621,7 +643,7 @@ impl ImbalancedEnsembleClassifier<Untrained> {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         distances.iter().take(k).map(|(_, idx)| *idx).collect()
     }
 
@@ -647,8 +669,16 @@ impl ImbalancedEnsembleClassifier<Untrained> {
                 }
                 _ => {
                     // Default to 0.5 for all classes
-                    for &class in self.class_distributions.as_ref().unwrap().keys() {
-                        self.optimal_thresholds.as_mut().unwrap().insert(class, 0.5);
+                    for &class in self
+                        .class_distributions
+                        .as_ref()
+                        .expect("operation should succeed")
+                        .keys()
+                    {
+                        self.optimal_thresholds
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .insert(class, 0.5);
                     }
                 }
             }
@@ -659,8 +689,16 @@ impl ImbalancedEnsembleClassifier<Untrained> {
     /// Optimize threshold using Youden's J statistic
     fn optimize_youden_threshold(&mut self, _X: &Array2<f64>, _y: &[usize]) -> SklResult<()> {
         // Simplified implementation - in practice would use ROC analysis
-        for &class in self.class_distributions.as_ref().unwrap().keys() {
-            self.optimal_thresholds.as_mut().unwrap().insert(class, 0.5);
+        for &class in self
+            .class_distributions
+            .as_ref()
+            .expect("operation should succeed")
+            .keys()
+        {
+            self.optimal_thresholds
+                .as_mut()
+                .expect("operation should succeed")
+                .insert(class, 0.5);
         }
         Ok(())
     }
@@ -668,8 +706,16 @@ impl ImbalancedEnsembleClassifier<Untrained> {
     /// Optimize threshold for F1 score
     fn optimize_f1_threshold(&mut self, _X: &Array2<f64>, _y: &[usize]) -> SklResult<()> {
         // Simplified implementation - in practice would optimize F1 score
-        for &class in self.class_distributions.as_ref().unwrap().keys() {
-            self.optimal_thresholds.as_mut().unwrap().insert(class, 0.5);
+        for &class in self
+            .class_distributions
+            .as_ref()
+            .expect("operation should succeed")
+            .keys()
+        {
+            self.optimal_thresholds
+                .as_mut()
+                .expect("operation should succeed")
+                .insert(class, 0.5);
         }
         Ok(())
     }
@@ -692,9 +738,19 @@ impl ImbalancedEnsembleClassifier<Untrained> {
             let mut sample_indices = Vec::new();
 
             // Equal sampling from each class
-            let samples_per_class = X.shape()[0] / self.class_distributions.as_ref().unwrap().len();
+            let samples_per_class = X.shape()[0]
+                / self
+                    .class_distributions
+                    .as_ref()
+                    .expect("sampling should succeed")
+                    .len();
 
-            for &class in self.class_distributions.as_ref().unwrap().keys() {
+            for &class in self
+                .class_distributions
+                .as_ref()
+                .expect("operation should succeed")
+                .keys()
+            {
                 let class_indices: Vec<usize> = y
                     .iter()
                     .enumerate()
@@ -905,7 +961,7 @@ impl SMOTESampler {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbors = distances
             .iter()
             .take(self.config.k_neighbors)
@@ -1120,7 +1176,7 @@ impl<State> ImbalancedEnsembleClassifier<State> {
                 .iter()
                 .max_by_key(|(_, &count)| count)
                 .map(|(class, _)| class)
-                .unwrap();
+                .expect("operation should succeed");
 
             final_predictions.push(predicted_class);
         }
@@ -1149,9 +1205,13 @@ impl<State> ImbalancedEnsembleClassifier<State> {
 
             let predicted_class = *class_scores
                 .iter()
-                .max_by(|(_, &score1), (_, &score2)| score1.partial_cmp(&score2).unwrap())
+                .max_by(|(_, &score1), (_, &score2)| {
+                    score1
+                        .partial_cmp(&score2)
+                        .expect("operation should succeed")
+                })
                 .map(|(class, _)| class)
-                .unwrap();
+                .expect("operation should succeed");
 
             final_predictions.push(predicted_class);
         }
@@ -1246,20 +1306,52 @@ mod tests {
         let mut classifier = ImbalancedEnsembleClassifier::new(config);
 
         let y = vec![0, 0, 0, 0, 1, 2]; // Imbalanced: 4 class 0, 1 class 1, 1 class 2
-        classifier.analyze_class_distribution(&y).unwrap();
+        classifier
+            .analyze_class_distribution(&y)
+            .expect("operation should succeed");
 
-        assert_eq!(classifier.class_distributions.as_ref().unwrap()[&0], 4);
-        assert_eq!(classifier.class_distributions.as_ref().unwrap()[&1], 1);
-        assert_eq!(classifier.class_distributions.as_ref().unwrap()[&2], 1);
+        assert_eq!(
+            classifier
+                .class_distributions
+                .as_ref()
+                .expect("operation should succeed")[&0],
+            4
+        );
+        assert_eq!(
+            classifier
+                .class_distributions
+                .as_ref()
+                .expect("operation should succeed")[&1],
+            1
+        );
+        assert_eq!(
+            classifier
+                .class_distributions
+                .as_ref()
+                .expect("operation should succeed")[&2],
+            1
+        );
 
         // Check class weights (should be higher for minority classes)
         assert!(
-            classifier.class_weights.as_ref().unwrap()[&1]
-                > classifier.class_weights.as_ref().unwrap()[&0]
+            classifier
+                .class_weights
+                .as_ref()
+                .expect("operation should succeed")[&1]
+                > classifier
+                    .class_weights
+                    .as_ref()
+                    .expect("operation should succeed")[&0]
         );
         assert!(
-            classifier.class_weights.as_ref().unwrap()[&2]
-                > classifier.class_weights.as_ref().unwrap()[&0]
+            classifier
+                .class_weights
+                .as_ref()
+                .expect("operation should succeed")[&2]
+                > classifier
+                    .class_weights
+                    .as_ref()
+                    .expect("operation should succeed")[&0]
         );
     }
 
@@ -1281,10 +1373,12 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.3, 1.3, 5.0, 5.0, 5.1, 5.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = vec![0, 0, 0, 0, 1, 1]; // Class 0: 4 samples, Class 1: 2 samples
 
-        let (X_resampled, y_resampled) = sampler.fit_resample(&X, &y).unwrap();
+        let (X_resampled, y_resampled) = sampler
+            .fit_resample(&X, &y)
+            .expect("sampling should succeed");
 
         // Check that minority class was oversampled
         let class_1_count = y_resampled.iter().filter(|&&c| c == 1).count();
@@ -1318,12 +1412,17 @@ mod tests {
     #[test]
     fn test_cost_sensitive_ensemble() {
         // Create a simple cost matrix - class 1 misclassification costs 3x more
-        let cost_matrix = Array2::from_shape_vec((2, 2), vec![1.0, 3.0, 1.0, 1.0]).unwrap();
+        let cost_matrix = Array2::from_shape_vec((2, 2), vec![1.0, 3.0, 1.0, 1.0])
+            .expect("shape and data length should match");
         let classifier = ImbalancedEnsembleClassifier::cost_sensitive(cost_matrix);
 
         // Verify configuration
         assert!(classifier.config.cost_sensitive_config.is_some());
-        let cost_config = classifier.config.cost_sensitive_config.as_ref().unwrap();
+        let cost_config = classifier
+            .config
+            .cost_sensitive_config
+            .as_ref()
+            .expect("operation should succeed");
         assert_eq!(cost_config.cost_matrix.shape(), &[2, 2]);
         assert!(cost_config.class_balanced_weights);
         assert_eq!(
@@ -1343,7 +1442,11 @@ mod tests {
 
         // Verify configuration
         assert!(classifier.config.cost_sensitive_config.is_some());
-        let cost_config = classifier.config.cost_sensitive_config.as_ref().unwrap();
+        let cost_config = classifier
+            .config
+            .cost_sensitive_config
+            .as_ref()
+            .expect("operation should succeed");
         assert_eq!(cost_config.class_weights, Some(class_weights));
         assert!(!cost_config.class_balanced_weights);
     }
@@ -1355,7 +1458,11 @@ mod tests {
         // Verify configuration
         assert_eq!(classifier.config.sampling_strategy, SamplingStrategy::SMOTE);
         assert!(classifier.config.smote_config.is_some());
-        let smote_config = classifier.config.smote_config.as_ref().unwrap();
+        let smote_config = classifier
+            .config
+            .smote_config
+            .as_ref()
+            .expect("operation should succeed");
         assert_eq!(smote_config.k_neighbors, 3);
         assert!(classifier.config.balanced_bootstrap);
     }

@@ -79,7 +79,7 @@ fn estimate_adaptive_bandwidth(
             .map(|j| distances[(i, j)])
             .collect();
 
-        row_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        row_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Use k-th nearest neighbor distance as bandwidth
         if row_distances.len() >= k_neighbors {
@@ -261,7 +261,7 @@ pub fn diffusion_distance(
         .map(|(&val, vec)| (val, vec))
         .collect();
 
-    eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+    eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
     // Take top k eigenvectors and eigenvalues
     let selected_eigenvals: Vec<Float> = eigen_pairs.iter().take(k).map(|(val, _)| *val).collect();
@@ -420,7 +420,7 @@ pub mod diffusion_utils {
             .map_err(|e| format!("Eigendecomposition failed: {:?}", e))?;
 
         let mut sorted_eigenvals: Vec<Float> = eigenvals.to_vec();
-        sorted_eigenvals.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        sorted_eigenvals.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
         // Find spectral gap (largest gap between consecutive eigenvalues)
         let mut max_gap = 0.0;
@@ -503,7 +503,7 @@ pub mod diffusion_utils {
             .map(|(&val, vec)| (val, vec))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Use top n_clusters eigenvectors as features
         let n = data.nrows();

@@ -196,8 +196,12 @@ fn main() {
         "This is somewhat okay.".to_string(),
     ];
 
-    let features = advanced_analyzer.extract_features(&documents).unwrap();
-    let feature_names = advanced_analyzer.feature_names().unwrap();
+    let features = advanced_analyzer
+        .extract_features(&documents)
+        .expect("operation should succeed");
+    let feature_names = advanced_analyzer
+        .feature_names()
+        .expect("operation should succeed");
 
     println!(
         "\nExtracted features ({} features per document):",
@@ -277,7 +281,9 @@ fn main() {
         advanced_analyzer.vocabulary_size()
     );
 
-    let feature_types = advanced_analyzer.feature_types().unwrap();
+    let feature_types = advanced_analyzer
+        .feature_types()
+        .expect("operation should succeed");
     println!("\nFeature types:");
     for (name, ftype) in feature_names.iter().zip(feature_types.iter()) {
         println!("  {:<25}: {}", name, ftype);

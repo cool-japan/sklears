@@ -28,18 +28,27 @@ fn test_multi_task_lasso_integration() {
     // Fit the model
     let model = MultiTaskLasso::new().alpha(0.1).fit_intercept(true);
 
-    let fitted = model.fit(&x, &y).unwrap();
+    let fitted = model.fit(&x, &y).expect("model fitting should succeed");
 
     // Make predictions
     let x_test = array![[6.0, 7.0], [7.0, 8.0]];
-    let predictions = fitted.predict(&x_test).unwrap();
+    let predictions = fitted.predict(&x_test).expect("prediction should succeed");
 
     // Check predictions shape
     assert_eq!(predictions.shape(), &[2, 2]);
 
     // Check coefficients shape
-    assert_eq!(fitted.coef().unwrap().shape(), &[2, 2]);
-    assert_eq!(fitted.intercept().unwrap().len(), 2);
+    assert_eq!(
+        fitted.coef().expect("operation should succeed").shape(),
+        &[2, 2]
+    );
+    assert_eq!(
+        fitted
+            .intercept()
+            .expect("intercept should be available")
+            .len(),
+        2
+    );
 }
 
 #[test]
@@ -62,14 +71,23 @@ fn test_multi_task_elastic_net_integration() {
 
     // Fit with different l1_ratios
     let models = vec![
-        MultiTaskElasticNet::new().alpha(0.5).l1_ratio(0.0), // Ridge
-        MultiTaskElasticNet::new().alpha(0.5).l1_ratio(0.5), // Elastic Net
-        MultiTaskElasticNet::new().alpha(0.5).l1_ratio(1.0), // Lasso
+        MultiTaskElasticNet::new()
+            .alpha(0.5)
+            .l1_ratio(0.0)
+            .expect("l1_ratio should be valid"), // Ridge
+        MultiTaskElasticNet::new()
+            .alpha(0.5)
+            .l1_ratio(0.5)
+            .expect("l1_ratio should be valid"), // Elastic Net
+        MultiTaskElasticNet::new()
+            .alpha(0.5)
+            .l1_ratio(1.0)
+            .expect("l1_ratio should be valid"), // Lasso
     ];
 
     for (i, model) in models.into_iter().enumerate() {
-        let fitted = model.fit(&x, &y).unwrap();
-        let coef = fitted.coef().unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let coef = fitted.coef().expect("operation should succeed");
 
         // Count non-zero coefficients
         let non_zero_count = coef.iter().filter(|&&v| v.abs() > 1e-6).count();
@@ -77,7 +95,7 @@ fn test_multi_task_elastic_net_integration() {
         println!("Model {} non-zero coefficients: {}", i, non_zero_count);
 
         // Make predictions
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.shape(), &[4, 3]);
     }
 }
@@ -96,7 +114,9 @@ fn test_multi_task_models_error_handling() {
     assert!(result.is_err());
 
     // Test prediction with wrong number of features
-    let fitted = MultiTaskLasso::new().fit(&x, &y).unwrap();
+    let fitted = MultiTaskLasso::new()
+        .fit(&x, &y)
+        .expect("model fitting should succeed");
     let x_test_wrong = array![[1.0, 2.0]];
 
     let result = fitted.predict(&x_test_wrong);
@@ -139,11 +159,16 @@ fn test_multi_task_cross_validation_compatibility() {
         let x_test = x.slice(s![split_idx.., ..]).to_owned();
         let y_test = y.slice(s![split_idx.., ..]).to_owned();
 
-        let fitted = model.fit(&x_train, &y_train).unwrap();
-        let predictions = fitted.predict(&x_test).unwrap();
+        let fitted = model
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x_test).expect("prediction should succeed");
 
         // Compute MSE
-        let mse = (&predictions - &y_test).mapv(|v| v.powi(2)).mean().unwrap();
+        let mse = (&predictions - &y_test)
+            .mapv(|v| v.powi(2))
+            .mean()
+            .expect("mean computation should succeed for non-empty array");
 
         if mse < best_score {
             best_score = mse;

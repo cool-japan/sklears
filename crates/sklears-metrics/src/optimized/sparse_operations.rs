@@ -281,7 +281,7 @@ impl SparseMetrics {
             }
         }
 
-        Ok(sum / F::from(y_true.dim()).unwrap())
+        Ok(sum / F::from(y_true.dim()).expect("operation should succeed"))
     }
 
     /// Compute mean squared error for sparse matrices
@@ -320,7 +320,7 @@ impl SparseMetrics {
             }
         }
 
-        Ok(sum / F::from(y_true.dim()).unwrap())
+        Ok(sum / F::from(y_true.dim()).expect("operation should succeed"))
     }
 
     /// Compute cosine similarity for sparse vectors
@@ -403,7 +403,7 @@ impl SparseMetrics {
             return Ok(F::zero());
         }
 
-        Ok(F::from(intersection).unwrap() / F::from(union).unwrap())
+        Ok(F::from(intersection).expect("operation should succeed") / F::from(union).expect("operation should succeed"))
     }
 }
 
@@ -441,7 +441,7 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 2, 1, 0, 0, 1];
 
-        matrix.update(&y_true, &y_pred).unwrap();
+        matrix.update(&y_true, &y_pred).expect("operation should succeed");
 
         assert_eq!(matrix.get(0, 0), 2); // True 0, Pred 0
         assert_eq!(matrix.get(1, 0), 1); // True 1, Pred 0
@@ -464,12 +464,12 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 2, 2];
         let y_pred = array![0, 0, 1, 2, 2, 1];
 
-        matrix.update(&y_true, &y_pred).unwrap();
+        matrix.update(&y_true, &y_pred).expect("operation should succeed");
 
         // Label 0: perfect precision and recall
-        assert_relative_eq!(matrix.precision(0).unwrap(), 1.0, epsilon = 1e-10);
-        assert_relative_eq!(matrix.recall(0).unwrap(), 1.0, epsilon = 1e-10);
-        assert_relative_eq!(matrix.f1_score(0).unwrap(), 1.0, epsilon = 1e-10);
+        assert_relative_eq!(matrix.precision(0).expect("operation should succeed"), 1.0, epsilon = 1e-10);
+        assert_relative_eq!(matrix.recall(0).expect("operation should succeed"), 1.0, epsilon = 1e-10);
+        assert_relative_eq!(matrix.f1_score(0).expect("operation should succeed"), 1.0, epsilon = 1e-10);
 
         assert_eq!(matrix.support(0), 2);
         assert!(matrix.macro_precision() > 0.0);
@@ -486,7 +486,7 @@ mod tests {
         let y_true = CsVec::new(4, vec![0, 2], vec![1.0, 3.0]);
         let y_pred = CsVec::new(4, vec![2, 3], vec![2.0, 1.0]);
 
-        let mae = SparseMetrics::mean_absolute_error_sparse(&y_true, &y_pred).unwrap();
+        let mae = SparseMetrics::mean_absolute_error_sparse(&y_true, &y_pred).expect("operation should succeed");
 
         // MAE = (|1-0| + |0-0| + |3-2| + |0-1|) / 4 = (1 + 0 + 1 + 1) / 4 = 0.75
         assert_relative_eq!(mae, 0.75, epsilon = 1e-10);
@@ -501,7 +501,7 @@ mod tests {
         let a = CsVec::new(4, vec![0, 2], vec![1.0, 2.0]);
         let b = CsVec::new(4, vec![2], vec![4.0]);
 
-        let similarity = SparseMetrics::cosine_similarity_sparse(&a, &b).unwrap();
+        let similarity = SparseMetrics::cosine_similarity_sparse(&a, &b).expect("operation should succeed");
 
         // cos = (1*0 + 0*0 + 2*4 + 0*0) / (sqrt(1²+2²) * sqrt(4²))
         //     = 8 / (sqrt(5) * 4) = 8 / (4*sqrt(5)) = 2/sqrt(5)

@@ -328,7 +328,7 @@ impl Default for OptimizerConfiguration {
         Self {
             config_id: format!("config_{}", std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_millis()),
             algorithm_parameters: OptimizerParameters::default(),
             stopping_criteria: StoppingCriteria::default(),

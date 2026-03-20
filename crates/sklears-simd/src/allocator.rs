@@ -597,8 +597,12 @@ mod tests {
     fn test_allocator_stats() {
         let allocator = SimdAllocator::new();
 
-        let ptr1 = allocator.allocate_simd::<f32>(16).unwrap();
-        let ptr2 = allocator.allocate_simd::<f64>(8).unwrap();
+        let ptr1 = allocator
+            .allocate_simd::<f32>(16)
+            .expect("operation should succeed");
+        let ptr2 = allocator
+            .allocate_simd::<f64>(8)
+            .expect("operation should succeed");
 
         let stats = allocator.stats();
         assert_eq!(stats.total_allocations.load(Ordering::Relaxed), 2);
@@ -618,16 +622,16 @@ mod tests {
     fn test_memory_pool() {
         let mut pool = SimdMemoryPool::<i32>::new(64);
 
-        let (ptr1, cap1) = pool.acquire(32).unwrap();
+        let (ptr1, cap1) = pool.acquire(32).expect("operation should succeed");
         assert!(cap1 >= 32);
 
-        let (ptr2, cap2) = pool.acquire(16).unwrap();
+        let (ptr2, cap2) = pool.acquire(16).expect("operation should succeed");
         assert!(cap2 >= 16);
 
         pool.release(ptr1, cap1);
 
         // Should reuse the released block
-        let (ptr3, cap3) = pool.acquire(30).unwrap();
+        let (ptr3, cap3) = pool.acquire(30).expect("operation should succeed");
         assert_eq!(ptr3, ptr1);
         assert_eq!(cap3, cap1);
 
@@ -639,7 +643,9 @@ mod tests {
     fn test_zeroed_allocation() {
         let allocator = SimdAllocator::new();
 
-        let ptr = allocator.allocate_zeroed_simd::<u32>(16).unwrap();
+        let ptr = allocator
+            .allocate_zeroed_simd::<u32>(16)
+            .expect("operation should succeed");
 
         unsafe {
             let slice = slice::from_raw_parts(ptr.as_ptr(), 16);

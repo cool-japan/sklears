@@ -272,7 +272,10 @@ impl IRLSEstimator {
             });
         }
 
-        let result = self.result.as_ref().unwrap();
+        let result = self
+            .result
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         if x.is_empty() {
             return Ok(Vec::new());
@@ -675,13 +678,13 @@ mod tests {
         let result = irls.fit(&x, &y);
         assert!(result.is_ok());
 
-        let coefficients = irls.get_coefficients().unwrap();
+        let coefficients = irls.get_coefficients().expect("operation should succeed");
         assert_eq!(coefficients.len(), 1);
 
         // Should be robust to outliers and close to true slope of 2
         assert!((coefficients[0] - 2.0).abs() < 0.5);
 
-        let intercept = irls.get_intercept().unwrap();
+        let intercept = irls.get_intercept().expect("operation should succeed");
         // Should be close to true intercept of 1
         assert!((intercept - 1.0).abs() < 1.0);
     }
@@ -696,7 +699,7 @@ mod tests {
 
         assert!(result.is_ok());
 
-        let weights = irls.get_weights().unwrap();
+        let weights = irls.get_weights().expect("operation should succeed");
         assert_eq!(weights.len(), y.len());
 
         // Outliers should have lower weights
@@ -721,10 +724,10 @@ mod tests {
         let mut irls = IRLSEstimator::new();
         let (x, y) = create_sample_data();
 
-        irls.fit(&x, &y).unwrap();
+        irls.fit(&x, &y).expect("model fitting should succeed");
 
         let x_test = vec![vec![5.5], vec![7.5]];
-        let predictions = irls.predict(&x_test).unwrap();
+        let predictions = irls.predict(&x_test).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
 
@@ -745,7 +748,7 @@ mod tests {
 
         assert_eq!(irls.get_intercept(), None);
 
-        let coefficients = irls.get_coefficients().unwrap();
+        let coefficients = irls.get_coefficients().expect("operation should succeed");
         assert!((coefficients[0] - 2.0).abs() < 0.1);
     }
 
@@ -765,7 +768,7 @@ mod tests {
         let result = irls.fit(&x, &y);
         assert!(result.is_ok());
 
-        let coefficients = irls.get_coefficients().unwrap();
+        let coefficients = irls.get_coefficients().expect("operation should succeed");
         assert_eq!(coefficients.len(), 2);
     }
 
@@ -774,9 +777,9 @@ mod tests {
         let mut irls = IRLSEstimator::new().with_max_iter(5).with_tolerance(1e-3);
 
         let (x, y) = create_sample_data();
-        irls.fit(&x, &y).unwrap();
+        irls.fit(&x, &y).expect("model fitting should succeed");
 
-        let result = irls.get_result().unwrap();
+        let result = irls.get_result().expect("operation should succeed");
         assert!(result.n_iter <= 5);
         assert!(!result.convergence_history.is_empty());
     }
@@ -868,7 +871,7 @@ mod tests {
         assert!(result.is_ok());
 
         // With regularization, coefficients should be slightly smaller
-        let coefficients = irls.get_coefficients().unwrap();
+        let coefficients = irls.get_coefficients().expect("operation should succeed");
         assert!(coefficients[0] < 2.1); // Regularized coefficient
     }
 }

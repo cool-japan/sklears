@@ -307,7 +307,8 @@ impl GraphCentralityFeatures {
     pub fn extract_features(&self, adjacency_matrix: &ArrayView2<f64>) -> SklResult<Array2<f64>> {
         let n_nodes = adjacency_matrix.nrows();
         // Placeholder implementation - return centrality measures for each node
-        Ok(Array2::from_shape_vec((n_nodes, 4), vec![0.1; n_nodes * 4]).unwrap())
+        Ok(Array2::from_shape_vec((n_nodes, 4), vec![0.1; n_nodes * 4])
+            .expect("operation should succeed"))
     }
 
     /// Extract features from an edge list

@@ -275,10 +275,17 @@ impl Fit<Array2<Float>, Array1<i32>> for MixedNB<Untrained> {
 impl MixedNB<Trained> {
     /// Compute the unnormalized posterior log probability of X
     fn joint_log_likelihood(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let n_samples = x.nrows();
         let n_features = x.ncols();
-        let class_prior = self.class_prior_.as_ref().unwrap();
+        let class_prior = self
+            .class_prior_
+            .as_ref()
+            .expect("operation should succeed");
 
         if self.config.feature_distributions.len() != n_features {
             return Err(SklearsError::InvalidInput(
@@ -301,16 +308,20 @@ impl MixedNB<Trained> {
                 {
                     let feature_log_prob = match distribution {
                         FeatureDistribution::Gaussian => {
-                            let (mean, variance) =
-                                self.gaussian_params.as_ref().unwrap()[[class_idx, feature_idx]];
+                            let (mean, variance) = self
+                                .gaussian_params
+                                .as_ref()
+                                .expect("operation should succeed")[[class_idx, feature_idx]];
                             let diff = x_val - mean;
                             -0.5 * (2.0 * std::f64::consts::PI * variance).ln()
                                 - 0.5 * diff * diff / variance
                         }
 
                         FeatureDistribution::Bernoulli => {
-                            let prob =
-                                self.discrete_params.as_ref().unwrap()[[class_idx, feature_idx]];
+                            let prob = self
+                                .discrete_params
+                                .as_ref()
+                                .expect("operation should succeed")[[class_idx, feature_idx]];
                             if x_val == 1.0 {
                                 safe_log(prob)
                             } else if x_val == 0.0 {
@@ -323,15 +334,19 @@ impl MixedNB<Trained> {
                         }
 
                         FeatureDistribution::Poisson => {
-                            let lambda =
-                                self.discrete_params.as_ref().unwrap()[[class_idx, feature_idx]];
+                            let lambda = self
+                                .discrete_params
+                                .as_ref()
+                                .expect("operation should succeed")[[class_idx, feature_idx]];
                             // Poisson log PMF: x*log(λ) - λ - log(x!)
                             x_val * lambda.ln() - lambda - factorial_ln(x_val as u32)
                         }
 
                         FeatureDistribution::Gamma => {
-                            let (alpha, beta) =
-                                self.gamma_params.as_ref().unwrap()[[class_idx, feature_idx]];
+                            let (alpha, beta) = self
+                                .gamma_params
+                                .as_ref()
+                                .expect("operation should succeed")[[class_idx, feature_idx]];
                             if x_val <= 0.0 {
                                 return Err(SklearsError::InvalidInput(
                                     "Gamma distribution requires positive values".to_string(),
@@ -345,7 +360,8 @@ impl MixedNB<Trained> {
 
                         FeatureDistribution::Beta => {
                             let (alpha, beta) =
-                                self.beta_params.as_ref().unwrap()[[class_idx, feature_idx]];
+                                self.beta_params.as_ref().expect("operation should succeed")
+                                    [[class_idx, feature_idx]];
                             if !(0.0..=1.0).contains(&x_val) {
                                 return Err(SklearsError::InvalidInput(
                                     "Beta distribution requires values in [0,1]".to_string(),
@@ -358,8 +374,10 @@ impl MixedNB<Trained> {
 
                         FeatureDistribution::Multinomial | FeatureDistribution::Categorical => {
                             // Simplified - treat as frequency
-                            let prob =
-                                self.discrete_params.as_ref().unwrap()[[class_idx, feature_idx]];
+                            let prob = self
+                                .discrete_params
+                                .as_ref()
+                                .expect("operation should succeed")[[class_idx, feature_idx]];
                             x_val * safe_log(prob)
                         }
                     };
@@ -379,14 +397,14 @@ impl MixedNB<Trained> {
 impl Predict<Array2<Float>, Array1<i32>> for MixedNB<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<i32>> {
         let log_prob = self.joint_log_likelihood(x)?;
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
 
         // Find the class with maximum log probability for each sample
         Ok(log_prob.map_axis(Axis(1), |row| {
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             classes[max_idx]
@@ -398,7 +416,11 @@ impl PredictProba<Array2<Float>, Array2<f64>> for MixedNB<Trained> {
     fn predict_proba(&self, x: &Array2<Float>) -> Result<Array2<f64>> {
         let log_prob = self.joint_log_likelihood(x)?;
         let n_samples = x.nrows();
-        let n_classes = self.classes_.as_ref().unwrap().len();
+        let n_classes = self
+            .classes_
+            .as_ref()
+            .expect("operation should succeed")
+            .len();
         let mut proba = Array2::zeros((n_samples, n_classes));
 
         // Normalize to get probabilities
@@ -441,16 +463,20 @@ impl Score<Array2<Float>, Array1<i32>> for MixedNB<Trained> {
 
 impl NaiveBayesMixin for MixedNB<Trained> {
     fn class_log_prior(&self) -> &Array1<f64> {
-        self.class_prior_.as_ref().unwrap()
+        self.class_prior_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     fn feature_log_prob(&self) -> &Array2<f64> {
         // Return discrete parameters as a proxy
-        self.discrete_params.as_ref().unwrap()
+        self.discrete_params
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 }
 
@@ -612,7 +638,9 @@ mod tests {
         ];
         let y = array![0, 1, 0, 1];
 
-        let model = MixedNB::new().fit(&x, &y).unwrap();
+        let model = MixedNB::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
 
         // Check that distributions were inferred
         assert_eq!(
@@ -633,7 +661,7 @@ mod tests {
         );
 
         // Test predictions
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
     }
 
@@ -657,9 +685,9 @@ mod tests {
         let model = MixedNB::new()
             .feature_distributions(distributions)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), y.len());
     }
 
@@ -668,8 +696,10 @@ mod tests {
         let x = array![[0.0, 0.2], [1.0, 0.8], [0.0, 0.1], [1.0, 0.9],];
         let y = array![0, 1, 0, 1];
 
-        let model = MixedNB::new().fit(&x, &y).unwrap();
-        let proba = model.predict_proba(&x).unwrap();
+        let model = MixedNB::new()
+            .fit(&x, &y)
+            .expect("operation should succeed");
+        let proba = model.predict_proba(&x).expect("operation should succeed");
 
         // Check that probabilities sum to 1
         for i in 0..x.nrows() {
@@ -704,7 +734,7 @@ mod tests {
             [1.0, 0.9, 3.0],
         ];
 
-        let distributions = infer_feature_distributions(&x).unwrap();
+        let distributions = infer_feature_distributions(&x).expect("operation should succeed");
 
         assert_eq!(distributions[0], FeatureDistribution::Bernoulli);
         assert_eq!(distributions[1], FeatureDistribution::Beta);

@@ -9,7 +9,7 @@ use super::{Layer, LayerConfig, ParameterizedLayer};
 use crate::NeuralResult;
 use scirs2_core::ndarray::{Array1, Array2, Axis, ScalarOperand};
 use scirs2_core::numeric::FromPrimitive;
-use scirs2_core::random::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use sklears_core::{
     error::SklearsError,
     types::FloatBounds,
@@ -196,12 +196,12 @@ impl<T: FloatBounds + ScalarOperand> LayerNorm<T> {
         if self.config.affine {
             if let Some(ref mut weight) = self.weight {
                 for w in weight.iter_mut() {
-                    *w = T::from_f64(rng.gen()).unwrap_or(T::one());
+                    *w = T::from_f64(rng.random()).unwrap_or(T::one());
                 }
             }
             if let Some(ref mut bias) = self.bias {
                 for b in bias.iter_mut() {
-                    *b = T::from_f64(rng.gen::<f64>() - 0.5).unwrap_or(T::zero());
+                    *b = T::from_f64(rng.random::<f64>() - 0.5).unwrap_or(T::zero());
                 }
             }
         }
@@ -252,11 +252,16 @@ impl<T: FloatBounds + ScalarOperand> Layer<T> for LayerNorm<T> {
         }
 
         // Compute statistics across features for each sample
-        let mean = input.mean_axis(Axis(1)).unwrap();
+        let mean = input
+            .mean_axis(Axis(1))
+            .expect("mean should not fail on non-empty array");
 
         // Compute variance across features for each sample: E[(X - μ)²]
         let centered = input - &mean.view().insert_axis(Axis(1));
-        let var = centered.mapv(|x| x * x).mean_axis(Axis(1)).unwrap();
+        let var = centered
+            .mapv(|x| x * x)
+            .mean_axis(Axis(1))
+            .expect("mean should not fail on non-empty array");
 
         // Normalize: (x - mean) / sqrt(var + epsilon)
         let std = var.mapv(|v| (v + self.config.epsilon).sqrt());
@@ -499,7 +504,9 @@ mod tests {
         // Simple input batch: 2 samples, 3 features
         let input = array![[2.0, 4.0, 6.0], [1.0, 3.0, 5.0]];
 
-        let output = ln.forward(&input, true).unwrap();
+        let output = ln
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check output shape
         assert_eq!(output.dim(), (2, 3));
@@ -507,8 +514,11 @@ mod tests {
         // For layer norm, each row should be normalized independently
         // Check that output has approximately zero mean and unit variance along features
         for row in output.axis_iter(Axis(0)) {
-            let mean = row.mean().unwrap();
-            let var = row.mapv(|x| (x - mean) * (x - mean)).mean().unwrap();
+            let mean = row.mean().expect("operation should succeed");
+            let var = row
+                .mapv(|x| (x - mean) * (x - mean))
+                .mean()
+                .expect("operation should succeed");
 
             assert_abs_diff_eq!(mean, 0.0, epsilon = 1e-6);
             assert_abs_diff_eq!(var, 1.0, epsilon = 1e-4);
@@ -523,12 +533,17 @@ mod tests {
 
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
-        let output = ln.forward(&input, true).unwrap();
+        let output = ln
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Without affine, each row should have zero mean and unit variance
         for (i, row) in output.axis_iter(Axis(0)).enumerate() {
-            let mean = row.mean().unwrap();
-            let var = row.mapv(|x| (x - mean) * (x - mean)).mean().unwrap();
+            let mean = row.mean().expect("operation should succeed");
+            let var = row
+                .mapv(|x| (x - mean) * (x - mean))
+                .mean()
+                .expect("operation should succeed");
 
             assert_abs_diff_eq!(mean, 0.0, epsilon = 1e-6);
             assert_abs_diff_eq!(var, 1.0, epsilon = 1e-4);
@@ -544,11 +559,15 @@ mod tests {
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
         // Forward pass
-        let output = ln.forward(&input, true).unwrap();
+        let output = ln
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Backward pass with unit gradients
         let grad_output = Array2::ones((2, 3));
-        let grad_input = ln.backward(&grad_output).unwrap();
+        let grad_input = ln
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Check gradient shape
         assert_eq!(grad_input.dim(), input.dim());
@@ -570,18 +589,20 @@ mod tests {
         let input = array![[1.0, 2.0], [3.0, 4.0]];
 
         // Forward pass
-        ln.forward(&input, true).unwrap();
+        ln.forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Backward pass
         let grad_output = array![[1.0, 2.0], [3.0, 4.0]];
-        ln.backward(&grad_output).unwrap();
+        ln.backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Check parameter gradients exist
         assert!(ln.weight_grad.is_some());
         assert!(ln.bias_grad.is_some());
 
-        let weight_grad = ln.weight_grad().unwrap();
-        let bias_grad = ln.bias_grad().unwrap();
+        let weight_grad = ln.weight_grad().expect("operation should succeed");
+        let bias_grad = ln.bias_grad().expect("operation should succeed");
 
         // Bias gradient should be sum of grad_output
         let expected_bias_grad = grad_output.sum_axis(Axis(0));
@@ -618,7 +639,8 @@ mod tests {
         ln.initialize();
 
         let input = array![[1.0, 2.0], [3.0, 4.0]];
-        ln.forward(&input, true).unwrap();
+        ln.forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check that cache is populated
         assert!(ln.cached_input.is_some());
@@ -639,12 +661,17 @@ mod tests {
 
         let input = array![[1.0, 4.0, 7.0], [2.0, 5.0, 8.0]];
 
-        let output = ln.forward(&input, false).unwrap();
+        let output = ln
+            .forward(&input, false)
+            .expect("forward pass should succeed");
 
         // Manual computation for first row
         let row1 = input.row(0);
-        let mean1 = row1.mean().unwrap();
-        let var1 = row1.mapv(|x| (x - mean1) * (x - mean1)).mean().unwrap();
+        let mean1 = row1.mean().expect("operation should succeed");
+        let var1 = row1
+            .mapv(|x| (x - mean1) * (x - mean1))
+            .mean()
+            .expect("operation should succeed");
         let std1 = (var1 + 1e-8_f64).sqrt();
         let normalized1 = row1.mapv(|x| (x - mean1) / std1);
 

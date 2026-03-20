@@ -127,7 +127,7 @@ pub fn compute_robust_statistics_helper(values: &[f64]) -> (f64, f64) {
     }
 
     let mut sorted_values = values.to_vec();
-    sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     // Use median as robust central tendency
     let median = if sorted_values.len() % 2 == 0 {
@@ -138,7 +138,7 @@ pub fn compute_robust_statistics_helper(values: &[f64]) -> (f64, f64) {
 
     // Use Median Absolute Deviation (MAD) as robust scale
     let mut deviations: Vec<f64> = sorted_values.iter().map(|&x| (x - median).abs()).collect();
-    deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    deviations.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let mad = if deviations.len() % 2 == 0 {
         (deviations[deviations.len() / 2 - 1] + deviations[deviations.len() / 2]) / 2.0

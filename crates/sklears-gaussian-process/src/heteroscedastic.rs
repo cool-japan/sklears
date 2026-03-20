@@ -1138,12 +1138,14 @@ mod tests {
         let mut noise = ConstantNoise::new(0.1);
         let x = array![[0.0], [1.0], [2.0]];
 
-        let noise_vals = noise.compute_noise(&x).unwrap();
+        let noise_vals = noise.compute_noise(&x).expect("operation should succeed");
         assert_eq!(noise_vals.len(), 3);
         assert!(noise_vals.iter().all(|&val| (val - 0.1).abs() < 1e-10));
 
         let residuals = array![0.2, -0.1, 0.3];
-        noise.update_parameters(&x, &residuals, 0.1).unwrap();
+        noise
+            .update_parameters(&x, &residuals, 0.1)
+            .expect("operation should succeed");
 
         let params = noise.get_parameters();
         assert_eq!(params.len(), 1);
@@ -1155,7 +1157,7 @@ mod tests {
         let noise = LinearNoise::new(0.1, 0.05);
         let x = array![[0.0], [1.0], [2.0]];
 
-        let noise_vals = noise.compute_noise(&x).unwrap();
+        let noise_vals = noise.compute_noise(&x).expect("operation should succeed");
         assert_eq!(noise_vals.len(), 3);
         assert_abs_diff_eq!(noise_vals[0], 0.1, epsilon = 1e-10);
         assert_abs_diff_eq!(noise_vals[1], 0.15, epsilon = 1e-10);
@@ -1172,7 +1174,7 @@ mod tests {
         let noise = PolynomialNoise::quadratic(0.1, 0.05, 0.02);
         let x = array![[0.0], [1.0], [2.0]];
 
-        let noise_vals = noise.compute_noise(&x).unwrap();
+        let noise_vals = noise.compute_noise(&x).expect("operation should succeed");
         assert_eq!(noise_vals.len(), 3);
         assert_abs_diff_eq!(noise_vals[0], 0.1, epsilon = 1e-10); // 0.1 + 0*0.05 + 0*0.02
         assert_abs_diff_eq!(noise_vals[1], 0.17, epsilon = 1e-10); // 0.1 + 1*0.05 + 1*0.02
@@ -1189,13 +1191,15 @@ mod tests {
         let x = array![[0.0], [1.0], [2.0]];
 
         // Before initialization, should return small default values
-        let noise_vals = noise.compute_noise(&x).unwrap();
+        let noise_vals = noise.compute_noise(&x).expect("operation should succeed");
         assert_eq!(noise_vals.len(), 3);
         assert!(noise_vals.iter().all(|&val| val >= 1e-12));
 
         // Initialize and test again
-        noise.initialize_inducing_points(&x).unwrap();
-        let noise_vals2 = noise.compute_noise(&x).unwrap();
+        noise
+            .initialize_inducing_points(&x)
+            .expect("operation should succeed");
+        let noise_vals2 = noise.compute_noise(&x).expect("operation should succeed");
         assert_eq!(noise_vals2.len(), 3);
         assert!(noise_vals2.iter().all(|&val| val >= 1e-12));
     }
@@ -1205,7 +1209,7 @@ mod tests {
         let mut noise = NeuralNetworkNoise::new(1, vec![5, 3]);
         let x = array![[0.0], [1.0], [2.0]];
 
-        let noise_vals = noise.compute_noise(&x).unwrap();
+        let noise_vals = noise.compute_noise(&x).expect("operation should succeed");
         assert_eq!(noise_vals.len(), 3);
         assert!(noise_vals.iter().all(|&val| val >= 1e-12));
 
@@ -1230,7 +1234,9 @@ mod tests {
         let x = array![[0.0], [1.0], [2.0]];
 
         for mut noise_fn in noise_fns {
-            let noise_vals = noise_fn.compute_noise(&x).unwrap();
+            let noise_vals = noise_fn
+                .compute_noise(&x)
+                .expect("operation should succeed");
             assert_eq!(noise_vals.len(), 3);
             assert!(noise_vals.iter().all(|&val| val >= 1e-12));
 
@@ -1266,11 +1272,15 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0], [3.0]];
         let y_train = array![0.0, 1.0, 2.1, 2.9];
 
-        let trained_model = het_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = het_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         assert!(trained_model.log_likelihood().is_finite());
 
         let x_test = array![[0.5], [1.5]];
-        let (predictions, uncertainties) = trained_model.predict(&x_test).unwrap();
+        let (predictions, uncertainties) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 2);
         assert_eq!(uncertainties.len(), 2);
@@ -1278,7 +1288,9 @@ mod tests {
         assert!(uncertainties.iter().all(|&u| u > 0.0));
 
         // Test noise prediction
-        let noise_pred = trained_model.predict_noise(&x_test).unwrap();
+        let noise_pred = trained_model
+            .predict_noise(&x_test)
+            .expect("operation should succeed");
         assert_eq!(noise_pred.len(), 2);
         assert!(noise_pred.iter().all(|&n| n > 0.0));
     }
@@ -1295,10 +1307,14 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0]];
         let y_train = array![0.0, 1.0, 2.0];
 
-        let trained_model = het_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = het_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         let x_test = array![[0.5], [1.5]];
-        let (predictions, _) = trained_model.predict(&x_test).unwrap();
+        let (predictions, _) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 2);
 
         let noise_params = trained_model.get_noise_parameters();
@@ -1317,10 +1333,14 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0]];
         let y_train = array![0.0, 1.0, 2.0];
 
-        let trained_model = het_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = het_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         let x_test = array![[1.0]];
-        let (predictions, uncertainties) = trained_model.predict(&x_test).unwrap();
+        let (predictions, uncertainties) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 1);
         assert_eq!(uncertainties.len(), 1);
     }
@@ -1340,10 +1360,14 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0]];
         let y_train = array![0.0, 1.0, 2.0];
 
-        let trained_model = het_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = het_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         let x_test = array![[1.0]];
-        let (predictions, uncertainties) = trained_model.predict(&x_test).unwrap();
+        let (predictions, uncertainties) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 1);
         assert_eq!(uncertainties.len(), 1);
         assert!(uncertainties[0] > 0.0);
@@ -1361,10 +1385,14 @@ mod tests {
         let x_train = array![[0.0], [1.0], [2.0]];
         let y_train = array![0.0, 1.0, 2.0];
 
-        let trained_model = het_gp.fit(&x_train, &y_train).unwrap();
+        let trained_model = het_gp
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
 
         let x_test = array![[1.0]];
-        let (predictions, uncertainties) = trained_model.predict(&x_test).unwrap();
+        let (predictions, uncertainties) = trained_model
+            .predict(&x_test)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 1);
         assert_eq!(uncertainties.len(), 1);
     }
@@ -1408,7 +1436,9 @@ mod tests {
         assert_eq!(params.len(), 2);
 
         let new_params = vec![0.2, 0.1];
-        linear_noise.set_parameters(&new_params).unwrap();
+        linear_noise
+            .set_parameters(&new_params)
+            .expect("operation should succeed");
         let updated_params = linear_noise.get_parameters();
         assert_abs_diff_eq!(updated_params[0], 0.2, epsilon = 1e-10);
         assert_abs_diff_eq!(updated_params[1], 0.1, epsilon = 1e-10);

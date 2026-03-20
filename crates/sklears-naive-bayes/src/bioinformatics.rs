@@ -8,7 +8,6 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::Rng;
 use sklears_core::traits::Estimator;
 use std::collections::HashMap;
 use thiserror::Error;
@@ -295,8 +294,8 @@ impl GenomicNaiveBayes {
             let best_class_idx = log_probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .unwrap()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[i] = self.classes[best_class_idx];
         }
@@ -650,7 +649,11 @@ impl ProteinStructureNB {
 
                 // Count dipeptides if enabled
                 if self.config.use_dipeptides && i > 0 {
-                    let prev_aa = protein.sequence.chars().nth(i - 1).unwrap();
+                    let prev_aa = protein
+                        .sequence
+                        .chars()
+                        .nth(i - 1)
+                        .expect("operation should succeed");
                     let dipeptide = format!("{}{}", prev_aa, aa_char);
                     *self.dipeptide_probs[class_idx]
                         .entry(dipeptide)
@@ -711,7 +714,11 @@ impl ProteinStructureNB {
 
                     // Add dipeptide likelihood if available
                     if self.config.use_dipeptides && i > 0 {
-                        let prev_aa = protein.sequence.chars().nth(i - 1).unwrap();
+                        let prev_aa = protein
+                            .sequence
+                            .chars()
+                            .nth(i - 1)
+                            .expect("operation should succeed");
                         let dipeptide = format!("{}{}", prev_aa, aa_char);
                         let dipeptide_log_prob = self.dipeptide_probs[class_idx]
                             .get(&dipeptide)
@@ -725,8 +732,8 @@ impl ProteinStructureNB {
                 let best_class_idx = log_probs
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                    .unwrap()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                    .expect("operation should succeed")
                     .0;
 
                 let ss_char = match best_class_idx {
@@ -916,8 +923,8 @@ impl GeneExpressionNB {
             let best_class_idx = log_probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .unwrap()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             predictions[sample_idx] = self.classes[best_class_idx];
         }
@@ -1035,13 +1042,13 @@ pub mod utils {
             SequenceType::DNA => {
                 let nucleotides = ['A', 'T', 'G', 'C'];
                 for _ in 0..length {
-                    sequence.push(nucleotides[rng.gen_range(0..4)]);
+                    sequence.push(nucleotides[rng.random_range(0..4)]);
                 }
             }
             SequenceType::RNA => {
                 let nucleotides = ['A', 'U', 'G', 'C'];
                 for _ in 0..length {
-                    sequence.push(nucleotides[rng.gen_range(0..4)]);
+                    sequence.push(nucleotides[rng.random_range(0..4)]);
                 }
             }
             SequenceType::Protein => {
@@ -1050,7 +1057,7 @@ pub mod utils {
                     'T', 'W', 'Y', 'V',
                 ];
                 for _ in 0..length {
-                    sequence.push(amino_acids[rng.gen_range(0..20)]);
+                    sequence.push(amino_acids[rng.random_range(0..20)]);
                 }
             }
         }
@@ -1084,7 +1091,7 @@ pub mod utils {
         for i in 0..n_samples {
             for j in 0..n_genes {
                 // Simulate log-normal expression values
-                data[[i, j]] = (-rng.gen::<f64>().ln()).exp();
+                data[[i, j]] = (-rng.random::<f64>().ln()).exp();
             }
         }
 
@@ -1102,15 +1109,15 @@ mod tests {
     #[test]
     fn test_nucleotide_encoding() {
         assert_eq!(
-            Nucleotide::from_char('A', &SequenceType::DNA).unwrap(),
+            Nucleotide::from_char('A', &SequenceType::DNA).expect("operation should succeed"),
             Nucleotide::A
         );
         assert_eq!(
-            Nucleotide::from_char('T', &SequenceType::DNA).unwrap(),
+            Nucleotide::from_char('T', &SequenceType::DNA).expect("operation should succeed"),
             Nucleotide::T
         );
         assert_eq!(
-            Nucleotide::from_char('U', &SequenceType::RNA).unwrap(),
+            Nucleotide::from_char('U', &SequenceType::RNA).expect("operation should succeed"),
             Nucleotide::T
         );
         assert!(Nucleotide::from_char('U', &SequenceType::DNA).is_err());
@@ -1118,9 +1125,18 @@ mod tests {
 
     #[test]
     fn test_amino_acid_encoding() {
-        assert_eq!(AminoAcid::from_char('A').unwrap(), AminoAcid::A);
-        assert_eq!(AminoAcid::from_char('R').unwrap(), AminoAcid::R);
-        assert_eq!(AminoAcid::from_char('X').unwrap(), AminoAcid::X);
+        assert_eq!(
+            AminoAcid::from_char('A').expect("operation should succeed"),
+            AminoAcid::A
+        );
+        assert_eq!(
+            AminoAcid::from_char('R').expect("operation should succeed"),
+            AminoAcid::R
+        );
+        assert_eq!(
+            AminoAcid::from_char('X').expect("operation should succeed"),
+            AminoAcid::X
+        );
         assert!(AminoAcid::from_char('Z').is_err());
     }
 
@@ -1143,13 +1159,16 @@ mod tests {
         let sequences = vec![seq1, seq2, seq3];
         let labels = Array1::from_vec(vec![0, 1, 0]);
 
-        nb.fit(&sequences, &labels).unwrap();
+        nb.fit(&sequences, &labels)
+            .expect("operation should succeed");
         assert!(nb.is_fitted);
 
-        let predictions = nb.predict(&sequences).unwrap();
+        let predictions = nb.predict(&sequences).expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
 
-        let probabilities = nb.predict_proba(&sequences).unwrap();
+        let probabilities = nb
+            .predict_proba(&sequences)
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (3, 2));
 
         // Check probabilities sum to 1
@@ -1168,7 +1187,9 @@ mod tests {
         };
         let nb = GenomicNaiveBayes::new(config);
 
-        let kmers = nb.extract_kmers("ATGCGA").unwrap();
+        let kmers = nb
+            .extract_kmers("ATGCGA")
+            .expect("operation should succeed");
         assert_eq!(kmers.len(), 4); // ATGCGA has 4 3-mers: ATG, TGC, GCG, CGA
         assert!(kmers.contains(&"ATG".to_string()));
         assert!(kmers.contains(&"TGC".to_string()));
@@ -1180,10 +1201,14 @@ mod tests {
     fn test_reverse_complement() {
         let nb = GenomicNaiveBayes::new(GenomicNBConfig::default());
 
-        let rev_comp = nb.reverse_complement("ATGC").unwrap();
+        let rev_comp = nb
+            .reverse_complement("ATGC")
+            .expect("operation should succeed");
         assert_eq!(rev_comp, "GCAT");
 
-        let rev_comp2 = nb.reverse_complement("AAAGGG").unwrap();
+        let rev_comp2 = nb
+            .reverse_complement("AAAGGG")
+            .expect("operation should succeed");
         assert_eq!(rev_comp2, "CCCTTT");
     }
 
@@ -1209,10 +1234,11 @@ mod tests {
         let proteins = vec![protein1, protein2];
         let structures = vec![structure1, structure2];
 
-        nb.fit(&proteins, &structures).unwrap();
+        nb.fit(&proteins, &structures)
+            .expect("operation should succeed");
         assert!(nb.is_fitted);
 
-        let predictions = nb.predict(&proteins).unwrap();
+        let predictions = nb.predict(&proteins).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
         assert_eq!(predictions[0].len(), 50);
         assert_eq!(predictions[1].len(), 50);
@@ -1221,15 +1247,15 @@ mod tests {
     #[test]
     fn test_secondary_structure_encoding() {
         assert_eq!(
-            SecondaryStructure::from_char('H').unwrap(),
+            SecondaryStructure::from_char('H').expect("operation should succeed"),
             SecondaryStructure::Helix
         );
         assert_eq!(
-            SecondaryStructure::from_char('E').unwrap(),
+            SecondaryStructure::from_char('E').expect("operation should succeed"),
             SecondaryStructure::Sheet
         );
         assert_eq!(
-            SecondaryStructure::from_char('C').unwrap(),
+            SecondaryStructure::from_char('C').expect("operation should succeed"),
             SecondaryStructure::Coil
         );
         assert!(SecondaryStructure::from_char('X').is_err());
@@ -1250,10 +1276,13 @@ mod tests {
         let expression_data = create_test_expression_data(20, 100);
         let labels = Array1::from_vec(vec![0; 10].into_iter().chain(vec![1; 10]).collect());
 
-        nb.fit(&expression_data, &labels).unwrap();
+        nb.fit(&expression_data, &labels)
+            .expect("operation should succeed");
         assert!(nb.is_fitted);
 
-        let predictions = nb.predict(&expression_data).unwrap();
+        let predictions = nb
+            .predict(&expression_data)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 20);
     }
 
@@ -1284,12 +1313,14 @@ mod tests {
         let nb = GeneExpressionNB::new(GeneExpressionConfig::default());
         let data = create_test_expression_data(10, 20);
 
-        let processed = nb.preprocess_expression_data(&data).unwrap();
+        let processed = nb
+            .preprocess_expression_data(&data)
+            .expect("operation should succeed");
         assert_eq!(processed.dim(), data.dim());
 
         // Check that normalization worked (each sample should have mean ~0 and std ~1)
         for sample in processed.axis_iter(Axis(0)) {
-            let mean = sample.mean().unwrap();
+            let mean = sample.mean().expect("operation should succeed");
             let std = sample.std(0.0);
             assert_abs_diff_eq!(mean, 0.0, epsilon = 1e-10);
             assert_abs_diff_eq!(std, 1.0, epsilon = 1e-10);

@@ -614,11 +614,14 @@ impl ExplanationMetric for FidelityMetric {
             ExplanationData::FeatureImportance(values) => values.clone(),
             ExplanationData::LocalExplanations(matrix) => {
                 // Use mean across instances
-                matrix.mean_axis(Axis(0)).unwrap()
+                matrix.mean_axis(Axis(0)).expect("operation should succeed")
             }
             ExplanationData::ShapValues(matrix) => {
                 // Use mean absolute SHAP values across instances
-                matrix.mapv(|x| x.abs()).mean_axis(Axis(0)).unwrap()
+                matrix
+                    .mapv(|x| x.abs())
+                    .mean_axis(Axis(0))
+                    .expect("operation should succeed")
             }
             _ => {
                 return Err(crate::SklearsError::InvalidInput(
@@ -929,7 +932,7 @@ impl ExplanationMetric for CompletenessMetric {
             ExplanationData::FeatureImportance(values) => values.clone(),
             ExplanationData::LocalExplanations(matrix) => {
                 // Use mean across instances
-                matrix.mean_axis(Axis(0)).unwrap()
+                matrix.mean_axis(Axis(0)).expect("operation should succeed")
             }
             ExplanationData::GlobalExplanation(values) => values.clone(),
             _ => {
@@ -1051,7 +1054,7 @@ mod tests {
         // Get metric metadata
         let metadata = registry.get_metric_metadata("fidelity_correlation");
         assert!(metadata.is_some());
-        let metadata = metadata.unwrap();
+        let metadata = metadata.expect("operation should succeed");
         assert_eq!(metadata.category, MetricCategory::Fidelity);
     }
 
@@ -1060,8 +1063,8 @@ mod tests {
         let metric = FidelityMetric::new();
 
         // Create test data
-        let features =
-            Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect()).unwrap();
+        let features = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect())
+            .expect("operation should succeed");
         let explanations = array![0.5, 0.3, 0.2];
 
         let input = MetricInput {
@@ -1079,7 +1082,7 @@ mod tests {
         let result = metric.compute(&input);
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert!(output.value >= -1.0 && output.value <= 1.0);
         assert!(output.metadata.features_processed == 3);
     }
@@ -1096,7 +1099,7 @@ mod tests {
                 0.33,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let input = MetricInput {
             explanations: ExplanationData::LocalExplanations(explanations),
@@ -1113,7 +1116,7 @@ mod tests {
         let result = metric.compute(&input);
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert!(output.value >= 0.0 && output.value <= 1.0);
     }
 
@@ -1139,7 +1142,7 @@ mod tests {
         let result = metric.compute(&input);
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert_eq!(output.value, 0.6); // 3 out of 5 features are non-zero
     }
 
@@ -1175,11 +1178,11 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0];
 
-        let corr = compute_correlation(&x.view(), &y.view()).unwrap();
+        let corr = compute_correlation(&x.view(), &y.view()).expect("operation should succeed");
         assert!((corr - 1.0).abs() < 1e-10); // Perfect positive correlation
 
         let z = array![5.0, 4.0, 3.0, 2.0, 1.0];
-        let corr = compute_correlation(&x.view(), &z.view()).unwrap();
+        let corr = compute_correlation(&x.view(), &z.view()).expect("operation should succeed");
         assert!((corr - (-1.0)).abs() < 1e-10); // Perfect negative correlation
     }
 
@@ -1188,8 +1191,8 @@ mod tests {
         let registry = MetricRegistry::with_default_metrics();
 
         // Create test data
-        let features =
-            Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect()).unwrap();
+        let features = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect())
+            .expect("operation should succeed");
         let explanations = array![0.5, 0.3, 0.2];
 
         let input = MetricInput {
@@ -1211,8 +1214,14 @@ mod tests {
 
         let results = registry.compute_multiple_metrics(&metric_ids, &input);
         assert_eq!(results.len(), 2);
-        assert!(results.get("fidelity_correlation").unwrap().is_ok());
-        assert!(results.get("feature_completeness").unwrap().is_ok());
+        assert!(results
+            .get("fidelity_correlation")
+            .expect("operation should succeed")
+            .is_ok());
+        assert!(results
+            .get("feature_completeness")
+            .expect("operation should succeed")
+            .is_ok());
     }
 
     #[test]

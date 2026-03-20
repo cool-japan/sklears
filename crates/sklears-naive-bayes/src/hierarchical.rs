@@ -319,10 +319,11 @@ impl RandomEffectsModel {
         let mut samples = Vec::new();
         for &idx in indices {
             if idx < X.nrows() {
-                samples.extend_from_slice(X.row(idx).as_slice().unwrap());
+                samples.extend_from_slice(X.row(idx).as_slice().expect("operation should succeed"));
             }
         }
-        Array2::from_shape_vec((indices.len(), X.ncols()), samples).unwrap()
+        Array2::from_shape_vec((indices.len(), X.ncols()), samples)
+            .expect("operation should succeed")
     }
 
     fn estimate_variance_components(
@@ -642,11 +643,13 @@ impl HierarchicalNB {
                     let mut samples = Vec::new();
                     for &idx in &group_samples {
                         if idx < X.nrows() {
-                            samples.extend_from_slice(X.row(idx).as_slice().unwrap());
+                            samples.extend_from_slice(
+                                X.row(idx).as_slice().expect("operation should succeed"),
+                            );
                         }
                     }
-                    let group_X =
-                        Array2::from_shape_vec((group_samples.len(), X.ncols()), samples).unwrap();
+                    let group_X = Array2::from_shape_vec((group_samples.len(), X.ncols()), samples)
+                        .expect("operation should succeed");
                     let group_y: Vec<f64> =
                         group_samples.iter().map(|&idx| y[idx] as f64).collect();
 
@@ -684,10 +687,11 @@ impl HierarchicalNB {
         let mut samples = Vec::new();
         for &idx in indices {
             if idx < X.nrows() {
-                samples.extend_from_slice(X.row(idx).as_slice().unwrap());
+                samples.extend_from_slice(X.row(idx).as_slice().expect("operation should succeed"));
             }
         }
-        Array2::from_shape_vec((indices.len(), X.ncols()), samples).unwrap()
+        Array2::from_shape_vec((indices.len(), X.ncols()), samples)
+            .expect("operation should succeed")
     }
 
     #[allow(non_snake_case)]
@@ -1115,7 +1119,10 @@ impl HierarchicalNB {
             return self.predict_proba(X);
         }
 
-        let group_params = self.group_specific_params.as_ref().unwrap();
+        let group_params = self
+            .group_specific_params
+            .as_ref()
+            .expect("operation should succeed");
         let mut all_probabilities = HashMap::new();
         let leaf_classes = self.hierarchy.get_leaf_classes();
 
@@ -1203,11 +1210,21 @@ mod tests {
 
         // Build a simple hierarchy: Animal -> Mammal -> Dog
         //                            Animal -> Bird -> Eagle
-        hierarchy.add_node(1, None).unwrap(); // Animal (root)
-        hierarchy.add_node(2, Some(1)).unwrap(); // Mammal
-        hierarchy.add_node(3, Some(1)).unwrap(); // Bird
-        hierarchy.add_node(4, Some(2)).unwrap(); // Dog
-        hierarchy.add_node(5, Some(3)).unwrap(); // Eagle
+        hierarchy
+            .add_node(1, None)
+            .expect("operation should succeed"); // Animal (root)
+        hierarchy
+            .add_node(2, Some(1))
+            .expect("operation should succeed"); // Mammal
+        hierarchy
+            .add_node(3, Some(1))
+            .expect("operation should succeed"); // Bird
+        hierarchy
+            .add_node(4, Some(2))
+            .expect("operation should succeed"); // Dog
+        hierarchy
+            .add_node(5, Some(3))
+            .expect("operation should succeed"); // Eagle
 
         assert_eq!(hierarchy.get_ancestors(4), vec![1, 2]);
         assert_eq!(hierarchy.get_descendants(1), vec![2, 3, 4, 5]);
@@ -1219,27 +1236,39 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_hierarchical_nb_basic() {
         let mut hierarchy = ClassHierarchy::new();
-        hierarchy.add_node(1, None).unwrap(); // Root
-        hierarchy.add_node(2, Some(1)).unwrap(); // Child 1
-        hierarchy.add_node(3, Some(1)).unwrap(); // Child 2
+        hierarchy
+            .add_node(1, None)
+            .expect("operation should succeed"); // Root
+        hierarchy
+            .add_node(2, Some(1))
+            .expect("operation should succeed"); // Child 1
+        hierarchy
+            .add_node(3, Some(1))
+            .expect("operation should succeed"); // Child 2
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![2, 2, 3, 3]);
 
         let mut hnb = HierarchicalNB::new(HierarchicalConfig::default(), hierarchy);
         assert!(hnb.fit(&X, &y).is_ok());
 
-        let predictions = hnb.predict(&X).unwrap();
+        let predictions = hnb.predict(&X).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_circular_dependency_detection() {
         let mut hierarchy = ClassHierarchy::new();
-        hierarchy.add_node(1, None).unwrap();
-        hierarchy.add_node(2, Some(1)).unwrap();
-        hierarchy.add_node(3, Some(2)).unwrap();
+        hierarchy
+            .add_node(1, None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(2, Some(1))
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(3, Some(2))
+            .expect("operation should succeed");
 
         // This should detect circular dependency when trying to make 1 a child of 3
         // But since we don't implement sophisticated cycle detection in add_node,
@@ -1260,8 +1289,9 @@ mod tests {
         let var2 = Array1::from_vec(vec![1.0, 1.0]);
         group_params.add_group("group2".to_string(), mean2.clone(), var2.clone(), 0.7);
 
-        let (retrieved_mean, retrieved_var, retrieved_prior) =
-            group_params.get_group_parameters("group1").unwrap();
+        let (retrieved_mean, retrieved_var, retrieved_prior) = group_params
+            .get_group_parameters("group1")
+            .expect("operation should succeed");
         assert_eq!(retrieved_mean, &mean1);
         assert_eq!(retrieved_var, &var1);
         assert_eq!(retrieved_prior, 0.3);
@@ -1279,18 +1309,19 @@ mod tests {
         random_effects.assign_sample_to_group(2, "group2".to_string());
         random_effects.assign_sample_to_group(3, "group2".to_string());
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 1.5, 2.5, 3.0, 4.0, 3.5, 4.5]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 1.5, 2.5, 3.0, 4.0, 3.5, 4.5])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![1.0, 1.0, 2.0, 2.0]);
 
         assert!(random_effects.estimate_random_effects(&X, &y).is_ok());
 
         // Test prediction
         let group_ids = vec!["group1".to_string(), "group2".to_string()];
-        let X_test = Array2::from_shape_vec((2, 2), vec![1.2, 2.2, 3.2, 4.2]).unwrap();
+        let X_test = Array2::from_shape_vec((2, 2), vec![1.2, 2.2, 3.2, 4.2])
+            .expect("operation should succeed");
         let predictions = random_effects
             .predict_with_random_effects(&X_test, &group_ids)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -1298,9 +1329,15 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_hierarchical_nb_with_group_specific_parameters() {
         let mut hierarchy = ClassHierarchy::new();
-        hierarchy.add_node(1, None).unwrap(); // Root
-        hierarchy.add_node(2, Some(1)).unwrap(); // Child 1
-        hierarchy.add_node(3, Some(1)).unwrap(); // Child 2
+        hierarchy
+            .add_node(1, None)
+            .expect("operation should succeed"); // Root
+        hierarchy
+            .add_node(2, Some(1))
+            .expect("operation should succeed"); // Child 1
+        hierarchy
+            .add_node(3, Some(1))
+            .expect("operation should succeed"); // Child 2
 
         let mut config = HierarchicalConfig::default();
         config.use_group_specific_parameters = true;
@@ -1315,8 +1352,8 @@ mod tests {
         assignments.insert(3, "group2".to_string());
         hnb.set_group_assignments(assignments);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![2, 2, 3, 3]);
 
         assert!(hnb.fit(&X, &y).is_ok());
@@ -1328,11 +1365,15 @@ mod tests {
             "group2".to_string(),
             "group2".to_string(),
         ];
-        let predictions = hnb.predict_with_groups(&X, &group_ids).unwrap();
+        let predictions = hnb
+            .predict_with_groups(&X, &group_ids)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test probability prediction with groups
-        let probabilities = hnb.predict_proba_with_groups(&X, &group_ids).unwrap();
+        let probabilities = hnb
+            .predict_proba_with_groups(&X, &group_ids)
+            .expect("operation should succeed");
         assert!(!probabilities.is_empty());
     }
 
@@ -1340,9 +1381,15 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_hierarchical_nb_with_random_effects() {
         let mut hierarchy = ClassHierarchy::new();
-        hierarchy.add_node(1, None).unwrap(); // Root
-        hierarchy.add_node(2, Some(1)).unwrap(); // Child 1
-        hierarchy.add_node(3, Some(1)).unwrap(); // Child 2
+        hierarchy
+            .add_node(1, None)
+            .expect("operation should succeed"); // Root
+        hierarchy
+            .add_node(2, Some(1))
+            .expect("operation should succeed"); // Child 1
+        hierarchy
+            .add_node(3, Some(1))
+            .expect("operation should succeed"); // Child 2
 
         let mut config = HierarchicalConfig::default();
         config.use_random_effects = true;
@@ -1358,8 +1405,8 @@ mod tests {
         assignments.insert(3, "group2".to_string());
         hnb.set_group_assignments(assignments);
 
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![2, 2, 3, 3]);
 
         assert!(hnb.fit(&X, &y).is_ok());
@@ -1371,21 +1418,27 @@ mod tests {
             "group2".to_string(),
             "group2".to_string(),
         ];
-        let predictions = hnb.predict_with_groups(&X, &group_ids).unwrap();
+        let predictions = hnb
+            .predict_with_groups(&X, &group_ids)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test random effect generation
         let random_effect = hnb
             .generate_random_effect_for_group("new_group".to_string())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(random_effect.len(), 2);
     }
 
     #[test]
     fn test_add_group_functionality() {
         let mut hierarchy = ClassHierarchy::new();
-        hierarchy.add_node(1, None).unwrap();
-        hierarchy.add_node(2, Some(1)).unwrap();
+        hierarchy
+            .add_node(1, None)
+            .expect("operation should succeed");
+        hierarchy
+            .add_node(2, Some(1))
+            .expect("operation should succeed");
 
         let mut config = HierarchicalConfig::default();
         config.use_group_specific_parameters = true;

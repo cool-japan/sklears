@@ -30,7 +30,7 @@ fn generate_data(
     }
 
     (
-        Array2::from_shape_vec((n_samples, n_features), data).unwrap(),
+        Array2::from_shape_vec((n_samples, n_features), data).expect("operation should succeed"),
         Array1::from(labels),
     )
 }
@@ -53,7 +53,7 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
             |b, (X, y)| {
                 b.iter(|| {
                     let knn = KNeighborsClassifier::new(10);
-                    black_box(knn.fit(X, y).unwrap())
+                    black_box(knn.fit(X, y).expect("operation should succeed"))
                 })
             },
         );
@@ -66,7 +66,7 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
                 b.iter(|| {
                     let knn = KNeighborsClassifier::new(10)
                         .with_algorithm(sklears_neighbors::knn::Algorithm::KdTree);
-                    black_box(knn.fit(X, y).unwrap())
+                    black_box(knn.fit(X, y).expect("operation should succeed"))
                 })
             },
         );
@@ -79,7 +79,7 @@ fn bench_algorithm_comparison(c: &mut Criterion) {
                 b.iter(|| {
                     let knn = KNeighborsClassifier::new(10)
                         .with_algorithm(sklears_neighbors::knn::Algorithm::BallTree);
-                    black_box(knn.fit(X, y).unwrap())
+                    black_box(knn.fit(X, y).expect("operation should succeed"))
                 })
             },
         );
@@ -97,28 +97,52 @@ fn bench_algorithm_prediction(c: &mut Criterion) {
 
     // Fit models once
     let brute_knn = KNeighborsClassifier::new(10);
-    let brute_fitted = brute_knn.fit(&X_train, &y_train).unwrap();
+    let brute_fitted = brute_knn
+        .fit(&X_train, &y_train)
+        .expect("operation should succeed");
 
     let kdtree_knn =
         KNeighborsClassifier::new(10).with_algorithm(sklears_neighbors::knn::Algorithm::KdTree);
-    let kdtree_fitted = kdtree_knn.fit(&X_train, &y_train).unwrap();
+    let kdtree_fitted = kdtree_knn
+        .fit(&X_train, &y_train)
+        .expect("operation should succeed");
 
     let balltree_knn =
         KNeighborsClassifier::new(10).with_algorithm(sklears_neighbors::knn::Algorithm::BallTree);
-    let balltree_fitted = balltree_knn.fit(&X_train, &y_train).unwrap();
+    let balltree_fitted = balltree_knn
+        .fit(&X_train, &y_train)
+        .expect("operation should succeed");
 
     group.throughput(Throughput::Elements(100));
 
     group.bench_function("brute_predict", |b| {
-        b.iter(|| black_box(brute_fitted.predict(&X_test).unwrap()))
+        b.iter(|| {
+            black_box(
+                brute_fitted
+                    .predict(&X_test)
+                    .expect("operation should succeed"),
+            )
+        })
     });
 
     group.bench_function("kdtree_predict", |b| {
-        b.iter(|| black_box(kdtree_fitted.predict(&X_test).unwrap()))
+        b.iter(|| {
+            black_box(
+                kdtree_fitted
+                    .predict(&X_test)
+                    .expect("operation should succeed"),
+            )
+        })
     });
 
     group.bench_function("balltree_predict", |b| {
-        b.iter(|| black_box(balltree_fitted.predict(&X_test).unwrap()))
+        b.iter(|| {
+            black_box(
+                balltree_fitted
+                    .predict(&X_test)
+                    .expect("operation should succeed"),
+            )
+        })
     });
 
     group.finish();
@@ -144,7 +168,7 @@ fn bench_distance_metrics(c: &mut Criterion) {
             |b, (X, y, metric)| {
                 b.iter(|| {
                     let knn = KNeighborsClassifier::new(10).with_metric(metric.clone());
-                    black_box(knn.fit(X, y).unwrap())
+                    black_box(knn.fit(X, y).expect("operation should succeed"))
                 })
             },
         );
@@ -171,7 +195,7 @@ fn bench_online_metric_learning(c: &mut Criterion) {
             |b, (X, y)| {
                 b.iter(|| {
                     let online = OnlineMetricLearning::new(3).with_learning_rate(0.01);
-                    black_box(online.fit(X, y).unwrap())
+                    black_box(online.fit(X, y).expect("operation should succeed"))
                 })
             },
         );
@@ -185,8 +209,10 @@ fn bench_online_metric_learning(c: &mut Criterion) {
             |b, (X, y)| {
                 b.iter(|| {
                     let online = OnlineMetricLearning::new(3).with_learning_rate(0.01);
-                    let mut fitted = online.fit(X, y).unwrap();
-                    fitted.partial_fit(&X.view(), &y.view()).unwrap();
+                    let mut fitted = online.fit(X, y).expect("operation should succeed");
+                    fitted
+                        .partial_fit(&X.view(), &y.view())
+                        .expect("operation should succeed");
                     black_box(())
                 })
             },
@@ -194,12 +220,14 @@ fn bench_online_metric_learning(c: &mut Criterion) {
 
         // Transform
         let online = OnlineMetricLearning::new(3).with_learning_rate(0.01);
-        let fitted = online.fit(&X, &y).unwrap();
+        let fitted = online.fit(&X, &y).expect("operation should succeed");
 
         group.bench_with_input(
             BenchmarkId::new("transform", batch_size),
             &(&X, &fitted),
-            |b, (X, fitted)| b.iter(|| black_box(fitted.transform(X).unwrap())),
+            |b, (X, fitted)| {
+                b.iter(|| black_box(fitted.transform(X).expect("operation should succeed")))
+            },
         );
     }
 
@@ -219,8 +247,8 @@ fn bench_k_value_scaling(c: &mut Criterion) {
             |b, (X, y, k)| {
                 b.iter(|| {
                     let knn = KNeighborsClassifier::new(*k);
-                    let fitted = knn.fit(X, y).unwrap();
-                    black_box(fitted.predict(X).unwrap())
+                    let fitted = knn.fit(X, y).expect("operation should succeed");
+                    black_box(fitted.predict(X).expect("operation should succeed"))
                 })
             },
         );
@@ -248,7 +276,7 @@ fn bench_high_dimensional(c: &mut Criterion) {
             |b, (X, y)| {
                 b.iter(|| {
                     let knn = KNeighborsClassifier::new(10);
-                    black_box(knn.fit(X, y).unwrap())
+                    black_box(knn.fit(X, y).expect("operation should succeed"))
                 })
             },
         );
@@ -261,7 +289,7 @@ fn bench_high_dimensional(c: &mut Criterion) {
                 b.iter(|| {
                     let knn = KNeighborsClassifier::new(10)
                         .with_algorithm(sklears_neighbors::knn::Algorithm::BallTree);
-                    black_box(knn.fit(X, y).unwrap())
+                    black_box(knn.fit(X, y).expect("operation should succeed"))
                 })
             },
         );
@@ -280,8 +308,8 @@ fn bench_memory_vs_accuracy(c: &mut Criterion) {
     group.bench_function("full_knn", |b| {
         b.iter(|| {
             let knn = KNeighborsClassifier::new(10);
-            let fitted = knn.fit(&X, &y).unwrap();
-            black_box(fitted.predict(&X).unwrap())
+            let fitted = knn.fit(&X, &y).expect("operation should succeed");
+            black_box(fitted.predict(&X).expect("operation should succeed"))
         })
     });
 

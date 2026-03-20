@@ -1171,7 +1171,11 @@ impl Trie {
         let mut prefix = String::new();
         let mut current = self;
         while current.children.len() == 1 && !current.is_end_of_word {
-            let (&ch, child) = current.children.iter().next().unwrap();
+            let (&ch, child) = current
+                .children
+                .iter()
+                .next()
+                .expect("operation should succeed");
             prefix.push(ch);
             current = child;
         }

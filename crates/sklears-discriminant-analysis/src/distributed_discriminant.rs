@@ -291,8 +291,10 @@ mod tests {
 
     #[test]
     fn test_distributed_lda_basic() {
-        let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect()).unwrap();
-        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect()).unwrap();
+        let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect())
+            .expect("array shape mismatch");
+        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect())
+            .expect("array shape mismatch");
 
         let config = DistributedDiscriminantConfig {
             chunk_size: 25,
@@ -300,18 +302,23 @@ mod tests {
         };
 
         let distributed_lda = DistributedLinearDiscriminantAnalysis::new(config);
-        let trained = distributed_lda.fit(&x, &y).unwrap();
+        let trained = distributed_lda
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let test_x = Array::from_shape_vec((10, 2), (0..20).map(|i| i as Float).collect()).unwrap();
-        let predictions = trained.predict(&test_x).unwrap();
+        let test_x = Array::from_shape_vec((10, 2), (0..20).map(|i| i as Float).collect())
+            .expect("array shape mismatch");
+        let predictions = trained.predict(&test_x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 10);
     }
 
     #[test]
     fn test_distributed_qda_basic() {
-        let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect()).unwrap();
-        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect()).unwrap();
+        let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect())
+            .expect("array shape mismatch");
+        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect())
+            .expect("array shape mismatch");
 
         let config = DistributedDiscriminantConfig {
             chunk_size: 25,
@@ -319,10 +326,13 @@ mod tests {
         };
 
         let distributed_qda = DistributedQuadraticDiscriminantAnalysis::new(config);
-        let trained = distributed_qda.fit(&x, &y).unwrap();
+        let trained = distributed_qda
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let test_x = Array::from_shape_vec((10, 2), (0..20).map(|i| i as Float).collect()).unwrap();
-        let predictions = trained.predict(&test_x).unwrap();
+        let test_x = Array::from_shape_vec((10, 2), (0..20).map(|i| i as Float).collect())
+            .expect("array shape mismatch");
+        let predictions = trained.predict(&test_x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 10);
     }
@@ -336,11 +346,15 @@ mod tests {
             ..Default::default()
         };
 
-        let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect()).unwrap();
-        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect()).unwrap();
+        let x = Array::from_shape_vec((100, 2), (0..200).map(|i| i as Float).collect())
+            .expect("array shape mismatch");
+        let y = Array::from_shape_vec(100, (0..100).map(|i| (i % 2) as i32).collect())
+            .expect("array shape mismatch");
 
         let distributed_lda = DistributedLinearDiscriminantAnalysis::new(config);
-        let chunks = distributed_lda.chunk_data(x.view(), &y).unwrap();
+        let chunks = distributed_lda
+            .chunk_data(x.view(), &y)
+            .expect("operation should succeed");
 
         assert_eq!(chunks.len(), 4); // 100 / 25 = 4 chunks
         assert_eq!(chunks[0].0.shape(), [25, 2]);

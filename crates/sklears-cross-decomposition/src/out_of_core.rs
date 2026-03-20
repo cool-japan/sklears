@@ -36,11 +36,11 @@ use std::path::Path;
 ///     .max_memory_mb(512);
 ///
 /// // Process data incrementally
-/// let x_chunk = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
-/// let y_chunk = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).unwrap();
+/// let x_chunk = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).expect("shape should match data length");
+/// let y_chunk = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).expect("shape should match data length");
 ///
-/// pls.partial_fit(&x_chunk, &y_chunk).unwrap();
-/// let result = pls.finalize().unwrap();
+/// pls.partial_fit(&x_chunk, &y_chunk).expect("operation should succeed");
+/// let result = pls.finalize().expect("operation should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct OutOfCorePLS {
@@ -519,11 +519,21 @@ impl OutOfCorePLS {
     }
 
     fn finalize_streaming_covariance(&self) -> Result<OutOfCorePLSResults, SklearsError> {
-        let sum_x = self.sum_x.as_ref().unwrap();
-        let sum_y = self.sum_y.as_ref().unwrap();
-        let sum_xx = self.sum_xx.as_ref().unwrap();
-        let sum_xy = self.sum_xy.as_ref().unwrap();
-        let sum_yy = self.sum_yy.as_ref().unwrap();
+        let sum_x = self.sum_x.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_y = self.sum_y.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_xx = self.sum_xx.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_xy = self.sum_xy.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_yy = self.sum_yy.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         let n = self.n_samples_seen as f64;
 
@@ -814,11 +824,21 @@ impl OutOfCoreCCA {
             return Err(SklearsError::InvalidInput("No data processed".to_string()));
         }
 
-        let sum_x = self.sum_x.as_ref().unwrap();
-        let sum_y = self.sum_y.as_ref().unwrap();
-        let sum_xx = self.sum_xx.as_ref().unwrap();
-        let sum_xy = self.sum_xy.as_ref().unwrap();
-        let sum_yy = self.sum_yy.as_ref().unwrap();
+        let sum_x = self.sum_x.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_y = self.sum_y.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_xx = self.sum_xx.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_xy = self.sum_xy.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let sum_yy = self.sum_yy.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         let n = self.n_samples_seen as f64;
 
@@ -954,8 +974,10 @@ mod tests {
     fn test_partial_fit() {
         let mut pls = OutOfCorePLS::new(2);
 
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
-        let y = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("shape should match data length");
+        let y = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect())
+            .expect("shape should match data length");
 
         let result = pls.partial_fit(&x, &y);
         assert!(result.is_ok());
@@ -966,11 +988,13 @@ mod tests {
     fn test_finalize() {
         let mut pls = OutOfCorePLS::new(2);
 
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
-        let y = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("shape should match data length");
+        let y = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect())
+            .expect("shape should match data length");
 
-        pls.partial_fit(&x, &y).unwrap();
-        let result = pls.finalize().unwrap();
+        pls.partial_fit(&x, &y).expect("operation should succeed");
+        let result = pls.finalize().expect("operation should succeed");
 
         assert_eq!(result.x_weights.shape(), &[3, 2]);
         assert_eq!(result.y_weights.shape(), &[2, 2]);
@@ -987,14 +1011,14 @@ mod tests {
                 (10, 3),
                 (0..30).map(|i| (i + chunk_id * 30) as f64).collect(),
             )
-            .unwrap();
+            .expect("operation should succeed");
             let y = Array2::from_shape_vec(
                 (10, 2),
                 (0..20).map(|i| (i + chunk_id * 20) as f64).collect(),
             )
-            .unwrap();
+            .expect("operation should succeed");
 
-            pls.partial_fit(&x, &y).unwrap();
+            pls.partial_fit(&x, &y).expect("operation should succeed");
         }
 
         assert_eq!(pls.n_samples_seen(), 50);

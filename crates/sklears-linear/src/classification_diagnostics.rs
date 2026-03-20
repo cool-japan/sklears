@@ -305,13 +305,13 @@ impl ClassificationDiagnostics {
         let predictions = probabilities.map_axis(Axis(1), |row| {
             row.iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx as Float)
                 .unwrap_or(0.0)
         });
 
         // Reshape to grid format
-        let pred_grid = predictions.into_shape((resolution, resolution)).unwrap();
+        let pred_grid = predictions.into_shape((resolution, resolution))?;
 
         Ok(DecisionBoundaryResult {
             x_grid,
@@ -364,7 +364,7 @@ impl ClassificationDiagnostics {
         // Sort by class value
         let mut paired: Vec<(Float, usize)> =
             unique_classes.into_iter().zip(class_counts_vec).collect();
-        paired.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        paired.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let classes: Vec<Float> = paired.iter().map(|(c, _)| *c).collect();
         let counts: Vec<usize> = paired.iter().map(|(_, count)| *count).collect();
@@ -605,7 +605,7 @@ impl ClassificationDiagnostics {
         let predictions = probabilities.map_axis(Axis(1), |row| {
             row.iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(idx, _)| idx as Float)
                 .unwrap_or(0.0)
         });
@@ -702,10 +702,14 @@ mod tests {
         ];
         let y = array![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
 
-        let model = LogisticRegression::new().fit(&x, &y).unwrap();
+        let model = LogisticRegression::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         let diagnostics = ClassificationDiagnostics::new();
-        let result = diagnostics.assess_calibration(&model, &x, &y).unwrap();
+        let result = diagnostics
+            .assess_calibration(&model, &x, &y)
+            .expect("operation should succeed");
 
         assert!(result.brier_score >= 0.0);
         assert!(result.brier_score <= 1.0);
@@ -717,7 +721,9 @@ mod tests {
         let y = array![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 2.0];
 
         let diagnostics = ClassificationDiagnostics::new();
-        let result = diagnostics.analyze_class_imbalance(&y).unwrap();
+        let result = diagnostics
+            .analyze_class_imbalance(&y)
+            .expect("operation should succeed");
 
         assert_eq!(result.classes.len(), 3);
         assert!(result.imbalance_ratio > 1.0);
@@ -736,12 +742,14 @@ mod tests {
         ];
         let y = array![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
 
-        let model = LogisticRegression::new().fit(&x, &y).unwrap();
+        let model = LogisticRegression::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         let diagnostics = ClassificationDiagnostics::new();
         let result = diagnostics
             .compute_feature_importance(&model, &x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.importance_scores.len(), 2);
         assert_eq!(result.feature_names.len(), 2);
@@ -759,12 +767,14 @@ mod tests {
         ];
         let y = array![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
 
-        let model = LogisticRegression::new().fit(&x, &y).unwrap();
+        let model = LogisticRegression::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         let diagnostics = ClassificationDiagnostics::new();
         let result = diagnostics
             .visualize_decision_boundary(&model, &x, (0, 1))
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.x_grid.len(), 100);
         assert_eq!(result.y_grid.len(), 100);

@@ -388,7 +388,7 @@ fn find_best_split(
     for feature in 0..n_features {
         // Get unique values for this feature
         let mut feature_values: Vec<Float> = indices.iter().map(|&i| x[[i, feature]]).collect();
-        feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         feature_values.dedup();
 
         if feature_values.len() < 2 {
@@ -665,11 +665,13 @@ mod tests {
 
         let model = ModelTree::new().max_depth(5).min_samples_leaf(5);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Calculate R² score
-        let y_mean = y.mean().unwrap();
+        let y_mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
         let ss_tot: Float = y.iter().map(|&yi| (yi - y_mean).powi(2)).sum();
         let ss_res: Float = y
             .iter()
@@ -699,8 +701,8 @@ mod tests {
 
         let model = ModelTree::new().max_depth(4).min_samples_leaf(3);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Model tree should approximate quadratic function reasonably well
         let mse: Float = y
@@ -720,11 +722,13 @@ mod tests {
     #[test]
     fn test_linear_model_fitting() {
         // Test linear model fitting
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![3.0, 7.0, 11.0]); // y = 2*x1 + 1*x2
         let indices = vec![0, 1, 2];
 
-        let (coef, intercept) = fit_linear_model(&x, &y, &indices).unwrap();
+        let (coef, intercept) =
+            fit_linear_model(&x, &y, &indices).expect("operation should succeed");
 
         // Predictions should match targets closely
         let mut error = 0.0;
@@ -742,10 +746,11 @@ mod tests {
         // 2x + y = 5
         // x + 3y = 8
         // Solution: x = 1.4, y = 2.2
-        let a = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 3.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 3.0])
+            .expect("shape and data length should match");
         let b = Array1::from_vec(vec![5.0, 8.0]);
 
-        let x = solve_linear_system(&a, &b).unwrap();
+        let x = solve_linear_system(&a, &b).expect("operation should succeed");
 
         assert_relative_eq!(x[0], 1.4, epsilon = 1e-6);
         assert_relative_eq!(x[1], 2.2, epsilon = 1e-6);
@@ -765,8 +770,8 @@ mod tests {
             .leaf_model(LeafModelType::Constant)
             .max_depth(2);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // With constant leaves, predictions in each region should be close to the mean
         assert!(predictions[0] > 0.5 && predictions[0] < 2.0);

@@ -466,9 +466,9 @@ mod tests {
 
         calibrator
             .fit(&probabilities, &y_true, 100, 1e-6, 0.01)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.transform(&probabilities).unwrap();
+        let calibrated = calibrator.transform(&probabilities).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(calibrated.dim(), (4, 3));
@@ -505,7 +505,7 @@ mod tests {
 
         let logits = array![[2.0, 1.0, 0.5], [1.5, 2.5, 0.8]];
 
-        let probabilities = calibrator.softmax(&logits).unwrap();
+        let probabilities = calibrator.softmax(&logits).expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(probabilities.dim(), (2, 3));
@@ -569,14 +569,14 @@ mod tests {
 
         calibrator_low_reg
             .fit(&probabilities, &y_true, 100, 1e-6, 0.01)
-            .unwrap();
+            .expect("operation should succeed");
         calibrator_high_reg
             .fit(&probabilities, &y_true, 100, 1e-6, 0.01)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Both should produce valid calibrated probabilities
-        let cal_low = calibrator_low_reg.transform(&probabilities).unwrap();
-        let cal_high = calibrator_high_reg.transform(&probabilities).unwrap();
+        let cal_low = calibrator_low_reg.transform(&probabilities).expect("operation should succeed");
+        let cal_high = calibrator_high_reg.transform(&probabilities).expect("operation should succeed");
 
         assert_eq!(cal_low.dim(), (4, 3));
         assert_eq!(cal_high.dim(), (4, 3));
@@ -600,7 +600,7 @@ mod tests {
 
         let logits = array![[1.0, 2.0, 0.5], [0.5, 1.0, 2.0]];
 
-        let result = calibrator.predict_logits(&logits).unwrap();
+        let result = calibrator.predict_logits(&logits).expect("operation should succeed");
 
         // With identity transformation, should be close to original + bias (which is zero)
         assert_eq!(result.dim(), (2, 3));
@@ -631,11 +631,11 @@ mod tests {
             learning_rate: 0.01,
             random_state: Some(42),
         };
-        let calibrator = fit_dirichlet_with_cv(&probabilities, &y_true, &config).unwrap();
+        let calibrator = fit_dirichlet_with_cv(&probabilities, &y_true, &config).expect("operation should succeed");
 
         assert!(calibrator.fitted);
 
-        let calibrated = calibrator.transform(&probabilities).unwrap();
+        let calibrated = calibrator.transform(&probabilities).expect("operation should succeed");
         assert_eq!(calibrated.dim(), (6, 3));
 
         // Check that probabilities sum to 1
@@ -655,9 +655,9 @@ mod tests {
         // Test with very tight tolerance
         calibrator
             .fit(&probabilities, &y_true, 1000, 1e-10, 0.01)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.transform(&probabilities).unwrap();
+        let calibrated = calibrator.transform(&probabilities).expect("operation should succeed");
 
         // Should still produce valid probabilities
         for i in 0..4 {
@@ -680,9 +680,9 @@ mod tests {
 
         calibrator
             .fit(&probabilities, &y_true, 100, 1e-6, 0.01)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.transform(&probabilities).unwrap();
+        let calibrated = calibrator.transform(&probabilities).expect("operation should succeed");
 
         // Should handle extreme probabilities without numerical issues
         for &prob in calibrated.iter() {

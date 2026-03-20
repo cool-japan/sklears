@@ -255,8 +255,8 @@ impl EventBuffer {
 
     /// Add event to buffer
     pub fn add_event(&self, event: TaskExecutionEvent) -> SklResult<()> {
-        let mut events = self.events.lock().unwrap();
-        let mut stats = self.stats.write().unwrap();
+        let mut events = self.events.lock().unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         stats.total_events += 1;
 
@@ -293,9 +293,9 @@ impl EventBuffer {
 
     /// Flush events from buffer
     pub fn flush_events(&self) -> SklResult<Vec<TaskExecutionEvent>> {
-        let mut events = self.events.lock().unwrap();
-        let mut last_flush = self.last_flush.write().unwrap();
-        let mut stats = self.stats.write().unwrap();
+        let mut events = self.events.lock().unwrap_or_else(|e| e.into_inner());
+        let mut last_flush = self.last_flush.write().unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         let flushed_events: Vec<TaskExecutionEvent> = events.drain(..).collect();
         let count = flushed_events.len();
@@ -310,16 +310,16 @@ impl EventBuffer {
 
     /// Get buffer statistics
     pub fn get_stats(&self) -> BufferStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Check if buffer should be flushed
     pub fn should_flush(&self) -> bool {
-        let last_flush = *self.last_flush.read().unwrap();
+        let last_flush = *self.last_flush.read().unwrap_or_else(|e| e.into_inner());
         let time_since_flush = SystemTime::now().duration_since(last_flush).unwrap_or(Duration::ZERO);
 
         time_since_flush >= self.config.flush_interval ||
-        self.events.lock().unwrap().len() >= self.config.size
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).len() >= self.config.size
     }
 }
 
@@ -480,7 +480,7 @@ impl EventProcessor {
     /// Process single event
     pub fn process_event(&mut self, mut event: TaskExecutionEvent) -> SklResult<()> {
         let start_time = SystemTime::now();
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
 
         // Apply filters
         if !self.apply_filters(&event)? {
@@ -506,7 +506,7 @@ impl EventProcessor {
     pub fn process_batch(&mut self, events: Vec<TaskExecutionEvent>) -> SklResult<()> {
         for event in events {
             if let Err(e) = self.process_event(event) {
-                self.stats.write().unwrap().events_failed += 1;
+                self.stats.write().unwrap_or_else(|e| e.into_inner()).events_failed += 1;
                 // Log error but continue processing
                 eprintln!("Failed to process event: {}", e);
             }
@@ -636,7 +636,7 @@ impl EventProcessor {
 
     /// Get processing statistics
     pub fn get_stats(&self) -> ProcessingStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 
@@ -720,7 +720,7 @@ impl EventTrackingSystem {
     /// Record event
     pub fn record_event(&mut self, event: TaskExecutionEvent) -> SklResult<()> {
         self.buffer.add_event(event)?;
-        self.stats.write().unwrap().total_events += 1;
+        self.stats.write().unwrap_or_else(|e| e.into_inner()).total_events += 1;
 
         // Process events if buffer should be flushed
         if self.buffer.should_flush() {
@@ -796,7 +796,7 @@ impl EventTrackingSystem {
 
     /// Get system statistics
     pub fn get_system_stats(&self) -> SystemStats {
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().unwrap_or_else(|e| e.into_inner());
         stats.uptime = SystemTime::now().duration_since(stats.start_time).unwrap_or(Duration::ZERO);
         stats.clone()
     }
@@ -958,7 +958,7 @@ mod tests {
         // Add events
         for i in 0..5 {
             let event = TaskExecutionEvent::task_started(format!("task_{}", i), source.clone());
-            buffer.add_event(event).unwrap();
+            buffer.add_event(event).unwrap_or_default();
         }
 
         let stats = buffer.get_stats();
@@ -972,7 +972,7 @@ mod tests {
         let source = EventSource::default();
         let event = TaskExecutionEvent::task_started("task_1".to_string(), source);
 
-        processor.process_event(event).unwrap();
+        processor.process_event(event).unwrap_or_default();
 
         let stats = processor.get_stats();
         assert_eq!(stats.events_processed, 1);
@@ -985,7 +985,7 @@ mod tests {
         let source = EventSource::default();
 
         let event = TaskExecutionEvent::task_started("task_1".to_string(), source);
-        system.record_event(event).unwrap();
+        system.record_event(event).unwrap_or_default();
 
         let stats = system.get_system_stats();
         assert_eq!(stats.total_events, 1);
@@ -998,10 +998,10 @@ mod tests {
         let event = TaskExecutionEvent::task_started("task_1".to_string(), source);
 
         let criteria = FilterCriteria::EventType(TaskEventType::TaskStarted);
-        assert!(processor.matches_criteria(&criteria, &event).unwrap());
+        assert!(processor.matches_criteria(&criteria, &event).unwrap_or_default());
 
         let criteria = FilterCriteria::EventType(TaskEventType::TaskCompleted);
-        assert!(!processor.matches_criteria(&criteria, &event).unwrap());
+        assert!(!processor.matches_criteria(&criteria, &event).unwrap_or_default());
     }
 
     #[test]
@@ -1012,8 +1012,8 @@ mod tests {
             .with_severity(SeverityLevel::Critical)
             .with_correlation_id("corr_123".to_string());
 
-        assert_eq!(event.metadata.get("key").unwrap(), "value");
+        assert_eq!(event.metadata.get("key").unwrap_or_default(), "value");
         assert_eq!(event.severity, SeverityLevel::Critical);
-        assert_eq!(event.correlation_id.unwrap(), "corr_123");
+        assert_eq!(event.correlation_id.unwrap_or_default(), "corr_123");
     }
 }

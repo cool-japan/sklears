@@ -4,6 +4,7 @@
 //! including batch operations, automatic differentiation support, and GPU acceleration.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayD, Axis, Dimension, IxDyn};
+use scirs2_core::random::RngExt;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::types::{Float, Int};
 use std::collections::HashMap;
@@ -230,8 +231,8 @@ impl TensorOpsContext {
         let data: Vec<Float> = (0..size)
             .map(|_| {
                 // Simple normal distribution using Box-Muller transform
-                let u1: f64 = rng.gen();
-                let u2: f64 = rng.gen();
+                let u1: f64 = rng.random();
+                let u2: f64 = rng.random();
                 let z = ((-2.0 * u1.ln()) as f64).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 z as Float
             })
@@ -364,7 +365,10 @@ impl TensorOpsContext {
                 let mean = tensor.mean().unwrap_or(0.0);
                 Tensor::from_elem(IxDyn(&[]), mean)
             }
-            (ReductionType::Mean, Some(ax)) => tensor.mean_axis(Axis(ax)).unwrap().into_dyn(),
+            (ReductionType::Mean, Some(ax)) => tensor
+                .mean_axis(Axis(ax))
+                .expect("array should have elements for mean computation")
+                .into_dyn(),
             (ReductionType::Max, Some(ax)) => {
                 // Find max along axis
                 tensor
@@ -837,7 +841,7 @@ mod tests {
         let config = TensorConfig::default();
         let mut ctx = TensorOpsContext::new(config);
 
-        let tensor = ctx.zeros(&[2, 3]).unwrap();
+        let tensor = ctx.zeros(&[2, 3]).expect("operation should succeed");
         assert_eq!(tensor.shape(), &[2, 3]);
     }
 
@@ -846,10 +850,10 @@ mod tests {
         let config = TensorConfig::default();
         let mut ctx = TensorOpsContext::new(config);
 
-        let a = ctx.ones(&[2, 2]).unwrap();
-        let b = ctx.full(&[2, 2], 2.0).unwrap();
+        let a = ctx.ones(&[2, 2]).expect("operation should succeed");
+        let b = ctx.full(&[2, 2], 2.0).expect("operation should succeed");
 
-        let result = ctx.add(&a, &b).unwrap();
+        let result = ctx.add(&a, &b).expect("operation should succeed");
 
         // Check all elements are 3.0
         assert!(result.iter().all(|&x| (x - 3.0).abs() < 1e-10));
@@ -863,15 +867,15 @@ mod tests {
         let a_array = array![[1.0, 2.0], [3.0, 4.0]];
         let b_array = array![[5.0, 6.0], [7.0, 8.0]];
 
-        let a = ctx.from_array(&a_array).unwrap();
-        let b = ctx.from_array(&b_array).unwrap();
+        let a = ctx.from_array(&a_array).expect("operation should succeed");
+        let b = ctx.from_array(&b_array).expect("operation should succeed");
 
-        let result = ctx.matmul(&a, &b).unwrap();
+        let result = ctx.matmul(&a, &b).expect("operation should succeed");
 
         // Expected: [[19, 22], [43, 50]]
         let result_2d = result
             .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(result_2d[[0, 0]], 19.0);
         assert_eq!(result_2d[[0, 1]], 22.0);
         assert_eq!(result_2d[[1, 0]], 43.0);
@@ -883,15 +887,36 @@ mod tests {
         let config = TensorConfig::default();
         let mut ctx = TensorOpsContext::new(config);
 
-        let tensor = ctx.from_array(&array![[-1.0, 0.0, 1.0]]).unwrap();
+        let tensor = ctx
+            .from_array(&array![[-1.0, 0.0, 1.0]])
+            .expect("operation should succeed");
 
-        let relu_result = ctx.activation(&tensor, ActivationType::ReLU).unwrap();
-        let sigmoid_result = ctx.activation(&tensor, ActivationType::Sigmoid).unwrap();
+        let relu_result = ctx
+            .activation(&tensor, ActivationType::ReLU)
+            .expect("operation should succeed");
+        let sigmoid_result = ctx
+            .activation(&tensor, ActivationType::Sigmoid)
+            .expect("operation should succeed");
 
         // ReLU should clip negative values to 0
-        assert_eq!(relu_result.as_slice().unwrap()[0], 0.0);
-        assert_eq!(relu_result.as_slice().unwrap()[1], 0.0);
-        assert_eq!(relu_result.as_slice().unwrap()[2], 1.0);
+        assert_eq!(
+            relu_result
+                .as_slice()
+                .expect("slice operation should succeed")[0],
+            0.0
+        );
+        assert_eq!(
+            relu_result
+                .as_slice()
+                .expect("slice operation should succeed")[1],
+            0.0
+        );
+        assert_eq!(
+            relu_result
+                .as_slice()
+                .expect("slice operation should succeed")[2],
+            1.0
+        );
 
         // Sigmoid should be between 0 and 1
         assert!(sigmoid_result.iter().all(|&x| x >= 0.0 && x <= 1.0));
@@ -902,13 +927,29 @@ mod tests {
         let config = TensorConfig::default();
         let mut ctx = TensorOpsContext::new(config);
 
-        let tensor = ctx.from_array(&array![[1.0, 2.0], [3.0, 4.0]]).unwrap();
+        let tensor = ctx
+            .from_array(&array![[1.0, 2.0], [3.0, 4.0]])
+            .expect("operation should succeed");
 
-        let sum_result = ctx.reduce(&tensor, ReductionType::Sum, None).unwrap();
-        let mean_result = ctx.reduce(&tensor, ReductionType::Mean, None).unwrap();
+        let sum_result = ctx
+            .reduce(&tensor, ReductionType::Sum, None)
+            .expect("operation should succeed");
+        let mean_result = ctx
+            .reduce(&tensor, ReductionType::Mean, None)
+            .expect("operation should succeed");
 
-        assert_eq!(sum_result.as_slice().unwrap()[0], 10.0);
-        assert_eq!(mean_result.as_slice().unwrap()[0], 2.5);
+        assert_eq!(
+            sum_result
+                .as_slice()
+                .expect("slice operation should succeed")[0],
+            10.0
+        );
+        assert_eq!(
+            mean_result
+                .as_slice()
+                .expect("slice operation should succeed")[0],
+            2.5
+        );
     }
 
     #[test]
@@ -916,17 +957,31 @@ mod tests {
         let config = TensorConfig::default();
         let mut ctx = TensorOpsContext::new(config);
 
-        let pred1 = ctx.from_array(&array![[1.0, 2.0]]).unwrap();
-        let pred2 = ctx.from_array(&array![[3.0, 4.0]]).unwrap();
+        let pred1 = ctx
+            .from_array(&array![[1.0, 2.0]])
+            .expect("operation should succeed");
+        let pred2 = ctx
+            .from_array(&array![[3.0, 4.0]])
+            .expect("operation should succeed");
         let predictions = vec![&pred1, &pred2];
 
         let avg_result = ctx
             .ensemble_aggregate(&predictions, None, AggregationType::Average)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Average should be [2.0, 3.0]
-        assert_eq!(avg_result.as_slice().unwrap()[0], 2.0);
-        assert_eq!(avg_result.as_slice().unwrap()[1], 3.0);
+        assert_eq!(
+            avg_result
+                .as_slice()
+                .expect("slice operation should succeed")[0],
+            2.0
+        );
+        assert_eq!(
+            avg_result
+                .as_slice()
+                .expect("slice operation should succeed")[1],
+            3.0
+        );
     }
 
     #[test]
@@ -937,10 +992,14 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
         let y = array![0, 1];
 
-        let models = ensemble_ops.train_ensemble_tensors(&x, &y, 3).unwrap();
+        let models = ensemble_ops
+            .train_ensemble_tensors(&x, &y, 3)
+            .expect("operation should succeed");
         assert_eq!(models.len(), 3);
 
-        let predictions = ensemble_ops.predict_ensemble_tensors(&models, &x).unwrap();
+        let predictions = ensemble_ops
+            .predict_ensemble_tensors(&models, &x)
+            .expect("operation should succeed");
         assert_eq!(predictions.shape()[0], 2); // 2 samples
     }
 
@@ -963,9 +1022,9 @@ mod tests {
         };
         let mut ctx = TensorOpsContext::new(config);
 
-        let a = ctx.ones(&[2, 2]).unwrap();
-        let b = ctx.ones(&[2, 2]).unwrap();
-        let _c = ctx.add(&a, &b).unwrap();
+        let a = ctx.ones(&[2, 2]).expect("operation should succeed");
+        let b = ctx.ones(&[2, 2]).expect("operation should succeed");
+        let _c = ctx.add(&a, &b).expect("operation should succeed");
 
         let graph = ctx.get_computation_graph();
         assert!(graph.nodes.len() > 0);

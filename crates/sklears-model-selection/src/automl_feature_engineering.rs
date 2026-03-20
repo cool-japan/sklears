@@ -13,7 +13,7 @@ use std::fmt;
 // use serde::{Deserialize, Serialize};
 // use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 
 /// Types of feature transformations
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -254,7 +254,11 @@ impl fmt::Display for FeatureEngineeringResult {
             .iter()
             .filter(|f| f.is_selected)
             .collect();
-        top_features.sort_by(|a, b| b.importance_score.partial_cmp(&a.importance_score).unwrap());
+        top_features.sort_by(|a, b| {
+            b.importance_score
+                .partial_cmp(&a.importance_score)
+                .expect("operation should succeed")
+        });
 
         for (i, feature) in top_features.iter().take(10).enumerate() {
             writeln!(
@@ -356,8 +360,8 @@ impl AutoFeatureEngineer {
             let new_features =
                 self.apply_single_transformation(&transformed_X, transformation, source_indices)?;
             // Concatenate new features
-            transformed_X =
-                concatenate(Axis(1), &[transformed_X.view(), new_features.view()]).unwrap();
+            transformed_X = concatenate(Axis(1), &[transformed_X.view(), new_features.view()])
+                .expect("operation should succeed");
         }
 
         // Apply scaling
@@ -409,7 +413,7 @@ impl AutoFeatureEngineer {
             }
             TaskType::Regression => {
                 let stats = crate::automl_algorithm_selection::TargetStatistics {
-                    mean: y.mean().unwrap(),
+                    mean: y.mean().expect("operation should succeed"),
                     std: y.std(0.0),
                     skewness: 0.0, // Would calculate actual skewness
                     kurtosis: 0.0, // Would calculate actual kurtosis
@@ -605,7 +609,8 @@ impl AutoFeatureEngineer {
             }
 
             // Concatenate new features
-            enhanced_X = concatenate(Axis(1), &[enhanced_X.view(), new_features.view()]).unwrap();
+            enhanced_X = concatenate(Axis(1), &[enhanced_X.view(), new_features.view()])
+                .expect("operation should succeed");
 
             // Check if we've reached the maximum number of features
             if enhanced_X.ncols() >= self.config.max_features {
@@ -718,7 +723,7 @@ impl AutoFeatureEngineer {
         indexed_features.sort_by(|a, b| {
             b.1.importance_score
                 .partial_cmp(&a.1.importance_score)
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         let n_features_to_select = match &self.config.selection_method {
@@ -1249,8 +1254,8 @@ impl AutoFeatureEngineer {
         let mut indices = Vec::new();
 
         for _ in 0..max_pairs {
-            let i = self.rng.gen_range(0..n_features);
-            let j = self.rng.gen_range(0..n_features);
+            let i = self.rng.random_range(0..n_features);
+            let j = self.rng.random_range(0..n_features);
             if i != j {
                 indices.extend(vec![i, j]);
             }
@@ -1351,7 +1356,8 @@ mod tests {
 
     #[allow(non_snake_case)]
     fn create_test_data() -> (Array2<f64>, Array1<f64>) {
-        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect()).unwrap();
+        let X = Array2::from_shape_vec((100, 4), (0..400).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec((0..100).map(|i| (i % 3) as f64).collect());
         (X, y)
     }
@@ -1362,7 +1368,7 @@ mod tests {
         let result = engineer_features(&X, &y, TaskType::Classification);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.generated_feature_count > result.original_feature_count);
         assert!(result.selected_feature_count <= result.generated_feature_count);
     }
@@ -1375,7 +1381,7 @@ mod tests {
         let poly_features = engineer.apply_polynomial_features(&X, &[0, 1], 2);
         assert!(poly_features.is_ok());
 
-        let poly_features = poly_features.unwrap();
+        let poly_features = poly_features.expect("operation should succeed");
         assert!(poly_features.ncols() > 0);
     }
 
@@ -1399,7 +1405,7 @@ mod tests {
         let interaction_features = engineer.apply_interaction_features(&X, &[0, 1, 2]);
         assert!(interaction_features.is_ok());
 
-        let interaction_features = interaction_features.unwrap();
+        let interaction_features = interaction_features.expect("operation should succeed");
         assert!(interaction_features.ncols() > 0);
     }
 
@@ -1434,7 +1440,7 @@ mod tests {
         let result = engineer.engineer_features(&X, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.selected_feature_count > 0);
     }
 }

@@ -1066,10 +1066,10 @@ mod tests {
 
         let dist_simd = calculator_simd
             .euclidean_distance(x1.view(), x2.view())
-            .unwrap();
+            .expect("operation should succeed");
         let dist_scalar = calculator_scalar
             .euclidean_distance(x1.view(), x2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_relative_eq!(dist_simd, dist_scalar, epsilon = 1e-6);
     }
@@ -1084,10 +1084,10 @@ mod tests {
 
         let dist_simd = calculator_simd
             .manhattan_distance(x1.view(), x2.view())
-            .unwrap();
+            .expect("operation should succeed");
         let dist_scalar = calculator_scalar
             .manhattan_distance(x1.view(), x2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_relative_eq!(dist_simd, dist_scalar, epsilon = 1e-6);
     }
@@ -1102,10 +1102,10 @@ mod tests {
 
         let dist_simd = calculator_simd
             .cosine_distance(x1.view(), x2.view())
-            .unwrap();
+            .expect("operation should succeed");
         let dist_scalar = calculator_scalar
             .cosine_distance(x1.view(), x2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_relative_eq!(dist_simd, dist_scalar, epsilon = 1e-6);
     }
@@ -1118,7 +1118,8 @@ mod tests {
         let target2 = array![3.0, 4.0, 5.0, 6.0];
         let targets = vec![target1.view(), target2.view()];
 
-        let distances = batch_euclidean_distances(query.view(), &targets, &calculator).unwrap();
+        let distances = batch_euclidean_distances(query.view(), &targets, &calculator)
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         assert_relative_eq!(distances[0], 2.0, epsilon = 1e-6);
@@ -1159,7 +1160,9 @@ mod tests {
         let x1 = array![1.0, 2.0]; // Small vector should fallback to scalar
         let x2 = array![3.0, 4.0];
 
-        let dist = calculator.euclidean_distance(x1.view(), x2.view()).unwrap();
+        let dist = calculator
+            .euclidean_distance(x1.view(), x2.view())
+            .expect("operation should succeed");
         assert_relative_eq!(
             dist,
             ((2.0_f64).powi(2) + (2.0_f64).powi(2)).sqrt(),

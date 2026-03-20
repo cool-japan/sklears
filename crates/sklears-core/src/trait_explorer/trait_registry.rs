@@ -1341,11 +1341,11 @@ mod tests {
     #[test]
     fn test_scirs2_compliance() {
         // Test that we can use SciRS2 components without issues
-        use scirs2_core::random::prelude::*;
         use scirs2_core::random::Random;
+        use scirs2_core::random::RngExt;
 
         let mut rng = Random::seed(42);
-        let _random_value: f64 = rng.gen();
+        let _random_value: f64 = rng.random();
 
         // Test array operations
         use scirs2_core::ndarray::{Array1, Array2};

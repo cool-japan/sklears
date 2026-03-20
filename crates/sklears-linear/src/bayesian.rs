@@ -1500,13 +1500,15 @@ mod tests {
         let x = array![[1.0, 0.0], [1.0, 1.0], [1.0, 2.0], [1.0, 3.0],];
         let y = array![1.0, 2.0, 3.0, 4.0]; // y = x2 + 1
 
-        let model = BayesianRidge::new().fit(&x, &y).unwrap();
+        let model = BayesianRidge::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let coef = model.coef().unwrap();
+        let coef = model.coef().expect("operation should succeed");
         assert_abs_diff_eq!(coef[0], 0.0, epsilon = 0.1);
         assert_abs_diff_eq!(coef[1], 1.0, epsilon = 0.1);
 
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("scoring should succeed");
         assert!(score > 0.99);
     }
 
@@ -1523,10 +1525,12 @@ mod tests {
         ];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // y = 2 * x1
 
-        let model = ARDRegression::new().fit(&x, &y).unwrap();
+        let model = ARDRegression::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let coef = model.coef().unwrap();
-        let alpha = model.alpha().unwrap();
+        let coef = model.coef().expect("operation should succeed");
+        let alpha = model.alpha().expect("operation should succeed");
 
         // First coefficient should be close to 2
         assert_abs_diff_eq!(coef[0], 2.0, epsilon = 0.1);
@@ -1536,7 +1540,7 @@ mod tests {
         assert!(alpha[2] > alpha[0] * 100.0);
 
         // Check relevant features
-        let relevant = model.relevant_features().unwrap();
+        let relevant = model.relevant_features().expect("operation should succeed");
         assert!(relevant.contains(&0));
     }
 
@@ -1550,23 +1554,25 @@ mod tests {
             .tol(1e-3)
             .compute_elbo(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let coef_mean = model.coef_mean().unwrap();
+        let coef_mean = model.coef_mean().expect("operation should succeed");
         assert_abs_diff_eq!(coef_mean[0], 0.0, epsilon = 0.2);
         assert_abs_diff_eq!(coef_mean[1], 1.0, epsilon = 0.2);
 
-        let score = model.score(&x, &y).unwrap();
+        let score = model.score(&x, &y).expect("scoring should succeed");
         assert!(score > 0.95);
 
         // Test uncertainty quantification
-        let (predictions, uncertainties) = model.predict_with_uncertainty(&x).unwrap();
+        let (predictions, uncertainties) = model
+            .predict_with_uncertainty(&x)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), x.nrows());
         assert_eq!(uncertainties.len(), x.nrows());
         assert!(uncertainties.iter().all(|&u| u > 0.0));
 
         // Test ELBO history
-        let elbo_history = model.elbo_history().unwrap();
+        let elbo_history = model.elbo_history().expect("operation should succeed");
         assert!(!elbo_history.is_empty());
 
         // ELBO should generally increase (non-decreasing)
@@ -1584,9 +1590,9 @@ mod tests {
             .fit_intercept(false)
             .max_iter(50)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let coef_mean = model.coef_mean().unwrap();
+        let coef_mean = model.coef_mean().expect("operation should succeed");
         assert_abs_diff_eq!(coef_mean[0], 2.0, epsilon = 0.1);
         assert_abs_diff_eq!(model.intercept(), 0.0, epsilon = 1e-10);
     }
@@ -1600,14 +1606,18 @@ mod tests {
         let model = VariationalBayesianRegression::new()
             .max_iter(100)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test predictions at training points should have lower uncertainty
-        let (_train_pred, train_unc) = model.predict_with_uncertainty(&x).unwrap();
+        let (_train_pred, train_unc) = model
+            .predict_with_uncertainty(&x)
+            .expect("operation should succeed");
 
         // Test predictions at extrapolated points should have higher uncertainty
         let x_extrap = array![[5.0], [6.0]];
-        let (_extrap_pred, extrap_unc) = model.predict_with_uncertainty(&x_extrap).unwrap();
+        let (_extrap_pred, extrap_unc) = model
+            .predict_with_uncertainty(&x_extrap)
+            .expect("operation should succeed");
 
         // Uncertainty should be positive
         assert!(train_unc.iter().all(|&u| u > 0.0));
@@ -1615,7 +1625,9 @@ mod tests {
 
         // Test sampling
         let mut rng = thread_rng();
-        let samples = model.sample_predictions(&x, 10, &mut rng).unwrap();
+        let samples = model
+            .sample_predictions(&x, 10, &mut rng)
+            .expect("operation should succeed");
         assert_eq!(samples.dim(), (10, x.nrows()));
     }
 
@@ -1629,17 +1641,17 @@ mod tests {
             .alpha_prior(1e-3, 1e-3)
             .beta_prior(1e-3, 1e-3)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         let model2 = VariationalBayesianRegression::new()
             .alpha_prior(1.0, 1.0)
             .beta_prior(1.0, 1.0)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Models with different priors should give different results
-        let coef1 = model1.coef_mean().unwrap();
-        let coef2 = model2.coef_mean().unwrap();
+        let coef1 = model1.coef_mean().expect("operation should succeed");
+        let coef2 = model2.coef_mean().expect("operation should succeed");
 
         // Results should be different but both reasonable
         assert!(coef1
@@ -1658,16 +1670,16 @@ mod tests {
             .tol(1e-6)
             .compute_elbo(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check that the algorithm converged
-        let elbo_history = model.elbo_history().unwrap();
+        let elbo_history = model.elbo_history().expect("operation should succeed");
 
         // Should have converged before max iterations
         assert!(elbo_history.len() <= 200);
 
         // Final ELBO should be reasonable
-        let final_elbo = elbo_history.last().unwrap();
+        let final_elbo = elbo_history.last().expect("operation should succeed");
         assert!(final_elbo.is_finite());
     }
 
@@ -1685,7 +1697,9 @@ mod tests {
 
         // Test prediction on empty matrix should fail gracefully
         let x_empty = Array2::<Float>::zeros((0, 1));
-        let model = VariationalBayesianRegression::new().fit(&x, &y).unwrap();
+        let model = VariationalBayesianRegression::new()
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         let pred_result = model.predict(&x_empty);
         assert!(pred_result.is_ok());
@@ -1696,7 +1710,7 @@ mod tests {
         // Test Cholesky decomposition helper function
         let matrix = array![[4.0, 2.0], [2.0, 3.0]];
 
-        let l = cholesky_decomposition(&matrix).unwrap();
+        let l = cholesky_decomposition(&matrix).expect("operation should succeed");
 
         // Verify L * L^T = A
         let reconstructed = l.dot(&l.t());
@@ -1713,7 +1727,7 @@ mod tests {
         // Test matrix inversion helper function
         let matrix = array![[2.0, 1.0], [1.0, 2.0]];
 
-        let inverse = invert_matrix(&matrix).unwrap();
+        let inverse = invert_matrix(&matrix).expect("operation should succeed");
 
         // Verify A * A^{-1} = I
         let identity = matrix.dot(&inverse);

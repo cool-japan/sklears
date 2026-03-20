@@ -28,7 +28,9 @@ fn test_signal_stft() {
         .hop_length(128)
         .window_type("hann".to_string());
 
-    let spectrogram = stft.transform(&signal.view()).unwrap();
+    let spectrogram = stft
+        .transform(&signal.view())
+        .expect("operation should succeed");
 
     // Should have frequency bins and time frames
     let n_freq_bins = 256 / 2 + 1; // For real signals
@@ -55,7 +57,9 @@ fn test_signal_wavelet_transform() {
         .levels(3);
 
     let signal_array = Array1::from_vec(signal.clone());
-    let coefficients = wavelet.transform(&signal_array.view()).unwrap();
+    let coefficients = wavelet
+        .transform(&signal_array.view())
+        .expect("operation should succeed");
 
     // Should have coefficients for each decomposition level
     assert!(coefficients.len() > 0);
@@ -66,7 +70,9 @@ fn test_signal_wavelet_transform() {
     }
 
     // Test inverse transform
-    let reconstructed = wavelet.inverse_transform(&coefficients).unwrap();
+    let reconstructed = wavelet
+        .inverse_transform(&coefficients)
+        .expect("operation should succeed");
     assert_eq!(reconstructed.len(), signal.len());
 
     for &val in reconstructed.iter() {
@@ -83,7 +89,9 @@ fn test_signal_hilbert_transform() {
     let hilbert = signal_processing::HilbertTransform::new();
     let signal_arr = Array1::from_vec(signal.clone());
 
-    let analytic_signal = hilbert.transform(&signal_arr.view()).unwrap();
+    let analytic_signal = hilbert
+        .transform(&signal_arr.view())
+        .expect("operation should succeed");
 
     // Analytic signal should have same length as input
     assert_eq!(analytic_signal.len(), signal.len());
@@ -94,7 +102,9 @@ fn test_signal_hilbert_transform() {
     }
 
     // Test instantaneous amplitude extraction
-    let amplitude = hilbert.instantaneous_amplitude(&signal_arr.view()).unwrap();
+    let amplitude = hilbert
+        .instantaneous_amplitude(&signal_arr.view())
+        .expect("operation should succeed");
     assert_eq!(amplitude.len(), signal.len());
 
     for &amp in amplitude.iter() {
@@ -103,7 +113,9 @@ fn test_signal_hilbert_transform() {
     }
 
     // Test instantaneous phase extraction
-    let phase = hilbert.instantaneous_phase(&signal_arr.view()).unwrap();
+    let phase = hilbert
+        .instantaneous_phase(&signal_arr.view())
+        .expect("operation should succeed");
     assert_eq!(phase.len(), signal.len());
 
     for &ph in phase.iter() {
@@ -131,7 +143,9 @@ fn test_signal_bandpass_filter() {
         .order(4);
 
     let signal_array = Array1::from_vec(signal.clone());
-    let filtered = filter.apply(&signal_array.view()).unwrap();
+    let filtered = filter
+        .apply(&signal_array.view())
+        .expect("operation should succeed");
 
     assert_eq!(filtered.len(), signal.len());
 
@@ -161,7 +175,9 @@ fn test_signal_envelope_detector() {
     let detector = signal_processing::EnvelopeDetector::new().method("hilbert".to_string());
 
     let signal_array = Array1::from_vec(signal.clone());
-    let envelope = detector.extract(&signal_array.view()).unwrap();
+    let envelope = detector
+        .extract(&signal_array.view())
+        .expect("operation should succeed");
 
     assert_eq!(envelope.len(), signal.len());
 
@@ -190,7 +206,9 @@ fn test_signal_feature_extractor() {
         .include_statistical(true);
 
     let signal_array = Array1::from_vec(signal.clone());
-    let features = extractor.extract_features(&signal_array.view()).unwrap();
+    let features = extractor
+        .extract_features(&signal_array.view())
+        .expect("operation should succeed");
 
     // Should have multiple feature types
     assert!(features.len() > 10); // Expect various time/freq/statistical features
@@ -219,7 +237,9 @@ fn test_lowpass_filter() {
         .order(6);
 
     let signal_array = Array1::from_vec(signal.clone());
-    let filtered = filter.apply(&signal_array.view()).unwrap();
+    let filtered = filter
+        .apply(&signal_array.view())
+        .expect("operation should succeed");
 
     assert_eq!(filtered.len(), signal.len());
 
@@ -251,7 +271,9 @@ fn test_highpass_filter() {
         .order(4);
 
     let signal_array = Array1::from_vec(signal.clone());
-    let filtered = filter.apply(&signal_array.view()).unwrap();
+    let filtered = filter
+        .apply(&signal_array.view())
+        .expect("operation should succeed");
 
     assert_eq!(filtered.len(), signal.len());
 
@@ -285,7 +307,9 @@ fn test_notch_filter() {
         .sample_rate(sample_rate as f64);
 
     let signal_array = Array1::from_vec(signal.clone());
-    let filtered = filter.apply(&signal_array.view()).unwrap();
+    let filtered = filter
+        .apply(&signal_array.view())
+        .expect("operation should succeed");
 
     assert_eq!(filtered.len(), signal.len());
 
@@ -312,7 +336,9 @@ fn test_signal_resampling() {
         .method("linear".to_string());
 
     let original_arr = Array1::from_vec(original_signal.clone());
-    let resampled = resampler.resample(&original_arr.view()).unwrap();
+    let resampled = resampler
+        .resample(&original_arr.view())
+        .expect("operation should succeed");
 
     // Should be roughly half the length
     assert!((resampled.len() as f64 - original_signal.len() as f64 / 2.0).abs() < 5.0);
@@ -327,7 +353,9 @@ fn test_signal_resampling() {
         .target_rate(2000.0)
         .method("cubic".to_string());
 
-    let upsampled = upsampler.resample(&original_arr.view()).unwrap();
+    let upsampled = upsampler
+        .resample(&original_arr.view())
+        .expect("operation should succeed");
 
     // Should be roughly double the length
     assert!((upsampled.len() as f64 - original_signal.len() as f64 * 2.0).abs() < 10.0);
@@ -346,7 +374,8 @@ fn test_signal_windowing() {
     let windows = vec!["hann", "hamming", "blackman", "rectangular"];
 
     for window_type in windows {
-        let windowed = signal_processing::apply_window(&signal.view(), window_type).unwrap();
+        let windowed = signal_processing::apply_window(&signal.view(), window_type)
+            .expect("operation should succeed");
 
         assert_eq!(windowed.len(), signal.len());
 
@@ -375,13 +404,13 @@ fn test_signal_correlation() {
     // Auto-correlation
     let signal1_arr = Array1::from_vec(signal1.clone());
     let signal2_arr = Array1::from_vec(signal2.clone());
-    let autocorr =
-        signal_processing::cross_correlate(&signal1_arr.view(), &signal1_arr.view()).unwrap();
+    let autocorr = signal_processing::cross_correlate(&signal1_arr.view(), &signal1_arr.view())
+        .expect("operation should succeed");
     assert_eq!(autocorr.len(), 2 * signal1.len() - 1);
 
     // Cross-correlation with identical signals should equal auto-correlation
-    let crosscorr =
-        signal_processing::cross_correlate(&signal1_arr.view(), &signal2_arr.view()).unwrap();
+    let crosscorr = signal_processing::cross_correlate(&signal1_arr.view(), &signal2_arr.view())
+        .expect("operation should succeed");
     assert_eq!(crosscorr.len(), autocorr.len());
 
     for (a, c) in autocorr.iter().zip(crosscorr.iter()) {
@@ -401,7 +430,8 @@ fn test_signal_convolution() {
     let signal_arr = Array1::from_vec(signal.clone());
     let kernel_arr = Array1::from_vec(kernel.clone());
 
-    let convolved = signal_processing::convolve(&signal_arr.view(), &kernel_arr.view()).unwrap();
+    let convolved = signal_processing::convolve(&signal_arr.view(), &kernel_arr.view())
+        .expect("operation should succeed");
 
     // Convolution result length depends on mode (full, same, valid)
     assert!(convolved.len() > 0);
@@ -412,11 +442,13 @@ fn test_signal_convolution() {
 
     // Test different convolution modes
     let convolved_same =
-        signal_processing::convolve_mode(&signal_arr.view(), &kernel_arr.view(), "same").unwrap();
+        signal_processing::convolve_mode(&signal_arr.view(), &kernel_arr.view(), "same")
+            .expect("operation should succeed");
     assert_eq!(convolved_same.len(), signal.len());
 
     let convolved_valid =
-        signal_processing::convolve_mode(&signal_arr.view(), &kernel_arr.view(), "valid").unwrap();
+        signal_processing::convolve_mode(&signal_arr.view(), &kernel_arr.view(), "valid")
+            .expect("operation should succeed");
     assert_eq!(convolved_valid.len(), signal.len() - kernel.len() + 1);
 }
 
@@ -457,7 +489,9 @@ fn test_signal_performance() {
         .hop_length(256);
 
     let start = std::time::Instant::now();
-    let spectrogram = stft.transform(&signal.view()).unwrap();
+    let spectrogram = stft
+        .transform(&signal.view())
+        .expect("operation should succeed");
     let duration = start.elapsed();
 
     // Should complete in reasonable time
@@ -485,8 +519,12 @@ fn test_signal_consistency() {
         .hop_length(64);
 
     // Multiple transforms should give same result
-    let spec1 = stft.transform(&signal.view()).unwrap();
-    let spec2 = stft.transform(&signal.view()).unwrap();
+    let spec1 = stft
+        .transform(&signal.view())
+        .expect("operation should succeed");
+    let spec2 = stft
+        .transform(&signal.view())
+        .expect("operation should succeed");
 
     assert_eq!(spec1.dim(), spec2.dim());
 
@@ -504,7 +542,9 @@ fn test_signal_edge_cases() {
         .sample_rate(1000.0);
 
     let zero_signal_array = Array1::from_vec(zero_signal.clone());
-    let filtered = filter.apply(&zero_signal_array.view()).unwrap();
+    let filtered = filter
+        .apply(&zero_signal_array.view())
+        .expect("operation should succeed");
 
     // Should remain zeros
     for &val in filtered.iter() {
@@ -517,7 +557,9 @@ fn test_signal_edge_cases() {
     let impulse_signal = Array1::from_vec(impulse_signal_vec);
 
     let hilbert = signal_processing::HilbertTransform::new();
-    let result = hilbert.transform(&impulse_signal.view()).unwrap();
+    let result = hilbert
+        .transform(&impulse_signal.view())
+        .expect("operation should succeed");
 
     assert_eq!(result.len(), impulse_signal.len());
 

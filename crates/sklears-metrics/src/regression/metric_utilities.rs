@@ -115,7 +115,7 @@ impl BootstrapMetrics {
 
         // Placeholder implementation - would need proper bootstrap resampling
         let mut sorted_samples = self.samples.clone();
-        sorted_samples.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_samples.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let n = sorted_samples.len();
         let alpha = 1.0 - confidence;
@@ -228,7 +228,7 @@ mod tests {
         aggregator.add_metric(2.0);
         aggregator.add_metric(3.0);
 
-        let mean = aggregator.mean().unwrap();
+        let mean = aggregator.mean().expect("operation should succeed");
         assert!((mean - 2.0).abs() < f64::EPSILON);
     }
 
@@ -236,9 +236,9 @@ mod tests {
     fn test_weighted_metrics() {
         let values = vec![1.0, 2.0, 3.0];
         let weights = vec![1.0, 2.0, 3.0];
-        let weighted = WeightedMetrics::new(values, weights).unwrap();
+        let weighted = WeightedMetrics::new(values, weights).expect("operation should succeed");
 
-        let weighted_mean = weighted.weighted_mean().unwrap();
+        let weighted_mean = weighted.weighted_mean().expect("operation should succeed");
         assert!(weighted_mean > 2.0); // Should be weighted towards larger values
     }
 
@@ -249,7 +249,7 @@ mod tests {
         cv.add_fold_score(0.9);
         cv.add_fold_score(0.85);
 
-        let mean = cv.mean_score().unwrap();
+        let mean = cv.mean_score().expect("operation should succeed");
         assert!((mean - 0.85).abs() < f64::EPSILON);
     }
 }

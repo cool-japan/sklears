@@ -533,7 +533,7 @@ mod tests {
 
         let chunk1 = reader.next_chunk();
         assert!(chunk1.is_some());
-        assert_eq!(chunk1.unwrap().len(), 3);
+        assert_eq!(chunk1.expect("operation should succeed").len(), 3);
 
         assert!(reader.has_more_chunks());
     }
@@ -608,7 +608,7 @@ mod tests {
         let result = memory_efficient_cross_validate(data, labels, 3, train_func, None);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert_eq!(result.total_folds, 3);
         assert_eq!(result.fold_results.len(), 3);
         assert_eq!(result.memory_snapshots.len(), 3);

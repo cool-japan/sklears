@@ -3,6 +3,7 @@
 //! This module provides Python bindings for sklears model selection,
 //! offering scikit-learn compatible cross-validation and data splitting utilities.
 
+use crate::linear::common::{core_array1_to_py, core_array2_to_py};
 use numpy::{PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2};
@@ -35,10 +36,10 @@ pub fn train_test_split(
     let y_test = Array1::<f64>::zeros(1);
 
     Ok((
-        PyArray2::from_array(py, &x_train).unbind(),
-        PyArray2::from_array(py, &x_test).unbind(),
-        PyArray1::from_array(py, &y_train).unbind(),
-        PyArray1::from_array(py, &y_test).unbind(),
+        core_array2_to_py(py, &x_train)?,
+        core_array2_to_py(py, &x_test)?,
+        core_array1_to_py(py, &y_train),
+        core_array1_to_py(py, &y_test),
     ))
 }
 

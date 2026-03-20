@@ -401,7 +401,8 @@ impl FeatureImportance {
             .map(|(&idx, &imp)| (idx, imp))
             .collect();
 
-        indexed_importances.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_importances
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         indexed_importances.into_iter().take(k).collect()
     }
 

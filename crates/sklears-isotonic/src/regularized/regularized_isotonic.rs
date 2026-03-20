@@ -43,8 +43,8 @@
 //!     .tolerance(1e-6)
 //!     .max_iterations(1000);
 //!
-//! let fitted = model.fit(&x, &y).unwrap();
-//! let predictions = fitted.predict(&x).unwrap();
+//! let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+//! let predictions = fitted.predict(&x).expect("prediction should succeed");
 //! ```
 
 use scirs2_core::ndarray::Array1;
@@ -284,7 +284,7 @@ impl Fit<Array1<Float>, Array1<Float>> for RegularizedIsotonicRegression<Untrain
 
         // Sort by x values
         let mut indices: Vec<usize> = (0..x.len()).collect();
-        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+        indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut x_sorted = Array1::zeros(x.len());
         let mut y_sorted = Array1::zeros(y.len());
@@ -558,7 +558,7 @@ impl RegularizedIsotonicRegression<Trained> {
 ///
 /// let fitted = regularized_isotonic_regression(
 ///     &x, &y, true, 0.1, 0.05
-/// ).unwrap();
+/// ).expect("operation should succeed");
 /// ```
 pub fn regularized_isotonic_regression(
     x: &Array1<Float>,
@@ -592,8 +592,8 @@ mod tests {
             .l1_alpha(0.1)
             .l2_alpha(0.05);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are monotonic
         for i in 1..predictions.len() {
@@ -611,8 +611,8 @@ mod tests {
             .l1_alpha(0.5)
             .l2_alpha(0.0);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert!(fitted.is_regularized());
@@ -628,8 +628,8 @@ mod tests {
             .l1_alpha(0.0)
             .l2_alpha(0.1);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 5);
         assert!(fitted.is_regularized());
@@ -647,8 +647,8 @@ mod tests {
             .y_min(0.5)
             .y_max(5.5);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check bounds
         for &pred in predictions.iter() {
@@ -667,8 +667,8 @@ mod tests {
             .l1_alpha(0.1)
             .l2_alpha(0.05);
 
-        let fitted = model.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = model.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are monotonic decreasing
         for i in 1..predictions.len() {
@@ -681,7 +681,8 @@ mod tests {
         let x = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from(vec![1.0, 3.0, 2.0, 4.0, 6.0]);
 
-        let predictions = regularized_isotonic_regression(&x, &y, true, 0.1, 0.05).unwrap();
+        let predictions = regularized_isotonic_regression(&x, &y, true, 0.1, 0.05)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 5);
         // Check that predictions are monotonic

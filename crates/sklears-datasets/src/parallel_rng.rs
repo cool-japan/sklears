@@ -5,7 +5,7 @@
 
 use rayon::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{Distribution, RandNormal, Random, Rng};
+use scirs2_core::random::{Distribution, RandNormal, Random, RngExt};
 use scirs2_core::rngs::StdRng;
 
 /// Thread-safe parallel random number generator
@@ -55,7 +55,7 @@ impl ParallelRng {
             .enumerate()
             .flat_map(|(chunk_id, chunk)| {
                 let mut rng = self.get_thread_rng(chunk_id);
-                let normal = RandNormal::new(mean, std).unwrap();
+                let normal = RandNormal::new(mean, std).expect("operation should succeed");
 
                 chunk
                     .into_iter()
@@ -88,7 +88,7 @@ impl ParallelRng {
                 chunk
                     .into_iter()
                     .map(|_| {
-                        let u: f64 = rng.gen();
+                        let u: f64 = rng.random();
                         low + u * (high - low)
                     })
                     .collect::<Vec<_>>()
@@ -149,7 +149,7 @@ pub fn make_regression_parallel(
 
     // Generate coefficients
     let mut coef_rng = rng.get_thread_rng(0);
-    let normal_coef = RandNormal::new(0.0, 1.0).unwrap();
+    let normal_coef = RandNormal::new(0.0, 1.0).expect("operation should succeed");
     let coef = Array1::from_shape_fn(n_features, |_| normal_coef.sample(&mut coef_rng));
 
     // Compute targets in parallel: y = X @ coef
@@ -167,7 +167,7 @@ pub fn make_regression_parallel(
             .enumerate()
             .flat_map(|(chunk_id, chunk)| {
                 let mut chunk_rng = rng.get_thread_rng(chunk_id + 1);
-                let normal_noise = RandNormal::new(0.0, noise).unwrap();
+                let normal_noise = RandNormal::new(0.0, noise).expect("operation should succeed");
 
                 chunk
                     .into_iter()
@@ -202,7 +202,7 @@ pub fn make_blobs_parallel(
 
     // Generate cluster centers
     let mut center_rng = rng.get_thread_rng(0);
-    let center_normal = RandNormal::new(0.0, 10.0).unwrap();
+    let center_normal = RandNormal::new(0.0, 10.0).expect("operation should succeed");
     let cluster_centers = Array2::from_shape_fn((centers, n_features), |_| {
         center_normal.sample(&mut center_rng)
     });
@@ -220,7 +220,7 @@ pub fn make_blobs_parallel(
         .enumerate()
         .flat_map(|(chunk_id, chunk)| {
             let mut chunk_rng = rng.get_thread_rng(chunk_id + 1);
-            let sample_normal = RandNormal::new(0.0, cluster_std).unwrap();
+            let sample_normal = RandNormal::new(0.0, cluster_std).expect("sampling should succeed");
 
             chunk
                 .into_iter()
@@ -250,8 +250,8 @@ mod tests {
         let rng = ParallelRng::new(42);
         let mut thread_rng = rng.get_thread_rng(0);
         // Just verify it was created successfully
-        let val1 = thread_rng.gen::<f64>();
-        let val2 = thread_rng.gen::<f64>();
+        let val1 = thread_rng.random::<f64>();
+        let val2 = thread_rng.random::<f64>();
         assert!(val1 >= 0.0 && val1 <= 1.0);
         assert!(val2 >= 0.0 && val2 <= 1.0);
     }

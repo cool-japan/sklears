@@ -181,10 +181,14 @@ mod regularization_tests {
             .tolerance(1e-4)
             .learning_rate(0.01);
 
-        let trained = group_lasso.fit(&X.view(), &y_tasks).unwrap();
+        let trained = group_lasso
+            .fit(&X.view(), &y_tasks)
+            .expect("model fitting should succeed");
 
         // Test predictions
-        let predictions = trained.predict(&X.view()).unwrap();
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert!(predictions.contains_key("task1"));
         assert!(predictions.contains_key("task2"));
 
@@ -235,10 +239,14 @@ mod regularization_tests {
             .tolerance(1e-4)
             .learning_rate(0.01);
 
-        let trained = nuclear_norm.fit(&X.view(), &y_tasks).unwrap();
+        let trained = nuclear_norm
+            .fit(&X.view(), &y_tasks)
+            .expect("model fitting should succeed");
 
         // Test predictions
-        let predictions = trained.predict(&X.view()).unwrap();
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
         assert!(predictions.contains_key("task1"));
         assert!(predictions.contains_key("task2"));
 

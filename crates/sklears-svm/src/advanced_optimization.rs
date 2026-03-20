@@ -286,8 +286,8 @@ impl ADMMSVM {
 
     /// Compute kernel matrix
     fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
         let mut k_matrix = DMatrix::zeros(n, n);
 
@@ -339,8 +339,8 @@ impl ADMMSVM {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
         let mut count = 0;
 
@@ -393,8 +393,8 @@ impl ADMMSVM {
             });
         }
 
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let mut decision_values = DVector::zeros(x.nrows());
 
         for i in 0..x.nrows() {
@@ -808,8 +808,8 @@ impl NewtonSVM {
 
     /// Helper methods for dual Newton method
     fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
         let mut k_matrix = DMatrix::zeros(n, n);
 
@@ -890,8 +890,8 @@ impl NewtonSVM {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
         let mut count = 0;
 
@@ -944,8 +944,8 @@ impl NewtonSVM {
             });
         }
 
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let mut decision_values = DVector::zeros(x.nrows());
 
         for i in 0..x.nrows() {
@@ -1230,8 +1230,8 @@ impl TrustRegionSVM {
 
     /// Compute kernel matrix
     fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
         let mut k_matrix = DMatrix::zeros(n, n);
 
@@ -1275,8 +1275,8 @@ impl TrustRegionSVM {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
         let mut count = 0;
 
@@ -1329,8 +1329,8 @@ impl TrustRegionSVM {
             });
         }
 
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let mut decision_values = DVector::zeros(x.nrows());
 
         for i in 0..x.nrows() {
@@ -1593,8 +1593,8 @@ impl AcceleratedGradientSVM {
 
     /// Compute kernel matrix
     fn compute_kernel_matrix(&self, x: &DMatrix<f64>) -> Result<DMatrix<f64>> {
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let n = x.nrows();
         let mut k_matrix = DMatrix::zeros(n, n);
 
@@ -1651,8 +1651,8 @@ impl AcceleratedGradientSVM {
             return Ok(0.0);
         }
 
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let mut intercept_sum = 0.0;
 
         for &sv_idx in support_indices {
@@ -1688,8 +1688,8 @@ impl AcceleratedGradientSVM {
         x: &DMatrix<f64>,
         result: &OptimizationResult,
     ) -> Result<DVector<f64>> {
-        let kernel_type = self.kernel.as_ref().unwrap();
-        let kernel = create_kernel(kernel_type.clone());
+        let kernel_type = self.kernel.as_ref().expect("kernel not available - model not fitted");
+        let kernel = create_kernel(kernel_type.clone())?;
         let n_test = x.nrows();
         let mut decision_values = DVector::zeros(n_test);
 
@@ -1722,7 +1722,7 @@ mod tests {
         let result = admm.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.dual_coef.len() == x.nrows());
         assert!(!result.support_indices.is_empty());
     }
@@ -1738,7 +1738,7 @@ mod tests {
         let result = newton.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.dual_coef.len() == x.nrows());
     }
 
@@ -1753,7 +1753,7 @@ mod tests {
         let result = newton.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.dual_coef.len() == x.nrows());
     }
 
@@ -1766,12 +1766,12 @@ mod tests {
             ..Default::default()
         };
         let mut admm = ADMMSVM::new(config);
-        let result = admm.fit(&x, &y).unwrap();
+        let result = admm.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that objective decreases
         assert!(result.history.len() > 1);
         let first_obj = result.history[0];
-        let last_obj = result.history.last().unwrap();
+        let last_obj = result.history.last().expect("operation should succeed");
         assert!(last_obj <= &first_obj);
     }
 
@@ -1813,7 +1813,7 @@ mod tests {
         let result = trust_region.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.dual_coef.len() == x.nrows());
         assert!(result.n_iterations > 0);
     }
@@ -1832,7 +1832,7 @@ mod tests {
         let result = trust_region.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.dual_coef.len() == x.nrows());
         assert!(result.n_iterations > 0); // Should have performed iterations
     }
@@ -1849,12 +1849,12 @@ mod tests {
             ..Default::default()
         };
         let mut trust_region = TrustRegionSVM::new(config);
-        let result = trust_region.fit(&x, &y).unwrap();
+        let result = trust_region.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that objective improves
         assert!(result.history.len() > 1);
         let first_obj = result.history[0];
-        let last_obj = result.history.last().unwrap();
+        let last_obj = result.history.last().expect("operation should succeed");
 
         // For maximization problem, objective should increase or stay same
         assert!(last_obj >= &first_obj || (last_obj - first_obj).abs() < 1e-6);
@@ -1870,10 +1870,10 @@ mod tests {
             ..Default::default()
         };
         let mut trust_region = TrustRegionSVM::new(config);
-        let result = trust_region.fit(&x, &y).unwrap();
+        let result = trust_region.fit(&x, &y).expect("model fitting should succeed");
 
         // Test prediction
-        let predictions = trust_region.predict(&x, &result).unwrap();
+        let predictions = trust_region.predict(&x, &result).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.nrows());
 
         // All predictions should be either 1.0 or -1.0
@@ -1882,7 +1882,7 @@ mod tests {
         }
 
         // Test decision function
-        let decision_values = trust_region.decision_function(&x, &result).unwrap();
+        let decision_values = trust_region.decision_function(&x, &result).expect("decision function should succeed");
         assert_eq!(decision_values.len(), x.nrows());
 
         // Decision values should be finite
@@ -1908,7 +1908,7 @@ mod tests {
         let result = accel_svm.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.dual_coef.len() == x.nrows());
         assert!(result.n_iterations > 0);
     }
@@ -1930,7 +1930,7 @@ mod tests {
         let result = accel_svm.fit(&x, &y);
         assert!(result.is_ok());
 
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.dual_coef.len() == x.nrows());
         assert!(result.n_iterations > 0);
     }
@@ -1947,12 +1947,12 @@ mod tests {
         let mut accel_svm =
             AcceleratedGradientSVM::new(config).with_method(AcceleratedMethod::Nesterov);
 
-        let result = accel_svm.fit(&x, &y).unwrap();
+        let result = accel_svm.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that objective improves
         assert!(result.history.len() > 1);
         let first_obj = result.history[0];
-        let last_obj = result.history.last().unwrap();
+        let last_obj = result.history.last().expect("operation should succeed");
 
         // For dual maximization, objective should increase or stay stable
         assert!(last_obj >= &first_obj || (last_obj - first_obj).abs() < 1e-4);

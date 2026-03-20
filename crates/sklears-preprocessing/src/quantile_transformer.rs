@@ -80,12 +80,15 @@ impl QuantileTransformer<Untrained> {
     }
 
     /// Set the number of quantiles
-    pub fn n_quantiles(mut self, n_quantiles: usize) -> Self {
+    pub fn n_quantiles(mut self, n_quantiles: usize) -> Result<Self> {
         if n_quantiles < 2 {
-            panic!("n_quantiles must be at least 2");
+            return Err(SklearsError::InvalidParameter {
+                name: "n_quantiles".to_string(),
+                reason: "must be at least 2".to_string(),
+            });
         }
         self.config.n_quantiles = n_quantiles;
-        self
+        Ok(self)
     }
 
     /// Set the output distribution
@@ -152,7 +155,7 @@ fn compute_quantiles(
     ignore_outliers: Option<(Float, Float)>,
 ) -> (Array1<Float>, Array1<Float>) {
     let mut sorted_data = data.to_vec();
-    sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    sorted_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n_samples = sorted_data.len();
 
@@ -369,7 +372,8 @@ impl Fit<Array2<Float>, ()> for QuantileTransformer<Untrained> {
                         .enumerate()
                         .map(|(i, &val)| (i, val))
                         .collect();
-                    indexed_data.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                    indexed_data
+                        .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                     // Take stratified samples across the sorted data
                     let step = n_samples as Float / subsample_size as Float;
@@ -449,8 +453,8 @@ impl Transform<Array2<Float>, Array2<Float>> for QuantileTransformer<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
-        let quantiles = self.quantiles_.as_ref().unwrap();
-        let references = self.references_.as_ref().unwrap();
+        let quantiles = self.quantiles_.as_ref().expect("operation should succeed");
+        let references = self.references_.as_ref().expect("operation should succeed");
 
         if n_features != quantiles.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -490,20 +494,20 @@ impl Transform<Array1<Float>, Array1<Float>> for QuantileTransformer<Trained> {
 impl QuantileTransformer<Trained> {
     /// Get the quantiles for each feature
     pub fn quantiles(&self) -> &Vec<Array1<Float>> {
-        self.quantiles_.as_ref().unwrap()
+        self.quantiles_.as_ref().expect("operation should succeed")
     }
 
     /// Get the number of quantiles used
     pub fn n_quantiles(&self) -> usize {
-        self.n_quantiles_.unwrap()
+        self.n_quantiles_.expect("operation should succeed")
     }
 
     /// Inverse transform data back to original distribution
     pub fn inverse_transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let n_samples = x.nrows();
         let n_features = x.ncols();
-        let quantiles = self.quantiles_.as_ref().unwrap();
-        let references = self.references_.as_ref().unwrap();
+        let quantiles = self.quantiles_.as_ref().expect("operation should succeed");
+        let references = self.references_.as_ref().expect("operation should succeed");
 
         if n_features != quantiles.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -557,11 +561,12 @@ mod tests {
 
         let qt = QuantileTransformer::new()
             .n_quantiles(10)
+            .expect("valid parameter")
             .output_distribution(QuantileOutput::Uniform)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = qt.transform(&x).unwrap();
+        let x_transformed = qt.transform(&x).expect("transformation should succeed");
 
         // Check that values are in [0, 1]
         for value in x_transformed.iter() {
@@ -580,11 +585,12 @@ mod tests {
 
         let qt = QuantileTransformer::new()
             .n_quantiles(6)
+            .expect("valid parameter")
             .output_distribution(QuantileOutput::Normal)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = qt.transform(&x).unwrap();
+        let x_transformed = qt.transform(&x).expect("transformation should succeed");
 
         // Check that transformation is monotonic (more important than exact values)
         for i in 1..x_transformed.len() {
@@ -625,10 +631,11 @@ mod tests {
 
         let qt = QuantileTransformer::new()
             .n_quantiles(5)
+            .expect("valid parameter")
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = qt.transform(&x).unwrap();
+        let x_transformed = qt.transform(&x).expect("transformation should succeed");
 
         // Each feature should be transformed independently
         assert_eq!(x_transformed.ncols(), 2);
@@ -645,11 +652,14 @@ mod tests {
 
         let qt = QuantileTransformer::new()
             .n_quantiles(5)
+            .expect("valid parameter")
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = qt.transform(&x).unwrap();
-        let x_inverse = qt.inverse_transform(&x_transformed).unwrap();
+        let x_transformed = qt.transform(&x).expect("transformation should succeed");
+        let x_inverse = qt
+            .inverse_transform(&x_transformed)
+            .expect("operation should succeed");
 
         // Check that inverse transform recovers original values
         for i in 0..x.nrows() {
@@ -663,10 +673,11 @@ mod tests {
 
         let qt = QuantileTransformer::new()
             .n_quantiles(3)
+            .expect("valid parameter")
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = qt.transform(&x).unwrap();
+        let x_transformed = qt.transform(&x).expect("transformation should succeed");
 
         // All values should be valid
         for value in x_transformed.iter() {
@@ -727,12 +738,13 @@ mod tests {
 
         let qt = QuantileTransformer::new()
             .n_quantiles(6)
+            .expect("valid parameter")
             .output_distribution(QuantileOutput::Normal)
             .clip(true)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let x_transformed = qt.transform(&x).unwrap();
+        let x_transformed = qt.transform(&x).expect("transformation should succeed");
 
         // Check that all values are finite
         for value in x_transformed.iter() {
@@ -756,24 +768,31 @@ mod tests {
         x_data.push([-1000.0]);
         x_data.push([1000.0]);
 
-        let x = Array2::from_shape_vec((102, 1), x_data.into_iter().flatten().collect()).unwrap();
+        let x = Array2::from_shape_vec((102, 1), x_data.into_iter().flatten().collect())
+            .expect("shape and data length should match");
 
         // Test with outlier filtering (ignore bottom 1% and top 1%)
         let qt_filtered = QuantileTransformer::new()
             .n_quantiles(50)
+            .expect("valid parameter")
             .ignore_outliers(Some((0.01, 0.99)))
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Test without outlier filtering
         let qt_unfiltered = QuantileTransformer::new()
             .n_quantiles(50)
+            .expect("valid parameter")
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_value = array![[50.0]];
-        let result_filtered = qt_filtered.transform(&test_value).unwrap();
-        let result_unfiltered = qt_unfiltered.transform(&test_value).unwrap();
+        let result_filtered = qt_filtered
+            .transform(&test_value)
+            .expect("transformation should succeed");
+        let result_unfiltered = qt_unfiltered
+            .transform(&test_value)
+            .expect("transformation should succeed");
 
         // The filtered version should handle the middle values better
         // (this is a qualitative test - both should be valid but different)
@@ -823,6 +842,7 @@ mod tests {
     fn test_builder_methods() {
         let qt = QuantileTransformer::new()
             .n_quantiles(500)
+            .expect("valid parameter")
             .output_distribution(QuantileOutput::Normal)
             .subsample(Some(1000))
             .clip(false)

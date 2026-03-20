@@ -14,7 +14,8 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::RngExt;
+use scirs2_core::random::SeedableRng;
 use sklears_compose::{Pipeline, PipelineStep};
 use sklears_core::error::Result as SklResult;
 use sklears_core::traits::Fit;
@@ -89,13 +90,14 @@ fn bench_ensemble_size(c: &mut Criterion) {
 
         let fitted = build_ensemble_pipeline(*n_estimators)
             .fit(&x_view, &y_opt)
-            .unwrap();
+            .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("pipeline_ensemble", n_estimators),
             n_estimators,
             |bench, _| {
-                bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+                bench
+                    .iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
             },
         );
     }
@@ -117,13 +119,16 @@ fn bench_ensemble_data_scaling(c: &mut Criterion) {
 
         group.throughput(Throughput::Elements((n_samples * n_features) as u64));
 
-        let fitted = build_ensemble_pipeline(5).fit(&x_view, &y_opt).unwrap();
+        let fitted = build_ensemble_pipeline(5)
+            .fit(&x_view, &y_opt)
+            .expect("bench operation failed");
 
         group.bench_with_input(
             BenchmarkId::new("5_members", format!("{}x{}", n_samples, n_features)),
             &(*n_samples, *n_features),
             |bench, _| {
-                bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+                bench
+                    .iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
             },
         );
     }
@@ -144,15 +149,21 @@ fn bench_ensemble_fit_vs_transform(c: &mut Criterion) {
     group.bench_function("fit_5_members", |bench| {
         bench.iter(|| {
             let pipeline = build_ensemble_pipeline(5);
-            black_box(pipeline.fit(&x_view, &y_opt).unwrap())
+            black_box(
+                pipeline
+                    .fit(&x_view, &y_opt)
+                    .expect("bench operation failed"),
+            )
         });
     });
 
     // Benchmark transform operation (pre-fitted)
-    let fitted = build_ensemble_pipeline(5).fit(&x_view, &y_opt).unwrap();
+    let fitted = build_ensemble_pipeline(5)
+        .fit(&x_view, &y_opt)
+        .expect("bench operation failed");
 
     group.bench_function("transform_5_members", |bench| {
-        bench.iter(|| black_box(fitted.transform(&x_view).unwrap()));
+        bench.iter(|| black_box(fitted.transform(&x_view).expect("bench operation failed")));
     });
 
     group.finish();

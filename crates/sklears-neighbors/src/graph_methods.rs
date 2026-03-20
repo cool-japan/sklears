@@ -611,14 +611,16 @@ mod tests {
             (5, 2),
             vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0],
         )
-        .unwrap()
+        .expect("operation should succeed")
     }
 
     #[test]
     fn test_knn_graph() {
         let data = create_test_data();
         let graph_builder = KNearestNeighborGraph::new(2);
-        let graph = graph_builder.build(&data.view()).unwrap();
+        let graph = graph_builder
+            .build(&data.view())
+            .expect("operation should succeed");
 
         assert_eq!(graph.nodes, 5);
         assert!(graph.edges.len() > 0);
@@ -633,7 +635,9 @@ mod tests {
     fn test_mutual_knn_graph() {
         let data = create_test_data();
         let graph_builder = MutualKNearestNeighbors::new(2);
-        let graph = graph_builder.build(&data.view()).unwrap();
+        let graph = graph_builder
+            .build(&data.view())
+            .expect("operation should succeed");
 
         assert_eq!(graph.nodes, 5);
 
@@ -647,7 +651,9 @@ mod tests {
     fn test_epsilon_graph() {
         let data = create_test_data();
         let graph_builder = EpsilonGraph::new(1.5);
-        let graph = graph_builder.build(&data.view()).unwrap();
+        let graph = graph_builder
+            .build(&data.view())
+            .expect("operation should succeed");
 
         assert_eq!(graph.nodes, 5);
 
@@ -661,7 +667,9 @@ mod tests {
     fn test_relative_neighborhood_graph() {
         let data = create_test_data();
         let graph_builder = RelativeNeighborhoodGraph::new();
-        let graph = graph_builder.build(&data.view()).unwrap();
+        let graph = graph_builder
+            .build(&data.view())
+            .expect("operation should succeed");
 
         assert_eq!(graph.nodes, 5);
 
@@ -673,7 +681,9 @@ mod tests {
     fn test_gabriel_graph() {
         let data = create_test_data();
         let graph_builder = GabrielGraph::new();
-        let graph = graph_builder.build(&data.view()).unwrap();
+        let graph = graph_builder
+            .build(&data.view())
+            .expect("operation should succeed");
 
         assert_eq!(graph.nodes, 5);
 
@@ -686,7 +696,9 @@ mod tests {
     fn test_graph_neighbor_search() {
         let data = create_test_data();
         let graph_builder = KNearestNeighborGraph::new(2).with_directed(false);
-        let graph = graph_builder.build(&data.view()).unwrap();
+        let graph = graph_builder
+            .build(&data.view())
+            .expect("operation should succeed");
 
         let search = GraphNeighborSearch::new(graph);
 
@@ -707,7 +719,9 @@ mod tests {
     fn test_graph_statistics() {
         let data = create_test_data();
         let graph_builder = KNearestNeighborGraph::new(2);
-        let graph = graph_builder.build(&data.view()).unwrap();
+        let graph = graph_builder
+            .build(&data.view())
+            .expect("operation should succeed");
 
         let stats = graph.statistics();
         assert_eq!(stats.nodes, 5);

@@ -180,7 +180,7 @@ fn rand_normal() -> f64 {
     // Box-Muller transform (simplified)
     let seed = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .expect("operation should succeed")
         .as_nanos() as u64;
 
     let u1 = ((seed % 1000000) as f64) / 1000000.0;

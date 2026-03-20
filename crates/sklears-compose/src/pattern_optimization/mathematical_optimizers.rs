@@ -470,7 +470,7 @@ impl Default for MathematicalOptimizer {
         Self {
             optimizer_id: format!("math_opt_{}", std::time::SystemTime::now()
                 .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_millis()),
             linear_solvers: HashMap::new(),
             quadratic_solvers: HashMap::new(),

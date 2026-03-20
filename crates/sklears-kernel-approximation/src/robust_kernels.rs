@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_core::random::essentials::Normal as RandNormal;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::error::Result;
 use std::collections::HashMap;
@@ -135,11 +135,12 @@ impl RobustRBFSampler {
         let n_features = x.ncols();
 
         // Initialize random weights
-        let normal = RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).unwrap();
+        let normal =
+            RandNormal::new(0.0, (2.0 * self.gamma).sqrt()).expect("operation should succeed");
         let mut rng = if let Some(seed) = self.config.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         self.random_weights = Some(Array2::from_shape_fn(
@@ -148,7 +149,7 @@ impl RobustRBFSampler {
         ));
 
         self.random_offset = Some(Array1::from_shape_fn(self.n_components, |_| {
-            rng.gen_range(0.0..2.0 * std::f64::consts::PI)
+            rng.random_range(0.0..2.0 * std::f64::consts::PI)
         }));
 
         // Detect outliers and compute robust weights
@@ -277,7 +278,8 @@ impl RobustRBFSampler {
                 let distances = self.compute_mahalanobis_distances(x, &mean, &cov);
                 let mut indexed_distances: Vec<(usize, f64)> =
                     distances.iter().enumerate().map(|(i, &d)| (i, d)).collect();
-                indexed_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                indexed_distances
+                    .sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 subset = indexed_distances.iter().take(h).map(|(i, _)| *i).collect();
             }
@@ -438,7 +440,7 @@ impl RobustRBFSampler {
         let n_features = x.ncols();
 
         // Compute mean
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
 
         // Compute covariance
         let mut cov = Array2::zeros((n_features, n_features));
@@ -489,7 +491,7 @@ impl RobustRBFSampler {
     /// Compute Huber center
     fn compute_huber_center(&self, x: &Array2<f64>, _delta: f64) -> Array1<f64> {
         // Simplified Huber center computation
-        x.mean_axis(Axis(0)).unwrap()
+        x.mean_axis(Axis(0)).expect("operation should succeed")
     }
 
     /// Compute Huber scale
@@ -502,7 +504,7 @@ impl RobustRBFSampler {
             .collect();
 
         let mut sorted_distances = distances;
-        sorted_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         sorted_distances[sorted_distances.len() / 2] // Median
     }
 
@@ -519,7 +521,7 @@ impl RobustRBFSampler {
     /// Compute Tukey center
     fn compute_tukey_center(&self, x: &Array2<f64>, _c: f64) -> Array1<f64> {
         // Simplified Tukey center computation
-        x.mean_axis(Axis(0)).unwrap()
+        x.mean_axis(Axis(0)).expect("operation should succeed")
     }
 
     /// Compute Tukey scale
@@ -532,7 +534,7 @@ impl RobustRBFSampler {
             .collect();
 
         let mut sorted_distances = distances;
-        sorted_distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         sorted_distances[sorted_distances.len() / 2] // Median
     }
 
@@ -643,7 +645,7 @@ impl RobustNystroem {
         let mut rng = if let Some(seed) = self.config.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Filter out outliers if available
@@ -658,7 +660,7 @@ impl RobustNystroem {
         let n_basis = std::cmp::min(self.n_components, n_available);
 
         for _ in 0..n_basis {
-            let idx = rng.gen_range(0..n_available);
+            let idx = rng.random_range(0..n_available);
             indices.push(available_indices[idx]);
         }
 
@@ -668,7 +670,10 @@ impl RobustNystroem {
 
     /// Get basis points
     fn get_basis_points(&self, x: &Array2<f64>) -> Array2<f64> {
-        let indices = self.basis_indices.as_ref().unwrap();
+        let indices = self
+            .basis_indices
+            .as_ref()
+            .expect("operation should succeed");
         let n_features = x.ncols();
         let mut basis_points = Array2::zeros((indices.len(), n_features));
 
@@ -701,7 +706,10 @@ impl RobustNystroem {
 
         // Apply robust weighting if available
         if let Some(weights) = &self.robust_weights {
-            let indices = self.basis_indices.as_ref().unwrap();
+            let indices = self
+                .basis_indices
+                .as_ref()
+                .expect("operation should succeed");
             for (i, &idx_i) in indices.iter().enumerate() {
                 for (j, &idx_j) in indices.iter().enumerate() {
                     kernel_matrix[[i, j]] *= (weights[idx_i] * weights[idx_j]).sqrt();
@@ -746,7 +754,10 @@ impl RobustNystroem {
 
     /// Compute robust kernel values
     fn compute_robust_kernel_values(&self, x: &Array2<f64>) -> Result<Array2<f64>> {
-        let indices = self.basis_indices.as_ref().unwrap();
+        let indices = self
+            .basis_indices
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_basis = indices.len();
         let mut kernel_values = Array2::zeros((n_samples, n_basis));
@@ -832,9 +843,9 @@ impl BreakdownPointAnalysis {
 
         // Add outliers to random samples
         for _ in 0..n_contaminated {
-            let idx = rng.gen_range(0..n_samples);
+            let idx = rng.random_range(0..n_samples);
             for j in 0..x.ncols() {
-                contaminated[[idx, j]] += rng.gen_range(-10.0..10.0);
+                contaminated[[idx, j]] += rng.random_range(-10.0..10.0);
             }
         }
 
@@ -844,8 +855,12 @@ impl BreakdownPointAnalysis {
     /// Compute bias of estimator
     fn compute_bias(&self, contaminated: &Array2<f64>, original: &Array2<f64>) -> Result<f64> {
         // Simplified bias computation
-        let original_mean = original.mean_axis(Axis(0)).unwrap();
-        let contaminated_mean = contaminated.mean_axis(Axis(0)).unwrap();
+        let original_mean = original
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
+        let contaminated_mean = contaminated
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
 
         let bias = (&contaminated_mean - &original_mean)
             .mapv(|x| x.abs())
@@ -977,7 +992,7 @@ impl InfluenceFunctionDiagnostics {
     /// Compute robust estimate
     fn compute_robust_estimate(&self, _x: &Array2<f64>, y: &Array1<f64>) -> Result<f64> {
         // Simplified robust estimate - just return mean
-        Ok(y.mean().unwrap())
+        Ok(y.mean().expect("operation should succeed"))
     }
 
     /// Compute robust statistics
@@ -985,7 +1000,7 @@ impl InfluenceFunctionDiagnostics {
         let n_samples = x.nrows();
         let n_features = x.ncols();
 
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let mut cov = Array2::zeros((n_features, n_features));
 
         for sample in x.rows() {
@@ -1025,14 +1040,15 @@ mod tests {
 
     #[test]
     fn test_robust_rbf_sampler() {
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let mut robust_rbf = RobustRBFSampler::new(50)
             .gamma(1.0)
             .with_config(RobustKernelConfig::default());
 
-        robust_rbf.fit(&x).unwrap();
-        let transformed = robust_rbf.transform(&x).unwrap();
+        robust_rbf.fit(&x).expect("operation should succeed");
+        let transformed = robust_rbf.transform(&x).expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[10, 50]);
         assert!(robust_rbf.get_outlier_mask().is_some());
@@ -1055,7 +1071,7 @@ mod tests {
                 7.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         for estimator in estimators {
             let config = RobustKernelConfig {
@@ -1072,14 +1088,17 @@ mod tests {
 
     #[test]
     fn test_robust_nystroem() {
-        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 3), (0..30).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let mut robust_nystroem = RobustNystroem::new(5)
             .gamma(1.0)
             .with_config(RobustKernelConfig::default());
 
-        robust_nystroem.fit(&x).unwrap();
-        let transformed = robust_nystroem.transform(&x).unwrap();
+        robust_nystroem.fit(&x).expect("operation should succeed");
+        let transformed = robust_nystroem
+            .transform(&x)
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), &[10, 5]);
         assert!(robust_nystroem.get_outlier_mask().is_some());
@@ -1088,12 +1107,13 @@ mod tests {
 
     #[test]
     fn test_breakdown_point_analysis() {
-        let x = Array2::from_shape_vec((20, 2), (0..40).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 2), (0..40).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         let mut analysis =
             BreakdownPointAnalysis::new().with_estimator(RobustEstimator::Huber { delta: 1.345 });
 
-        let breakdown_point = analysis.analyze(&x).unwrap();
+        let breakdown_point = analysis.analyze(&x).expect("operation should succeed");
         assert!(breakdown_point >= 0.0 && breakdown_point <= 1.0);
 
         let breakdown_points = analysis.get_breakdown_points();
@@ -1102,19 +1122,24 @@ mod tests {
 
     #[test]
     fn test_influence_function_diagnostics() {
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect())
+            .expect("operation should succeed");
         let y = Array1::from_vec((0..10).map(|i| i as f64).collect());
 
         let mut diagnostics = InfluenceFunctionDiagnostics::new()
             .with_estimator(RobustEstimator::Huber { delta: 1.345 });
 
-        diagnostics.compute(&x, &y).unwrap();
+        diagnostics
+            .compute(&x, &y)
+            .expect("operation should succeed");
 
         assert!(diagnostics.get_influence_values().is_some());
         assert!(diagnostics.get_leverage_values().is_some());
         assert!(diagnostics.get_cook_distances().is_some());
 
-        let influence = diagnostics.get_influence_values().unwrap();
+        let influence = diagnostics
+            .get_influence_values()
+            .expect("operation should succeed");
         assert_eq!(influence.len(), 10);
     }
 
@@ -1128,7 +1153,8 @@ mod tests {
             RobustLoss::Fair { c: 1.0 },
         ];
 
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         for loss in losses {
             let config = RobustKernelConfig {
@@ -1146,8 +1172,8 @@ mod tests {
     #[test]
     fn test_contamination_resistance() {
         // Create clean data
-        let mut x =
-            Array2::from_shape_vec((20, 2), (0..40).map(|i| i as f64 / 10.0).collect()).unwrap();
+        let mut x = Array2::from_shape_vec((20, 2), (0..40).map(|i| i as f64 / 10.0).collect())
+            .expect("operation should succeed");
 
         // Add outliers
         x[[18, 0]] = 100.0;
@@ -1162,9 +1188,11 @@ mod tests {
 
         let mut robust_rbf = RobustRBFSampler::new(10).with_config(config);
 
-        robust_rbf.fit(&x).unwrap();
+        robust_rbf.fit(&x).expect("operation should succeed");
 
-        let outlier_mask = robust_rbf.get_outlier_mask().unwrap();
+        let outlier_mask = robust_rbf
+            .get_outlier_mask()
+            .expect("operation should succeed");
         assert!(outlier_mask[18] || outlier_mask[19]); // At least one outlier detected
     }
 }

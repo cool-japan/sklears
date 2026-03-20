@@ -432,7 +432,7 @@ impl InformationTheoryCovariance<InformationTheoryUntrained> {
         }
 
         let mut sorted_data: Vec<f64> = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut entropy = 0.0;
         let digamma_n = self.digamma(n as f64);
@@ -446,7 +446,7 @@ impl InformationTheoryCovariance<InformationTheoryUntrained> {
                     distances.push((sorted_data[i] - sorted_data[j]).abs());
                 }
             }
-            distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             if distances.len() >= self.k_neighbors {
                 let knn_distance = distances[self.k_neighbors - 1];
@@ -474,7 +474,7 @@ impl InformationTheoryCovariance<InformationTheoryUntrained> {
         }
 
         let mut sorted_data: Vec<f64> = data.to_vec();
-        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let m = (n as f64).sqrt() as usize;
         let mut entropy = 0.0;
@@ -672,7 +672,9 @@ impl InformationTheoryCovariance<InformationTheoryUntrained> {
     /// Compute empirical covariance for comparison
     fn compute_empirical_covariance(&self, x: &ArrayView2<f64>) -> Array2<f64> {
         let (n_samples, n_features) = x.dim();
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("mean computation should succeed for non-empty array");
 
         let mut covariance = Array2::zeros((n_features, n_features));
 
@@ -969,7 +971,9 @@ mod tests {
             .n_bins(10)
             .seed(42);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert_eq!(fitted.get_entropy_estimates().len(), 2);
@@ -984,9 +988,15 @@ mod tests {
         let estimator = InformationTheoryCovariance::new();
 
         // Test different entropy estimators
-        let entropy_hist = estimator.histogram_entropy(&x.view()).unwrap();
-        let entropy_kde = estimator.kde_entropy(&x.view()).unwrap();
-        let entropy_knn = estimator.knn_entropy(&x.view()).unwrap();
+        let entropy_hist = estimator
+            .histogram_entropy(&x.view())
+            .expect("operation should succeed");
+        let entropy_kde = estimator
+            .kde_entropy(&x.view())
+            .expect("operation should succeed");
+        let entropy_knn = estimator
+            .knn_entropy(&x.view())
+            .expect("operation should succeed");
 
         assert!(entropy_hist >= 0.0);
         assert!(entropy_kde >= 0.0);
@@ -1001,7 +1011,7 @@ mod tests {
         let estimator = InformationTheoryCovariance::new();
         let mi = estimator
             .estimate_mutual_information(&x.view(), &y.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(mi >= 0.0);
     }
@@ -1021,7 +1031,9 @@ mod tests {
             .regularization_weight(0.1)
             .n_bins(10);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_regularization_term() != 0.0);
@@ -1035,7 +1047,9 @@ mod tests {
             .method(InformationMethod::MutualInformation)
             .seed(42);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         let report = fitted.generate_information_report();
 
         assert!(report.contains("Information Theory Covariance Report"));
@@ -1056,7 +1070,9 @@ mod tests {
         let estimator =
             InformationTheoryCovariance::new().method(InformationMethod::TransferEntropy);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         let te_matrix = &fitted.get_information_metrics().transfer_entropy_matrix;
 
         assert_eq!(te_matrix.dim(), (3, 3));

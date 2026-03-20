@@ -4,7 +4,7 @@
 //! in machine learning and big data applications for approximate computations.
 
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::collections::hash_map::DefaultHasher;
 use std::f64::consts::LN_2;
 use std::hash::{Hash, Hasher};
@@ -470,7 +470,7 @@ impl LSHash {
         for _ in 0..table_count {
             let mut projection = Vec::with_capacity(dimension);
             for _ in 0..dimension {
-                projection.push(rng.gen::<f64>() * 2.0 - 1.0); // Random values between -1 and 1
+                projection.push(rng.random::<f64>() * 2.0 - 1.0); // Random values between -1 and 1
             }
             projections.push(projection);
         }

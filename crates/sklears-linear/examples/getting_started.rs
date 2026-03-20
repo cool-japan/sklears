@@ -14,7 +14,7 @@ use std::time::Instant;
 #[allow(non_snake_case)]
 fn generate_synthetic_data(n_samples: usize, n_features: usize) -> (Array2<f64>, Array1<f64>) {
     let mut rng = seeded_rng(42);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     // Generate random feature matrix
     let X = Array2::from_shape_fn((n_samples, n_features), |_| normal.sample(&mut rng));
@@ -42,12 +42,16 @@ fn generate_synthetic_data(n_samples: usize, n_features: usize) -> (Array2<f64>,
 /// Calculate mean squared error
 fn mse(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> f64 {
     let diff = y_true - y_pred;
-    diff.mapv(|x| x * x).mean().unwrap()
+    diff.mapv(|x| x * x)
+        .mean()
+        .expect("mean computation should succeed for non-empty array")
 }
 
 /// Calculate R² score
 fn r2_score(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> f64 {
-    let y_mean = y_true.mean().unwrap();
+    let y_mean = y_true
+        .mean()
+        .expect("mean computation should succeed for non-empty array");
     let ss_tot: f64 = y_true.iter().map(|&y| (y - y_mean).powi(2)).sum();
     let ss_res: f64 = y_true
         .iter()

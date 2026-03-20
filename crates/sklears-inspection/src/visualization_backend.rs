@@ -685,7 +685,8 @@ impl VisualizationBackend for HtmlBackend {
             
             Plotly.newPlot('plot', data, layout);
             "#,
-            serde_json::to_string(&data.shap_values.to_owned().into_raw_vec()).unwrap(),
+            serde_json::to_string(&data.shap_values.to_owned().into_raw_vec())
+                .expect("operation should succeed"),
             data.title,
             config.width,
             config.height
@@ -1336,20 +1337,20 @@ mod tests {
         // Test HTML rendering
         let result = renderer.render_with_backend("html", plot_type.clone(), &config);
         assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("operation should succeed");
         assert_eq!(rendered.format, OutputFormat::Html);
         assert!(rendered.content.contains("Test Plot"));
 
         // Test JSON rendering
         let result = renderer.render_with_backend("json", plot_type.clone(), &config);
         assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("operation should succeed");
         assert_eq!(rendered.format, OutputFormat::Json);
 
         // Test ASCII rendering
         let result = renderer.render_with_backend("ascii", plot_type, &config);
         assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("operation should succeed");
         assert_eq!(rendered.format, OutputFormat::Ascii);
     }
 
@@ -1370,7 +1371,7 @@ mod tests {
         let result = backend.render_feature_importance(&data, &config);
 
         assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("operation should succeed");
         assert_eq!(rendered.format, OutputFormat::Html);
         assert!(rendered.content.contains("Test Plot"));
         assert!(rendered.content.contains("Plotly"));
@@ -1394,7 +1395,7 @@ mod tests {
         let result = backend.render_feature_importance(&data, &config);
 
         assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("operation should succeed");
         assert_eq!(rendered.format, OutputFormat::Json);
         assert!(rendered.content.contains("Feature1"));
         assert!(rendered.content.contains("Feature2"));
@@ -1418,7 +1419,7 @@ mod tests {
         let result = backend.render_feature_importance(&data, &config);
 
         assert!(result.is_ok());
-        let rendered = result.unwrap();
+        let rendered = result.expect("operation should succeed");
         assert_eq!(rendered.format, OutputFormat::Ascii);
         assert!(rendered.content.contains("Test Plot"));
         assert!(rendered.content.contains("Feature1"));
@@ -1428,10 +1429,10 @@ mod tests {
 
     #[test]
     fn test_shap_data_creation() {
-        let shap_values =
-            Array2::from_shape_vec((2, 3), vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6]).unwrap();
-        let feature_values =
-            Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let shap_values = Array2::from_shape_vec((2, 3), vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+            .expect("operation should succeed");
+        let feature_values = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
         let data = ShapData {
             shap_values,

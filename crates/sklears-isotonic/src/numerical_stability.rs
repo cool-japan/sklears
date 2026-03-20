@@ -1319,7 +1319,7 @@ mod tests {
         let predictions = model.predict(&x);
         assert!(predictions.is_ok());
 
-        let fitted = predictions.unwrap();
+        let fitted = predictions.expect("operation should succeed");
         assert_eq!(fitted.len(), 5);
 
         // Check monotonicity
@@ -1330,7 +1330,7 @@ mod tests {
         // Check stability analysis
         let analysis = model.stability_analysis();
         assert!(analysis.is_some());
-        let analysis = analysis.unwrap();
+        let analysis = analysis.expect("operation should succeed");
         assert!(analysis.condition_number > 0.0);
         assert!(analysis.residual_norm >= 0.0);
     }
@@ -1356,7 +1356,7 @@ mod tests {
         let mut model = NumericallyStableIsotonicRegression::new().config(config);
         assert!(model.fit(&x, &y).is_ok());
 
-        let analysis = model.stability_analysis().unwrap();
+        let analysis = model.stability_analysis().expect("operation should succeed");
         assert!(analysis.refinement_steps <= 5);
     }
 
@@ -1368,7 +1368,7 @@ mod tests {
         let result = high_precision_isotonic_regression(&x, &y, true);
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 5);
 
         // Check monotonicity
@@ -1388,7 +1388,7 @@ mod tests {
         let result = ultra_high_precision_isotonic_regression(&x, &y, true);
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 5);
 
         // Check monotonicity
@@ -1408,11 +1408,11 @@ mod tests {
         let result = isotonic_regression_with_error_analysis(&x, &y, true);
         assert!(result.is_ok());
 
-        let (fitted, analysis) = result.unwrap();
+        let (fitted, analysis) = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 5);
         assert!(analysis.error_bounds.is_some());
 
-        let error_bounds = analysis.error_bounds.unwrap();
+        let error_bounds = analysis.error_bounds.expect("operation should succeed");
         assert!(error_bounds.forward_error >= 0.0);
         assert!(error_bounds.backward_error >= 0.0);
         assert!(error_bounds.error_propagation_factor >= 0.0);
@@ -1428,7 +1428,7 @@ mod tests {
         let result = analyze_numerical_stability(&x, &y);
         assert!(result.is_ok());
 
-        let analysis = result.unwrap();
+        let analysis = result.expect("operation should succeed");
         assert!(analysis.condition_number > 0.0);
         assert!(analysis.is_well_conditioned);
         assert_eq!(analysis.precision_level, PrecisionLevel::High);
@@ -1459,7 +1459,7 @@ mod tests {
                 precision
             );
 
-            let analysis = model.stability_analysis().unwrap();
+            let analysis = model.stability_analysis().expect("operation should succeed");
             assert_eq!(analysis.precision_level, precision);
         }
     }
@@ -1477,7 +1477,7 @@ mod tests {
         let result = model.fit(&x, &y);
         assert!(result.is_ok());
 
-        let analysis = model.stability_analysis().unwrap();
+        let analysis = model.stability_analysis().expect("operation should succeed");
         assert!(analysis.used_high_precision);
     }
 
@@ -1492,7 +1492,7 @@ mod tests {
         let result = solver.solve_linear_system(&a, &b);
         assert!(result.is_ok());
 
-        let x = result.unwrap();
+        let x = result.expect("operation should succeed");
         assert_eq!(x.len(), 2);
         assert_abs_diff_eq!(x[0], 1.0, epsilon = 1e-10);
         assert_abs_diff_eq!(x[1], 1.0, epsilon = 1e-10);
@@ -1521,7 +1521,7 @@ mod tests {
         let result = numerically_stable_isotonic_regression(&x, &y, Some(config), true);
         assert!(result.is_ok());
 
-        let (fitted, analysis) = result.unwrap();
+        let (fitted, analysis) = result.expect("operation should succeed");
         assert_eq!(fitted.len(), 4); // Isotonic regression returns same length as input
         assert!(analysis.condition_number > 0.0);
     }
@@ -1539,7 +1539,7 @@ mod tests {
         let predictions = model.predict(&x_new);
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert!(pred.iter().all(|&x| x.is_finite()));
     }
 

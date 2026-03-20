@@ -21,6 +21,12 @@
 //! - AdaBoost (Adaptive Boosting)
 //! - Voting Classifiers/Regressors
 //! - Stacking and Blending
+//!
+//! ## Known Limitations
+//!
+//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `model_selection` - Bias-variance analysis, diversity metrics, ensemble cross-validation
 
 pub mod adaboost;
 pub mod adversarial;
@@ -33,7 +39,7 @@ pub mod gradient_boosting;
 pub mod imbalanced;
 pub mod memory_efficient;
 pub mod mixed_precision;
-// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod model_selection;
 pub mod monitoring;
 pub mod multi_label;
@@ -88,7 +94,7 @@ pub use mixed_precision::{
     AMPContext, GradientScaler, Half, MixedPrecisionArray, MixedPrecisionConfig,
     MixedPrecisionGradientAccumulator, MixedPrecisionTrainer, ScalerState,
 };
-// TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use model_selection::{
 //     BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
 //     BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,
@@ -191,7 +197,7 @@ pub mod prelude {
         AMPContext, GradientScaler, Half, MixedPrecisionArray, MixedPrecisionConfig,
         MixedPrecisionGradientAccumulator, MixedPrecisionTrainer, ScalerState,
     };
-    // TODO: Disabled due to ndarray 0.17 HRTB trait bound issues
+    // KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
     // pub use crate::model_selection::{
     //     BiasVarianceAnalyzer, BiasVarianceConfig, BiasVarianceDecomposition,
     //     BiasVarianceEnsembleSizeAnalysis, DiversityAnalyzer, DiversityMetrics, EnsembleCVResults,

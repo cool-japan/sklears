@@ -112,7 +112,7 @@ impl NearestNeighbors<sklears_core::traits::Trained> {
         n_neighbors: Option<usize>,
         return_distance: bool,
     ) -> NeighborsResult<(Option<Array2<Float>>, Array2<usize>)> {
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
         let k = n_neighbors.unwrap_or(self.n_neighbors);
 
         if x.ncols() != x_train.ncols() {
@@ -140,7 +140,7 @@ impl NearestNeighbors<sklears_core::traits::Trained> {
                 .map(|(idx, &dist)| (dist, idx))
                 .collect();
 
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Take k nearest neighbors
             let actual_k = k.min(neighbors.len());
@@ -166,7 +166,7 @@ impl NearestNeighbors<sklears_core::traits::Trained> {
         radius: Option<Float>,
         return_distance: bool,
     ) -> NeighborsResult<(Option<Vec<Array1<Float>>>, Vec<Array1<usize>>)> {
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
         let r = radius.unwrap_or(self.radius);
 
         if x.ncols() != x_train.ncols() {
@@ -227,7 +227,11 @@ impl NearestNeighbors<sklears_core::traits::Trained> {
         let (distances_opt, indices) = self.kneighbors(x, Some(k), mode == "distance")?;
 
         let n_queries = x.nrows();
-        let n_samples = self.x_train.as_ref().unwrap().nrows();
+        let n_samples = self
+            .x_train
+            .as_ref()
+            .expect("operation should succeed")
+            .nrows();
         let mut graph = Array2::zeros((n_queries, n_samples));
 
         for i in 0..n_queries {
@@ -272,7 +276,11 @@ impl NearestNeighbors<sklears_core::traits::Trained> {
         let (distances_opt, indices) = self.radius_neighbors(x, Some(r), mode == "distance")?;
 
         let n_queries = x.nrows();
-        let n_samples = self.x_train.as_ref().unwrap().nrows();
+        let n_samples = self
+            .x_train
+            .as_ref()
+            .expect("operation should succeed")
+            .nrows();
         let mut graph = Array2::zeros((n_queries, n_samples));
 
         for i in 0..n_queries {
@@ -315,10 +323,10 @@ pub fn kneighbors_graph(
 ) -> Array2<Float> {
     let nn = NearestNeighbors::new(n_neighbors).with_metric(metric);
 
-    let fitted = nn.fit(x, &()).unwrap();
+    let fitted = nn.fit(x, &()).expect("operation should succeed");
     fitted
         .kneighbors_graph(x, Some(n_neighbors), mode, include_self)
-        .unwrap()
+        .expect("operation should succeed")
 }
 
 /// Compute a graph of neighbors within a given radius
@@ -333,10 +341,10 @@ pub fn radius_neighbors_graph(
         .with_radius(radius)
         .with_metric(metric);
 
-    let fitted = nn.fit(x, &()).unwrap();
+    let fitted = nn.fit(x, &()).expect("operation should succeed");
     fitted
         .radius_neighbors_graph(x, Some(radius), mode, include_self)
-        .unwrap()
+        .expect("operation should succeed")
 }
 
 #[allow(non_snake_case)]
@@ -347,17 +355,19 @@ mod tests {
 
     #[test]
     fn test_nearest_neighbors_basic() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
 
         let nn = NearestNeighbors::new(2);
-        let fitted = nn.fit(&x, &()).unwrap();
+        let fitted = nn.fit(&x, &()).expect("operation should succeed");
 
         // Test kneighbors
-        let (distances, indices) = fitted.kneighbors(&x, Some(2), true).unwrap();
+        let (distances, indices) = fitted
+            .kneighbors(&x, Some(2), true)
+            .expect("operation should succeed");
 
         assert!(distances.is_some());
-        let dists = distances.unwrap();
+        let dists = distances.expect("operation should succeed");
         assert_eq!(dists.shape(), &[4, 2]);
         assert_eq!(indices.shape(), &[4, 2]);
 
@@ -369,15 +379,18 @@ mod tests {
 
     #[test]
     fn test_radius_neighbors() {
-        let x = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).expect("operation should succeed");
 
         let nn = NearestNeighbors::new(1).with_radius(1.5);
-        let fitted = nn.fit(&x, &()).unwrap();
+        let fitted = nn.fit(&x, &()).expect("operation should succeed");
 
-        let (distances, indices) = fitted.radius_neighbors(&x, Some(1.5), true).unwrap();
+        let (distances, indices) = fitted
+            .radius_neighbors(&x, Some(1.5), true)
+            .expect("operation should succeed");
 
         assert!(distances.is_some());
-        let _dists = distances.unwrap();
+        let _dists = distances.expect("operation should succeed");
 
         // First point (1.0) should have neighbors [0, 1] (itself and point at 2.0)
         assert_eq!(indices[0].len(), 2);
@@ -391,7 +404,8 @@ mod tests {
 
     #[test]
     fn test_kneighbors_graph() {
-        let x = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).expect("operation should succeed");
 
         let graph = kneighbors_graph(&x, 2, Distance::Euclidean, Some("connectivity"), true);
 
@@ -410,7 +424,8 @@ mod tests {
 
     #[test]
     fn test_radius_neighbors_graph() {
-        let x = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).expect("operation should succeed");
 
         let graph =
             radius_neighbors_graph(&x, 1.5, Distance::Euclidean, Some("connectivity"), true);

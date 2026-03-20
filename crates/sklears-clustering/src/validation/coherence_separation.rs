@@ -93,7 +93,7 @@ impl ClusterCoherenceResult {
     pub fn best_cluster(&self) -> Option<(i32, f64)> {
         self.cluster_coherence_scores
             .iter()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
             .map(|(&id, &score)| (id, score))
     }
 
@@ -101,7 +101,7 @@ impl ClusterCoherenceResult {
     pub fn worst_cluster(&self) -> Option<(i32, f64)> {
         self.cluster_coherence_scores
             .iter()
-            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .min_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
             .map(|(&id, &score)| (id, score))
     }
 
@@ -142,7 +142,7 @@ impl ClusterSeparationResult {
     pub fn most_overlapping_pair(&self) -> Option<((i32, i32), f64)> {
         self.min_inter_cluster_distances
             .iter()
-            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .min_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
             .map(|(&pair, &distance)| (pair, distance))
     }
 
@@ -805,7 +805,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let analyzer = CoherenceSeparationAnalyzer::euclidean();
 
-        let result = analyzer.cluster_coherence(&data, &labels).unwrap();
+        let result = analyzer
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
 
         assert_eq!(result.n_clusters, 2);
         assert!(result.overall_coherence > 0.0);
@@ -827,7 +829,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let analyzer = CoherenceSeparationAnalyzer::euclidean();
 
-        let result = analyzer.cluster_separation(&data, &labels).unwrap();
+        let result = analyzer
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
 
         assert_eq!(result.n_clusters, 2);
         assert!(result.avg_centroid_separation > 0.0);
@@ -848,7 +852,9 @@ mod tests {
         let (data, labels) = generate_overlapping_data();
         let analyzer = CoherenceSeparationAnalyzer::euclidean();
 
-        let result = analyzer.cluster_separation(&data, &labels).unwrap();
+        let result = analyzer
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
 
         assert_eq!(result.n_clusters, 2);
 
@@ -864,7 +870,9 @@ mod tests {
         let (data, labels) = generate_test_data();
         let analyzer = CoherenceSeparationAnalyzer::euclidean();
 
-        let result = analyzer.cluster_coherence(&data, &labels).unwrap();
+        let result = analyzer
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
 
         // Test best and worst cluster methods
         let best = result.best_cluster();
@@ -886,7 +894,9 @@ mod tests {
         let (data, labels) = generate_overlapping_data();
         let analyzer = CoherenceSeparationAnalyzer::euclidean();
 
-        let result = analyzer.cluster_separation(&data, &labels).unwrap();
+        let result = analyzer
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
 
         // Test poorly separated pairs
         let poorly_separated = result.poorly_separated_pairs(10.0); // High threshold
@@ -951,11 +961,13 @@ mod tests {
 
         let euc_coherence = euclidean_analyzer
             .cluster_coherence(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let man_coherence = manhattan_analyzer
             .cluster_coherence(&data, &labels)
-            .unwrap();
-        let cos_coherence = cosine_analyzer.cluster_coherence(&data, &labels).unwrap();
+            .expect("operation should succeed");
+        let cos_coherence = cosine_analyzer
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
 
         // All should produce valid results
         assert!(euc_coherence.overall_coherence >= 0.0);

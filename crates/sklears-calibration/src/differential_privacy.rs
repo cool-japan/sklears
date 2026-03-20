@@ -613,7 +613,7 @@ impl PrivacyAccountant {
                     .query_costs
                     .iter()
                     .map(|(eps, _)| eps)
-                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .unwrap_or(&0.0);
                 let sum_epsilon_sq: Float = self.query_costs.iter().map(|(eps, _)| eps * eps).sum();
 
@@ -651,7 +651,9 @@ impl PrivacyAccountant {
         budget_delta: Float,
     ) -> bool {
         let mut temp_accountant = self.clone();
-        temp_accountant.add_query(epsilon, delta).unwrap();
+        temp_accountant
+            .add_query(epsilon, delta)
+            .expect("operation should succeed");
         let (total_eps, total_del) = temp_accountant.get_privacy_cost();
         total_eps <= budget_epsilon && total_del <= budget_delta
     }
@@ -689,7 +691,7 @@ mod tests {
         let calibrator = DPPlattScalingCalibrator::new(params);
         assert!(calibrator.is_ok());
 
-        let cal = calibrator.unwrap();
+        let cal = calibrator.expect("operation should succeed");
         assert!(!cal.is_fitted);
     }
 
@@ -699,7 +701,7 @@ mod tests {
         let calibrator = DPHistogramCalibrator::new(10, params);
         assert!(calibrator.is_ok());
 
-        let cal = calibrator.unwrap();
+        let cal = calibrator.expect("operation should succeed");
         assert_eq!(cal.n_bins, 10);
         assert!(!cal.is_fitted);
     }
@@ -710,7 +712,7 @@ mod tests {
         let calibrator = DPTemperatureScalingCalibrator::new(params);
         assert!(calibrator.is_ok());
 
-        let cal = calibrator.unwrap();
+        let cal = calibrator.expect("operation should succeed");
         assert_eq!(cal.temperature, 1.0);
         assert!(!cal.is_fitted);
     }
@@ -719,8 +721,12 @@ mod tests {
     fn test_privacy_accountant() {
         let mut accountant = PrivacyAccountant::new(CompositionMethod::Basic);
 
-        accountant.add_query(0.5, 0.01).unwrap();
-        accountant.add_query(0.3, 0.005).unwrap();
+        accountant
+            .add_query(0.5, 0.01)
+            .expect("operation should succeed");
+        accountant
+            .add_query(0.3, 0.005)
+            .expect("operation should succeed");
 
         let (total_eps, total_del) = accountant.get_privacy_cost();
         assert_eq!(total_eps, 0.8);
@@ -730,7 +736,9 @@ mod tests {
     #[test]
     fn test_privacy_budget_checking() {
         let mut accountant = PrivacyAccountant::new(CompositionMethod::Basic);
-        accountant.add_query(0.5, 0.01).unwrap();
+        accountant
+            .add_query(0.5, 0.01)
+            .expect("operation should succeed");
 
         // Should be able to add query within budget
         assert!(accountant.can_add_query(0.3, 0.005, 1.0, 0.02));
@@ -742,7 +750,9 @@ mod tests {
     #[test]
     fn test_dp_platt_scaling_fitting() {
         let params = DPParams::new(1.0, 0.01).with_sensitivity(0.1);
-        let mut calibrator = DPPlattScalingCalibrator::new(params).unwrap().with_seed(42);
+        let mut calibrator = DPPlattScalingCalibrator::new(params)
+            .expect("operation should succeed")
+            .with_seed(42);
 
         let probs = array![0.1, 0.3, 0.5, 0.7, 0.9];
         let labels = array![0, 0, 1, 1, 1];
@@ -755,7 +765,9 @@ mod tests {
     #[test]
     fn test_dp_histogram_fitting() {
         let params = DPParams::new(1.0, 0.01);
-        let mut calibrator = DPHistogramCalibrator::new(5, params).unwrap().with_seed(42);
+        let mut calibrator = DPHistogramCalibrator::new(5, params)
+            .expect("operation should succeed")
+            .with_seed(42);
 
         let probs = array![0.1, 0.3, 0.5, 0.7, 0.9];
         let labels = array![0, 0, 1, 1, 1];
@@ -769,7 +781,7 @@ mod tests {
     fn test_dp_temperature_scaling_fitting() {
         let params = DPParams::new(1.0, 0.01);
         let mut calibrator = DPTemperatureScalingCalibrator::new(params)
-            .unwrap()
+            .expect("operation should succeed")
             .with_seed(42);
 
         let probs = array![0.1, 0.3, 0.5, 0.7, 0.9];
@@ -783,15 +795,19 @@ mod tests {
     #[test]
     fn test_dp_platt_prediction() {
         let params = DPParams::new(1.0, 0.01).with_sensitivity(0.1);
-        let mut calibrator = DPPlattScalingCalibrator::new(params).unwrap().with_seed(42);
+        let mut calibrator = DPPlattScalingCalibrator::new(params)
+            .expect("operation should succeed")
+            .with_seed(42);
 
         let probs = array![0.1, 0.3, 0.5, 0.7, 0.9];
         let labels = array![0, 0, 1, 1, 1];
 
-        calibrator.fit(&probs, &labels).unwrap();
+        calibrator.fit(&probs, &labels).expect("fit should succeed");
 
         let test_probs = array![0.2, 0.6, 0.8];
-        let calibrated = calibrator.predict_proba(&test_probs).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&test_probs)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), test_probs.len());
         // Check that probabilities are in valid range

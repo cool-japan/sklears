@@ -217,10 +217,12 @@ impl Distance {
             Distance::Mahalanobis(inv_cov) => mahalanobis_distance(x1, x2, inv_cov),
             Distance::Custom(func) => {
                 // Convert to Float arrays for the custom function
-                let x1_float = x1.mapv(|x| F::to_f64(&x).unwrap() as Float);
-                let x2_float = x2.mapv(|x| F::to_f64(&x).unwrap() as Float);
+                let x1_float =
+                    x1.mapv(|x| F::to_f64(&x).expect("operation should succeed") as Float);
+                let x2_float =
+                    x2.mapv(|x| F::to_f64(&x).expect("operation should succeed") as Float);
                 let result = func(&x1_float.view(), &x2_float.view());
-                F::from(result).unwrap()
+                F::from(result).expect("operation should succeed")
             }
             Distance::RbfKernel(gamma) => kernel_to_distance(rbf_kernel(x1, x2, *gamma)),
             Distance::PolynomialKernel {
@@ -522,7 +524,7 @@ fn compute_covariance_matrix(data: &Array2<Float>) -> Result<Array2<Float>, Stri
     }
 
     // Compute mean for each feature
-    let means = data.mean_axis(Axis(0)).unwrap();
+    let means = data.mean_axis(Axis(0)).expect("operation should succeed");
 
     // Center the data
     let mut centered = Array2::zeros((n_samples, n_features));
@@ -762,8 +764,10 @@ mod tests {
 
     #[test]
     fn test_pairwise_distances() {
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
-        let y = Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
+        let y = Array2::from_shape_vec((2, 2), vec![5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
 
         let distance = Distance::Euclidean;
         let distances = distance.pairwise(&x.view(), &y.view());
@@ -778,10 +782,11 @@ mod tests {
     #[test]
     fn test_mahalanobis_distance() {
         // Create simple 2D data with known covariance structure
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 1.0, 4.0, 2.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 1.0, 4.0, 2.0])
+            .expect("operation should succeed");
 
-        let mahalanobis_metric = Distance::from_mahalanobis(&data).unwrap();
+        let mahalanobis_metric =
+            Distance::from_mahalanobis(&data).expect("operation should succeed");
 
         let x1 = array![1.0, 2.0];
         let x2 = array![2.0, 3.0];
@@ -810,9 +815,10 @@ mod tests {
 
     #[test]
     fn test_covariance_matrix_computation() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 2.0, 4.0, 3.0, 6.0])
+            .expect("operation should succeed");
 
-        let cov = compute_covariance_matrix(&data).unwrap();
+        let cov = compute_covariance_matrix(&data).expect("operation should succeed");
         assert_eq!(cov.shape(), &[2, 2]);
 
         // Covariance matrix should be symmetric
@@ -826,8 +832,9 @@ mod tests {
     #[test]
     fn test_matrix_inversion() {
         // Test with a simple 2x2 matrix
-        let matrix = Array2::from_shape_vec((2, 2), vec![4.0, 2.0, 2.0, 3.0]).unwrap();
-        let inverse = invert_matrix(&matrix).unwrap();
+        let matrix = Array2::from_shape_vec((2, 2), vec![4.0, 2.0, 2.0, 3.0])
+            .expect("operation should succeed");
+        let inverse = invert_matrix(&matrix).expect("operation should succeed");
 
         // Test that matrix * inverse = identity
         let product = matrix.dot(&inverse);

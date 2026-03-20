@@ -583,7 +583,7 @@ impl HealthcareImputationFramework {
                 let pattern: Vec<bool> = patterns
                     .iter()
                     .find(|p| format!("{:?}", p) == *pattern_key)
-                    .unwrap()
+                    .expect("operation should succeed")
                     .clone();
 
                 let sample_indices: Vec<usize> = patterns
@@ -812,7 +812,7 @@ impl HealthcareImputationFramework {
             }
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         Ok(distances.into_iter().take(k).map(|(_, idx)| idx).collect())
     }
 
@@ -1661,7 +1661,7 @@ mod tests {
         let result = create_synthetic_healthcare_data();
         assert!(result.is_ok());
 
-        let (data, variable_names, _) = result.unwrap();
+        let (data, variable_names, _) = result.expect("operation should succeed");
         assert_eq!(data.nrows(), 1000);
         assert_eq!(data.ncols(), 10);
         assert_eq!(variable_names.len(), 10);

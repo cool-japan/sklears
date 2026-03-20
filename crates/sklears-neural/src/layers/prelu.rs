@@ -45,8 +45,9 @@ impl<T: FloatBounds> PReLU<T> {
     /// * `num_parameters` - Number of parameters (channels). Use 1 for shared parameter across all channels.
     /// * `init_value` - Initial value for the alpha parameters (default: 0.25)
     pub fn new(num_parameters: usize, init_value: Option<T>) -> NeuralResult<Self> {
-        let init_val =
-            init_value.unwrap_or_else(|| T::from(0.25).unwrap_or(T::one() / T::from(4).unwrap()));
+        let init_val = init_value.unwrap_or_else(|| {
+            T::from(0.25).unwrap_or(T::one() / T::from(4).unwrap_or_else(|| T::zero()))
+        });
 
         Ok(Self {
             alpha: Array1::from_elem(num_parameters, init_val),
@@ -202,7 +203,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_prelu_creation() {
-        let prelu: PReLU<f64> = PReLU::new(1, Some(0.1)).unwrap();
+        let prelu: PReLU<f64> = PReLU::new(1, Some(0.1)).expect("construction should succeed");
         assert_eq!(prelu.num_parameters(), 1);
         assert_abs_diff_eq!(prelu.get_alpha()[0], 0.1, epsilon = 1e-10);
     }
@@ -210,10 +211,12 @@ mod tests {
     #[test]
     #[ignore]
     fn test_prelu_forward_shared_parameter() {
-        let mut prelu: PReLU<f64> = PReLU::new(1, Some(0.2)).unwrap();
+        let mut prelu: PReLU<f64> = PReLU::new(1, Some(0.2)).expect("construction should succeed");
         let input = array![[-2.0, -1.0, 0.0, 1.0, 2.0]];
 
-        let output = prelu.forward(&input, true).unwrap();
+        let output = prelu
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check positive values are unchanged
         assert_abs_diff_eq!(output[[0, 3]], 1.0, epsilon = 1e-10);
@@ -230,11 +233,15 @@ mod tests {
     #[test]
     #[ignore]
     fn test_prelu_forward_per_channel() {
-        let mut prelu: PReLU<f64> = PReLU::new(3, Some(0.1)).unwrap();
-        prelu.set_alpha(array![0.1, 0.2, 0.3]).unwrap();
+        let mut prelu: PReLU<f64> = PReLU::new(3, Some(0.1)).expect("construction should succeed");
+        prelu
+            .set_alpha(array![0.1, 0.2, 0.3])
+            .expect("operation should succeed");
 
         let input = array![[-1.0, -1.0, -1.0], [1.0, 1.0, 1.0]];
-        let output = prelu.forward(&input, true).unwrap();
+        let output = prelu
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Check negative values are scaled by respective alphas
         assert_abs_diff_eq!(output[[0, 0]], -0.1, epsilon = 1e-10);
@@ -250,15 +257,19 @@ mod tests {
     #[test]
     #[ignore]
     fn test_prelu_backward() {
-        let mut prelu: PReLU<f64> = PReLU::new(1, Some(0.3)).unwrap();
+        let mut prelu: PReLU<f64> = PReLU::new(1, Some(0.3)).expect("construction should succeed");
         let input = array![[-2.0, 1.0], [-1.0, 2.0]];
 
         // Forward pass
-        let _output = prelu.forward(&input, true).unwrap();
+        let _output = prelu
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         // Backward pass
         let grad_output = array![[1.0, 1.0], [1.0, 1.0]];
-        let grad_input = prelu.backward(&grad_output).unwrap();
+        let grad_input = prelu
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
 
         // Check input gradients
         assert_abs_diff_eq!(grad_input[[0, 0]], 0.3, epsilon = 1e-10); // negative: alpha
@@ -275,11 +286,13 @@ mod tests {
     #[test]
     #[ignore]
     fn test_prelu_parameter_updates() {
-        let mut prelu: PReLU<f64> = PReLU::new(2, Some(0.1)).unwrap();
+        let mut prelu: PReLU<f64> = PReLU::new(2, Some(0.1)).expect("construction should succeed");
         let original_alpha = prelu.get_alpha().clone();
 
         let updates = vec![array![0.05, 0.03]];
-        prelu.update_parameters(&updates).unwrap();
+        prelu
+            .update_parameters(&updates)
+            .expect("operation should succeed");
 
         let new_alpha = prelu.get_alpha();
         assert_abs_diff_eq!(new_alpha[0], original_alpha[0] + 0.05, epsilon = 1e-10);
@@ -289,7 +302,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_prelu_dimension_validation() {
-        let mut prelu: PReLU<f64> = PReLU::new(3, Some(0.1)).unwrap();
+        let mut prelu: PReLU<f64> = PReLU::new(3, Some(0.1)).expect("construction should succeed");
         let input = array![[1.0, 2.0]]; // 2 features, but PReLU expects 3
 
         let result = prelu.forward(&input, true);
@@ -299,7 +312,7 @@ mod tests {
     #[test]
     #[ignore]
     fn test_prelu_gradient_check() {
-        let mut prelu: PReLU<f64> = PReLU::new(1, Some(0.25)).unwrap();
+        let mut prelu: PReLU<f64> = PReLU::new(1, Some(0.25)).expect("construction should succeed");
         let input = array![[-1.5, 0.0, 1.5]];
 
         // Numerical gradient check
@@ -307,8 +320,12 @@ mod tests {
         let grad_output = array![[1.0, 1.0, 1.0]];
 
         // Forward pass
-        let _output = prelu.forward(&input, true).unwrap();
-        let _grad_input = prelu.backward(&grad_output).unwrap();
+        let _output = prelu
+            .forward(&input, true)
+            .expect("forward pass should succeed");
+        let _grad_input = prelu
+            .backward(&grad_output)
+            .expect("backward pass should succeed");
         let analytical_grad = prelu.parameter_gradients()[0][0];
 
         // Numerical gradient
@@ -318,8 +335,12 @@ mod tests {
         prelu_plus.alpha[0] = prelu.alpha[0] + epsilon;
         prelu_minus.alpha[0] = prelu.alpha[0] - epsilon;
 
-        let output_plus = prelu_plus.forward(&input, true).unwrap();
-        let output_minus = prelu_minus.forward(&input, true).unwrap();
+        let output_plus = prelu_plus
+            .forward(&input, true)
+            .expect("forward pass should succeed");
+        let output_minus = prelu_minus
+            .forward(&input, true)
+            .expect("forward pass should succeed");
 
         let loss_plus = (&output_plus * &grad_output).sum();
         let loss_minus = (&output_minus * &grad_output).sum();

@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_regression_tester_basic() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let mut tester = PerformanceRegressionTester::new(temp_file.path());
 
         // Record some measurements
@@ -379,7 +379,7 @@ mod tests {
         tester.record_measurement("slow_function", Duration::from_millis(100));
 
         // Save as baseline
-        tester.save_baseline().unwrap();
+        tester.save_baseline().expect("operation should succeed");
 
         // Clear and add new measurements (simulating regression)
         tester.clear_measurements();
@@ -387,14 +387,14 @@ mod tests {
         tester.record_measurement("fast_function", Duration::from_millis(16));
 
         // Load baseline and compare
-        let baseline = tester.load_baseline().unwrap();
+        let baseline = tester.load_baseline().expect("operation should succeed");
         assert!(baseline.contains_key("fast_function"));
         assert!(baseline.contains_key("slow_function"));
     }
 
     #[test]
     fn test_benchmark_function() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let mut tester = PerformanceRegressionTester::new(temp_file.path());
 
         let result = tester
@@ -402,7 +402,7 @@ mod tests {
                 // Simulate some work
                 (0..1000).sum::<i32>()
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result, 499500); // Expected sum
         assert!(tester.current_results.contains_key("test_computation"));
@@ -411,7 +411,7 @@ mod tests {
 
     #[test]
     fn test_regression_detection() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let mut tester = PerformanceRegressionTester::new(temp_file.path()).with_thresholds(
             RegressionThresholds {
                 time_increase_threshold: 5.0, // 5% threshold
@@ -425,7 +425,7 @@ mod tests {
         for _ in 0..10 {
             tester.record_measurement("stable_function", Duration::from_millis(100));
         }
-        tester.save_baseline().unwrap();
+        tester.save_baseline().expect("operation should succeed");
 
         // Clear and add regressed measurements
         tester.clear_measurements();
@@ -434,7 +434,9 @@ mod tests {
             // 20% slower
         }
 
-        let results = tester.run_regression_tests().unwrap();
+        let results = tester
+            .run_regression_tests()
+            .expect("operation should succeed");
         assert_eq!(results.len(), 1);
         assert!(results[0].is_regression);
         assert!(results[0].percentage_change > 5.0);
@@ -442,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_report_generation() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let tester = PerformanceRegressionTester::new(temp_file.path());
 
         let results = vec![

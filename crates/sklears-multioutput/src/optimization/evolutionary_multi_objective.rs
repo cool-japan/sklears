@@ -6,7 +6,7 @@
 
 // Use SciRS2-Core for arrays and random number generation (SciRS2 Policy)
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
-use scirs2_core::random::Rng;
+use scirs2_core::random::{Rng, RngExt};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -281,14 +281,14 @@ impl NSGAII {
             let parent2 = self.tournament_selection(population, rng);
 
             // Crossover
-            let mut child = if rng.gen::<Float>() < self.crossover_probability {
+            let mut child = if rng.random::<Float>() < self.crossover_probability {
                 self.sbx_crossover(parent1, parent2, rng)?
             } else {
                 parent1.clone()
             };
 
             // Mutation
-            if rng.gen::<Float>() < self.mutation_probability {
+            if rng.random::<Float>() < self.mutation_probability {
                 self.polynomial_mutation(&mut child, rng);
             }
 
@@ -347,7 +347,7 @@ impl NSGAII {
             let (min_val, max_val) = self.variable_bounds[i];
 
             if (p1 - p2).abs() > 1e-14 {
-                let u = rng.gen::<Float>();
+                let u = rng.random::<Float>();
                 let beta = if u <= 0.5 {
                     (2.0 * u).powf(1.0 / (self.crossover_eta + 1.0))
                 } else {
@@ -371,10 +371,10 @@ impl NSGAII {
         rng: &mut scirs2_core::random::CoreRandom<R>,
     ) {
         for i in 0..individual.variables.len() {
-            if rng.gen::<Float>() < (1.0 / individual.variables.len() as Float) {
+            if rng.random::<Float>() < (1.0 / individual.variables.len() as Float) {
                 let (min_val, max_val) = self.variable_bounds[i];
                 let x = individual.variables[i];
-                let u = rng.gen::<Float>();
+                let u = rng.random::<Float>();
 
                 let delta = if u <= 0.5 {
                     let bl = (x - min_val) / (max_val - min_val);
@@ -689,7 +689,9 @@ mod tests {
             .variable_bounds(vec![(0.0, 1.0), (0.0, 1.0)])
             .random_state(42);
 
-        let result = nsga2.optimize(objective_fn, 2).unwrap();
+        let result = nsga2
+            .optimize(objective_fn, 2)
+            .expect("operation should succeed");
 
         // Check that we got a Pareto front
         assert!(!result.pareto_front().is_empty());

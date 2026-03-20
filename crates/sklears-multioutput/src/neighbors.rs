@@ -163,7 +163,7 @@ impl IBLR<IBLRTrained> {
         }
 
         // Sort by distance and take k nearest
-        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
         Ok(distances.into_iter().take(self.k_neighbors).collect())
     }

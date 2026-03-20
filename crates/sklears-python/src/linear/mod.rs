@@ -6,7 +6,7 @@
 //! its own submodule for better code organization.
 
 // Common functionality shared across linear models
-mod common;
+pub mod common;
 pub use common::*;
 
 // Individual model implementations

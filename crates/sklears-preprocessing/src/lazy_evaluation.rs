@@ -603,7 +603,7 @@ impl LazyPreprocessor {
     ) -> Result<Array2<Float>> {
         match operation {
             LazyOp::StandardScale => {
-                let mean = input.mean_axis(Axis(0)).unwrap();
+                let mean = input.mean_axis(Axis(0)).expect("array should have elements for mean computation");
                 let std = input.std_axis(Axis(0), 1.0);
                 Ok((input - &mean) / &std.mapv(|s| s.max(Float::EPSILON)))
             }
@@ -655,7 +655,7 @@ impl LazyPreprocessor {
                 // Simple variance-based feature selection
                 let variances = input.var_axis(Axis(0), 1.0);
                 let mut indices: Vec<usize> = (0..input.ncols()).collect();
-                indices.sort_by(|&a, &b| variances[b].partial_cmp(&variances[a]).unwrap());
+                indices.sort_by(|&a, &b| variances[b].partial_cmp(&variances[a]).expect("operation should succeed"));
                 indices.truncate(*k);
                 indices.sort();
 
@@ -682,7 +682,7 @@ impl LazyPreprocessor {
                 match name.as_str() {
                     "standard_normalize" => {
                         // Fused standard scaling + L2 normalization
-                        let mean = input.mean_axis(Axis(0)).unwrap();
+                        let mean = input.mean_axis(Axis(0)).expect("array should have elements for mean computation");
                         let std = input.std_axis(Axis(0), 1.0);
                         let standardized = (input - &mean) / &std.mapv(|s| s.max(Float::EPSILON));
                         let norms = standardized
@@ -883,12 +883,12 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = processor.evaluate(&data)?;
 
         // Check that result has approximately zero mean and unit variance
-        let mean = result.mean_axis(Axis(0)).unwrap();
+        let mean = result.mean_axis(Axis(0)).expect("array should have elements for mean computation");
         let std = result.std_axis(Axis(0), 1.0);
 
         for &m in mean.iter() {
@@ -929,7 +929,7 @@ mod tests {
         });
 
         let data = Array2::from_shape_vec((4, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 4.0, 40.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let result = processor.evaluate(&data)?;
 

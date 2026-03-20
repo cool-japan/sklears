@@ -777,7 +777,8 @@ mod tests {
     fn test_multivariate_normal() {
         let mut rng = SimdRng::new(789);
         let mean = Array1::from_vec(vec![1.0, 2.0]);
-        let cov = Array2::from_shape_vec((2, 2), vec![1.0, 0.5, 0.5, 1.0]).unwrap();
+        let cov = Array2::from_shape_vec((2, 2), vec![1.0, 0.5, 0.5, 1.0])
+            .expect("shape and data length should match");
 
         let samples = multivariate_normal_sample(&mean, &cov, &mut rng, 10);
         assert_eq!(samples.shape(), &[10, 2]);

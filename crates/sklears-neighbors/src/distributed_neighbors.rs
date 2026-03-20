@@ -588,7 +588,7 @@ mod tests {
         let metrics = search.get_load_metrics();
 
         assert!(metrics.contains_key("test"));
-        let node_metrics = metrics.get("test").unwrap();
+        let node_metrics = metrics.get("test").expect("operation should succeed");
         assert!(node_metrics.contains_key("cpu_usage"));
         assert!(node_metrics.contains_key("memory_usage"));
     }

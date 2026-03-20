@@ -611,7 +611,7 @@ pub trait DriftDetector: Send + Sync {
 /// Kolmogorov-Smirnov test implementation
 fn kolmogorov_smirnov_test(sample1: &[f64], sample2: &[f64]) -> (f64, f64) {
     let mut combined: Vec<f64> = sample1.iter().chain(sample2.iter()).copied().collect();
-    combined.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    combined.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     combined.dedup();
 
     let n1 = sample1.len() as f64;
@@ -991,7 +991,10 @@ mod tests {
         analyzer.add_measurement("accuracy", 2.0, 0.94);
         analyzer.add_measurement("accuracy", 3.0, 0.93);
 
-        let series = analyzer.time_series.get("accuracy").unwrap();
+        let series = analyzer
+            .time_series
+            .get("accuracy")
+            .expect("operation should succeed");
         assert_eq!(series.len(), 3);
         assert_eq!(series[0].value, 0.95);
         assert_eq!(series[1].value, 0.94);
@@ -1014,7 +1017,7 @@ mod tests {
 
         let result = analyzer
             .detect_concept_drift("metric", DriftDetectionMethod::KSTest)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(result.drift_detected);
         assert!(result.drift_magnitude > 0.1);
     }
@@ -1029,7 +1032,9 @@ mod tests {
             analyzer.add_measurement("metric", i as f64, value);
         }
 
-        let trend = analyzer.analyze_temporal_trend("metric").unwrap();
+        let trend = analyzer
+            .analyze_temporal_trend("metric")
+            .expect("operation should succeed");
         assert!(trend.slope > 0.0);
         assert_eq!(trend.trend_direction, TrendDirection::Increasing);
         assert!(trend.r_squared > 0.9); // Strong linear trend
@@ -1043,7 +1048,9 @@ mod tests {
             analyzer.add_measurement("metric", i as f64, i as f64);
         }
 
-        let weights = analyzer.calculate_adaptive_weights("metric").unwrap();
+        let weights = analyzer
+            .calculate_adaptive_weights("metric")
+            .expect("operation should succeed");
         assert_eq!(weights.len(), 10);
 
         // Weights should sum to 1
@@ -1069,8 +1076,12 @@ mod tests {
             analyzer.add_measurement("volatile", i as f64, value);
         }
 
-        let stable_score = analyzer.temporal_stability("stable").unwrap();
-        let volatile_score = analyzer.temporal_stability("volatile").unwrap();
+        let stable_score = analyzer
+            .temporal_stability("stable")
+            .expect("operation should succeed");
+        let volatile_score = analyzer
+            .temporal_stability("volatile")
+            .expect("operation should succeed");
 
         assert!(stable_score > volatile_score);
         assert!(stable_score > 0.9); // Should be very stable
@@ -1113,7 +1124,7 @@ mod tests {
         let baseline = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let current = vec![1.0, 2.0, 3.0, 4.0, 5.0]; // Same distribution
 
-        let psi = calculate_psi(&baseline, &current, 5).unwrap();
+        let psi = calculate_psi(&baseline, &current, 5).expect("operation should succeed");
         assert!(psi < 0.1); // Should be low for same distribution
     }
 
@@ -1128,7 +1139,7 @@ mod tests {
         let seasonal = detect_seasonality(&timestamps, &values);
         assert!(seasonal.is_some());
 
-        let seasonal = seasonal.unwrap();
+        let seasonal = seasonal.expect("operation should succeed");
         assert!(seasonal.period > 10.0 && seasonal.period < 15.0); // Should detect ~12 period
         assert!(seasonal.strength > 0.3);
     }

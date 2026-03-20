@@ -223,7 +223,7 @@ impl Isomap<Untrained> {
         // For each point, connect to k nearest neighbors
         for i in 0..n {
             let mut neighbors: Vec<(usize, f64)> = (0..n).map(|j| (j, distances[[i, j]])).collect();
-            neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             for &(neighbor_idx, distance) in
                 neighbors.iter().skip(1).take(self.n_neighbors.min(n - 1))
@@ -303,9 +303,13 @@ impl Isomap<Untrained> {
 
         // Center the squared distance matrix using double centering
         let mut d_squared = distances.mapv(|x| x * x);
-        let row_means = d_squared.mean_axis(Axis(1)).unwrap();
-        let col_means = d_squared.mean_axis(Axis(0)).unwrap();
-        let grand_mean = d_squared.mean().unwrap();
+        let row_means = d_squared
+            .mean_axis(Axis(1))
+            .expect("operation should succeed");
+        let col_means = d_squared
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
+        let grand_mean = d_squared.mean().expect("operation should succeed");
 
         // Double centering: B = -1/2 * J * D^2 * J where J = I - (1/n) * 1 * 1^T
         for i in 0..n {
@@ -329,7 +333,7 @@ impl Isomap<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed"));
 
         // Take the largest n_components eigenvalues
         let mut embedding = Array2::zeros((n, self.n_components));

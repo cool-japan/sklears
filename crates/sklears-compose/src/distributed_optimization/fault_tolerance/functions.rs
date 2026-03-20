@@ -91,7 +91,7 @@ mod tests {
         retry_manager.add_retry_policy("test_policy".to_string(), policy);
         let should_retry = retry_manager.should_retry("operation_1", "test_policy");
         assert!(should_retry.is_ok());
-        assert!(should_retry.unwrap());
+        assert!(should_retry.unwrap_or_default());
     }
     #[test]
     fn test_cache_manager_operations() {
@@ -108,7 +108,7 @@ mod tests {
         assert!(put_result.is_ok());
         let value = cache_manager.get("test_cache", "key1");
         assert!(value.is_some());
-        assert_eq!(value.unwrap(), vec![1, 2, 3]);
+        assert_eq!(value.unwrap_or_default(), vec![1, 2, 3]);
     }
     #[test]
     fn test_transaction_manager_lifecycle() {
@@ -135,7 +135,7 @@ mod tests {
         let backup_nodes = replication_manager
             .get_backup_nodes(&"primary_node".to_string());
         assert!(backup_nodes.is_ok());
-        assert_eq!(backup_nodes.unwrap().len(), 2);
+        assert_eq!(backup_nodes.unwrap_or_default().len(), 2);
     }
     #[test]
     fn test_conflict_resolver_creation() {

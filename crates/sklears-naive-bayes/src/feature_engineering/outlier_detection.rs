@@ -1217,16 +1217,20 @@ mod tests {
                 9.0, 10.0, 100.0, 200.0, // Last point is outlier
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(detector.fit(&x.view()).is_ok());
         assert!(detector.quartiles().is_some());
         assert!(detector.outlier_bounds().is_some());
 
-        let outliers = detector.predict(&x.view()).unwrap();
+        let outliers = detector
+            .predict(&x.view())
+            .expect("operation should succeed");
         assert_eq!(outliers.len(), 10);
 
-        let scores = detector.decision_function(&x.view()).unwrap();
+        let scores = detector
+            .decision_function(&x.view())
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 10);
     }
 
@@ -1234,17 +1238,22 @@ mod tests {
     fn test_zscore_outlier_detector() {
         let mut detector = ZScoreOutlierDetector::new(3.0);
 
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(detector.fit(&x.view()).is_ok());
         assert!(detector.means().is_some());
         assert!(detector.stds().is_some());
         assert_eq!(detector.threshold(), 3.0);
 
-        let outliers = detector.predict(&x.view()).unwrap();
+        let outliers = detector
+            .predict(&x.view())
+            .expect("operation should succeed");
         assert_eq!(outliers.len(), 8);
 
-        let scores = detector.decision_function(&x.view()).unwrap();
+        let scores = detector
+            .decision_function(&x.view())
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 8);
     }
 
@@ -1257,17 +1266,22 @@ mod tests {
             ..Default::default()
         };
 
-        let mut detector = IsolationForestDetector::new(config).unwrap();
+        let mut detector = IsolationForestDetector::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((12, 3), (0..36).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((12, 3), (0..36).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(detector.fit(&x.view()).is_ok());
         assert_eq!(detector.contamination(), 0.1);
 
-        let outliers = detector.predict(&x.view()).unwrap();
+        let outliers = detector
+            .predict(&x.view())
+            .expect("operation should succeed");
         assert_eq!(outliers.len(), 12);
 
-        let scores = detector.decision_function(&x.view()).unwrap();
+        let scores = detector
+            .decision_function(&x.view())
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 12);
         assert!(detector.decision_scores().is_some());
     }
@@ -1281,17 +1295,22 @@ mod tests {
             ..Default::default()
         };
 
-        let mut detector = LocalOutlierFactor::new(config).unwrap();
+        let mut detector = LocalOutlierFactor::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(detector.fit(&x.view()).is_ok());
         assert!(detector.lof_scores().is_some());
 
-        let outliers = detector.predict(&x.view()).unwrap();
+        let outliers = detector
+            .predict(&x.view())
+            .expect("operation should succeed");
         assert_eq!(outliers.len(), 10);
 
-        let scores = detector.decision_function(&x.view()).unwrap();
+        let scores = detector
+            .decision_function(&x.view())
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 10);
     }
 
@@ -1303,18 +1322,23 @@ mod tests {
             ..Default::default()
         };
 
-        let mut detector = EllipticEnvelopeDetector::new(config).unwrap();
+        let mut detector = EllipticEnvelopeDetector::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((15, 3), (0..45).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((15, 3), (0..45).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(detector.fit(&x.view()).is_ok());
         assert!(detector.covariance_matrix().is_some());
         assert!(detector.mean_vector().is_some());
 
-        let outliers = detector.predict(&x.view()).unwrap();
+        let outliers = detector
+            .predict(&x.view())
+            .expect("operation should succeed");
         assert_eq!(outliers.len(), 15);
 
-        let scores = detector.decision_function(&x.view()).unwrap();
+        let scores = detector
+            .decision_function(&x.view())
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 15);
     }
 
@@ -1355,9 +1379,12 @@ mod tests {
         detector.add_detector("zscore".to_string());
         detector.add_detector("isolation_forest".to_string());
 
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
-        let outliers = detector.detect_anomalies(&x.view()).unwrap();
+        let outliers = detector
+            .detect_anomalies(&x.view())
+            .expect("operation should succeed");
         assert_eq!(outliers.len(), 8);
         assert_eq!(detector.ensemble_detectors().len(), 3);
 
@@ -1367,7 +1394,9 @@ mod tests {
         weighted_detector.add_detector("zscore".to_string());
         weighted_detector.set_ensemble_weights(Array1::from_vec(vec![0.6, 0.4]));
 
-        let weighted_outliers = weighted_detector.detect_anomalies(&x.view()).unwrap();
+        let weighted_outliers = weighted_detector
+            .detect_anomalies(&x.view())
+            .expect("operation should succeed");
         assert_eq!(weighted_outliers.len(), 8);
         assert!(weighted_detector.final_scores().is_some());
     }
@@ -1378,9 +1407,12 @@ mod tests {
 
         detector.set_parameter("sensitivity".to_string(), 0.8);
 
-        let x = Array2::from_shape_vec((12, 2), (0..24).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((12, 2), (0..24).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
-        let outliers = detector.robust_detect(&x.view()).unwrap();
+        let outliers = detector
+            .robust_detect(&x.view())
+            .expect("operation should succeed");
         assert_eq!(outliers.len(), 12);
         assert!(detector.robust_statistics().is_some());
         assert_eq!(
@@ -1390,11 +1422,15 @@ mod tests {
 
         // Test different robustness levels
         let mut medium_detector = RobustDetection::new("medium".to_string());
-        let medium_outliers = medium_detector.robust_detect(&x.view()).unwrap();
+        let medium_outliers = medium_detector
+            .robust_detect(&x.view())
+            .expect("operation should succeed");
         assert_eq!(medium_outliers.len(), 12);
 
         let mut low_detector = RobustDetection::new("low".to_string());
-        let low_outliers = low_detector.robust_detect(&x.view()).unwrap();
+        let low_outliers = low_detector
+            .robust_detect(&x.view())
+            .expect("operation should succeed");
         assert_eq!(low_outliers.len(), 12);
     }
 }

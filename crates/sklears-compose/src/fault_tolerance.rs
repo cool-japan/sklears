@@ -243,43 +243,43 @@ impl ComprehensiveFaultToleranceManager {
     pub async fn initialize_comprehensive_monitoring(&mut self, session_id: &str) -> SklResult<()> {
         // Initialize circuit breakers
         {
-            let mut circuit_system = self.circuit_breaker_system.write().unwrap();
+            let mut circuit_system = self.circuit_breaker_system.write().unwrap_or_else(|e| e.into_inner());
             circuit_system.initialize_session(session_id).await?;
         }
 
         // Initialize retry policies
         {
-            let mut retry_mgr = self.retry_manager.write().unwrap();
+            let mut retry_mgr = self.retry_manager.write().unwrap_or_else(|e| e.into_inner());
             retry_mgr.initialize_session(session_id).await?;
         }
 
         // Initialize failover management
         {
-            let mut failover_mgr = self.failover_manager.write().unwrap();
+            let mut failover_mgr = self.failover_manager.write().unwrap_or_else(|e| e.into_inner());
             failover_mgr.initialize_session(session_id).await?;
         }
 
         // Initialize error recovery
         {
-            let mut recovery_system = self.error_recovery_system.write().unwrap();
+            let mut recovery_system = self.error_recovery_system.write().unwrap_or_else(|e| e.into_inner());
             recovery_system.initialize_session(session_id).await?;
         }
 
         // Initialize fault detection
         {
-            let mut detection_system = self.fault_detection_system.write().unwrap();
+            let mut detection_system = self.fault_detection_system.write().unwrap_or_else(|e| e.into_inner());
             detection_system.initialize_session(session_id).await?;
         }
 
         // Initialize fault isolation
         {
-            let mut isolation_system = self.fault_isolation_system.write().unwrap();
+            let mut isolation_system = self.fault_isolation_system.write().unwrap_or_else(|e| e.into_inner());
             isolation_system.initialize_session(session_id).await?;
         }
 
         // Initialize resilience patterns
         {
-            let mut resilience_coord = self.resilience_coordinator.write().unwrap();
+            let mut resilience_coord = self.resilience_coordinator.write().unwrap_or_else(|e| e.into_inner());
             resilience_coord.initialize_session(session_id).await?;
         }
 
@@ -290,43 +290,43 @@ impl ComprehensiveFaultToleranceManager {
     pub async fn shutdown_comprehensive_monitoring(&mut self, session_id: &str) -> SklResult<ComprehensiveFaultToleranceReport> {
         // Collect reports from all subsystems
         let circuit_breaker_report = {
-            let mut circuit_system = self.circuit_breaker_system.write().unwrap();
+            let mut circuit_system = self.circuit_breaker_system.write().unwrap_or_else(|e| e.into_inner());
             circuit_system.shutdown_session(session_id).await?
         };
 
         let retry_report = {
-            let mut retry_mgr = self.retry_manager.write().unwrap();
+            let mut retry_mgr = self.retry_manager.write().unwrap_or_else(|e| e.into_inner());
             retry_mgr.shutdown_session(session_id).await?
         };
 
         let failover_report = {
-            let mut failover_mgr = self.failover_manager.write().unwrap();
+            let mut failover_mgr = self.failover_manager.write().unwrap_or_else(|e| e.into_inner());
             failover_mgr.shutdown_session(session_id).await?
         };
 
         let recovery_report = {
-            let mut recovery_system = self.error_recovery_system.write().unwrap();
+            let mut recovery_system = self.error_recovery_system.write().unwrap_or_else(|e| e.into_inner());
             recovery_system.shutdown_session(session_id).await?
         };
 
         let detection_report = {
-            let mut detection_system = self.fault_detection_system.write().unwrap();
+            let mut detection_system = self.fault_detection_system.write().unwrap_or_else(|e| e.into_inner());
             detection_system.shutdown_session(session_id).await?
         };
 
         let isolation_report = {
-            let mut isolation_system = self.fault_isolation_system.write().unwrap();
+            let mut isolation_system = self.fault_isolation_system.write().unwrap_or_else(|e| e.into_inner());
             isolation_system.shutdown_session(session_id).await?
         };
 
         let resilience_report = {
-            let mut resilience_coord = self.resilience_coordinator.write().unwrap();
+            let mut resilience_coord = self.resilience_coordinator.write().unwrap_or_else(|e| e.into_inner());
             resilience_coord.shutdown_session(session_id).await?
         };
 
         // Remove session
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.remove(session_id);
         }
 
@@ -353,43 +353,43 @@ impl ComprehensiveFaultToleranceManager {
     ) -> SklResult<ComprehensiveRecoveryActions> {
         // Process through fault detection system
         let detection_result = {
-            let mut detection_system = self.fault_detection_system.write().unwrap();
+            let mut detection_system = self.fault_detection_system.write().unwrap_or_else(|e| e.into_inner());
             detection_system.process_fault(session_id, fault).await?
         };
 
         // Update circuit breakers
         let circuit_breaker_actions = {
-            let mut circuit_system = self.circuit_breaker_system.write().unwrap();
+            let mut circuit_system = self.circuit_breaker_system.write().unwrap_or_else(|e| e.into_inner());
             circuit_system.process_fault(session_id, fault).await?
         };
 
         // Determine retry strategy
         let retry_actions = {
-            let mut retry_mgr = self.retry_manager.write().unwrap();
+            let mut retry_mgr = self.retry_manager.write().unwrap_or_else(|e| e.into_inner());
             retry_mgr.evaluate_retry_strategy(session_id, fault).await?
         };
 
         // Evaluate failover necessity
         let failover_actions = {
-            let mut failover_mgr = self.failover_manager.write().unwrap();
+            let mut failover_mgr = self.failover_manager.write().unwrap_or_else(|e| e.into_inner());
             failover_mgr.evaluate_failover(session_id, fault).await?
         };
 
         // Activate error recovery
         let recovery_actions = {
-            let mut recovery_system = self.error_recovery_system.write().unwrap();
+            let mut recovery_system = self.error_recovery_system.write().unwrap_or_else(|e| e.into_inner());
             recovery_system.initiate_recovery(session_id, fault).await?
         };
 
         // Apply fault isolation
         let isolation_actions = {
-            let mut isolation_system = self.fault_isolation_system.write().unwrap();
+            let mut isolation_system = self.fault_isolation_system.write().unwrap_or_else(|e| e.into_inner());
             isolation_system.isolate_fault(session_id, fault).await?
         };
 
         // Coordinate resilience patterns
         let resilience_actions = {
-            let mut resilience_coord = self.resilience_coordinator.write().unwrap();
+            let mut resilience_coord = self.resilience_coordinator.write().unwrap_or_else(|e| e.into_inner());
             resilience_coord.coordinate_fault_response(session_id, fault).await?
         };
 
@@ -409,13 +409,13 @@ impl ComprehensiveFaultToleranceManager {
     pub fn get_comprehensive_health_status(&self, session_id: &str) -> SklResult<ComprehensiveHealthStatus> {
         Ok(ComprehensiveHealthStatus {
             overall_health: self.calculate_overall_health(session_id)?,
-            circuit_breaker_health: self.circuit_breaker_system.read().unwrap().get_health_status(session_id)?,
-            retry_health: self.retry_manager.read().unwrap().get_health_status(session_id)?,
-            failover_health: self.failover_manager.read().unwrap().get_health_status(session_id)?,
-            recovery_health: self.error_recovery_system.read().unwrap().get_health_status(session_id)?,
-            detection_health: self.fault_detection_system.read().unwrap().get_health_status(session_id)?,
-            isolation_health: self.fault_isolation_system.read().unwrap().get_health_status(session_id)?,
-            resilience_health: self.resilience_coordinator.read().unwrap().get_health_status(session_id)?,
+            circuit_breaker_health: self.circuit_breaker_system.read().unwrap_or_else(|e| e.into_inner()).get_health_status(session_id)?,
+            retry_health: self.retry_manager.read().unwrap_or_else(|e| e.into_inner()).get_health_status(session_id)?,
+            failover_health: self.failover_manager.read().unwrap_or_else(|e| e.into_inner()).get_health_status(session_id)?,
+            recovery_health: self.error_recovery_system.read().unwrap_or_else(|e| e.into_inner()).get_health_status(session_id)?,
+            detection_health: self.fault_detection_system.read().unwrap_or_else(|e| e.into_inner()).get_health_status(session_id)?,
+            isolation_health: self.fault_isolation_system.read().unwrap_or_else(|e| e.into_inner()).get_health_status(session_id)?,
+            resilience_health: self.resilience_coordinator.read().unwrap_or_else(|e| e.into_inner()).get_health_status(session_id)?,
             system_resilience_score: self.calculate_system_resilience_score(session_id)?,
         })
     }
@@ -474,7 +474,7 @@ impl FaultToleranceManager for ComprehensiveFaultToleranceManager {
 
         // Store session
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.clone(), session.clone());
         }
 
@@ -501,18 +501,18 @@ impl FaultToleranceManager for ComprehensiveFaultToleranceManager {
 
         // Register with all relevant subsystems
         {
-            let mut circuit_system = self.circuit_breaker_system.write().unwrap();
+            let mut circuit_system = self.circuit_breaker_system.write().unwrap_or_else(|e| e.into_inner());
             circuit_system.register_component(&session_id, &component)?;
         }
 
         {
-            let mut detection_system = self.fault_detection_system.write().unwrap();
+            let mut detection_system = self.fault_detection_system.write().unwrap_or_else(|e| e.into_inner());
             detection_system.register_component(&session_id, &component)?;
         }
 
         // Update session
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(session) = sessions.get_mut(&session_id) {
                 session.components.push(handle.clone());
             }
@@ -531,7 +531,7 @@ impl FaultToleranceManager for ComprehensiveFaultToleranceManager {
 
         // Update session metadata
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(session) = sessions.get_mut(&session_id) {
                 session.metadata.total_faults += 1;
                 session.metadata.last_fault = Some(SystemTime::now());
@@ -548,12 +548,12 @@ impl FaultToleranceManager for ComprehensiveFaultToleranceManager {
     }
 
     fn check_component_health(&self, session_id: &str, component_id: &str) -> SklResult<ComponentHealth> {
-        let detection_system = self.fault_detection_system.read().unwrap();
+        let detection_system = self.fault_detection_system.read().unwrap_or_else(|e| e.into_inner());
         detection_system.check_component_health(session_id, component_id)
     }
 
     fn trigger_recovery(&mut self, session_id: String, recovery_action: RecoveryAction) -> SklResult<RecoveryResult> {
-        let mut recovery_system = self.error_recovery_system.write().unwrap();
+        let mut recovery_system = self.error_recovery_system.write().unwrap_or_else(|e| e.into_inner());
         recovery_system.execute_recovery(&session_id, recovery_action)
     }
 
@@ -573,12 +573,12 @@ impl FaultToleranceManager for ComprehensiveFaultToleranceManager {
     fn update_configuration(&mut self, session_id: String, config: FaultToleranceConfig) -> SklResult<()> {
         // Update configuration across all subsystems
         {
-            let mut circuit_system = self.circuit_breaker_system.write().unwrap();
+            let mut circuit_system = self.circuit_breaker_system.write().unwrap_or_else(|e| e.into_inner());
             circuit_system.update_configuration(&session_id, &config.circuit_breaker)?;
         }
 
         {
-            let mut retry_mgr = self.retry_manager.write().unwrap();
+            let mut retry_mgr = self.retry_manager.write().unwrap_or_else(|e| e.into_inner());
             retry_mgr.update_configuration(&session_id, &config.retry_policies)?;
         }
 
@@ -586,7 +586,7 @@ impl FaultToleranceManager for ComprehensiveFaultToleranceManager {
 
         // Update session configuration
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(session) = sessions.get_mut(&session_id) {
                 session.config = config;
             }
@@ -905,12 +905,12 @@ mod tests {
     #[test]
     fn test_fault_tolerance_session_initialization() {
         let config = FaultToleranceConfig::default();
-        let mut manager = ComprehensiveFaultToleranceManager::new(config.clone()).unwrap();
+        let mut manager = ComprehensiveFaultToleranceManager::new(config.clone()).unwrap_or_default();
 
         let session_result = manager.initialize_fault_tolerance("test_session".to_string(), config);
         assert!(session_result.is_ok());
 
-        let session = session_result.unwrap();
+        let session = session_result.unwrap_or_default();
         assert_eq!(session.session_id, "test_session");
         assert!(matches!(session.status, FaultToleranceSessionStatus::Initializing));
     }

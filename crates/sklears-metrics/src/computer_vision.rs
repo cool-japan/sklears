@@ -54,7 +54,7 @@ where
         .zip(compressed.iter())
         .map(|(o, c)| (*o - *c).powi(2))
         .fold(T::zero(), |acc, x| acc + x)
-        / T::from(original.len()).unwrap();
+        / T::from(original.len()).expect("operation should succeed");
 
     if mse == T::zero() {
         // Images are identical, return infinity (very high PSNR)
@@ -62,8 +62,8 @@ where
     }
 
     // PSNR = 20 * log10(MAX_I) - 10 * log10(MSE)
-    let psnr_value =
-        T::from(20.0).unwrap() * max_value.log10() - T::from(10.0).unwrap() * mse.log10();
+    let psnr_value = T::from(20.0).expect("operation should succeed") * max_value.log10()
+        - T::from(10.0).expect("operation should succeed") * mse.log10();
 
     Ok(psnr_value)
 }
@@ -139,34 +139,34 @@ where
             ]);
 
             // Calculate means manually
-            let mu1 =
-                window1.iter().fold(T::zero(), |acc, &x| acc + x) / T::from(window1.len()).unwrap();
-            let mu2 =
-                window2.iter().fold(T::zero(), |acc, &x| acc + x) / T::from(window2.len()).unwrap();
+            let mu1 = window1.iter().fold(T::zero(), |acc, &x| acc + x)
+                / T::from(window1.len()).expect("operation should succeed");
+            let mu2 = window2.iter().fold(T::zero(), |acc, &x| acc + x)
+                / T::from(window2.len()).expect("operation should succeed");
 
             // Calculate variances and covariance
             let var1 = window1
                 .iter()
                 .map(|&x| (x - mu1).powi(2))
                 .fold(T::zero(), |acc, x| acc + x)
-                / T::from(window1.len() - 1).unwrap();
+                / T::from(window1.len() - 1).expect("operation should succeed");
 
             let var2 = window2
                 .iter()
                 .map(|&x| (x - mu2).powi(2))
                 .fold(T::zero(), |acc, x| acc + x)
-                / T::from(window2.len() - 1).unwrap();
+                / T::from(window2.len() - 1).expect("operation should succeed");
 
             let covar = window1
                 .iter()
                 .zip(window2.iter())
                 .map(|(&x1, &x2)| (x1 - mu1) * (x2 - mu2))
                 .fold(T::zero(), |acc, x| acc + x)
-                / T::from(window1.len() - 1).unwrap();
+                / T::from(window1.len() - 1).expect("operation should succeed");
 
             // Calculate SSIM for this window
-            let numerator =
-                (T::from(2.0).unwrap() * mu1 * mu2 + c1) * (T::from(2.0).unwrap() * covar + c2);
+            let numerator = (T::from(2.0).expect("operation should succeed") * mu1 * mu2 + c1)
+                * (T::from(2.0).expect("operation should succeed") * covar + c2);
             let denominator = (mu1.powi(2) + mu2.powi(2) + c1) * (var1 + var2 + c2);
 
             if denominator != T::zero() {
@@ -180,7 +180,7 @@ where
         return Err(MetricsError::DivisionByZero);
     }
 
-    Ok(ssim_sum / T::from(count).unwrap())
+    Ok(ssim_sum / T::from(count).expect("operation should succeed"))
 }
 
 /// Intersection over Union (IoU) for bounding boxes
@@ -338,7 +338,11 @@ where
 
         // Sort detections by confidence (descending)
         let mut sorted_detections = class_detections;
-        sorted_detections.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        sorted_detections.sort_by(|a, b| {
+            b.confidence
+                .partial_cmp(&a.confidence)
+                .expect("operation should succeed")
+        });
 
         // Calculate precision and recall
         let mut tp = vec![T::zero(); sorted_detections.len()];
@@ -382,7 +386,7 @@ where
         }
 
         // Calculate precision and recall
-        let num_gts = T::from(class_gts.len()).unwrap();
+        let num_gts = T::from(class_gts.len()).expect("operation should succeed");
         let mut precisions = Vec::new();
         let mut recalls = Vec::new();
 
@@ -409,7 +413,7 @@ where
 
     // Calculate mean AP
     let sum_ap = class_aps.iter().fold(T::zero(), |acc, &ap| acc + ap);
-    Ok(sum_ap / T::from(class_aps.len()).unwrap())
+    Ok(sum_ap / T::from(class_aps.len()).expect("operation should succeed"))
 }
 
 /// Calculate Average Precision using 11-point interpolation
@@ -433,7 +437,7 @@ where
     let mut interpolated_precisions = Vec::new();
 
     for &recall_level in &recall_levels {
-        let recall_threshold = T::from(recall_level).unwrap();
+        let recall_threshold = T::from(recall_level).expect("operation should succeed");
         let mut max_precision = T::zero();
 
         // Find maximum precision for recalls >= recall_threshold
@@ -450,7 +454,7 @@ where
     let sum_precision = interpolated_precisions
         .iter()
         .fold(T::zero(), |acc, &p| acc + p);
-    Ok(sum_precision / T::from(interpolated_precisions.len()).unwrap())
+    Ok(sum_precision / T::from(interpolated_precisions.len()).expect("operation should succeed"))
 }
 
 /// Mean Intersection over Union (mIoU) for semantic segmentation
@@ -504,7 +508,8 @@ where
         }
 
         if union > 0 {
-            let iou = T::from(intersection).unwrap() / T::from(union).unwrap();
+            let iou = T::from(intersection).expect("operation should succeed")
+                / T::from(union).expect("operation should succeed");
             class_ious.push(iou);
         }
     }
@@ -515,7 +520,7 @@ where
 
     // Calculate mean IoU
     let sum_iou = class_ious.iter().fold(T::zero(), |acc, &iou| acc + iou);
-    Ok(sum_iou / T::from(class_ious.len()).unwrap())
+    Ok(sum_iou / T::from(class_ious.len()).expect("operation should succeed"))
 }
 
 /// Pixel Accuracy for semantic segmentation
@@ -554,7 +559,8 @@ where
 
     let total_pixels = predicted.len();
 
-    Ok(T::from(correct_pixels).unwrap() / T::from(total_pixels).unwrap())
+    Ok(T::from(correct_pixels).expect("operation should succeed")
+        / T::from(total_pixels).expect("operation should succeed"))
 }
 
 #[allow(non_snake_case)]
@@ -569,7 +575,7 @@ mod tests {
         let img1 = array![[100.0, 150.0], [200.0, 250.0]];
         let img2 = array![[100.0, 150.0], [200.0, 250.0]];
 
-        let result = psnr(&img1, &img2, 255.0).unwrap();
+        let result = psnr(&img1, &img2, 255.0).expect("operation should succeed");
         assert!(result.is_infinite());
     }
 
@@ -578,7 +584,7 @@ mod tests {
         let img1 = array![[100.0, 150.0], [200.0, 250.0]];
         let img2 = array![[95.0, 155.0], [205.0, 245.0]];
 
-        let result = psnr(&img1, &img2, 255.0).unwrap();
+        let result = psnr(&img1, &img2, 255.0).expect("operation should succeed");
         assert!(result > 0.0);
         assert!(result.is_finite());
     }
@@ -588,7 +594,7 @@ mod tests {
         let box1 = [0.0, 0.0, 10.0, 10.0];
         let box2 = [0.0, 0.0, 10.0, 10.0];
 
-        let result = iou_boxes(&box1, &box2).unwrap();
+        let result = iou_boxes(&box1, &box2).expect("operation should succeed");
         assert_relative_eq!(result, 1.0, epsilon = 1e-6);
     }
 
@@ -597,7 +603,7 @@ mod tests {
         let box1 = [0.0, 0.0, 10.0, 10.0];
         let box2 = [20.0, 20.0, 30.0, 30.0];
 
-        let result = iou_boxes(&box1, &box2).unwrap();
+        let result = iou_boxes(&box1, &box2).expect("operation should succeed");
         assert_relative_eq!(result, 0.0, epsilon = 1e-6);
     }
 
@@ -606,7 +612,7 @@ mod tests {
         let box1 = [0.0, 0.0, 10.0, 10.0];
         let box2 = [5.0, 5.0, 15.0, 15.0];
 
-        let result = iou_boxes(&box1, &box2).unwrap();
+        let result = iou_boxes(&box1, &box2).expect("operation should succeed");
         // Intersection: 5x5 = 25, Union: 100 + 100 - 25 = 175
         let expected = 25.0 / 175.0;
         assert_relative_eq!(result, expected, epsilon = 1e-6);
@@ -617,7 +623,8 @@ mod tests {
         let predicted = array![[0, 1, 2], [1, 2, 0], [2, 0, 1]];
         let ground_truth = array![[0, 1, 1], [1, 2, 0], [2, 1, 1]];
 
-        let result: f64 = pixel_accuracy(&predicted, &ground_truth).unwrap();
+        let result: f64 =
+            pixel_accuracy(&predicted, &ground_truth).expect("operation should succeed");
         // 7 out of 9 pixels are correct: (0,0), (0,1), (1,0), (1,1), (1,2), (2,0), (2,2)
         assert_relative_eq!(result, 7.0 / 9.0, epsilon = 1e-6);
     }
@@ -627,7 +634,7 @@ mod tests {
         let predicted = array![[0, 1, 2], [1, 2, 0], [2, 0, 1]];
         let ground_truth = array![[0, 1, 1], [1, 2, 0], [2, 1, 1]];
 
-        let result: f64 = mean_iou(&predicted, &ground_truth, 3).unwrap();
+        let result: f64 = mean_iou(&predicted, &ground_truth, 3).expect("operation should succeed");
         assert!(result > 0.0 && result <= 1.0);
     }
 }

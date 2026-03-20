@@ -166,7 +166,7 @@ impl Fit<Features, ()> for RadiusNeighborsTransformer {
 
 impl Transform<Features> for KNeighborsTransformer<sklears_core::traits::Trained> {
     fn transform(&self, x: &Features) -> Result<Array2<Float>> {
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -190,7 +190,7 @@ impl Transform<Features> for KNeighborsTransformer<sklears_core::traits::Trained
                 .map(|(idx, &dist)| (dist, idx))
                 .collect();
 
-            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Take k nearest neighbors
             let k = self.n_neighbors.min(neighbors.len());
@@ -213,7 +213,7 @@ impl Transform<Features> for KNeighborsTransformer<sklears_core::traits::Trained
 
 impl Transform<Features> for RadiusNeighborsTransformer<sklears_core::traits::Trained> {
     fn transform(&self, x: &Features) -> Result<Array2<Float>> {
-        let x_train = self.x_train.as_ref().unwrap();
+        let x_train = self.x_train.as_ref().expect("operation should succeed");
 
         if x.ncols() != x_train.ncols() {
             return Err(NeighborsError::ShapeMismatch {
@@ -255,13 +255,13 @@ mod tests {
 
     #[test]
     fn test_kneighbors_transformer() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
 
         let transformer = KNeighborsTransformer::new(2);
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer.fit(&x, &()).expect("operation should succeed");
 
-        let graph = fitted.transform(&x).unwrap();
+        let graph = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(graph.shape(), &[4, 4]);
 
         // Each row should have exactly 2 connections (k=2)
@@ -281,12 +281,13 @@ mod tests {
 
     #[test]
     fn test_kneighbors_transformer_distance_mode() {
-        let x = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).expect("operation should succeed");
 
         let transformer = KNeighborsTransformer::new(2).with_mode("distance");
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer.fit(&x, &()).expect("operation should succeed");
 
-        let graph = fitted.transform(&x).unwrap();
+        let graph = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(graph.shape(), &[3, 3]);
 
         // In distance mode, values should be actual distances, not 1.0
@@ -296,12 +297,13 @@ mod tests {
 
     #[test]
     fn test_radius_neighbors_transformer() {
-        let x = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).unwrap();
+        let x =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 5.0]).expect("operation should succeed");
 
         let transformer = RadiusNeighborsTransformer::new(1.5);
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer.fit(&x, &()).expect("operation should succeed");
 
-        let graph = fitted.transform(&x).unwrap();
+        let graph = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(graph.shape(), &[3, 3]);
 
         // First point should connect to points 0 and 1 (within radius 1.5)
@@ -317,12 +319,12 @@ mod tests {
 
     #[test]
     fn test_radius_neighbors_transformer_distance_mode() {
-        let x = Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).expect("operation should succeed");
 
         let transformer = RadiusNeighborsTransformer::new(2.0).with_mode("distance");
-        let fitted = transformer.fit(&x, &()).unwrap();
+        let fitted = transformer.fit(&x, &()).expect("operation should succeed");
 
-        let graph = fitted.transform(&x).unwrap();
+        let graph = fitted.transform(&x).expect("operation should succeed");
         assert_eq!(graph.shape(), &[2, 2]);
 
         // In distance mode, values should be actual distances
@@ -345,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_transformers_invalid_parameters() {
-        let x = Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).expect("operation should succeed");
 
         // Invalid n_neighbors
         let knn_transformer = KNeighborsTransformer::new(0);

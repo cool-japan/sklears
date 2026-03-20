@@ -742,13 +742,13 @@ mod tests {
     fn test_sinusoidal_positional_encoding() {
         let pe =
             PositionalEncoding::<f64>::new(100, 64, PositionalEncodingType::Sinusoidal, 0.1, true)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(pe.max_seq_len, 100);
         assert_eq!(pe.d_model, 64);
         assert!(pe.sinusoidal_encodings.is_some());
 
-        let encodings = pe.get_encodings(10).unwrap();
+        let encodings = pe.get_encodings(10).expect("operation should succeed");
         assert_eq!(encodings.dim(), (10, 64));
     }
 
@@ -757,12 +757,12 @@ mod tests {
     fn test_learnable_positional_encoding() {
         let pe =
             PositionalEncoding::<f64>::new(50, 32, PositionalEncodingType::Learnable, 0.1, false)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert_eq!(pe.num_parameters(), 50 * 32);
         assert!(pe.position_embeddings.is_some());
 
-        let encodings = pe.get_encodings(20).unwrap();
+        let encodings = pe.get_encodings(20).expect("operation should succeed");
         assert_eq!(encodings.dim(), (20, 32));
     }
 
@@ -771,10 +771,10 @@ mod tests {
     fn test_positional_encoding_forward() {
         let pe =
             PositionalEncoding::<f64>::new(50, 16, PositionalEncodingType::Sinusoidal, 0.0, false)
-                .unwrap();
+                .expect("operation should succeed");
 
         let embeddings = Array3::zeros((2, 10, 16)); // batch=2, seq=10, d_model=16
-        let encoded = pe.encode(&embeddings).unwrap();
+        let encoded = pe.encode(&embeddings).expect("operation should succeed");
 
         assert_eq!(encoded.dim(), (2, 10, 16));
     }
@@ -782,7 +782,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_multi_head_attention_creation() {
-        let mha = MultiHeadAttention::<f64>::new(512, 8, 0.1, true).unwrap();
+        let mha =
+            MultiHeadAttention::<f64>::new(512, 8, 0.1, true).expect("construction should succeed");
 
         assert_eq!(mha.num_heads, 8);
         assert_eq!(mha.d_model, 512);
@@ -800,13 +801,16 @@ mod tests {
     #[test]
     #[ignore]
     fn test_multi_head_attention_forward() {
-        let mut mha = MultiHeadAttention::<f64>::new(64, 4, 0.0, false).unwrap();
+        let mut mha =
+            MultiHeadAttention::<f64>::new(64, 4, 0.0, false).expect("construction should succeed");
 
         let query = Array3::zeros((2, 10, 64)); // batch=2, seq=10, d_model=64
         let key = Array3::zeros((2, 15, 64)); // batch=2, seq=15, d_model=64
         let value = Array3::zeros((2, 15, 64)); // batch=2, seq=15, d_model=64
 
-        let output = mha.forward(&query, &key, &value, None).unwrap();
+        let output = mha
+            .forward(&query, &key, &value, None)
+            .expect("forward pass should succeed");
         assert_eq!(output.dim(), (2, 10, 64));
 
         // Check that attention weights were cached
@@ -816,7 +820,8 @@ mod tests {
     #[test]
     #[ignore]
     fn test_multi_head_attention_with_mask() {
-        let mut mha = MultiHeadAttention::<f64>::new(32, 2, 0.0, false).unwrap();
+        let mut mha =
+            MultiHeadAttention::<f64>::new(32, 2, 0.0, false).expect("construction should succeed");
 
         let query = Array3::ones((1, 5, 32));
         let key = Array3::ones((1, 5, 32));
@@ -830,17 +835,20 @@ mod tests {
             }
         }
 
-        let output = mha.forward(&query, &key, &value, Some(&mask)).unwrap();
+        let output = mha
+            .forward(&query, &key, &value, Some(&mask))
+            .expect("forward pass should succeed");
         assert_eq!(output.dim(), (1, 5, 32));
     }
 
     #[test]
     #[ignore]
     fn test_feed_forward_network() {
-        let mut ffn = FeedForward::<f64>::new(256, 1024, Activation::Relu, 0.1, true).unwrap();
+        let mut ffn = FeedForward::<f64>::new(256, 1024, Activation::Relu, 0.1, true)
+            .expect("construction should succeed");
 
         let input = Array3::zeros((2, 10, 256));
-        let output = ffn.forward(&input).unwrap();
+        let output = ffn.forward(&input).expect("forward pass should succeed");
 
         assert_eq!(output.dim(), (2, 10, 256));
         assert_eq!(ffn.num_parameters(), 256 * 1024 + 1024 * 256 + 1024 + 256);
@@ -851,7 +859,7 @@ mod tests {
     fn test_positional_encoding_sequence_length_validation() {
         let pe =
             PositionalEncoding::<f64>::new(20, 16, PositionalEncodingType::Sinusoidal, 0.0, false)
-                .unwrap();
+                .expect("operation should succeed");
 
         let long_embeddings = Array3::zeros((1, 25, 16)); // seq_len > max_seq_len
         let result = pe.encode(&long_embeddings);
@@ -863,7 +871,7 @@ mod tests {
     fn test_positional_encoding_dimension_validation() {
         let pe =
             PositionalEncoding::<f64>::new(50, 16, PositionalEncodingType::Sinusoidal, 0.0, false)
-                .unwrap();
+                .expect("operation should succeed");
 
         let wrong_dim_embeddings = Array3::zeros((1, 10, 32)); // d_model mismatch
         let result = pe.encode(&wrong_dim_embeddings);
@@ -875,7 +883,7 @@ mod tests {
     fn test_learnable_embedding_updates() {
         let mut pe =
             PositionalEncoding::<f64>::new(10, 8, PositionalEncodingType::Learnable, 0.0, false)
-                .unwrap();
+                .expect("operation should succeed");
 
         let gradients = Array2::ones((10, 8));
         let learning_rate = 0.01;
@@ -889,9 +897,12 @@ mod tests {
     fn test_sinusoidal_encoding_properties() {
         let pe =
             PositionalEncoding::<f64>::new(100, 64, PositionalEncodingType::Sinusoidal, 0.0, false)
-                .unwrap();
+                .expect("operation should succeed");
 
-        let encodings = pe.sinusoidal_encodings.as_ref().unwrap();
+        let encodings = pe
+            .sinusoidal_encodings
+            .as_ref()
+            .expect("operation should succeed");
 
         // Check that even positions use sin and odd positions use cos
         // This is a basic sanity check - the actual values depend on the formula

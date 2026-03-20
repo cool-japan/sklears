@@ -173,7 +173,7 @@ impl Fit<Array2<Float>, ()> for PhysicsInformedKernel<Untrained> {
 
         // Generate random Fourier features for the kernel
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         let kernel_weights = Array2::from_shape_fn((x.ncols(), self.config.n_components), |_| {
             rng.sample(normal) * (2.0 * self.config.bandwidth).sqrt()
@@ -210,7 +210,10 @@ impl Fit<Array2<Float>, ()> for PhysicsInformedKernel<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for PhysicsInformedKernel<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let kernel_weights = self.kernel_weights.as_ref().unwrap();
+        let kernel_weights = self
+            .kernel_weights
+            .as_ref()
+            .expect("operation should succeed");
 
         if x.ncols() != kernel_weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -251,7 +254,9 @@ impl Transform<Array2<Float>, Array2<Float>> for PhysicsInformedKernel<Trained> 
 impl PhysicsInformedKernel<Trained> {
     /// Get boundary data
     pub fn boundary_data(&self) -> &Array2<Float> {
-        self.boundary_data.as_ref().unwrap()
+        self.boundary_data
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Evaluate PDE residual for a given system
@@ -451,7 +456,7 @@ impl Fit<Array2<Float>, ()> for MultiscaleKernel<Untrained> {
         }
 
         let mut rng = thread_rng();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
         // Generate random weights for each scale
         let mut scale_weights = Vec::new();
@@ -474,7 +479,10 @@ impl Fit<Array2<Float>, ()> for MultiscaleKernel<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for MultiscaleKernel<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let scale_weights = self.scale_weights.as_ref().unwrap();
+        let scale_weights = self
+            .scale_weights
+            .as_ref()
+            .expect("operation should succeed");
 
         if scale_weights.is_empty() {
             return Err(SklearsError::InvalidInput(
@@ -542,8 +550,8 @@ mod tests {
             [1.0, 0.1]
         ];
 
-        let fitted = pinn.fit(&X, &()).unwrap();
-        let features = fitted.transform(&X).unwrap();
+        let fitted = pinn.fit(&X, &()).expect("operation should succeed");
+        let features = fitted.transform(&X).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 6);
         assert_eq!(features.ncols(), 60); // 3 * n_components
@@ -561,8 +569,8 @@ mod tests {
 
         for system in systems {
             let pinn = PhysicsInformedKernel::with_system(system).n_components(20);
-            let fitted = pinn.fit(&X, &()).unwrap();
-            let features = fitted.transform(&X).unwrap();
+            let fitted = pinn.fit(&X, &()).expect("operation should succeed");
+            let features = fitted.transform(&X).expect("operation should succeed");
 
             assert_eq!(features.nrows(), 3);
         }
@@ -586,12 +594,14 @@ mod tests {
             [1.0, 0.1]
         ];
 
-        let fitted = pinn.fit(&X, &()).unwrap();
+        let fitted = pinn.fit(&X, &()).expect("operation should succeed");
 
         // Test solution (simple linear function)
         let solution = array![0.0, 0.5, 1.0, 0.0, 0.5, 1.0];
 
-        let residual = fitted.pde_residual(&X, &solution).unwrap();
+        let residual = fitted
+            .pde_residual(&X, &solution)
+            .expect("operation should succeed");
 
         assert_eq!(residual.len(), 6);
         assert!(residual.iter().all(|&r| r.is_finite()));
@@ -604,8 +614,8 @@ mod tests {
 
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let fitted = kernel.fit(&X, &()).unwrap();
-        let features = fitted.transform(&X).unwrap();
+        let fitted = kernel.fit(&X, &()).expect("operation should succeed");
+        let features = fitted.transform(&X).expect("operation should succeed");
 
         assert_eq!(features.nrows(), 3);
         assert_eq!(features.ncols(), 30); // 3 scales * 10 components
@@ -618,7 +628,7 @@ mod tests {
 
         let X = array![[1.0], [2.0]];
 
-        let fitted = kernel.fit(&X, &()).unwrap();
+        let fitted = kernel.fit(&X, &()).expect("operation should succeed");
 
         assert_eq!(fitted.scales(), &scales[..]);
     }

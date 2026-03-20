@@ -22,7 +22,7 @@ fn generate_density_varying_data(n_samples: usize) -> Array2<f64> {
     // Dense cluster 1 (high density)
     let dense1_samples = n_samples / 3;
     for i in 0..dense1_samples {
-        let normal = Normal::new(0.0, 0.5).unwrap();
+        let normal = Normal::new(0.0, 0.5).expect("operation should succeed");
         data[[i, 0]] = 0.0 + normal.sample(&mut rng);
         data[[i, 1]] = 0.0 + normal.sample(&mut rng);
     }
@@ -30,7 +30,7 @@ fn generate_density_varying_data(n_samples: usize) -> Array2<f64> {
     // Dense cluster 2 (medium density)
     let dense2_samples = n_samples / 3;
     for i in dense1_samples..dense1_samples + dense2_samples {
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
         data[[i, 0]] = 10.0 + normal.sample(&mut rng);
         data[[i, 1]] = 10.0 + normal.sample(&mut rng);
     }
@@ -38,7 +38,7 @@ fn generate_density_varying_data(n_samples: usize) -> Array2<f64> {
     // Sparse cluster 3 (low density)
     let _sparse_samples = n_samples - dense1_samples - dense2_samples;
     for i in dense1_samples + dense2_samples..n_samples {
-        let normal = Normal::new(0.0, 2.0).unwrap();
+        let normal = Normal::new(0.0, 2.0).expect("operation should succeed");
         data[[i, 0]] = 20.0 + normal.sample(&mut rng);
         data[[i, 1]] = 0.0 + normal.sample(&mut rng);
     }
@@ -56,7 +56,7 @@ fn generate_data_with_noise(n_samples: usize, noise_ratio: f64) -> Array2<f64> {
 
     // Cluster data
     for i in 0..n_cluster {
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
         let cluster_id = i % 3;
         let center_x = (cluster_id as f64) * 10.0;
         data[[i, 0]] = center_x + normal.sample(&mut rng);

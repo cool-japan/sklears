@@ -216,7 +216,7 @@ impl ChartRenderingSystem {
 
     /// Create a chart with the specified type and data
     pub fn create_chart(&self, chart_type: ChartType, data: ChartData) -> Result<Chart, ChartBuildError> {
-        let factory = self.chart_factory.read().unwrap();
+        let factory = self.chart_factory.read().unwrap_or_else(|e| e.into_inner());
         // Chart creation logic would go here
         Ok(Chart {
             chart_id: uuid::Uuid::new_v4().to_string(),
@@ -236,7 +236,7 @@ impl ChartRenderingSystem {
 
     /// Get current performance metrics
     pub fn get_metrics(&self) -> ChartRenderingMetrics {
-        self.metrics_system.read().unwrap().clone()
+        self.metrics_system.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Update performance settings
@@ -246,7 +246,7 @@ impl ChartRenderingSystem {
 
     /// Update security settings
     pub fn update_security_settings(&self, settings: RenderingSecuritySettings) {
-        let mut security = self.security_settings.write().unwrap();
+        let mut security = self.security_settings.write().unwrap_or_else(|e| e.into_inner());
         *security = settings;
     }
 }

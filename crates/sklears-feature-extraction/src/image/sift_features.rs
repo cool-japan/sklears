@@ -605,8 +605,8 @@ mod tests {
 
     #[test]
     fn test_detect_keypoints_small_image() {
-        let image =
-            Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect()).unwrap();
+        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64 / 64.0).collect())
+            .expect("operation should succeed");
         let sift = SIFTExtractor::new();
         let result = sift.detect_keypoints(&image.view());
 
@@ -617,9 +617,11 @@ mod tests {
     fn test_detect_keypoints_valid_image() {
         let image =
             Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect())
-                .unwrap();
+                .expect("operation should succeed");
         let sift = SIFTExtractor::new();
-        let keypoints = sift.detect_keypoints(&image.view()).unwrap();
+        let keypoints = sift
+            .detect_keypoints(&image.view())
+            .expect("operation should succeed");
 
         // Should not crash and return some result
         assert!(keypoints.len() <= 1000); // Reasonable upper bound
@@ -630,7 +632,9 @@ mod tests {
         let image = Array2::zeros((32, 32));
         let sift = SIFTExtractor::new();
         let keypoints = Vec::new();
-        let descriptors = sift.extract_descriptors(&image.view(), &keypoints).unwrap();
+        let descriptors = sift
+            .extract_descriptors(&image.view(), &keypoints)
+            .expect("operation should succeed");
 
         assert_eq!(descriptors.dim(), (0, 128));
     }

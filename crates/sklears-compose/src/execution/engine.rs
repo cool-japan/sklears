@@ -383,7 +383,10 @@ impl ComposableExecutionEngine {
     /// Get current execution metrics
     #[must_use]
     pub fn metrics(&self) -> ExecutionMetrics {
-        self.metrics.lock().unwrap().clone()
+        self.metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Get engine configuration

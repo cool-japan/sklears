@@ -31,7 +31,7 @@ use super::common::{MEstimatorType, Trained, Untrained};
 /// let y = Array2::zeros((20, 4));
 ///
 /// let robust_cca = RobustCCA::new(2).breakdown_point(0.3);
-/// let fitted = robust_cca.fit(&x, &y).unwrap();
+/// let fitted = robust_cca.fit(&x, &y).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct RobustCCA<State = Untrained> {
@@ -281,7 +281,7 @@ impl RobustCCA<Untrained> {
 
             // Robust location: median
             let mut sorted_col = col.to_vec();
-            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_col.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             location[j] = if sorted_col.len() % 2 == 0 {
                 (sorted_col[sorted_col.len() / 2 - 1] + sorted_col[sorted_col.len() / 2]) / 2.0
             } else {
@@ -291,7 +291,7 @@ impl RobustCCA<Untrained> {
             // Robust scale: MAD (Median Absolute Deviation)
             let deviations: Vec<Float> = col.iter().map(|&x| (x - location[j]).abs()).collect();
             let mut sorted_deviations = deviations;
-            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sorted_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             scale[j] = if sorted_deviations.len() % 2 == 0 {
                 (sorted_deviations[sorted_deviations.len() / 2 - 1]
@@ -528,18 +528,40 @@ impl Transform<(Array2<Float>, Array2<Float>), (Array2<Float>, Array2<Float>)>
         // Preprocess using robust estimates
         let X_processed = self.preprocess_data(
             X,
-            self.robust_mean_x_.as_ref().unwrap(),
-            self.robust_scale_x_.as_ref().unwrap(),
+            self.robust_mean_x_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?,
+            self.robust_scale_x_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?,
         )?;
         let Y_processed = self.preprocess_data(
             Y,
-            self.robust_mean_y_.as_ref().unwrap(),
-            self.robust_scale_y_.as_ref().unwrap(),
+            self.robust_mean_y_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?,
+            self.robust_scale_y_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?,
         )?;
 
         // Project to canonical space
-        let X_canonical = X_processed.dot(self.weights_x_.as_ref().unwrap());
-        let Y_canonical = Y_processed.dot(self.weights_y_.as_ref().unwrap());
+        let X_canonical =
+            X_processed.dot(self.weights_x_.as_ref().ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?);
+        let Y_canonical =
+            Y_processed.dot(self.weights_y_.as_ref().ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?);
 
         Ok((X_canonical, Y_canonical))
     }
@@ -548,52 +570,70 @@ impl Transform<(Array2<Float>, Array2<Float>), (Array2<Float>, Array2<Float>)>
 impl RobustCCA<Trained> {
     /// Get the canonical weights for X
     pub fn weights_x(&self) -> &Array2<Float> {
-        self.weights_x_.as_ref().unwrap()
+        self.weights_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical weights for Y
     pub fn weights_y(&self) -> &Array2<Float> {
-        self.weights_y_.as_ref().unwrap()
+        self.weights_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical correlations
     pub fn correlations(&self) -> &Array1<Float> {
-        self.correlations_.as_ref().unwrap()
+        self.correlations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the observation weights
     pub fn observation_weights(&self) -> &Array1<Float> {
-        self.observation_weights_.as_ref().unwrap()
+        self.observation_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the outlier flags
     pub fn outlier_flags(&self) -> &Array1<bool> {
-        self.outlier_flags_.as_ref().unwrap()
+        self.outlier_flags_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Get robust location estimates for X
     pub fn robust_mean_x(&self) -> &Array1<Float> {
-        self.robust_mean_x_.as_ref().unwrap()
+        self.robust_mean_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get robust location estimates for Y
     pub fn robust_mean_y(&self) -> &Array1<Float> {
-        self.robust_mean_y_.as_ref().unwrap()
+        self.robust_mean_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get robust scale estimates for X
     pub fn robust_scale_x(&self) -> &Array1<Float> {
-        self.robust_scale_x_.as_ref().unwrap()
+        self.robust_scale_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get robust scale estimates for Y
     pub fn robust_scale_y(&self) -> &Array1<Float> {
-        self.robust_scale_y_.as_ref().unwrap()
+        self.robust_scale_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Helper method for preprocessing
@@ -634,7 +674,7 @@ mod tests {
         let Y = Array2::from_shape_fn((20, 4), |(i, j)| (i + j + 1) as Float * 0.1);
 
         let robust_cca = RobustCCA::new(2);
-        let fitted = robust_cca.fit(&X, &Y).unwrap();
+        let fitted = robust_cca.fit(&X, &Y).expect("fit should succeed");
 
         assert_eq!(fitted.weights_x().shape(), &[5, 2]);
         assert_eq!(fitted.weights_y().shape(), &[4, 2]);
@@ -654,7 +694,7 @@ mod tests {
         Y[[1, 1]] = -100.0;
 
         let robust_cca = RobustCCA::new(1).breakdown_point(0.3);
-        let fitted = robust_cca.fit(&X, &Y).unwrap();
+        let fitted = robust_cca.fit(&X, &Y).expect("fit should succeed");
 
         // Check that outliers are detected
         let outlier_flags = fitted.outlier_flags();
@@ -668,9 +708,10 @@ mod tests {
         let Y = Array2::from_shape_fn((15, 3), |(i, j)| (i + j) as Float * 0.1);
 
         let robust_cca = RobustCCA::new(2);
-        let fitted = robust_cca.fit(&X, &Y).unwrap();
+        let fitted = robust_cca.fit(&X, &Y).expect("fit should succeed");
 
-        let (X_canonical, Y_canonical) = fitted.transform(&(X, Y)).unwrap();
+        let (X_canonical, Y_canonical) =
+            fitted.transform(&(X, Y)).expect("transform should succeed");
         assert_eq!(X_canonical.shape(), &[15, 2]);
         assert_eq!(Y_canonical.shape(), &[15, 2]);
     }

@@ -600,7 +600,7 @@ impl PatternExecutionCore {
 
     /// Monitor execution in real-time
     pub async fn monitor_execution(&self, execution_id: &str) -> Result<ExecutionStatus> {
-        let monitor = self.execution_monitor.read().unwrap();
+        let monitor = self.execution_monitor.read().unwrap_or_else(|e| e.into_inner());
         let status = monitor.get_execution_status(execution_id)?;
         drop(monitor);
 
@@ -623,7 +623,7 @@ impl PatternExecutionCore {
         execution_id: &str,
         adaptation_request: AdaptationRequest,
     ) -> Result<AdaptationResult> {
-        let mut adaptive_executor = self.adaptive_executor.write().unwrap();
+        let mut adaptive_executor = self.adaptive_executor.write().unwrap_or_else(|e| e.into_inner());
 
         // Analyze current context
         let context = adaptive_executor.context_analyzer.analyze_execution_context(execution_id)?;
@@ -640,7 +640,7 @@ impl PatternExecutionCore {
         drop(adaptive_executor);
 
         // Update performance tracking
-        let mut tracker = self.performance_tracker.write().unwrap();
+        let mut tracker = self.performance_tracker.write().unwrap_or_else(|e| e.into_inner());
         tracker.record_adaptation(execution_id, &adaptation_result)?;
         drop(tracker);
 
@@ -653,7 +653,7 @@ impl PatternExecutionCore {
         execution_id: &str,
         recovery_options: RecoveryOptions,
     ) -> Result<RecoveryResult> {
-        let mut recovery_manager = self.recovery_manager.write().unwrap();
+        let mut recovery_manager = self.recovery_manager.write().unwrap_or_else(|e| e.into_inner());
 
         // Detect failure type
         let failure_analysis = recovery_manager.failure_detector.analyze_failure(execution_id)?;
@@ -685,7 +685,7 @@ impl PatternExecutionCore {
         execution_id: &str,
         optimization_targets: OptimizationTargets,
     ) -> Result<OptimizationResult> {
-        let mut optimizer = self.execution_optimizer.write().unwrap();
+        let mut optimizer = self.execution_optimizer.write().unwrap_or_else(|e| e.into_inner());
 
         // Analyze current performance
         let performance_analysis = optimizer.performance_analyzer.analyze_execution(execution_id)?;
@@ -726,9 +726,9 @@ impl PatternExecutionCore {
 
     /// Get execution health status
     pub fn get_health_status(&self) -> Result<ExecutionHealthReport> {
-        let state = self.state.read().unwrap();
-        let monitor = self.execution_monitor.read().unwrap();
-        let resource_manager = self.resource_manager.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let monitor = self.execution_monitor.read().unwrap_or_else(|e| e.into_inner());
+        let resource_manager = self.resource_manager.read().unwrap_or_else(|e| e.into_inner());
 
         let health_report = ExecutionHealthReport {
             engine_health: state.health.clone(),
@@ -748,13 +748,13 @@ impl PatternExecutionCore {
 
     /// Pause execution
     pub async fn pause_execution(&self, execution_id: &str) -> Result<()> {
-        let mut orchestrator = self.runtime_orchestrator.write().unwrap();
+        let mut orchestrator = self.runtime_orchestrator.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(execution) = orchestrator.active_executions.get_mut(execution_id) {
             execution.state = ExecutionState::Paused;
 
             // Save current state
-            let mut state_manager = self.state_manager.write().unwrap();
+            let mut state_manager = self.state_manager.write().unwrap_or_else(|e| e.into_inner());
             state_manager.save_execution_state(execution_id, execution)?;
             drop(state_manager);
         }
@@ -762,7 +762,7 @@ impl PatternExecutionCore {
         drop(orchestrator);
 
         // Suspend resource allocation
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self.resource_manager.write().unwrap_or_else(|e| e.into_inner());
         resource_manager.suspend_allocation(execution_id)?;
         drop(resource_manager);
 
@@ -777,13 +777,13 @@ impl PatternExecutionCore {
 
     /// Resume execution
     pub async fn resume_execution(&self, execution_id: &str) -> Result<()> {
-        let mut orchestrator = self.runtime_orchestrator.write().unwrap();
+        let mut orchestrator = self.runtime_orchestrator.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(execution) = orchestrator.active_executions.get_mut(execution_id) {
             execution.state = ExecutionState::Running;
 
             // Restore state
-            let mut state_manager = self.state_manager.write().unwrap();
+            let mut state_manager = self.state_manager.write().unwrap_or_else(|e| e.into_inner());
             state_manager.restore_execution_state(execution_id, execution)?;
             drop(state_manager);
         }
@@ -791,7 +791,7 @@ impl PatternExecutionCore {
         drop(orchestrator);
 
         // Resume resource allocation
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self.resource_manager.write().unwrap_or_else(|e| e.into_inner());
         resource_manager.resume_allocation(execution_id)?;
         drop(resource_manager);
 
@@ -806,7 +806,7 @@ impl PatternExecutionCore {
 
     /// Cancel execution
     pub async fn cancel_execution(&self, execution_id: &str, reason: String) -> Result<()> {
-        let mut orchestrator = self.runtime_orchestrator.write().unwrap();
+        let mut orchestrator = self.runtime_orchestrator.write().unwrap_or_else(|e| e.into_inner());
 
         if let Some(execution) = orchestrator.active_executions.get_mut(execution_id) {
             execution.state = ExecutionState::Cancelled;
@@ -825,7 +825,7 @@ impl PatternExecutionCore {
         drop(orchestrator);
 
         // Clean up resources
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self.resource_manager.write().unwrap_or_else(|e| e.into_inner());
         resource_manager.cleanup_execution_resources(execution_id)?;
         drop(resource_manager);
 
@@ -862,7 +862,7 @@ impl PatternExecutionCore {
     }
 
     async fn allocate_resources(&self, request: &ExecutionRequest) -> Result<ResourceAllocation> {
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self.resource_manager.write().unwrap_or_else(|e| e.into_inner());
         let allocation = resource_manager.allocate_resources_for_execution(request).await?;
         drop(resource_manager);
 
@@ -887,7 +887,7 @@ impl PatternExecutionCore {
     }
 
     async fn start_execution_monitoring(&self, execution_id: &str, context: &ExecutionContext) -> Result<()> {
-        let mut monitor = self.execution_monitor.write().unwrap();
+        let mut monitor = self.execution_monitor.write().unwrap_or_else(|e| e.into_inner());
         monitor.start_monitoring(execution_id, context)?;
         drop(monitor);
 
@@ -895,7 +895,7 @@ impl PatternExecutionCore {
     }
 
     async fn stop_execution_monitoring(&self, execution_id: &str) -> Result<()> {
-        let mut monitor = self.execution_monitor.write().unwrap();
+        let mut monitor = self.execution_monitor.write().unwrap_or_else(|e| e.into_inner());
         monitor.stop_monitoring(execution_id)?;
         drop(monitor);
 
@@ -903,7 +903,7 @@ impl PatternExecutionCore {
     }
 
     async fn release_resources(&self, allocation: &ResourceAllocation) -> Result<()> {
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self.resource_manager.write().unwrap_or_else(|e| e.into_inner());
         resource_manager.release_allocation(allocation)?;
         drop(resource_manager);
 
@@ -917,7 +917,7 @@ impl PatternExecutionCore {
         context: ExecutionContext,
     ) -> Result<ExecutionResult> {
         // Create active execution record
-        let mut orchestrator = self.runtime_orchestrator.write().unwrap();
+        let mut orchestrator = self.runtime_orchestrator.write().unwrap_or_else(|e| e.into_inner());
         let active_execution = ActiveExecution {
             id: execution_id.clone(),
             pattern_id: request.pattern_id.clone(),
@@ -955,7 +955,7 @@ impl PatternExecutionCore {
         let execution_duration = execution_start.elapsed();
 
         // Update execution state to completed
-        let mut orchestrator = self.runtime_orchestrator.write().unwrap();
+        let mut orchestrator = self.runtime_orchestrator.write().unwrap_or_else(|e| e.into_inner());
         if let Some(execution) = orchestrator.active_executions.get_mut(&execution_id) {
             execution.state = ExecutionState::Completed;
             execution.performance.duration = execution_duration;
@@ -1117,7 +1117,7 @@ mod tests {
     #[tokio::test]
     async fn test_execution_validation() {
         let config = ExecutionConfig::default();
-        let engine = PatternExecutionCore::new(config).unwrap();
+        let engine = PatternExecutionCore::new(config).unwrap_or_default();
 
         let valid_request = ExecutionRequest {
             id: "test_request".to_string(),
@@ -1143,7 +1143,7 @@ mod tests {
     #[tokio::test]
     async fn test_invalid_execution_validation() {
         let config = ExecutionConfig::default();
-        let engine = PatternExecutionCore::new(config).unwrap();
+        let engine = PatternExecutionCore::new(config).unwrap_or_default();
 
         let invalid_request = ExecutionRequest {
             id: "test_request".to_string(),

@@ -242,7 +242,7 @@ impl ExecutionHandle {
                 value: duration.as_secs_f64(),
                 timestamp: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_secs(),
                 pipeline_name: self.execution_id.clone(),
                 stage_name: Some(stage_name.to_string()),
@@ -263,7 +263,7 @@ impl ExecutionHandle {
             value,
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             pipeline_name: self.execution_id.clone(),
             stage_name: None,
@@ -295,7 +295,7 @@ impl ExecutionHandle {
             value: total_duration.as_secs_f64(),
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             pipeline_name: self.execution_id.clone(),
             stage_name: None,
@@ -332,7 +332,7 @@ impl ExecutionContext {
             pipeline_name: pipeline_name.to_string(),
             start_time: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             current_stage: None,
             status: ExecutionStatus::Running,
@@ -537,7 +537,7 @@ impl PerformanceAnalysis {
     fn from_metrics(metrics: MetricsSnapshot) -> Self {
         let mut execution_times: Vec<f64> =
             metrics.execution_times.iter().map(|m| m.value).collect();
-        execution_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        execution_times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let avg_execution_time = if execution_times.is_empty() {
             0.0
@@ -803,7 +803,7 @@ mod tests {
         std::thread::sleep(Duration::from_millis(10));
         handle.end_stage("test-stage");
 
-        let metrics_lock = metrics.lock().unwrap();
+        let metrics_lock = metrics.lock().unwrap_or_else(|e| e.into_inner());
         assert!(!metrics_lock.metrics.is_empty());
     }
 

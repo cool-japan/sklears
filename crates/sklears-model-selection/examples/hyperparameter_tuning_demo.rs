@@ -75,8 +75,8 @@ impl Fit<Array2<f64>, Array1<f64>> for MockLinearModel {
 
 impl Predict<Array2<f64>, Array1<f64>> for MockLinearModel {
     fn predict(&self, x: &Array2<f64>) -> Result<Array1<f64>, sklears_core::error::SklearsError> {
-        let coef = self.coef_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let coef = self.coef_.as_ref().expect("operation should succeed");
+        let intercept = self.intercept_.expect("operation should succeed");
 
         let mut predictions = Array1::zeros(x.nrows());
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {

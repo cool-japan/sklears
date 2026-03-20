@@ -725,7 +725,7 @@ mod tests {
         };
 
         let solver = InteriorPointSolver::default();
-        let result = solver.solve(&problem).unwrap();
+        let result = solver.solve(&problem).expect("solve should succeed");
 
         assert_abs_diff_eq!(result.solution[0], 0.0, epsilon = 1e-6);
         assert!(result.converged);
@@ -753,7 +753,7 @@ mod tests {
         let mut config = ConstrainedOptimizationConfig::default();
         config.tolerance = 1e-4; // More relaxed tolerance for test
         let solver = InteriorPointSolver::new(config);
-        let result = solver.solve(&problem).unwrap();
+        let result = solver.solve(&problem).expect("solve should succeed");
 
         // Optimal solution should be x = 1 (constrained optimum)
         assert_abs_diff_eq!(result.solution[0], 1.0, epsilon = 1e-2);
@@ -790,16 +790,16 @@ mod tests {
         let mut model = ConstrainedLinearRegression::new(config);
         model = model.add_constraint(constraints[0].clone());
 
-        model.fit(&x, &y).unwrap();
+        model.fit(&x, &y).expect("model fitting should succeed");
 
-        let coeffs = model.coefficients().unwrap();
+        let coeffs = model.coefficients().expect("operation should succeed");
 
         // Coefficients should be non-negative (solution should be approximately [1, 1])
         assert!(coeffs[0] >= -1e-2);
         assert!(coeffs[1] >= -1e-2);
 
         // Test prediction
-        let pred = model.predict(&x).unwrap();
+        let pred = model.predict(&x).expect("prediction should succeed");
         assert_eq!(pred.len(), 4);
     }
 }

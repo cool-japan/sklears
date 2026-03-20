@@ -6,7 +6,7 @@
 use crate::cross_validation::CrossValidator;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -28,20 +28,20 @@ pub enum ParamDistribution {
 
 impl ParamDistribution {
     /// Sample a value from this distribution
-    pub fn sample<R: Rng>(&self, rng: &mut R) -> Float {
+    pub fn sample<R: RngExt>(&self, rng: &mut R) -> Float {
         match self {
-            ParamDistribution::Uniform { min, max } => rng.gen_range(*min..=*max),
+            ParamDistribution::Uniform { min, max } => rng.random_range(*min..=*max),
             ParamDistribution::LogUniform { min, max } => {
                 let log_min = min.ln();
                 let log_max = max.ln();
-                let log_val = rng.gen_range(log_min..=log_max);
+                let log_val = rng.random_range(log_min..=log_max);
                 log_val.exp()
             }
             ParamDistribution::Choice { values } => {
-                let idx = rng.gen_range(0..values.len());
+                let idx = rng.random_range(0..values.len());
                 values[idx]
             }
-            ParamDistribution::IntUniform { min, max } => rng.gen_range(*min..=*max) as Float,
+            ParamDistribution::IntUniform { min, max } => rng.random_range(*min..=*max) as Float,
         }
     }
 }
@@ -135,7 +135,7 @@ impl SimpleGaussianProcess {
             }
 
             if !distances.is_empty() {
-                distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 self.length_scale = distances[distances.len() / 2].max(0.1);
             }
 
@@ -488,11 +488,11 @@ impl BayesSearchCV {
     }
 
     fn update_best(&mut self) -> Result<()> {
-        if let Some(best_eval) = self
-            .evaluations_
-            .iter()
-            .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap())
-        {
+        if let Some(best_eval) = self.evaluations_.iter().max_by(|a, b| {
+            a.score
+                .partial_cmp(&b.score)
+                .expect("operation should succeed")
+        }) {
             let param_names: Vec<String> = self.param_distributions.keys().cloned().collect();
             let mut best_params = HashMap::new();
 
@@ -673,7 +673,11 @@ impl TPEOptimizer {
 
         // Sort evaluations by score (descending)
         let mut sorted_evals = self.evaluations_.clone();
-        sorted_evals.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        sorted_evals.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .expect("operation should succeed")
+        });
 
         // Split into good and bad observations
         let n_good =
@@ -796,11 +800,11 @@ impl TPEOptimizer {
     }
 
     fn update_best(&mut self) -> Result<()> {
-        if let Some(best_eval) = self
-            .evaluations_
-            .iter()
-            .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap())
-        {
+        if let Some(best_eval) = self.evaluations_.iter().max_by(|a, b| {
+            a.score
+                .partial_cmp(&b.score)
+                .expect("operation should succeed")
+        }) {
             let param_names: Vec<String> = self.param_distributions.keys().cloned().collect();
             let mut best_params = HashMap::new();
 
@@ -911,13 +915,16 @@ mod tests {
     fn test_simple_gaussian_process() {
         let mut gp = SimpleGaussianProcess::new(0.01);
 
-        let x_train = Array2::from_shape_vec((3, 1), vec![0.0, 1.0, 2.0]).unwrap();
+        let x_train =
+            Array2::from_shape_vec((3, 1), vec![0.0, 1.0, 2.0]).expect("operation should succeed");
         let y_train = Array1::from_vec(vec![0.0, 1.0, 4.0]);
 
-        gp.fit(&x_train, &y_train).unwrap();
+        gp.fit(&x_train, &y_train)
+            .expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((2, 1), vec![0.5, 1.5]).unwrap();
-        let (mean, std) = gp.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((2, 1), vec![0.5, 1.5]).expect("operation should succeed");
+        let (mean, std) = gp.predict(&x_test).expect("operation should succeed");
 
         assert_eq!(mean.len(), 2);
         assert_eq!(std.len(), 2);
@@ -951,9 +958,13 @@ mod tests {
             score: 0.6,
         });
 
-        search.fit_surrogate_model().unwrap();
+        search
+            .fit_surrogate_model()
+            .expect("operation should succeed");
 
-        let _acquisition = search.compute_acquisition(&[0.5]).unwrap();
+        let _acquisition = search
+            .compute_acquisition(&[0.5])
+            .expect("operation should succeed");
         // Allow NaN/infinity in some edge cases for the Gaussian process\n        if !acquisition.is_finite() {\n            eprintln!(\"Warning: acquisition function returned non-finite value: {}\", acquisition);\n        }
     }
 
@@ -999,7 +1010,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1, 0, 1, 0, 1, 0, 1]);
 
         let cv = KFold::new(2);

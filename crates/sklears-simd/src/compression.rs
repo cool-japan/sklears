@@ -346,7 +346,9 @@ mod tests {
 
         compressor.build_dictionary(data, 8);
         let compressed = compressor.compress(data);
-        let decompressed = compressor.decompress(&compressed).unwrap();
+        let decompressed = compressor
+            .decompress(&compressed)
+            .expect("operation should succeed");
 
         assert_eq!(decompressed, data);
 

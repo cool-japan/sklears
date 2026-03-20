@@ -435,6 +435,8 @@ mod tests {
 
         let leak_check = result.check_memory_leaks();
         assert!(leak_check.is_some());
-        assert!(leak_check.unwrap().contains("Potential memory leak"));
+        assert!(leak_check
+            .expect("operation should succeed")
+            .contains("Potential memory leak"));
     }
 }

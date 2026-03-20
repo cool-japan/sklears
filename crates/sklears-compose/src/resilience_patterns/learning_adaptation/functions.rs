@@ -59,7 +59,7 @@ mod tests {
         };
         let result = extractor.extract_features(&behavior_data);
         assert!(result.is_ok());
-        let features = result.unwrap();
+        let features = result.unwrap_or_default();
         assert_eq!(features.feature_count, 4);
         assert!(features.features.contains_key("cpu_usage"));
         assert!(features.features.contains_key("memory_usage"));

@@ -382,7 +382,7 @@ mod tests {
         let y = array![3.0, 1.0, 4.0, 2.0, 5.0];
         let weights = array![1.0, 1.0, 1.0, 1.0, 1.0];
 
-        let result = pav_optimized(&y, &weights, true).unwrap();
+        let result = pav_optimized(&y, &weights, true).expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..result.len() - 1 {
@@ -395,7 +395,7 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 3.0];
         let weights = array![1.0, 1.0, 1.0, 1.0, 1.0];
 
-        let result = pav_optimized(&y, &weights, false).unwrap();
+        let result = pav_optimized(&y, &weights, false).expect("operation should succeed");
 
         // Check decreasing monotonicity
         for i in 0..result.len() - 1 {
@@ -406,7 +406,7 @@ mod tests {
     #[test]
     fn test_sum_optimized() {
         let arr = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let sum = sum_optimized(&arr.view()).unwrap();
+        let sum = sum_optimized(&arr.view()).expect("operation should succeed");
 
         assert!((sum - 15.0).abs() < 1e-10);
     }
@@ -416,7 +416,8 @@ mod tests {
         let values = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let weights = array![0.1, 0.2, 0.3, 0.2, 0.2];
 
-        let sum = weighted_sum_optimized(&values.view(), &weights.view()).unwrap();
+        let sum = weighted_sum_optimized(&values.view(), &weights.view())
+            .expect("operation should succeed");
 
         let expected = 1.0 * 0.1 + 2.0 * 0.2 + 3.0 * 0.3 + 4.0 * 0.2 + 5.0 * 0.2;
         assert!((sum - expected).abs() < 1e-10);
@@ -490,6 +491,9 @@ mod tests {
 
         // Single element
         let arr = array![42.0];
-        assert_eq!(sum_optimized(&arr.view()).unwrap(), 42.0);
+        assert_eq!(
+            sum_optimized(&arr.view()).expect("operation should succeed"),
+            42.0
+        );
     }
 }

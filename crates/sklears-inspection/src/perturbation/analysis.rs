@@ -266,8 +266,11 @@ where
     }
 
     // Sort by mean sensitivity (descending)
-    feature_sensitivities
-        .sort_by(|a, b| b.mean_sensitivity.partial_cmp(&a.mean_sensitivity).unwrap());
+    feature_sensitivities.sort_by(|a, b| {
+        b.mean_sensitivity
+            .partial_cmp(&a.mean_sensitivity)
+            .expect("operation should succeed")
+    });
 
     let overall_sensitivity = feature_sensitivities
         .iter()

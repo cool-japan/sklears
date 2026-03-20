@@ -93,7 +93,7 @@ pub fn make_missing_at_random(
 
     // Calculate threshold based on percentile of predictor column
     let mut predictor_values: Vec<f64> = data.column(predictor_column).to_vec();
-    predictor_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    predictor_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let threshold_index = (threshold_percentile / 100.0 * n_rows as f64) as usize;
     let threshold = predictor_values[threshold_index.min(n_rows - 1)];
 
@@ -161,7 +161,7 @@ pub fn make_missing_not_at_random(
 
     // Calculate threshold based on percentile of target column
     let mut target_values: Vec<f64> = data.column(target_column).to_vec();
-    target_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    target_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     let threshold_index = (threshold_percentile / 100.0 * n_rows as f64) as usize;
     let threshold = target_values[threshold_index.min(n_rows - 1)];
 
@@ -221,7 +221,7 @@ pub fn make_outliers(
     let n_outliers = (outlier_fraction * n_rows as f64) as usize;
 
     // Calculate statistics for each feature
-    let means = data.mean_axis(Axis(0)).unwrap();
+    let means = data.mean_axis(Axis(0)).expect("array should have elements for mean computation");
     let stds = data.std_axis(Axis(0), 0.0);
 
     // Randomly select samples to become outliers
@@ -325,7 +325,7 @@ pub fn make_imbalanced_classification(
 
             for feature_idx in 0..n_features {
                 let center = centers[[class_idx, feature_idx]];
-                let normal = Normal::new(center, cluster_std).unwrap();
+                let normal = Normal::new(center, cluster_std).expect("operation should succeed");
                 data[[sample_idx, feature_idx]] = rng.sample(normal);
             }
 
@@ -378,7 +378,7 @@ pub fn make_anomalies(
     let mut labels = Array1::zeros(n_rows);
 
     // Calculate data statistics
-    let means = data.mean_axis(Axis(0)).unwrap();
+    let means = data.mean_axis(Axis(0)).expect("array should have elements for mean computation");
     let stds = data.std_axis(Axis(0), 0.0);
 
     // Select anomaly indices

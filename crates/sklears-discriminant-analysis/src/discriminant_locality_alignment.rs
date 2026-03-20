@@ -733,37 +733,51 @@ impl Fit<Array2<Float>, Array1<i32>> for DiscriminantLocalityAlignment<Untrained
 impl DiscriminantLocalityAlignment<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Array1<i32> {
-        self.classes_.as_ref().unwrap()
+        self.classes_
+            .as_ref()
+            .expect("classes_ not available - model not fitted")
     }
 
     /// Get the class means
     pub fn means(&self) -> &Array2<Float> {
-        self.means_.as_ref().unwrap()
+        self.means_
+            .as_ref()
+            .expect("means_ not available - model not fitted")
     }
 
     /// Get the components (projection matrix)
     pub fn components(&self) -> &Array2<Float> {
-        self.components_.as_ref().unwrap()
+        self.components_
+            .as_ref()
+            .expect("components_ not available - model not fitted")
     }
 
     /// Get the eigenvalues
     pub fn eigenvalues(&self) -> &Array1<Float> {
-        self.eigenvalues_.as_ref().unwrap()
+        self.eigenvalues_
+            .as_ref()
+            .expect("eigenvalues_ not available - model not fitted")
     }
 
     /// Get the priors
     pub fn priors(&self) -> &Array1<Float> {
-        self.priors_.as_ref().unwrap()
+        self.priors_
+            .as_ref()
+            .expect("priors_ not available - model not fitted")
     }
 
     /// Get the locality graph
     pub fn locality_graph(&self) -> &Array2<Float> {
-        self.locality_graph_.as_ref().unwrap()
+        self.locality_graph_
+            .as_ref()
+            .expect("locality_graph_ not available - model not fitted")
     }
 
     /// Get the alignment weights
     pub fn alignment_weights(&self) -> &Array2<Float> {
-        self.alignment_weights_.as_ref().unwrap()
+        self.alignment_weights_
+            .as_ref()
+            .expect("alignment_weights_ not available - model not fitted")
     }
 
     /// Get the covariance matrix if stored
@@ -783,10 +797,15 @@ impl Transform<Array2<Float>, Array2<Float>> for DiscriminantLocalityAlignment<T
         let components = self.components();
         let n_components = components.ncols();
 
-        if x.ncols() != self.n_features_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_
+                .expect("n_features_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",
-                self.n_features_.unwrap(),
+                self.n_features_
+                    .expect("n_features_ not available - model not fitted"),
                 x.ncols()
             )));
         }
@@ -854,7 +873,10 @@ impl PredictProba<Array2<Float>, Array2<Float>> for DiscriminantLocalityAlignmen
                 for k in 0..transformed.ncols() {
                     // Project class mean to reduced space
                     let mut projected_mean = 0.0;
-                    for l in 0..self.n_features_.unwrap() {
+                    for l in 0..self
+                        .n_features_
+                        .expect("n_features_ not available - model not fitted")
+                    {
                         projected_mean += class_means[[j, l]] * self.components()[[l, k]];
                     }
                     let diff = transformed[[i, k]] - projected_mean;

@@ -1,6 +1,5 @@
 use crate::SklResult;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::Rng;
 use sklears_core::prelude::{Float, SklearsError};
 
 /// Streaming Feature Extractor
@@ -452,9 +451,9 @@ impl RandomProjectionFeatures {
             let threshold = density;
             for i in 0..n_features {
                 for j in 0..n_components {
-                    let random_val: Float = rng.gen();
+                    let random_val: Float = rng.random();
                     if random_val < threshold {
-                        matrix[[i, j]] = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+                        matrix[[i, j]] = if rng.random_bool(0.5) { 1.0 } else { -1.0 };
                         matrix[[i, j]] /= (density * n_components as Float).sqrt();
                     }
                 }
@@ -463,7 +462,7 @@ impl RandomProjectionFeatures {
             // Dense Gaussian random projection
             for i in 0..n_features {
                 for j in 0..n_components {
-                    matrix[[i, j]] = rng.gen_range(-1.0..1.0);
+                    matrix[[i, j]] = rng.random_range(-1.0..1.0);
                 }
             }
             // Normalize
@@ -702,13 +701,13 @@ impl LocalitySensitiveHashing {
                 "cosine" => {
                     // Random hyperplane hash for cosine similarity
                     for i in 0..n_features {
-                        matrix[[i, 0]] = rng.gen_range(-1.0..1.0);
+                        matrix[[i, 0]] = rng.random_range(-1.0..1.0);
                     }
                 }
                 "euclidean" => {
                     // Random projection hash for Euclidean distance
                     for i in 0..n_features {
-                        matrix[[i, 0]] = rng.gen_range(-1.0..1.0);
+                        matrix[[i, 0]] = rng.random_range(-1.0..1.0);
                     }
                     // Normalize
                     let norm = (matrix.mapv(|x| x * x).sum() as Float).sqrt();

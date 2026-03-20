@@ -385,7 +385,11 @@ impl AdaptivePrecision {
                     // Store best result so far
                     if best_result.is_none()
                         || quality.reconstruction_error
-                            < best_result.as_ref().unwrap().2.reconstruction_error
+                            < best_result
+                                .as_ref()
+                                .expect("operation should succeed")
+                                .2
+                                .reconstruction_error
                     {
                         best_result = Some((eigenvalues, eigenvectors, quality));
                     }
@@ -1054,11 +1058,11 @@ mod tests {
     fn test_iterative_refinement() {
         // Create a well-conditioned test system
         let a = Array2::from_shape_vec((3, 3), vec![4.0, 1.0, 0.0, 1.0, 4.0, 1.0, 0.0, 1.0, 4.0])
-            .unwrap();
+            .expect("operation should succeed");
         let b = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 
         let refinement = IterativeRefinement::new().tolerance(1e-10);
-        let result = refinement.solve(&a, &b).unwrap();
+        let result = refinement.solve(&a, &b).expect("operation should succeed");
 
         assert!(result.converged);
         assert!(result.final_residual_norm < 1e-10);
@@ -1078,12 +1082,12 @@ mod tests {
                 4.0, 1.0, 0.0, 0.0, 1.0, 4.0, 1.0, 0.0, 0.0, 1.0, 4.0, 1.0, 0.0, 0.0, 1.0, 4.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let b = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
         let mlp = MultiLevelPreconditioning::new().levels(2).tolerance(1e-6);
 
-        let solution = mlp.solve(&a, &b).unwrap();
+        let solution = mlp.solve(&a, &b).expect("operation should succeed");
 
         // Verify solution
         let residual = &b - &a.dot(&solution);
@@ -1099,15 +1103,15 @@ mod tests {
         let well_conditioned = Array2::eye(3);
         let cond_num = refinement
             .estimate_condition_number(&well_conditioned)
-            .unwrap();
+            .expect("operation should succeed");
         assert_abs_diff_eq!(cond_num, 1.0, epsilon = 1e-10);
 
         // Ill-conditioned matrix
-        let ill_conditioned =
-            Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.0, 1.0 + 1e-15]).unwrap();
+        let ill_conditioned = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 1.0, 1.0 + 1e-15])
+            .expect("operation should succeed");
         let cond_num_ill = refinement
             .estimate_condition_number(&ill_conditioned)
-            .unwrap();
+            .expect("operation should succeed");
         // Relaxed threshold for OxiBLAS numerical precision
         assert!(
             cond_num_ill > 1e7,
@@ -1118,11 +1122,15 @@ mod tests {
 
     #[test]
     fn test_matrix_refinement() {
-        let a = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 2.0]).unwrap();
-        let b = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
+        let a = Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 2.0])
+            .expect("operation should succeed");
+        let b = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
 
         let refinement = IterativeRefinement::new();
-        let result = refinement.solve_matrix(&a, &b).unwrap();
+        let result = refinement
+            .solve_matrix(&a, &b)
+            .expect("operation should succeed");
 
         assert!(result.converged);
         assert!(result.max_residual_norm < 1e-10);
@@ -1133,12 +1141,12 @@ mod tests {
         let adaptive = AdaptivePrecisionArithmetic::new();
         let matrix =
             Array2::from_shape_vec((3, 3), vec![2.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 2.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let result = adaptive.adaptive_eigendecomposition(&matrix);
         assert!(result.is_ok());
 
-        let (eigenvalues, _) = result.unwrap();
+        let (eigenvalues, _) = result.expect("operation should succeed");
         assert_eq!(eigenvalues.len(), 3);
 
         // Check that eigenvalues are in reasonable range
@@ -1150,12 +1158,13 @@ mod tests {
     #[test]
     fn test_adaptive_precision_svd() {
         let adaptive = AdaptivePrecisionArithmetic::new();
-        let matrix = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let matrix = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
         let result = adaptive.adaptive_svd(&matrix);
         assert!(result.is_ok());
 
-        let (u, s, vt) = result.unwrap();
+        let (u, s, vt) = result.expect("operation should succeed");
         assert_eq!(u.shape(), &[3, 3]);
         assert_eq!(s.len(), 2);
         assert_eq!(vt.shape(), &[2, 2]);
@@ -1168,12 +1177,13 @@ mod tests {
     #[test]
     fn test_adaptive_matrix_inverse() {
         let adaptive = AdaptivePrecisionArithmetic::new();
-        let matrix = Array2::from_shape_vec((2, 2), vec![4.0, 2.0, 2.0, 2.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 2), vec![4.0, 2.0, 2.0, 2.0])
+            .expect("operation should succeed");
 
         let result = adaptive.adaptive_matrix_inverse(&matrix);
         assert!(result.is_ok());
 
-        let inverse = result.unwrap();
+        let inverse = result.expect("operation should succeed");
         assert_eq!(inverse.shape(), &[2, 2]);
 
         // Check that A * A^-1 ≈ I
@@ -1185,12 +1195,13 @@ mod tests {
     #[test]
     fn test_matrix_stabilization() {
         let adaptive = AdaptivePrecisionArithmetic::new();
-        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 0.5, 0.5, 1.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 0.5, 0.5, 1.0])
+            .expect("operation should succeed");
 
         let result = adaptive.stabilize_matrix(&matrix, 1e-12);
         assert!(result.is_ok());
 
-        let stabilized = result.unwrap();
+        let stabilized = result.expect("operation should succeed");
 
         // Check that regularization was added to diagonal
         assert!(stabilized[[0, 0]] > matrix[[0, 0]]);
@@ -1203,7 +1214,8 @@ mod tests {
     #[test]
     fn test_symmetry_enforcement() {
         let adaptive = AdaptivePrecisionArithmetic::new();
-        let asymmetric = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let asymmetric = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
         let symmetric = adaptive.symmetrize_matrix(&asymmetric);
 

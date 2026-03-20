@@ -280,7 +280,7 @@ mod tests {
             5,
             Some(42),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.importances_mean.len(), 3);
         assert_eq!(result.importances_std.len(), 3);

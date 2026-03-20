@@ -182,9 +182,9 @@ impl Fit<ArrayView2<'_, Float>, HashMap<String, Array2<Float>>>
         let mut rng_gen = thread_rng();
 
         // Use first task to determine output size for meta-parameters
-        let first_task_outputs = y.values().next().unwrap().ncols();
+        let first_task_outputs = y.values().next().expect("operation should succeed").ncols();
         let mut meta_parameters = Array2::<Float>::zeros((n_features, first_task_outputs));
-        let normal_dist = RandNormal::new(0.0, 0.1).unwrap();
+        let normal_dist = RandNormal::new(0.0, 0.1).expect("operation should succeed");
         for i in 0..n_features {
             for j in 0..first_task_outputs {
                 meta_parameters[[i, j]] = rng_gen.sample(normal_dist);

@@ -951,7 +951,7 @@ mod tests {
             y_prob: None,
         };
 
-        let result = metric.compute(&input).unwrap();
+        let result = metric.compute(&input).expect("operation should succeed");
         assert_eq!(result, 0.75);
         assert_eq!(metric.name(), "test_accuracy");
     }
@@ -969,7 +969,7 @@ mod tests {
             y_prob: None,
         };
 
-        let result = composed.compute(&input).unwrap();
+        let result = composed.compute(&input).expect("operation should succeed");
         assert_eq!(result.0, 0.75);
         assert_eq!(result.1, 0.75);
     }
@@ -985,7 +985,9 @@ mod tests {
             y_prob: None,
         };
 
-        let result = transformed.compute(&input).unwrap();
+        let result = transformed
+            .compute(&input)
+            .expect("operation should succeed");
         assert_eq!(result, 75.0);
     }
 
@@ -1023,7 +1025,7 @@ mod tests {
             y_prob: None,
         };
 
-        let result = pipeline.compute(&input).unwrap();
+        let result = pipeline.compute(&input).expect("operation should succeed");
         assert_eq!(result.individual_results.len(), 1);
         assert_eq!(result.individual_results[0], 0.75);
         assert!(result.aggregated_results.contains_key("mean"));
@@ -1036,7 +1038,7 @@ mod tests {
         let metric = Box::new(DynMetricWrapper::new(TestAccuracy));
         registry
             .register_metric("test_accuracy".to_string(), metric)
-            .unwrap();
+            .expect("operation should succeed");
 
         let names = registry.metric_names();
         assert!(names.contains(&"test_accuracy".to_string()));
@@ -1069,8 +1071,12 @@ mod tests {
             y_prob: None,
         };
 
-        middleware.pre_process(&input, &mut context).unwrap();
-        middleware.post_metric("test", 0.8, &mut context).unwrap();
+        middleware
+            .pre_process(&input, &mut context)
+            .expect("operation should succeed");
+        middleware
+            .post_metric("test", 0.8, &mut context)
+            .expect("operation should succeed");
 
         assert_eq!(middleware.name(), "timing");
     }

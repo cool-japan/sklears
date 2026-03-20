@@ -280,7 +280,7 @@ impl ResidualAnalyzer {
         let std_dev = variance.sqrt();
 
         let mut sorted_residuals = residuals.to_vec();
-        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted_residuals.len() % 2 == 0 {
             let mid = sorted_residuals.len() / 2;
@@ -347,7 +347,7 @@ impl ResidualAnalyzer {
 
         // Robust statistics based on the median absolute deviation (MAD)
         let mut sorted = residuals.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median = if sorted.len() % 2 == 0 {
             let mid = sorted.len() / 2;
@@ -357,7 +357,7 @@ impl ResidualAnalyzer {
         };
 
         let mut deviations: Vec<f64> = residuals.iter().map(|r| (r - median).abs()).collect();
-        deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let mad = if deviations.len() % 2 == 0 {
             let mid = deviations.len() / 2;
@@ -505,7 +505,7 @@ impl ResidualAnalyzer {
         // more complex calculations and tables of coefficients.
 
         let mut sorted_residuals = residuals.to_vec();
-        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = sorted_residuals.len();
         let mean = sorted_residuals.iter().sum::<f64>() / n as f64;
@@ -849,7 +849,7 @@ impl ResidualAnalyzer {
         residuals: &[f64],
     ) -> Result<(Vec<f64>, Vec<f64>), SklearsError> {
         let mut sorted_residuals = residuals.to_vec();
-        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = sorted_residuals.len();
         let mut theoretical_quantiles = vec![];
@@ -1104,7 +1104,7 @@ mod tests {
 
         let stats = analyzer
             .compute_basic_stats(&residuals, &fitted_values)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_relative_eq!(stats.mean, 0.0, epsilon = 1e-10);
         assert!(stats.std_dev > 0.0);
@@ -1117,7 +1117,9 @@ mod tests {
         let analyzer = ResidualAnalyzer::default();
         let residuals = vec![0.1, 0.2, -0.1, -0.2, 5.0, -0.05]; // 5.0 is an outlier
 
-        let outliers = analyzer.detect_outliers(&residuals).unwrap();
+        let outliers = analyzer
+            .detect_outliers(&residuals)
+            .expect("operation should succeed");
 
         assert!(outliers.num_outliers > 0);
         assert!(outliers.outlier_indices.contains(&4)); // Index of 5.0
@@ -1129,7 +1131,9 @@ mod tests {
         // Normal-ish data
         let residuals = vec![0.1, -0.1, 0.2, -0.2, 0.05, -0.05, 0.15, -0.15];
 
-        let test_result = analyzer.jarque_bera_test(&residuals).unwrap();
+        let test_result = analyzer
+            .jarque_bera_test(&residuals)
+            .expect("operation should succeed");
 
         assert!(test_result.statistic >= 0.0);
         assert!(test_result.p_value >= 0.0 && test_result.p_value <= 1.0);
@@ -1140,7 +1144,9 @@ mod tests {
         let analyzer = ResidualAnalyzer::default();
         let residuals = vec![0.1, 0.2, 0.15, 0.25, 0.18, 0.22]; // Some autocorrelation
 
-        let test_result = analyzer.durbin_watson_test(&residuals).unwrap();
+        let test_result = analyzer
+            .durbin_watson_test(&residuals)
+            .expect("operation should succeed");
 
         assert!(test_result.statistic >= 0.0 && test_result.statistic <= 4.0);
     }
@@ -1162,7 +1168,7 @@ mod tests {
 
         let result = analyzer
             .analyze(&residuals, &fitted_values, &x_matrix, &coefficients)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.basic_stats.mean.abs() < 0.1);
         assert!(result.assumptions.overall_adequacy >= 0.0);
@@ -1175,7 +1181,9 @@ mod tests {
         let analyzer = ResidualAnalyzer::default();
         let residuals = vec![0.1, -0.1, 0.2, -0.2, 0.05, -0.05];
 
-        let (theoretical, sample) = analyzer.generate_qq_plot_data(&residuals).unwrap();
+        let (theoretical, sample) = analyzer
+            .generate_qq_plot_data(&residuals)
+            .expect("operation should succeed");
 
         assert_eq!(theoretical.len(), sample.len());
         assert_eq!(sample.len(), residuals.len());

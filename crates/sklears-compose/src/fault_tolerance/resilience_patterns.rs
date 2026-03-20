@@ -617,7 +617,7 @@ impl ResiliencePatternsCoordinator {
     pub async fn execute_pattern(&self, pattern_name: &str, component_id: &str) -> Result<PatternExecutionResult, ResiliencePatternsError> {
         // Check concurrent execution limit
         {
-            let active = self.active_executions.read().unwrap();
+            let active = self.active_executions.read().unwrap_or_else(|e| e.into_inner());
             if active.len() >= self.config.max_concurrent_executions as usize {
                 return Err(ResiliencePatternsError::TooManyConcurrentExecutions);
             }
@@ -639,12 +639,12 @@ impl ResiliencePatternsCoordinator {
             start_time,
             component_id: component_id.to_string(),
             metadata: HashMap::new(),
-            system_metrics: self.system_metrics.read().unwrap().clone(),
+            system_metrics: self.system_metrics.read().unwrap_or_else(|e| e.into_inner()).clone(),
         };
 
         // Register active execution
         {
-            let mut active = self.active_executions.write().unwrap();
+            let mut active = self.active_executions.write().unwrap_or_else(|e| e.into_inner());
             active.insert(execution_id.clone(), context.clone());
         }
 
@@ -653,7 +653,7 @@ impl ResiliencePatternsCoordinator {
 
         // Remove from active executions
         {
-            let mut active = self.active_executions.write().unwrap();
+            let mut active = self.active_executions.write().unwrap_or_else(|e| e.into_inner());
             active.remove(&execution_id);
         }
 
@@ -718,7 +718,7 @@ impl ResiliencePatternsCoordinator {
 
     /// Select pattern based on context rules
     async fn select_pattern_by_context(&self, context_rules: &[ContextRule]) -> Result<String, ResiliencePatternsError> {
-        let system_metrics = self.system_metrics.read().unwrap();
+        let system_metrics = self.system_metrics.read().unwrap_or_else(|e| e.into_inner());
 
         for rule in context_rules.iter().rev() { // Process in priority order
             let mut all_conditions_met = true;
@@ -754,7 +754,7 @@ impl ResiliencePatternsCoordinator {
     /// Select pattern based on performance history
     async fn select_pattern_by_performance(&self, performance_weights: &HashMap<String, f64>) -> Result<String, ResiliencePatternsError> {
         let effectiveness_scores = {
-            let metrics = self.metrics.read().unwrap();
+            let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
             metrics.effectiveness_scores.clone()
         };
 
@@ -1059,7 +1059,7 @@ impl ResiliencePatternsCoordinator {
 
         // Record adaptation event
         {
-            let mut history = self.adaptation_history.write().unwrap();
+            let mut history = self.adaptation_history.write().unwrap_or_else(|e| e.into_inner());
             history.push_back(adaptation_event);
             if history.len() > 100 {
                 history.pop_front();
@@ -1068,14 +1068,14 @@ impl ResiliencePatternsCoordinator {
 
         // Update adaptation metrics
         {
-            let mut metrics = self.metrics.write().unwrap();
+            let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
             metrics.adaptation_events += 1;
         }
     }
 
     /// Update pattern metrics after execution
     async fn update_pattern_metrics(&self, pattern_name: &str, result: &PatternExecutionResult, duration: Duration) {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
 
         metrics.total_executions += 1;
         if result.success {
@@ -1128,7 +1128,7 @@ impl ResiliencePatternsCoordinator {
 
     /// Update system metrics for pattern selection
     pub async fn update_system_metrics(&self, metrics: HashMap<String, f64>) {
-        let mut system_metrics = self.system_metrics.write().unwrap();
+        let mut system_metrics = self.system_metrics.write().unwrap_or_else(|e| e.into_inner());
         system_metrics.extend(metrics);
     }
 
@@ -1175,7 +1175,7 @@ impl ResiliencePatternsCoordinator {
 
     /// Get current metrics
     pub async fn get_metrics(&self) -> ResiliencePatternsMetrics {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get coordinator health status
@@ -1183,7 +1183,7 @@ impl ResiliencePatternsCoordinator {
         let mut status = HashMap::new();
         status.insert("coordinator_id".to_string(), self.coordinator_id.clone());
 
-        let active = self.active_executions.read().unwrap();
+        let active = self.active_executions.read().unwrap_or_else(|e| e.into_inner());
         status.insert("active_executions".to_string(), active.len().to_string());
 
         let metrics = self.get_metrics().await;
@@ -1214,7 +1214,7 @@ mod tests {
         let result = coordinator.execute_pattern("CircuitBreaker", "test_component").await;
         assert!(result.is_ok());
 
-        let execution_result = result.unwrap();
+        let execution_result = result.unwrap_or_default();
         assert!(execution_result.success);
         assert!(!execution_result.actions_taken.is_empty());
         assert!(execution_result.effectiveness_score > 0.0);
@@ -1233,7 +1233,7 @@ mod tests {
         let result = coordinator.execute_auto_selected_pattern("test_component").await;
         assert!(result.is_ok());
 
-        let execution_result = result.unwrap();
+        let execution_result = result.unwrap_or_default();
         assert!(execution_result.success);
     }
 
@@ -1264,7 +1264,7 @@ mod tests {
         let results = coordinator.execute_composition("test_composition", "test_component").await;
         assert!(results.is_ok());
 
-        let execution_results = results.unwrap();
+        let execution_results = results.unwrap_or_default();
         assert_eq!(execution_results.len(), 2); // Primary + 1 secondary
         assert!(execution_results.iter().all(|r| r.success));
     }
@@ -1282,7 +1282,7 @@ mod tests {
         assert_eq!(metrics.total_executions, 5);
         assert_eq!(metrics.successful_executions, 5);
         assert!(metrics.usage_frequency.contains_key("CircuitBreaker"));
-        assert_eq!(*metrics.usage_frequency.get("CircuitBreaker").unwrap(), 5);
+        assert_eq!(*metrics.usage_frequency.get("CircuitBreaker").unwrap_or_default(), 5);
         assert!(metrics.resilience_score > 0.0);
     }
 
@@ -1296,7 +1296,7 @@ mod tests {
         let metrics = coordinator.get_metrics().await;
         assert_eq!(metrics.adaptation_events, 1);
 
-        let history = coordinator.adaptation_history.read().unwrap();
+        let history = coordinator.adaptation_history.read().unwrap_or_else(|e| e.into_inner());
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].pattern_name, "TestPattern");
     }
@@ -1310,11 +1310,11 @@ mod tests {
         let _ = coordinator.execute_pattern("Retry", "component2").await;
 
         let health = coordinator.get_health_status().await;
-        assert_eq!(health.get("coordinator_id").unwrap(), "test_coordinator");
-        assert_eq!(health.get("total_executions").unwrap(), "2");
-        assert_eq!(health.get("successful_executions").unwrap(), "2");
-        assert_eq!(health.get("success_rate").unwrap(), "100.0%");
-        assert!(health.get("resilience_score").unwrap().parse::<f64>().unwrap() > 0.0);
+        assert_eq!(health.get("coordinator_id").unwrap_or_default(), "test_coordinator");
+        assert_eq!(health.get("total_executions").unwrap_or_default(), "2");
+        assert_eq!(health.get("successful_executions").unwrap_or_default(), "2");
+        assert_eq!(health.get("success_rate").unwrap_or_default(), "100.0%");
+        assert!(health.get("resilience_score").unwrap_or_default().parse::<f64>().unwrap_or(0.0) > 0.0);
     }
 
     #[tokio::test]

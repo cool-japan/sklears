@@ -42,19 +42,21 @@ impl NumericalPrecision {
 
     /// Check if a value is effectively zero (within epsilon tolerance)
     pub fn is_zero<T: Float>(value: T, eps: Option<T>) -> bool {
-        let tolerance = eps.unwrap_or_else(|| T::epsilon() * T::from(10).unwrap());
+        let tolerance =
+            eps.unwrap_or_else(|| T::epsilon() * T::from(10).expect("operation should succeed"));
         value.abs() < tolerance
     }
 
     /// Check if two values are approximately equal
     pub fn approx_eq<T: Float>(a: T, b: T, eps: Option<T>) -> bool {
-        let tolerance = eps.unwrap_or_else(|| T::epsilon() * T::from(10).unwrap());
+        let tolerance =
+            eps.unwrap_or_else(|| T::epsilon() * T::from(10).expect("operation should succeed"));
         (a - b).abs() < tolerance
     }
 
     /// Check if two values are relatively equal (considering magnitude)
     pub fn rel_eq<T: Float>(a: T, b: T, rel_tol: Option<T>) -> bool {
-        let tolerance = rel_tol.unwrap_or_else(|| T::from(1e-9).unwrap());
+        let tolerance = rel_tol.unwrap_or_else(|| T::from(1e-9).expect("operation should succeed"));
         let max_val = a.abs().max(b.abs());
         if max_val < T::epsilon() {
             return true; // Both are effectively zero
@@ -81,13 +83,13 @@ impl OverflowDetection {
     /// Check if value is close to overflow
     pub fn near_overflow<T: Float>(value: T) -> bool {
         let max_val = T::max_value();
-        value.abs() > max_val / T::from(1000).unwrap()
+        value.abs() > max_val / T::from(1000).expect("operation should succeed")
     }
 
     /// Check if value is close to underflow
     pub fn near_underflow<T: Float>(value: T) -> bool {
         let min_val = T::min_positive_value();
-        value.abs() < min_val * T::from(10).unwrap() && !value.is_zero()
+        value.abs() < min_val * T::from(10).expect("operation should succeed") && !value.is_zero()
     }
 
     /// Safe addition that detects overflow
@@ -331,7 +333,7 @@ impl RobustArrayOps {
         }
 
         let sum = Self::robust_sum(arr);
-        let n = T::from(arr.len()).unwrap();
+        let n = T::from(arr.len()).expect("operation should succeed");
 
         OverflowDetection::safe_div(sum, n)
     }
@@ -361,7 +363,7 @@ impl RobustArrayOps {
             sum_sq = t;
         }
 
-        let n = T::from(arr.len() - ddof).unwrap();
+        let n = T::from(arr.len() - ddof).expect("operation should succeed");
         OverflowDetection::safe_div(sum_sq, n)
     }
 
@@ -454,7 +456,10 @@ mod tests {
 
         assert!(OverflowDetection::safe_div(1.0, 0.0).is_err());
         assert!(OverflowDetection::safe_div(1.0, f64::MIN_POSITIVE).is_err());
-        assert_relative_eq!(OverflowDetection::safe_div(6.0, 2.0).unwrap(), 3.0);
+        assert_relative_eq!(
+            OverflowDetection::safe_div(6.0, 2.0).expect("operation should succeed"),
+            3.0
+        );
     }
 
     #[test]
@@ -496,25 +501,25 @@ mod tests {
         assert_relative_eq!(sum, 15.0, epsilon = 1e-10);
 
         // Test robust mean
-        let mean = RobustArrayOps::robust_mean(&arr).unwrap();
+        let mean = RobustArrayOps::robust_mean(&arr).expect("operation should succeed");
         assert_relative_eq!(mean, 3.0, epsilon = 1e-10);
 
         // Test robust variance
-        let var = RobustArrayOps::robust_variance(&arr, 1).unwrap();
+        let var = RobustArrayOps::robust_variance(&arr, 1).expect("operation should succeed");
         assert_relative_eq!(var, 2.5, epsilon = 1e-10);
 
         // Test robust standard deviation
-        let std = RobustArrayOps::robust_std(&arr, 1).unwrap();
+        let std = RobustArrayOps::robust_std(&arr, 1).expect("operation should succeed");
         assert_relative_eq!(std, 2.5_f64.sqrt(), epsilon = 1e-10);
 
         // Test robust dot product
         let a = array![1.0, 2.0, 3.0];
         let b = array![4.0, 5.0, 6.0];
-        let dot = RobustArrayOps::robust_dot(&a, &b).unwrap();
+        let dot = RobustArrayOps::robust_dot(&a, &b).expect("operation should succeed");
         assert_relative_eq!(dot, 32.0, epsilon = 1e-10); // 1*4 + 2*5 + 3*6 = 32
 
         // Test robust norm
-        let norm = RobustArrayOps::robust_norm(&a).unwrap();
+        let norm = RobustArrayOps::robust_norm(&a).expect("operation should succeed");
         let expected_norm = (1.0 + 4.0 + 9.0_f64).sqrt(); // sqrt(1^2 + 2^2 + 3^2)
         assert_relative_eq!(norm, expected_norm, epsilon = 1e-10);
     }

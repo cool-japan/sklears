@@ -826,7 +826,8 @@ mod tests {
         let view1 = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let view2 = array![[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]];
 
-        let multi_view_data = MultiViewData::new(vec![view1, view2]).unwrap();
+        let multi_view_data =
+            MultiViewData::new(vec![view1, view2]).expect("operation should succeed");
 
         assert_eq!(multi_view_data.n_views(), 2);
         assert_eq!(multi_view_data.n_samples, 3);

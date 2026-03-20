@@ -176,7 +176,7 @@ impl EpisodicMemory {
         // Add new examples
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .expect("operation should succeed")
             .as_secs();
 
         for i in 0..n_examples {
@@ -209,10 +209,11 @@ impl EpisodicMemory {
 
             for (task_id, task_memory) in &self.task_memories {
                 if !task_memory.timestamps.is_empty() {
-                    let min_time = task_memory.timestamps.iter().min().unwrap();
-                    if *min_time < oldest_time {
-                        oldest_time = *min_time;
-                        oldest_task = Some(task_id.clone());
+                    if let Some(&min_time) = task_memory.timestamps.iter().min() {
+                        if min_time < oldest_time {
+                            oldest_time = min_time;
+                            oldest_task = Some(task_id.clone());
+                        }
                     }
                 }
             }
@@ -815,7 +816,8 @@ mod tests {
         let stored = memory.get_task_examples(&task_id);
         assert!(stored.is_some());
 
-        let (stored_probs, stored_labels, stored_weights) = stored.unwrap();
+        let (stored_probs, stored_labels, stored_weights) =
+            stored.expect("operation should succeed");
         assert_eq!(stored_probs.len(), 4);
         assert_eq!(stored_labels.len(), 4);
         assert_eq!(stored_weights.len(), 4);
@@ -853,7 +855,7 @@ mod tests {
         let labels1 = array![0, 0, 1];
         calibrator
             .learn_task(task1.clone(), &probs1, &labels1)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Learn second task
         let task2 = TaskId::new("task2".to_string(), "nlp".to_string(), 0.7);
@@ -861,7 +863,7 @@ mod tests {
         let labels2 = array![0, 1, 1];
         calibrator
             .learn_task(task2.clone(), &probs2, &labels2)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(calibrator.num_tasks(), 2);
 
@@ -955,7 +957,9 @@ mod tests {
         let task_id = TaskId::new("task1".to_string(), "vision".to_string(), 0.5);
         let probs = array![0.1, 0.3, 0.7, 0.9];
         let labels = array![0, 0, 1, 1];
-        calibrator.learn_task(task_id, &probs, &labels).unwrap();
+        calibrator
+            .learn_task(task_id, &probs, &labels)
+            .expect("operation should succeed");
 
         let (used_after, total_after) = calibrator.memory_stats();
         assert_eq!(used_after, 4);

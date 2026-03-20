@@ -324,7 +324,7 @@ impl RetryPolicy {
 
             // If successful, return result
             if success {
-                let result = attempt_result.unwrap();
+                let result = attempt_result.unwrap_or_default();
                 return self.create_successful_result(result, attempts, operation_start, attempt_number, &context);
             }
 
@@ -492,10 +492,10 @@ impl RetryPolicy {
             final_error,
         };
 
-        self.operation_history.write().unwrap().push(record);
+        self.operation_history.write().unwrap_or_else(|e| e.into_inner()).push(record);
 
         // Update metrics
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.total_operations += 1;
 
         if success {
@@ -522,7 +522,7 @@ impl RetryPolicy {
             metrics.average_attempts = metrics.total_attempts as f64 / metrics.total_operations as f64;
 
             // Calculate average times from operation history
-            let history = self.operation_history.read().unwrap();
+            let history = self.operation_history.read().unwrap_or_else(|e| e.into_inner());
             if !history.is_empty() {
                 let total_time: Duration = history.iter().map(|r| r.total_duration).sum();
                 metrics.average_total_time = total_time / history.len() as u32;
@@ -540,7 +540,7 @@ impl RetryPolicy {
 
     /// Get current metrics snapshot
     pub fn get_current_metrics(&self) -> RetryMetrics {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get policy configuration
@@ -550,7 +550,7 @@ impl RetryPolicy {
 
     /// Reset policy metrics and history
     pub fn reset(&self) {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.total_operations = 0;
         metrics.successful_operations = 0;
         metrics.failed_operations = 0;
@@ -561,7 +561,7 @@ impl RetryPolicy {
         metrics.average_attempt_time = Duration::ZERO;
         metrics.error_distribution.clear();
 
-        self.operation_history.write().unwrap().clear();
+        self.operation_history.write().unwrap_or_else(|e| e.into_inner()).clear();
     }
 }
 
@@ -603,7 +603,7 @@ impl RetryPoliciesManager {
     /// Get or create retry policy
     pub async fn get_policy(&self, policy_id: &str) -> Arc<RetryPolicy> {
         {
-            let policies = self.policies.read().unwrap();
+            let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
             if let Some(policy) = policies.get(policy_id) {
                 return policy.clone();
             }
@@ -615,7 +615,7 @@ impl RetryPoliciesManager {
 
         let policy = Arc::new(RetryPolicy::new(config));
 
-        let mut policies = self.policies.write().unwrap();
+        let mut policies = self.policies.write().unwrap_or_else(|e| e.into_inner());
         policies.insert(policy_id.to_string(), policy.clone());
 
         policy
@@ -625,7 +625,7 @@ impl RetryPoliciesManager {
     pub async fn create_policy(&self, config: RetryPolicyConfig) -> Arc<RetryPolicy> {
         let policy = Arc::new(RetryPolicy::new(config.clone()));
 
-        let mut policies = self.policies.write().unwrap();
+        let mut policies = self.policies.write().unwrap_or_else(|e| e.into_inner());
         policies.insert(config.policy_id.clone(), policy.clone());
 
         policy
@@ -633,14 +633,14 @@ impl RetryPoliciesManager {
 
     /// Remove retry policy
     pub async fn remove_policy(&self, policy_id: &str) -> bool {
-        let mut policies = self.policies.write().unwrap();
+        let mut policies = self.policies.write().unwrap_or_else(|e| e.into_inner());
         policies.remove(policy_id).is_some()
     }
 
     /// Get all policy metrics
     pub async fn get_all_metrics(&self) -> HashMap<String, RetryMetrics> {
         let mut all_metrics = HashMap::new();
-        let policies = self.policies.read().unwrap();
+        let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
 
         for (id, policy) in policies.iter() {
             let metrics = policy.get_current_metrics();
@@ -652,7 +652,7 @@ impl RetryPoliciesManager {
 
     /// Reset all policies
     pub async fn reset_all(&self) {
-        let policies = self.policies.read().unwrap();
+        let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
         for policy in policies.values() {
             policy.reset();
         }
@@ -663,7 +663,7 @@ impl RetryPoliciesManager {
         let mut status = HashMap::new();
         status.insert("manager_id".to_string(), self.manager_id.clone());
 
-        let policies = self.policies.read().unwrap();
+        let policies = self.policies.read().unwrap_or_else(|e| e.into_inner());
         status.insert("total_policies".to_string(), policies.len().to_string());
 
         let mut total_operations = 0u64;
@@ -913,8 +913,8 @@ mod tests {
         assert!(all_metrics.contains_key("policy2"));
 
         let health = manager.get_health_status().await;
-        assert_eq!(health.get("total_policies").unwrap(), "2");
-        assert_eq!(health.get("total_operations").unwrap(), "2");
+        assert_eq!(health.get("total_policies").unwrap_or_default(), "2");
+        assert_eq!(health.get("total_operations").unwrap_or_default(), "2");
     }
 
     #[tokio::test]
@@ -943,7 +943,7 @@ mod tests {
         let results: Vec<bool> = futures::future::join_all(handles)
             .await
             .into_iter()
-            .map(|r| r.unwrap())
+            .map(|r| r.unwrap_or_default())
             .collect();
 
         // Should have mix of successes and failures

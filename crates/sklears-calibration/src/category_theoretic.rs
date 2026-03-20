@@ -747,7 +747,9 @@ mod tests {
         let predictions = Array1::from_vec(vec![0.1, 0.4, 0.7, 0.9]);
         let targets = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0]);
 
-        let result = calibrator.apply_functor(&predictions, &targets).unwrap();
+        let result = calibrator
+            .apply_functor(&predictions, &targets)
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 4);
         for (i, &prob) in result.iter().enumerate() {
@@ -767,7 +769,9 @@ mod tests {
         let cal2 = Array1::from_vec(vec![0.3, 0.6, 0.7]);
         let calibrators = vec![cal1, cal2];
 
-        let limit = calibrator.compute_categorical_limit(&calibrators).unwrap();
+        let limit = calibrator
+            .compute_categorical_limit(&calibrators)
+            .expect("operation should succeed");
 
         assert_eq!(limit.len(), 3);
         assert_eq!(calibrator.limits.len(), 1);
@@ -783,7 +787,7 @@ mod tests {
 
         let colimit = calibrator
             .compute_categorical_colimit(&calibrators)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(colimit.len(), 3);
         assert_eq!(calibrator.colimits.len(), 1);
@@ -796,7 +800,9 @@ mod tests {
         let cal1 = Array1::from_vec(vec![0.3, 0.5, 0.7]);
         let cal2 = Array1::from_vec(vec![0.4, 0.6, 0.8]);
 
-        let result = calibrator.tensor_compose(&cal1, &cal2).unwrap();
+        let result = calibrator
+            .tensor_compose(&cal1, &cal2)
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), 9); // Tensor product dimension
         let sum: f64 = result.sum();
@@ -821,7 +827,7 @@ mod tests {
 
         let consistency = calibrator
             .compute_topos_consistency(&predictions, &targets)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&consistency));
         assert!(consistency > 0.5); // Should be high for close values
@@ -836,7 +842,7 @@ mod tests {
 
         let global = calibrator
             .apply_sheaf_calibration(&local_predictions)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(global.len(), 3);
         for &prob in global.iter() {
@@ -852,7 +858,7 @@ mod tests {
 
         let result = calibrator
             .analyze_categorical_calibration(&predictions, &targets)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.functorial_quality >= 0.0 && result.functorial_quality <= 1.0);
         assert!(result.natural_coherence >= 0.0 && result.natural_coherence <= 1.0);

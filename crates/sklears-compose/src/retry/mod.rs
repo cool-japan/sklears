@@ -193,7 +193,7 @@ impl RetryManager {
         ];
 
         {
-            let mut strategies = self.strategies.write().unwrap();
+            let mut strategies = self.strategies.write().unwrap_or_else(|e| e.into_inner());
             for (name, strategy) in default_strategies {
                 strategies.insert(name.to_string(), strategy);
             }
@@ -207,7 +207,7 @@ impl RetryManager {
         ];
 
         {
-            let mut algorithms = self.backoff_algorithms.write().unwrap();
+            let mut algorithms = self.backoff_algorithms.write().unwrap_or_else(|e| e.into_inner());
             for (name, algorithm) in default_algorithms {
                 algorithms.insert(name.to_string(), algorithm);
             }
@@ -232,7 +232,7 @@ impl RetryManager {
         F: FnMut() -> Result<T, E>,
         E: Into<RetryError>,
     {
-        let global_config = self.global_config.read().unwrap();
+        let global_config = self.global_config.read().unwrap_or_else(|e| e.into_inner());
 
         // Check if retries are enabled
         if !global_config.is_feature_enabled("retry_enabled") {
@@ -240,13 +240,13 @@ impl RetryManager {
         }
 
         // Create retry context
-        let context_id = format!("{}_{}", operation_id, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis());
+        let context_id = format!("{}_{}", operation_id, SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis());
         let mut context = self.context_manager.create_context(context_id.clone());
 
         // Get applicable strategy
         let strategy_name = &config.strategy;
         let strategy = {
-            let strategies = self.strategies.read().unwrap();
+            let strategies = self.strategies.read().unwrap_or_else(|e| e.into_inner());
             strategies.get(strategy_name).map(|s| s.as_ref() as *const dyn RetryStrategy)
         };
 
@@ -257,7 +257,7 @@ impl RetryManager {
             }.into());
         }
 
-        let strategy = unsafe { &*strategy.unwrap() };
+        let strategy = unsafe { &*strategy.unwrap_or_default() };
 
         // Execute with retry loop
         let mut last_error = None;
@@ -375,14 +375,14 @@ impl RetryManager {
 
     /// Register custom retry strategy
     pub fn register_strategy(&self, name: String, strategy: Box<dyn RetryStrategy + Send + Sync>) -> SklResult<()> {
-        let mut strategies = self.strategies.write().unwrap();
+        let mut strategies = self.strategies.write().unwrap_or_else(|e| e.into_inner());
         strategies.insert(name, strategy);
         Ok(())
     }
 
     /// Register custom backoff algorithm
     pub fn register_backoff_algorithm(&self, name: String, algorithm: Box<dyn BackoffAlgorithm + Send + Sync>) -> SklResult<()> {
-        let mut algorithms = self.backoff_algorithms.write().unwrap();
+        let mut algorithms = self.backoff_algorithms.write().unwrap_or_else(|e| e.into_inner());
         algorithms.insert(name, algorithm);
         Ok(())
     }
@@ -390,7 +390,7 @@ impl RetryManager {
     /// Update global configuration
     pub fn update_configuration(&mut self, config: configuration::GlobalRetryConfig) -> SklResult<()> {
         config.validate()?;
-        let mut global_config = self.global_config.write().unwrap();
+        let mut global_config = self.global_config.write().unwrap_or_else(|e| e.into_inner());
         *global_config = config;
         Ok(())
     }
@@ -414,13 +414,13 @@ impl RetryManager {
 
     /// Get available strategies
     pub fn get_available_strategies(&self) -> Vec<String> {
-        let strategies = self.strategies.read().unwrap();
+        let strategies = self.strategies.read().unwrap_or_else(|e| e.into_inner());
         strategies.keys().cloned().collect()
     }
 
     /// Get available backoff algorithms
     pub fn get_available_backoff_algorithms(&self) -> Vec<String> {
-        let algorithms = self.backoff_algorithms.read().unwrap();
+        let algorithms = self.backoff_algorithms.read().unwrap_or_else(|e| e.into_inner());
         algorithms.keys().cloned().collect()
     }
 

@@ -202,8 +202,11 @@ impl IncrementalNeighborIndex {
         let start_time = Instant::now();
 
         let new_index = {
-            let mut data = self.data.write().unwrap();
-            let mut indices = self.point_indices.write().unwrap();
+            let mut data = self.data.write().expect("operation should succeed");
+            let mut indices = self
+                .point_indices
+                .write()
+                .expect("operation should succeed");
 
             let current_shape = data.shape().to_vec();
             let new_shape = [current_shape[0] + 1, current_shape[1]];
@@ -228,7 +231,10 @@ impl IncrementalNeighborIndex {
                 self.update_index_with_point(point.to_owned(), new_index)?;
             }
             UpdateStrategy::Batched { batch_size } => {
-                let mut batch = self.pending_batch.write().unwrap();
+                let mut batch = self
+                    .pending_batch
+                    .write()
+                    .expect("operation should succeed");
                 batch.add_point(point.to_owned(), new_index);
 
                 if batch.len() >= batch_size {
@@ -239,7 +245,10 @@ impl IncrementalNeighborIndex {
             UpdateStrategy::Threshold {
                 degradation_threshold,
             } => {
-                let mut batch = self.pending_batch.write().unwrap();
+                let mut batch = self
+                    .pending_batch
+                    .write()
+                    .expect("operation should succeed");
                 batch.add_point(point.to_owned(), new_index);
                 drop(batch);
 
@@ -252,7 +261,10 @@ impl IncrementalNeighborIndex {
                 batch_size,
                 degradation_threshold,
             } => {
-                let mut batch = self.pending_batch.write().unwrap();
+                let mut batch = self
+                    .pending_batch
+                    .write()
+                    .expect("operation should succeed");
                 batch.add_point(point.to_owned(), new_index);
                 let should_apply_batch = batch.len() >= batch_size;
                 drop(batch);
@@ -267,7 +279,10 @@ impl IncrementalNeighborIndex {
 
         // Update performance metrics
         {
-            let mut metrics = self.performance_metrics.write().unwrap();
+            let mut metrics = self
+                .performance_metrics
+                .write()
+                .expect("operation should succeed");
             metrics.last_update_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
             metrics.update_count += 1;
             metrics.total_points = new_index + 1;
@@ -310,7 +325,10 @@ impl IncrementalNeighborIndex {
         let start_time = Instant::now();
 
         {
-            let mut indices = self.point_indices.write().unwrap();
+            let mut indices = self
+                .point_indices
+                .write()
+                .expect("operation should succeed");
 
             if !indices.contains(&point_index) {
                 return Err(NeighborsError::InvalidInput(format!(
@@ -327,7 +345,10 @@ impl IncrementalNeighborIndex {
         self.rebuild_index()?;
 
         {
-            let mut metrics = self.performance_metrics.write().unwrap();
+            let mut metrics = self
+                .performance_metrics
+                .write()
+                .expect("operation should succeed");
             metrics.last_update_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
             metrics.update_count += 1;
             metrics.rebuild_count += 1;
@@ -352,7 +373,12 @@ impl IncrementalNeighborIndex {
         let start_time = Instant::now();
 
         // Apply any pending batch updates first
-        if !self.pending_batch.read().unwrap().is_empty() {
+        if !self
+            .pending_batch
+            .read()
+            .expect("operation should succeed")
+            .is_empty()
+        {
             // This is a bit tricky since we need mutable access
             // In a real implementation, you might want to handle this differently
             return Err(NeighborsError::InvalidInput(
@@ -375,7 +401,10 @@ impl IncrementalNeighborIndex {
 
         // Update query time metrics
         {
-            let mut metrics = self.performance_metrics.write().unwrap();
+            let mut metrics = self
+                .performance_metrics
+                .write()
+                .expect("operation should succeed");
             let query_time = start_time.elapsed().as_secs_f64() * 1000.0;
             metrics.avg_query_time_ms = if metrics.update_count > 0 {
                 (metrics.avg_query_time_ms * metrics.update_count as Float + query_time)
@@ -391,7 +420,10 @@ impl IncrementalNeighborIndex {
     /// Apply all pending batch updates
     pub fn apply_pending_batch(&mut self) -> NeighborsResult<()> {
         let _batch = {
-            let mut batch = self.pending_batch.write().unwrap();
+            let mut batch = self
+                .pending_batch
+                .write()
+                .expect("operation should succeed");
             if batch.is_empty() {
                 return Ok(());
             }
@@ -422,10 +454,13 @@ impl IncrementalNeighborIndex {
         let start_time = Instant::now();
 
         // Clear any pending batch
-        self.pending_batch.write().unwrap().clear();
+        self.pending_batch
+            .write()
+            .expect("operation should succeed")
+            .clear();
 
-        let data = self.data.read().unwrap();
-        let indices = self.point_indices.read().unwrap();
+        let data = self.data.read().expect("operation should succeed");
+        let indices = self.point_indices.read().expect("operation should succeed");
 
         // Build index based on type
         match self.index_type {
@@ -452,7 +487,10 @@ impl IncrementalNeighborIndex {
 
         // Update metrics
         {
-            let mut metrics = self.performance_metrics.write().unwrap();
+            let mut metrics = self
+                .performance_metrics
+                .write()
+                .expect("operation should succeed");
             metrics.last_update_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
             metrics.rebuild_count += 1;
             metrics.total_points = indices.len();
@@ -464,12 +502,18 @@ impl IncrementalNeighborIndex {
 
     /// Get performance metrics
     pub fn metrics(&self) -> IndexPerformanceMetrics {
-        self.performance_metrics.read().unwrap().clone()
+        self.performance_metrics
+            .read()
+            .expect("operation should succeed")
+            .clone()
     }
 
     /// Get the current size of the index
     pub fn len(&self) -> usize {
-        self.point_indices.read().unwrap().len()
+        self.point_indices
+            .read()
+            .expect("operation should succeed")
+            .len()
     }
 
     /// Check if the index is empty
@@ -479,7 +523,10 @@ impl IncrementalNeighborIndex {
 
     /// Get the number of pending updates
     pub fn pending_updates(&self) -> usize {
-        self.pending_batch.read().unwrap().len()
+        self.pending_batch
+            .read()
+            .expect("operation should succeed")
+            .len()
     }
 
     /// Configure the maximum batch age before forced application
@@ -502,12 +549,18 @@ impl IncrementalNeighborIndex {
         match self.index_type {
             IncrementalIndexType::CoverTree => {
                 // For now, add to batch since insert_point isn't implemented
-                let mut batch = self.pending_batch.write().unwrap();
+                let mut batch = self
+                    .pending_batch
+                    .write()
+                    .expect("operation should succeed");
                 batch.add_point(point, index);
             }
             _ => {
                 // For other index types, add to batch for later processing
-                let mut batch = self.pending_batch.write().unwrap();
+                let mut batch = self
+                    .pending_batch
+                    .write()
+                    .expect("operation should succeed");
                 batch.add_point(point, index);
             }
         }
@@ -515,7 +568,10 @@ impl IncrementalNeighborIndex {
     }
 
     fn should_rebuild(&self, threshold: Float) -> NeighborsResult<bool> {
-        let metrics = self.performance_metrics.read().unwrap();
+        let metrics = self
+            .performance_metrics
+            .read()
+            .expect("operation should succeed");
 
         // Rebuild if degradation exceeds threshold
         if metrics.degradation_factor > threshold {
@@ -523,7 +579,7 @@ impl IncrementalNeighborIndex {
         }
 
         // Rebuild if batch is getting old
-        let batch = self.pending_batch.read().unwrap();
+        let batch = self.pending_batch.read().expect("operation should succeed");
         if !batch.is_empty() && batch.timestamp.elapsed() > self.max_batch_age {
             return Ok(true);
         }
@@ -536,8 +592,8 @@ impl IncrementalNeighborIndex {
         query_point: ArrayView1<Float>,
         k: usize,
     ) -> NeighborsResult<(Vec<usize>, Vec<Float>)> {
-        let data = self.data.read().unwrap();
-        let indices = self.point_indices.read().unwrap();
+        let data = self.data.read().expect("operation should succeed");
+        let indices = self.point_indices.read().expect("operation should succeed");
 
         if indices.is_empty() {
             return Ok((Vec::new(), Vec::new()));
@@ -664,7 +720,7 @@ mod tests {
             Distance::Euclidean,
             10,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(index.len(), 3);
         assert!(!index.is_empty());
@@ -681,10 +737,12 @@ mod tests {
             Distance::Euclidean,
             10,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let new_point = arr1(&[3.0, 1.0]);
-        let new_index = index.add_point(new_point.view()).unwrap();
+        let new_index = index
+            .add_point(new_point.view())
+            .expect("operation should succeed");
 
         assert_eq!(new_index, 2);
         assert_eq!(index.len(), 3);
@@ -701,10 +759,12 @@ mod tests {
             Distance::Euclidean,
             10,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let query = arr1(&[2.0, 2.0]);
-        let (neighbors, distances) = index.query_knn(query.view(), 2).unwrap();
+        let (neighbors, distances) = index
+            .query_knn(query.view(), 2)
+            .expect("operation should succeed");
 
         assert_eq!(neighbors.len(), 2);
         assert_eq!(distances.len(), 2);
@@ -726,16 +786,20 @@ mod tests {
             Distance::Euclidean,
             10,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         // Add points one by one
         let point1 = arr1(&[3.0, 1.0]);
         let point2 = arr1(&[4.0, 2.0]);
 
-        index.add_point(point1.view()).unwrap();
+        index
+            .add_point(point1.view())
+            .expect("operation should succeed");
         assert_eq!(index.pending_updates(), 1);
 
-        index.add_point(point2.view()).unwrap();
+        index
+            .add_point(point2.view())
+            .expect("operation should succeed");
         assert_eq!(index.pending_updates(), 0); // Batch should be applied
 
         assert_eq!(index.len(), 4);
@@ -751,7 +815,7 @@ mod tests {
             .distance(Distance::Manhattan)
             .leaf_size(5)
             .build(&data)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(index.len(), 2);
 
@@ -770,10 +834,12 @@ mod tests {
             Distance::Euclidean,
             10,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let new_point = arr1(&[3.0, 1.0]);
-        index.add_point(new_point.view()).unwrap();
+        index
+            .add_point(new_point.view())
+            .expect("operation should succeed");
 
         let metrics = index.metrics();
         assert_eq!(metrics.total_points, 3);
@@ -792,11 +858,11 @@ mod tests {
             Distance::Euclidean,
             10,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(index.len(), 3);
 
-        index.remove_point(1).unwrap();
+        index.remove_point(1).expect("operation should succeed");
         assert_eq!(index.len(), 2);
 
         let metrics = index.metrics();

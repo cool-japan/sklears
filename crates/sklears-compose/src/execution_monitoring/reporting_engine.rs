@@ -242,7 +242,7 @@ impl ReportingEngine {
         // Initialize engine if enabled
         if config.enabled {
             {
-                let mut state = engine.state.write().unwrap();
+                let mut state = engine.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = ReportingStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -265,13 +265,13 @@ impl ReportingEngine {
 
         // Aggregate data according to report requirements
         let aggregated_data = {
-            let mut aggregator = self.data_aggregator.write().unwrap();
+            let mut aggregator = self.data_aggregator.write().unwrap_or_else(|e| e.into_inner());
             aggregator.aggregate_monitoring_data(&monitoring_data, &report_config)?
         };
 
         // Perform analytics if requested
         let analytics_results = if report_config.include_analytics {
-            let mut processor = self.analytics_processor.write().unwrap();
+            let mut processor = self.analytics_processor.write().unwrap_or_else(|e| e.into_inner());
             Some(processor.analyze_monitoring_data(&aggregated_data).await?)
         } else {
             None
@@ -279,7 +279,7 @@ impl ReportingEngine {
 
         // Generate charts and visualizations
         let charts = if report_config.include_charts {
-            let mut chart_gen = self.chart_generator.write().unwrap();
+            let mut chart_gen = self.chart_generator.write().unwrap_or_else(|e| e.into_inner());
             chart_gen.generate_monitoring_charts(&aggregated_data, &report_config).await?
         } else {
             Vec::new()
@@ -287,7 +287,7 @@ impl ReportingEngine {
 
         // Apply report template
         let formatted_report = {
-            let template_mgr = self.template_manager.read().unwrap();
+            let template_mgr = self.template_manager.read().unwrap_or_else(|e| e.into_inner());
             template_mgr.apply_template(
                 &report_config.template_name.unwrap_or_else(|| "comprehensive".to_string()),
                 &aggregated_data,
@@ -319,19 +319,19 @@ impl ReportingEngine {
 
         // Cache report if caching is enabled
         if self.config.caching.enabled {
-            let mut cache = self.report_cache.write().unwrap();
+            let mut cache = self.report_cache.write().unwrap_or_else(|e| e.into_inner());
             cache.store_report(&report)?;
         }
 
         // Update performance tracking
         {
-            let mut perf_monitor = self.performance_monitor.write().unwrap();
+            let mut perf_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             perf_monitor.record_report_generated();
         }
 
         // Update engine state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.total_reports_generated += 1;
         }
 
@@ -359,7 +359,7 @@ impl ReportingEngine {
     ) -> SklResult<String> {
         let schedule_id = Uuid::new_v4().to_string();
 
-        let mut scheduler = self.scheduler.write().unwrap();
+        let mut scheduler = self.scheduler.write().unwrap_or_else(|e| e.into_inner());
         scheduler.schedule_report(
             schedule_id.clone(),
             session_id.to_string(),
@@ -371,7 +371,7 @@ impl ReportingEngine {
 
     /// Cancel scheduled report
     pub async fn cancel_scheduled_report(&mut self, schedule_id: &str) -> SklResult<()> {
-        let mut scheduler = self.scheduler.write().unwrap();
+        let mut scheduler = self.scheduler.write().unwrap_or_else(|e| e.into_inner());
         scheduler.cancel_schedule(schedule_id).await
     }
 
@@ -381,7 +381,7 @@ impl ReportingEngine {
         report: &MonitoringReport,
         export_config: ReportExportConfig,
     ) -> SklResult<ExportResult> {
-        let mut export_mgr = self.export_manager.write().unwrap();
+        let mut export_mgr = self.export_manager.write().unwrap_or_else(|e| e.into_inner());
         export_mgr.export_report(report, export_config).await
     }
 
@@ -391,7 +391,7 @@ impl ReportingEngine {
         report: &MonitoringReport,
         distribution_config: ReportDistributionConfig,
     ) -> SklResult<DistributionResult> {
-        let mut dist_mgr = self.distribution_manager.write().unwrap();
+        let mut dist_mgr = self.distribution_manager.write().unwrap_or_else(|e| e.into_inner());
         dist_mgr.distribute_report(report, distribution_config).await
     }
 
@@ -401,13 +401,13 @@ impl ReportingEngine {
         session_id: &str,
         dashboard_config: DashboardConfig,
     ) -> SklResult<Dashboard> {
-        let mut dashboard_mgr = self.dashboard_manager.write().unwrap();
+        let mut dashboard_mgr = self.dashboard_manager.write().unwrap_or_else(|e| e.into_inner());
         dashboard_mgr.create_dashboard(session_id, dashboard_config).await
     }
 
     /// Get cached report
     pub fn get_cached_report(&self, report_id: &str) -> SklResult<Option<MonitoringReport>> {
-        let cache = self.report_cache.read().unwrap();
+        let cache = self.report_cache.read().unwrap_or_else(|e| e.into_inner());
         cache.get_report(report_id)
     }
 
@@ -416,7 +416,7 @@ impl ReportingEngine {
         &self,
         search_criteria: ReportSearchCriteria,
     ) -> SklResult<Vec<ReportSummary>> {
-        let cache = self.report_cache.read().unwrap();
+        let cache = self.report_cache.read().unwrap_or_else(|e| e.into_inner());
         cache.search_reports(search_criteria)
     }
 
@@ -425,13 +425,13 @@ impl ReportingEngine {
         &self,
         analytics_request: ReportingAnalyticsRequest,
     ) -> SklResult<ReportingAnalytics> {
-        let analytics = self.analytics_processor.read().unwrap();
+        let analytics = self.analytics_processor.read().unwrap_or_else(|e| e.into_inner());
         analytics.generate_reporting_analytics(analytics_request).await
     }
 
     /// Get available templates
     pub fn get_available_templates(&self) -> SklResult<Vec<TemplateInfo>> {
-        let template_mgr = self.template_manager.read().unwrap();
+        let template_mgr = self.template_manager.read().unwrap_or_else(|e| e.into_inner());
         template_mgr.get_available_templates()
     }
 
@@ -440,14 +440,14 @@ impl ReportingEngine {
         &mut self,
         template: ReportTemplate,
     ) -> SklResult<()> {
-        let mut template_mgr = self.template_manager.write().unwrap();
+        let mut template_mgr = self.template_manager.write().unwrap_or_else(|e| e.into_inner());
         template_mgr.register_template(template).await
     }
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let health = self.health_tracker.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let health = self.health_tracker.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -465,17 +465,17 @@ impl ReportingEngine {
 
     /// Get reporting engine statistics
     pub fn get_engine_statistics(&self) -> SklResult<ReportingEngineStatistics> {
-        let state = self.state.read().unwrap();
-        let perf_monitor = self.performance_monitor.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let perf_monitor = self.performance_monitor.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(ReportingEngineStatistics {
             total_reports_generated: state.total_reports_generated,
             active_schedules: state.active_schedules_count,
-            cached_reports: self.report_cache.read().unwrap().get_cache_size(),
+            cached_reports: self.report_cache.read().unwrap_or_else(|e| e.into_inner()).get_cache_size(),
             average_generation_time: perf_monitor.get_average_generation_time(),
-            template_usage: self.template_manager.read().unwrap().get_usage_statistics(),
-            export_statistics: self.export_manager.read().unwrap().get_statistics(),
-            distribution_statistics: self.distribution_manager.read().unwrap().get_statistics(),
+            template_usage: self.template_manager.read().unwrap_or_else(|e| e.into_inner()).get_usage_statistics(),
+            export_statistics: self.export_manager.read().unwrap_or_else(|e| e.into_inner()).get_statistics(),
+            distribution_statistics: self.distribution_manager.read().unwrap_or_else(|e| e.into_inner()).get_statistics(),
         })
     }
 

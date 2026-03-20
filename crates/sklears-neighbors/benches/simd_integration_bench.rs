@@ -47,7 +47,7 @@ fn benchmark_knn_euclidean(c: &mut Criterion) {
                     classifier
                         .clone()
                         .fit(black_box(&x_train), black_box(&y_train))
-                        .unwrap(),
+                        .expect("operation should succeed"),
                 )
             });
         });
@@ -56,7 +56,13 @@ fn benchmark_knn_euclidean(c: &mut Criterion) {
             BenchmarkId::new("predict", n_samples),
             &n_samples,
             |b, _| {
-                b.iter(|| black_box(fitted.predict(black_box(&x_test)).unwrap()));
+                b.iter(|| {
+                    black_box(
+                        fitted
+                            .predict(black_box(&x_test))
+                            .expect("operation should succeed"),
+                    )
+                });
             },
         );
     }
@@ -84,7 +90,13 @@ fn benchmark_knn_manhattan(c: &mut Criterion) {
             BenchmarkId::new("predict", n_samples),
             &n_samples,
             |b, _| {
-                b.iter(|| black_box(fitted.predict(black_box(&x_test)).unwrap()));
+                b.iter(|| {
+                    black_box(
+                        fitted
+                            .predict(black_box(&x_test))
+                            .expect("operation should succeed"),
+                    )
+                });
             },
         );
     }
@@ -112,7 +124,13 @@ fn benchmark_knn_cosine(c: &mut Criterion) {
             BenchmarkId::new("predict", n_samples),
             &n_samples,
             |b, _| {
-                b.iter(|| black_box(fitted.predict(black_box(&x_test)).unwrap()));
+                b.iter(|| {
+                    black_box(
+                        fitted
+                            .predict(black_box(&x_test))
+                            .expect("operation should succeed"),
+                    )
+                });
             },
         );
     }

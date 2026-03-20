@@ -7,8 +7,8 @@
 use crate::kernels::*;
 // SciRS2 Policy - Use scirs2-autograd for ndarray types and operations
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::RngExt;
 // SciRS2 Policy - Use scirs2-core for random number generation
-use scirs2_core::random::Rng;
 use sklears_core::error::{Result as SklResult, SklearsError};
 
 /// Grammar-based kernel structure learning
@@ -307,7 +307,7 @@ impl KernelStructureLearner {
         }
 
         // Sort beam by score (lower is better)
-        beam.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        beam.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         beam.truncate(beam_width);
 
         if beam.is_empty() {
@@ -342,7 +342,7 @@ impl KernelStructureLearner {
             }
 
             // Merge and sort
-            new_beam.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            new_beam.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             new_beam.truncate(beam_width);
 
             // Update beam
@@ -447,7 +447,7 @@ impl KernelStructureLearner {
 
             // Replace population
             population = new_population;
-            population.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            population.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             population.truncate(population_size);
 
             let best_score = population[0].1;
@@ -516,7 +516,7 @@ impl KernelStructureLearner {
 
             // Accept or reject based on Metropolis criterion
             let delta = score - current_score;
-            if delta < 0.0 || rng.gen::<f64>() < (-delta / temperature).exp() {
+            if delta < 0.0 || rng.random::<f64>() < (-delta / temperature).exp() {
                 current_expression = candidate.clone();
                 current_kernel = kernel;
                 current_score = score;
@@ -582,7 +582,7 @@ impl KernelStructureLearner {
         let mut candidates = Vec::new();
 
         // Add a new component with sum
-        if rng.gen::<f64>() < self.expansion_probability {
+        if rng.random::<f64>() < self.expansion_probability {
             let new_kernels = self.generate_initial_kernels()?;
             for new_kernel in new_kernels {
                 candidates.push(KernelGrammar::NonTerminal(NonTerminalOperation::Sum {
@@ -593,7 +593,7 @@ impl KernelStructureLearner {
         }
 
         // Add a new component with product
-        if rng.gen::<f64>() < self.expansion_probability {
+        if rng.random::<f64>() < self.expansion_probability {
             let new_kernels = self.generate_initial_kernels()?;
             for new_kernel in new_kernels {
                 candidates.push(KernelGrammar::NonTerminal(NonTerminalOperation::Product {
@@ -604,7 +604,7 @@ impl KernelStructureLearner {
         }
 
         // Scale the current kernel
-        if rng.gen::<f64>() < 0.3 {
+        if rng.random::<f64>() < 0.3 {
             let scale = rng.gen_range(0.1..10.0);
             candidates.push(KernelGrammar::NonTerminal(NonTerminalOperation::Scale {
                 kernel: Box::new(expression.clone()),
@@ -643,7 +643,7 @@ impl KernelStructureLearner {
         parent2: &KernelGrammar,
         rng: &mut scirs2_core::random::Random<scirs2_core::rngs::StdRng>,
     ) -> SklResult<KernelGrammar> {
-        if rng.gen::<f64>() < 0.5 {
+        if rng.random::<f64>() < 0.5 {
             Ok(KernelGrammar::NonTerminal(NonTerminalOperation::Sum {
                 left: Box::new(parent1.clone()),
                 right: Box::new(parent2.clone()),
@@ -662,7 +662,7 @@ impl KernelStructureLearner {
         expression: &KernelGrammar,
         rng: &mut scirs2_core::random::Random<scirs2_core::rngs::StdRng>,
     ) -> SklResult<KernelGrammar> {
-        if rng.gen::<f64>() < 0.1 {
+        if rng.random::<f64>() < 0.1 {
             // Replace with random kernel
             let new_kernels = self.generate_initial_kernels()?;
             let idx = rng.gen_range(0..new_kernels.len());
@@ -899,11 +899,16 @@ mod tests {
         let learner = KernelStructureLearner::new();
 
         let expression = KernelGrammar::Terminal(TerminalKernel::RBF { length_scale: 2.0 });
-        let kernel = learner.expression_to_kernel(&expression).unwrap();
+        let kernel = learner
+            .expression_to_kernel(&expression)
+            .expect("operation should succeed");
 
         // Test that kernel can be used
-        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let K = kernel.compute_kernel_matrix(&X, Some(&X)).unwrap();
+        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let K = kernel
+            .compute_kernel_matrix(&X, Some(&X))
+            .expect("operation should succeed");
         assert_eq!(K.nrows(), 3);
         assert_eq!(K.ncols(), 3);
     }
@@ -913,10 +918,13 @@ mod tests {
     fn test_greedy_search() {
         let learner = KernelStructureLearner::new().max_iterations(5).max_depth(2);
 
-        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).unwrap();
+        let X = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 4.0, 9.0, 16.0, 25.0]);
 
-        let result = learner.learn_structure(X.view(), y.view()).unwrap();
+        let result = learner
+            .learn_structure(X.view(), y.view())
+            .expect("operation should succeed");
 
         assert!(result.best_score.is_finite());
         assert!(!result.exploration_history.is_empty());
@@ -951,10 +959,13 @@ mod tests {
             .max_depth(2)
             .search_strategy(SearchStrategy::Beam { beam_width: 2 });
 
-        let X = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 1), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("shape and data length should match");
         let y = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 
-        let result = learner.learn_structure(X.view(), y.view()).unwrap();
+        let result = learner
+            .learn_structure(X.view(), y.view())
+            .expect("operation should succeed");
 
         // The search might return infinity if no valid kernels are found
         assert!(result.best_score.is_finite() || result.best_score == f64::INFINITY);

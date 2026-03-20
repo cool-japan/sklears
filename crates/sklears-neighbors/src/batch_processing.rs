@@ -446,9 +446,10 @@ mod tests {
     #[test]
     fn test_memory_efficient_batch_processing() {
         let training_data =
-            Array2::from_shape_vec((100, 4), (0..400).map(|x| x as Float).collect()).unwrap();
-        let test_data =
-            Array2::from_shape_vec((50, 4), (0..200).map(|x| x as Float).collect()).unwrap();
+            Array2::from_shape_vec((100, 4), (0..400).map(|x| x as Float).collect())
+                .expect("operation should succeed");
+        let test_data = Array2::from_shape_vec((50, 4), (0..200).map(|x| x as Float).collect())
+            .expect("operation should succeed");
 
         let search = BatchNeighborSearch::new(5, Distance::Euclidean, training_data);
         let mut processor = BatchProcessor::builder()
@@ -456,7 +457,9 @@ mod tests {
             .max_memory_mb(64)
             .build();
 
-        let result = processor.process_data(test_data.view(), &search).unwrap();
+        let result = processor
+            .process_data(test_data.view(), &search)
+            .expect("operation should succeed");
 
         assert_eq!(result.results.len(), 50);
         assert!(result.batch_stats.total_batches > 0);
@@ -472,7 +475,9 @@ mod tests {
             .max_memory_mb(1)
             .build();
 
-        let optimal_size = processor.calculate_optimal_batch_size(50, &search).unwrap();
+        let optimal_size = processor
+            .calculate_optimal_batch_size(50, &search)
+            .expect("operation should succeed");
 
         // Should be constrained by memory limit
         assert!(optimal_size <= 50);
@@ -481,10 +486,10 @@ mod tests {
 
     #[test]
     fn test_batch_processing_with_overlap() {
-        let training_data =
-            Array2::from_shape_vec((20, 2), (0..40).map(|x| x as Float).collect()).unwrap();
-        let _test_data =
-            Array2::from_shape_vec((10, 2), (0..20).map(|x| x as Float).collect()).unwrap();
+        let training_data = Array2::from_shape_vec((20, 2), (0..40).map(|x| x as Float).collect())
+            .expect("operation should succeed");
+        let _test_data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as Float).collect())
+            .expect("operation should succeed");
 
         let _search = BatchNeighborSearch::new(3, Distance::Euclidean, training_data);
         let processor = BatchProcessor::builder()
@@ -516,10 +521,10 @@ mod tests {
 
     #[test]
     fn test_parallel_processing_basic() {
-        let training_data =
-            Array2::from_shape_vec((30, 2), (0..60).map(|x| x as Float).collect()).unwrap();
-        let test_data =
-            Array2::from_shape_vec((10, 2), (0..20).map(|x| x as Float).collect()).unwrap();
+        let training_data = Array2::from_shape_vec((30, 2), (0..60).map(|x| x as Float).collect())
+            .expect("operation should succeed");
+        let test_data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as Float).collect())
+            .expect("operation should succeed");
 
         let search = BatchNeighborSearch::new(3, Distance::Euclidean, training_data);
         let mut processor = BatchProcessor::builder()
@@ -527,7 +532,9 @@ mod tests {
             .parallel_processing(true)
             .build();
 
-        let result = processor.process_data(test_data.view(), &search).unwrap();
+        let result = processor
+            .process_data(test_data.view(), &search)
+            .expect("operation should succeed");
 
         // Should process all 10 test samples
         assert_eq!(result.results.len(), 10);

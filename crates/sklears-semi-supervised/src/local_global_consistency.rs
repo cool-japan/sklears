@@ -297,7 +297,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("operation should succeed")
                 .0;
 
             predictions[i] = self.state.classes[max_idx];

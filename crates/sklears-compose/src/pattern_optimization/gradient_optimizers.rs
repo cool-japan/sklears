@@ -269,7 +269,7 @@ impl Default for GradientBasedOptimizer {
                 "gradient_{}",
                 SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_millis()
             ),
             gradient_descent_variants: HashMap::new(),

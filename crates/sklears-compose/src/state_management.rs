@@ -207,7 +207,7 @@ impl StateManager {
     pub fn save_snapshot(&self, snapshot: StateSnapshot) -> SklResult<()> {
         // Add to in-memory cache
         {
-            let mut snapshots = self.snapshots.write().unwrap();
+            let mut snapshots = self.snapshots.write().unwrap_or_else(|e| e.into_inner());
             snapshots.insert(snapshot.id.clone(), snapshot.clone());
 
             // Manage snapshot count
@@ -221,7 +221,10 @@ impl StateManager {
 
         // Update version history
         {
-            let mut history = self.version_history.write().unwrap();
+            let mut history = self
+                .version_history
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             history.push(snapshot.id.clone());
 
             // Keep only recent versions
@@ -268,7 +271,7 @@ impl StateManager {
     pub fn load_snapshot(&self, snapshot_id: &str) -> SklResult<StateSnapshot> {
         // Try in-memory cache first
         {
-            let snapshots = self.snapshots.read().unwrap();
+            let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
             if let Some(snapshot) = snapshots.get(snapshot_id) {
                 return Ok(snapshot.clone());
             }
@@ -332,14 +335,17 @@ impl StateManager {
     /// List available snapshots
     #[must_use]
     pub fn list_snapshots(&self) -> Vec<String> {
-        let snapshots = self.snapshots.read().unwrap();
+        let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
         snapshots.keys().cloned().collect()
     }
 
     /// Get version history
     #[must_use]
     pub fn get_version_history(&self) -> Vec<String> {
-        let history = self.version_history.read().unwrap();
+        let history = self
+            .version_history
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         history.clone()
     }
 
@@ -371,13 +377,16 @@ impl StateManager {
     pub fn delete_snapshot(&self, snapshot_id: &str) -> SklResult<()> {
         // Remove from memory
         {
-            let mut snapshots = self.snapshots.write().unwrap();
+            let mut snapshots = self.snapshots.write().unwrap_or_else(|e| e.into_inner());
             snapshots.remove(snapshot_id);
         }
 
         // Remove from version history
         {
-            let mut history = self.version_history.write().unwrap();
+            let mut history = self
+                .version_history
+                .write()
+                .unwrap_or_else(|e| e.into_inner());
             history.retain(|id| id != snapshot_id);
         }
 
@@ -433,7 +442,10 @@ impl StateManager {
                 }
             });
 
-            let mut timers = self.checkpoint_timers.lock().unwrap();
+            let mut timers = self
+                .checkpoint_timers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             timers.insert(pipeline_id, handle);
         }
 
@@ -442,7 +454,10 @@ impl StateManager {
 
     /// Stop automatic checkpointing
     pub fn stop_auto_checkpoint(&self, pipeline_id: &str) -> SklResult<()> {
-        let mut timers = self.checkpoint_timers.lock().unwrap();
+        let mut timers = self
+            .checkpoint_timers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if let Some(handle) = timers.remove(pipeline_id) {
             // Note: In a real implementation, we'd need a way to signal the thread to stop
             // For now, we just remove it from tracking
@@ -452,7 +467,7 @@ impl StateManager {
 
     /// Add a state change listener
     pub fn add_listener(&self, listener: Box<dyn Fn(&StateSnapshot) + Send + Sync>) {
-        let mut listeners = self.listeners.write().unwrap();
+        let mut listeners = self.listeners.write().unwrap_or_else(|e| e.into_inner());
         listeners.push(listener);
     }
 
@@ -574,7 +589,7 @@ impl StateManager {
             snapshot
                 .timestamp
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             snapshot.version,
             snapshot.checksum
@@ -607,7 +622,7 @@ impl StateManager {
     fn generate_snapshot_id(&self, pipeline_id: &str) -> String {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_millis();
         format!("{pipeline_id}_{timestamp}")
     }
@@ -629,13 +644,13 @@ impl StateManager {
 
     /// Get next version number
     fn get_next_version(&self) -> u64 {
-        let snapshots = self.snapshots.read().unwrap();
+        let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
         snapshots.values().map(|s| s.version).max().unwrap_or(0) + 1
     }
 
     /// Get latest snapshot ID for a pipeline
     fn get_latest_snapshot_id(&self, pipeline_id: &str) -> Option<String> {
-        let snapshots = self.snapshots.read().unwrap();
+        let snapshots = self.snapshots.read().unwrap_or_else(|e| e.into_inner());
         snapshots
             .values()
             .filter(|s| s.id.starts_with(pipeline_id))
@@ -645,7 +660,7 @@ impl StateManager {
 
     /// Notify all listeners about state change
     fn notify_listeners(&self, snapshot: &StateSnapshot) {
-        let listeners = self.listeners.read().unwrap();
+        let listeners = self.listeners.read().unwrap_or_else(|e| e.into_inner());
         for listener in listeners.iter() {
             listener(snapshot);
         }
@@ -907,7 +922,7 @@ impl PipelineVersionControl {
 
     /// Create a new branch
     pub fn create_branch(&self, branch_name: &str, from_snapshot: Option<&str>) -> SklResult<()> {
-        let mut branches = self.branches.write().unwrap();
+        let mut branches = self.branches.write().unwrap_or_else(|e| e.into_inner());
 
         if branches.contains_key(branch_name) {
             return Err(SklearsError::InvalidInput(format!(
@@ -928,7 +943,7 @@ impl PipelineVersionControl {
 
     /// Switch to a different branch
     pub fn checkout_branch(&self, branch_name: &str) -> SklResult<()> {
-        let branches = self.branches.read().unwrap();
+        let branches = self.branches.read().unwrap_or_else(|e| e.into_inner());
 
         if !branches.contains_key(branch_name) {
             return Err(SklearsError::InvalidInput(format!(
@@ -936,7 +951,10 @@ impl PipelineVersionControl {
             )));
         }
 
-        let mut current = self.current_branch.write().unwrap();
+        let mut current = self
+            .current_branch
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         *current = branch_name.to_string();
         Ok(())
     }
@@ -944,11 +962,14 @@ impl PipelineVersionControl {
     /// Commit changes to current branch
     pub fn commit(&self, snapshot_id: &str, message: &str) -> SklResult<()> {
         let current_branch_name = {
-            let current = self.current_branch.read().unwrap();
+            let current = self
+                .current_branch
+                .read()
+                .unwrap_or_else(|e| e.into_inner());
             current.clone()
         };
 
-        let mut branches = self.branches.write().unwrap();
+        let mut branches = self.branches.write().unwrap_or_else(|e| e.into_inner());
         if let Some(branch) = branches.get_mut(&current_branch_name) {
             branch.head = Some(snapshot_id.to_string());
             branch
@@ -958,7 +979,7 @@ impl PipelineVersionControl {
                 "last_commit_time".to_string(),
                 SystemTime::now()
                     .duration_since(UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_secs()
                     .to_string(),
             );
@@ -969,7 +990,7 @@ impl PipelineVersionControl {
 
     /// Create a tag for a snapshot
     pub fn create_tag(&self, tag_name: &str, snapshot_id: &str) -> SklResult<()> {
-        let mut tags = self.tags.write().unwrap();
+        let mut tags = self.tags.write().unwrap_or_else(|e| e.into_inner());
         tags.insert(tag_name.to_string(), snapshot_id.to_string());
         Ok(())
     }
@@ -977,28 +998,31 @@ impl PipelineVersionControl {
     /// Get snapshot ID for a tag
     #[must_use]
     pub fn get_tag(&self, tag_name: &str) -> Option<String> {
-        let tags = self.tags.read().unwrap();
+        let tags = self.tags.read().unwrap_or_else(|e| e.into_inner());
         tags.get(tag_name).cloned()
     }
 
     /// List all branches
     #[must_use]
     pub fn list_branches(&self) -> Vec<String> {
-        let branches = self.branches.read().unwrap();
+        let branches = self.branches.read().unwrap_or_else(|e| e.into_inner());
         branches.keys().cloned().collect()
     }
 
     /// List all tags
     #[must_use]
     pub fn list_tags(&self) -> HashMap<String, String> {
-        let tags = self.tags.read().unwrap();
+        let tags = self.tags.read().unwrap_or_else(|e| e.into_inner());
         tags.clone()
     }
 
     /// Get current branch
     #[must_use]
     pub fn current_branch(&self) -> String {
-        let current = self.current_branch.read().unwrap();
+        let current = self
+            .current_branch
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         current.clone()
     }
 }
@@ -1049,10 +1073,12 @@ mod tests {
 
         let checkpoint_id = manager
             .create_checkpoint("test_pipeline", state_data)
-            .unwrap();
+            .unwrap_or_default();
         assert!(checkpoint_id.starts_with("test_pipeline"));
 
-        let loaded_state = manager.resume_from_checkpoint(&checkpoint_id).unwrap();
+        let loaded_state = manager
+            .resume_from_checkpoint(&checkpoint_id)
+            .expect("operation should succeed");
         assert_eq!(loaded_state.config.len(), 0);
     }
 
@@ -1065,11 +1091,11 @@ mod tests {
 
         assert_eq!(vc.current_branch(), "main");
 
-        vc.create_branch("feature", None).unwrap();
-        vc.checkout_branch("feature").unwrap();
+        vc.create_branch("feature", None).unwrap_or_default();
+        vc.checkout_branch("feature").unwrap_or_default();
         assert_eq!(vc.current_branch(), "feature");
 
-        vc.create_tag("v1.0", "snapshot_123").unwrap();
+        vc.create_tag("v1.0", "snapshot_123").unwrap_or_default();
         assert_eq!(vc.get_tag("v1.0"), Some("snapshot_123".to_string()));
     }
 

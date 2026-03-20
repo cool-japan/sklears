@@ -2,7 +2,7 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -327,7 +327,7 @@ impl Nystroem<Untrained> {
 
         // Fill remaining slots randomly if needed
         while selected_indices.len() < n_components {
-            let random_idx = rng.gen_range(0..n_samples);
+            let random_idx = rng.random_range(0..n_samples);
             if !selected_indices.contains(&random_idx) {
                 selected_indices.push(random_idx);
             }
@@ -371,7 +371,7 @@ impl Nystroem<Untrained> {
 
         let mut selected_indices = Vec::new();
         for _ in 0..n_components {
-            let r = thread_rng().gen::<Float>();
+            let r = thread_rng().random::<Float>();
             // Find index where cumulative probability >= r
             let mut idx = cumulative
                 .iter()
@@ -380,7 +380,7 @@ impl Nystroem<Untrained> {
 
             // Ensure no duplicates
             while selected_indices.contains(&idx) {
-                let r = thread_rng().gen::<Float>();
+                let r = thread_rng().random::<Float>();
                 idx = cumulative
                     .iter()
                     .position(|&cum| cum >= r)
@@ -414,7 +414,7 @@ impl Nystroem<Untrained> {
             .enumerate()
             .map(|(i, &norm)| (i, norm))
             .collect();
-        indices_with_norms.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indices_with_norms.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut selected_indices = Vec::new();
         let step = n_samples.max(1) / n_components.max(1);
@@ -426,7 +426,7 @@ impl Nystroem<Untrained> {
 
         // Fill remaining with random if needed
         while selected_indices.len() < n_components {
-            let random_idx = rng.gen_range(0..n_samples);
+            let random_idx = rng.random_range(0..n_samples);
             if !selected_indices.contains(&random_idx) {
                 selected_indices.push(random_idx);
             }
@@ -482,7 +482,7 @@ impl Nystroem<Untrained> {
         let n = matrix.nrows();
 
         // Initialize random vector
-        let mut v = Array1::from_shape_fn(n, |_| rng.gen::<Float>() - 0.5);
+        let mut v = Array1::from_shape_fn(n, |_| rng.random::<Float>() - 0.5);
 
         // Normalize
         let norm = v.dot(&v).sqrt();
@@ -543,7 +543,7 @@ impl Fit<Array2<Float>, ()> for Nystroem<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Select component indices using specified strategy
@@ -589,8 +589,11 @@ impl Fit<Array2<Float>, ()> for Nystroem<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for Nystroem<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let components = self.components_.as_ref().unwrap();
-        let normalization = self.normalization_.as_ref().unwrap();
+        let components = self.components_.as_ref().expect("operation should succeed");
+        let normalization = self
+            .normalization_
+            .as_ref()
+            .expect("operation should succeed");
 
         if x.ncols() != components.ncols() {
             return Err(SklearsError::InvalidInput(format!(
@@ -613,17 +616,21 @@ impl Transform<Array2<Float>, Array2<Float>> for Nystroem<Trained> {
 impl Nystroem<Trained> {
     /// Get the selected component samples
     pub fn components(&self) -> &Array2<Float> {
-        self.components_.as_ref().unwrap()
+        self.components_.as_ref().expect("operation should succeed")
     }
 
     /// Get the component indices
     pub fn component_indices(&self) -> &[usize] {
-        self.component_indices_.as_ref().unwrap()
+        self.component_indices_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the normalization matrix
     pub fn normalization(&self) -> &Array2<Float> {
-        self.normalization_.as_ref().unwrap()
+        self.normalization_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
@@ -638,8 +645,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0],];
 
         let nystroem = Nystroem::new(Kernel::Linear, 3);
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 4);
         assert!(x_transformed.ncols() <= 3); // May be less due to eigenvalue filtering
@@ -650,8 +657,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
         let nystroem = Nystroem::new(Kernel::Rbf { gamma: 0.1 }, 2);
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 3);
         assert!(x_transformed.ncols() <= 2);
@@ -667,8 +674,8 @@ mod tests {
             degree: 2,
         };
         let nystroem = Nystroem::new(kernel, 2);
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 3);
         assert!(x_transformed.ncols() <= 2);
@@ -679,12 +686,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0],];
 
         let nystroem1 = Nystroem::new(Kernel::Linear, 3).random_state(42);
-        let fitted1 = nystroem1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = nystroem1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let nystroem2 = Nystroem::new(Kernel::Linear, 3).random_state(42);
-        let fitted2 = nystroem2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = nystroem2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         // Results should be very similar with same random state (allowing for numerical precision)
         assert_eq!(result1.shape(), result2.shape());
@@ -707,7 +714,9 @@ mod tests {
         ];
 
         let nystroem = Nystroem::new(Kernel::Linear, 2);
-        let fitted = nystroem.fit(&x_train, &()).unwrap();
+        let fitted = nystroem
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
 
         assert!(result.is_err());
@@ -730,32 +739,46 @@ mod tests {
         let nystroem_random = Nystroem::new(Kernel::Linear, 4)
             .sampling_strategy(SamplingStrategy::Random)
             .random_state(42);
-        let fitted_random = nystroem_random.fit(&x, &()).unwrap();
-        let result_random = fitted_random.transform(&x).unwrap();
+        let fitted_random = nystroem_random
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let result_random = fitted_random
+            .transform(&x)
+            .expect("operation should succeed");
         assert_eq!(result_random.nrows(), 8);
 
         // Test K-means sampling
         let nystroem_kmeans = Nystroem::new(Kernel::Linear, 4)
             .sampling_strategy(SamplingStrategy::KMeans)
             .random_state(42);
-        let fitted_kmeans = nystroem_kmeans.fit(&x, &()).unwrap();
-        let result_kmeans = fitted_kmeans.transform(&x).unwrap();
+        let fitted_kmeans = nystroem_kmeans
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let result_kmeans = fitted_kmeans
+            .transform(&x)
+            .expect("operation should succeed");
         assert_eq!(result_kmeans.nrows(), 8);
 
         // Test Leverage score sampling
         let nystroem_leverage = Nystroem::new(Kernel::Linear, 4)
             .sampling_strategy(SamplingStrategy::LeverageScore)
             .random_state(42);
-        let fitted_leverage = nystroem_leverage.fit(&x, &()).unwrap();
-        let result_leverage = fitted_leverage.transform(&x).unwrap();
+        let fitted_leverage = nystroem_leverage
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let result_leverage = fitted_leverage
+            .transform(&x)
+            .expect("operation should succeed");
         assert_eq!(result_leverage.nrows(), 8);
 
         // Test Column norm sampling
         let nystroem_norm = Nystroem::new(Kernel::Linear, 4)
             .sampling_strategy(SamplingStrategy::ColumnNorm)
             .random_state(42);
-        let fitted_norm = nystroem_norm.fit(&x, &()).unwrap();
-        let result_norm = fitted_norm.transform(&x).unwrap();
+        let fitted_norm = nystroem_norm
+            .fit(&x, &())
+            .expect("operation should succeed");
+        let result_norm = fitted_norm.transform(&x).expect("operation should succeed");
         assert_eq!(result_norm.nrows(), 8);
     }
 
@@ -778,8 +801,8 @@ mod tests {
         let nystroem = Nystroem::new(kernel, 4)
             .sampling_strategy(SamplingStrategy::LeverageScore)
             .random_state(42);
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let result = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let result = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(result.shape(), &[8, 4]);
 
@@ -796,8 +819,8 @@ mod tests {
         let nystroem = Nystroem::new(Kernel::Linear, 3)
             .sampling_strategy(SamplingStrategy::Random)
             .random_state(42);
-        let fitted = nystroem.fit(&x, &()).unwrap();
-        let result = fitted.transform(&x).unwrap();
+        let fitted = nystroem.fit(&x, &()).expect("operation should succeed");
+        let result = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert!(result.ncols() <= 3);

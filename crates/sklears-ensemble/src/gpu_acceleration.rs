@@ -728,7 +728,7 @@ mod tests {
     #[test]
     fn test_gpu_context_creation() {
         let config = GpuConfig::default();
-        let context = GpuContext::new(config).unwrap();
+        let context = GpuContext::new(config).expect("operation should succeed");
         assert!(!context.is_gpu_available()); // Should be CPU fallback
     }
 
@@ -736,13 +736,13 @@ mod tests {
     fn test_memory_manager() {
         let mut manager = GpuMemoryManager::new(1024 * 1024); // 1MB
 
-        let ptr1 = manager.allocate(1024).unwrap();
-        let ptr2 = manager.allocate(2048).unwrap();
+        let ptr1 = manager.allocate(1024).expect("operation should succeed");
+        let ptr2 = manager.allocate(2048).expect("operation should succeed");
 
         assert_ne!(ptr1, ptr2);
 
-        manager.free(ptr1).unwrap();
-        manager.free(ptr2).unwrap();
+        manager.free(ptr1).expect("operation should succeed");
+        manager.free(ptr2).expect("operation should succeed");
 
         let (allocated, _, total) = manager.memory_stats();
         assert_eq!(allocated, 0);
@@ -778,13 +778,15 @@ mod tests {
     #[test]
     fn test_gpu_tensor_ops() {
         let config = GpuConfig::default();
-        let context = Arc::new(GpuContext::new(config).unwrap());
+        let context = Arc::new(GpuContext::new(config).expect("operation should succeed"));
         let ops = GpuTensorOps::new(context);
 
         let a = array![[1.0, 2.0], [3.0, 4.0]];
         let b = array![[5.0, 6.0], [7.0, 8.0]];
 
-        let result = ops.elementwise_add(&a, &b).unwrap();
+        let result = ops
+            .elementwise_add(&a, &b)
+            .expect("operation should succeed");
         let expected = array![[6.0, 8.0], [10.0, 12.0]];
 
         assert_eq!(result, expected);
@@ -800,7 +802,7 @@ mod tests {
     #[test]
     fn test_gpu_ensemble_trainer() {
         let config = GpuConfig::default();
-        let trainer = GpuEnsembleTrainer::new(config).unwrap();
+        let trainer = GpuEnsembleTrainer::new(config).expect("operation should succeed");
 
         assert!(!trainer.is_gpu_available()); // Should be CPU fallback
         assert_eq!(trainer.context().device_info().name, "CPU Fallback");

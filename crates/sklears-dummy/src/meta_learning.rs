@@ -11,7 +11,7 @@
 //! - [`ContinualLearningBaseline`] - Continual learning baseline with catastrophic forgetting prevention
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
-use scirs2_core::random::{prelude::*, thread_rng, Distribution, Rng};
+use scirs2_core::random::{prelude::*, thread_rng, Distribution, RngExt};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use sklears_core::error::SklearsError;
@@ -222,7 +222,9 @@ impl Fit<Array2<f64>, Array1<i32>, FittedFewShotClassifier> for FewShotBaselineC
                 let class_samples: Array2<f64> =
                     Array2::from_shape_vec((class_indices.len(), x.ncols()), class_data)?;
 
-                let prototype = class_samples.mean_axis(Axis(0)).unwrap();
+                let prototype = class_samples
+                    .mean_axis(Axis(0))
+                    .expect("array should have elements for mean computation");
                 prototypes.insert(class, prototype);
             }
         }
@@ -304,7 +306,7 @@ impl FittedFewShotClassifier {
                 distances.push((distance, support_y[i]));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             let k_neighbors = distances.into_iter().take(k).collect::<Vec<_>>();
             let mut class_votes: HashMap<i32, usize> = HashMap::new();
@@ -346,7 +348,11 @@ impl FittedFewShotClassifier {
 
             let best_class = weighted_votes
                 .into_iter()
-                .max_by(|(_, weight_a), (_, weight_b)| weight_a.partial_cmp(weight_b).unwrap())
+                .max_by(|(_, weight_a), (_, weight_b)| {
+                    weight_a
+                        .partial_cmp(weight_b)
+                        .expect("operation should succeed")
+                })
                 .map(|(class, _)| class)
                 .unwrap_or(0);
 
@@ -389,7 +395,7 @@ impl FittedFewShotClassifier {
         }
 
         // Sample from the probability distribution
-        let rand_val: f64 = rng.gen();
+        let rand_val: f64 = rng.random();
         let mut cumulative_prob = 0.0;
 
         for (&class, &prob) in &class_probs {
@@ -402,7 +408,11 @@ impl FittedFewShotClassifier {
         // Fallback to most likely class
         let best_class = class_probs
             .into_iter()
-            .max_by(|(_, prob_a), (_, prob_b)| prob_a.partial_cmp(prob_b).unwrap())
+            .max_by(|(_, prob_a), (_, prob_b)| {
+                prob_a
+                    .partial_cmp(prob_b)
+                    .expect("operation should succeed")
+            })
             .map(|(class, _)| class)
             .unwrap_or(0);
 
@@ -518,7 +528,7 @@ impl FittedFewShotRegressor {
                 distances.push((distance, support_y[i]));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             let k_neighbors = distances.into_iter().take(k).collect::<Vec<_>>();
             let mean_value =
@@ -635,9 +645,13 @@ impl Fit<Array2<f64>, Array1<f64>, FittedTransferBaseline> for TransferLearningB
         }
 
         // Compute target domain statistics
-        let feature_means = x.mean_axis(Axis(0)).unwrap();
+        let feature_means = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let feature_stds = x.std_axis(Axis(0), 0.0);
-        let target_mean = y.mean().unwrap();
+        let target_mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
         let target_std = y.std(0.0);
 
         let target_stats = SourceDomainStats {
@@ -711,7 +725,10 @@ impl Predict<Array2<f64>, Array1<f64>> for FittedTransferBaseline {
                     // Weighted combination based on feature adaptation
                     let source_contrib = self.source_stats.target_mean;
                     let target_contrib = self.target_stats.target_mean;
-                    let avg_weight = self.adaptation_weights.mean().unwrap();
+                    let avg_weight = self
+                        .adaptation_weights
+                        .mean()
+                        .expect("array should have elements for mean computation");
                     prediction = avg_weight * target_contrib + (1.0 - avg_weight) * source_contrib;
                 }
                 TransferStrategy::InstanceBased {
@@ -784,9 +801,13 @@ impl Fit<Array2<f64>, Array1<f64>, FittedDomainAdaptationBaseline> for DomainAda
         }
 
         // Compute target domain statistics
-        let target_feature_means = x.mean_axis(Axis(0)).unwrap();
+        let target_feature_means = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let target_feature_stds = x.std_axis(Axis(0), 0.0);
-        let target_mean = y.mean().unwrap();
+        let target_mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
         let target_std = y.std(0.0);
 
         let target_stats = SourceDomainStats {
@@ -799,9 +820,13 @@ impl Fit<Array2<f64>, Array1<f64>, FittedDomainAdaptationBaseline> for DomainAda
 
         // Compute source domain statistics if available
         let source_stats = if let Some((ref source_x, ref source_y)) = self.source_domain_data {
-            let source_feature_means = source_x.mean_axis(Axis(0)).unwrap();
+            let source_feature_means = source_x
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
             let source_feature_stds = source_x.std_axis(Axis(0), 0.0);
-            let source_mean = source_y.mean().unwrap();
+            let source_mean = source_y
+                .mean()
+                .expect("array should have elements for mean computation");
             let source_std = source_y.std(0.0);
 
             SourceDomainStats {
@@ -1045,9 +1070,13 @@ impl Fit<Array2<f64>, Array1<f64>, FittedContinualLearningBaseline> for Continua
         }
 
         // Compute current task statistics
-        let feature_means = x.mean_axis(Axis(0)).unwrap();
+        let feature_means = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let feature_stds = x.std_axis(Axis(0), 0.0);
-        let target_mean = y.mean().unwrap();
+        let target_mean = y
+            .mean()
+            .expect("array should have elements for mean computation");
         let target_std = y.std(0.0);
 
         let current_task_stats = SourceDomainStats {
@@ -1303,33 +1332,35 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 5.0, 5.0, 5.1, 5.1, 3.0, 3.0, 3.1, 3.1],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 2, 2];
 
         let classifier = FewShotBaselineClassifier::new(FewShotStrategy::NearestPrototype);
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
     }
 
     #[test]
     fn test_few_shot_regressor() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let regressor = FewShotBaselineRegressor::new(FewShotStrategy::KNearestNeighbors { k: 2 });
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_transfer_learning() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let source_stats = SourceDomainStats {
@@ -1343,16 +1374,16 @@ mod tests {
         let baseline =
             TransferLearningBaseline::new(TransferStrategy::SourcePrior { source_weight: 0.3 })
                 .with_source_statistics(source_stats);
-        let fitted = baseline.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
 
     #[test]
     fn test_few_shot_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 5.0, 5.0, 6.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 5.0, 5.0, 6.0, 6.0])
+            .expect("shape and data length should match");
         let y = array![0, 0, 1, 1];
 
         let strategies = vec![
@@ -1365,16 +1396,18 @@ mod tests {
 
         for strategy in strategies {
             let classifier = FewShotBaselineClassifier::new(strategy).with_random_state(42);
-            let fitted = classifier.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = classifier
+                .fit(&x, &y)
+                .expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }
 
     #[test]
     fn test_transfer_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let strategies = vec![
@@ -1395,25 +1428,26 @@ mod tests {
 
         for strategy in strategies {
             let baseline = TransferLearningBaseline::new(strategy);
-            let fitted = baseline.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }
 
     #[test]
     fn test_domain_adaptation() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
-        let source_x = Array2::from_shape_vec((3, 2), vec![0.5, 0.5, 1.5, 1.5, 2.5, 2.5]).unwrap();
+        let source_x = Array2::from_shape_vec((3, 2), vec![0.5, 0.5, 1.5, 1.5, 2.5, 2.5])
+            .expect("shape and data length should match");
         let source_y = array![0.5, 1.5, 2.5];
 
         let baseline = DomainAdaptationBaseline::new(DomainAdaptationStrategy::FeatureAlignment)
             .with_source_domain_data(source_x, source_y);
-        let fitted = baseline.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(fitted.adaptation_matrix.shape() == &[2, 2]);
@@ -1421,8 +1455,8 @@ mod tests {
 
     #[test]
     fn test_domain_adaptation_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let strategies = vec![
@@ -1437,24 +1471,24 @@ mod tests {
 
         for strategy in strategies {
             let baseline = DomainAdaptationBaseline::new(strategy);
-            let fitted = baseline.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }
 
     #[test]
     fn test_continual_learning() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let baseline =
             ContinualLearningBaseline::new(ContinualStrategy::ElasticWeightConsolidation {
                 importance_weight: 1.0,
             });
-        let fitted = baseline.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert_eq!(fitted.task_statistics.len(), 1);
@@ -1462,8 +1496,8 @@ mod tests {
 
     #[test]
     fn test_continual_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let strategies = vec![
@@ -1484,8 +1518,8 @@ mod tests {
 
         for strategy in strategies {
             let baseline = ContinualLearningBaseline::new(strategy).with_random_state(42);
-            let fitted = baseline.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = baseline.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }

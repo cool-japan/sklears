@@ -712,12 +712,14 @@ pub fn create_default_registry() -> CalibrationRegistry {
     let mut registry = CalibrationRegistry::new();
 
     // Register built-in modules
-    registry.register_module(Box::new(SigmoidModule)).unwrap();
+    registry
+        .register_module(Box::new(SigmoidModule))
+        .expect("operation should succeed");
 
     // Register aliases
     registry
         .register_alias("platt".to_string(), "sigmoid".to_string())
-        .unwrap();
+        .expect("operation should succeed");
 
     registry
 }
@@ -754,7 +756,9 @@ mod tests {
         let mut registry = CalibrationRegistry::new();
 
         // Register module
-        registry.register_module(Box::new(SigmoidModule)).unwrap();
+        registry
+            .register_module(Box::new(SigmoidModule))
+            .expect("operation should succeed");
 
         // Test module lookup
         assert!(registry.get_module("sigmoid").is_some());
@@ -763,11 +767,13 @@ mod tests {
         // Test alias
         registry
             .register_alias("platt".to_string(), "sigmoid".to_string())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(registry.get_module("platt").is_some());
 
         // Test module info
-        let info = registry.get_module_info("sigmoid").unwrap();
+        let info = registry
+            .get_module_info("sigmoid")
+            .expect("operation should succeed");
         assert_eq!(info.name, "sigmoid");
         assert_eq!(info.version, "1.0.0");
     }
@@ -789,7 +795,7 @@ mod tests {
                 &probabilities,
                 &config,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!((0.0..=1.0).contains(&ece));
 
@@ -797,7 +803,7 @@ mod tests {
         metrics.register_alias("ece".to_string(), "expected_calibration_error".to_string());
         let ece_alias = metrics
             .compute_metric("ece", &targets, &probabilities, &config)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(ece, ece_alias);
     }
 
@@ -809,7 +815,7 @@ mod tests {
         pipeline
             .registry_mut()
             .register_module(Box::new(SigmoidModule))
-            .unwrap();
+            .expect("operation should succeed");
         pipeline.metrics_mut().register_metric(Box::new(ECEMetric));
 
         // Add calibration step
@@ -821,7 +827,9 @@ mod tests {
             config: HashMap::new(),
             dependencies: Vec::new(),
         };
-        pipeline.add_step(cal_step).unwrap();
+        pipeline
+            .add_step(cal_step)
+            .expect("operation should succeed");
 
         // Add validation step
         let val_step = PipelineStep {
@@ -832,11 +840,15 @@ mod tests {
             config: HashMap::new(),
             dependencies: vec!["calibration".to_string()],
         };
-        pipeline.add_step(val_step).unwrap();
+        pipeline
+            .add_step(val_step)
+            .expect("operation should succeed");
 
         // Execute pipeline
         let (probabilities, targets) = create_test_data();
-        let result = pipeline.execute(&probabilities, &targets).unwrap();
+        let result = pipeline
+            .execute(&probabilities, &targets)
+            .expect("operation should succeed");
 
         assert_eq!(result.len(), probabilities.len());
         assert!(result.iter().all(|&p| (0.0..=1.0).contains(&p)));
@@ -869,13 +881,13 @@ mod tests {
         // Test ECE
         let ece = metrics
             .compute_metric("ece", &targets, &probabilities, &config)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(ece >= 0.0);
 
         // Test Brier score
         let brier = metrics
             .compute_metric("brier", &targets, &probabilities, &config)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((0.0..=1.0).contains(&brier));
 
         let metrics_list = metrics.list_metrics();

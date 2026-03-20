@@ -258,7 +258,11 @@ impl<K: Kernel> OnlineSvm<K> {
 
         // Create indices sorted by alpha values (ascending)
         let mut indices: Vec<usize> = (0..n_sv).collect();
-        indices.sort_by(|&a, &b| self.alpha[a].partial_cmp(&self.alpha[b]).unwrap());
+        indices.sort_by(|&a, &b| {
+            self.alpha[a]
+                .partial_cmp(&self.alpha[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Keep the largest coefficients
         let keep_indices: Vec<usize> = indices.into_iter().skip(n_to_remove).collect();
@@ -281,7 +285,7 @@ impl<K: Kernel> OnlineSvm<K> {
         }
 
         // Sort by margin (ascending) and keep the ones with larger margins
-        margins.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        margins.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         let keep_indices: Vec<usize> = margins
             .into_iter()
             .skip(n_to_remove)
@@ -459,12 +463,16 @@ mod tests {
         ];
 
         for (x, y) in &samples {
-            online_svm.partial_fit(x, *y).unwrap();
+            online_svm
+                .partial_fit(x, *y)
+                .expect("partial fit should succeed");
         }
 
         // Check predictions
         let test_x = array![[1.5, 2.5], [-1.5, -2.5]];
-        let predictions = online_svm.predict(&test_x).unwrap();
+        let predictions = online_svm
+            .predict(&test_x)
+            .expect("prediction should succeed");
 
         assert_eq!(predictions[0], 1.0);
         assert_eq!(predictions[1], -1.0);
@@ -479,7 +487,9 @@ mod tests {
         let x = array![[1.0, 2.0], [2.0, 3.0], [-1.0, -2.0], [-2.0, -3.0]];
         let y = array![1.0, 1.0, -1.0, -1.0];
 
-        online_svm.partial_fit_batch(&x, &y).unwrap();
+        online_svm
+            .partial_fit_batch(&x, &y)
+            .expect("operation should succeed");
 
         let stats = online_svm.get_stats();
         assert!(stats.n_support_vectors > 0);
@@ -499,7 +509,9 @@ mod tests {
         for i in 0..10 {
             let x = array![i as Float, (i * 2) as Float];
             let y = if i % 2 == 0 { 1.0 } else { -1.0 };
-            online_svm.partial_fit(&x, y).unwrap();
+            online_svm
+                .partial_fit(&x, y)
+                .expect("partial fit should succeed");
         }
 
         let stats = online_svm.get_stats();
@@ -522,7 +534,9 @@ mod tests {
         for i in 0..5 {
             let x = array![i as Float, 0.0];
             let y = 1.0;
-            online_svm.partial_fit(&x, y).unwrap();
+            online_svm
+                .partial_fit(&x, y)
+                .expect("partial fit should succeed");
         }
 
         assert!(online_svm.current_learning_rate < initial_lr);
@@ -535,7 +549,9 @@ mod tests {
         let mut online_svm = OnlineSvm::new(kernel, config);
 
         // Train on some data
-        online_svm.partial_fit(&array![1.0, 2.0], 1.0).unwrap();
+        online_svm
+            .partial_fit(&array![1.0, 2.0], 1.0)
+            .expect("partial fit should succeed");
         assert!(online_svm.get_stats().n_support_vectors > 0);
 
         // Reset

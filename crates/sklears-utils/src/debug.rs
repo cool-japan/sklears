@@ -220,8 +220,8 @@ impl PerformanceDebugger {
             let count = durations.len();
             let total: Duration = durations.iter().sum();
             let avg = total / count as u32;
-            let min = *durations.iter().min().unwrap();
-            let max = *durations.iter().max().unwrap();
+            let min = *durations.iter().min().expect("operation should succeed");
+            let max = *durations.iter().max().expect("operation should succeed");
 
             TimingStats {
                 name: name.to_string(),
@@ -493,7 +493,7 @@ impl DiagnosticTools {
             counts[bin] += 1;
         }
 
-        let max_count = *counts.iter().max().unwrap();
+        let max_count = *counts.iter().max().expect("operation should succeed");
         let scale = 50.0 / max_count as f64;
 
         let mut result = String::from("Data Distribution:\n");
@@ -583,11 +583,11 @@ mod tests {
         let duration = debugger.stop_timer("test_operation");
 
         assert!(duration.is_some());
-        assert!(duration.unwrap().as_millis() >= 1);
+        assert!(duration.expect("operation should succeed").as_millis() >= 1);
 
         let stats = debugger.timing_stats("test_operation");
         assert!(stats.is_some());
-        assert_eq!(stats.unwrap().count, 1);
+        assert_eq!(stats.expect("operation should succeed").count, 1);
     }
 
     #[test]
@@ -627,12 +627,14 @@ mod tests {
         let features = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
         let targets = vec![1.0, 2.0];
 
-        let warnings = DiagnosticTools::validate_ml_inputs(&features, Some(&targets)).unwrap();
+        let warnings = DiagnosticTools::validate_ml_inputs(&features, Some(&targets))
+            .expect("operation should succeed");
         assert!(warnings.is_empty());
 
         // Test with inconsistent data
         let bad_features = vec![vec![1.0, 2.0], vec![3.0]];
-        let warnings = DiagnosticTools::validate_ml_inputs(&bad_features, Some(&targets)).unwrap();
+        let warnings = DiagnosticTools::validate_ml_inputs(&bad_features, Some(&targets))
+            .expect("operation should succeed");
         assert!(!warnings.is_empty());
     }
 

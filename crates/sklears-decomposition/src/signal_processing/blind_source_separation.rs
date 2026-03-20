@@ -68,7 +68,7 @@
 //! ```
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 use sklears_core::{
     error::{Result, SklearsError},
     types::Float,
@@ -338,7 +338,9 @@ impl FastICA {
 
     /// Center the data by removing mean from each feature
     fn center_data(&self, x: &Array2<Float>) -> Array2<Float> {
-        let means = x.mean_axis(Axis(1)).unwrap();
+        let means = x
+            .mean_axis(Axis(1))
+            .expect("array should have elements for mean computation");
         let mut x_centered = x.clone();
 
         for i in 0..x_centered.nrows() {
@@ -584,7 +586,7 @@ impl FastICA {
         for i in 0..n_components {
             for j in 0..n_features {
                 let mut local_rng = thread_rng();
-                w_matrix[[i, j]] = local_rng.gen::<Float>() - 0.5;
+                w_matrix[[i, j]] = local_rng.random::<Float>() - 0.5;
             }
             // Normalize
             let norm = w_matrix.row(i).dot(&w_matrix.row(i)).sqrt();
@@ -606,7 +608,9 @@ impl FastICA {
                 let (gx, g_prime_x) = self.apply_nonlinearity(x, &w);
 
                 // Update rule: E[x * g(w^T x)] - E[g'(w^T x)] * w
-                let expectation = gx.mean_axis(Axis(1)).unwrap();
+                let expectation = gx
+                    .mean_axis(Axis(1))
+                    .expect("array should have elements for mean computation");
                 let w_new = expectation - g_prime_x * &w;
 
                 // Orthogonalization (Gram-Schmidt)
@@ -627,7 +631,7 @@ impl FastICA {
                     // Restart with random vector
                     for j in 0..w.len() {
                         let mut local_rng = thread_rng();
-                        w[j] = local_rng.gen::<Float>() - 0.5;
+                        w[j] = local_rng.random::<Float>() - 0.5;
                     }
                     let norm = w.dot(&w).sqrt();
                     if norm > 1e-12 {
@@ -875,7 +879,9 @@ impl JADE {
 
     /// Center the data by removing mean from each feature
     fn center_data(&self, x: &Array2<Float>) -> Array2<Float> {
-        let means = x.mean_axis(Axis(1)).unwrap();
+        let means = x
+            .mean_axis(Axis(1))
+            .expect("array should have elements for mean computation");
         let mut x_centered = x.clone();
 
         for i in 0..x_centered.nrows() {
@@ -1285,7 +1291,9 @@ impl InfoMax {
 
     /// Center the data
     fn center_data(&self, x: &Array2<Float>) -> Array2<Float> {
-        let means = x.mean_axis(Axis(1)).unwrap();
+        let means = x
+            .mean_axis(Axis(1))
+            .expect("array should have elements for mean computation");
         let mut x_centered = x.clone();
 
         for i in 0..x_centered.nrows() {
@@ -1588,7 +1596,9 @@ mod tests {
 
         let fastica = FastICA::new().n_components(2).max_iter(100).tolerance(1e-3);
 
-        let result = fastica.fit_transform(&mixed_signals).unwrap();
+        let result = fastica
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         assert_eq!(result.sources.nrows(), 2);
         assert_eq!(result.sources.ncols(), 1000);
@@ -1646,7 +1656,7 @@ mod tests {
             println!("JADE failed to converge (expected with simplified implementation)");
             return;
         }
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
 
         assert_eq!(result.sources.nrows(), 2);
         assert_eq!(result.sources.ncols(), 800);
@@ -1677,7 +1687,7 @@ mod tests {
             println!("InfoMax failed to converge (expected with simplified implementation)");
             return;
         }
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
 
         assert_eq!(result.sources.nrows(), 2);
         assert_eq!(result.algorithm, "InfoMax");
@@ -1703,7 +1713,9 @@ mod tests {
         let (_, mixed_signals) = generate_test_signals(2, 300);
 
         let fastica = FastICA::new().max_iter(50);
-        let result = fastica.fit_transform(&mixed_signals).unwrap();
+        let result = fastica
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         let reconstructed = result.reconstruct();
         assert_eq!(reconstructed.dim(), mixed_signals.dim());
@@ -1730,13 +1742,15 @@ mod tests {
         let (_, mixed_signals) = generate_test_signals(2, 200);
 
         let fastica = FastICA::new().n_components(2);
-        let result = fastica.fit_transform(&mixed_signals).unwrap();
+        let result = fastica
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         // Test valid source access
         for i in 0..2 {
             let source = result.source(i);
             assert!(source.is_some());
-            assert_eq!(source.unwrap().len(), 200);
+            assert_eq!(source.expect("operation should succeed").len(), 200);
         }
 
         // Test invalid source access
@@ -1749,7 +1763,9 @@ mod tests {
         let true_mixing = array![[0.8, 0.6], [0.6, -0.8]];
 
         let fastica = FastICA::new();
-        let result = fastica.fit_transform(&mixed_signals).unwrap();
+        let result = fastica
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         let amari_dist = result.amari_distance(&true_mixing);
         assert!(amari_dist >= 0.0);
@@ -1761,12 +1777,14 @@ mod tests {
         let (true_sources, mixed_signals) = generate_test_signals(2, 300);
 
         let fastica = FastICA::new();
-        let result = fastica.fit_transform(&mixed_signals).unwrap();
+        let result = fastica
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         let sir_values = result.compute_sir(&true_sources);
         assert!(sir_values.is_ok());
 
-        let sir = sir_values.unwrap();
+        let sir = sir_values.expect("operation should succeed");
         assert_eq!(sir.len(), 2);
 
         // SIR values should be finite
@@ -1797,7 +1815,7 @@ mod tests {
 
         // JADE and InfoMax may not converge with simplified implementations
         if jade_result.is_ok() {
-            let jade = jade_result.unwrap();
+            let jade = jade_result.expect("operation should succeed");
             assert_eq!(jade.n_sources(), 2);
             assert_eq!(jade.algorithm, "JADE");
         } else {
@@ -1805,7 +1823,7 @@ mod tests {
         }
 
         if infomax_result.is_ok() {
-            let infomax = infomax_result.unwrap();
+            let infomax = infomax_result.expect("operation should succeed");
             assert_eq!(infomax.n_sources(), 2);
             assert_eq!(infomax.algorithm, "InfoMax");
         } else {
@@ -1821,7 +1839,9 @@ mod tests {
         let (_, mixed_signals) = generate_test_signals(2, 400);
 
         let fastica = FastICA::new();
-        let result = fastica.fit_transform(&mixed_signals).unwrap();
+        let result = fastica
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         let summary = result.performance_summary();
         assert!(summary.contains("FastICA"));
@@ -1834,7 +1854,9 @@ mod tests {
         let (_, mixed_signals) = generate_test_signals(2, 300);
 
         let fastica = FastICA::new().n_components(2);
-        let result = fastica.fit_transform(&mixed_signals).unwrap();
+        let result = fastica
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         let all_sources = result.get_all_sources();
         assert_eq!(all_sources.len(), 2);
@@ -1842,7 +1864,7 @@ mod tests {
         for (i, source) in all_sources.iter().enumerate() {
             assert_eq!(source.len(), 300);
             // Verify it matches the row from the sources matrix
-            let original_source = result.source(i).unwrap();
+            let original_source = result.source(i).expect("operation should succeed");
             for j in 0..300 {
                 assert_eq!(source[j], original_source[j]);
             }
@@ -1856,8 +1878,12 @@ mod tests {
         let fastica_simd = FastICA::new().use_simd(true).max_iter(30);
         let fastica_standard = FastICA::new().use_simd(false).max_iter(30);
 
-        let result_simd = fastica_simd.fit_transform(&mixed_signals).unwrap();
-        let result_standard = fastica_standard.fit_transform(&mixed_signals).unwrap();
+        let result_simd = fastica_simd
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
+        let result_standard = fastica_standard
+            .fit_transform(&mixed_signals)
+            .expect("operation should succeed");
 
         // Both should converge to similar solutions
         assert_eq!(result_simd.n_sources(), result_standard.n_sources());

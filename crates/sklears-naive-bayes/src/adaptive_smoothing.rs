@@ -79,7 +79,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
                     *folds,
                     alpha_candidates,
                 )?;
-                self.selected_alpha = Some(F::from(best_alpha).unwrap());
+                self.selected_alpha = Some(F::from(best_alpha).expect("operation should succeed"));
             }
 
             AdaptiveSmoothingMethod::HeldOut {
@@ -93,7 +93,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
                     *validation_fraction,
                     alpha_candidates,
                 )?;
-                self.selected_alpha = Some(F::from(best_alpha).unwrap());
+                self.selected_alpha = Some(F::from(best_alpha).expect("operation should succeed"));
             }
 
             AdaptiveSmoothingMethod::InformationCriterion {
@@ -106,7 +106,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
                     *criterion,
                     alpha_candidates,
                 )?;
-                self.selected_alpha = Some(F::from(best_alpha).unwrap());
+                self.selected_alpha = Some(F::from(best_alpha).expect("operation should succeed"));
             }
 
             AdaptiveSmoothingMethod::Bayesian {
@@ -119,7 +119,8 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
                     *prior_alpha,
                     *prior_beta,
                 )?;
-                self.selected_alpha = Some(F::from(estimated_alpha).unwrap());
+                self.selected_alpha =
+                    Some(F::from(estimated_alpha).expect("operation should succeed"));
             }
 
             AdaptiveSmoothingMethod::FrequencyBased {
@@ -131,12 +132,12 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
                 self.feature_alphas = Some(
                     feature_alphas
                         .iter()
-                        .map(|&a| F::from(a).unwrap())
+                        .map(|&a| F::from(a).expect("operation should succeed"))
                         .collect(),
                 );
                 self.selected_alpha = Some(
                     F::from(feature_alphas.iter().sum::<f64>() / feature_alphas.len() as f64)
-                        .unwrap(),
+                        .expect("operation should succeed"),
                 );
             }
         }
@@ -377,7 +378,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
         }
 
         // Compute log-likelihood as a proxy for performance
-        let alpha_f = F::from(alpha).unwrap();
+        let alpha_f = F::from(alpha).expect("operation should succeed");
         let mut log_likelihood = 0.0;
 
         for &test_idx in test_indices {
@@ -388,7 +389,8 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
                 // Simple log-likelihood computation with smoothing
                 for &count in test_counts.iter() {
                     let smoothed_count = count + alpha_f;
-                    let smoothed_total = test_total + alpha_f * F::from(counts.ncols()).unwrap();
+                    let smoothed_total = test_total
+                        + alpha_f * F::from(counts.ncols()).expect("operation should succeed");
                     let prob = smoothed_count / smoothed_total;
                     log_likelihood += prob.to_f64().unwrap_or(0.0).ln();
                 }
@@ -411,7 +413,7 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
         let n_classes = counts.nrows() as f64;
 
         // Compute log-likelihood
-        let alpha_f = F::from(alpha).unwrap();
+        let alpha_f = F::from(alpha).expect("operation should succeed");
         let mut log_likelihood = 0.0;
 
         for i in 0..counts.nrows() {
@@ -420,7 +422,8 @@ impl<F: Float + ScalarOperand> AdaptiveSmoothing<F> {
 
             for &count in row_counts.iter() {
                 let smoothed_count = count + alpha_f;
-                let smoothed_total = row_total + alpha_f * F::from(counts.ncols()).unwrap();
+                let smoothed_total = row_total
+                    + alpha_f * F::from(counts.ncols()).expect("operation should succeed");
                 let prob = smoothed_count / smoothed_total;
                 log_likelihood += count.to_f64().unwrap_or(0.0) * prob.to_f64().unwrap_or(0.0).ln();
             }
@@ -554,8 +557,9 @@ impl HyperparameterOptimizer {
 
                 for i in 0..counts.nrows() {
                     let row_counts = smoothed_counts.row(i);
-                    let row_total =
-                        total_counts[i] + smoother.alpha() * F::from(counts.ncols()).unwrap();
+                    let row_total = total_counts[i]
+                        + smoother.alpha()
+                            * F::from(counts.ncols()).expect("operation should succeed");
 
                     for &count in row_counts.iter() {
                         let prob = count / row_total;
@@ -599,7 +603,9 @@ mod tests {
         };
 
         let mut smoother = AdaptiveSmoothing::new(method);
-        smoother.fit(&counts, &total_counts, &labels).unwrap();
+        smoother
+            .fit(&counts, &total_counts, &labels)
+            .expect("operation should succeed");
 
         assert!(smoother.alpha() >= 0.1);
         assert!(smoother.alpha() <= 2.0);
@@ -637,7 +643,9 @@ mod tests {
         };
 
         let mut smoother = AdaptiveSmoothing::new(method);
-        smoother.fit(&counts, &total_counts, &labels).unwrap();
+        smoother
+            .fit(&counts, &total_counts, &labels)
+            .expect("operation should succeed");
 
         assert!(smoother.alpha() > 0.0);
     }
@@ -649,7 +657,9 @@ mod tests {
         let labels = array![0, 1];
 
         let optimizer = HyperparameterOptimizer::new();
-        let best_method = optimizer.optimize(&counts, &total_counts, &labels).unwrap();
+        let best_method = optimizer
+            .optimize(&counts, &total_counts, &labels)
+            .expect("operation should succeed");
 
         // Should return one of the predefined methods
         match best_method {
@@ -673,7 +683,9 @@ mod tests {
         };
 
         let mut smoother = AdaptiveSmoothing::new(method);
-        smoother.fit(&counts, &total_counts, &labels).unwrap();
+        smoother
+            .fit(&counts, &total_counts, &labels)
+            .expect("operation should succeed");
 
         let smoothed = smoother.smooth_counts(&counts, &total_counts);
 

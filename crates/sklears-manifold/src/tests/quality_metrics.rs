@@ -204,8 +204,10 @@ fn test_tsne_neighborhood_preservation() {
         .learning_rate(100.0) // Reduced learning rate for stability
         .random_state(Some(42));
 
-    let fitted = tsne.fit(&x.view(), &()).unwrap();
-    let embedding = fitted.transform(&x.view()).unwrap();
+    let fitted = tsne.fit(&x.view(), &()).expect("operation should succeed");
+    let embedding = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let report = quality_report(&x.view(), &embedding.view(), Some(2));
 
@@ -239,8 +241,12 @@ fn test_isomap_neighborhood_preservation() {
 
     let isomap = Isomap::new().n_components(2).n_neighbors(3);
 
-    let fitted = isomap.fit(&x.view(), &()).unwrap();
-    let embedding = fitted.transform(&x.view()).unwrap();
+    let fitted = isomap
+        .fit(&x.view(), &())
+        .expect("operation should succeed");
+    let embedding = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let report = quality_report(&x.view(), &embedding.view(), Some(3));
 
@@ -270,8 +276,10 @@ fn test_lle_neighborhood_preservation() {
 
     let lle = LocallyLinearEmbedding::new().n_components(1).n_neighbors(4);
 
-    let fitted = lle.fit(&x.view(), &()).unwrap();
-    let embedding = fitted.transform(&x.view()).unwrap();
+    let fitted = lle.fit(&x.view(), &()).expect("operation should succeed");
+    let embedding = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let report = quality_report(&x.view(), &embedding.view(), Some(3));
 
@@ -318,8 +326,10 @@ fn test_umap_neighborhood_preservation() {
         .learning_rate(0.5) // Reduced learning rate for stability
         .random_state(Some(42));
 
-    let fitted = umap.fit(&x.view(), &()).unwrap();
-    let embedding = fitted.transform(&x.view()).unwrap();
+    let fitted = umap.fit(&x.view(), &()).expect("operation should succeed");
+    let embedding = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let report = quality_report(&x.view(), &embedding.view(), Some(3));
 
@@ -350,8 +360,10 @@ fn test_mds_distance_preservation() {
     let x = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
     let mds = MDS::new().n_components(2);
-    let fitted = mds.fit(&x.view(), &()).unwrap();
-    let embedding = fitted.transform(&x.view()).unwrap();
+    let fitted = mds.fit(&x.view(), &()).expect("operation should succeed");
+    let embedding = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let report = quality_report(&x.view(), &embedding.view(), Some(2));
 

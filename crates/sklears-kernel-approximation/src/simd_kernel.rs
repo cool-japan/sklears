@@ -491,7 +491,7 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 1.0]];
         let y = array![[0.0, 0.0], [2.0, 2.0]];
 
-        let result = simd_rbf_kernel(&x.view(), &y.view(), 0.5).unwrap();
+        let result = simd_rbf_kernel(&x.view(), &y.view(), 0.5).expect("operation should succeed");
 
         assert_eq!(result.dim(), (2, 2));
         // K(x, x) should be 1.0

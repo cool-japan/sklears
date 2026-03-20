@@ -230,7 +230,7 @@ impl LTSA<Untrained> {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             for (neighbor_idx, &(_, j)) in distances.iter().take(self.n_neighbors).enumerate() {
                 neighbor_indices[[i, neighbor_idx]] = j;
             }
@@ -263,7 +263,9 @@ impl LTSA<Untrained> {
             }
 
             // Center the neighborhood
-            let mean = neighborhood.mean_axis(Axis(0)).unwrap();
+            let mean = neighborhood
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
             for k in 0..self.n_neighbors {
                 for d in 0..n_features {
                     neighborhood[[k, d]] -= mean[d];
@@ -394,7 +396,7 @@ impl LTSA<Untrained> {
             .enumerate()
             .map(|(i, &val)| (val, i))
             .collect();
-        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        eigen_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Take eigenvectors corresponding to smallest non-zero eigenvalues
         // Skip the first eigenvector (corresponding to eigenvalue 0)

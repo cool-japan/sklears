@@ -220,9 +220,9 @@ fn perform_cross_validation(data: &Array2<f64>) -> Result<(), Box<dyn std::error
     let best_idx = scores
         .iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
         .map(|(idx, _)| idx)
-        .unwrap();
+        .expect("operation should succeed");
 
     println!(
         "  Best estimator: {} (score: {:.4})",
@@ -239,7 +239,9 @@ fn demonstrate_shrinkage_techniques(data: &Array2<f64>) -> Result<(), Box<dyn st
     let n_features = data.ncols();
 
     // Center the data
-    let mean = data.mean_axis(Axis(0)).unwrap();
+    let mean = data
+        .mean_axis(Axis(0))
+        .expect("mean computation should succeed for non-empty array");
     let centered_data = data - &mean.insert_axis(Axis(0));
 
     // Compute sample covariance
@@ -321,7 +323,7 @@ fn compare_all_estimators(
     results.push(("Rao-Blackwell LW", rb_error, rb_cov));
 
     // Sort results by error
-    results.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    results.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
     println!("\nRanking by Frobenius norm error:");
     for (i, (name, error, cov)) in results.iter().enumerate() {

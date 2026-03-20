@@ -196,14 +196,17 @@ impl MultiLabelCrossValidator {
         let target_samples_per_fold = n_samples / self.config.n_folds;
         let remaining_samples = n_samples % self.config.n_folds;
 
-        let label_stats = self.label_stats.as_ref().unwrap();
+        let label_stats = self.label_stats.as_ref().expect("operation should succeed");
         let mut remaining_label_counts = label_stats.label_frequencies.clone();
         let mut remaining_samples_set: HashSet<usize> = sample_indices.iter().cloned().collect();
 
         while !remaining_samples_set.is_empty() {
             let mut best_fold = 0;
             let mut best_score = f64::NEG_INFINITY;
-            let mut best_sample = *remaining_samples_set.iter().next().unwrap();
+            let mut best_sample = *remaining_samples_set
+                .iter()
+                .next()
+                .expect("operation should succeed");
 
             for &sample_idx in &remaining_samples_set {
                 let sample_labels: Vec<usize> = (0..n_labels)
@@ -276,7 +279,7 @@ impl MultiLabelCrossValidator {
 
     fn label_powerset_split(&mut self, y: &ArrayView2<i32>) -> Result<Vec<MultiLabelSplit>> {
         let n_samples = y.nrows();
-        let _label_stats = self.label_stats.as_ref().unwrap();
+        let _label_stats = self.label_stats.as_ref().expect("operation should succeed");
 
         let mut powerset_to_samples: HashMap<Vec<usize>, Vec<usize>> = HashMap::new();
 
@@ -401,7 +404,7 @@ impl MultiLabelCrossValidator {
         y: &ArrayView2<i32>,
     ) -> Result<Vec<MultiLabelSplit>> {
         let n_samples = y.nrows();
-        let label_stats = self.label_stats.as_ref().unwrap();
+        let label_stats = self.label_stats.as_ref().expect("operation should succeed");
 
         let mut samples_with_weights: Vec<(usize, f64)> = Vec::new();
 
@@ -424,7 +427,8 @@ impl MultiLabelCrossValidator {
             samples_with_weights.push((sample_idx, weight));
         }
 
-        samples_with_weights.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        samples_with_weights
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let mut folds: Vec<Vec<usize>> = vec![Vec::new(); self.config.n_folds];
 
@@ -433,7 +437,7 @@ impl MultiLabelCrossValidator {
                 .iter()
                 .enumerate()
                 .min_by_key(|(_, fold)| fold.len())
-                .unwrap()
+                .expect("operation should succeed")
                 .0;
             folds[fold_idx].push(sample_idx);
         }
@@ -469,7 +473,7 @@ impl MultiLabelCrossValidator {
         y: &ArrayView2<i32>,
     ) -> Result<Vec<MultiLabelSplit>> {
         let n_samples = y.nrows();
-        let label_stats = self.label_stats.as_ref().unwrap();
+        let label_stats = self.label_stats.as_ref().expect("operation should succeed");
 
         let minority_threshold = (n_samples as f64 * self.config.balance_ratio) as usize;
         let minority_labels: Vec<usize> = label_stats
@@ -585,7 +589,9 @@ impl MultiLabelValidationResult {
         let avg_train_size = total_train_size as f64 / splits.len() as f64;
         let avg_test_size = total_test_size as f64 / splits.len() as f64;
 
-        let label_stats = validator.get_label_statistics().unwrap();
+        let label_stats = validator
+            .get_label_statistics()
+            .expect("operation should succeed");
 
         let all_distributions: Vec<&Vec<f64>> = splits
             .iter()
@@ -676,7 +682,9 @@ mod tests {
         };
 
         let mut validator = MultiLabelCrossValidator::new(config);
-        let splits = validator.split(&y.view()).unwrap();
+        let splits = validator
+            .split(&y.view())
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -703,7 +711,9 @@ mod tests {
         };
 
         let mut validator = MultiLabelCrossValidator::new(config);
-        let splits = validator.split(&y.view()).unwrap();
+        let splits = validator
+            .split(&y.view())
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 2);
 
@@ -724,7 +734,9 @@ mod tests {
         };
 
         let mut validator = MultiLabelCrossValidator::new(config);
-        let splits = validator.split(&y.view()).unwrap();
+        let splits = validator
+            .split(&y.view())
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 4);
 
@@ -745,9 +757,11 @@ mod tests {
         let config = MultiLabelValidationConfig::default();
 
         let mut validator = MultiLabelCrossValidator::new(config);
-        validator.fit(&y.view()).unwrap();
+        validator.fit(&y.view()).expect("operation should succeed");
 
-        let stats = validator.get_label_statistics().unwrap();
+        let stats = validator
+            .get_label_statistics()
+            .expect("operation should succeed");
         assert_eq!(stats.label_frequencies.len(), 4);
         assert_eq!(stats.label_proportions.len(), 4);
         assert!(stats.mean_labels_per_sample > 0.0);

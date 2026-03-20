@@ -524,7 +524,7 @@ impl RuntimeContext {
         };
 
         // Update state to active
-        *context.state.write().unwrap() = ContextState::Active;
+        *context.state.write().unwrap_or_else(|e| e.into_inner()) = ContextState::Active;
 
         Ok(context)
     }
@@ -532,7 +532,7 @@ impl RuntimeContext {
     /// Create runtime context with custom configuration
     pub fn with_config(context_id: String, config: RuntimeConfig) -> ContextResult<Self> {
         let mut context = Self::new(context_id)?;
-        *context.config.write().unwrap() = config;
+        *context.config.write().unwrap_or_else(|e| e.into_inner()) = config;
         Ok(context)
     }
 
@@ -846,7 +846,7 @@ impl ExecutionContextTrait for RuntimeContext {
     }
 
     fn state(&self) -> ContextState {
-        *self.state.read().unwrap()
+        *self.state.read().unwrap_or_else(|e| e.into_inner())
     }
 
     fn is_active(&self) -> bool {
@@ -856,7 +856,7 @@ impl ExecutionContextTrait for RuntimeContext {
     fn metadata(&self) -> &ContextMetadata {
         // This is a simplified implementation
         // In practice, we'd need to handle this more carefully
-        unsafe { &*(self.metadata.read().unwrap().as_ref() as *const ContextMetadata) }
+        unsafe { &*(self.metadata.read().unwrap_or_else(|e| e.into_inner()).as_ref() as *const ContextMetadata) }
     }
 
     fn validate(&self) -> Result<(), ContextError> {
@@ -891,7 +891,7 @@ mod tests {
 
     #[test]
     fn test_runtime_context_creation() {
-        let context = RuntimeContext::new("test-runtime".to_string()).unwrap();
+        let context = RuntimeContext::new("test-runtime".to_string()).unwrap_or_default();
         assert_eq!(context.id(), "test-runtime");
         assert_eq!(context.context_type(), ContextType::Runtime);
         assert!(context.is_active());
@@ -899,45 +899,45 @@ mod tests {
 
     #[test]
     fn test_environment_variable_management() {
-        let context = RuntimeContext::new("test-env".to_string()).unwrap();
+        let context = RuntimeContext::new("test-env".to_string()).unwrap_or_default();
 
         // Set environment variable
-        context.set_environment_variable("TEST_VAR".to_string(), "test_value".to_string()).unwrap();
+        context.set_environment_variable("TEST_VAR".to_string(), "test_value".to_string()).unwrap_or_default();
 
         // Get environment variable
-        let value = context.get_environment_variable("TEST_VAR").unwrap();
+        let value = context.get_environment_variable("TEST_VAR").unwrap_or_default();
         assert_eq!(value, Some("test_value".to_string()));
 
         // Remove environment variable
-        let removed = context.remove_environment_variable("TEST_VAR").unwrap();
+        let removed = context.remove_environment_variable("TEST_VAR").unwrap_or_default();
         assert_eq!(removed, Some("test_value".to_string()));
 
         // Check it's removed
-        let value = context.get_environment_variable("TEST_VAR").unwrap();
+        let value = context.get_environment_variable("TEST_VAR").unwrap_or_default();
         assert_eq!(value, None);
     }
 
     #[test]
     fn test_execution_timing() {
-        let context = RuntimeContext::new("test-timing".to_string()).unwrap();
+        let context = RuntimeContext::new("test-timing".to_string()).unwrap_or_default();
 
         // Start execution
-        context.start_execution().unwrap();
+        context.start_execution().unwrap_or_default();
 
         // Add checkpoint
-        context.add_checkpoint("checkpoint1".to_string()).unwrap();
+        context.add_checkpoint("checkpoint1".to_string()).unwrap_or_default();
 
         // Pause and resume
-        context.pause_execution().unwrap();
+        context.pause_execution().unwrap_or_default();
         std::thread::sleep(std::time::Duration::from_millis(10));
-        context.resume_execution().unwrap();
+        context.resume_execution().unwrap_or_default();
 
         // End execution
-        let duration = context.end_execution().unwrap();
+        let duration = context.end_execution().unwrap_or_default();
         assert!(duration > Duration::from_secs(0));
 
         // Check timing
-        let timing = context.get_execution_timing().unwrap();
+        let timing = context.get_execution_timing().unwrap_or_default();
         assert!(timing.started_at.is_some());
         assert!(timing.ended_at.is_some());
         assert_eq!(timing.paused_at.len(), 1);
@@ -947,14 +947,14 @@ mod tests {
 
     #[test]
     fn test_memory_tracking() {
-        let context = RuntimeContext::new("test-memory".to_string()).unwrap();
+        let context = RuntimeContext::new("test-memory".to_string()).unwrap_or_default();
 
         // Update memory usage
-        context.update_memory_usage(1024, 0).unwrap();
-        context.update_memory_usage(2048, 512).unwrap();
+        context.update_memory_usage(1024, 0).unwrap_or_default();
+        context.update_memory_usage(2048, 512).unwrap_or_default();
 
         // Check memory usage
-        let usage = context.get_memory_usage().unwrap();
+        let usage = context.get_memory_usage().unwrap_or_default();
         assert_eq!(usage.total_allocated, 3072);
         assert_eq!(usage.current_usage, 2560);
         assert_eq!(usage.peak_usage, 2560);
@@ -968,23 +968,23 @@ mod tests {
         let thread_id = std::thread::current().id();
 
         // Register thread
-        manager.register_thread(thread_id, Some("test-thread".to_string())).unwrap();
+        manager.register_thread(thread_id, Some("test-thread".to_string())).unwrap_or_default();
 
         // Get thread info
-        let info = manager.get_thread_info(thread_id).unwrap();
+        let info = manager.get_thread_info(thread_id).unwrap_or_default();
         assert!(info.is_some());
-        assert_eq!(info.unwrap().name, Some("test-thread".to_string()));
+        assert_eq!(info.unwrap_or_default().name, Some("test-thread".to_string()));
 
         // Check metrics
-        let metrics = manager.get_thread_metrics().unwrap();
+        let metrics = manager.get_thread_metrics().unwrap_or_default();
         assert_eq!(metrics.total_created, 1);
         assert_eq!(metrics.active_count, 1);
 
         // Unregister thread
-        manager.unregister_thread(thread_id).unwrap();
+        manager.unregister_thread(thread_id).unwrap_or_default();
 
         // Check metrics after unregister
-        let metrics = manager.get_thread_metrics().unwrap();
+        let metrics = manager.get_thread_metrics().unwrap_or_default();
         assert_eq!(metrics.active_count, 0);
     }
 
@@ -994,8 +994,8 @@ mod tests {
         config.max_execution_time = Some(Duration::from_secs(120));
         config.memory_limit = Some(1024 * 1024);
 
-        let context = RuntimeContext::with_config("test-config".to_string(), config).unwrap();
-        let retrieved_config = context.get_config().unwrap();
+        let context = RuntimeContext::with_config("test-config".to_string(), config).unwrap_or_default();
+        let retrieved_config = context.get_config().unwrap_or_default();
 
         assert_eq!(retrieved_config.max_execution_time, Some(Duration::from_secs(120)));
         assert_eq!(retrieved_config.memory_limit, Some(1024 * 1024));

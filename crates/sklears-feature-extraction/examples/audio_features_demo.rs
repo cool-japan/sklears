@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let max_energy_mel = mel_energies
         .iter()
         .enumerate()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
         .map(|(idx, _)| idx)
         .unwrap_or(0);
 

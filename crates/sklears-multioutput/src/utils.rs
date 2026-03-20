@@ -204,8 +204,12 @@ pub fn train_binary_classifier(
     let y_float: Array1<Float> = y.mapv(|x| x as Float);
 
     // Calculate means
-    let x_means = X.mean_axis(Axis(0)).unwrap();
-    let y_mean = y_float.mean().unwrap();
+    let x_means = X
+        .mean_axis(Axis(0))
+        .expect("array should have elements for mean computation");
+    let y_mean = y_float
+        .mean()
+        .expect("array should have elements for mean computation");
 
     // Calculate weights using correlation
     let mut weights = Array1::<Float>::zeros(n_features);

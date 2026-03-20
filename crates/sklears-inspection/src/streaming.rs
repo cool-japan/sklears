@@ -142,7 +142,7 @@ impl StreamingExplainer {
 
             // Update statistics
             {
-                let mut stats = self.stats.lock().unwrap();
+                let mut stats = self.stats.lock().expect("operation should succeed");
                 stats.chunks_processed = chunks_processed;
                 stats.total_samples += chunk.nrows();
                 stats.current_memory_usage = self.estimate_memory_usage();
@@ -159,7 +159,7 @@ impl StreamingExplainer {
             .ok_or_else(|| SklearsError::InvalidInput("No valid chunks processed".to_string()))?;
 
         let (feature_importance, confidence_intervals) = aggregator.finalize();
-        let statistics = self.stats.lock().unwrap().clone();
+        let statistics = self.stats.lock().expect("operation should succeed").clone();
 
         Ok(StreamingExplanationResult {
             feature_importance,
@@ -191,7 +191,7 @@ impl StreamingExplainer {
     /// Estimate current memory usage
     fn estimate_memory_usage(&self) -> usize {
         let buffer_size = {
-            let buffer = self.chunk_buffer.lock().unwrap();
+            let buffer = self.chunk_buffer.lock().expect("operation should succeed");
             buffer
                 .iter()
                 .map(|chunk| chunk.len() * std::mem::size_of::<Float>())
@@ -210,7 +210,7 @@ impl StreamingExplainer {
 
         if current_usage > max_usage {
             // Evict oldest chunks
-            let mut buffer = self.chunk_buffer.lock().unwrap();
+            let mut buffer = self.chunk_buffer.lock().expect("operation should succeed");
             while !buffer.is_empty() && self.estimate_memory_usage() > max_usage {
                 buffer.pop_front();
             }
@@ -345,7 +345,9 @@ impl StreamingShapExplainer {
 
             // Aggregate results
             if let Some(ref mut agg) = aggregator {
-                let mean_shap = shap_values.mean_axis(Axis(0)).unwrap();
+                let mean_shap = shap_values
+                    .mean_axis(Axis(0))
+                    .expect("operation should succeed");
                 agg.update(&mean_shap)?;
             }
 
@@ -372,7 +374,10 @@ impl StreamingShapExplainer {
 
     /// Update background statistics with new data
     fn update_background_stats(&self, chunk: &ArrayView2<Float>) -> crate::SklResult<()> {
-        let mut stats = self.background_stats.lock().unwrap();
+        let mut stats = self
+            .background_stats
+            .lock()
+            .expect("operation should succeed");
 
         if stats.samples_seen == 0 {
             // Initialize with first chunk
@@ -413,7 +418,10 @@ impl StreamingShapExplainer {
 
         // Get background statistics
         let background_means = {
-            let stats = self.background_stats.lock().unwrap();
+            let stats = self
+                .background_stats
+                .lock()
+                .expect("operation should succeed");
             stats.feature_means.clone()
         };
 
@@ -527,8 +535,12 @@ mod tests {
         let mut aggregator = OnlineAggregator::new(2);
 
         // Add some values
-        aggregator.update(&array![1.0, 2.0]).unwrap();
-        aggregator.update(&array![3.0, 4.0]).unwrap();
+        aggregator
+            .update(&array![1.0, 2.0])
+            .expect("operation should succeed");
+        aggregator
+            .update(&array![3.0, 4.0])
+            .expect("operation should succeed");
 
         let (mean, confidence_intervals) = aggregator.finalize();
 
@@ -542,7 +554,7 @@ mod tests {
         let config = StreamingConfig::default();
         let explainer = StreamingExplainer::new(config);
 
-        let stats = explainer.stats.lock().unwrap();
+        let stats = explainer.stats.lock().expect("operation should succeed");
         assert_eq!(stats.chunks_processed, 0);
         assert_eq!(stats.total_samples, 0);
     }
@@ -562,10 +574,10 @@ mod tests {
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
         let mut iterator = StreamingDataIterator::new(data, 2);
 
-        let chunk1 = iterator.next().unwrap();
+        let chunk1 = iterator.next().expect("operation should succeed");
         assert_eq!(chunk1.nrows(), 2);
 
-        let chunk2 = iterator.next().unwrap();
+        let chunk2 = iterator.next().expect("operation should succeed");
         assert_eq!(chunk2.nrows(), 1);
 
         assert!(iterator.next().is_none());
@@ -576,7 +588,10 @@ mod tests {
         let config = StreamingConfig::default();
         let explainer = StreamingShapExplainer::new(config);
 
-        let stats = explainer.background_stats.lock().unwrap();
+        let stats = explainer
+            .background_stats
+            .lock()
+            .expect("operation should succeed");
         assert_eq!(stats.samples_seen, 0);
     }
 
@@ -586,9 +601,14 @@ mod tests {
         let explainer = StreamingShapExplainer::new(config);
 
         let chunk = array![[1.0, 2.0], [3.0, 4.0]];
-        explainer.update_background_stats(&chunk.view()).unwrap();
+        explainer
+            .update_background_stats(&chunk.view())
+            .expect("operation should succeed");
 
-        let stats = explainer.background_stats.lock().unwrap();
+        let stats = explainer
+            .background_stats
+            .lock()
+            .expect("operation should succeed");
         assert_eq!(stats.samples_seen, 2);
         assert_abs_diff_eq!(stats.feature_means[0], 2.0, epsilon = 1e-6);
         assert_abs_diff_eq!(stats.feature_means[1], 3.0, epsilon = 1e-6);
@@ -625,7 +645,9 @@ mod tests {
         let model =
             |_: &ArrayView2<Float>| -> crate::SklResult<Array1<Float>> { Ok(array![0.5, 0.7]) };
 
-        let result = explainer.process_chunk(&chunk.view(), &model).unwrap();
+        let result = explainer
+            .process_chunk(&chunk.view(), &model)
+            .expect("operation should succeed");
         assert_eq!(result.len(), 2);
     }
 }

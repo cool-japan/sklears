@@ -98,7 +98,7 @@ impl<F: Float> Smoothing<F> for GoodTuringSmoothing<F> {
                 let count = elem.to_usize().unwrap_or(0);
                 if count <= self.threshold {
                     // Apply Good-Turing correction for low counts
-                    *elem = *elem + F::from(0.5).unwrap();
+                    *elem = *elem + F::from(0.5).expect("operation should succeed");
                 }
             }
         }
@@ -107,7 +107,7 @@ impl<F: Float> Smoothing<F> for GoodTuringSmoothing<F> {
     }
 
     fn alpha(&self) -> F {
-        F::from(0.5).unwrap() // Default for Good-Turing
+        F::from(0.5).expect("operation should succeed") // Default for Good-Turing
     }
 }
 
@@ -133,7 +133,8 @@ impl<F: Float> Smoothing<F> for WittenBellSmoothing<F> {
         for (i, mut row) in smoothed.rows_mut().into_iter().enumerate() {
             let total = total_counts[i];
             let vocab_size = row.iter().filter(|&&x| x > F::zero()).count();
-            let lambda = F::from(vocab_size).unwrap() / (total + F::from(vocab_size).unwrap());
+            let lambda = F::from(vocab_size).expect("operation should succeed")
+                / (total + F::from(vocab_size).expect("operation should succeed"));
 
             for elem in row.iter_mut() {
                 *elem = *elem + lambda;
@@ -144,7 +145,7 @@ impl<F: Float> Smoothing<F> for WittenBellSmoothing<F> {
     }
 
     fn alpha(&self) -> F {
-        F::from(0.1).unwrap() // Default estimate
+        F::from(0.1).expect("operation should succeed") // Default estimate
     }
 }
 
@@ -154,9 +155,9 @@ pub fn create_smoother<F: Float + ScalarOperand + 'static>(
 ) -> Box<dyn Smoothing<F>> {
     match method {
         SmoothingMethod::Laplace => Box::new(LaplaceSmoothing::new(F::one())),
-        SmoothingMethod::Lidstone(lambda) => {
-            Box::new(LidstoneSmoothing::new(F::from(lambda).unwrap()))
-        }
+        SmoothingMethod::Lidstone(lambda) => Box::new(LidstoneSmoothing::new(
+            F::from(lambda).expect("operation should succeed"),
+        )),
         SmoothingMethod::GoodTuring => Box::new(GoodTuringSmoothing::new(5)),
         SmoothingMethod::WittenBell => Box::new(WittenBellSmoothing::new()),
     }
@@ -164,7 +165,7 @@ pub fn create_smoother<F: Float + ScalarOperand + 'static>(
 
 /// Enhanced logarithm function with better numerical stability
 pub fn enhanced_log<F: Float>(x: F) -> F {
-    let min_val = F::from(1e-15).unwrap();
+    let min_val = F::from(1e-15).expect("operation should succeed");
     let max_x = F::max(x, min_val);
     max_x.ln()
 }
@@ -226,10 +227,10 @@ pub mod numerical_stability {
 
     /// Numerically stable computation of log(1 + exp(x))
     pub fn log1p_exp<F: Float>(x: F) -> F {
-        if x > F::from(30.0).unwrap() {
+        if x > F::from(30.0).expect("operation should succeed") {
             // For large x, log(1 + exp(x)) ≈ x
             x
-        } else if x < F::from(-30.0).unwrap() {
+        } else if x < F::from(-30.0).expect("operation should succeed") {
             // For very negative x, log(1 + exp(x)) ≈ exp(x) ≈ 0
             x.exp()
         } else {
@@ -247,19 +248,21 @@ pub mod numerical_stability {
         if n < 20 {
             // Direct computation for small values
             (2..=n)
-                .map(|i| F::from(i).unwrap().ln())
+                .map(|i| F::from(i).expect("operation should succeed").ln())
                 .fold(F::zero(), |acc, x| acc + x)
         } else {
             // Stirling's approximation: log(n!) ≈ n*log(n) - n + 0.5*log(2πn)
-            let n_f = F::from(n).unwrap();
-            let pi = F::from(std::f64::consts::PI).unwrap();
-            n_f * n_f.ln() - n_f + F::from(0.5).unwrap() * (F::from(2.0).unwrap() * pi * n_f).ln()
+            let n_f = F::from(n).expect("operation should succeed");
+            let pi = F::from(std::f64::consts::PI).expect("operation should succeed");
+            n_f * n_f.ln() - n_f
+                + F::from(0.5).expect("operation should succeed")
+                    * (F::from(2.0).expect("operation should succeed") * pi * n_f).ln()
         }
     }
 
     /// Safe computation of log probability with underflow protection
     pub fn safe_log_prob<F: Float>(prob: F) -> F {
-        let min_prob = F::from(1e-300).unwrap(); // Prevent complete underflow
+        let min_prob = F::from(1e-300).expect("operation should succeed"); // Prevent complete underflow
         let safe_prob = F::max(prob, min_prob);
         safe_prob.ln()
     }
@@ -268,10 +271,10 @@ pub mod numerical_stability {
     pub fn log_multiply<F: Float>(a: F, b: F) -> F {
         // Check for overflow potential
         let sum = a + b;
-        if sum > F::from(700.0).unwrap() {
+        if sum > F::from(700.0).expect("operation should succeed") {
             // Potential overflow, scale down
-            F::from(700.0).unwrap()
-        } else if sum < F::from(-700.0).unwrap() {
+            F::from(700.0).expect("operation should succeed")
+        } else if sum < F::from(-700.0).expect("operation should succeed") {
             // Potential underflow
             F::neg_infinity()
         } else {
@@ -281,9 +284,11 @@ pub mod numerical_stability {
 
     /// Compute log of Gaussian probability density function with numerical stability
     pub fn log_gaussian_pdf<F: Float>(x: F, mean: F, variance: F) -> F {
-        let two_pi = F::from(2.0 * std::f64::consts::PI).unwrap();
-        let log_norm_constant = -F::from(0.5).unwrap() * (two_pi * variance).ln();
-        let log_exp_term = -F::from(0.5).unwrap() * (x - mean).powi(2) / variance;
+        let two_pi = F::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
+        let log_norm_constant =
+            -F::from(0.5).expect("operation should succeed") * (two_pi * variance).ln();
+        let log_exp_term =
+            -F::from(0.5).expect("operation should succeed") * (x - mean).powi(2) / variance;
         log_norm_constant + log_exp_term
     }
 
@@ -299,7 +304,9 @@ pub mod numerical_stability {
         for (i, &count) in counts.iter().enumerate() {
             if count > 0 {
                 log_prob = log_prob - log_factorial::<F>(count);
-                log_prob = log_prob + F::from(count).unwrap() * safe_log_prob(probabilities[i]);
+                log_prob = log_prob
+                    + F::from(count).expect("operation should succeed")
+                        * safe_log_prob(probabilities[i]);
             }
         }
 

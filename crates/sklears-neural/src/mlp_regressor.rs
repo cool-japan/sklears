@@ -419,8 +419,11 @@ impl MLPRegressor<sklears_core::traits::Untrained> {
         }
 
         // Output layer (linear activation for regression)
-        let z_out =
-            activations.last().unwrap().dot(weights.last().unwrap()) + biases.last().unwrap();
+        let z_out = activations
+            .last()
+            .expect("empty collection")
+            .dot(weights.last().expect("empty collection"))
+            + biases.last().expect("empty collection");
         let y_pred = z_out; // Linear activation (identity)
         activations.push(y_pred.clone());
 
@@ -520,8 +523,8 @@ impl Predict<Array2<f64>, Array2<f64>> for MLPRegressor<TrainedMLPRegressor> {
         }
 
         // Output layer (linear)
-        let z_out =
-            activations.dot(self.state.weights.last().unwrap()) + self.state.biases.last().unwrap();
+        let z_out = activations.dot(self.state.weights.last().expect("empty collection"))
+            + self.state.biases.last().expect("empty collection");
 
         Ok(z_out)
     }
@@ -589,8 +592,8 @@ mod tests {
             .max_iter(100)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = trained_mlp.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (4, 1));
 
@@ -610,8 +613,8 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = trained_mlp.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (4, 2));
 
@@ -649,8 +652,8 @@ mod tests {
             .learning_rate_init(0.01)
             .random_state(42);
 
-        let trained_mlp = mlp.fit(&x, &y).unwrap();
-        let predictions = trained_mlp.predict(&x).unwrap();
+        let trained_mlp = mlp.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = trained_mlp.predict(&x).expect("prediction should succeed");
 
         // The network should be able to learn this simple linear function reasonably well
         // We don't expect perfect fit, but should be better than random
@@ -683,8 +686,8 @@ mod tests {
             .max_iter(50)
             .random_state(42)
             .verbose(false);
-        let trained1 = mlp1.fit(&x, &y).unwrap();
-        let pred1 = trained1.predict(&x).unwrap();
+        let trained1 = mlp1.fit(&x, &y).expect("model fitting should succeed");
+        let pred1 = trained1.predict(&x).expect("prediction should succeed");
 
         // Train second model with same random_state
         let mlp2 = MLPRegressor::new()
@@ -692,8 +695,8 @@ mod tests {
             .max_iter(50)
             .random_state(42)
             .verbose(false);
-        let trained2 = mlp2.fit(&x, &y).unwrap();
-        let pred2 = trained2.predict(&x).unwrap();
+        let trained2 = mlp2.fit(&x, &y).expect("model fitting should succeed");
+        let pred2 = trained2.predict(&x).expect("prediction should succeed");
 
         // Predictions should be identical
         assert_eq!(pred1.dim(), pred2.dim());
@@ -711,8 +714,8 @@ mod tests {
             .max_iter(50)
             .random_state(123)
             .verbose(false);
-        let trained3 = mlp3.fit(&x, &y).unwrap();
-        let pred3 = trained3.predict(&x).unwrap();
+        let trained3 = mlp3.fit(&x, &y).expect("model fitting should succeed");
+        let pred3 = trained3.predict(&x).expect("prediction should succeed");
 
         // Predictions should be different from the first two
         let mut differences = 0;

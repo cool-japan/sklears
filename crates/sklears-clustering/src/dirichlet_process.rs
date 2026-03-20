@@ -9,7 +9,7 @@
 //! and variational inference for efficient computation.
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Distribution, Random, Rng};
+use scirs2_core::random::{Distribution, Random, RngExt};
 use scirs2_core::StandardNormal;
 use sklears_core::{
     error::{Result, SklearsError},
@@ -236,7 +236,8 @@ impl<State> DirichletProcessMixture<State> {
 
             // Add small random noise
             for i in 0..n_features {
-                mean[i] += rng.sample::<StandardNormal, f64>(StandardNormal) * 0.1;
+                let noise: f64 = rng.sample(StandardNormal);
+                mean[i] += noise * 0.1;
             }
             means.row_mut(k).assign(&mean);
         }
@@ -362,7 +363,7 @@ impl<State> DirichletProcessMixture<State> {
 
         // Update covariances
         let mut covariances = Vec::with_capacity(n_components);
-        let means_ref = self.means_.as_ref().unwrap();
+        let means_ref = self.means_.as_ref().expect("operation should succeed");
 
         for k in 0..n_components {
             let mut cov = Array2::zeros((n_features, n_features));
@@ -727,7 +728,7 @@ mod tests {
                 5.0, 5.2, 5.1, 5.2,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y: Array1<usize> = Array::zeros(10);
 
@@ -738,21 +739,27 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let fitted_model = model.fit(&x.view(), &Array1::zeros(0).view()).unwrap();
+        let fitted_model = model
+            .fit(&x.view(), &Array1::zeros(0).view())
+            .expect("operation should succeed");
 
         // Check that the model converged
         assert!(fitted_model.converged());
 
         // Check that we have reasonable number of components
-        let effective_comps = fitted_model.effective_components().unwrap();
+        let effective_comps = fitted_model
+            .effective_components()
+            .expect("operation should succeed");
         assert!(effective_comps >= 1 && effective_comps <= 10);
 
         // Test prediction
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("operation should succeed");
         assert_eq!(predictions.len(), 10);
 
         // Test probability prediction
-        let probabilities = fitted_model.predict_proba(&x).unwrap();
+        let probabilities = fitted_model
+            .predict_proba(&x)
+            .expect("operation should succeed");
         assert_eq!(probabilities.shape(), &[10, 10]);
 
         // Check that probabilities sum to 1 for each sample
@@ -768,7 +775,7 @@ mod tests {
             (6, 2),
             vec![0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 5.0, 5.0, 5.1, 5.1, 5.2, 5.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y: Array1<usize> = Array::zeros(6);
 
@@ -777,8 +784,12 @@ mod tests {
             .max_components(10)
             .random_state(42);
 
-        let fitted_model = model.fit(&x.view(), &Array1::zeros(0).view()).unwrap();
-        let effective_comps = fitted_model.effective_components().unwrap();
+        let fitted_model = model
+            .fit(&x.view(), &Array1::zeros(0).view())
+            .expect("operation should succeed");
+        let effective_comps = fitted_model
+            .effective_components()
+            .expect("operation should succeed");
 
         // With clear separation and low alpha, should have few effective components
         // Note: Algorithm may find more components due to initialization or convergence

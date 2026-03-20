@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{thread_rng, RngExt, SeedableRng};
 use scirs2_linalg::compat::{eigh, ArrayLinalgExt, UPLO};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -224,7 +224,9 @@ impl Fit<Array2<f64>, ()> for ICA<Untrained> {
         }
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x
+            .mean_axis(Axis(0))
+            .expect("array should have elements for mean computation");
         let x_centered = x - &mean;
 
         // Whiten the data if requested
@@ -332,7 +334,11 @@ impl ICA<Untrained> {
 
         // Sort eigenvalues in descending order
         let mut sorted_indices: Vec<usize> = (0..n_features).collect();
-        sorted_indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        sorted_indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         // Build whitening matrix
         let mut whitening = Array2::zeros((n_features, n_features));
@@ -356,7 +362,7 @@ impl ICA<Untrained> {
         &self,
         x: &Array2<f64>,
         n_components: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, usize)> {
         let (n_samples, n_features) = x.dim();
 
@@ -364,7 +370,7 @@ impl ICA<Untrained> {
         let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
-                w[[i, j]] = rng.gen::<f64>() - 0.5;
+                w[[i, j]] = rng.random::<f64>() - 0.5;
             }
         }
 
@@ -418,7 +424,7 @@ impl ICA<Untrained> {
         &self,
         x: &Array2<f64>,
         n_components: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, usize)> {
         let (n_samples, n_features) = x.dim();
         let mut components = Array2::zeros((n_components, n_features));
@@ -428,7 +434,7 @@ impl ICA<Untrained> {
             // Initialize weight vector randomly
             let mut w = Array1::<f64>::zeros(n_features);
             for i in 0..n_features {
-                w[i] = rng.gen::<f64>() - 0.5;
+                w[i] = rng.random::<f64>() - 0.5;
             }
 
             // Normalize
@@ -601,7 +607,7 @@ impl ICA<Untrained> {
         &self,
         x: &Array2<f64>,
         n_components: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, usize)> {
         let (n_samples, n_features) = x.dim();
 
@@ -609,7 +615,7 @@ impl ICA<Untrained> {
         let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
-                w[[i, j]] = rng.gen::<f64>() - 0.5;
+                w[[i, j]] = rng.random::<f64>() - 0.5;
             }
         }
 
@@ -685,7 +691,7 @@ impl ICA<Untrained> {
         &self,
         x: &Array2<f64>,
         n_components: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, usize)> {
         let (n_samples, n_features) = x.dim();
 
@@ -693,7 +699,7 @@ impl ICA<Untrained> {
         let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
-                w[[i, j]] = rng.gen::<f64>() - 0.5;
+                w[[i, j]] = rng.random::<f64>() - 0.5;
             }
         }
 
@@ -721,8 +727,14 @@ impl ICA<Untrained> {
                     let mut grad_sum = 0.0;
 
                     // First term: E[g'(y)]δ_ij * x_j
-                    let mean_g_deriv = g_y_deriv.row(i).mean().unwrap();
-                    grad_sum += mean_g_deriv * x.column(j).mean().unwrap();
+                    let mean_g_deriv = g_y_deriv
+                        .row(i)
+                        .mean()
+                        .expect("array should have elements for mean computation");
+                    grad_sum += mean_g_deriv
+                        * x.column(j)
+                            .mean()
+                            .expect("array should have elements for mean computation");
 
                     // Second term: -E[g(y_i) * y_k] * w_kj
                     for k in 0..n_components {
@@ -772,7 +784,7 @@ impl ICA<Untrained> {
         &self,
         x: &Array2<f64>,
         n_components: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, usize)> {
         let (n_samples, n_features) = x.dim();
         let requested_window = self.temporal_window.unwrap_or(3);
@@ -789,7 +801,7 @@ impl ICA<Untrained> {
         let mut w = Array2::<f64>::zeros((n_components, n_features));
         for i in 0..n_components {
             for j in 0..n_features {
-                w[[i, j]] = rng.gen::<f64>() - 0.5;
+                w[[i, j]] = rng.random::<f64>() - 0.5;
             }
         }
 
@@ -886,7 +898,7 @@ impl ICA<Untrained> {
         &self,
         x: &Array2<f64>,
         n_components: usize,
-        rng: &mut impl Rng,
+        rng: &mut impl RngExt,
     ) -> Result<(Array2<f64>, usize)> {
         let (n_samples, n_features) = x.dim();
 
@@ -915,7 +927,7 @@ impl ICA<Untrained> {
         for i in 0..n_components {
             for j in 0..n_features {
                 // Start with constraint matrix and add small random perturbation
-                w[[i, j]] = constraint_matrix[[i, j]] + 0.1 * (rng.gen::<f64>() - 0.5);
+                w[[i, j]] = constraint_matrix[[i, j]] + 0.1 * (rng.random::<f64>() - 0.5);
             }
         }
 
@@ -1086,8 +1098,10 @@ mod tests {
 
         let ica = ICA::new().n_components(2).random_state(42);
 
-        let trained_ica = ica.fit(&x, &()).unwrap();
-        let x_transformed = trained_ica.transform(&x).unwrap();
+        let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+        let x_transformed = trained_ica
+            .transform(&x)
+            .expect("transformation should succeed");
 
         assert_eq!(x_transformed.dim(), (5, 2));
         assert_eq!(trained_ica.state.n_features_in, 2);
@@ -1100,9 +1114,13 @@ mod tests {
 
         let ica = ICA::new().n_components(2).random_state(123);
 
-        let trained_ica = ica.fit(&x, &()).unwrap();
-        let x_transformed = trained_ica.transform(&x).unwrap();
-        let x_reconstructed = trained_ica.inverse_transform(&x_transformed).unwrap();
+        let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+        let x_transformed = trained_ica
+            .transform(&x)
+            .expect("transformation should succeed");
+        let x_reconstructed = trained_ica
+            .inverse_transform(&x_transformed)
+            .expect("operation should succeed");
 
         assert_eq!(x_reconstructed.dim(), x.dim());
 
@@ -1132,8 +1150,10 @@ mod tests {
                 .algorithm(algorithm)
                 .random_state(42);
 
-            let trained_ica = ica.fit(&x, &()).unwrap();
-            let x_transformed = trained_ica.transform(&x).unwrap();
+            let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+            let x_transformed = trained_ica
+                .transform(&x)
+                .expect("transformation should succeed");
 
             assert_eq!(x_transformed.dim(), (5, 3));
             assert_eq!(trained_ica.state.n_components, 3);
@@ -1160,8 +1180,10 @@ mod tests {
         for fun in functions {
             let ica = ICA::new().n_components(2).fun(fun).random_state(42);
 
-            let trained_ica = ica.fit(&x, &()).unwrap();
-            let x_transformed = trained_ica.transform(&x).unwrap();
+            let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+            let x_transformed = trained_ica
+                .transform(&x)
+                .expect("transformation should succeed");
 
             assert_eq!(x_transformed.dim(), (10, 2));
         }
@@ -1187,13 +1209,17 @@ mod tests {
         // Test with whitening
         let ica_whiten = ICA::new().n_components(2).whiten(true).random_state(42);
 
-        let trained_whiten = ica_whiten.fit(&x, &()).unwrap();
+        let trained_whiten = ica_whiten
+            .fit(&x, &())
+            .expect("model fitting should succeed");
         assert!(trained_whiten.state.whitening.is_some());
 
         // Test without whitening
         let ica_no_whiten = ICA::new().n_components(2).whiten(false).random_state(42);
 
-        let trained_no_whiten = ica_no_whiten.fit(&x, &()).unwrap();
+        let trained_no_whiten = ica_no_whiten
+            .fit(&x, &())
+            .expect("model fitting should succeed");
         assert!(trained_no_whiten.state.whitening.is_none());
     }
 
@@ -1215,8 +1241,10 @@ mod tests {
             .max_iter(50) // Reduced for faster test
             .random_state(42);
 
-        let trained_ica = ica.fit(&x, &()).unwrap();
-        let x_transformed = trained_ica.transform(&x).unwrap();
+        let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+        let x_transformed = trained_ica
+            .transform(&x)
+            .expect("transformation should succeed");
 
         assert_eq!(x_transformed.dim(), (6, 2));
         assert_eq!(trained_ica.state.n_components, 2);
@@ -1239,8 +1267,10 @@ mod tests {
             .max_iter(30) // Reduced for faster test
             .random_state(123);
 
-        let trained_ica = ica.fit(&x, &()).unwrap();
-        let x_transformed = trained_ica.transform(&x).unwrap();
+        let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+        let x_transformed = trained_ica
+            .transform(&x)
+            .expect("transformation should succeed");
 
         assert_eq!(x_transformed.dim(), (5, 2));
         assert_eq!(trained_ica.state.n_components, 2);
@@ -1273,8 +1303,10 @@ mod tests {
             .max_iter(20) // Reduced for faster test
             .random_state(456);
 
-        let trained_ica = ica.fit(&x, &()).unwrap();
-        let x_transformed = trained_ica.transform(&x).unwrap();
+        let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+        let x_transformed = trained_ica
+            .transform(&x)
+            .expect("transformation should succeed");
 
         assert_eq!(x_transformed.dim(), (8, 2));
         assert_eq!(trained_ica.state.n_components, 2);
@@ -1338,8 +1370,10 @@ mod tests {
             .max_iter(50)
             .random_state(42);
 
-        let trained_ica = ica.fit(&x, &()).unwrap();
-        let x_transformed = trained_ica.transform(&x).unwrap();
+        let trained_ica = ica.fit(&x, &()).expect("model fitting should succeed");
+        let x_transformed = trained_ica
+            .transform(&x)
+            .expect("transformation should succeed");
 
         assert_eq!(x_transformed.dim(), (5, 2));
         assert_eq!(trained_ica.state.n_components, 2);
@@ -1405,7 +1439,10 @@ mod tests {
         assert_eq!(ica.constraint_tol, 1e-5);
         assert!(ica.constraint_matrix.is_some());
 
-        let stored_matrix = ica.constraint_matrix.as_ref().unwrap();
+        let stored_matrix = ica
+            .constraint_matrix
+            .as_ref()
+            .expect("operation should succeed");
         assert_eq!(stored_matrix.dim(), (2, 2));
     }
 }

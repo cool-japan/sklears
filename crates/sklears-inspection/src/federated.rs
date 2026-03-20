@@ -261,7 +261,7 @@ impl FederatedExplainer {
 
         // Average local explanations
         for exp in local_explanations {
-            let mean_exp = exp.mean_axis(Axis(0)).unwrap();
+            let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
         aggregated /= (local_explanations.len() as Float);
@@ -293,7 +293,7 @@ impl FederatedExplainer {
         // In real implementation, this would use secure multi-party computation
         // For now, we simulate secure averaging
         for exp in local_explanations {
-            let mean_exp = exp.mean_axis(Axis(0)).unwrap();
+            let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
         aggregated /= (local_explanations.len() as Float);
@@ -316,7 +316,7 @@ impl FederatedExplainer {
         let scale = 1.0 / epsilon;
 
         for exp in local_explanations {
-            let mean_exp = exp.mean_axis(Axis(0)).unwrap();
+            let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
 
             // Add Laplace noise to each client's contribution
             let mut noisy_exp = mean_exp.clone();
@@ -349,7 +349,7 @@ impl FederatedExplainer {
 
         // Simulate: "encrypt", aggregate, "decrypt"
         for exp in local_explanations {
-            let mean_exp = exp.mean_axis(Axis(0)).unwrap();
+            let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
         aggregated /= (local_explanations.len() as Float);
@@ -363,7 +363,7 @@ impl FederatedExplainer {
         let mut aggregated = Array1::zeros(n_features);
 
         for exp in local_explanations {
-            let mean_exp = exp.mean_axis(Axis(0)).unwrap();
+            let mean_exp = exp.mean_axis(Axis(0)).expect("operation should succeed");
             aggregated += &mean_exp;
         }
         aggregated /= (local_explanations.len() as Float);
@@ -495,16 +495,19 @@ mod tests {
             min_clients_for_aggregation: 2,
             ..Default::default()
         };
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
-        let local_exp1 = Array2::from_shape_vec((5, 3), vec![1.0; 15]).unwrap();
-        let local_exp2 = Array2::from_shape_vec((5, 3), vec![2.0; 15]).unwrap();
-        let local_exp3 = Array2::from_shape_vec((5, 3), vec![3.0; 15]).unwrap();
+        let local_exp1 =
+            Array2::from_shape_vec((5, 3), vec![1.0; 15]).expect("operation should succeed");
+        let local_exp2 =
+            Array2::from_shape_vec((5, 3), vec![2.0; 15]).expect("operation should succeed");
+        let local_exp3 =
+            Array2::from_shape_vec((5, 3), vec![3.0; 15]).expect("operation should succeed");
 
         let result = explainer.aggregate_explanations(&[local_exp1, local_exp2, local_exp3]);
         assert!(result.is_ok());
 
-        let explanation = result.unwrap();
+        let explanation = result.expect("operation should succeed");
         assert_eq!(explanation.feature_importance.len(), 3);
         assert_eq!(explanation.num_clients_contributed, 3);
         // Mean should be 2.0
@@ -519,15 +522,17 @@ mod tests {
             min_clients_for_aggregation: 2,
             ..Default::default()
         };
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
-        let local_exp1 = Array2::from_shape_vec((5, 3), vec![1.0; 15]).unwrap();
-        let local_exp2 = Array2::from_shape_vec((5, 3), vec![2.0; 15]).unwrap();
+        let local_exp1 =
+            Array2::from_shape_vec((5, 3), vec![1.0; 15]).expect("operation should succeed");
+        let local_exp2 =
+            Array2::from_shape_vec((5, 3), vec![2.0; 15]).expect("operation should succeed");
 
         let result = explainer.aggregate_explanations(&[local_exp1, local_exp2]);
         assert!(result.is_ok());
 
-        let explanation = result.unwrap();
+        let explanation = result.expect("operation should succeed");
         assert_eq!(explanation.privacy_budget_used, 1.0);
 
         // Result should be close to 1.5 but with Laplace noise added
@@ -550,10 +555,12 @@ mod tests {
             min_clients_for_aggregation: 3,
             ..Default::default()
         };
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
-        let local_exp1 = Array2::from_shape_vec((5, 3), vec![1.0; 15]).unwrap();
-        let local_exp2 = Array2::from_shape_vec((5, 3), vec![2.0; 15]).unwrap();
+        let local_exp1 =
+            Array2::from_shape_vec((5, 3), vec![1.0; 15]).expect("operation should succeed");
+        let local_exp2 =
+            Array2::from_shape_vec((5, 3), vec![2.0; 15]).expect("operation should succeed");
 
         let result = explainer.aggregate_explanations(&[local_exp1, local_exp2]);
         assert!(result.is_err());
@@ -562,10 +569,12 @@ mod tests {
     #[test]
     fn test_dimension_mismatch() {
         let config = FederatedConfig::default();
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
-        let local_exp1 = Array2::from_shape_vec((5, 3), vec![1.0; 15]).unwrap();
-        let local_exp2 = Array2::from_shape_vec((5, 4), vec![2.0; 20]).unwrap(); // Different dims
+        let local_exp1 =
+            Array2::from_shape_vec((5, 3), vec![1.0; 15]).expect("operation should succeed");
+        let local_exp2 =
+            Array2::from_shape_vec((5, 4), vec![2.0; 20]).expect("operation should succeed"); // Different dims
 
         let result = explainer.aggregate_explanations(&[local_exp1, local_exp2]);
         assert!(result.is_err());
@@ -574,18 +583,23 @@ mod tests {
     #[test]
     fn test_federated_shap() {
         let config = FederatedConfig::default();
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
-        let shap1 = Array2::from_shape_vec((10, 5), vec![0.1; 50]).unwrap();
-        let shap2 = Array2::from_shape_vec((10, 5), vec![0.2; 50]).unwrap();
-        let shap3 = Array2::from_shape_vec((10, 5), vec![0.3; 50]).unwrap();
-        let shap4 = Array2::from_shape_vec((10, 5), vec![0.15; 50]).unwrap();
-        let shap5 = Array2::from_shape_vec((10, 5), vec![0.25; 50]).unwrap();
+        let shap1 =
+            Array2::from_shape_vec((10, 5), vec![0.1; 50]).expect("operation should succeed");
+        let shap2 =
+            Array2::from_shape_vec((10, 5), vec![0.2; 50]).expect("operation should succeed");
+        let shap3 =
+            Array2::from_shape_vec((10, 5), vec![0.3; 50]).expect("operation should succeed");
+        let shap4 =
+            Array2::from_shape_vec((10, 5), vec![0.15; 50]).expect("operation should succeed");
+        let shap5 =
+            Array2::from_shape_vec((10, 5), vec![0.25; 50]).expect("operation should succeed");
 
         let result = explainer.federated_shap(&[shap1, shap2, shap3, shap4, shap5]);
         assert!(result.is_ok());
 
-        let explanation = result.unwrap();
+        let explanation = result.expect("operation should succeed");
         assert_eq!(explanation.num_clients_contributed, 5);
     }
 
@@ -595,7 +609,7 @@ mod tests {
             privacy_mechanism: PrivacyMechanism::None,
             ..Default::default()
         };
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
         let imp1 = Array1::from_vec(vec![0.1, 0.2, 0.3, 0.4, 0.5]);
         let imp2 = Array1::from_vec(vec![0.2, 0.3, 0.4, 0.5, 0.6]);
@@ -606,7 +620,7 @@ mod tests {
         let result = explainer.federated_feature_importance(&[imp1, imp2, imp3, imp4, imp5]);
         assert!(result.is_ok());
 
-        let explanation = result.unwrap();
+        let explanation = result.expect("operation should succeed");
         assert_eq!(explanation.feature_importance.len(), 5);
     }
 
@@ -616,7 +630,7 @@ mod tests {
             privacy_mechanism: PrivacyMechanism::DifferentialPrivacy { epsilon: 2.0 },
             ..Default::default()
         };
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
         let remaining = explainer.remaining_privacy_budget();
         assert_eq!(remaining, 2.0);
@@ -630,7 +644,7 @@ mod tests {
             min_clients_for_aggregation: 2,
             ..Default::default()
         };
-        let explainer = FederatedExplainer::new(config).unwrap();
+        let explainer = FederatedExplainer::new(config).expect("operation should succeed");
 
         let local_exp1 = Array2::from_shape_vec(
             (5, 3),
@@ -638,18 +652,18 @@ mod tests {
                 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let local_exp2 = Array2::from_shape_vec(
             (5, 3),
             vec![
                 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let result = explainer
             .aggregate_explanations(&[local_exp1, local_exp2])
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.aggregation_stats.mean > 0.0);
         assert!(result.aggregation_stats.std >= 0.0);

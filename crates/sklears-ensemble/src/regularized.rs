@@ -955,14 +955,20 @@ mod tests {
 
         let mut dropout_ensemble = DropoutEnsemble::new(config);
 
-        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let X = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let y = vec![1.0, 2.0, 3.0];
 
-        dropout_ensemble.fit(&X, &y).unwrap();
+        dropout_ensemble
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
 
-        let X_test = Array2::from_shape_vec((1, 2), vec![7.0, 8.0]).unwrap();
+        let X_test = Array2::from_shape_vec((1, 2), vec![7.0, 8.0])
+            .expect("shape and data length should match");
 
-        let predictions = dropout_ensemble.predict(&X_test).unwrap();
+        let predictions = dropout_ensemble
+            .predict(&X_test)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 1);
     }
 

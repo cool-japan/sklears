@@ -38,11 +38,11 @@ impl<A: GlobalAlloc> TrackingAllocator<A> {
     }
 
     pub fn stats(&self) -> AllocationStats {
-        self.stats.read().unwrap().clone()
+        self.stats.read().expect("operation should succeed").clone()
     }
 
     pub fn reset_stats(&self) {
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().expect("operation should succeed");
         *stats = AllocationStats::default();
     }
 }
@@ -51,7 +51,7 @@ unsafe impl<A: GlobalAlloc> GlobalAlloc for TrackingAllocator<A> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = self.inner.alloc(layout);
         if !ptr.is_null() {
-            let mut stats = self.stats.write().unwrap();
+            let mut stats = self.stats.write().expect("operation should succeed");
             stats.total_allocated += layout.size() as u64;
             stats.current_allocated += layout.size() as u64;
             stats.allocation_count += 1;
@@ -64,7 +64,7 @@ unsafe impl<A: GlobalAlloc> GlobalAlloc for TrackingAllocator<A> {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         self.inner.dealloc(ptr, layout);
-        let mut stats = self.stats.write().unwrap();
+        let mut stats = self.stats.write().expect("operation should succeed");
         stats.total_deallocated += layout.size() as u64;
         stats.current_allocated = stats.current_allocated.saturating_sub(layout.size() as u64);
         stats.deallocation_count += 1;
@@ -169,7 +169,7 @@ impl LeakDetector {
             return;
         }
 
-        let mut allocations = self.allocations.lock().unwrap();
+        let mut allocations = self.allocations.lock().expect("operation should succeed");
         allocations.insert(
             ptr as usize,
             AllocationInfo {
@@ -185,17 +185,17 @@ impl LeakDetector {
             return;
         }
 
-        let mut allocations = self.allocations.lock().unwrap();
+        let mut allocations = self.allocations.lock().expect("operation should succeed");
         allocations.remove(&(ptr as usize));
     }
 
     pub fn check_leaks(&self) -> Vec<AllocationInfo> {
-        let allocations = self.allocations.lock().unwrap();
+        let allocations = self.allocations.lock().expect("operation should succeed");
         allocations.values().cloned().collect()
     }
 
     pub fn check_leaks_older_than(&self, duration: Duration) -> Vec<AllocationInfo> {
-        let allocations = self.allocations.lock().unwrap();
+        let allocations = self.allocations.lock().expect("operation should succeed");
         let now = Instant::now();
         allocations
             .values()
@@ -205,12 +205,12 @@ impl LeakDetector {
     }
 
     pub fn total_leaked_bytes(&self) -> usize {
-        let allocations = self.allocations.lock().unwrap();
+        let allocations = self.allocations.lock().expect("operation should succeed");
         allocations.values().map(|info| info.size).sum()
     }
 
     pub fn clear(&self) {
-        let mut allocations = self.allocations.lock().unwrap();
+        let mut allocations = self.allocations.lock().expect("operation should succeed");
         allocations.clear();
     }
 }
@@ -373,13 +373,13 @@ impl<T> GcHelper<T> {
 
     pub fn get_weak_ref(&self) -> std::sync::Weak<T> {
         let weak = Arc::downgrade(&self.data);
-        let mut refs = self.weak_refs.lock().unwrap();
+        let mut refs = self.weak_refs.lock().expect("operation should succeed");
         refs.push(weak.clone());
         weak
     }
 
     pub fn collect_garbage(&self) {
-        let mut refs = self.weak_refs.lock().unwrap();
+        let mut refs = self.weak_refs.lock().expect("operation should succeed");
         refs.retain(|weak_ref| weak_ref.upgrade().is_some());
     }
 
@@ -388,7 +388,7 @@ impl<T> GcHelper<T> {
     }
 
     pub fn weak_ref_count(&self) -> usize {
-        let refs = self.weak_refs.lock().unwrap();
+        let refs = self.weak_refs.lock().expect("operation should succeed");
         refs.len()
     }
 }
@@ -941,14 +941,14 @@ mod tests {
         let mut pool: MemoryPool<u64> = MemoryPool::new(10);
 
         {
-            let item1 = pool.allocate().unwrap();
+            let item1 = pool.allocate().expect("operation should succeed");
             *item1 = 42;
             assert_eq!(*item1, 42);
         }
         assert_eq!(pool.used(), 1);
 
         {
-            let item2 = pool.allocate().unwrap();
+            let item2 = pool.allocate().expect("operation should succeed");
             *item2 = 84;
             assert_eq!(*item2, 84);
         }
@@ -1018,14 +1018,14 @@ mod tests {
         safe_vec.push(3);
 
         // Valid access
-        assert_eq!(*safe_vec.get(0).unwrap(), 1);
-        assert_eq!(*safe_vec.get(2).unwrap(), 3);
+        assert_eq!(*safe_vec.get(0).expect("operation should succeed"), 1);
+        assert_eq!(*safe_vec.get(2).expect("operation should succeed"), 3);
 
         // Invalid access
         assert!(safe_vec.get(5).is_err());
 
         // Safe slice
-        let slice = safe_vec.safe_slice(1, 3).unwrap();
+        let slice = safe_vec.safe_slice(1, 3).expect("operation should succeed");
         assert_eq!(slice, &[2, 3]);
 
         // Invalid slice
@@ -1038,17 +1038,17 @@ mod tests {
         let mut buffer = SafeBuffer::new(5, 0);
 
         // Write and read
-        buffer.write(0, 42).unwrap();
-        buffer.write(1, 84).unwrap();
+        buffer.write(0, 42).expect("operation should succeed");
+        buffer.write(1, 84).expect("operation should succeed");
 
-        assert_eq!(*buffer.read(0).unwrap(), 42);
-        assert_eq!(*buffer.read(1).unwrap(), 84);
+        assert_eq!(*buffer.read(0).expect("operation should succeed"), 42);
+        assert_eq!(*buffer.read(1).expect("operation should succeed"), 84);
         assert_eq!(buffer.size(), 2);
 
         // Append
-        buffer.append(100).unwrap();
-        buffer.append(200).unwrap();
-        buffer.append(300).unwrap();
+        buffer.append(100).expect("operation should succeed");
+        buffer.append(200).expect("operation should succeed");
+        buffer.append(300).expect("operation should succeed");
 
         assert!(buffer.is_full());
         assert!(buffer.append(400).is_err()); // Should fail - buffer full
@@ -1069,12 +1069,12 @@ mod tests {
 
         // Read value
         {
-            let guard = ptr.try_read().unwrap();
+            let guard = ptr.try_read().expect("operation should succeed");
             assert_eq!(*guard, Some(42));
         }
 
         // Take value
-        let value = ptr.take().unwrap();
+        let value = ptr.take().expect("operation should succeed");
         assert_eq!(value, Some(42));
         assert!(!ptr.is_valid());
     }
@@ -1103,15 +1103,17 @@ mod tests {
 
         {
             let _guard = StackGuard::new(|| {
-                *cleanup_called_clone.lock().unwrap() = true;
+                *cleanup_called_clone
+                    .lock()
+                    .expect("operation should succeed") = true;
             });
 
             // Cleanup not called yet
-            assert!(!*cleanup_called.lock().unwrap());
+            assert!(!*cleanup_called.lock().expect("operation should succeed"));
         } // Guard drops here
 
         // Cleanup should be called now
-        assert!(*cleanup_called.lock().unwrap());
+        assert!(*cleanup_called.lock().expect("operation should succeed"));
     }
 
     #[test]
@@ -1145,14 +1147,16 @@ mod tests {
 
         {
             defer!({
-                *cleanup_called_clone.lock().unwrap() = true;
+                *cleanup_called_clone
+                    .lock()
+                    .expect("operation should succeed") = true;
             });
 
             // Cleanup not called yet
-            assert!(!*cleanup_called.lock().unwrap());
+            assert!(!*cleanup_called.lock().expect("operation should succeed"));
         } // Deferred cleanup happens here
 
         // Cleanup should be called now
-        assert!(*cleanup_called.lock().unwrap());
+        assert!(*cleanup_called.lock().expect("operation should succeed"));
     }
 }

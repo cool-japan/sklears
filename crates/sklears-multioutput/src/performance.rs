@@ -681,8 +681,12 @@ mod tests {
 
         let model = WarmStartRegressor::new().max_iter(100).learning_rate(0.1);
 
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
-        let predictions = trained.predict(&X.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
+        let predictions = trained
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(predictions.dim(), (3, 2));
         assert!(trained.n_iter() > 0);
@@ -696,13 +700,25 @@ mod tests {
 
         let model = WarmStartRegressor::new().max_iter(10).learning_rate(0.1);
 
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
         let initial_iter = trained.n_iter();
-        let initial_loss = trained.loss_history().last().copied().unwrap();
+        let initial_loss = trained
+            .loss_history()
+            .last()
+            .copied()
+            .expect("collection should not be empty");
 
         // Continue training
-        let continued = trained.continue_training(&X.view(), &y.view(), 20).unwrap();
-        let final_loss = continued.loss_history().last().copied().unwrap();
+        let continued = trained
+            .continue_training(&X.view(), &y.view(), 20)
+            .expect("operation should succeed");
+        let final_loss = continued
+            .loss_history()
+            .last()
+            .copied()
+            .expect("collection should not be empty");
 
         assert!(continued.n_iter() > initial_iter);
         // Loss should generally decrease (or stay similar)
@@ -726,7 +742,9 @@ mod tests {
             .early_stopping(es_config)
             .learning_rate(0.1);
 
-        let trained = model.fit(&X.view(), &y.view()).unwrap();
+        let trained = model
+            .fit(&X.view(), &y.view())
+            .expect("model fitting should succeed");
 
         // Should stop early due to convergence
         assert!(trained.n_iter() < 1000);
@@ -745,7 +763,7 @@ mod tests {
 
         // Store and retrieve
         cache.put(&X.view(), pred.clone());
-        let cached = cache.get(&X.view()).unwrap();
+        let cached = cache.get(&X.view()).expect("index should be valid");
 
         assert_eq!(cached.dim(), pred.dim());
         assert_eq!(cache.stats().0, 1); // 1 hit

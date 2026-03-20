@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -238,7 +238,7 @@ impl AdaptiveBandwidthRBFSampler<Untrained> {
         }
 
         // Find median
-        distances_sq.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        distances_sq.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let median_dist_sq = distances_sq[distances_sq.len() / 2];
 
         // gamma = 1 / (2 * sigma²), where sigma² ≈ median_distance²
@@ -261,7 +261,7 @@ impl AdaptiveBandwidthRBFSampler<Untrained> {
         let (n_samples, n_features) = x.dim();
 
         // Compute standard deviations for each dimension
-        let means = x.mean_axis(Axis(0)).unwrap();
+        let means = x.mean_axis(Axis(0)).expect("operation should succeed");
         let mut stds = Array1::zeros(n_features);
 
         for j in 0..n_features {
@@ -272,11 +272,11 @@ impl AdaptiveBandwidthRBFSampler<Untrained> {
                     diff * diff
                 })
                 .mean()
-                .unwrap();
+                .expect("operation should succeed");
             stds[j] = var.sqrt();
         }
 
-        let avg_std = stds.mean().unwrap();
+        let avg_std = stds.mean().expect("operation should succeed");
         let h = 1.06 * avg_std * (n_samples as Float).powf(-1.0 / 5.0);
 
         Ok(1.0 / (2.0 * h * h))
@@ -557,7 +557,7 @@ impl Fit<Array2<Float>, ()> for AdaptiveBandwidthRBFSampler<Untrained> {
 
         let mut rng = match self.random_state {
             Some(seed) => RealStdRng::seed_from_u64(seed),
-            None => RealStdRng::from_seed(thread_rng().gen()),
+            None => RealStdRng::from_seed(thread_rng().random()),
         };
 
         // Generate random weights ~ N(0, 2*gamma*I)
@@ -566,8 +566,8 @@ impl Fit<Array2<Float>, ()> for AdaptiveBandwidthRBFSampler<Untrained> {
         for i in 0..self.n_components {
             for j in 0..n_features {
                 // Use Box-Muller transformation for normal distribution
-                let u1 = rng.gen::<Float>();
-                let u2 = rng.gen::<Float>();
+                let u1 = rng.random::<Float>();
+                let u2 = rng.random::<Float>();
                 let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 random_weights[[i, j]] = z * std_dev;
             }
@@ -576,7 +576,7 @@ impl Fit<Array2<Float>, ()> for AdaptiveBandwidthRBFSampler<Untrained> {
         // Generate random offsets ~ Uniform[0, 2π]
         let mut random_offset = Array1::zeros(self.n_components);
         for i in 0..self.n_components {
-            random_offset[i] = rng.gen::<Float>() * 2.0 * std::f64::consts::PI;
+            random_offset[i] = rng.random::<Float>() * 2.0 * std::f64::consts::PI;
         }
 
         Ok(AdaptiveBandwidthRBFSampler {
@@ -662,13 +662,13 @@ mod tests {
             .strategy(BandwidthSelectionStrategy::MedianHeuristic)
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(features.shape(), &[3, 50]);
 
         // Check that gamma was selected
-        let gamma = fitted.selected_gamma().unwrap();
+        let gamma = fitted.selected_gamma().expect("operation should succeed");
         assert!(gamma > 0.0);
 
         // Check that features are bounded (cosine function)
@@ -693,9 +693,9 @@ mod tests {
                 .strategy(*strategy)
                 .random_state(42);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
-            let features = fitted.transform(&x).unwrap();
-            let gamma = fitted.selected_gamma().unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+            let features = fitted.transform(&x).expect("operation should succeed");
+            let gamma = fitted.selected_gamma().expect("operation should succeed");
 
             assert_eq!(features.shape(), &[4, 20]);
             assert!(gamma > 0.0);
@@ -719,9 +719,9 @@ mod tests {
             .n_gamma_candidates(5)
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let features = fitted.transform(&x).unwrap();
-        let gamma = fitted.selected_gamma().unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let features = fitted.transform(&x).expect("operation should succeed");
+        let gamma = fitted.selected_gamma().expect("operation should succeed");
 
         assert_eq!(features.shape(), &[6, 30]);
         assert!(gamma > 0.0);
@@ -745,8 +745,8 @@ mod tests {
                 .n_gamma_candidates(5)
                 .random_state(42);
 
-            let fitted = sampler.fit(&x, &()).unwrap();
-            let gamma = fitted.selected_gamma().unwrap();
+            let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+            let gamma = fitted.selected_gamma().expect("operation should succeed");
 
             assert!(gamma > 0.0);
         }
@@ -757,7 +757,9 @@ mod tests {
         let x = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
         let sampler = AdaptiveBandwidthRBFSampler::new(10);
-        let gamma = sampler.median_heuristic_gamma(&x).unwrap();
+        let gamma = sampler
+            .median_heuristic_gamma(&x)
+            .expect("operation should succeed");
 
         // With unit distances, median distance² ≈ 1, so gamma ≈ 0.5
         assert!(gamma > 0.1 && gamma < 2.0);
@@ -768,7 +770,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let sampler = AdaptiveBandwidthRBFSampler::new(10);
-        let gamma = sampler.scott_rule_gamma(&x).unwrap();
+        let gamma = sampler
+            .scott_rule_gamma(&x)
+            .expect("operation should succeed");
 
         assert!(gamma > 0.0);
     }
@@ -778,7 +782,9 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
 
         let sampler = AdaptiveBandwidthRBFSampler::new(10);
-        let gamma = sampler.silverman_rule_gamma(&x).unwrap();
+        let gamma = sampler
+            .silverman_rule_gamma(&x)
+            .expect("operation should succeed");
 
         assert!(gamma > 0.0);
     }
@@ -795,14 +801,14 @@ mod tests {
             .strategy(BandwidthSelectionStrategy::MedianHeuristic)
             .random_state(123);
 
-        let fitted1 = sampler1.fit(&x, &()).unwrap();
-        let fitted2 = sampler2.fit(&x, &()).unwrap();
+        let fitted1 = sampler1.fit(&x, &()).expect("operation should succeed");
+        let fitted2 = sampler2.fit(&x, &()).expect("operation should succeed");
 
-        let features1 = fitted1.transform(&x).unwrap();
-        let features2 = fitted2.transform(&x).unwrap();
+        let features1 = fitted1.transform(&x).expect("operation should succeed");
+        let features2 = fitted2.transform(&x).expect("operation should succeed");
 
-        let gamma1 = fitted1.selected_gamma().unwrap();
-        let gamma2 = fitted2.selected_gamma().unwrap();
+        let gamma1 = fitted1.selected_gamma().expect("operation should succeed");
+        let gamma2 = fitted2.selected_gamma().expect("operation should succeed");
 
         assert_abs_diff_eq!(gamma1, gamma2, epsilon = 1e-10);
 
@@ -821,8 +827,8 @@ mod tests {
             .n_gamma_candidates(5)
             .random_state(42);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let gamma = fitted.selected_gamma().unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let gamma = fitted.selected_gamma().expect("operation should succeed");
 
         // Selected gamma should be within the specified range
         assert!(gamma >= 0.5 && gamma <= 2.0);
@@ -839,7 +845,9 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
-        let fitted = sampler.fit(&x_train, &()).unwrap();
+        let fitted = sampler
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         assert!(fitted.transform(&x_test).is_err());
     }
 
@@ -850,8 +858,8 @@ mod tests {
         let sampler = AdaptiveBandwidthRBFSampler::new(10)
             .strategy(BandwidthSelectionStrategy::MedianHeuristic);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let gamma = fitted.selected_gamma().unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let gamma = fitted.selected_gamma().expect("operation should succeed");
 
         // Should use default gamma for single sample
         assert!(gamma > 0.0);
@@ -869,8 +877,8 @@ mod tests {
         let sampler = AdaptiveBandwidthRBFSampler::new(20)
             .strategy(BandwidthSelectionStrategy::MedianHeuristic);
 
-        let fitted = sampler.fit(&x, &()).unwrap();
-        let gamma = fitted.selected_gamma().unwrap();
+        let fitted = sampler.fit(&x, &()).expect("operation should succeed");
+        let gamma = fitted.selected_gamma().expect("operation should succeed");
 
         assert!(gamma > 0.0);
     }

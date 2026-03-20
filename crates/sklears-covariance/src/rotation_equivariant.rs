@@ -51,7 +51,7 @@ pub struct RotationEquivariantConfig {
 /// let X = array![[1.0, 2.0], [3.0, 1.0], [2.0, 3.0], [4.0, 2.0]];
 ///
 /// let re = RotationEquivariant::new();
-/// let fitted = re.fit(&X.view(), &()).unwrap();
+/// let fitted = re.fit(&X.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// let eigenvalues = fitted.get_eigenvalues();
 /// ```

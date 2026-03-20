@@ -863,7 +863,7 @@ mod tests {
                 4.1, 5.1, 4.1, 3.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = DTWKMeansConfig {
             n_clusters: 2,
@@ -876,7 +876,9 @@ mod tests {
 
         let clusterer = DTWKMeans::new(config);
         let dummy_y = Array1::<f64>::zeros(X.nrows());
-        let fitted = clusterer.fit(&X, &dummy_y).unwrap();
+        let fitted = clusterer
+            .fit(&X, &dummy_y)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 4);
         assert!(fitted.n_iterations <= 100);
@@ -925,7 +927,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 1.1, 2.1, 3.1, 4.1, 4.0, 3.0, 2.0, 1.0, 4.1, 3.1, 2.1, 1.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = ShapeClusteringConfig {
             n_clusters: 2,
@@ -937,7 +939,9 @@ mod tests {
 
         let clusterer = ShapeClustering::new(config);
         let dummy_y = Array1::<f64>::zeros(X.nrows());
-        let fitted = clusterer.fit(&X, &dummy_y).unwrap();
+        let fitted = clusterer
+            .fit(&X, &dummy_y)
+            .expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 4);
         assert!(fitted.n_iterations <= 100);
@@ -1032,7 +1036,8 @@ impl RegimeChangeDetector {
             if test_stat > self.config.change_threshold {
                 // Ensure minimum distance between change points
                 if change_points.is_empty()
-                    || i - change_points.last().unwrap() >= self.config.min_distance
+                    || i - change_points.last().expect("operation should succeed")
+                        >= self.config.min_distance
                 {
                     change_points.push(i);
                 }
@@ -1123,8 +1128,8 @@ impl RegimeChangeDetector {
         // Sort both samples
         let mut left_sorted: Vec<f64> = left.to_vec();
         let mut right_sorted: Vec<f64> = right.to_vec();
-        left_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        right_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        left_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
+        right_sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         // Compute empirical CDFs and find maximum difference
         let mut max_diff: f64 = 0.0;
@@ -1323,7 +1328,11 @@ impl TemporalSegmentationClustering {
         }
 
         // Find maximum segment length for padding
-        let max_length = segments.iter().map(|s| s.len()).max().unwrap();
+        let max_length = segments
+            .iter()
+            .map(|s| s.len())
+            .max()
+            .expect("operation should succeed");
 
         let mut matrix = Array2::<f64>::zeros((segments.len(), max_length));
 

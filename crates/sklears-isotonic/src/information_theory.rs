@@ -83,7 +83,7 @@ impl MaximumEntropyIsotonicRegression {
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -392,7 +392,7 @@ impl MutualInformationIsotonicRegression {
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -700,7 +700,7 @@ impl MinimumDescriptionLengthIsotonicRegression {
         // Sort data by x values
         let mut data: Vec<(Float, Float)> =
             x.iter().zip(y.iter()).map(|(&xi, &yi)| (xi, yi)).collect();
-        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        data.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_x: Array1<Float> = Array1::from_vec(data.iter().map(|(xi, _)| *xi).collect());
         let sorted_y: Array1<Float> = Array1::from_vec(data.iter().map(|(_, yi)| *yi).collect());
@@ -817,7 +817,7 @@ impl MinimumDescriptionLengthIsotonicRegression {
 
         // Model complexity (number of distinct values)
         let mut unique_values: Vec<Float> = y_fitted.to_vec();
-        unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         unique_values.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
         let complexity = unique_values.len() as Float;
 
@@ -985,7 +985,7 @@ mod tests {
 
         assert!(model.fit(&x, &y).is_ok());
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are monotonic
         for i in 0..predictions.len() - 1 {
@@ -993,7 +993,7 @@ mod tests {
         }
 
         // Check that entropy can be computed
-        let entropy = model.entropy().unwrap();
+        let entropy = model.entropy().expect("operation should succeed");
         assert!(entropy >= 0.0);
     }
 
@@ -1008,7 +1008,7 @@ mod tests {
 
         assert!(model.fit(&x, &y).is_ok());
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are monotonic
         for i in 0..predictions.len() - 1 {
@@ -1018,7 +1018,7 @@ mod tests {
         // Check that mutual information is preserved
         let mi = model.get_mutual_information();
         assert!(mi.is_some());
-        assert!(mi.unwrap() >= 0.0);
+        assert!(mi.expect("operation should succeed") >= 0.0);
     }
 
     #[test]
@@ -1032,7 +1032,7 @@ mod tests {
 
         assert!(model.fit(&x, &y).is_ok());
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are monotonic
         for i in 0..predictions.len() - 1 {
@@ -1042,7 +1042,7 @@ mod tests {
         // Check that description length is computed
         let dl = model.get_description_length();
         assert!(dl.is_some());
-        assert!(dl.unwrap() > 0.0);
+        assert!(dl.expect("operation should succeed") > 0.0);
     }
 
     #[test]
@@ -1068,7 +1068,7 @@ mod tests {
         let values = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let model = MutualInformationIsotonicRegression::new().bins(3);
 
-        let bins = model.discretize(&values).unwrap();
+        let bins = model.discretize(&values).expect("operation should succeed");
         assert_eq!(bins.len(), 5);
 
         // Check that bins are in valid range
@@ -1083,9 +1083,9 @@ mod tests {
         let y = array![0.5, 0.3, 0.2]; // Probability-like values
 
         let mut model = MaximumEntropyIsotonicRegression::new();
-        model.fit(&x, &y).unwrap();
+        model.fit(&x, &y).expect("model fitting should succeed");
 
-        let entropy = model.entropy().unwrap();
+        let entropy = model.entropy().expect("operation should succeed");
         assert!(entropy > 0.0);
     }
 
@@ -1095,7 +1095,7 @@ mod tests {
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // Perfectly correlated
 
         let model = MutualInformationIsotonicRegression::new().bins(5);
-        let mi = model.compute_mutual_information(&x, &y).unwrap();
+        let mi = model.compute_mutual_information(&x, &y).expect("operation should succeed");
 
         // For perfectly correlated data, MI should be positive
         assert!(mi > 0.0);
@@ -1110,7 +1110,7 @@ mod tests {
 
         let dl = model
             .compute_description_length(&y_true, &y_fitted)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(dl > 0.0);
     }
 }

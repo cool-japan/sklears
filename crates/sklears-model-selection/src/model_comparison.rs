@@ -122,7 +122,7 @@ pub fn paired_t_test(
     let differences: Array1<f64> = scores1 - scores2;
 
     // Calculate mean and standard deviation of differences
-    let mean_diff = differences.mean().unwrap();
+    let mean_diff = differences.mean().expect("operation should succeed");
     let variance = differences.var(1.0); // Sample variance (Bessel's correction)
     let std_diff = variance.sqrt();
 
@@ -280,7 +280,7 @@ pub fn wilcoxon_signed_rank_test(
         differences.iter().map(|&d| (d.abs(), d.signum())).collect();
 
     // Sort by absolute value for ranking
-    abs_diffs_with_signs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    abs_diffs_with_signs.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
     // Calculate ranks (handle ties by averaging ranks)
     let mut ranks = vec![0.0; n];
@@ -366,7 +366,7 @@ pub fn friedman_test(
             .collect();
 
         // Sort by score (descending for performance metrics)
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Assign ranks (handle ties)
         let mut current_rank = 1.0;
@@ -440,7 +440,7 @@ pub fn nemenyi_post_hoc_test(
             .map(|(j, &score)| (j, score))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         for (rank, (idx, _)) in indexed_scores.iter().enumerate() {
             rank_matrix[[i, *idx]] = (rank + 1) as f64;
@@ -449,7 +449,7 @@ pub fn nemenyi_post_hoc_test(
 
     let average_ranks: Array1<f64> = rank_matrix
         .mean_axis(scirs2_core::ndarray::Axis(0))
-        .unwrap();
+        .expect("operation should succeed");
 
     // Critical difference for Nemenyi test
     let q_alpha = nemenyi_critical_value(k_models, alpha);
@@ -737,7 +737,7 @@ fn benjamini_hochberg_correction(p_values: &[f64], _alpha: f64) -> Vec<f64> {
     let n = p_values.len();
     let mut indexed_p: Vec<(usize, f64)> =
         p_values.iter().enumerate().map(|(i, &p)| (i, p)).collect();
-    indexed_p.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    indexed_p.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
     let mut corrected = vec![0.0; n];
     for (rank, (original_idx, p_val)) in indexed_p.iter().enumerate() {
@@ -752,7 +752,7 @@ fn holm_correction(p_values: &[f64]) -> Vec<f64> {
     let n = p_values.len();
     let mut indexed_p: Vec<(usize, f64)> =
         p_values.iter().enumerate().map(|(i, &p)| (i, p)).collect();
-    indexed_p.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    indexed_p.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
     let mut corrected = vec![0.0; n];
     for (rank, (original_idx, p_val)) in indexed_p.iter().enumerate() {
@@ -774,7 +774,7 @@ mod tests {
         let scores1 = array![0.9, 0.8, 0.85, 0.92, 0.88];
         let scores2 = array![0.85, 0.75, 0.80, 0.87, 0.83];
 
-        let result = paired_t_test(&scores1, &scores2, 0.05).unwrap();
+        let result = paired_t_test(&scores1, &scores2, 0.05).expect("operation should succeed");
         assert_eq!(result.test_name, "Paired t-test");
         assert!(result.statistic > 0.0); // scores1 > scores2
         assert!(result.degrees_of_freedom.is_some());
@@ -783,7 +783,7 @@ mod tests {
 
     #[test]
     fn test_mcnemar_test() {
-        let result = mcnemar_test(85, 10, 5, 0, 0.05, false).unwrap();
+        let result = mcnemar_test(85, 10, 5, 0, 0.05, false).expect("operation should succeed");
         assert_eq!(result.test_name, "McNemar's test");
         assert!(result.statistic > 0.0);
         assert!(result.degrees_of_freedom == Some(1.0));
@@ -794,7 +794,8 @@ mod tests {
         let scores1 = array![0.9, 0.8, 0.85, 0.92, 0.88, 0.91, 0.87];
         let scores2 = array![0.85, 0.75, 0.80, 0.87, 0.83, 0.86, 0.82];
 
-        let result = wilcoxon_signed_rank_test(&scores1, &scores2, 0.05).unwrap();
+        let result =
+            wilcoxon_signed_rank_test(&scores1, &scores2, 0.05).expect("operation should succeed");
         assert_eq!(result.test_name, "Wilcoxon signed-rank test");
         assert!(result.statistic >= 0.0);
     }
@@ -808,7 +809,7 @@ mod tests {
             [0.89, 0.84, 0.79]
         ];
 
-        let result = friedman_test(&performance, 0.05).unwrap();
+        let result = friedman_test(&performance, 0.05).expect("operation should succeed");
         assert_eq!(result.test_name, "Friedman test");
         assert!(result.degrees_of_freedom == Some(2.0));
     }

@@ -7,7 +7,7 @@ use super::core::{NoiseDistribution, PerturbationConfig, PerturbationStrategy};
 use crate::{Float, SklResult};
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 
 /// Generate perturbations based on the specified strategy
 pub fn generate_perturbations(
@@ -69,8 +69,8 @@ fn gaussian_perturbation(
         for i in 0..perturbed.nrows() {
             for j in 0..perturbed.ncols() {
                 // Box-Muller transform for Gaussian random numbers
-                let u1: Float = rng.gen();
-                let u2: Float = rng.gen();
+                let u1: Float = rng.random();
+                let u2: Float = rng.random();
                 let noise = (-2.0_f64 * u1.ln()).sqrt()
                     * (2.0 * std::f64::consts::PI * u2 as f64).cos() as Float;
                 perturbed[[i, j]] += noise * std_dev;
@@ -114,8 +114,8 @@ fn gaussian_perturbation_simd(
                 let mut noise_chunk = Vec::with_capacity(chunk.len());
 
                 for _ in 0..chunk.len() {
-                    let u1: Float = rng.gen();
-                    let u2: Float = rng.gen();
+                    let u1: Float = rng.random();
+                    let u2: Float = rng.random();
                     let noise = (-2.0_f64 * u1.ln()).sqrt()
                         * (2.0 * std::f64::consts::PI * u2 as f64).cos() as Float;
                     noise_chunk.push(noise * std_dev);
@@ -145,8 +145,8 @@ fn gaussian_perturbation_simd(
             // Fallback to element-wise processing if array is not contiguous
             for i in 0..perturbed.nrows() {
                 for j in 0..perturbed.ncols() {
-                    let u1: Float = rng.gen();
-                    let u2: Float = rng.gen();
+                    let u1: Float = rng.random();
+                    let u2: Float = rng.random();
                     let noise = (-2.0_f64 * u1.ln()).sqrt()
                         * (2.0 * std::f64::consts::PI * u2 as f64).cos() as Float;
                     perturbed[[i, j]] += noise * std_dev;
@@ -244,7 +244,7 @@ fn uniform_perturbation(
 
         for i in 0..perturbed.nrows() {
             for j in 0..perturbed.ncols() {
-                let noise = rng.gen_range(min_noise..max_noise);
+                let noise = rng.random_range(min_noise..max_noise);
                 perturbed[[i, j]] += noise;
             }
         }
@@ -286,7 +286,7 @@ fn uniform_perturbation_simd(
                 let mut noise_chunk = Vec::with_capacity(chunk.len());
 
                 for _ in 0..chunk.len() {
-                    let uniform: Float = rng.gen();
+                    let uniform: Float = rng.random();
                     let noise = min_noise + uniform * (max_noise - min_noise);
                     noise_chunk.push(noise);
                 }
@@ -315,7 +315,7 @@ fn uniform_perturbation_simd(
             // Fallback to element-wise processing if array is not contiguous
             for i in 0..perturbed.nrows() {
                 for j in 0..perturbed.ncols() {
-                    let uniform: Float = rng.gen();
+                    let uniform: Float = rng.random();
                     let noise = min_noise + uniform * (max_noise - min_noise);
                     perturbed[[i, j]] += noise;
                 }
@@ -348,7 +348,7 @@ fn adversarial_perturbation(
         for i in 0..perturbed.nrows() {
             for j in 0..perturbed.ncols() {
                 // Use sign of random value to simulate gradient sign
-                let sign = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+                let sign = if rng.random_bool(0.5) { 1.0 } else { -1.0 };
                 let perturbation = sign * config.adversarial_step_size;
                 perturbed[[i, j]] += perturbation;
             }
@@ -371,7 +371,7 @@ fn synthetic_perturbation(
     };
 
     // Calculate feature statistics
-    let means = X.mean_axis(Axis(0)).unwrap();
+    let means = X.mean_axis(Axis(0)).expect("operation should succeed");
     let stds = X.std_axis(Axis(0), 0.0);
 
     let mut perturbed_data = Vec::new();
@@ -385,8 +385,8 @@ fn synthetic_perturbation(
                 let mean = means[j];
                 let std = stds[j] * config.magnitude;
                 // Box-Muller transform for Gaussian random numbers
-                let u1: Float = rng.gen();
-                let u2: Float = rng.gen();
+                let u1: Float = rng.random();
+                let u2: Float = rng.random();
                 let noise = (-2.0_f64 * u1.ln()).sqrt()
                     * (2.0 * std::f64::consts::PI * u2 as f64).cos() as Float;
                 synthetic[[i, j]] = mean + noise * std;
@@ -415,7 +415,7 @@ fn distribution_preserving_perturbation(
     let mut feature_percentiles = Vec::new();
     for j in 0..X.ncols() {
         let mut feature_values: Vec<Float> = X.column(j).to_vec();
-        feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         feature_percentiles.push(feature_values);
     }
 
@@ -426,11 +426,11 @@ fn distribution_preserving_perturbation(
             for j in 0..perturbed.ncols() {
                 // Sample from empirical distribution
                 let percentiles = &feature_percentiles[j];
-                let idx = rng.gen_range(0..percentiles.len());
+                let idx = rng.random_range(0..percentiles.len());
                 let sampled_value = percentiles[idx];
 
                 // Add small perturbation while preserving distribution
-                let noise = rng.gen_range(-config.magnitude..config.magnitude);
+                let noise = rng.random_range(-config.magnitude..config.magnitude);
                 perturbed[[i, j]] = sampled_value + noise;
             }
         }
@@ -460,11 +460,11 @@ fn structured_perturbation(
         let mut perturbed = X.to_owned();
 
         // Randomly select which group to perturb
-        let group_start = rng.gen_range(0..(n_features - group_size + 1));
+        let group_start = rng.random_range(0..(n_features - group_size + 1));
         let group_end = (group_start + group_size).min(n_features);
 
         // Apply structured perturbation to selected group
-        let group_perturbation = rng.gen_range(-config.magnitude..config.magnitude);
+        let group_perturbation = rng.random_range(-config.magnitude..config.magnitude);
 
         for i in 0..perturbed.nrows() {
             for j in group_start..group_end {
@@ -497,7 +497,7 @@ fn salt_pepper_perturbation(
 
         for i in 0..perturbed.nrows() {
             for j in 0..perturbed.ncols() {
-                if rng.gen::<Float>() < noise_prob {
+                if rng.random::<Float>() < noise_prob {
                     // Apply salt (max) or pepper (min) noise
                     let feature_values: Vec<Float> = X.column(j).to_vec();
                     let min_val = feature_values
@@ -507,7 +507,11 @@ fn salt_pepper_perturbation(
                         .iter()
                         .fold(Float::NEG_INFINITY, |a, &b| a.max(b));
 
-                    perturbed[[i, j]] = if rng.gen_bool(0.5) { max_val } else { min_val };
+                    perturbed[[i, j]] = if rng.random_bool(0.5) {
+                        max_val
+                    } else {
+                        min_val
+                    };
                 }
             }
         }
@@ -537,7 +541,7 @@ fn dropout_perturbation(
 
         for i in 0..perturbed.nrows() {
             for j in 0..perturbed.ncols() {
-                if rng.gen::<Float>() < dropout_prob {
+                if rng.random::<Float>() < dropout_prob {
                     perturbed[[i, j]] = 0.0; // Drop feature
                 }
             }

@@ -2,7 +2,6 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::essentials::Uniform as RandUniform;
 use scirs2_core::random::rngs::StdRng as RealStdRng;
-use scirs2_core::random::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Estimator, Fit, Trained, Transform, Untrained},
@@ -10,6 +9,7 @@ use sklears_core::{
 };
 use std::marker::PhantomData;
 
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 /// Additive Chi-Squared Kernel Approximation
 ///
@@ -225,11 +225,11 @@ impl Fit<Array2<Float>, ()> for SkewedChi2Sampler<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Sample random weights from inverse CDF of sech distribution
-        let uniform = RandUniform::new(0.0, 1.0).unwrap();
+        let uniform = RandUniform::new(0.0, 1.0).expect("operation should succeed");
         let mut weights = Array2::zeros((n_features, self.n_components));
 
         for mut col in weights.columns_mut() {
@@ -242,7 +242,8 @@ impl Fit<Array2<Float>, ()> for SkewedChi2Sampler<Untrained> {
         }
 
         // Sample random offsets from Uniform(0, 2π)
-        let offset_uniform = RandUniform::new(0.0, 2.0 * std::f64::consts::PI).unwrap();
+        let offset_uniform =
+            RandUniform::new(0.0, 2.0 * std::f64::consts::PI).expect("operation should succeed");
         let mut random_offset = Array1::zeros(self.n_components);
         for val in random_offset.iter_mut() {
             *val = rng.sample(offset_uniform);
@@ -262,8 +263,14 @@ impl Fit<Array2<Float>, ()> for SkewedChi2Sampler<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for SkewedChi2Sampler<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (_n_samples, n_features) = x.dim();
-        let weights = self.random_weights_.as_ref().unwrap();
-        let offset = self.random_offset_.as_ref().unwrap();
+        let weights = self
+            .random_weights_
+            .as_ref()
+            .expect("operation should succeed");
+        let offset = self
+            .random_offset_
+            .as_ref()
+            .expect("operation should succeed");
 
         if n_features != weights.nrows() {
             return Err(SklearsError::InvalidInput(format!(
@@ -306,7 +313,7 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let chi2 = AdditiveChi2Sampler::new(2);
-        let x_transformed = chi2.transform(&x).unwrap();
+        let x_transformed = chi2.transform(&x).expect("operation should succeed");
 
         // 2 features * (2*2-1) = 6 output features
         assert_eq!(x_transformed.shape(), &[2, 6]);
@@ -332,8 +339,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0],];
 
         let skewed_chi2 = SkewedChi2Sampler::new(50);
-        let fitted = skewed_chi2.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = skewed_chi2.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.shape(), &[2, 50]);
 
@@ -357,7 +364,9 @@ mod tests {
         let x_test = array![[-1.5, 2.0]]; // < -skewedness when skewedness=1.0
 
         let skewed_chi2 = SkewedChi2Sampler::new(10);
-        let fitted = skewed_chi2.fit(&x_train, &()).unwrap();
+        let fitted = skewed_chi2
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
         assert!(result.is_err());
     }

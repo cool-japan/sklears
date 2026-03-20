@@ -575,7 +575,7 @@ impl PredictionModelsCore {
         let features = self.extract_features(&prediction_request)?;
 
         // Get appropriate model
-        let predictor = self.performance_predictor.read().unwrap();
+        let predictor = self.performance_predictor.read().unwrap_or_else(|e| e.into_inner());
         let model = predictor.select_model(&prediction_request)?;
         drop(predictor);
 
@@ -587,7 +587,7 @@ impl PredictionModelsCore {
 
         // Cache prediction if appropriate
         if confidence_score > self.config.prediction_thresholds.min_confidence {
-            let mut cache = self.predictive_cache.write().unwrap();
+            let mut cache = self.predictive_cache.write().unwrap_or_else(|e| e.into_inner());
             cache.store_prediction(&prediction_request, &prediction)?;
             drop(cache);
         }
@@ -612,7 +612,7 @@ impl PredictionModelsCore {
         &self,
         time_series_request: TimeSeriesAnalysisRequest,
     ) -> Result<TimeSeriesAnalysisResult> {
-        let mut analyzer = self.time_series_analyzer.write().unwrap();
+        let mut analyzer = self.time_series_analyzer.write().unwrap_or_else(|e| e.into_inner());
 
         // Load time series data
         let time_series = analyzer.load_time_series(&time_series_request.series_id)?;
@@ -652,7 +652,7 @@ impl PredictionModelsCore {
         &self,
         training_request: ModelTrainingRequest,
     ) -> Result<ModelTrainingResult> {
-        let mut trainer = self.model_trainer.write().unwrap();
+        let mut trainer = self.model_trainer.write().unwrap_or_else(|e| e.into_inner());
 
         // Prepare training data
         let training_data = trainer.prepare_training_data(&training_request)?;
@@ -671,7 +671,7 @@ impl PredictionModelsCore {
 
         // Register model if validation passes
         let model_id = if validation_result.performance_score >= self.config.training_config.min_performance_score {
-            let mut ml_models = self.ml_models.write().unwrap();
+            let mut ml_models = self.ml_models.write().unwrap_or_else(|e| e.into_inner());
             let model_id = ml_models.register_model(model, &training_request)?;
             drop(ml_models);
             Some(model_id)
@@ -703,7 +703,7 @@ impl PredictionModelsCore {
         &self,
         anomaly_request: AnomalyDetectionRequest,
     ) -> Result<AnomalyDetectionResult> {
-        let detector = self.anomaly_detector.read().unwrap();
+        let detector = self.anomaly_detector.read().unwrap_or_else(|e| e.into_inner());
 
         // Prepare data for anomaly detection
         let data_points = self.prepare_anomaly_data(&anomaly_request)?;
@@ -745,7 +745,7 @@ impl PredictionModelsCore {
         &self,
         cache_key: &str,
     ) -> Result<Option<CachedPrediction>> {
-        let cache = self.predictive_cache.read().unwrap();
+        let cache = self.predictive_cache.read().unwrap_or_else(|e| e.into_inner());
         let cached_entry = cache.get_prediction(cache_key)?;
         drop(cache);
 
@@ -763,7 +763,7 @@ impl PredictionModelsCore {
         &self,
         update_request: ModelUpdateRequest,
     ) -> Result<ModelUpdateResult> {
-        let mut ml_models = self.ml_models.write().unwrap();
+        let mut ml_models = self.ml_models.write().unwrap_or_else(|e| e.into_inner());
 
         // Get model to update
         let model = ml_models.get_model_mut(&update_request.model_id)?;
@@ -810,9 +810,9 @@ impl PredictionModelsCore {
 
     /// Get system health status
     pub fn get_health_status(&self) -> Result<PredictionSystemHealthReport> {
-        let state = self.state.read().unwrap();
-        let predictor = self.performance_predictor.read().unwrap();
-        let cache = self.predictive_cache.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let predictor = self.performance_predictor.read().unwrap_or_else(|e| e.into_inner());
+        let cache = self.predictive_cache.read().unwrap_or_else(|e| e.into_inner());
 
         let health_report = PredictionSystemHealthReport {
             system_health: state.health.clone(),
@@ -935,7 +935,7 @@ impl PredictionModelsCore {
     }
 
     fn get_model_health_status(&self) -> Result<ModelHealthStatus> {
-        let ml_models = self.ml_models.read().unwrap();
+        let ml_models = self.ml_models.read().unwrap_or_else(|e| e.into_inner());
         let total_models = ml_models.get_model_count();
         let healthy_models = ml_models.get_healthy_model_count();
         drop(ml_models);

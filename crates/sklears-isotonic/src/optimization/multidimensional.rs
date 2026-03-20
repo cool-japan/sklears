@@ -177,7 +177,10 @@ impl Predict<Array2<Float>, Array1<Float>>
             )));
         }
 
-        let fitted_regressors = self.fitted_regressors_.as_ref().unwrap();
+        let fitted_regressors = self
+            .fitted_regressors_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let mut predictions = Array1::<Float>::zeros(n_samples);
 
         // Predict using each dimension and combine the results
@@ -369,8 +372,14 @@ impl Predict<Array2<Float>, Array1<Float>>
             )));
         }
 
-        let x_train = self.x_train_.as_ref().unwrap();
-        let fitted_values = self.fitted_values_.as_ref().unwrap();
+        let x_train = self
+            .x_train_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let fitted_values = self
+            .fitted_values_
+            .as_ref()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         // Use interpolation for prediction (simplified approach)
         let mut predictions = Array1::<Float>::zeros(n_samples);
@@ -559,7 +568,7 @@ mod tests {
         let result = separable_isotonic_regression(&x, &y, &constraints, None);
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -572,7 +581,7 @@ mod tests {
         let result = non_separable_isotonic_regression(&x, &y, &constraints, None);
         assert!(result.is_ok());
 
-        let predictions = result.unwrap();
+        let predictions = result.expect("operation should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -635,8 +644,10 @@ mod tests {
         let regressor =
             SeparableMultiDimensionalIsotonicRegression::new(1).constraints(constraints);
 
-        let fitted = regressor.fit_weighted(&x, &y, Some(&weights)).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = regressor
+            .fit_weighted(&x, &y, Some(&weights))
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 3);
         // The weighted result should reduce the influence of the outlier

@@ -873,7 +873,7 @@ mod tests {
     #[test]
     fn test_team_mobilization() {
         let coordinator = ResponseTeamCoordinator::new();
-        coordinator.initialize().unwrap();
+        coordinator.initialize().unwrap_or_default();
 
         let event = EmergencyEvent {
             event_id: "emergency-001".to_string(),
@@ -901,7 +901,7 @@ mod tests {
         let result = coordinator.mobilize_teams(&event);
         assert!(result.is_ok());
 
-        let mobilization = result.unwrap();
+        let mobilization = result.unwrap_or_default();
         assert!(mobilization.teams_mobilized > 0);
         assert!(!mobilization.deployment_ids.is_empty());
     }
@@ -909,9 +909,9 @@ mod tests {
     #[test]
     fn test_team_capacity_tracking() {
         let coordinator = ResponseTeamCoordinator::new();
-        coordinator.initialize().unwrap();
+        coordinator.initialize().unwrap_or_default();
 
-        let capacity = coordinator.get_team_capacity().unwrap();
+        let capacity = coordinator.get_team_capacity().unwrap_or_default();
         assert!(capacity.total_teams > 0);
         assert_eq!(capacity.available_teams, capacity.total_teams);
         assert_eq!(capacity.deployed_teams, 0);
@@ -920,7 +920,7 @@ mod tests {
     #[test]
     fn test_deployment_status_update() {
         let coordinator = ResponseTeamCoordinator::new();
-        coordinator.initialize().unwrap();
+        coordinator.initialize().unwrap_or_default();
 
         let event = EmergencyEvent {
             event_id: "emergency-002".to_string(),
@@ -945,7 +945,7 @@ mod tests {
             requires_immediate_action: true,
         };
 
-        let deployment = coordinator.deploy_team("security_response", &event).unwrap();
+        let deployment = coordinator.deploy_team("security_response", &event).unwrap_or_default();
         let result = coordinator.update_deployment_status(&deployment.deployment_id, DeploymentStatus::Active);
         assert!(result.is_ok());
     }

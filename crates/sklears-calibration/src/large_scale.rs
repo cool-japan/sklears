@@ -231,7 +231,9 @@ impl ParallelCalibrator {
                 let calibrator = SigmoidCalibrator::new();
                 let fit_result = calibrator.fit(&chunk.0, &chunk.1);
 
-                let mut results_guard = results_clone.lock().unwrap();
+                let Ok(mut results_guard) = results_clone.lock() else {
+                    return;
+                };
                 match fit_result {
                     Ok(fitted_calibrator) => {
                         results_guard.push((
@@ -679,11 +681,13 @@ mod tests {
         };
 
         let mut streaming_cal = StreamingCalibrator::new(config);
-        streaming_cal.fit(&probabilities, &targets).unwrap();
+        streaming_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
         let predictions = streaming_cal
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 10);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
@@ -703,11 +707,13 @@ mod tests {
         };
 
         let mut parallel_cal = ParallelCalibrator::new(config);
-        parallel_cal.fit(&probabilities, &targets).unwrap();
+        parallel_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
         let predictions = parallel_cal
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 10);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
     }
@@ -722,11 +728,13 @@ mod tests {
         };
 
         let mut memory_cal = MemoryEfficientCalibrator::new(config);
-        memory_cal.fit(&probabilities, &targets).unwrap();
+        memory_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
         let predictions = memory_cal
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 10);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
@@ -760,11 +768,13 @@ mod tests {
             ),
         );
 
-        dist_cal.fit_distributed(data_partitions).unwrap();
+        dist_cal
+            .fit_distributed(data_partitions)
+            .expect("operation should succeed");
 
         let predictions = dist_cal
             .predict_distributed(&probabilities.slice(s![0..10]).to_owned())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 10);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
@@ -782,11 +792,13 @@ mod tests {
         };
 
         let mut minibatch_cal = MinibatchCalibrator::new(config);
-        minibatch_cal.fit(&probabilities, &targets).unwrap();
+        minibatch_cal
+            .fit(&probabilities, &targets)
+            .expect("fit should succeed");
 
         let predictions = minibatch_cal
             .predict_proba(&probabilities.slice(s![0..10]).to_owned())
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 10);
         assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
 
@@ -813,11 +825,13 @@ mod tests {
             };
 
             let mut parallel_cal = ParallelCalibrator::new(config);
-            parallel_cal.fit(&probabilities, &targets).unwrap();
+            parallel_cal
+                .fit(&probabilities, &targets)
+                .expect("fit should succeed");
 
             let predictions = parallel_cal
                 .predict_proba(&probabilities.slice(s![0..5]).to_owned())
-                .unwrap();
+                .expect("operation should succeed");
             assert_eq!(predictions.len(), 5);
             assert!(predictions.iter().all(|&p| (0.0..=1.0).contains(&p)));
         }

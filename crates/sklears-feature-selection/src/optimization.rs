@@ -195,9 +195,12 @@ impl Fit<Array2<Float>, Array1<Float>> for ConvexFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for ConvexFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -212,8 +215,11 @@ impl Transform<Array2<Float>> for ConvexFeatureSelector<Trained> {
 
 impl SelectorMixin for ConvexFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -224,7 +230,10 @@ impl SelectorMixin for ConvexFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -234,24 +243,31 @@ impl SelectorMixin for ConvexFeatureSelector<Trained> {
 
 impl FeatureSelector for ConvexFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl ConvexFeatureSelector<Trained> {
     /// Get the learned weights
     pub fn weights(&self) -> &Array1<Float> {
-        self.weights_.as_ref().unwrap()
+        self.weights_.as_ref().expect("operation should succeed")
     }
 
     /// Get the objective values during optimization
     pub fn objective_values(&self) -> &[Float] {
-        self.objective_values_.as_ref().unwrap()
+        self.objective_values_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -444,9 +460,12 @@ impl Fit<Array2<Float>, Array1<Float>> for ProximalGradientSelector<Untrained> {
 
 impl Transform<Array2<Float>> for ProximalGradientSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -461,8 +480,11 @@ impl Transform<Array2<Float>> for ProximalGradientSelector<Trained> {
 
 impl SelectorMixin for ProximalGradientSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -473,7 +495,10 @@ impl SelectorMixin for ProximalGradientSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -483,24 +508,31 @@ impl SelectorMixin for ProximalGradientSelector<Trained> {
 
 impl FeatureSelector for ProximalGradientSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl ProximalGradientSelector<Trained> {
     /// Get the learned weights
     pub fn weights(&self) -> &Array1<Float> {
-        self.weights_.as_ref().unwrap()
+        self.weights_.as_ref().expect("operation should succeed")
     }
 
     /// Get the objective values during optimization
     pub fn objective_values(&self) -> &[Float] {
-        self.objective_values_.as_ref().unwrap()
+        self.objective_values_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -714,9 +746,12 @@ impl Fit<Array2<Float>, Array1<Float>> for ADMMFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for ADMMFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -731,8 +766,11 @@ impl Transform<Array2<Float>> for ADMMFeatureSelector<Trained> {
 
 impl SelectorMixin for ADMMFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -743,7 +781,10 @@ impl SelectorMixin for ADMMFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -753,24 +794,31 @@ impl SelectorMixin for ADMMFeatureSelector<Trained> {
 
 impl FeatureSelector for ADMMFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl ADMMFeatureSelector<Trained> {
     /// Get the learned weights
     pub fn weights(&self) -> &Array1<Float> {
-        self.weights_.as_ref().unwrap()
+        self.weights_.as_ref().expect("operation should succeed")
     }
 
     /// Get the objective values during optimization
     pub fn objective_values(&self) -> &[Float] {
-        self.objective_values_.as_ref().unwrap()
+        self.objective_values_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -868,12 +916,15 @@ impl SemidefiniteFeatureSelector<Untrained> {
         let n_features = features.ncols();
 
         // Compute feature covariance matrix
-        let centered_features = features - &features.mean_axis(Axis(0)).unwrap();
+        let centered_features = features
+            - &features
+                .mean_axis(Axis(0))
+                .expect("operation should succeed");
         let cov_matrix =
             centered_features.t().dot(&centered_features) / (features.nrows() - 1) as Float;
 
         // Compute feature-target correlations
-        let target_centered = target - target.mean().unwrap();
+        let target_centered = target - target.mean().expect("operation should succeed");
         let correlations =
             centered_features.t().dot(&target_centered) / (features.nrows() - 1) as Float;
 
@@ -982,9 +1033,12 @@ impl Fit<Array2<Float>, Array1<Float>> for SemidefiniteFeatureSelector<Untrained
 
 impl Transform<Array2<Float>> for SemidefiniteFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -999,8 +1053,11 @@ impl Transform<Array2<Float>> for SemidefiniteFeatureSelector<Trained> {
 
 impl SelectorMixin for SemidefiniteFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let n_features = self.n_features_.unwrap();
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let n_features = self.n_features_.expect("operation should succeed");
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let mut support = Array1::from_elem(n_features, false);
 
         for &idx in selected_features {
@@ -1011,7 +1068,10 @@ impl SelectorMixin for SemidefiniteFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1021,29 +1081,40 @@ impl SelectorMixin for SemidefiniteFeatureSelector<Trained> {
 
 impl FeatureSelector for SemidefiniteFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl SemidefiniteFeatureSelector<Trained> {
     /// Get the feature matrix from SDP optimization
     pub fn feature_matrix(&self) -> &Array2<Float> {
-        self.feature_matrix_.as_ref().unwrap()
+        self.feature_matrix_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the eigenvalues (selection indicators)
     pub fn eigenvalues(&self) -> &Array1<Float> {
-        self.eigenvalues_.as_ref().unwrap()
+        self.eigenvalues_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the objective values during optimization
     pub fn objective_values(&self) -> &[Float] {
-        self.objective_values_.as_ref().unwrap()
+        self.objective_values_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -1330,9 +1401,12 @@ impl Fit<Array2<Float>, Array1<Float>> for IntegerProgrammingFeatureSelector<Unt
 
 impl Transform<Array2<Float>> for IntegerProgrammingFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        validate::check_n_features(x, self.n_features_.unwrap())?;
+        validate::check_n_features(x, self.n_features_.expect("operation should succeed"))?;
 
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = x.nrows();
         let n_selected = selected_features.len();
         let mut x_new = Array2::zeros((n_samples, n_selected));
@@ -1347,11 +1421,18 @@ impl Transform<Array2<Float>> for IntegerProgrammingFeatureSelector<Trained> {
 
 impl SelectorMixin for IntegerProgrammingFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        Ok(self.binary_solution_.as_ref().unwrap().clone())
+        Ok(self
+            .binary_solution_
+            .as_ref()
+            .expect("operation should succeed")
+            .clone())
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -1361,29 +1442,38 @@ impl SelectorMixin for IntegerProgrammingFeatureSelector<Trained> {
 
 impl FeatureSelector for IntegerProgrammingFeatureSelector<Trained> {
     fn selected_features(&self) -> &Vec<usize> {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 }
 
 impl IntegerProgrammingFeatureSelector<Trained> {
     /// Get the binary solution
     pub fn binary_solution(&self) -> &Array1<bool> {
-        self.binary_solution_.as_ref().unwrap()
+        self.binary_solution_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the final objective value
     pub fn objective_value(&self) -> Float {
-        self.objective_value_.unwrap()
+        self.objective_value_.expect("operation should succeed")
     }
 
     /// Get the improvement history during optimization
     pub fn improvement_history(&self) -> &[Float] {
-        self.improvement_history_.as_ref().unwrap()
+        self.improvement_history_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_out(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 }
 
@@ -1420,8 +1510,8 @@ fn correlation_coefficient(x: &Array1<Float>, y: &Array1<Float>) -> SklResult<Fl
     }
 
     let _n = x.len() as Float;
-    let mean_x = x.mean().unwrap();
-    let mean_y = y.mean().unwrap();
+    let mean_x = x.mean().expect("operation should succeed");
+    let mean_y = y.mean().expect("operation should succeed");
 
     let mut num = 0.0;
     let mut den_x = 0.0;
@@ -1476,11 +1566,15 @@ mod tests {
             .regularization(0.1)
             .max_iter(100);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 5);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 5);
         assert_eq!(transformed.nrows(), features.nrows());
 
@@ -1505,11 +1599,15 @@ mod tests {
             .step_size(0.01)
             .max_iter(100);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 4);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 4);
         assert_eq!(transformed.nrows(), features.nrows());
 
@@ -1529,11 +1627,15 @@ mod tests {
             .rho(1.0)
             .max_iter(50);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 3);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 3);
         assert_eq!(transformed.nrows(), features.nrows());
 
@@ -1576,11 +1678,15 @@ mod tests {
             .regularization(0.1)
             .max_iter(50);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 4);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 4);
         assert_eq!(transformed.nrows(), features.nrows());
 
@@ -1610,11 +1716,15 @@ mod tests {
             .local_search(true)
             .max_iter(100);
 
-        let trained = selector.fit(&features, &target).unwrap();
+        let trained = selector
+            .fit(&features, &target)
+            .expect("operation should succeed");
         assert_eq!(trained.n_features_out(), 3);
 
         // Test transform
-        let transformed = trained.transform(&features).unwrap();
+        let transformed = trained
+            .transform(&features)
+            .expect("operation should succeed");
         assert_eq!(transformed.ncols(), 3);
         assert_eq!(transformed.nrows(), features.nrows());
 
@@ -1655,11 +1765,11 @@ mod tests {
         let x = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let y = Array1::from_vec(vec![2.0, 4.0, 6.0, 8.0, 10.0]);
 
-        let corr = correlation_coefficient(&x, &y).unwrap();
+        let corr = correlation_coefficient(&x, &y).expect("operation should succeed");
         assert!((corr - 1.0).abs() < 1e-10); // Perfect correlation
 
         let z = Array1::from_vec(vec![5.0, 4.0, 3.0, 2.0, 1.0]);
-        let corr2 = correlation_coefficient(&x, &z).unwrap();
+        let corr2 = correlation_coefficient(&x, &z).expect("operation should succeed");
         assert!((corr2 + 1.0).abs() < 1e-10); // Perfect negative correlation
     }
 
@@ -1674,7 +1784,8 @@ mod tests {
         assert_eq!(outer[[1, 0]], 6.0);
         assert_eq!(outer[[1, 1]], 8.0);
 
-        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let matrix = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let tr = trace(&matrix);
         assert_eq!(tr, 5.0); // 1 + 4
 

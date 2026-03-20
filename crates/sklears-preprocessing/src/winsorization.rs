@@ -80,37 +80,43 @@ impl Winsorizer<Untrained> {
     }
 
     /// Create a Winsorizer with specified percentiles
-    pub fn with_percentiles(lower: Float, upper: Float) -> Self {
-        Self::new().lower_percentile(lower).upper_percentile(upper)
+    pub fn with_percentiles(lower: Float, upper: Float) -> Result<Self> {
+        Self::new().lower_percentile(lower)?.upper_percentile(upper)
     }
 
     /// Create a Winsorizer with IQR-based bounds
-    pub fn with_iqr(multiplier: Float) -> Self {
+    pub fn with_iqr(multiplier: Float) -> Result<Self> {
         // IQR method: Q1 - multiplier*IQR, Q3 + multiplier*IQR
         // Convert to approximate percentiles
         let lower_perc = if multiplier >= 1.5 { 0.7 } else { 2.5 };
         let upper_perc = if multiplier >= 1.5 { 99.3 } else { 97.5 };
         Self::new()
-            .lower_percentile(lower_perc)
+            .lower_percentile(lower_perc)?
             .upper_percentile(upper_perc)
     }
 
     /// Set the lower percentile
-    pub fn lower_percentile(mut self, percentile: Float) -> Self {
+    pub fn lower_percentile(mut self, percentile: Float) -> Result<Self> {
         if !(0.0..50.0).contains(&percentile) {
-            panic!("Lower percentile must be between 0 and 50");
+            return Err(SklearsError::InvalidParameter {
+                name: "lower_percentile".to_string(),
+                reason: "must be between 0 and 50".to_string(),
+            });
         }
         self.config.lower_percentile = percentile;
-        self
+        Ok(self)
     }
 
     /// Set the upper percentile
-    pub fn upper_percentile(mut self, percentile: Float) -> Self {
+    pub fn upper_percentile(mut self, percentile: Float) -> Result<Self> {
         if percentile <= 50.0 || percentile > 100.0 {
-            panic!("Upper percentile must be between 50 and 100");
+            return Err(SklearsError::InvalidParameter {
+                name: "upper_percentile".to_string(),
+                reason: "must be between 50 and 100".to_string(),
+            });
         }
         self.config.upper_percentile = percentile;
-        self
+        Ok(self)
     }
 
     /// Set whether to winsorize features independently
@@ -169,7 +175,7 @@ impl Winsorizer<Untrained> {
         }
 
         // Sort data for percentile calculation
-        valid_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        valid_data.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let lower_bound = Self::compute_percentile(&valid_data, self.config.lower_percentile);
         let upper_bound = Self::compute_percentile(&valid_data, self.config.upper_percentile);
@@ -444,7 +450,7 @@ impl Transform<Array2<Float>, Array2<Float>> for Winsorizer<Trained> {
             if n_samples * n_features > 10000 {
                 result
                     .as_slice_mut()
-                    .unwrap()
+                    .expect("operation should succeed")
                     .par_iter_mut()
                     .enumerate()
                     .for_each(|(idx, value)| {
@@ -490,10 +496,13 @@ mod tests {
         ];
 
         let winsorizer = Winsorizer::with_percentiles(10.0, 90.0)
+            .expect("valid parameter")
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let transformed = winsorizer.transform(&x).unwrap();
+        let transformed = winsorizer
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // Check that outliers are capped
         assert!(transformed[[9, 0]] < x[[9, 0]]); // 100.0 should be capped
@@ -520,8 +529,9 @@ mod tests {
         ];
 
         let winsorizer = Winsorizer::with_percentiles(20.0, 80.0)
+            .expect("valid parameter")
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         // 20th percentile should be around 2.8, 80th percentile around 8.2
         let lower = winsorizer.lower_bounds()[0];
@@ -542,11 +552,14 @@ mod tests {
         ];
 
         let winsorizer = Winsorizer::with_percentiles(25.0, 75.0)
+            .expect("valid parameter")
             .nan_strategy(NanStrategy::Skip)
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let transformed = winsorizer.transform(&x).unwrap();
+        let transformed = winsorizer
+            .transform(&x)
+            .expect("transformation should succeed");
 
         // NaN should remain NaN with Skip strategy
         assert!(transformed[[1, 1]].is_nan());
@@ -558,10 +571,12 @@ mod tests {
 
     #[test]
     fn test_winsorizer_single_value() {
-        let winsorizer = Winsorizer::with_percentiles(10.0, 90.0);
+        let winsorizer = Winsorizer::with_percentiles(10.0, 90.0).expect("valid parameter");
         let x = array![[5.0], [15.0], [25.0], [100.0]];
 
-        let fitted = winsorizer.fit(&x, &()).unwrap();
+        let fitted = winsorizer
+            .fit(&x, &())
+            .expect("model fitting should succeed");
 
         let lower_bound = fitted.lower_bounds()[0];
         let upper_bound = fitted.upper_bounds()[0];
@@ -585,10 +600,13 @@ mod tests {
         ];
 
         let winsorizer = Winsorizer::with_percentiles(25.0, 75.0)
+            .expect("valid parameter")
             .fit(&x, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let stats = winsorizer.get_winsorization_stats(&x).unwrap();
+        let stats = winsorizer
+            .get_winsorization_stats(&x)
+            .expect("operation should succeed");
 
         assert_eq!(stats.n_samples, 5);
         assert_eq!(stats.n_features, 2);
@@ -600,14 +618,22 @@ mod tests {
     fn test_winsorizer_edge_cases() {
         // Test with constant data
         let x = array![[5.0], [5.0], [5.0], [5.0]];
-        let winsorizer = Winsorizer::new().fit(&x, &()).unwrap();
-        let transformed = winsorizer.transform(&x).unwrap();
+        let winsorizer = Winsorizer::new()
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let transformed = winsorizer
+            .transform(&x)
+            .expect("transformation should succeed");
         assert_eq!(transformed, x);
 
         // Test with single sample
         let x = array![[5.0]];
-        let winsorizer = Winsorizer::new().fit(&x, &()).unwrap();
-        let transformed = winsorizer.transform(&x).unwrap();
+        let winsorizer = Winsorizer::new()
+            .fit(&x, &())
+            .expect("model fitting should succeed");
+        let transformed = winsorizer
+            .transform(&x)
+            .expect("transformation should succeed");
         assert_eq!(transformed, x);
     }
 
@@ -616,21 +642,19 @@ mod tests {
         let x_train = array![[1.0, 2.0], [3.0, 4.0]];
         let x_test = array![[1.0, 2.0, 3.0]]; // Extra feature
 
-        let winsorizer = Winsorizer::new().fit(&x_train, &()).unwrap();
+        let winsorizer = Winsorizer::new()
+            .fit(&x_train, &())
+            .expect("model fitting should succeed");
         let result = winsorizer.transform(&x_test);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_winsorizer_invalid_percentiles() {
-        let result = std::panic::catch_unwind(|| {
-            Winsorizer::new().lower_percentile(60.0); // Invalid: > 50
-        });
+        let result = Winsorizer::new().lower_percentile(60.0); // Invalid: > 50
         assert!(result.is_err());
 
-        let result = std::panic::catch_unwind(|| {
-            Winsorizer::new().upper_percentile(40.0); // Invalid: < 50
-        });
+        let result = Winsorizer::new().upper_percentile(40.0); // Invalid: < 50
         assert!(result.is_err());
     }
 

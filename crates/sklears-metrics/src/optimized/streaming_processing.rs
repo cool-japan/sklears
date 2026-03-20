@@ -76,7 +76,7 @@ impl<F: FloatTrait + FromPrimitive + Zero> StreamingMetrics<F> {
         if self.n_samples == 0 {
             return Err(MetricsError::EmptyInput);
         }
-        Ok(self.sum_absolute_error / F::from(self.n_samples).unwrap())
+        Ok(self.sum_absolute_error / F::from(self.n_samples).expect("operation should succeed"))
     }
 
     /// Get current mean squared error
@@ -84,7 +84,7 @@ impl<F: FloatTrait + FromPrimitive + Zero> StreamingMetrics<F> {
         if self.n_samples == 0 {
             return Err(MetricsError::EmptyInput);
         }
-        Ok(self.sum_squared_error / F::from(self.n_samples).unwrap())
+        Ok(self.sum_squared_error / F::from(self.n_samples).expect("operation should succeed"))
     }
 
     /// Get current RMSE
@@ -98,7 +98,7 @@ impl<F: FloatTrait + FromPrimitive + Zero> StreamingMetrics<F> {
             return Err(MetricsError::EmptyInput);
         }
 
-        let n = F::from(self.n_samples).unwrap();
+        let n = F::from(self.n_samples).expect("operation should succeed");
         let _mean_true = self.sum_true / n;
         let ss_tot = self.sum_true_squared - (self.sum_true * self.sum_true) / n;
 
@@ -199,7 +199,8 @@ impl<F: FloatTrait + FromPrimitive + Zero + Copy> IncrementalMetrics<F> {
             return Err(MetricsError::EmptyInput);
         }
 
-        let mae = self.sum_absolute_error / F::from(self.n_samples).unwrap();
+        let mae =
+            self.sum_absolute_error / F::from(self.n_samples).expect("operation should succeed");
         self.last_mae = Some(mae);
         Ok(mae)
     }
@@ -214,7 +215,8 @@ impl<F: FloatTrait + FromPrimitive + Zero + Copy> IncrementalMetrics<F> {
             return Err(MetricsError::EmptyInput);
         }
 
-        let mse = self.sum_squared_error / F::from(self.n_samples).unwrap();
+        let mse =
+            self.sum_squared_error / F::from(self.n_samples).expect("operation should succeed");
         self.last_mse = Some(mse);
         Ok(mse)
     }
@@ -229,7 +231,7 @@ impl<F: FloatTrait + FromPrimitive + Zero + Copy> IncrementalMetrics<F> {
             return Err(MetricsError::EmptyInput);
         }
 
-        let n = F::from(self.n_samples).unwrap();
+        let n = F::from(self.n_samples).expect("operation should succeed");
         let mean_true = self.sum_true / n;
         let total_sum_squares = self.sum_true_squared - n * mean_true * mean_true;
 
@@ -477,10 +479,17 @@ mod tests {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9];
 
-        metrics.update_batch(&y_true, &y_pred).unwrap();
+        metrics
+            .update_batch(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_eq!(metrics.n_samples(), 3);
-        assert!(metrics.mean_absolute_error().unwrap() < 0.2);
+        assert!(
+            metrics
+                .mean_absolute_error()
+                .expect("operation should succeed")
+                < 0.2
+        );
     }
 
     #[test]
@@ -490,8 +499,12 @@ mod tests {
         metrics.update(1.0, 1.1);
         metrics.update(2.0, 2.1);
 
-        let mae1 = metrics.mean_absolute_error().unwrap();
-        let mae2 = metrics.mean_absolute_error().unwrap(); // Should use cached value
+        let mae1 = metrics
+            .mean_absolute_error()
+            .expect("operation should succeed");
+        let mae2 = metrics
+            .mean_absolute_error()
+            .expect("operation should succeed"); // Should use cached value
 
         assert_eq!(mae1, mae2);
         assert_eq!(metrics.n_samples(), 2);
@@ -504,7 +517,9 @@ mod tests {
         let y_true = array![0, 1, 0, 1];
         let y_pred = array![0, 1, 1, 1];
 
-        matrix.update_batch(&y_true, &y_pred).unwrap();
+        matrix
+            .update_batch(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert_eq!(matrix.n_samples(), 4);
         assert_eq!(matrix.get(0, 0), 1); // True negative

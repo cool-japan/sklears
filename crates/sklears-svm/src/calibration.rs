@@ -264,7 +264,7 @@ impl PlattScaling {
 
         for i in 0..n_samples {
             let mut sample_probs: Vec<Float> = bootstrap_probs.row(i).to_vec();
-            sample_probs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sample_probs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             mean_probs[i] = sample_probs.iter().sum::<Float>() / n_bootstrap as Float;
 
@@ -387,7 +387,7 @@ impl IsotonicCalibration {
             .map(|(&score, &label)| (score, if label > 0.5 { 1.0 } else { 0.0 }))
             .collect();
 
-        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
         // Simple isotonic regression using pool-adjacent-violators algorithm
         let mut calibration_curve = Vec::new();
@@ -563,7 +563,7 @@ impl IsotonicCalibration {
         }
 
         // If score is beyond the last point
-        self.calibration_curve.last().unwrap().1
+        self.calibration_curve.last().expect("empty collection").1
     }
 }
 
@@ -588,9 +588,13 @@ mod tests {
         let decision_scores = array![-2.0, -1.0, 0.0, 1.0, 2.0];
         let y_true = array![0.0, 0.0, 0.0, 1.0, 1.0];
 
-        platt.fit(&decision_scores, &y_true).unwrap();
+        platt
+            .fit(&decision_scores, &y_true)
+            .expect("model fitting should succeed");
 
-        let probabilities = platt.predict_proba(&decision_scores).unwrap();
+        let probabilities = platt
+            .predict_proba(&decision_scores)
+            .expect("probability prediction should succeed");
 
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
@@ -618,8 +622,12 @@ mod tests {
         let decision_scores = array![-1.0, 0.0, 1.0];
         let y_true = array![0.0, 0.0, 1.0];
 
-        platt.fit(&decision_scores, &y_true).unwrap();
-        let prob_matrix = platt.predict_proba_binary(&decision_scores).unwrap();
+        platt
+            .fit(&decision_scores, &y_true)
+            .expect("model fitting should succeed");
+        let prob_matrix = platt
+            .predict_proba_binary(&decision_scores)
+            .expect("operation should succeed");
 
         assert_eq!(prob_matrix.dim(), (3, 2));
 
@@ -637,8 +645,12 @@ mod tests {
         let decision_scores = array![-2.0, -1.0, 0.0, 1.0, 2.0];
         let y_true = array![0.0, 0.0, 0.0, 1.0, 1.0];
 
-        isotonic.fit(&decision_scores, &y_true).unwrap();
-        let probabilities = isotonic.predict_proba(&decision_scores).unwrap();
+        isotonic
+            .fit(&decision_scores, &y_true)
+            .expect("model fitting should succeed");
+        let probabilities = isotonic
+            .predict_proba(&decision_scores)
+            .expect("probability prediction should succeed");
 
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
@@ -670,10 +682,12 @@ mod tests {
         let decision_scores = array![-1.0, 0.0, 1.0];
         let y_true = array![0.0, 0.0, 1.0];
 
-        platt.fit(&decision_scores, &y_true).unwrap();
+        platt
+            .fit(&decision_scores, &y_true)
+            .expect("model fitting should succeed");
 
         // Test that parameters are accessible after fitting
-        let (a, b) = platt.parameters().unwrap();
+        let (a, b) = platt.parameters().expect("operation should succeed");
         assert!(a.is_finite() && b.is_finite());
     }
 
@@ -706,9 +720,13 @@ mod tests {
         let y_true = array![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
         // Test cross-validation fitting
-        platt.fit_cv(&decision_scores, &y_true, 3).unwrap();
+        platt
+            .fit_cv(&decision_scores, &y_true, 3)
+            .expect("operation should succeed");
 
-        let probabilities = platt.predict_proba(&decision_scores).unwrap();
+        let probabilities = platt
+            .predict_proba(&decision_scores)
+            .expect("probability prediction should succeed");
 
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {
@@ -738,11 +756,13 @@ mod tests {
         let decision_scores = array![-2.0, -1.0, 0.0, 1.0, 2.0];
         let y_true = array![0.0, 0.0, 0.0, 1.0, 1.0];
 
-        platt.fit(&decision_scores, &y_true).unwrap();
+        platt
+            .fit(&decision_scores, &y_true)
+            .expect("model fitting should succeed");
 
         let (mean_probs, lower_bounds, upper_bounds) = platt
             .predict_proba_with_confidence(&decision_scores, 0.95, 100)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(mean_probs.len(), decision_scores.len());
         assert_eq!(lower_bounds.len(), decision_scores.len());
@@ -780,9 +800,13 @@ mod tests {
         let y_true = array![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
         // Test cross-validation fitting
-        isotonic.fit_cv(&decision_scores, &y_true, 3).unwrap();
+        isotonic
+            .fit_cv(&decision_scores, &y_true, 3)
+            .expect("operation should succeed");
 
-        let probabilities = isotonic.predict_proba(&decision_scores).unwrap();
+        let probabilities = isotonic
+            .predict_proba(&decision_scores)
+            .expect("probability prediction should succeed");
 
         // Check that probabilities are in [0, 1]
         for &prob in probabilities.iter() {

@@ -131,7 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Generate synthetic multiclass classification data
 fn generate_multiclass_data(n_samples: usize, n_classes: usize) -> (Array2<f64>, Array1<i32>) {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("Normal distribution params should be valid");
 
     // Generate features with some structure
     // Classes will have different mean centers

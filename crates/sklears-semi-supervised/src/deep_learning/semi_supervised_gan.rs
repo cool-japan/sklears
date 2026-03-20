@@ -84,7 +84,7 @@ impl Generator {
 
     /// Generate samples
     pub fn generate(&self, n_samples: usize) -> SklResult<Array2<f64>> {
-        let output_dim = *self.architecture.last().unwrap();
+        let output_dim = *self.architecture.last().expect("operation should succeed");
         let mut samples = Array2::zeros((n_samples, output_dim));
 
         for i in 0..n_samples {
@@ -457,8 +457,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for SemiSupervisedGAN<Untra
 
         Ok(SemiSupervisedGAN {
             state: SemiSupervisedGANTrained {
-                generator: model.generator.unwrap(),
-                discriminator: model.discriminator.unwrap(),
+                generator: model.generator.expect("operation should succeed"),
+                discriminator: model.discriminator.expect("operation should succeed"),
                 classes: Array1::from(unique_classes),
                 noise_dim: model.noise_dim,
                 n_classes: model.n_classes,
@@ -559,7 +559,7 @@ mod tests {
         let result = gen.forward(&noise.view());
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert_eq!(output.len(), 3);
     }
 
@@ -570,7 +570,7 @@ mod tests {
         let result = gen.generate(10);
         assert!(result.is_ok());
 
-        let samples = result.unwrap();
+        let samples = result.expect("operation should succeed");
         assert_eq!(samples.dim(), (10, 3));
     }
 
@@ -591,7 +591,7 @@ mod tests {
         let result = disc.forward(&x.view());
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert_eq!(output.len(), 3); // 2 real classes + 1 fake class
     }
 
@@ -603,7 +603,7 @@ mod tests {
         let result = disc.predict_proba(&x.view());
         assert!(result.is_ok());
 
-        let probs = result.unwrap();
+        let probs = result.expect("operation should succeed");
         assert_eq!(probs.len(), 3);
         assert!((probs.sum() - 1.0).abs() < 1e-10);
         assert!(probs.iter().all(|&p| p >= 0.0 && p <= 1.0));
@@ -644,19 +644,19 @@ mod tests {
         let result = gan.fit(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.state.classes.len(), 2);
 
         let predictions = fitted.predict(&X.view());
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.len(), 6);
 
         let probabilities = fitted.predict_proba(&X.view());
         assert!(probabilities.is_ok());
 
-        let proba = probabilities.unwrap();
+        let proba = probabilities.expect("operation should succeed");
         assert_eq!(proba.dim(), (6, 2));
 
         // Check probabilities sum to 1
@@ -694,7 +694,7 @@ mod tests {
         let result = disc.get_real_fake_proba(&x.view());
         assert!(result.is_ok());
 
-        let real_prob = result.unwrap();
+        let real_prob = result.expect("operation should succeed");
         assert!(real_prob >= 0.0 && real_prob <= 1.0);
     }
 
@@ -710,12 +710,14 @@ mod tests {
 
         let gan = SemiSupervisedGAN::new().noise_dim(5).epochs(3);
 
-        let fitted = gan.fit(&X.view(), &y.view()).unwrap();
+        let fitted = gan
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         let generated = fitted.generate_samples(5);
         assert!(generated.is_ok());
 
-        let samples = generated.unwrap();
+        let samples = generated.expect("operation should succeed");
         assert_eq!(samples.dim(), (5, 3));
     }
 }

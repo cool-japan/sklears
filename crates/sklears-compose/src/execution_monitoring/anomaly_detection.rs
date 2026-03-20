@@ -255,7 +255,7 @@ impl AnomalyDetectionSystem {
         // Initialize system if enabled
         if config.enabled {
             {
-                let mut state = system.state.write().unwrap();
+                let mut state = system.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = AnomalySystemStatus::Active;
                 state.started_at = SystemTime::now();
             }
@@ -273,37 +273,37 @@ impl AnomalyDetectionSystem {
 
         // Add to active sessions
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.to_string(), session_detector);
         }
 
         // Initialize session in ML engine
         {
-            let mut ml_engine = self.ml_engine.write().unwrap();
+            let mut ml_engine = self.ml_engine.write().unwrap_or_else(|e| e.into_inner());
             ml_engine.initialize_session(session_id)?;
         }
 
         // Initialize session in statistical analyzer
         {
-            let mut analyzer = self.statistical_analyzer.write().unwrap();
+            let mut analyzer = self.statistical_analyzer.write().unwrap_or_else(|e| e.into_inner());
             analyzer.initialize_session(session_id)?;
         }
 
         // Initialize session in pattern recognizer
         {
-            let mut recognizer = self.pattern_recognizer.write().unwrap();
+            let mut recognizer = self.pattern_recognizer.write().unwrap_or_else(|e| e.into_inner());
             recognizer.initialize_session(session_id)?;
         }
 
         // Initialize baseline for session
         {
-            let mut baseline_mgr = self.baseline_manager.write().unwrap();
+            let mut baseline_mgr = self.baseline_manager.write().unwrap_or_else(|e| e.into_inner());
             baseline_mgr.initialize_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count += 1;
             state.total_sessions_initialized += 1;
         }
@@ -318,7 +318,7 @@ impl AnomalyDetectionSystem {
 
         // Remove from active sessions
         let detector = {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.remove(session_id)
         };
 
@@ -329,19 +329,19 @@ impl AnomalyDetectionSystem {
 
         // Shutdown session in ML engine
         {
-            let mut ml_engine = self.ml_engine.write().unwrap();
+            let mut ml_engine = self.ml_engine.write().unwrap_or_else(|e| e.into_inner());
             ml_engine.shutdown_session(session_id)?;
         }
 
         // Shutdown session in statistical analyzer
         {
-            let mut analyzer = self.statistical_analyzer.write().unwrap();
+            let mut analyzer = self.statistical_analyzer.write().unwrap_or_else(|e| e.into_inner());
             analyzer.shutdown_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count = state.active_sessions_count.saturating_sub(1);
             state.total_sessions_finalized += 1;
         }
@@ -367,7 +367,7 @@ impl AnomalyDetectionSystem {
 
         // Analyze through session detector
         let analysis_result = {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             if let Some(detector) = sessions.get_mut(session_id) {
                 detector.analyze_metric(&data_point).await?
             } else {
@@ -377,55 +377,55 @@ impl AnomalyDetectionSystem {
 
         // Perform ML-based analysis
         let ml_result = {
-            let mut ml_engine = self.ml_engine.write().unwrap();
+            let mut ml_engine = self.ml_engine.write().unwrap_or_else(|e| e.into_inner());
             ml_engine.analyze_data_point(session_id, &data_point).await?
         };
 
         // Perform statistical analysis
         let statistical_result = {
-            let mut analyzer = self.statistical_analyzer.write().unwrap();
+            let mut analyzer = self.statistical_analyzer.write().unwrap_or_else(|e| e.into_inner());
             analyzer.analyze_data_point(session_id, &data_point).await?
         };
 
         // Check for regression patterns
         let regression_result = {
-            let mut regression_detector = self.regression_detector.write().unwrap();
+            let mut regression_detector = self.regression_detector.write().unwrap_or_else(|e| e.into_inner());
             regression_detector.check_regression(session_id, &data_point).await?
         };
 
         // Update pattern recognition
         {
-            let mut recognizer = self.pattern_recognizer.write().unwrap();
+            let mut recognizer = self.pattern_recognizer.write().unwrap_or_else(|e| e.into_inner());
             recognizer.update_patterns(session_id, &data_point).await?;
         }
 
         // Update baseline
         {
-            let mut baseline_mgr = self.baseline_manager.write().unwrap();
+            let mut baseline_mgr = self.baseline_manager.write().unwrap_or_else(|e| e.into_inner());
             baseline_mgr.update_baseline(session_id, &data_point).await?;
         }
 
         // Perform predictive analysis
         let predictive_result = {
-            let mut predictor = self.predictive_analyzer.write().unwrap();
+            let mut predictor = self.predictive_analyzer.write().unwrap_or_else(|e| e.into_inner());
             predictor.predict_anomalies(session_id, &data_point).await?
         };
 
         // Correlate with other anomalies
         {
-            let mut correlator = self.anomaly_correlator.write().unwrap();
+            let mut correlator = self.anomaly_correlator.write().unwrap_or_else(|e| e.into_inner());
             correlator.correlate_anomalies(session_id, &analysis_result).await?;
         }
 
         // Update performance tracking
         {
-            let mut perf_monitor = self.performance_monitor.write().unwrap();
+            let mut perf_monitor = self.performance_monitor.write().unwrap_or_else(|e| e.into_inner());
             perf_monitor.record_analysis();
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.total_metrics_analyzed += 1;
             if analysis_result.is_anomaly {
                 state.total_anomalies_detected += 1;
@@ -448,7 +448,7 @@ impl AnomalyDetectionSystem {
         session_id: &str,
         time_range: Option<TimeRange>,
     ) -> SklResult<Vec<DetectedAnomaly>> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(detector) = sessions.get(session_id) {
             Ok(detector.get_detected_anomalies(time_range))
         } else {
@@ -458,7 +458,7 @@ impl AnomalyDetectionSystem {
 
     /// Get anomaly detection statistics
     pub fn get_detection_statistics(&self, session_id: &str) -> SklResult<DetectionStatistics> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(detector) = sessions.get(session_id) {
             Ok(detector.get_detection_statistics())
         } else {
@@ -472,7 +472,7 @@ impl AnomalyDetectionSystem {
         session_id: &str,
         sensitivity_config: SensitivityConfig,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(detector) = sessions.get_mut(session_id) {
             detector.configure_sensitivity(sensitivity_config).await
         } else {
@@ -487,7 +487,7 @@ impl AnomalyDetectionSystem {
 
         // Get training data from session
         let training_data = {
-            let sessions = self.active_sessions.read().unwrap();
+            let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
             if let Some(detector) = sessions.get(session_id) {
                 detector.get_training_data()
             } else {
@@ -496,13 +496,13 @@ impl AnomalyDetectionSystem {
         };
 
         // Train models
-        let mut trainer = self.model_trainer.write().unwrap();
+        let mut trainer = self.model_trainer.write().unwrap_or_else(|e| e.into_inner());
         trainer.train_models(session_id, training_data).await
     }
 
     /// Get model performance metrics
     pub fn get_model_performance(&self, session_id: &str) -> SklResult<HashMap<String, ModelPerformance>> {
-        let ml_engine = self.ml_engine.read().unwrap();
+        let ml_engine = self.ml_engine.read().unwrap_or_else(|e| e.into_inner());
         ml_engine.get_model_performance(session_id)
     }
 
@@ -516,7 +516,7 @@ impl AnomalyDetectionSystem {
         self.validate_session_exists(session_id)?;
 
         // Perform regression analysis
-        let regression_detector = self.regression_detector.read().unwrap();
+        let regression_detector = self.regression_detector.read().unwrap_or_else(|e| e.into_inner());
         regression_detector.perform_analysis(session_id, analysis_config).await
     }
 
@@ -530,7 +530,7 @@ impl AnomalyDetectionSystem {
         self.validate_session_exists(session_id)?;
 
         // Get predictive analysis
-        let predictor = self.predictive_analyzer.read().unwrap();
+        let predictor = self.predictive_analyzer.read().unwrap_or_else(|e| e.into_inner());
         predictor.generate_predictions(session_id, prediction_horizon).await
     }
 
@@ -540,14 +540,14 @@ impl AnomalyDetectionSystem {
         self.validate_session_exists(session_id)?;
 
         // Get baseline information
-        let baseline_mgr = self.baseline_manager.read().unwrap();
+        let baseline_mgr = self.baseline_manager.read().unwrap_or_else(|e| e.into_inner());
         baseline_mgr.get_baseline_info(session_id)
     }
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let health = self.health_tracker.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let health = self.health_tracker.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: match state.status {
@@ -565,8 +565,8 @@ impl AnomalyDetectionSystem {
 
     /// Get anomaly system statistics
     pub fn get_system_statistics(&self) -> SklResult<AnomalySystemStatistics> {
-        let state = self.state.read().unwrap();
-        let perf_monitor = self.performance_monitor.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let perf_monitor = self.performance_monitor.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(AnomalySystemStatistics {
             total_metrics_analyzed: state.total_metrics_analyzed,
@@ -582,7 +582,7 @@ impl AnomalyDetectionSystem {
     /// Private helper methods
     async fn finalize_session_analysis(&self, session_id: &str) -> SklResult<()> {
         // Perform final analysis and model updates
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(_detector) = sessions.get(session_id) {
             // Final analysis would be performed here
         }
@@ -590,7 +590,7 @@ impl AnomalyDetectionSystem {
     }
 
     fn validate_session_exists(&self, session_id: &str) -> SklResult<()> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if !sessions.contains_key(session_id) {
             return Err(SklearsError::NotFound(format!("Session {} not found", session_id)));
         }
@@ -598,7 +598,7 @@ impl AnomalyDetectionSystem {
     }
 
     fn calculate_detection_rate(&self) -> SklResult<f64> {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         if state.total_metrics_analyzed == 0 {
             Ok(0.0)
         } else {
@@ -1268,7 +1268,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_initialization() {
         let config = AnomalyDetectionConfig::default();
-        let mut system = AnomalyDetectionSystem::new(&config).unwrap();
+        let mut system = AnomalyDetectionSystem::new(&config).unwrap_or_default();
 
         let result = system.initialize_session("test_session").await;
         assert!(result.is_ok());

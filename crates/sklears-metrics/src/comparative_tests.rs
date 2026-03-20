@@ -24,11 +24,12 @@ mod reference_values_tests {
         // Average: 2.0 / 4 = 0.5
         let expected_mae = 0.5;
 
-        let mae = mean_absolute_error(&y_true, &y_pred).unwrap();
+        let mae = mean_absolute_error(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(mae, expected_mae, epsilon = 1e-15);
 
         // Test optimized version
-        let optimized_mae = optimized_mean_absolute_error(&y_true, &y_pred, None).unwrap();
+        let optimized_mae = optimized_mean_absolute_error(&y_true, &y_pred, None)
+            .expect("operation should succeed");
         assert_relative_eq!(optimized_mae, expected_mae, epsilon = 1e-15);
     }
 
@@ -41,11 +42,12 @@ mod reference_values_tests {
         // Average: 1.5 / 4 = 0.375
         let expected_mse = 0.375;
 
-        let mse = mean_squared_error(&y_true, &y_pred).unwrap();
+        let mse = mean_squared_error(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(mse, expected_mse, epsilon = 1e-15);
 
         // Test optimized version
-        let optimized_mse = optimized_mean_squared_error(&y_true, &y_pred, None).unwrap();
+        let optimized_mse =
+            optimized_mean_squared_error(&y_true, &y_pred, None).expect("operation should succeed");
         assert_relative_eq!(optimized_mse, expected_mse, epsilon = 1e-15);
     }
 
@@ -62,11 +64,12 @@ mod reference_values_tests {
         // R² = 1 - SS_res/SS_tot = 1 - 0.05/10 = 1 - 0.005 = 0.995
         let expected_r2 = 0.995;
 
-        let r2 = r2_score(&y_true, &y_pred).unwrap();
+        let r2 = r2_score(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(r2, expected_r2, epsilon = 1e-15);
 
         // Test optimized version
-        let optimized_r2 = optimized_r2_score(&y_true, &y_pred, None).unwrap();
+        let optimized_r2 =
+            optimized_r2_score(&y_true, &y_pred, None).expect("operation should succeed");
         assert_relative_eq!(optimized_r2, expected_r2, epsilon = 1e-15);
     }
 
@@ -79,7 +82,7 @@ mod reference_values_tests {
         // Accuracy = 2/6 = 1/3 ≈ 0.333333...
         let expected_accuracy = 1.0 / 3.0;
 
-        let accuracy = accuracy_score(&y_true, &y_pred).unwrap();
+        let accuracy = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(accuracy, expected_accuracy, epsilon = 1e-15);
     }
 
@@ -96,15 +99,16 @@ mod reference_values_tests {
         let expected_precision = 2.0 / 3.0;
         let expected_recall = 2.0 / 3.0;
 
-        let precision = precision_score(&y_true, &y_pred, Some(1)).unwrap();
-        let recall = recall_score(&y_true, &y_pred, Some(1)).unwrap();
+        let precision =
+            precision_score(&y_true, &y_pred, Some(1)).expect("operation should succeed");
+        let recall = recall_score(&y_true, &y_pred, Some(1)).expect("operation should succeed");
 
         assert_relative_eq!(precision, expected_precision, epsilon = 1e-15);
         assert_relative_eq!(recall, expected_recall, epsilon = 1e-15);
 
         // F1 = 2 * precision * recall / (precision + recall) = 2 * (2/3) * (2/3) / (2/3 + 2/3) = 2/3
         let expected_f1 = 2.0 / 3.0;
-        let f1 = f1_score(&y_true, &y_pred, Some(1)).unwrap();
+        let f1 = f1_score(&y_true, &y_pred, Some(1)).expect("operation should succeed");
         assert_relative_eq!(f1, expected_f1, epsilon = 1e-15);
     }
 
@@ -113,9 +117,9 @@ mod reference_values_tests {
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
 
         // Perfect predictions should give MAE=0, MSE=0, R²=1
-        let mae = mean_absolute_error(&y, &y).unwrap();
-        let mse = mean_squared_error(&y, &y).unwrap();
-        let r2 = r2_score(&y, &y).unwrap();
+        let mae = mean_absolute_error(&y, &y).expect("operation should succeed");
+        let mse = mean_squared_error(&y, &y).expect("operation should succeed");
+        let r2 = r2_score(&y, &y).expect("operation should succeed");
 
         assert_relative_eq!(mae, 0.0, epsilon = 1e-15);
         assert_relative_eq!(mse, 0.0, epsilon = 1e-15);
@@ -123,7 +127,7 @@ mod reference_values_tests {
 
         // Test classification perfect predictions
         let y_class = array![0, 1, 2, 0, 1, 2];
-        let accuracy = accuracy_score(&y_class, &y_class).unwrap();
+        let accuracy = accuracy_score(&y_class, &y_class).expect("operation should succeed");
         assert_relative_eq!(accuracy, 1.0, epsilon = 1e-15);
     }
 
@@ -133,7 +137,7 @@ mod reference_values_tests {
         let y_true = array![0, 0, 1, 1];
         let y_pred = array![1, 1, 0, 0];
 
-        let accuracy = accuracy_score(&y_true, &y_pred).unwrap();
+        let accuracy = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(accuracy, 0.0, epsilon = 1e-15);
     }
 
@@ -144,7 +148,7 @@ mod reference_values_tests {
         let mean = 3.0;
         let y_pred = array![mean, mean, mean, mean, mean];
 
-        let r2 = r2_score(&y_true, &y_pred).unwrap();
+        let r2 = r2_score(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(r2, 0.0, epsilon = 1e-15);
     }
 
@@ -154,7 +158,7 @@ mod reference_values_tests {
         let y_true = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y_pred = array![5.0, 1.0, 5.0, 1.0, 5.0]; // Very bad predictions
 
-        let r2 = r2_score(&y_true, &y_pred).unwrap();
+        let r2 = r2_score(&y_true, &y_pred).expect("operation should succeed");
         assert!(
             r2 < 0.0,
             "R² should be negative for very bad predictions, got {}",
@@ -182,7 +186,7 @@ mod sklearn_compatibility_tests {
         let y_pred = array![2.5, 0.0, 2.0, 8.0];
         let sklearn_result = 0.5;
 
-        let our_result = mean_absolute_error(&y_true, &y_pred).unwrap();
+        let our_result = mean_absolute_error(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(our_result, sklearn_result, epsilon = 1e-15);
     }
 
@@ -193,7 +197,7 @@ mod sklearn_compatibility_tests {
         let y_pred = array![2.5, 0.0, 2.0, 8.0];
         let sklearn_result = 0.375;
 
-        let our_result = mean_squared_error(&y_true, &y_pred).unwrap();
+        let our_result = mean_squared_error(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(our_result, sklearn_result, epsilon = 1e-15);
     }
 
@@ -204,7 +208,7 @@ mod sklearn_compatibility_tests {
         let y_pred = array![1.1, 1.9, 3.1, 3.9, 5.1];
         let sklearn_result = 0.995;
 
-        let our_result = r2_score(&y_true, &y_pred).unwrap();
+        let our_result = r2_score(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(our_result, sklearn_result, epsilon = 1e-15);
     }
 
@@ -215,7 +219,7 @@ mod sklearn_compatibility_tests {
         let y_pred = array![0, 2, 1, 0, 0, 1];
         let sklearn_result = 0.3333333333333333;
 
-        let our_result = accuracy_score(&y_true, &y_pred).unwrap();
+        let our_result = accuracy_score(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(our_result, sklearn_result, epsilon = 1e-15);
     }
 
@@ -228,12 +232,12 @@ mod sklearn_compatibility_tests {
 
         // Expected MAE should be exactly 0.5
         let expected_mae = 0.5;
-        let our_mae = mean_absolute_error(&y_true, &y_pred).unwrap();
+        let our_mae = mean_absolute_error(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(our_mae, expected_mae, epsilon = 1e-15);
 
         // Expected MSE should be exactly 0.25
         let expected_mse = 0.25;
-        let our_mse = mean_squared_error(&y_true, &y_pred).unwrap();
+        let our_mse = mean_squared_error(&y_true, &y_pred).expect("operation should succeed");
         assert_relative_eq!(our_mse, expected_mse, epsilon = 1e-15);
     }
 }
@@ -250,9 +254,9 @@ mod mathematical_properties_tests {
         let b = array![1.5, 2.5, 2.5];
         let c = array![2.0, 3.0, 2.0];
 
-        let mae_ac = mean_absolute_error(&a, &c).unwrap();
-        let mae_ab = mean_absolute_error(&a, &b).unwrap();
-        let mae_bc = mean_absolute_error(&b, &c).unwrap();
+        let mae_ac = mean_absolute_error(&a, &c).expect("operation should succeed");
+        let mae_ab = mean_absolute_error(&a, &b).expect("operation should succeed");
+        let mae_bc = mean_absolute_error(&b, &c).expect("operation should succeed");
 
         assert!(mae_ac <= mae_ab + mae_bc + 1e-15);
     }
@@ -267,9 +271,9 @@ mod mathematical_properties_tests {
 
         let interpolated = &a * lambda + &b * (1.0 - lambda);
 
-        let mse_interp = mean_squared_error(&interpolated, &c).unwrap();
-        let mse_a = mean_squared_error(&a, &c).unwrap();
-        let mse_b = mean_squared_error(&b, &c).unwrap();
+        let mse_interp = mean_squared_error(&interpolated, &c).expect("operation should succeed");
+        let mse_a = mean_squared_error(&a, &c).expect("operation should succeed");
+        let mse_b = mean_squared_error(&b, &c).expect("operation should succeed");
         let convex_bound = lambda * mse_a + (1.0 - lambda) * mse_b;
 
         assert!(mse_interp <= convex_bound + 1e-15);
@@ -282,8 +286,9 @@ mod mathematical_properties_tests {
         let b = array![1.1, 2.1, 2.9];
         let k = 5.0;
 
-        let mae_original = mean_absolute_error(&a, &b).unwrap();
-        let mae_scaled = mean_absolute_error(&(&a * k), &(&b * k)).unwrap();
+        let mae_original = mean_absolute_error(&a, &b).expect("operation should succeed");
+        let mae_scaled =
+            mean_absolute_error(&(&a * k), &(&b * k)).expect("operation should succeed");
 
         assert_relative_eq!(mae_scaled, k * mae_original, epsilon = 1e-15);
     }
@@ -295,8 +300,9 @@ mod mathematical_properties_tests {
         let b = array![1.1, 2.1, 2.9];
         let k = 3.0;
 
-        let mse_original = mean_squared_error(&a, &b).unwrap();
-        let mse_scaled = mean_squared_error(&(&a * k), &(&b * k)).unwrap();
+        let mse_original = mean_squared_error(&a, &b).expect("operation should succeed");
+        let mse_scaled =
+            mean_squared_error(&(&a * k), &(&b * k)).expect("operation should succeed");
 
         assert_relative_eq!(mse_scaled, k * k * mse_original, epsilon = 1e-15);
     }
@@ -308,8 +314,8 @@ mod mathematical_properties_tests {
         let b = array![1.1, 2.1, 2.9];
         let c = 100.0;
 
-        let r2_original = r2_score(&a, &b).unwrap();
-        let r2_translated = r2_score(&(&a + c), &(&b + c)).unwrap();
+        let r2_original = r2_score(&a, &b).expect("operation should succeed");
+        let r2_translated = r2_score(&(&a + c), &(&b + c)).expect("operation should succeed");
 
         // Use a more relaxed tolerance due to floating point precision with large numbers
         assert_relative_eq!(r2_translated, r2_original, epsilon = 1e-12);
@@ -322,7 +328,7 @@ mod mathematical_properties_tests {
     //     let y_pred = array![0, 1, 1, 0, 0, 1];
 
     //     let mut matrix = SparseConfusionMatrix::new();
-    //     matrix.update(&y_true, &y_pred).unwrap();
+    //     matrix.update(&y_true, &y_pred).expect("operation should succeed");
 
     //     // Sum of all entries should equal total samples
     //     let total_from_matrix = matrix
@@ -362,28 +368,42 @@ mod consistency_across_implementations {
         let y_pred = array![1.1, 1.9, 3.1, 3.9, 5.1, 5.9, 7.1, 7.9];
 
         // Standard implementations
-        let std_mae = mean_absolute_error(&y_true, &y_pred).unwrap();
-        let std_mse = mean_squared_error(&y_true, &y_pred).unwrap();
-        let std_r2 = r2_score(&y_true, &y_pred).unwrap();
+        let std_mae = mean_absolute_error(&y_true, &y_pred).expect("operation should succeed");
+        let std_mse = mean_squared_error(&y_true, &y_pred).expect("operation should succeed");
+        let std_r2 = r2_score(&y_true, &y_pred).expect("operation should succeed");
 
         // Optimized implementations
-        let opt_mae = optimized_mean_absolute_error(&y_true, &y_pred, None).unwrap();
-        let opt_mse = optimized_mean_squared_error(&y_true, &y_pred, None).unwrap();
-        let opt_r2 = optimized_r2_score(&y_true, &y_pred, None).unwrap();
+        let opt_mae = optimized_mean_absolute_error(&y_true, &y_pred, None)
+            .expect("operation should succeed");
+        let opt_mse =
+            optimized_mean_squared_error(&y_true, &y_pred, None).expect("operation should succeed");
+        let opt_r2 = optimized_r2_score(&y_true, &y_pred, None).expect("operation should succeed");
 
         // Streaming implementation
         let mut streaming = StreamingMetrics::new(OptimizedConfig::default());
-        streaming.update_batch(&y_true, &y_pred).unwrap();
-        let stream_mae = streaming.mean_absolute_error().unwrap();
-        let stream_mse = streaming.mean_squared_error().unwrap();
-        let stream_r2 = streaming.r2_score().unwrap();
+        streaming
+            .update_batch(&y_true, &y_pred)
+            .expect("operation should succeed");
+        let stream_mae = streaming
+            .mean_absolute_error()
+            .expect("operation should succeed");
+        let stream_mse = streaming
+            .mean_squared_error()
+            .expect("operation should succeed");
+        let stream_r2 = streaming.r2_score().expect("operation should succeed");
 
         // Incremental implementation
         let mut incremental = IncrementalMetrics::new(OptimizedConfig::default());
-        incremental.update_batch(&y_true, &y_pred).unwrap();
-        let inc_mae = incremental.mean_absolute_error().unwrap();
-        let inc_mse = incremental.mean_squared_error().unwrap();
-        let inc_r2 = incremental.r2_score().unwrap();
+        incremental
+            .update_batch(&y_true, &y_pred)
+            .expect("operation should succeed");
+        let inc_mae = incremental
+            .mean_absolute_error()
+            .expect("operation should succeed");
+        let inc_mse = incremental
+            .mean_squared_error()
+            .expect("operation should succeed");
+        let inc_r2 = incremental.r2_score().expect("operation should succeed");
 
         // Chunked implementation
         let processor = ChunkedMetricProcessor::new(OptimizedConfig {
@@ -392,10 +412,10 @@ mod consistency_across_implementations {
         });
         let chunk_mae = processor
             .chunked_mean_absolute_error(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
         let chunk_mse = processor
             .chunked_mean_squared_error(&y_true, &y_pred)
-            .unwrap();
+            .expect("operation should succeed");
 
         // All should be identical
         let epsilon = 1e-15;

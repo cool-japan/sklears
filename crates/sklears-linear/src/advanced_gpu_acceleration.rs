@@ -834,13 +834,13 @@ mod tests {
         let mut pool = GpuMemoryPool::new(0, 1024);
 
         // Test allocation
-        let ptr1 = pool.allocate(256).unwrap();
-        let ptr2 = pool.allocate(256).unwrap();
+        let ptr1 = pool.allocate(256).expect("operation should succeed");
+        let ptr2 = pool.allocate(256).expect("operation should succeed");
         assert_ne!(ptr1, ptr2);
 
         // Test deallocation
-        pool.deallocate(ptr1).unwrap();
-        let _ptr3 = pool.allocate(128).unwrap();
+        pool.deallocate(ptr1).expect("operation should succeed");
+        let _ptr3 = pool.allocate(128).expect("operation should succeed");
 
         let (used, total) = pool.memory_usage();
         assert_eq!(total, 1024);
@@ -890,7 +890,7 @@ mod tests {
         let ops = AdvancedGpuOps::new(config);
         assert!(ops.is_ok());
 
-        let ops = ops.unwrap();
+        let ops = ops.expect("operation should succeed");
         assert_eq!(ops.devices.len(), 1);
         assert_eq!(ops.memory_pools.len(), 1);
     }
@@ -898,7 +898,7 @@ mod tests {
     #[test]
     fn test_matrix_operations() {
         let config = AdvancedGpuConfig::default();
-        let mut ops = AdvancedGpuOps::new(config).unwrap();
+        let mut ops = AdvancedGpuOps::new(config).expect("operation should succeed");
 
         let a = Array2::from_shape_vec(
             (4, 3),
@@ -906,15 +906,20 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        .expect("operation should succeed");
+        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
 
-        let result = ops.multi_gpu_matrix_multiply(&a, &b).unwrap();
+        let result = ops
+            .multi_gpu_matrix_multiply(&a, &b)
+            .expect("operation should succeed");
         assert_eq!(result.dim(), (4, 2));
 
-        let c =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]).unwrap();
-        let fused_result = ops.fused_matrix_multiply_add(&a, &b, &c).unwrap();
+        let c = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+            .expect("valid array shape");
+        let fused_result = ops
+            .fused_matrix_multiply_add(&a, &b, &c)
+            .expect("operation should succeed");
         assert_eq!(fused_result.dim(), (4, 2));
     }
 
@@ -924,12 +929,16 @@ mod tests {
             enable_profiling: true,
             ..Default::default()
         };
-        let mut ops = AdvancedGpuOps::new(config).unwrap();
+        let mut ops = AdvancedGpuOps::new(config).expect("operation should succeed");
 
-        let a = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect()).unwrap();
-        let b = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect()).unwrap();
+        let a = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect())
+            .expect("valid array shape");
+        let b = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect())
+            .expect("valid array shape");
 
-        let _result = ops.multi_gpu_matrix_multiply(&a, &b).unwrap();
+        let _result = ops
+            .multi_gpu_matrix_multiply(&a, &b)
+            .expect("operation should succeed");
 
         let metrics = ops.get_performance_metrics();
         assert!(!metrics.is_empty());
@@ -939,7 +948,7 @@ mod tests {
     #[test]
     fn test_batch_operations() {
         let config = AdvancedGpuConfig::default();
-        let mut ops = AdvancedGpuOps::new(config).unwrap();
+        let mut ops = AdvancedGpuOps::new(config).expect("operation should succeed");
 
         let batch_size = 3;
         let m = 4;
@@ -950,21 +959,23 @@ mod tests {
             (batch_size, m, k),
             (0..batch_size * m * k).map(|i| i as f64).collect(),
         )
-        .unwrap();
+        .expect("operation should succeed");
         let b_batch = Array3::from_shape_vec(
             (batch_size, k, n),
             (0..batch_size * k * n).map(|i| i as f64).collect(),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let result = ops.batch_matrix_multiply(&a_batch, &b_batch).unwrap();
+        let result = ops
+            .batch_matrix_multiply(&a_batch, &b_batch)
+            .expect("operation should succeed");
         assert_eq!(result.dim(), (batch_size, m, n));
     }
 
     #[test]
     fn test_async_operations() {
         let config = AdvancedGpuConfig::default();
-        let mut ops = AdvancedGpuOps::new(config).unwrap();
+        let mut ops = AdvancedGpuOps::new(config).expect("operation should succeed");
 
         let a = Array2::from_shape_vec(
             (4, 3),
@@ -972,10 +983,13 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
-        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        .expect("operation should succeed");
+        let b = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("valid array shape");
 
-        let async_op = ops.async_matrix_multiply(&a, &b, 0).unwrap();
+        let async_op = ops
+            .async_matrix_multiply(&a, &b, 0)
+            .expect("operation should succeed");
         assert_eq!(async_op.device_id, 0);
         assert_eq!(async_op.result_shape, (4, 2));
     }
@@ -983,7 +997,7 @@ mod tests {
     #[test]
     fn test_memory_management() {
         let config = AdvancedGpuConfig::default();
-        let ops = AdvancedGpuOps::new(config).unwrap();
+        let ops = AdvancedGpuOps::new(config).expect("operation should succeed");
 
         let memory_usage = ops.get_memory_usage();
         assert_eq!(memory_usage.len(), 1);
@@ -999,12 +1013,16 @@ mod tests {
             enable_profiling: true,
             ..Default::default()
         };
-        let mut ops = AdvancedGpuOps::new(config).unwrap();
+        let mut ops = AdvancedGpuOps::new(config).expect("operation should succeed");
 
-        let a = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect()).unwrap();
-        let b = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect()).unwrap();
+        let a = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect())
+            .expect("valid array shape");
+        let b = Array2::from_shape_vec((10, 10), (0..100).map(|i| i as f64).collect())
+            .expect("valid array shape");
 
-        let _result = ops.multi_gpu_matrix_multiply(&a, &b).unwrap();
+        let _result = ops
+            .multi_gpu_matrix_multiply(&a, &b)
+            .expect("operation should succeed");
 
         let report = ops.generate_performance_report();
         assert!(report.contains("GPU Performance Report"));

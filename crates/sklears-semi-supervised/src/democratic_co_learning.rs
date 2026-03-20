@@ -159,7 +159,7 @@ impl DemocraticCoLearning<Untrained> {
                 distances.push((dist, y_train[j]));
             }
 
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Adaptive k based on data size
             let k = distances.len().clamp(3, 7).min(X_train.nrows());
@@ -181,7 +181,7 @@ impl DemocraticCoLearning<Untrained> {
             // Find most likely class and confidence
             let (best_class, best_confidence) = class_votes
                 .iter()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
                 .map(|(&class, &conf)| (class, conf))
                 .unwrap_or((classes[0], 0.0));
 
@@ -240,7 +240,7 @@ impl DemocraticCoLearning<Untrained> {
         }
 
         // Sort by combined score (confidence * consensus)
-        candidates.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+        candidates.sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
         candidates
     }
 }
@@ -556,7 +556,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                         distances.push((dist, y_labeled[j]));
                     }
 
-                    distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+                    distances
+                        .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
                     let k = distances.len().clamp(1, 5);
                     let mut view_votes: HashMap<i32, f64> = HashMap::new();
@@ -579,7 +580,7 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                 // Find majority vote
                 let best_class = class_votes
                     .iter()
-                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+                    .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
                     .map(|(&class, _)| class)
                     .unwrap_or(self.state.classes[0]);
 
@@ -631,8 +632,10 @@ mod tests {
             .min_agreement(2)
             .max_iter(5);
 
-        let fitted = dcl.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = dcl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), X.nrows());
 
@@ -713,8 +716,10 @@ mod tests {
             .min_agreement(2)
             .max_iter(3);
 
-        let fitted = dcl.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = dcl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), X.nrows());
 
@@ -735,8 +740,10 @@ mod tests {
             .min_agreement(2)
             .max_iter(5);
 
-        let fitted = dcl.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = dcl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), X.nrows());
         assert_eq!(predictions[0], 0);
@@ -750,7 +757,9 @@ mod tests {
         let dcl = DemocraticCoLearning::new();
 
         // Extract first two features
-        let view = dcl.extract_view(&X, &[0, 1]).unwrap();
+        let view = dcl
+            .extract_view(&X, &[0, 1])
+            .expect("operation should succeed");
         assert_eq!(view.shape(), &[2, 2]);
         assert_eq!(view[[0, 0]], 1.0);
         assert_eq!(view[[0, 1]], 2.0);
@@ -758,7 +767,9 @@ mod tests {
         assert_eq!(view[[1, 1]], 6.0);
 
         // Extract last two features
-        let view = dcl.extract_view(&X, &[2, 3]).unwrap();
+        let view = dcl
+            .extract_view(&X, &[2, 3])
+            .expect("operation should succeed");
         assert_eq!(view.shape(), &[2, 2]);
         assert_eq!(view[[0, 0]], 3.0);
         assert_eq!(view[[0, 1]], 4.0);
@@ -845,8 +856,10 @@ mod tests {
             .confidence_threshold(0.99) // Very high threshold
             .max_iter(2);
 
-        let fitted = dcl.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = dcl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         assert_eq!(predictions.len(), X.nrows());
 

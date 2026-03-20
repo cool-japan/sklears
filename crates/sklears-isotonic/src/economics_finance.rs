@@ -292,8 +292,8 @@ mod tests {
         let income = array![1000.0, 2000.0, 3000.0, 4000.0, 5000.0];
         let utility = array![10.0, 15.0, 18.0, 20.0, 21.5]; // Concave function
 
-        let model = utility_function_estimation(&income, &utility).unwrap();
-        let predictions = model.predict(&income).unwrap();
+        let model = utility_function_estimation(&income, &utility).expect("operation should succeed");
+        let predictions = model.predict(&income).expect("prediction should succeed");
 
         // Check monotonicity (more income should give more utility)
         for i in 1..predictions.len() {
@@ -301,7 +301,7 @@ mod tests {
         }
 
         // Test interpretation
-        let interpretation = model.interpret_predictions(&income).unwrap();
+        let interpretation = model.interpret_predictions(&income).expect("operation should succeed");
         assert!(interpretation.contains("Utility Function"));
         assert!(interpretation.contains("utility"));
     }
@@ -312,8 +312,8 @@ mod tests {
         let prices = array![10.0, 20.0, 30.0, 40.0, 50.0];
         let quantities = array![100.0, 80.0, 60.0, 40.0, 20.0]; // Decreasing
 
-        let model = demand_curve_modeling(&prices, &quantities).unwrap();
-        let predictions = model.predict(&prices).unwrap();
+        let model = demand_curve_modeling(&prices, &quantities).expect("operation should succeed");
+        let predictions = model.predict(&prices).expect("prediction should succeed");
 
         // Check monotonicity (higher price should give lower demand)
         for i in 1..predictions.len() {
@@ -321,7 +321,7 @@ mod tests {
         }
 
         // Test interpretation
-        let interpretation = model.interpret_predictions(&prices).unwrap();
+        let interpretation = model.interpret_predictions(&prices).expect("operation should succeed");
         assert!(interpretation.contains("Demand Curve"));
         assert!(interpretation.contains("demand"));
     }
@@ -332,8 +332,8 @@ mod tests {
         let inputs = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let outputs = array![10.0, 18.0, 24.0, 28.0, 30.0]; // Concave
 
-        let model = production_function_estimation(&inputs, &outputs).unwrap();
-        let predictions = model.predict(&inputs).unwrap();
+        let model = production_function_estimation(&inputs, &outputs).expect("operation should succeed");
+        let predictions = model.predict(&inputs).expect("prediction should succeed");
 
         // Check monotonicity (more input should give more output)
         for i in 1..predictions.len() {
@@ -341,7 +341,7 @@ mod tests {
         }
 
         // Test economic analysis
-        let analysis = model.analyze_economic_properties(&inputs).unwrap();
+        let analysis = model.analyze_economic_properties(&inputs).expect("operation should succeed");
         assert_eq!(
             analysis.application_type,
             EconomicsApplicationType::ProductionFunction
@@ -355,8 +355,8 @@ mod tests {
         let wealth = array![1000.0, 2000.0, 3000.0, 4000.0, 5000.0];
         let utility = array![31.6, 44.7, 54.8, 63.2, 70.7]; // sqrt function
 
-        let model = risk_preference_modeling(&wealth, &utility).unwrap();
-        let analysis = model.analyze_economic_properties(&wealth).unwrap();
+        let model = risk_preference_modeling(&wealth, &utility).expect("operation should succeed");
+        let analysis = model.analyze_economic_properties(&wealth).expect("operation should succeed");
 
         assert_eq!(
             analysis.application_type,
@@ -375,9 +375,9 @@ mod tests {
             .loss(LossFunction::SquaredLoss)
             .bounds(Some(0.0), Some(10.0))
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.len());
 
         // Check bounds are respected

@@ -52,7 +52,7 @@ impl Default for OnlineOptimizer {
     fn default() -> Self {
         Self {
             optimizer_id: format!(
-                "online_opt_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap()
+                "online_opt_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default()
                 .as_millis()
             ),
             streaming_algorithms: HashMap::new(),

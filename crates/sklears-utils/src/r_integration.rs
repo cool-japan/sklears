@@ -588,13 +588,13 @@ cat(paste(coefficients, collapse=','))
             "arg0 <- {}",
             r.r_value_to_r_code(&columns["x"])?
         )
-        .unwrap();
+        .expect("operation should succeed");
         writeln!(
             script_with_args,
             "arg1 <- {}",
             r.r_value_to_r_code(&columns["y"])?
         )
-        .unwrap();
+        .expect("operation should succeed");
         script_with_args.push_str(script);
 
         let output = r.execute_script(&script_with_args)?;
@@ -639,7 +639,7 @@ cat(paste(coefficients, collapse=','))
                 .collect::<Vec<_>>()
                 .join(", ")
         )
-        .unwrap();
+        .expect("operation should succeed");
         writeln!(
             script,
             "groups <- factor(c({}))",
@@ -649,10 +649,10 @@ cat(paste(coefficients, collapse=','))
                 .collect::<Vec<_>>()
                 .join(", ")
         )
-        .unwrap();
-        writeln!(script, "result <- aov(values ~ groups)").unwrap();
-        writeln!(script, "summary_result <- summary(result)").unwrap();
-        writeln!(script, "cat('ANOVA completed')").unwrap();
+        .expect("operation should succeed");
+        writeln!(script, "result <- aov(values ~ groups)").expect("operation should succeed");
+        writeln!(script, "summary_result <- summary(result)").expect("operation should succeed");
+        writeln!(script, "cat('ANOVA completed')").expect("operation should succeed");
 
         let output = r.execute_script(&script)?;
         Ok(RValue::Character(output))
@@ -750,7 +750,7 @@ mod tests {
             .add_line("mean_x <- mean(x)")
             .add_line("cat(mean_x)");
 
-        let script = builder.build().unwrap();
+        let script = builder.build().expect("operation should succeed");
         assert!(script.contains("library(stats)"));
         assert!(script.contains("x <- c(1, 2, 3)"));
         assert!(script.contains("# Calculate mean"));
@@ -771,7 +771,9 @@ mod tests {
         }
 
         // Test R vector to array
-        let array = r.r_vector_to_array(&r_vector).unwrap();
+        let array = r
+            .r_vector_to_array(&r_vector)
+            .expect("operation should succeed");
         assert_eq!(array, data);
     }
 
@@ -783,7 +785,9 @@ mod tests {
         columns.insert("x".to_string(), RValue::DoubleVector(vec![1.0, 2.0, 3.0]));
         columns.insert("y".to_string(), RValue::DoubleVector(vec![4.0, 5.0, 6.0]));
 
-        let df = r.create_dataframe(columns).unwrap();
+        let df = r
+            .create_dataframe(columns)
+            .expect("operation should succeed");
         assert_eq!(df.nrows, 3);
         assert_eq!(df.column_names.len(), 2);
     }
@@ -795,20 +799,28 @@ mod tests {
         // Test various R value types
         assert_eq!(
             r.r_value_to_r_code(&RValue::Double(std::f64::consts::PI))
-                .unwrap(),
+                .expect("operation should succeed"),
             format!("{}", std::f64::consts::PI)
         );
-        assert_eq!(r.r_value_to_r_code(&RValue::Integer(42)).unwrap(), "42L");
-        assert_eq!(r.r_value_to_r_code(&RValue::Logical(true)).unwrap(), "TRUE");
+        assert_eq!(
+            r.r_value_to_r_code(&RValue::Integer(42))
+                .expect("operation should succeed"),
+            "42L"
+        );
+        assert_eq!(
+            r.r_value_to_r_code(&RValue::Logical(true))
+                .expect("operation should succeed"),
+            "TRUE"
+        );
         assert_eq!(
             r.r_value_to_r_code(&RValue::Character("test".to_string()))
-                .unwrap(),
+                .expect("operation should succeed"),
             "\"test\""
         );
 
         let vec_result = r
             .r_value_to_r_code(&RValue::DoubleVector(vec![1.0, 2.0, 3.0]))
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(vec_result, "c(1, 2, 3)");
 
         let matrix_result = r
@@ -817,7 +829,7 @@ mod tests {
                 nrows: 2,
                 ncols: 2,
             })
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(matrix_result, "matrix(c(1, 2, 3, 4), nrow=2, ncol=2)");
     }
 
@@ -848,7 +860,7 @@ mod tests {
         let retrieved = r.get_variable("test_var");
         assert!(retrieved.is_some());
 
-        match retrieved.unwrap() {
+        match retrieved.expect("operation should succeed") {
             RValue::Double(val) => assert_eq!(*val, 42.0),
             _ => panic!("Expected Double value"),
         }
@@ -862,25 +874,29 @@ mod tests {
         let r = RIntegration::default();
 
         // Test parsing different output types
-        let result = r.parse_r_output("42.5").unwrap();
+        let result = r.parse_r_output("42.5").expect("operation should succeed");
         match result {
             RValue::Double(val) => assert_eq!(val, 42.5),
             _ => panic!("Expected Double"),
         }
 
-        let result = r.parse_r_output("1,2,3,4").unwrap();
+        let result = r
+            .parse_r_output("1,2,3,4")
+            .expect("operation should succeed");
         match result {
             RValue::DoubleVector(vec) => assert_eq!(vec, vec![1.0, 2.0, 3.0, 4.0]),
             _ => panic!("Expected DoubleVector"),
         }
 
-        let result = r.parse_r_output("TRUE").unwrap();
+        let result = r.parse_r_output("TRUE").expect("operation should succeed");
         match result {
             RValue::Logical(val) => assert!(val),
             _ => panic!("Expected Logical"),
         }
 
-        let result = r.parse_r_output("test string").unwrap();
+        let result = r
+            .parse_r_output("test string")
+            .expect("operation should succeed");
         match result {
             RValue::Character(val) => assert_eq!(val, "test string"),
             _ => panic!("Expected Character"),
@@ -909,28 +925,28 @@ mod tests {
     /*
     #[test]
     fn test_r_integration_with_real_r() {
-        let mut r = RIntegration::new().unwrap();
+        let mut r = RIntegration::new().expect("operation should succeed");
 
         // Test simple calculation
-        let result = r.execute_script("cat(2 + 2)").unwrap();
+        let result = r.execute_script("cat(2 + 2)").expect("operation should succeed");
         assert_eq!(result.trim(), "4");
 
         // Test statistical function
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let mean_result = RStatisticalFunctions::mean(&mut r, &data).unwrap();
+        let mean_result = RStatisticalFunctions::mean(&mut r, &data).expect("operation should succeed");
         assert_eq!(mean_result, 3.0);
     }
 
     #[test]
     fn test_package_operations() {
-        let mut r = RIntegration::new().unwrap();
+        let mut r = RIntegration::new().expect("operation should succeed");
 
         // Test loading base package
         assert!(r.load_package("stats").is_ok());
         assert!(r.get_loaded_packages().contains(&"stats".to_string()));
 
         // Test package availability check
-        let is_available = r.is_package_available("stats").unwrap();
+        let is_available = r.is_package_available("stats").expect("operation should succeed");
         assert!(is_available);
     }
     */

@@ -213,7 +213,7 @@ impl BayesianKNeighborsClassifier<Trained> {
             .map(|(i, row)| (self.distance.calculate(query, &row), i))
             .collect();
 
-        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbor_indices: Vec<usize> = distances_indices
             .into_iter()
             .take(self.k)
@@ -253,7 +253,7 @@ impl BayesianKNeighborsClassifier<Trained> {
         let prediction_idx = probabilities
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
         let prediction = self.state.classes[prediction_idx];
@@ -326,7 +326,7 @@ impl BayesianKNeighborsClassifier<Trained> {
             let pred_idx = probs
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             bootstrap_predictions.push(pred_idx);
@@ -407,7 +407,7 @@ impl BayesianKNeighborsClassifier<Trained> {
             .map(|(i, row)| (self.distance.calculate(query, &row), i))
             .collect();
 
-        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         // Take candidate neighbors
         let candidates: Vec<(Float, usize)> =
@@ -428,7 +428,8 @@ impl BayesianKNeighborsClassifier<Trained> {
                 })
                 .collect();
 
-            noisy_distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            noisy_distances
+                .sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             // Mark which candidates are in top k
             for (_, candidate_idx) in noisy_distances.iter().take(self.k) {
@@ -630,7 +631,7 @@ impl BayesianKNeighborsRegressor<RegressorTrained> {
             .map(|(i, row)| (self.distance.calculate(query, &row), i))
             .collect();
 
-        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances_indices.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbor_values: Vec<Float> = distances_indices
             .into_iter()
             .take(self.k)
@@ -696,12 +697,14 @@ mod tests {
                 0.5, 1.0, // Class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let classifier = BayesianKNeighborsClassifier::new(3);
-        let fitted = classifier.fit(&x, &y).unwrap();
-        let predictions = fitted.predict_with_uncertainty(&x).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted
+            .predict_with_uncertainty(&x)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 6);
 
@@ -725,12 +728,14 @@ mod tests {
                 2.0, 2.0, // y = 4
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![2.0, 3.0, 3.0, 4.0]);
 
         let regressor = BayesianKNeighborsRegressor::new(2);
-        let fitted = regressor.fit(&x, &y).unwrap();
-        let predictions = fitted.predict_with_uncertainty(&x).unwrap();
+        let fitted = regressor.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted
+            .predict_with_uncertainty(&x)
+            .expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
 
@@ -751,7 +756,7 @@ mod tests {
                 -1.0, -1.0, -0.5, -1.0, 0.0, 0.0, 1.0, 1.0, 0.5, 1.0, 1.5, 1.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 1, 1, 1, 1]);
 
         let methods = vec![
@@ -763,8 +768,10 @@ mod tests {
 
         for method in methods {
             let classifier = BayesianKNeighborsClassifier::new(3).with_uncertainty_method(method);
-            let fitted = classifier.fit(&x, &y).unwrap();
-            let predictions = fitted.predict_with_uncertainty(&x).unwrap();
+            let fitted = classifier.fit(&x, &y).expect("operation should succeed");
+            let predictions = fitted
+                .predict_with_uncertainty(&x)
+                .expect("operation should succeed");
 
             // All methods should produce reasonable uncertainty estimates
             for pred in &predictions {
@@ -776,7 +783,8 @@ mod tests {
 
     #[test]
     fn test_bayesian_knn_error_cases() {
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 1]);
 
         // k too large
@@ -798,15 +806,17 @@ mod tests {
                 0.8, -0.5, -0.5, 0.5, 0.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1, 0, 1]);
 
         let classifier = BayesianKNeighborsClassifier::new(3);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         // Test query point close to class 0
         let query = Array1::from_vec(vec![-0.95, -0.95]);
-        let credible_set = fitted.credible_neighbor_set(&query.view(), 0.95).unwrap();
+        let credible_set = fitted
+            .credible_neighbor_set(&query.view(), 0.95)
+            .expect("operation should succeed");
 
         // Check that we got a credible set
         assert!(!credible_set.neighbor_indices.is_empty());
@@ -839,17 +849,21 @@ mod tests {
                 1.0, 1.0, 2.0, 1.0, 1.0, 2.0, 2.0, 2.0, 5.0, 5.0, 6.0, 5.0, 5.0, 6.0, 6.0, 6.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 0, 1, 1, 1, 1]);
 
         let classifier = BayesianKNeighborsClassifier::new(3);
-        let fitted = classifier.fit(&x, &y).unwrap();
+        let fitted = classifier.fit(&x, &y).expect("operation should succeed");
 
         let query = Array1::from_vec(vec![1.5, 1.5]);
 
         // Higher confidence should give larger credible set
-        let set_90 = fitted.credible_neighbor_set(&query.view(), 0.90).unwrap();
-        let set_99 = fitted.credible_neighbor_set(&query.view(), 0.99).unwrap();
+        let set_90 = fitted
+            .credible_neighbor_set(&query.view(), 0.90)
+            .expect("operation should succeed");
+        let set_99 = fitted
+            .credible_neighbor_set(&query.view(), 0.99)
+            .expect("operation should succeed");
 
         assert!(set_99.neighbor_indices.len() >= set_90.neighbor_indices.len());
     }

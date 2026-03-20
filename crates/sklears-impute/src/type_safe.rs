@@ -138,7 +138,7 @@ impl<T: Clone + PartialEq> TypedArray<T, UnknownMechanism, WithMissing> {
         let mechanism = self.infer_mechanism()?;
         Ok(ClassifiedArray::new(
             self.data,
-            self.missing_mask.unwrap(),
+            self.missing_mask.expect("operation should succeed"),
             mechanism,
         ))
     }
@@ -146,7 +146,10 @@ impl<T: Clone + PartialEq> TypedArray<T, UnknownMechanism, WithMissing> {
     /// Infer the missing data mechanism using statistical tests
     fn infer_mechanism(&self) -> SklResult<MissingMechanism> {
         // Simplified mechanism inference - in practice this would use statistical tests
-        let missing_mask = self.missing_mask.as_ref().unwrap();
+        let missing_mask = self
+            .missing_mask
+            .as_ref()
+            .expect("operation should succeed");
         let missing_rate =
             missing_mask.iter().filter(|&&x| x).count() as f64 / missing_mask.len() as f64;
 
@@ -483,9 +486,11 @@ mod tests {
 
     #[test]
     fn test_typed_array_creation() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let missing_mask =
-            Array2::from_shape_vec((3, 2), vec![false, false, true, false, false, false]).unwrap();
+            Array2::from_shape_vec((3, 2), vec![false, false, true, false, false, false])
+                .expect("shape and data length should match");
 
         let typed_array =
             TypedArray::<f64, UnknownMechanism, WithMissing>::new_with_missing(data, missing_mask);
@@ -497,8 +502,9 @@ mod tests {
 
     #[test]
     fn test_fixed_size_array() {
-        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        let fixed_array = FixedSizeArray::<f64, 2, 3>::new(data).unwrap();
+        let data = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
+        let fixed_array = FixedSizeArray::<f64, 2, 3>::new(data).expect("operation should succeed");
 
         assert!(fixed_array.validate_dimensions().is_ok());
         assert_eq!(fixed_array.data().shape(), &[2, 3]);
@@ -506,7 +512,8 @@ mod tests {
 
     #[test]
     fn test_fixed_size_array_validation() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let result = FixedSizeArray::<f64, 2, 3>::new(data);
 
         assert!(result.is_err());
@@ -532,14 +539,18 @@ mod tests {
 
     #[test]
     fn test_type_safe_mean_imputation() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
         let missing_mask =
-            Array2::from_shape_vec((3, 2), vec![false, false, true, false, false, false]).unwrap();
+            Array2::from_shape_vec((3, 2), vec![false, false, true, false, false, false])
+                .expect("shape and data length should match");
 
         let mcar_array = TypedArray::<f64, MCAR, WithMissing>::new_with_missing(data, missing_mask);
         let imputer = TypeSafeMeanImputer::new(NaNDetector);
 
-        let result = imputer.impute(&mcar_array).unwrap();
+        let result = imputer
+            .impute(&mcar_array)
+            .expect("operation should succeed");
 
         // Mean of column 0: (1.0 + 5.0) / 2 = 3.0
         assert_abs_diff_eq!(result.data()[[1, 0]], 3.0, epsilon = 1e-10);
@@ -568,7 +579,7 @@ mod tests {
                 f64::NAN,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let missing_mask = Array2::from_shape_vec(
             (4, 3),
@@ -576,7 +587,7 @@ mod tests {
                 false, false, false, true, false, false, false, true, false, true, false, true,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let typed_array =
             TypedArray::<f64, UnknownMechanism, WithMissing>::new_with_missing(data, missing_mask);
@@ -610,7 +621,7 @@ mod tests {
                 f64::NAN,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let missing_mask = Array2::from_shape_vec(
             (4, 3),
@@ -618,7 +629,7 @@ mod tests {
                 false, false, false, true, false, false, false, true, false, true, false, true,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let typed_array =
             TypedArray::<f64, UnknownMechanism, WithMissing>::new_with_missing(data, missing_mask);

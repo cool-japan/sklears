@@ -233,7 +233,10 @@ impl TpuRuntime {
         };
 
         self.contexts.push(context);
-        Ok(self.contexts.last().unwrap())
+        Ok(self
+            .contexts
+            .last()
+            .expect("collection should not be empty"))
     }
 
     /// Check if TPU is available

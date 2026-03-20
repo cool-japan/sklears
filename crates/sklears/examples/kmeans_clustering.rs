@@ -166,7 +166,7 @@ fn generate_cluster(n_points: usize, center: [f64; 2], std_dev: f64) -> Array2<f
     use scirs2_core::Distribution;
 
     let mut rng = StdRng::seed_from_u64(42);
-    let normal = Normal::new(0.0, std_dev).unwrap();
+    let normal = Normal::new(0.0, std_dev).expect("operation should succeed");
 
     Array2::from_shape_fn((n_points, 2), |(_, j)| center[j] + normal.sample(&mut rng))
 }

@@ -455,18 +455,23 @@ mod tests {
         let config = DataValidationConfig::default();
         let mut validator = DataValidator::new(config);
 
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
-        let result = validator.validate(&x.view()).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
+        let result = validator
+            .validate(&x.view())
+            .expect("operation should succeed");
         assert!(result);
     }
 
     #[test]
     fn test_quality_assessment() {
         let mut assessment = QualityAssessment::new();
-        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let x = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
 
-        let score = assessment.assess_quality(&x.view()).unwrap();
+        let score = assessment
+            .assess_quality(&x.view())
+            .expect("operation should succeed");
         assert!(score > 0.0);
     }
 }

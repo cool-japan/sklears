@@ -208,43 +208,80 @@ pub type TrainedAdaptiveDiscriminantLearning = AdaptiveDiscriminantLearning<Trai
 
 impl AdaptiveDiscriminantLearning<Trained> {
     pub fn class_means(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().class_means
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .class_means
     }
 
     pub fn covariance(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().covariance
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .covariance
     }
 
     pub fn precision(&self) -> &Array2<Float> {
-        &self.data.as_ref().unwrap().precision
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .precision
     }
 
     pub fn class_priors(&self) -> &Array1<Float> {
-        &self.data.as_ref().unwrap().class_priors
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .class_priors
     }
 
     pub fn classes(&self) -> &Array1<i32> {
-        &self.data.as_ref().unwrap().classes
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .classes
     }
 
     pub fn current_learning_rate(&self) -> Float {
-        self.data.as_ref().unwrap().current_learning_rate
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .current_learning_rate
     }
 
     pub fn total_samples(&self) -> usize {
-        self.data.as_ref().unwrap().total_samples
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .total_samples
     }
 
     pub fn performance_history(&self) -> &VecDeque<Float> {
-        &self.data.as_ref().unwrap().performance_history
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .performance_history
     }
 
     pub fn adaptation_history(&self) -> &Vec<AdaptationEvent> {
-        &self.data.as_ref().unwrap().adaptation_history
+        &self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .adaptation_history
     }
 
     pub fn n_features(&self) -> usize {
-        self.data.as_ref().unwrap().n_features
+        self.data
+            .as_ref()
+            .expect("data not available - model not fitted")
+            .n_features
     }
 
     /// Perform online adaptation with new data
@@ -253,7 +290,10 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
         // Check dimensions first
         {
-            let data = self.data.as_ref().unwrap();
+            let data = self
+                .data
+                .as_ref()
+                .expect("data not available - model not fitted");
             if n_features != data.n_features {
                 return Err(SklearsError::InvalidInput(format!(
                     "Expected {} features, got {}",
@@ -269,7 +309,10 @@ impl AdaptiveDiscriminantLearning<Trained> {
         // Check if adaptation is needed
         let adaptation_frequency = self.config.adaptation_frequency;
         let should_adapt = {
-            let data = self.data.as_ref().unwrap();
+            let data = self
+                .data
+                .as_ref()
+                .expect("data not available - model not fitted");
             data.total_samples % adaptation_frequency == 0
         };
 
@@ -284,7 +327,10 @@ impl AdaptiveDiscriminantLearning<Trained> {
     fn update_with_sample(&mut self, sample: &Array1<Float>, label: i32) -> Result<()> {
         // Find class index first
         let class_idx = {
-            let data = self.data.as_ref().unwrap();
+            let data = self
+                .data
+                .as_ref()
+                .expect("data not available - model not fitted");
             data.classes
                 .iter()
                 .position(|&c| c == label)
@@ -314,7 +360,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
         // Update counts after strategy updates
         {
-            let data = self.data.as_mut().unwrap();
+            let data = self.data.as_mut().expect("data not available");
             data.total_samples += 1;
             data.class_counts[class_idx] += 1;
         }
@@ -329,7 +375,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
         class_idx: usize,
         decay_rate: Float,
     ) -> Result<()> {
-        let data = self.data.as_mut().unwrap();
+        let data = self.data.as_mut().expect("data not available");
         let alpha = 1.0 - decay_rate;
 
         // Update class mean
@@ -359,7 +405,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
         label: i32,
         window_size: usize,
     ) -> Result<()> {
-        let data = self.data.as_mut().unwrap();
+        let data = self.data.as_mut().expect("data not available");
 
         // Add new sample to window
         data.data_window.push_back((sample.clone(), label));
@@ -377,7 +423,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
     /// Update using performance-based adaptation
     fn update_performance_based(&mut self, sample: &Array1<Float>, class_idx: usize) -> Result<()> {
-        let data = self.data.as_mut().unwrap();
+        let data = self.data.as_mut().expect("data not available");
 
         // Make prediction and compute performance
         let prediction = Self::predict_single_static(
@@ -410,16 +456,19 @@ impl AdaptiveDiscriminantLearning<Trained> {
         let class_idx = self
             .data
             .as_ref()
-            .unwrap()
+            .expect("value should be present")
             .classes
             .iter()
             .position(|&c| c == label)
-            .unwrap();
+            .expect("value should be present");
 
         self.update_performance_based(sample, class_idx)?;
 
         // Check for concept drift
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         if data.performance_history.len() >= self.config.performance_window {
             let recent_performance: Float = data
                 .performance_history
@@ -437,7 +486,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
             {
                 if (recent_performance - older_performance).abs() > *drift_threshold {
                     // Concept drift detected - increase learning rate temporarily
-                    let data_mut = self.data.as_mut().unwrap();
+                    let data_mut = self.data.as_mut().expect("data not available");
                     data_mut.current_learning_rate = (data_mut.current_learning_rate * 2.0)
                         .min(self.config.initial_learning_rate);
 
@@ -456,7 +505,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
     /// Update using Bayesian adaptation
     fn update_bayesian(&mut self, sample: &Array1<Float>, class_idx: usize) -> Result<()> {
-        let data = self.data.as_mut().unwrap();
+        let data = self.data.as_mut().expect("data not available");
 
         if let AdaptationStrategy::BayesianAdaptation {
             prior_strength,
@@ -488,7 +537,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
     /// Recompute statistics from sliding window
     fn recompute_from_window(&mut self) -> Result<()> {
-        let data = self.data.as_mut().unwrap();
+        let data = self.data.as_mut().expect("data not available");
 
         if data.data_window.is_empty() {
             return Ok(());
@@ -560,7 +609,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
         performance: Float,
         learning_rate: Float,
     ) -> Result<()> {
-        let data = self.data.as_mut().unwrap();
+        let data = self.data.as_mut().expect("data not available");
 
         // Adaptive learning rate based on performance
         let adaptive_lr = if performance > 0.5 {
@@ -590,7 +639,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
     /// Adapt global parameters
     fn adapt_parameters(&mut self) -> Result<()> {
-        let data = self.data.as_mut().unwrap();
+        let data = self.data.as_mut().expect("data not available");
 
         // Update learning rate with decay
         data.current_learning_rate = (data.current_learning_rate * self.config.learning_rate_decay)
@@ -623,7 +672,10 @@ impl AdaptiveDiscriminantLearning<Trained> {
 
     /// Predict for a single sample
     fn predict_single(&self, sample: &Array1<Float>) -> Result<i32> {
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let n_classes = data.classes.len();
         let mut scores = Array1::zeros(n_classes);
 
@@ -659,7 +711,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
             .iter()
             .enumerate()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-            .unwrap()
+            .expect("value should be present")
             .0;
 
         Ok(data.classes[max_idx])
@@ -710,7 +762,7 @@ impl AdaptiveDiscriminantLearning<Trained> {
             .iter()
             .enumerate()
             .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-            .unwrap()
+            .expect("value should be present")
             .0;
 
         Ok(classes[max_idx])
@@ -834,7 +886,9 @@ impl Fit<Array2<Float>, Array1<i32>> for AdaptiveDiscriminantLearning<Untrained>
 
             if !class_mask.is_empty() {
                 let class_data = x.select(Axis(0), &class_mask);
-                let mean = class_data.mean_axis(Axis(0)).unwrap();
+                let mean = class_data
+                    .mean_axis(Axis(0))
+                    .expect("mean should not fail on non-empty array");
                 class_means.row_mut(class_idx).assign(&mean);
                 class_counts[class_idx] = class_mask.len();
             }
@@ -843,7 +897,10 @@ impl Fit<Array2<Float>, Array1<i32>> for AdaptiveDiscriminantLearning<Untrained>
         // Compute initial covariance matrix
         let mut covariance = Array2::zeros((n_features, n_features));
         for (sample, &label) in x.axis_iter(Axis(0)).zip(y.iter()) {
-            let class_idx = classes.iter().position(|&c| c == label).unwrap();
+            let class_idx = classes
+                .iter()
+                .position(|&c| c == label)
+                .expect("element not found");
             let diff = &sample - &class_means.row(class_idx);
             let outer_product = diff
                 .clone()
@@ -1002,7 +1059,10 @@ impl PredictProba<Array2<Float>, Array2<Float>> for AdaptiveDiscriminantLearning
             )));
         }
 
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let n_classes = data.classes.len();
         let mut probas = Array2::zeros((n_samples, n_classes));
 
@@ -1053,12 +1113,19 @@ impl PredictProba<Array2<Float>, Array2<Float>> for AdaptiveDiscriminantLearning
 impl Transform<Array2<Float>, Array2<Float>> for AdaptiveDiscriminantLearning<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         // Transform data using the current precision matrix
-        let data = self.data.as_ref().unwrap();
+        let data = self
+            .data
+            .as_ref()
+            .expect("data not available - model not fitted");
         let mut transformed = Array2::zeros(x.dim());
 
         for (i, sample) in x.axis_iter(Axis(0)).enumerate() {
             // Project onto discriminant space
-            let centered_sample = &sample - &data.class_means.mean_axis(Axis(0)).unwrap();
+            let centered_sample = &sample
+                - &data
+                    .class_means
+                    .mean_axis(Axis(0))
+                    .expect("mean should not fail on non-empty array");
             let transformed_sample = data.precision.dot(&centered_sample);
             transformed.row_mut(i).assign(&transformed_sample);
         }
@@ -1087,8 +1154,8 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let ada = AdaptiveDiscriminantLearning::new();
-        let fitted = ada.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 6);
         assert_eq!(fitted.classes().len(), 2);
@@ -1108,8 +1175,10 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let ada = AdaptiveDiscriminantLearning::new();
-        let fitted = ada.fit(&x, &y).unwrap();
-        let probas = fitted.predict_proba(&x).unwrap();
+        let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
 
         assert_eq!(probas.dim(), (6, 2));
 
@@ -1126,17 +1195,21 @@ mod tests {
         let y_initial = array![0, 0, 1, 1];
 
         let ada = AdaptiveDiscriminantLearning::new();
-        let mut fitted = ada.fit(&x_initial, &y_initial).unwrap();
+        let mut fitted = ada
+            .fit(&x_initial, &y_initial)
+            .expect("model fitting should succeed");
 
         // Add more data
         let x_new = array![[1.2, 1.2], [3.2, 3.2]];
         let y_new = array![0, 1];
 
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("partial fit should succeed");
 
         assert_eq!(fitted.total_samples(), 6);
 
-        let predictions = fitted.predict(&x_new).unwrap();
+        let predictions = fitted.predict(&x_new).expect("prediction should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -1167,8 +1240,8 @@ mod tests {
 
         for strategy in strategies {
             let ada = AdaptiveDiscriminantLearning::new().adaptation_strategy(strategy);
-            let fitted = ada.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 6);
             assert_eq!(fitted.classes().len(), 2);
@@ -1195,8 +1268,8 @@ mod tests {
 
         for base_discriminant in base_discriminants {
             let ada = AdaptiveDiscriminantLearning::new().base_discriminant(base_discriminant);
-            let fitted = ada.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
 
             assert_eq!(predictions.len(), 6);
             assert_eq!(fitted.classes().len(), 2);
@@ -1216,8 +1289,8 @@ mod tests {
         let y = array![0, 0, 0, 1, 1, 1];
 
         let ada = AdaptiveDiscriminantLearning::new();
-        let fitted = ada.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.dim(), (6, 2));
     }
@@ -1232,7 +1305,7 @@ mod tests {
             .learning_rate_decay(0.9)
             .adaptation_frequency(1);
 
-        let mut fitted = ada.fit(&x, &y).unwrap();
+        let mut fitted = ada.fit(&x, &y).expect("model fitting should succeed");
         let initial_lr = fitted.current_learning_rate();
 
         // Perform some partial fits to trigger adaptation
@@ -1240,7 +1313,9 @@ mod tests {
         let y_new = array![0];
 
         for _ in 0..5 {
-            fitted.partial_fit(&x_new, &y_new).unwrap();
+            fitted
+                .partial_fit(&x_new, &y_new)
+                .expect("partial fit should succeed");
         }
 
         let final_lr = fitted.current_learning_rate();
@@ -1253,13 +1328,15 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let ada = AdaptiveDiscriminantLearning::new().adaptation_frequency(2);
-        let mut fitted = ada.fit(&x, &y).unwrap();
+        let mut fitted = ada.fit(&x, &y).expect("model fitting should succeed");
 
         // Perform partial fits to trigger adaptations
         let x_new = array![[1.2, 1.2], [3.2, 3.2]];
         let y_new = array![0, 1];
 
-        fitted.partial_fit(&x_new, &y_new).unwrap();
+        fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("partial fit should succeed");
 
         let history = fitted.adaptation_history();
         assert!(!history.is_empty());
@@ -1276,7 +1353,7 @@ mod tests {
         let y = array![0, 0, 1, 1];
 
         let ada = AdaptiveDiscriminantLearning::new();
-        let fitted = ada.fit(&x, &y).unwrap();
+        let fitted = ada.fit(&x, &y).expect("model fitting should succeed");
 
         // Test accessor methods
         assert_eq!(fitted.class_means().dim(), (2, 2));

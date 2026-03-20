@@ -10,7 +10,7 @@ use std::cmp::Ordering;
 /// Safe float comparison for sorting that handles NaN values
 ///
 /// NaN values are sorted to the end. For non-NaN values, uses standard float comparison.
-/// This function should be used instead of `.partial_cmp().unwrap()` to comply with
+/// This function should be used instead of `.partial_cmp().expect("operation should succeed")` to comply with
 /// the No Unwrap Policy.
 ///
 /// # Arguments
@@ -272,7 +272,9 @@ pub fn mean_squared_error(y_true: &Array1<Float>, y_pred: &Array1<Float>) -> Res
 
     let diff = y_true - y_pred;
     let squared_diff = &diff * &diff;
-    Ok(squared_diff.mean().unwrap())
+    Ok(squared_diff.mean().ok_or_else(|| {
+        SklearsError::NumericalError("mean computation should succeed for non-empty array".into())
+    })?)
 }
 
 /// Extract subset of data based on indices

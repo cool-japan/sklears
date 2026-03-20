@@ -584,7 +584,9 @@ pub struct CrossSpectralResult {
 impl CrossSpectralResult {
     /// Compute average coherence across time for each frequency
     pub fn average_coherence(&self) -> Array1<Float> {
-        self.coherence.mean_axis(Axis(1)).unwrap()
+        self.coherence
+            .mean_axis(Axis(1))
+            .expect("array should have elements for mean computation")
     }
 
     /// Find frequency bands with high coherence
@@ -645,7 +647,9 @@ mod tests {
 
         for window_func in window_functions {
             let spectral_with_window = spectral.clone().window_function(window_func);
-            let window = spectral_with_window.generate_window().unwrap();
+            let window = spectral_with_window
+                .generate_window()
+                .expect("operation should succeed");
 
             assert_eq!(window.len(), 32);
             assert!(!window.iter().any(|&x| x.is_nan() || x.is_infinite()));
@@ -664,7 +668,7 @@ mod tests {
             signal[i] = (2.0 * PI * 10.0 * i as Float / 1000.0).sin();
         }
 
-        let result = spectral.stft(&signal).unwrap();
+        let result = spectral.stft(&signal).expect("operation should succeed");
 
         assert_eq!(result.magnitude.nrows(), 17); // (32/2 + 1) frequency bins
         assert!(result.magnitude.ncols() > 0);
@@ -678,7 +682,7 @@ mod tests {
         let spectral = SpectralDecomposition::new(16);
         let signal = Array1::ones(64);
 
-        let result = spectral.stft(&signal).unwrap();
+        let result = spectral.stft(&signal).expect("operation should succeed");
         let psd = result.power_spectral_density();
 
         assert_eq!(psd.dim(), result.magnitude.dim());
@@ -695,7 +699,7 @@ mod tests {
             signal[i] = (2.0 * PI * 2.0 * i as Float / 16.0).sin() + 0.1;
         }
 
-        let result = spectral.stft(&signal).unwrap();
+        let result = spectral.stft(&signal).expect("operation should succeed");
         let peaks = result.spectral_peaks(0.5);
 
         assert_eq!(peaks.len(), result.magnitude.ncols());
@@ -706,7 +710,7 @@ mod tests {
         let spectral = SpectralDecomposition::new(16).sampling_rate(1000.0);
         let signal = Array1::ones(64);
 
-        let result = spectral.stft(&signal).unwrap();
+        let result = spectral.stft(&signal).expect("operation should succeed");
         let centroids = result.spectral_centroid();
 
         assert_eq!(centroids.len(), result.magnitude.ncols());
@@ -724,7 +728,9 @@ mod tests {
             signals[[1, i]] = (2.0 * PI * i as Float / 16.0).cos(); // 90° phase shift
         }
 
-        let result = spectral.cross_spectral_analysis(&signals).unwrap();
+        let result = spectral
+            .cross_spectral_analysis(&signals)
+            .expect("operation should succeed");
 
         assert_eq!(result.n_channels, 2);
         assert_eq!(result.cross_spectrum.nrows(), 9); // (16/2 + 1) frequency bins
@@ -754,7 +760,9 @@ mod tests {
     fn test_kaiser_window_properties() {
         let spectral = SpectralDecomposition::new(32).window_function(WindowFunction::Kaiser(2.0));
 
-        let window = spectral.generate_window().unwrap();
+        let window = spectral
+            .generate_window()
+            .expect("operation should succeed");
 
         // Kaiser window should be symmetric and have maximum at center
         let center = window.len() / 2;
@@ -767,7 +775,7 @@ mod tests {
         let spectral = SpectralDecomposition::new(16).sampling_rate(1000.0);
         let signal = Array1::ones(64);
 
-        let result = spectral.stft(&signal).unwrap();
+        let result = spectral.stft(&signal).expect("operation should succeed");
         let rolloffs = result.spectral_rolloff(0.85);
 
         assert_eq!(rolloffs.len(), result.magnitude.ncols());

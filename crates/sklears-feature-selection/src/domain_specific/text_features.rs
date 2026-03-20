@@ -237,7 +237,7 @@ impl Fit<Array2<Float>, Array1<Float>> for TextFeatureSelector<Untrained> {
             .map(|(i, &score)| (valid_features[i], score))
             .collect();
 
-        scored_features.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored_features.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_features = if let Some(max_feat) = self.max_features {
             scored_features
@@ -279,7 +279,10 @@ impl Fit<Array2<Float>, Array1<Float>> for TextFeatureSelector<Untrained> {
 
 impl Transform<Array2<Float>> for TextFeatureSelector<Trained> {
     fn transform(&self, x: &Array2<Float>) -> SklResult<Array2<Float>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         if selected_features.is_empty() {
             return Err(SklearsError::InvalidInput(
                 "No features were selected".to_string(),
@@ -293,8 +296,15 @@ impl Transform<Array2<Float>> for TextFeatureSelector<Trained> {
 
 impl SelectorMixin for TextFeatureSelector<Trained> {
     fn get_support(&self) -> SklResult<Array1<bool>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
-        let n_features = self.idf_scores_.as_ref().unwrap().len()
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
+        let n_features = self
+            .idf_scores_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
             + selected_features.iter().max().unwrap_or(&0)
             + 1;
         let mut support = Array1::from_elem(n_features, false);
@@ -307,7 +317,10 @@ impl SelectorMixin for TextFeatureSelector<Trained> {
     }
 
     fn transform_features(&self, indices: &[usize]) -> SklResult<Vec<usize>> {
-        let selected_features = self.selected_features_.as_ref().unwrap();
+        let selected_features = self
+            .selected_features_
+            .as_ref()
+            .expect("operation should succeed");
         Ok(indices
             .iter()
             .filter_map(|&idx| selected_features.iter().position(|&f| f == idx))
@@ -321,7 +334,7 @@ impl TextFeatureSelector<Trained> {
     /// Returns a reference to the vocabulary dictionary where keys are
     /// term names and values are their corresponding feature indices.
     pub fn vocabulary(&self) -> &HashMap<String, usize> {
-        self.vocabulary_.as_ref().unwrap()
+        self.vocabulary_.as_ref().expect("operation should succeed")
     }
 
     /// Get the IDF (Inverse Document Frequency) scores
@@ -329,14 +342,16 @@ impl TextFeatureSelector<Trained> {
     /// Returns an array where each element is the IDF score for the
     /// corresponding selected feature.
     pub fn idf_scores(&self) -> &Array1<Float> {
-        self.idf_scores_.as_ref().unwrap()
+        self.idf_scores_.as_ref().expect("operation should succeed")
     }
 
     /// Get the names of selected features
     ///
     /// Returns a reference to the vector of feature names that were selected.
     pub fn feature_names(&self) -> &[String] {
-        self.feature_names_.as_ref().unwrap()
+        self.feature_names_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the indices of selected features
@@ -344,12 +359,17 @@ impl TextFeatureSelector<Trained> {
     /// Returns a reference to the vector of original feature indices
     /// that were selected during fitting.
     pub fn selected_features(&self) -> &[usize] {
-        self.selected_features_.as_ref().unwrap()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of selected features
     pub fn n_features_selected(&self) -> usize {
-        self.selected_features_.as_ref().unwrap().len()
+        self.selected_features_
+            .as_ref()
+            .expect("operation should succeed")
+            .len()
     }
 
     /// Get feature information as a structured summary
@@ -534,13 +554,13 @@ mod tests {
                 2.0, 0.0, 1.0, // Doc 4: term1, term3
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 0.0, 1.0, 0.0];
 
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
         assert!(fitted.n_features_selected() <= 2);
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("operation should succeed");
         assert!(transformed.ncols() <= 2);
     }
 
@@ -557,10 +577,10 @@ mod tests {
                 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 0.0, 1.0, 0.0, 1.0];
 
-        let fitted = selector.fit(&x, &y).unwrap();
+        let fitted = selector.fit(&x, &y).expect("operation should succeed");
 
         // Only term1 (4/5 = 80%) and term3 (5/5 = 100%) should pass the 60% threshold
         assert!(fitted.n_features_selected() <= 2);

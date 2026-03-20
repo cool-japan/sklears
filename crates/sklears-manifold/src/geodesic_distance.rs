@@ -9,7 +9,6 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::types::Float;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
@@ -123,7 +122,7 @@ fn build_neighborhood_graph(
                     .map(|j| (j, distances[(i, j)]))
                     .collect();
 
-                neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 for (j, dist) in neighbors.into_iter().take(k) {
                     edges.push(Edge {
@@ -164,7 +163,7 @@ fn build_neighborhood_graph(
                     .map(|j| (j, distances[(i, j)]))
                     .collect();
 
-                neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+                neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
                 // Adaptive selection based on local density
                 let k_adaptive = estimate_adaptive_k(&neighbors, min_neighbors, max_neighbors);
@@ -636,12 +635,12 @@ pub mod geodesic_utils {
                 .map(|j| (j, geodesic_distances[(i, j)]))
                 .collect();
 
-            neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            neighbors.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             neighbors.truncate(k_neighbors);
 
             // Estimate local dimension using MLE
             if neighbors.len() >= 2 {
-                let max_dist = neighbors.last().unwrap().1;
+                let max_dist = neighbors.last().expect("operation should succeed").1;
                 let mut log_ratio_sum = 0.0;
 
                 for (_, dist) in &neighbors {
@@ -662,7 +661,7 @@ pub mod geodesic_utils {
         }
 
         // Return median estimate for robustness
-        dimension_estimates.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        dimension_estimates.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let mid = dimension_estimates.len() / 2;
         dimension_estimates[mid]
     }

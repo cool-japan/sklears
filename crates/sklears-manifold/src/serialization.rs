@@ -367,16 +367,18 @@ mod tests {
 
     #[test]
     fn test_array_conversion() {
-        let arr = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
+        let arr = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
         let vec = ArrayConverter::array2_to_vec(&arr);
-        let arr2 = ArrayConverter::vec_to_array2(&vec).unwrap();
+        let arr2 = ArrayConverter::vec_to_array2(&vec).expect("operation should succeed");
 
         assert_eq!(arr, arr2);
     }
 
     #[test]
     fn test_serializable_model_builder() {
-        let embedding = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let embedding = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
         let model = SerializableModelBuilder::new("TSNE")
             .parameter("n_components", SerializableParam::Int(2))
@@ -395,8 +397,9 @@ mod tests {
             .parameter("n_components", SerializableParam::Int(2))
             .build();
 
-        let json_str = ModelSerializer::to_json_string(&model).unwrap();
-        let loaded_model = ModelSerializer::from_json_string(&json_str).unwrap();
+        let json_str = ModelSerializer::to_json_string(&model).expect("operation should succeed");
+        let loaded_model =
+            ModelSerializer::from_json_string(&json_str).expect("operation should succeed");
 
         assert_eq!(model.algorithm, loaded_model.algorithm);
         assert_eq!(model.parameters.len(), loaded_model.parameters.len());
@@ -409,8 +412,9 @@ mod tests {
             .parameter("min_dist", SerializableParam::Float(0.1))
             .build();
 
-        let binary_data = ModelSerializer::to_binary(&model).unwrap();
-        let loaded_model = ModelSerializer::from_binary(&binary_data).unwrap();
+        let binary_data = ModelSerializer::to_binary(&model).expect("operation should succeed");
+        let loaded_model =
+            ModelSerializer::from_binary(&binary_data).expect("operation should succeed");
 
         assert_eq!(model.algorithm, loaded_model.algorithm);
         assert_eq!(model.parameters.len(), loaded_model.parameters.len());

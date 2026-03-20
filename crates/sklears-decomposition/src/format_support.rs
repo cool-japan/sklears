@@ -109,12 +109,12 @@ impl HDF5Support {
         // Convert to standard layout and write
         if matrix.is_standard_layout() {
             dataset
-                .write(matrix.as_slice().unwrap())
+                .write(matrix.as_slice().expect("slice operation should succeed"))
                 .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
         } else {
             let standard_matrix = matrix.to_owned();
             dataset
-                .write(standard_matrix.as_slice().unwrap())
+                .write(standard_matrix.as_slice().expect("slice operation should succeed"))
                 .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
         }
 
@@ -182,7 +182,7 @@ impl HDF5Support {
                 })?;
 
             dataset
-                .write(s.as_slice().unwrap())
+                .write(s.as_slice().expect("slice operation should succeed"))
                 .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
         }
 
@@ -204,7 +204,7 @@ impl HDF5Support {
                 })?;
 
             dataset
-                .write(eigenvalues.as_slice().unwrap())
+                .write(eigenvalues.as_slice().expect("slice operation should succeed"))
                 .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
         }
 
@@ -302,12 +302,12 @@ impl HDF5Support {
 
         if matrix.is_standard_layout() {
             dataset
-                .write(matrix.as_slice().unwrap())
+                .write(matrix.as_slice().expect("slice operation should succeed"))
                 .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
         } else {
             let standard_matrix = matrix.to_owned();
             dataset
-                .write(standard_matrix.as_slice().unwrap())
+                .write(standard_matrix.as_slice().expect("slice operation should succeed"))
                 .map_err(|e| SklearsError::InvalidInput(format!("Failed to write data: {}", e)))?;
         }
 
@@ -361,7 +361,7 @@ impl HDF5Support {
                 .map_err(|e| {
                     SklearsError::InvalidInput(format!("Failed to create attribute: {}", e))
                 })?
-                .write(&[hdf5::types::VarLenAscii::from_ascii(algorithm.as_bytes()).unwrap()])
+                .write(&[hdf5::types::VarLenAscii::from_ascii(algorithm.as_bytes()).expect("operation should succeed")])
                 .map_err(|e| {
                     SklearsError::InvalidInput(format!("Failed to write attribute: {}", e))
                 })?;
@@ -714,15 +714,15 @@ mod tests {
         // Create a simple dense matrix
         let dense =
             Array2::from_shape_vec((3, 3), vec![1.0, 0.0, 2.0, 0.0, 0.0, 0.0, 3.0, 0.0, 4.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         // Convert to sparse
-        let sparse = sparse_support.dense_to_sparse(&dense, 0.5).unwrap();
+        let sparse = sparse_support.dense_to_sparse(&dense, 0.5).expect("parsing should succeed");
         assert_eq!(sparse.nnz, 4); // Four non-zero elements
         assert!(sparse.sparsity > 0.0);
 
         // Convert back to dense
-        let reconstructed = sparse_support.sparse_to_dense(&sparse).unwrap();
+        let reconstructed = sparse_support.sparse_to_dense(&sparse).expect("parsing should succeed");
         assert_eq!(reconstructed.shape(), dense.shape());
 
         // Get statistics

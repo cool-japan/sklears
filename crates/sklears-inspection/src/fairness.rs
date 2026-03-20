@@ -5,7 +5,7 @@
 
 // ✅ SciRS2 Policy Compliant Import
 use scirs2_core::ndarray::{ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     types::Float,
@@ -372,8 +372,8 @@ where
 
     // Sample pairs of instances for individual fairness assessment
     for _ in 0..n_pairs {
-        let i = rng.gen_range(0..n_samples);
-        let j = rng.gen_range(0..n_samples);
+        let i = rng.random_range(0..n_samples);
+        let j = rng.random_range(0..n_samples);
 
         if i == j {
             continue;
@@ -788,8 +788,8 @@ mod tests {
 
         let config = FairnessConfig::default();
 
-        let result =
-            analyze_demographic_parity(&y_pred.view(), &protected_attr.view(), &config).unwrap();
+        let result = analyze_demographic_parity(&y_pred.view(), &protected_attr.view(), &config)
+            .expect("operation should succeed");
 
         assert!(result.selection_rates.len() >= 1);
         assert!(result.parity_difference >= 0.0);
@@ -810,7 +810,7 @@ mod tests {
             &protected_attr.view(),
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.true_positive_rates.len() >= 1);
         assert!(result.false_positive_rates.len() >= 1);
@@ -832,7 +832,7 @@ mod tests {
 
         let result =
             analyze_individual_fairness(&predict_fn, &X.view(), &protected_attr.view(), &config)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(result.lipschitz_constant >= 0.0);
         assert!(result.consistency >= 0.0 && result.consistency <= 1.0);
@@ -855,7 +855,7 @@ mod tests {
             &protected_attr.view(),
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.bias_score >= 0.0 && result.bias_score <= 1.0);
     }
@@ -889,7 +889,7 @@ mod tests {
             &protected_attr.view(),
             &config,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(result.overall_fairness_score >= 0.0 && result.overall_fairness_score <= 1.0);
         assert!(result.demographic_parity.parity_difference >= 0.0);
@@ -903,7 +903,8 @@ mod tests {
         let group_indices = vec![0, 1, 2, 3];
 
         let metrics =
-            compute_group_fairness_metrics(&y_true.view(), &y_pred.view(), &group_indices).unwrap();
+            compute_group_fairness_metrics(&y_true.view(), &y_pred.view(), &group_indices)
+                .expect("operation should succeed");
 
         assert_eq!(metrics.accuracy, 1.0); // Perfect predictions
         assert_eq!(metrics.selection_rate, 0.5); // 50% positive predictions

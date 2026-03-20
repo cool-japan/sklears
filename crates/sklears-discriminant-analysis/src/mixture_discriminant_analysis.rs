@@ -377,7 +377,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
             };
 
             let component_samples = class_data.slice(s![start_idx..end_idx, ..]);
-            let component_mean = component_samples.mean_axis(Axis(0)).unwrap();
+            let component_mean = component_samples.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
             means.row_mut(k).assign(&component_mean);
         }
 
@@ -421,7 +421,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
             CovarianceType::Spherical => {
                 // Isotropic covariances (σ²I)
                 let empirical_var = self.compute_empirical_variance(class_data);
-                let avg_var = empirical_var.mean().unwrap();
+                let avg_var = empirical_var.mean().expect("mean should not fail on non-empty array");
                 for _ in 0..n_components {
                     let mut cov = Array2::eye(n_features) * (avg_var * 0.1);
                     self.regularize_covariance(&mut cov);
@@ -445,7 +445,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
     /// Compute empirical covariance matrix
     fn compute_empirical_covariance(&self, data: &Array2<Float>) -> SklResult<Array2<Float>> {
         let (n_samples, n_features) = data.dim();
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
         let mut cov = Array2::zeros((n_features, n_features));
 
         for i in 0..n_samples {
@@ -468,7 +468,7 @@ impl MixtureDiscriminantAnalysis<Untrained> {
     /// Compute empirical variance (diagonal of covariance)
     fn compute_empirical_variance(&self, data: &Array2<Float>) -> Array1<Float> {
         let (n_samples, n_features) = data.dim();
-        let mean = data.mean_axis(Axis(0)).unwrap();
+        let mean = data.mean_axis(Axis(0)).expect("mean should not fail on non-empty array");
         let mut var = Array1::zeros(n_features);
 
         for i in 0..n_samples {
@@ -996,9 +996,9 @@ impl Fit<Array2<Float>, Array1<i32>> for MixtureDiscriminantAnalysis<Untrained> 
             }
 
             // Use best initialization results
-            mixture_weights.push(best_weights.unwrap());
-            mixture_means.push(best_means.unwrap());
-            mixture_covariances.push(best_covariances.unwrap());
+            mixture_weights.push(best_weights.expect("value should be present"));
+            mixture_means.push(best_means.expect("value should be present"));
+            mixture_covariances.push(best_covariances.expect("value should be present"));
             total_log_likelihood += best_log_likelihood;
             if !best_converged {
                 converged = false;
@@ -1094,7 +1094,7 @@ impl Predict<Array2<Float>, Array1<i32>> for MixtureDiscriminantAnalysis<Trained
                     .iter()
                     .enumerate()
                     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                    .unwrap()
+                    .expect("value should be present")
                     .0;
                 classes[max_idx]
             })
@@ -1270,9 +1270,9 @@ mod tests {
         ];
         let y = array![0, 0, 0, 0, 1, 1, 1, 1];
 
-        let trained_mda = mda.fit(&X, &y).unwrap();
-        let predictions = trained_mda.predict(&X).unwrap();
-        let probabilities = trained_mda.predict_proba(&X).unwrap();
+        let trained_mda = mda.fit(&X, &y).expect("model fitting should succeed");
+        let predictions = trained_mda.predict(&X).expect("prediction should succeed");
+        let probabilities = trained_mda.predict_proba(&X).expect("probability prediction should succeed");
 
         assert_eq!(predictions.len(), 8);
         assert_eq!(probabilities.dim(), (8, 2));
@@ -1368,7 +1368,7 @@ mod tests {
         ];
         let y = array![0, 0, 0, 1, 1, 1];
 
-        let trained_mda = mda.fit(&X, &y).unwrap();
+        let trained_mda = mda.fit(&X, &y).expect("model fitting should succeed");
 
         assert_eq!(trained_mda.classes().len(), 2);
         assert_eq!(trained_mda.mixture_weights().len(), 2);
@@ -1398,7 +1398,7 @@ mod tests {
         ];
         let y = array![0, 0, 0, 0, 1, 1, 1, 1];
 
-        let trained_mda = mda.fit(&X, &y).unwrap();
+        let trained_mda = mda.fit(&X, &y).expect("model fitting should succeed");
 
         // Check that we have convergence information
         assert!(trained_mda.log_likelihood().is_finite());

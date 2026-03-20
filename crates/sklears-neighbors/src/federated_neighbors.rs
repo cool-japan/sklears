@@ -113,7 +113,7 @@ impl FederatedParticipant {
             .collect();
 
         // Sort by distance
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         distances.truncate(k);
 
         // Apply privacy protection
@@ -175,8 +175,8 @@ impl FederatedParticipant {
         match strategy {
             NoiseStrategy::Gaussian => {
                 // Simple Box-Muller transform for Gaussian noise
-                let u1: Float = rng.gen();
-                let u2: Float = rng.gen();
+                let u1: Float = rng.random();
+                let u2: Float = rng.random();
                 let z0 = ((-2.0 as Float) * u1.ln()).sqrt()
                     * (2.0 * std::f64::consts::PI * u2 as f64).cos() as Float;
                 z0 * scale
@@ -189,9 +189,9 @@ impl FederatedParticipant {
             }
             NoiseStrategy::Exponential => {
                 // Exponential noise (symmetric)
-                let u: Float = rng.gen();
+                let u: Float = rng.random();
                 let exp_sample = -scale * u.ln();
-                if rng.gen::<bool>() {
+                if rng.random::<bool>() {
                     exp_sample
                 } else {
                     -exp_sample
@@ -301,7 +301,7 @@ impl FederatedNeighborCoordinator {
         }
 
         // Sort by distance and take k nearest
-        all_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        all_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         all_neighbors.truncate(k);
 
         // Extract indices and distances
@@ -399,7 +399,7 @@ impl FederatedNeighborCoordinator {
         }
 
         // Sort by distance
-        all_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        all_neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let distances: Vec<Float> = all_neighbors.iter().map(|(d, _)| *d).collect();
         let indices: Vec<usize> = all_neighbors.iter().map(|(_, i)| *i).collect();
@@ -540,8 +540,6 @@ impl PrivacyPreservingProtocol for FederatedParticipant {
     }
 }
 
-use scirs2_core::random::Rng;
-
 #[allow(non_snake_case)]
 #[cfg(test)]
 mod tests {
@@ -550,8 +548,8 @@ mod tests {
 
     #[test]
     fn test_federated_participant_creation() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
         let labels = Some(array![0, 0, 1, 1]);
 
         let participant = FederatedParticipant::new(1, data, labels);
@@ -566,28 +564,34 @@ mod tests {
         let mut coordinator = FederatedNeighborCoordinator::new(config);
 
         // Add participants
-        let data1 = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data1 = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let participant1 = FederatedParticipant::new(1, data1, Some(array![0, 0]));
-        coordinator.add_participant(participant1).unwrap();
+        coordinator
+            .add_participant(participant1)
+            .expect("operation should succeed");
 
-        let data2 = Array2::from_shape_vec((2, 2), vec![3.0, 3.0, 4.0, 4.0]).unwrap();
+        let data2 = Array2::from_shape_vec((2, 2), vec![3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
         let participant2 = FederatedParticipant::new(2, data2, Some(array![1, 1]));
-        coordinator.add_participant(participant2).unwrap();
+        coordinator
+            .add_participant(participant2)
+            .expect("operation should succeed");
 
         // Test federated search
         let query = array![2.5, 2.5];
         let result = coordinator.federated_kneighbors(&query.view(), 2);
         assert!(result.is_ok());
 
-        let (indices, distances) = result.unwrap();
+        let (indices, distances) = result.expect("operation should succeed");
         assert_eq!(indices.len(), 2);
         assert_eq!(distances.len(), 2);
     }
 
     #[test]
     fn test_privacy_levels() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
         let mut participant = FederatedParticipant::new(1, data, None);
 
         let privacy_levels = [
@@ -615,8 +619,8 @@ mod tests {
 
     #[test]
     fn test_noise_strategies() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
         let mut participant = FederatedParticipant::new(1, data, None);
 
         let noise_strategies = [
@@ -643,7 +647,8 @@ mod tests {
 
     #[test]
     fn test_privacy_budget_exhaustion() {
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let mut participant = FederatedParticipant::new(1, data, None);
 
         // Exhaust privacy budget
@@ -661,19 +666,25 @@ mod tests {
         let mut coordinator = FederatedNeighborCoordinator::new(config);
 
         // Add participants
-        let data1 = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data1 = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let participant1 = FederatedParticipant::new(1, data1, Some(array![0, 0]));
-        coordinator.add_participant(participant1).unwrap();
+        coordinator
+            .add_participant(participant1)
+            .expect("operation should succeed");
 
-        let data2 = Array2::from_shape_vec((2, 2), vec![5.0, 5.0, 6.0, 6.0]).unwrap();
+        let data2 = Array2::from_shape_vec((2, 2), vec![5.0, 5.0, 6.0, 6.0])
+            .expect("operation should succeed");
         let participant2 = FederatedParticipant::new(2, data2, Some(array![1, 1]));
-        coordinator.add_participant(participant2).unwrap();
+        coordinator
+            .add_participant(participant2)
+            .expect("operation should succeed");
 
         let query = array![1.5, 1.5];
         let result = coordinator.federated_radius_neighbors(&query.view(), 2.0);
         assert!(result.is_ok());
 
-        let (indices, distances) = result.unwrap();
+        let (indices, distances) = result.expect("operation should succeed");
         assert!(!indices.is_empty());
         assert_eq!(indices.len(), distances.len());
     }
@@ -683,13 +694,21 @@ mod tests {
         let config = FederatedConfig::default();
         let mut coordinator = FederatedNeighborCoordinator::new(config);
 
-        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0]).unwrap();
+        let data = Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 2.0, 2.0])
+            .expect("operation should succeed");
         let participant = FederatedParticipant::new(1, data, Some(array![0, 1]));
-        coordinator.add_participant(participant).unwrap();
+        coordinator
+            .add_participant(participant)
+            .expect("operation should succeed");
 
         let stats = coordinator.get_federation_stats();
         assert!(stats.contains_key("total_samples"));
         assert!(stats.contains_key("num_participants"));
-        assert_eq!(stats.get("num_participants").unwrap(), &1.0);
+        assert_eq!(
+            stats
+                .get("num_participants")
+                .expect("operation should succeed"),
+            &1.0
+        );
     }
 }

@@ -267,7 +267,7 @@ where
 
     /// SIMD-accelerated covariance matrix computation
     pub fn covariance_matrix(&self, data: &Array2<F>) -> Array2<F> {
-        let n_samples = F::from(data.nrows()).unwrap();
+        let n_samples = F::from(data.nrows()).expect("operation should succeed");
 
         // Center the data
         let means = self.column_wise_sum(data) / n_samples;
@@ -376,13 +376,14 @@ where
 
     /// Center data using SIMD operations
     fn center_data(&self, data: &Array2<F>) -> Array2<F> {
-        let means = self.simd_ops.column_wise_sum(data) / F::from(data.nrows()).unwrap();
+        let means = self.simd_ops.column_wise_sum(data)
+            / F::from(data.nrows()).expect("operation should succeed");
         self.simd_ops.center_matrix(data, &means)
     }
 
     /// Compute cross-covariance matrix using SIMD
     fn compute_cross_covariance(&self, x: &Array2<F>, y: &Array2<F>) -> Array2<F> {
-        let n_samples = F::from(x.nrows()).unwrap();
+        let n_samples = F::from(x.nrows()).expect("operation should succeed");
         self.simd_ops.matmul(&x.t().to_owned(), y) / (n_samples - F::one())
     }
 
@@ -398,7 +399,11 @@ where
         let n_features = cxx.nrows();
         let eigenvalues = Array1::from_vec(
             (0..n_features)
-                .map(|i| F::one() - F::from(i).unwrap() * F::from(0.1).unwrap())
+                .map(|i| {
+                    F::one()
+                        - F::from(i).expect("operation should succeed")
+                            * F::from(0.1).expect("operation should succeed")
+                })
                 .collect(),
         );
         let eigenvectors = Array2::eye(n_features);
@@ -566,7 +571,7 @@ mod tests {
         // Create test data
         let data = Array2::from_shape_simple_fn((50, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let cov = ops.covariance_matrix(&data);
@@ -592,11 +597,11 @@ mod tests {
 
         let x = Array2::from_shape_simple_fn((100, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y = Array2::from_shape_simple_fn((100, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let fitted = cca.fit(&x, &y);
@@ -609,11 +614,11 @@ mod tests {
         // Test transformation
         let x_test = Array2::from_shape_simple_fn((10, 4), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let y_test = Array2::from_shape_simple_fn((10, 3), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let (x_transformed, y_transformed) = fitted.transform(&x_test, &y_test);
@@ -638,11 +643,11 @@ mod tests {
         // Create large matrices to trigger blocked algorithms
         let a = Array2::from_shape_simple_fn((100, 80), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
         let b = Array2::from_shape_simple_fn((80, 60), || {
             let mut rng = thread_rng();
-            rng.sample(&Normal::new(0.0, 1.0).unwrap())
+            rng.sample(&Normal::new(0.0, 1.0).expect("Normal distribution params should be valid"))
         });
 
         let result = ops.matmul(&a, &b);

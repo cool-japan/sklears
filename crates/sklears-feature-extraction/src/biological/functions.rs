@@ -60,7 +60,9 @@ mod tests {
     fn test_kmer_counter() {
         let sequence = "ATGCATGC";
         let kmer_counter = KmerCounter::new().k(3).normalize(true);
-        let features = kmer_counter.extract_features(sequence).unwrap();
+        let features = kmer_counter
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert!(features.len() > 0);
         let sum: f64 = features.sum();
         assert!((sum - 1.0).abs() < 1e-10);
@@ -72,7 +74,9 @@ mod tests {
             .k(2)
             .include_reverse_complement(true)
             .normalize(false);
-        let features = kmer_counter.extract_features(sequence).unwrap();
+        let features = kmer_counter
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert!(features.len() > 0);
     }
     #[test]
@@ -85,7 +89,9 @@ mod tests {
         let motif_extractor = SequenceMotifExtractor::new()
             .motif_length(4)
             .min_frequency(2);
-        let features = motif_extractor.extract_features(&sequences).unwrap();
+        let features = motif_extractor
+            .extract_features(&sequences)
+            .expect("operation should succeed");
         assert_eq!(features.nrows(), 3);
         assert!(features.ncols() > 0);
     }
@@ -96,7 +102,9 @@ mod tests {
             .sequence_type(SequenceType::DNA)
             .include_gc_content(true)
             .include_dinucleotide(true);
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 21);
         let gc_content = features[20];
         assert!(
@@ -112,7 +120,9 @@ mod tests {
             .sequence_type(SequenceType::Protein)
             .include_dinucleotide(false)
             .include_gc_content(false);
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 20);
         for &freq in features.iter() {
             assert!((freq - 0.05).abs() < 1e-10);
@@ -125,7 +135,9 @@ mod tests {
             .reference_sequences(reference_sequences)
             .distance_metric(DistanceMetric::Hamming);
         let sequence = "ATGCAAGC";
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 2);
         for &distance in features.iter() {
             assert!(distance >= 0.0);
@@ -139,7 +151,9 @@ mod tests {
             .reference_sequences(reference_sequences)
             .distance_metric(DistanceMetric::JukesCantor);
         let sequence = "AAAC";
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 1);
         assert!(features[0] > 0.0);
         assert!(features[0].is_finite());
@@ -164,7 +178,9 @@ mod tests {
             .include_charge(true)
             .include_molecular_weight(true)
             .include_secondary_structure(true);
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 19);
         for &feature in features.iter() {
             assert!(feature.is_finite(), "Feature should be finite");
@@ -183,7 +199,9 @@ mod tests {
         let extractor = StructuralFeatureExtractor::new()
             .sequence_type(SequenceType::DNA)
             .include_secondary_structure(true);
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 8);
         for &feature in features.iter() {
             assert!(feature.is_finite(), "Feature should be finite");
@@ -209,7 +227,9 @@ mod tests {
             .include_charge(true)
             .include_molecular_weight(false)
             .include_secondary_structure(false);
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 6);
         let net_charge = features[0];
         let charge_density = features[1];
@@ -245,7 +265,9 @@ mod tests {
             .include_charge(false)
             .include_molecular_weight(false)
             .include_secondary_structure(false);
-        let features = extractor.extract_features(sequence).unwrap();
+        let features = extractor
+            .extract_features(sequence)
+            .expect("operation should succeed");
         assert_eq!(features.len(), 6);
         let hydro_mean = features[0];
         let hydro_std = features[1];
@@ -275,8 +297,12 @@ mod tests {
         let extractor = StructuralFeatureExtractor::new()
             .sequence_type(SequenceType::DNA)
             .include_secondary_structure(false);
-        let short_features = extractor.extract_features(short_sequence).unwrap();
-        let long_features = extractor.extract_features(long_sequence).unwrap();
+        let short_features = extractor
+            .extract_features(short_sequence)
+            .expect("operation should succeed");
+        let long_features = extractor
+            .extract_features(long_sequence)
+            .expect("operation should succeed");
         assert_eq!(short_features.len(), 4);
         assert_eq!(long_features.len(), 4);
         let short_tm = short_features[0];

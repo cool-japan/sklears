@@ -77,7 +77,7 @@ impl ConfigurationManager {
 
     /// Get system configuration
     pub fn get_system_configuration(&self) -> SystemConfiguration {
-        let config = self.system_config.read().unwrap();
+        let config = self.system_config.read().unwrap_or_else(|e| e.into_inner());
         config.clone()
     }
 
@@ -91,7 +91,7 @@ impl ConfigurationManager {
 
         // Apply updates
         {
-            let mut config = self.system_config.write().unwrap();
+            let mut config = self.system_config.write().unwrap_or_else(|e| e.into_inner());
             self.apply_system_configuration_updates(&mut config, updates)?;
         }
 
@@ -113,7 +113,7 @@ impl ConfigurationManager {
 
     /// Get pipeline configuration
     pub fn get_pipeline_configuration(&self, pipeline_id: &str) -> Result<PipelineConfiguration, ProcessingError> {
-        let configs = self.pipeline_configs.read().unwrap();
+        let configs = self.pipeline_configs.read().unwrap_or_else(|e| e.into_inner());
         configs.get(pipeline_id)
             .cloned()
             .ok_or_else(|| ProcessingError::ConfigurationError(format!("Pipeline configuration not found: {}", pipeline_id)))
@@ -126,7 +126,7 @@ impl ConfigurationManager {
 
         // Check for conflicts
         {
-            let configs = self.pipeline_configs.read().unwrap();
+            let configs = self.pipeline_configs.read().unwrap_or_else(|e| e.into_inner());
             if configs.contains_key(&pipeline_id) {
                 return Err(ProcessingError::ConfigurationError(format!("Pipeline configuration already exists: {}", pipeline_id)));
             }
@@ -134,7 +134,7 @@ impl ConfigurationManager {
 
         // Store configuration
         {
-            let mut configs = self.pipeline_configs.write().unwrap();
+            let mut configs = self.pipeline_configs.write().unwrap_or_else(|e| e.into_inner());
             configs.insert(pipeline_id.clone(), config);
         }
 
@@ -158,7 +158,7 @@ impl ConfigurationManager {
 
         // Apply updates
         {
-            let mut configs = self.pipeline_configs.write().unwrap();
+            let mut configs = self.pipeline_configs.write().unwrap_or_else(|e| e.into_inner());
             if let Some(config) = configs.get_mut(pipeline_id) {
                 self.apply_pipeline_configuration_updates(config, updates)?;
             } else {
@@ -181,7 +181,7 @@ impl ConfigurationManager {
 
     /// Get environment configuration
     pub fn get_environment_configuration(&self, environment: &str) -> Result<EnvironmentConfiguration, ProcessingError> {
-        let configs = self.environment_configs.read().unwrap();
+        let configs = self.environment_configs.read().unwrap_or_else(|e| e.into_inner());
         configs.get(environment)
             .cloned()
             .ok_or_else(|| ProcessingError::ConfigurationError(format!("Environment configuration not found: {}", environment)))
@@ -210,14 +210,14 @@ impl ConfigurationManager {
         result.add_system_validation(system_validation);
 
         // Validate all pipeline configurations
-        let pipeline_configs = self.pipeline_configs.read().unwrap();
+        let pipeline_configs = self.pipeline_configs.read().unwrap_or_else(|e| e.into_inner());
         for (pipeline_id, config) in pipeline_configs.iter() {
             let pipeline_validation = self.validate_pipeline_configuration(config)?;
             result.add_pipeline_validation(pipeline_id.clone(), pipeline_validation);
         }
 
         // Validate environment configurations
-        let env_configs = self.environment_configs.read().unwrap();
+        let env_configs = self.environment_configs.read().unwrap_or_else(|e| e.into_inner());
         for (env_name, config) in env_configs.iter() {
             let env_validation = self.validate_environment_configuration(config)?;
             result.add_environment_validation(env_name.clone(), env_validation);
@@ -242,7 +242,7 @@ impl ConfigurationManager {
 
         // Export pipeline configurations if requested
         if export_request.include_pipeline_configs {
-            let pipeline_configs = self.pipeline_configs.read().unwrap();
+            let pipeline_configs = self.pipeline_configs.read().unwrap_or_else(|e| e.into_inner());
             for (pipeline_id, config) in pipeline_configs.iter() {
                 if export_request.pipeline_filter.is_empty() || export_request.pipeline_filter.contains(pipeline_id) {
                     export.add_pipeline_configuration(pipeline_id.clone(), config.clone());
@@ -252,7 +252,7 @@ impl ConfigurationManager {
 
         // Export environment configurations if requested
         if export_request.include_environment_configs {
-            let env_configs = self.environment_configs.read().unwrap();
+            let env_configs = self.environment_configs.read().unwrap_or_else(|e| e.into_inner());
             for (env_name, config) in env_configs.iter() {
                 if export_request.environment_filter.is_empty() || export_request.environment_filter.contains(env_name) {
                     export.add_environment_configuration(env_name.clone(), config.clone());
@@ -314,7 +314,7 @@ impl ConfigurationManager {
 
     /// Get configuration change history
     pub fn get_configuration_history(&self, filter: &HistoryFilter) -> Vec<ConfigurationChange> {
-        let history = self.change_history.read().unwrap();
+        let history = self.change_history.read().unwrap_or_else(|e| e.into_inner());
 
         history.iter()
             .filter(|change| self.matches_history_filter(change, filter))
@@ -360,7 +360,7 @@ impl ConfigurationManager {
         let config = SystemConfiguration::default(); // Would load from actual file
 
         {
-            let mut system_config = self.system_config.write().unwrap();
+            let mut system_config = self.system_config.write().unwrap_or_else(|e| e.into_inner());
             *system_config = config;
         }
 
@@ -374,7 +374,7 @@ impl ConfigurationManager {
         let pipeline_id = "default_pipeline".to_string(); // Would extract from file
 
         {
-            let mut pipeline_configs = self.pipeline_configs.write().unwrap();
+            let mut pipeline_configs = self.pipeline_configs.write().unwrap_or_else(|e| e.into_inner());
             pipeline_configs.insert(pipeline_id, config);
         }
 
@@ -387,7 +387,7 @@ impl ConfigurationManager {
         let config = EnvironmentConfiguration::default(); // Would load from actual file
 
         {
-            let mut env_configs = self.environment_configs.write().unwrap();
+            let mut env_configs = self.environment_configs.write().unwrap_or_else(|e| e.into_inner());
             env_configs.insert(env_name, config);
         }
 
@@ -638,7 +638,7 @@ impl ConfigurationManager {
 
         // Check system and pipeline consistency
         let system_config = self.get_system_configuration();
-        let pipeline_configs = self.pipeline_configs.read().unwrap();
+        let pipeline_configs = self.pipeline_configs.read().unwrap_or_else(|e| e.into_inner());
 
         for (pipeline_id, pipeline_config) in pipeline_configs.iter() {
             // Check resource compatibility
@@ -703,7 +703,7 @@ impl ConfigurationManager {
     /// Record configuration change
     async fn record_configuration_change(&self, change: ConfigurationChange) -> Result<(), ProcessingError> {
         {
-            let mut history = self.change_history.write().unwrap();
+            let mut history = self.change_history.write().unwrap_or_else(|e| e.into_inner());
             history.push(change);
 
             // Maintain history size
@@ -718,8 +718,8 @@ impl ConfigurationManager {
     /// Get complete configuration
     fn get_complete_configuration(&self) -> CompleteConfiguration {
         let system_config = self.get_system_configuration();
-        let pipeline_configs = self.pipeline_configs.read().unwrap().clone();
-        let environment_configs = self.environment_configs.read().unwrap().clone();
+        let pipeline_configs = self.pipeline_configs.read().unwrap_or_else(|e| e.into_inner()).clone();
+        let environment_configs = self.environment_configs.read().unwrap_or_else(|e| e.into_inner()).clone();
 
         CompleteConfiguration {
             system_configuration: system_config,
@@ -735,7 +735,7 @@ impl ConfigurationManager {
 
     /// Get configuration version
     fn get_configuration_version(&self) -> u64 {
-        let system_config = self.system_config.read().unwrap();
+        let system_config = self.system_config.read().unwrap_or_else(|e| e.into_inner());
         system_config.configuration_version
     }
 
@@ -770,7 +770,7 @@ impl ConfigurationManager {
     /// Import system configuration
     async fn import_system_configuration(&self, config: &SystemConfiguration, result: &mut ConfigurationImportResult) -> Result<(), ProcessingError> {
         {
-            let mut system_config = self.system_config.write().unwrap();
+            let mut system_config = self.system_config.write().unwrap_or_else(|e| e.into_inner());
             *system_config = config.clone();
         }
 
@@ -781,7 +781,7 @@ impl ConfigurationManager {
     /// Import pipeline configuration
     async fn import_pipeline_configuration(&self, pipeline_id: String, config: PipelineConfiguration, result: &mut ConfigurationImportResult) -> Result<(), ProcessingError> {
         {
-            let mut pipeline_configs = self.pipeline_configs.write().unwrap();
+            let mut pipeline_configs = self.pipeline_configs.write().unwrap_or_else(|e| e.into_inner());
             pipeline_configs.insert(pipeline_id.clone(), config);
         }
 
@@ -792,7 +792,7 @@ impl ConfigurationManager {
     /// Import environment configuration
     async fn import_environment_configuration(&self, env_name: String, config: EnvironmentConfiguration, result: &mut ConfigurationImportResult) -> Result<(), ProcessingError> {
         {
-            let mut env_configs = self.environment_configs.write().unwrap();
+            let mut env_configs = self.environment_configs.write().unwrap_or_else(|e| e.into_inner());
             env_configs.insert(env_name.clone(), config);
         }
 
@@ -871,7 +871,7 @@ impl ConfigurationManager {
                 // Rollback system configuration
                 if let Some(ref system_config) = backup.system_configuration {
                     {
-                        let mut config = self.system_config.write().unwrap();
+                        let mut config = self.system_config.write().unwrap_or_else(|e| e.into_inner());
                         *config = system_config.clone();
                     }
                     affected_components.push("system".to_string());
@@ -879,14 +879,14 @@ impl ConfigurationManager {
 
                 // Rollback pipeline configurations
                 {
-                    let mut pipeline_configs = self.pipeline_configs.write().unwrap();
+                    let mut pipeline_configs = self.pipeline_configs.write().unwrap_or_else(|e| e.into_inner());
                     *pipeline_configs = backup.pipeline_configurations.clone();
                     affected_components.extend(backup.pipeline_configurations.keys().cloned());
                 }
 
                 // Rollback environment configurations
                 {
-                    let mut env_configs = self.environment_configs.write().unwrap();
+                    let mut env_configs = self.environment_configs.write().unwrap_or_else(|e| e.into_inner());
                     *env_configs = backup.environment_configurations.clone();
                     affected_components.extend(backup.environment_configurations.keys().cloned());
                 }
@@ -894,14 +894,14 @@ impl ConfigurationManager {
             RollbackScope::SystemOnly => {
                 if let Some(ref system_config) = backup.system_configuration {
                     {
-                        let mut config = self.system_config.write().unwrap();
+                        let mut config = self.system_config.write().unwrap_or_else(|e| e.into_inner());
                         *config = system_config.clone();
                     }
                     affected_components.push("system".to_string());
                 }
             },
             RollbackScope::PipelinesOnly(pipeline_ids) => {
-                let mut pipeline_configs = self.pipeline_configs.write().unwrap();
+                let mut pipeline_configs = self.pipeline_configs.write().unwrap_or_else(|e| e.into_inner());
                 for pipeline_id in pipeline_ids {
                     if let Some(config) = backup.pipeline_configurations.get(pipeline_id) {
                         pipeline_configs.insert(pipeline_id.clone(), config.clone());
@@ -910,7 +910,7 @@ impl ConfigurationManager {
                 }
             },
             RollbackScope::EnvironmentsOnly(env_names) => {
-                let mut env_configs = self.environment_configs.write().unwrap();
+                let mut env_configs = self.environment_configs.write().unwrap_or_else(|e| e.into_inner());
                 for env_name in env_names {
                     if let Some(config) = backup.environment_configurations.get(env_name) {
                         env_configs.insert(env_name.clone(), config.clone());

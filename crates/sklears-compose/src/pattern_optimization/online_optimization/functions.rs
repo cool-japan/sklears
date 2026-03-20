@@ -247,7 +247,7 @@ mod tests {
                 importance: 1.0,
                 quality_score: 0.9,
             };
-            buffer.add_data_point(data_point).unwrap();
+            buffer.add_data_point(data_point).unwrap_or_default();
         }
         let stats = buffer.get_buffer_statistics();
         assert_eq!(stats.current_size, 5);

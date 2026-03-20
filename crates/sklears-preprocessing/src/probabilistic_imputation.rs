@@ -754,8 +754,8 @@ mod tests {
 
         let config = BayesianImputerConfig::default();
         let imputer = BayesianImputer::new(config);
-        let fitted = imputer.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = imputer.fit(&X, &()).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 3);
         assert_eq!(result.ncols(), 2);
@@ -768,8 +768,8 @@ mod tests {
 
         let config = EMImputerConfig::default();
         let imputer = EMImputer::new(config);
-        let fitted = imputer.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = imputer.fit(&X, &()).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert_eq!(result.ncols(), 2);
@@ -786,8 +786,8 @@ mod tests {
 
         let config = GaussianProcessImputerConfig::default();
         let imputer = GaussianProcessImputer::new(config);
-        let fitted = imputer.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = imputer.fit(&X, &()).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert_eq!(result.ncols(), 2);
@@ -805,8 +805,8 @@ mod tests {
         };
 
         let imputer = MonteCarloImputer::new(config);
-        let fitted = imputer.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = imputer.fit(&X, &()).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         assert_eq!(result.nrows(), 4);
         assert_eq!(result.ncols(), 2);
@@ -823,8 +823,8 @@ mod tests {
 
         let config = BayesianImputerConfig::default();
         let imputer = BayesianImputer::new(config);
-        let fitted = imputer.fit(&X, &()).unwrap();
-        let result = fitted.transform(&X).unwrap();
+        let fitted = imputer.fit(&X, &()).expect("model fitting should succeed");
+        let result = fitted.transform(&X).expect("transformation should succeed");
 
         // Should use prior mean for all missing column
         for i in 0..result.nrows() {
@@ -848,7 +848,7 @@ mod tests {
         };
 
         let imputer = EMImputer::new(config);
-        let fitted = imputer.fit(&X, &()).unwrap();
+        let fitted = imputer.fit(&X, &()).expect("model fitting should succeed");
 
         // Check that mean vector has correct dimensions
         assert_eq!(fitted.mean.len(), 3);
@@ -859,7 +859,7 @@ mod tests {
     #[test]
     fn test_pseudo_inverse() {
         let A = array![[2.0, 1.0], [1.0, 2.0]];
-        let inv = pseudo_inverse(&A).unwrap();
+        let inv = pseudo_inverse(&A).expect("operation should succeed");
 
         // Check A * inv ≈ I
         let product = A.dot(&inv);

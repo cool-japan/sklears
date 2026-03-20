@@ -806,7 +806,7 @@ impl PreconditionedIsotonicRegression<Untrained> {
 
         // Sort final solution
         let mut sorted_indices: Vec<usize> = (0..n).collect();
-        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap());
+        sorted_indices.sort_by(|&i, &j| x[i].partial_cmp(&x[j]).unwrap_or(std::cmp::Ordering::Equal));
 
         let fitted_x: Array1<Float> = sorted_indices.iter().map(|&i| x[i]).collect();
         let fitted_y: Array1<Float> = sorted_indices.iter().map(|&i| solution[i]).collect();
@@ -956,8 +956,8 @@ pub fn preconditioned_isotonic_regression(
         .decomposition_strategy(decomposition_strategy);
     let fitted_model = model.fit(x, y)?;
 
-    let fitted_x = fitted_model.fitted_x.unwrap();
-    let fitted_y = fitted_model.fitted_y.unwrap();
+    let fitted_x = fitted_model.fitted_x?;
+    let fitted_y = fitted_model.fitted_y?;
 
     Ok((fitted_x, fitted_y))
 }
@@ -974,9 +974,9 @@ pub fn problem_decomposition_isotonic_regression(
         .block_size(block_size);
     let fitted_model = model.fit(x, y)?;
 
-    let fitted_x = fitted_model.fitted_x.unwrap();
-    let fitted_y = fitted_model.fitted_y.unwrap();
-    let blocks = fitted_model.decomposition_blocks.unwrap();
+    let fitted_x = fitted_model.fitted_x?;
+    let fitted_y = fitted_model.fitted_y?;
+    let blocks = fitted_model.decomposition_blocks?;
 
     Ok((fitted_x, fitted_y, blocks))
 }
@@ -990,9 +990,9 @@ pub fn accelerated_isotonic_regression(
     let model = PreconditionedIsotonicRegression::new().acceleration_method(acceleration_method);
     let fitted_model = model.fit(x, y)?;
 
-    let fitted_x = fitted_model.fitted_x.unwrap();
-    let fitted_y = fitted_model.fitted_y.unwrap();
-    let convergence_history = fitted_model.convergence_history.unwrap();
+    let fitted_x = fitted_model.fitted_x?;
+    let fitted_y = fitted_model.fitted_y?;
+    let convergence_history = fitted_model.convergence_history?;
 
     Ok((fitted_x, fitted_y, convergence_history))
 }
@@ -1015,8 +1015,8 @@ mod tests {
         assert_eq!(predictions.len(), 5);
 
         // Check that predictions respect isotonic constraint
-        let fitted_x = fitted.fitted_x.as_ref().unwrap();
-        let fitted_y = fitted.fitted_y.as_ref().unwrap();
+        let fitted_x = fitted.fitted_x.as_ref().expect("value should be present");
+        let fitted_y = fitted.fitted_y.as_ref().expect("value should be present");
 
         for i in 0..fitted_y.len() - 1 {
             assert!(fitted_y[i] <= fitted_y[i + 1]);
@@ -1137,7 +1137,7 @@ mod tests {
             .convergence_tolerance(1e-3);
         let fitted = model.fit(&x, &y)?;
 
-        let convergence_history = fitted.convergence_history().unwrap();
+        let convergence_history = fitted.convergence_history().expect("operation should succeed");
         assert!(convergence_history.len() > 0);
         assert!(convergence_history.len() <= 10);
 
@@ -1155,7 +1155,7 @@ mod tests {
             .overlap_size(1);
         let fitted = model.fit(&x, &y)?;
 
-        let blocks = fitted.decomposition_blocks().unwrap();
+        let blocks = fitted.decomposition_blocks().expect("operation should succeed");
         assert!(blocks.len() > 1);
 
         // Check that blocks cover the entire range
@@ -1196,7 +1196,7 @@ mod tests {
             .max_iterations(50);
         let fitted = model.fit(&x, &y)?;
 
-        let fitted_y = fitted.fitted_y.unwrap();
+        let fitted_y = fitted.fitted_y.expect("operation should succeed");
 
         // Check monotonicity
         for i in 0..fitted_y.len() - 1 {
@@ -1215,8 +1215,8 @@ mod tests {
         let model = PreconditionedIsotonicRegression::new();
         let fitted = model.fit(&x, &y)?;
 
-        println!("Fitted x: {:?}", fitted.fitted_x.as_ref().unwrap());
-        println!("Fitted y: {:?}", fitted.fitted_y.as_ref().unwrap());
+        println!("Fitted x: {:?}", fitted.fitted_x.as_ref().expect("value should be present"));
+        println!("Fitted y: {:?}", fitted.fitted_y.as_ref().expect("value should be present"));
 
         let test_x = array![1.5, 2.5, 3.5];
         let predictions = fitted.predict(&test_x)?;

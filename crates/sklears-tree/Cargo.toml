@@ -40,7 +40,7 @@ criterion = { workspace = true }
 sklears-metrics = { workspace = true }
 approx = { workspace = true }
 tempfile = { workspace = true }
-proptest = "1.7"
+proptest = "1.10"
 
 [features]
 default = ["std"]

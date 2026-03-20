@@ -614,7 +614,10 @@ impl MissingPatternAnalyzer {
             .insert("max_missing_rate".to_string(), max_missing_rate);
         self.pattern_statistics.insert(
             "total_patterns".to_string(),
-            self.missing_patterns.as_ref().unwrap().len() as f64,
+            self.missing_patterns
+                .as_ref()
+                .expect("operation should succeed")
+                .len() as f64,
         );
 
         Ok(())
@@ -676,7 +679,14 @@ impl MissingPatternAnalyzer {
         if let Some(patterns) = &self.missing_patterns {
             let total_patterns = patterns.len();
             let complete_cases = patterns
-                .get(&"0".repeat(self.feature_missing_rates.as_ref().unwrap().len()))
+                .get(
+                    &"0".repeat(
+                        self.feature_missing_rates
+                            .as_ref()
+                            .expect("operation should succeed")
+                            .len(),
+                    ),
+                )
                 .unwrap_or(&0);
 
             let complete_ratio = *complete_cases as f64 / patterns.values().sum::<usize>() as f64;
@@ -1102,7 +1112,7 @@ mod tests {
     #[test]
     fn test_simple_imputer() {
         let config = ImputationConfig::default();
-        let mut imputer = SimpleImputer::new(config).unwrap();
+        let mut imputer = SimpleImputer::new(config).expect("operation should succeed");
 
         let x = Array2::from_shape_vec(
             (6, 2),
@@ -1110,17 +1120,19 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(imputer.fit(&x.view()).is_ok());
         assert!(imputer.statistics().is_some());
 
-        let transformed = imputer.transform(&x.view()).unwrap();
+        let transformed = imputer
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert_eq!(transformed.dim(), x.dim());
 
         let feature_names =
             <SimpleImputer as MissingValueHandler<f64>>::get_feature_names_out(&imputer, None)
-                .unwrap();
+                .expect("operation should succeed");
         assert_eq!(feature_names.len(), 2);
     }
 
@@ -1133,14 +1145,17 @@ mod tests {
             ..Default::default()
         };
 
-        let mut imputer = IterativeImputer::new(config).unwrap();
+        let mut imputer = IterativeImputer::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 2), (0..16).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(imputer.fit(&x.view()).is_ok());
         assert!(!imputer.convergence_history().is_empty());
 
-        let transformed = imputer.transform(&x.view()).unwrap();
+        let transformed = imputer
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert_eq!(transformed.dim(), x.dim());
     }
 
@@ -1152,14 +1167,17 @@ mod tests {
             ..Default::default()
         };
 
-        let mut imputer = KNNImputer::new(config).unwrap();
+        let mut imputer = KNNImputer::new(config).expect("operation should succeed");
 
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(imputer.fit(&x.view()).is_ok());
         assert!(imputer.training_data().is_some());
 
-        let transformed = imputer.transform(&x.view()).unwrap();
+        let transformed = imputer
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert_eq!(transformed.dim(), x.dim());
     }
 
@@ -1167,7 +1185,8 @@ mod tests {
     fn test_missing_pattern_analyzer() {
         let mut analyzer = MissingPatternAnalyzer::new();
 
-        let x = Array2::from_shape_vec((8, 3), (0..24).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((8, 3), (0..24).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(analyzer.analyze_patterns(&x.view()).is_ok());
         assert!(analyzer.missing_patterns().is_some());
@@ -1188,14 +1207,14 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let imputed = Array2::from_shape_vec(
             (6, 2),
             vec![
                 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1, 12.1,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(analyzer
             .analyze_quality(&original.view(), &imputed.view())
@@ -1212,7 +1231,8 @@ mod tests {
     fn test_missing_data_analysis() {
         let mut analysis = MissingDataAnalysis::new();
 
-        let x = Array2::from_shape_vec((12, 3), (0..36).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((12, 3), (0..36).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
         assert!(analysis.analyze(&x.view()).is_ok());
         assert!(!analysis.analysis_results().is_empty());
@@ -1226,9 +1246,12 @@ mod tests {
 
         imputer.set_parameter("prior_strength".to_string(), 0.5);
 
-        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((10, 2), (0..20).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
-        let result = imputer.advanced_impute(&x.view()).unwrap();
+        let result = imputer
+            .advanced_impute(&x.view())
+            .expect("operation should succeed");
         assert_eq!(result.dim(), x.dim());
         assert_eq!(imputer.model_parameters().get("prior_strength"), Some(&0.5));
     }
@@ -1237,9 +1260,12 @@ mod tests {
     fn test_imputation_optimizer() {
         let mut optimizer = ImputationOptimizer::new("cross_validation".to_string());
 
-        let x = Array2::from_shape_vec((15, 3), (0..45).map(|i| i as f64).collect()).unwrap();
+        let x = Array2::from_shape_vec((15, 3), (0..45).map(|i| i as f64).collect())
+            .expect("operation should succeed");
 
-        let best = optimizer.optimize_strategy(&x.view()).unwrap();
+        let best = optimizer
+            .optimize_strategy(&x.view())
+            .expect("operation should succeed");
         assert!(matches!(
             best,
             MissingValueStrategy::Mean

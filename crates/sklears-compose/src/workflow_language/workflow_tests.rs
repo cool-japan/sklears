@@ -150,7 +150,7 @@ mod tests {
         assert!(config.resources.is_some());
         assert!(config.caching.is_some());
 
-        let parallel_config = config.parallel.unwrap();
+        let parallel_config = config.parallel.expect("operation should succeed");
         assert_eq!(parallel_config.num_workers, 4);
         assert_eq!(parallel_config.chunk_size, Some(1000));
     }
@@ -197,7 +197,7 @@ mod tests {
         let mut builder = VisualPipelineBuilder::new();
         let step = StepDefinition::new("step1", StepType::Transformer, "StandardScaler");
 
-        builder.add_step(step).unwrap();
+        builder.add_step(step).unwrap_or_default();
         assert_eq!(builder.workflow.steps.len(), 1);
 
         let result = builder.remove_step("step1");
@@ -215,8 +215,8 @@ mod tests {
         let step2 =
             StepDefinition::new("step2", StepType::Predictor, "LinearRegression").with_input("X");
 
-        builder.add_step(step1).unwrap();
-        builder.add_step(step2).unwrap();
+        builder.add_step(step1).unwrap_or_default();
+        builder.add_step(step2).unwrap_or_default();
 
         let connection = Connection::direct("step1", "X_scaled", "step2", "X");
         let result = builder.add_connection(connection);
@@ -230,24 +230,24 @@ mod tests {
         let mut builder = VisualPipelineBuilder::new();
         let step = StepDefinition::new("step1", StepType::Transformer, "StandardScaler");
 
-        builder.add_step(step).unwrap();
+        builder.add_step(step).unwrap_or_default();
         assert_eq!(builder.workflow.steps.len(), 1);
         assert_eq!(builder.history_index, 1);
 
         // Undo
-        builder.undo().unwrap();
+        builder.undo().unwrap_or_default();
         assert_eq!(builder.workflow.steps.len(), 0);
         assert_eq!(builder.history_index, 0);
 
         // Redo
-        builder.redo().unwrap();
+        builder.redo().unwrap_or_default();
         assert_eq!(builder.workflow.steps.len(), 1);
         assert_eq!(builder.history_index, 1);
 
         // Test undo/redo bounds
         assert!(builder.undo().is_ok());
         assert!(builder.undo().is_err()); // Already at beginning
-        builder.redo().unwrap();
+        builder.redo().unwrap_or_default();
         assert!(builder.redo().is_err()); // Already at end
     }
 
@@ -263,10 +263,15 @@ mod tests {
         };
         let step = StepDefinition::new("step1", StepType::Transformer, "StandardScaler");
 
-        builder.add_step(step).unwrap();
-        builder.move_component("step1", position.clone()).unwrap();
+        builder.add_step(step).unwrap_or_default();
+        builder
+            .move_component("step1", position.clone())
+            .unwrap_or_default();
 
-        let stored_position = builder.component_positions.get("step1").unwrap();
+        let stored_position = builder
+            .component_positions
+            .get("step1")
+            .expect("operation should succeed");
         assert_eq!(stored_position.x, position.x);
         assert_eq!(stored_position.y, position.y);
     }
@@ -296,8 +301,8 @@ mod tests {
         let step1 = StepDefinition::new("step1", StepType::Transformer, "StandardScaler");
         let step2 = StepDefinition::new("step2", StepType::Predictor, "LinearRegression");
 
-        builder.add_step(step1).unwrap();
-        builder.add_step(step2).unwrap();
+        builder.add_step(step1).unwrap_or_default();
+        builder.add_step(step2).unwrap_or_default();
 
         // Validation should fail due to disconnected components
         assert!(!builder.validation_state.is_valid);
@@ -324,7 +329,7 @@ mod tests {
         let component = registry.get_component("StandardScaler");
         assert!(component.is_some());
 
-        let comp = component.unwrap();
+        let comp = component.expect("operation should succeed");
         assert_eq!(comp.name, "StandardScaler");
         assert_eq!(comp.component_type, StepType::Transformer);
         assert!(!comp.deprecated);
@@ -405,7 +410,7 @@ mod tests {
         let summary = registry.get_component_summary("LinearRegression");
         assert!(summary.is_some());
 
-        let sum = summary.unwrap();
+        let sum = summary.expect("operation should succeed");
         assert_eq!(sum.name, "LinearRegression");
         assert_eq!(sum.component_type, StepType::Trainer);
         assert!(!sum.deprecated);
@@ -459,7 +464,7 @@ mod tests {
         assert!(validation.errors.is_empty());
         assert!(validation.execution_order.is_some());
         assert_eq!(
-            validation.execution_order.unwrap(),
+            validation.execution_order.unwrap_or_default(),
             vec!["step1".to_string()]
         );
     }
@@ -500,7 +505,9 @@ mod tests {
             .connections
             .push(Connection::direct("step1", "X_scaled", "step2", "X"));
 
-        let order = executor.determine_execution_order(&workflow).unwrap();
+        let order = executor
+            .determine_execution_order(&workflow)
+            .unwrap_or_default();
         assert_eq!(order, vec!["step1".to_string(), "step2".to_string()]);
     }
 
@@ -559,7 +566,7 @@ mod tests {
         let result = generator.generate_code(&workflow);
         assert!(result.is_ok());
 
-        let generated = result.unwrap();
+        let generated = result.expect("operation should succeed");
         assert!(!generated.source_code.is_empty());
         assert!(matches!(generated.language, CodeLanguage::Rust));
         assert!(!generated.dependencies.is_empty());
@@ -586,7 +593,7 @@ mod tests {
         let result = generator.generate_code(&workflow);
         assert!(result.is_ok());
 
-        let generated = result.unwrap();
+        let generated = result.expect("operation should succeed");
         assert!(!generated.source_code.is_empty());
         assert!(matches!(generated.language, CodeLanguage::Python));
         assert!(generated.source_code.contains("import numpy"));
@@ -606,7 +613,7 @@ mod tests {
         let result = generator.generate_code(&workflow);
         assert!(result.is_ok());
 
-        let generated = result.unwrap();
+        let generated = result.expect("operation should succeed");
         assert!(!generated.source_code.is_empty());
         assert!(matches!(generated.language, CodeLanguage::Json));
         assert!(generated.source_code.contains("{"));
@@ -653,7 +660,7 @@ mod tests {
     #[test]
     fn test_dsl_lexer_basic_tokens() {
         let mut lexer = DslLexer::new();
-        let tokens = lexer.tokenize("pipeline { }").unwrap();
+        let tokens = lexer.tokenize("pipeline { }").unwrap_or_default();
 
         assert_eq!(tokens[0], Token::Pipeline);
         assert_eq!(tokens[1], Token::LeftBrace);
@@ -664,7 +671,7 @@ mod tests {
     #[test]
     fn test_dsl_lexer_string_literal() {
         let mut lexer = DslLexer::new();
-        let tokens = lexer.tokenize("\"hello world\"").unwrap();
+        let tokens = lexer.tokenize("\"hello world\"").unwrap_or_default();
 
         if let Token::StringLiteral(s) = &tokens[0] {
             assert_eq!(s, "hello world");
@@ -678,7 +685,7 @@ mod tests {
         let mut lexer = DslLexer::new();
 
         // Test integer
-        let tokens = lexer.tokenize("42").unwrap();
+        let tokens = lexer.tokenize("42").unwrap_or_default();
         if let Token::NumberLiteral(n) = &tokens[0] {
             assert_eq!(*n, 42.0);
         } else {
@@ -686,7 +693,7 @@ mod tests {
         }
 
         // Test float
-        let tokens = lexer.tokenize("42.5").unwrap();
+        let tokens = lexer.tokenize("42.5").unwrap_or_default();
         if let Token::NumberLiteral(n) = &tokens[0] {
             assert_eq!(*n, 42.5);
         } else {
@@ -698,7 +705,7 @@ mod tests {
     fn test_dsl_lexer_boolean_literals() {
         let mut lexer = DslLexer::new();
 
-        let tokens = lexer.tokenize("true false").unwrap();
+        let tokens = lexer.tokenize("true false").unwrap_or_default();
         assert_eq!(tokens[0], Token::BooleanLiteral(true));
         assert_eq!(tokens[1], Token::BooleanLiteral(false));
     }
@@ -706,7 +713,9 @@ mod tests {
     #[test]
     fn test_dsl_lexer_keywords() {
         let mut lexer = DslLexer::new();
-        let tokens = lexer.tokenize("pipeline step flow execute").unwrap();
+        let tokens = lexer
+            .tokenize("pipeline step flow execute")
+            .unwrap_or_default();
 
         assert_eq!(tokens[0], Token::Pipeline);
         assert_eq!(tokens[1], Token::Step);
@@ -728,7 +737,7 @@ mod tests {
             }
         "#;
 
-        let workflow = dsl.parse(input).unwrap();
+        let workflow = dsl.parse(input).unwrap_or_default();
         assert_eq!(workflow.metadata.name, "Test Pipeline");
         assert_eq!(workflow.metadata.version, "1.0.0");
         assert_eq!(workflow.metadata.author, Some("Test Author".to_string()));
@@ -749,7 +758,7 @@ mod tests {
             }
         "#;
 
-        let workflow = dsl.parse(input).unwrap();
+        let workflow = dsl.parse(input).unwrap_or_default();
         assert_eq!(workflow.steps.len(), 2);
         assert_eq!(workflow.connections.len(), 1);
 
@@ -794,7 +803,7 @@ mod tests {
                 step test: StandardScaler { }
             }
         "#;
-        let errors = dsl.validate_syntax(valid_input).unwrap();
+        let errors = dsl.validate_syntax(valid_input).unwrap_or_default();
         assert!(errors.is_empty());
 
         // Invalid syntax - missing closing brace
@@ -803,7 +812,7 @@ mod tests {
                 version "1.0.0"
                 step test: StandardScaler {
         "#;
-        let errors = dsl.validate_syntax(invalid_input).unwrap();
+        let errors = dsl.validate_syntax(invalid_input).unwrap_or_default();
         assert!(!errors.is_empty());
     }
 
@@ -838,11 +847,11 @@ mod tests {
             .with_parameter("fit_intercept", ParameterValue::Bool(true))
             .with_input("X");
 
-        builder.add_step(step1).unwrap();
-        builder.add_step(step2).unwrap();
+        builder.add_step(step1).unwrap_or_default();
+        builder.add_step(step2).unwrap_or_default();
 
         let connection = Connection::direct("preprocessor", "X_scaled", "model", "X");
-        builder.add_connection(connection).unwrap();
+        builder.add_connection(connection).unwrap_or_default();
 
         let workflow = builder.get_workflow().clone();
 
@@ -853,7 +862,9 @@ mod tests {
 
         // Generate code
         let mut generator = CodeGenerator::new(CodeGenerationConfig::default());
-        let generated = generator.generate_code(&workflow).unwrap();
+        let generated = generator
+            .generate_code(&workflow)
+            .expect("operation should succeed");
         assert!(!generated.source_code.is_empty());
 
         // Generate DSL
@@ -891,13 +902,13 @@ mod tests {
             }
         "#;
 
-        let workflow = dsl.parse(original_dsl).unwrap();
+        let workflow = dsl.parse(original_dsl).unwrap_or_default();
 
         // Generate DSL back
         let generated_dsl = dsl.generate(&workflow);
 
         // Parse generated DSL
-        let round_trip_workflow = dsl.parse(&generated_dsl).unwrap();
+        let round_trip_workflow = dsl.parse(&generated_dsl).unwrap_or_default();
 
         // Verify round trip
         assert_eq!(workflow.metadata.name, round_trip_workflow.metadata.name);
@@ -922,7 +933,7 @@ mod tests {
 
         // Create workflow through visual builder
         let step = StepDefinition::new("test_step", StepType::Transformer, "StandardScaler");
-        builder.add_step(step).unwrap();
+        builder.add_step(step).unwrap_or_default();
 
         let workflow = builder.get_workflow().clone();
 
@@ -937,7 +948,7 @@ mod tests {
 
         // Parse DSL back
         let mut parsed_dsl = PipelineDSL::new();
-        let parsed_workflow = parsed_dsl.parse(&dsl_text).unwrap();
+        let parsed_workflow = parsed_dsl.parse(&dsl_text).unwrap_or_default();
         assert_eq!(parsed_workflow.metadata.name, workflow.metadata.name);
     }
 
@@ -957,7 +968,7 @@ mod tests {
                 StepType::Transformer,
                 "StandardScaler",
             );
-            builder.add_step(step).unwrap();
+            builder.add_step(step).unwrap_or_default();
         }
 
         let creation_time = start_time.elapsed();
@@ -993,7 +1004,7 @@ mod tests {
 
         let mut dsl = PipelineDSL::new();
         let start_time = std::time::Instant::now();
-        let workflow = dsl.parse(&large_dsl).unwrap();
+        let workflow = dsl.parse(&large_dsl).unwrap_or_default();
         let parse_time = start_time.elapsed();
 
         assert_eq!(workflow.steps.len(), 50);

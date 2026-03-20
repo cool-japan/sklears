@@ -203,7 +203,7 @@ impl BatchProcessor {
             }
 
             // Validate consistency
-            if batch_probabilities.ncols() != n_classes.unwrap() {
+            if batch_probabilities.ncols() != n_classes.expect("operation should succeed") {
                 return Err(SklearsError::InvalidInput(
                     "Inconsistent number of classes across batches".to_string(),
                 ));
@@ -343,7 +343,9 @@ mod tests {
         let predict_fn =
             |batch: &Array2<f64>| -> SklResult<Array1<i32>> { Ok(Array1::zeros(batch.nrows())) };
 
-        let predictions = processor.process_batches(&data, predict_fn).unwrap();
+        let predictions = processor
+            .process_batches(&data, predict_fn)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 100);
         assert!(predictions.iter().all(|&x| x == 0));
     }
@@ -362,7 +364,7 @@ mod tests {
 
         let probabilities = processor
             .process_batches_proba(&data, predict_proba_fn)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(probabilities.dim(), (50, 3));
 
         // Check that probabilities are approximately 1/3 for each class
@@ -395,7 +397,9 @@ mod tests {
 
         let predict_fn = |_: &Array2<f64>| -> SklResult<Array1<i32>> { Ok(Array1::zeros(0)) };
 
-        let predictions = processor.process_batches(&empty_data, predict_fn).unwrap();
+        let predictions = processor
+            .process_batches(&empty_data, predict_fn)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 0);
     }
 

@@ -116,7 +116,7 @@ fn f_classif_single_feature(
 ) -> CoreResult<(f64, f64)> {
     // Group feature values by class
     let mut classes: Vec<f64> = y.to_vec();
-    classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    classes.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     classes.dedup();
 
     let mut groups = Vec::new();
@@ -198,7 +198,8 @@ mod tests {
         let group2 = array![4.0, 5.0, 6.0];
         let group3 = array![7.0, 8.0, 9.0];
 
-        let (f_stat, p_value) = f_oneway(&[group1.view(), group2.view(), group3.view()]).unwrap();
+        let (f_stat, p_value) = f_oneway(&[group1.view(), group2.view(), group3.view()])
+            .expect("operation should succeed");
 
         assert!(f_stat > 0.0);
         assert!(p_value >= 0.0 && p_value <= 1.0);
@@ -210,7 +211,8 @@ mod tests {
         let X = array![[1.0, 4.0], [2.0, 5.0], [3.0, 6.0], [10.0, 40.0]];
         let y = array![0.0, 0.0, 0.0, 1.0];
 
-        let (f_stats, p_values) = f_classif(&X.view(), &y.view()).unwrap();
+        let (f_stats, p_values) =
+            f_classif(&X.view(), &y.view()).expect("operation should succeed");
 
         assert_eq!(f_stats.len(), 2);
         assert_eq!(p_values.len(), 2);

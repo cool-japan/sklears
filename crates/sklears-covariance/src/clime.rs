@@ -123,7 +123,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for CLIME<Untrained> {
         let x_centered = if self.assume_centered {
             x.to_owned()
         } else {
-            let mean = x.mean_axis(Axis(0)).unwrap();
+            let mean = x.mean_axis(Axis(0)).ok_or_else(|| {
+                SklearsError::NumericalError(
+                    "mean computation should succeed for non-empty array".into(),
+                )
+            })?;
             x.to_owned() - &mean.insert_axis(Axis(0))
         };
 
@@ -414,7 +418,9 @@ mod tests {
         ];
 
         let estimator = CLIME::new().lambda(0.1);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert_eq!(fitted.get_precision().dim(), (3, 3));
@@ -432,7 +438,9 @@ mod tests {
         ];
 
         let estimator = CLIME::new().lambda(0.5);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         let sparsity = fitted.get_sparsity();
         assert!(sparsity > 0.0); // Should produce some sparsity
@@ -445,7 +453,9 @@ mod tests {
         let estimator = CLIME::new()
             .lambda(0.1)
             .solver(CLIMESolver::ProximalGradient);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert_eq!(fitted.get_precision().dim(), (2, 2));
@@ -456,7 +466,9 @@ mod tests {
         let x = array![[0.0, -0.5], [1.0, 0.5], [2.0, 1.8], [3.0, 2.9], [4.0, 4.1]];
 
         let estimator = CLIME::new().assume_centered(true);
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert!(fitted.is_assume_centered());
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
@@ -478,7 +490,9 @@ mod tests {
 
         let x = array![[1.0, 0.5], [2.0, 1.5], [3.0, 2.8]];
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.get_lambda(), 0.2);
     }
 }

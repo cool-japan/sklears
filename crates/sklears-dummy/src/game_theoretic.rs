@@ -12,7 +12,7 @@
 //! - **Zero-sum game baselines**: Competitive prediction scenarios
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::{error::SklearsError, traits::Fit, traits::Predict};
 use std::collections::HashMap;
 
@@ -315,8 +315,11 @@ impl Predict<Array2<f64>, Array1<i32>> for GameTheoreticClassifier<sklears_core:
         }
 
         let n_samples = X.nrows();
-        let classes = self.classes_.as_ref().unwrap();
-        let strategy_probs = self.strategy_probabilities_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
+        let strategy_probs = self
+            .strategy_probabilities_
+            .as_ref()
+            .expect("operation should succeed");
 
         let mut rng = if let Some(seed) = self.random_state {
             scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
@@ -332,7 +335,7 @@ impl Predict<Array2<f64>, Array1<i32>> for GameTheoreticClassifier<sklears_core:
                 let best_class_idx = strategy_probs
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0);
                 predictions.fill(classes[best_class_idx]);
@@ -340,7 +343,7 @@ impl Predict<Array2<f64>, Array1<i32>> for GameTheoreticClassifier<sklears_core:
             GameTheoreticStrategy::NashEquilibrium { .. } => {
                 // Nash equilibrium: sample according to equilibrium probabilities
                 for i in 0..n_samples {
-                    let sample: f64 = rng.gen();
+                    let sample: f64 = rng.random();
                     let mut cumsum = 0.0;
                     for (j, &prob) in strategy_probs.iter().enumerate() {
                         cumsum += prob;
@@ -354,7 +357,7 @@ impl Predict<Array2<f64>, Array1<i32>> for GameTheoreticClassifier<sklears_core:
             GameTheoreticStrategy::RegretMinimization { .. } => {
                 // Regret minimization: use probability matching
                 for i in 0..n_samples {
-                    let sample: f64 = rng.gen();
+                    let sample: f64 = rng.random();
                     let mut cumsum = 0.0;
                     for (j, &prob) in strategy_probs.iter().enumerate() {
                         cumsum += prob;
@@ -368,7 +371,7 @@ impl Predict<Array2<f64>, Array1<i32>> for GameTheoreticClassifier<sklears_core:
             _ => {
                 // For other strategies, use the computed probabilities
                 for i in 0..n_samples {
-                    let sample: f64 = rng.gen();
+                    let sample: f64 = rng.random();
                     let mut cumsum = 0.0;
                     for (j, &prob) in strategy_probs.iter().enumerate() {
                         cumsum += prob;
@@ -563,7 +566,7 @@ impl GameTheoreticClassifier {
             }
 
             // Sample outcome
-            let outcome = rng.gen_range(0..n_classes);
+            let outcome = rng.random_range(0..n_classes);
 
             // Compute regret and update weights
             let mut max_payoff = f64::NEG_INFINITY;
@@ -778,7 +781,7 @@ impl GameTheoreticClassifier {
             let freq = *class_counts.get(&class).unwrap_or(&0) as f64 / n_samples as f64;
             // Simulate rewards based on class frequency
             let rewards: Vec<f64> = (0..10)
-                .map(|_| if rng.gen::<f64>() < freq { 1.0 } else { 0.0 })
+                .map(|_| if rng.random::<f64>() < freq { 1.0 } else { 0.0 })
                 .collect();
             arm_rewards.insert(class, rewards);
         }
@@ -829,7 +832,7 @@ impl GameTheoreticClassifier {
                 let best_arm = ucb_values
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0);
                 probs[best_arm] = 1.0;
@@ -855,7 +858,7 @@ impl GameTheoreticClassifier {
                 let best_arm = sampled_values
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
                     .unwrap_or(0);
                 probs[best_arm] = 1.0;
@@ -918,17 +921,19 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 2, 2];
 
         let classifier =
             GameTheoreticClassifier::new(GameTheoreticStrategy::Minimax).with_random_state(42);
-        let fitted = classifier.fit(&X, &y).unwrap();
+        let fitted = classifier
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
 
         assert!(fitted.strategy_probabilities().is_some());
         assert!(fitted.payoff_matrix().is_some());
 
-        let predictions = fitted.predict(&X).unwrap();
+        let predictions = fitted.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // All predictions should be valid classes
@@ -940,8 +945,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_nash_equilibrium_classifier() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 0, 1];
 
         let classifier = GameTheoreticClassifier::new(GameTheoreticStrategy::NashEquilibrium {
@@ -950,12 +955,16 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = classifier.fit(&X, &y).unwrap();
+        let fitted = classifier
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
 
-        let strategy_probs = fitted.strategy_probabilities().unwrap();
+        let strategy_probs = fitted
+            .strategy_probabilities()
+            .expect("operation should succeed");
         assert_abs_diff_eq!(strategy_probs.sum(), 1.0, epsilon = 1e-10);
 
-        let predictions = fitted.predict(&X).unwrap();
+        let predictions = fitted.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -969,7 +978,7 @@ mod tests {
                 16.0, 17.0, 18.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 1, 2, 0, 1, 2];
 
         let classifier = GameTheoreticClassifier::new(GameTheoreticStrategy::RegretMinimization {
@@ -978,21 +987,23 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = classifier.fit(&X, &y).unwrap();
+        let fitted = classifier
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
 
         assert!(fitted.regret_history().is_some());
-        let regret_hist = fitted.regret_history().unwrap();
+        let regret_hist = fitted.regret_history().expect("operation should succeed");
         assert!(!regret_hist.is_empty());
 
-        let predictions = fitted.predict(&X).unwrap();
+        let predictions = fitted.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_adversarial_robust_classifier() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 0, 1];
 
         let classifier = GameTheoreticClassifier::new(GameTheoreticStrategy::AdversarialRobust {
@@ -1001,12 +1012,16 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = classifier.fit(&X, &y).unwrap();
+        let fitted = classifier
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
 
-        let strategy_probs = fitted.strategy_probabilities().unwrap();
+        let strategy_probs = fitted
+            .strategy_probabilities()
+            .expect("operation should succeed");
         assert_abs_diff_eq!(strategy_probs.sum(), 1.0, epsilon = 1e-10);
 
-        let predictions = fitted.predict(&X).unwrap();
+        let predictions = fitted.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -1019,7 +1034,7 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 0, 1, 1, 2, 2];
 
         let classifier = GameTheoreticClassifier::new(GameTheoreticStrategy::ZeroSum {
@@ -1027,9 +1042,11 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = classifier.fit(&X, &y).unwrap();
+        let fitted = classifier
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&X).unwrap();
+        let predictions = fitted.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         for &pred in &predictions {
@@ -1047,7 +1064,7 @@ mod tests {
                 16.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![0, 1, 2, 0, 1, 2, 0, 1];
 
         let classifier = GameTheoreticClassifier::new(GameTheoreticStrategy::MultiArmedBandit {
@@ -1055,9 +1072,11 @@ mod tests {
         })
         .with_random_state(42);
 
-        let fitted = classifier.fit(&X, &y).unwrap();
+        let fitted = classifier
+            .fit(&X, &y)
+            .expect("model fitting should succeed");
 
-        let predictions = fitted.predict(&X).unwrap();
+        let predictions = fitted.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 8);
 
         for &pred in &predictions {
@@ -1080,8 +1099,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_shape_mismatch_handling() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 1]; // Wrong length
 
         let classifier = GameTheoreticClassifier::new(GameTheoreticStrategy::Minimax);
@@ -1092,8 +1111,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_strategy_probabilities_sum_to_one() {
-        let X =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let X = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("shape and data length should match");
         let y = array![0, 1, 0, 1];
 
         let strategies = vec![
@@ -1110,9 +1129,13 @@ mod tests {
 
         for strategy in strategies {
             let classifier = GameTheoreticClassifier::new(strategy).with_random_state(42);
-            let fitted = classifier.fit(&X, &y).unwrap();
+            let fitted = classifier
+                .fit(&X, &y)
+                .expect("model fitting should succeed");
 
-            let strategy_probs = fitted.strategy_probabilities().unwrap();
+            let strategy_probs = fitted
+                .strategy_probabilities()
+                .expect("operation should succeed");
             assert_abs_diff_eq!(strategy_probs.sum(), 1.0, epsilon = 1e-10);
 
             // All probabilities should be non-negative

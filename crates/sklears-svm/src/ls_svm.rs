@@ -245,16 +245,28 @@ impl LSSVM<Untrained> {
 
 impl Predict<Array2<Float>, Array1<Float>> for LSSVM<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
             ));
         }
 
-        let support_vectors = self.support_vectors_.as_ref().unwrap();
-        let alpha = self.alpha_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let support_vectors = self
+            .support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted");
+        let alpha = self
+            .alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ not available - model not fitted");
         let kernel = match &self.config.kernel {
             KernelType::Linear => Box::new(crate::kernels::LinearKernel) as Box<dyn Kernel>,
             KernelType::Rbf { gamma } => {
@@ -287,27 +299,35 @@ impl Predict<Array2<Float>, Array1<Float>> for LSSVM<Trained> {
 impl LSSVM<Trained> {
     /// Get the support vectors (training data for LS-SVM)
     pub fn support_vectors(&self) -> &Array2<Float> {
-        self.support_vectors_.as_ref().unwrap()
+        self.support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted")
     }
 
     /// Get the alpha coefficients
     pub fn alpha(&self) -> &Array1<Float> {
-        self.alpha_.as_ref().unwrap()
+        self.alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted")
     }
 
     /// Get the intercept term
     pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+        self.intercept_
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the training labels
     pub fn training_labels(&self) -> &Array1<Float> {
-        self.training_labels_.as_ref().unwrap()
+        self.training_labels_
+            .as_ref()
+            .expect("training_labels_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 
     /// Compute the decision function values
@@ -491,11 +511,11 @@ mod tests {
             .kernel(KernelType::Linear)
             .fit_intercept(true);
 
-        let fitted_model = lssvm.fit(&x, &y).unwrap();
+        let fitted_model = lssvm.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 1);
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 5);
 
         // Predictions should be close to the linear relationship
@@ -528,9 +548,11 @@ mod tests {
             .kernel(KernelType::Linear)
             .fit_intercept(true);
 
-        let fitted_model = classifier.fit(&x, &y).unwrap();
+        let fitted_model = classifier
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Check that predictions are valid class labels
@@ -538,7 +560,9 @@ mod tests {
             assert!(pred == 0 || pred == 1);
         }
 
-        let decision_values = fitted_model.decision_function(&x).unwrap();
+        let decision_values = fitted_model
+            .decision_function(&x)
+            .expect("decision function should succeed");
         assert_eq!(decision_values.len(), 6);
 
         // Decision values should be finite
@@ -581,7 +605,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Wrong number of features
 
         let lssvm = LSSVM::new();
-        let fitted_model = lssvm.fit(&x_train, &y_train).unwrap();
+        let fitted_model = lssvm
+            .fit(&x_train, &y_train)
+            .expect("model fitting should succeed");
         let result = fitted_model.predict(&x_test);
 
         assert!(result.is_err());

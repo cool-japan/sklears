@@ -494,18 +494,18 @@ mod tests {
     fn test_enhanced_linear_regression_builder_presets() {
         let quick_model = EnhancedLinearRegressionBuilder::with_preset(ModelPreset::Quick)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(quick_model.config().solver, Solver::Normal);
 
         let balanced_model = EnhancedLinearRegressionBuilder::with_preset(ModelPreset::Balanced)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(balanced_model.config().solver, Solver::Auto);
 
         let production_model =
             EnhancedLinearRegressionBuilder::with_preset(ModelPreset::Production)
                 .build()
-                .unwrap();
+                .expect("operation should succeed");
         assert!(matches!(
             production_model.config().penalty,
             Penalty::ElasticNet { .. }
@@ -517,12 +517,12 @@ mod tests {
     fn test_enhanced_logistic_regression_builder_presets() {
         let quick_model = EnhancedLogisticRegressionBuilder::with_preset(ModelPreset::Quick)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(quick_model.config().solver, Solver::Lbfgs);
 
         let robust_model = EnhancedLogisticRegressionBuilder::with_preset(ModelPreset::Robust)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(robust_model.config().solver, Solver::Saga);
     }
 
@@ -536,7 +536,7 @@ mod tests {
             .with_cross_validation(5)
             .with_early_stopping()
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(model.config().solver, Solver::CoordinateDescent);
         assert!(matches!(model.config().penalty, Penalty::L1(_)));

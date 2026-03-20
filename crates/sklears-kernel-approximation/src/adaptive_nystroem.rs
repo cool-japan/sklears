@@ -4,7 +4,7 @@ use crate::nystroem::{Kernel, SamplingStrategy};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng as RealStdRng;
 use scirs2_core::random::seq::SliceRandom;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use sklears_core::{
     error::{Result, SklearsError},
@@ -214,7 +214,7 @@ impl AdaptiveNystroem<Untrained> {
 
                 for _ in 0..n_components {
                     let mut cumsum = 0.0;
-                    let target = rng.gen::<f64>() * total_score;
+                    let target = rng.random::<f64>() * total_score;
 
                     for (i, &score) in scores.iter().enumerate() {
                         cumsum += score;
@@ -227,7 +227,7 @@ impl AdaptiveNystroem<Untrained> {
 
                 // Fill remaining with random if needed
                 while selected.len() < n_components {
-                    let idx = rng.gen_range(0..n_samples);
+                    let idx = rng.random_range(0..n_samples);
                     if !selected.contains(&idx) {
                         selected.push(idx);
                     }
@@ -365,7 +365,9 @@ impl AdaptiveNystroem<Untrained> {
 
             // Exact kernel evaluation
             let exact_kernel = self.kernel.compute_kernel(
-                &x_i.to_shape((1, x_i.len())).unwrap().to_owned(),
+                &x_i.to_shape((1, x_i.len()))
+                    .expect("operation should succeed")
+                    .to_owned(),
                 &components,
             );
 
@@ -408,7 +410,7 @@ impl AdaptiveNystroem<Untrained> {
             eigenvalues.push(eigenvalue.abs());
         }
 
-        eigenvalues.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        eigenvalues.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
         eigenvalues
     }
 
@@ -459,7 +461,7 @@ impl Fit<Array2<Float>, ()> for AdaptiveNystroem<Untrained> {
         let mut rng = if let Some(seed) = self.random_state {
             RealStdRng::seed_from_u64(seed)
         } else {
-            RealStdRng::from_seed(thread_rng().gen())
+            RealStdRng::from_seed(thread_rng().random())
         };
 
         // Adaptively select components
@@ -507,8 +509,11 @@ impl Fit<Array2<Float>, ()> for AdaptiveNystroem<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for AdaptiveNystroem<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let components = self.components_.as_ref().unwrap();
-        let normalization = self.normalization_.as_ref().unwrap();
+        let components = self.components_.as_ref().expect("operation should succeed");
+        let normalization = self
+            .normalization_
+            .as_ref()
+            .expect("operation should succeed");
 
         if x.ncols() != components.ncols() {
             return Err(SklearsError::InvalidInput(format!(
@@ -531,27 +536,32 @@ impl Transform<Array2<Float>, Array2<Float>> for AdaptiveNystroem<Trained> {
 impl AdaptiveNystroem<Trained> {
     /// Get the selected components
     pub fn components(&self) -> &Array2<Float> {
-        self.components_.as_ref().unwrap()
+        self.components_.as_ref().expect("operation should succeed")
     }
 
     /// Get the component indices
     pub fn component_indices(&self) -> &[usize] {
-        self.component_indices_.as_ref().unwrap()
+        self.component_indices_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the number of components selected
     pub fn n_components_selected(&self) -> usize {
-        self.n_components_selected_.unwrap()
+        self.n_components_selected_
+            .expect("operation should succeed")
     }
 
     /// Get the error bound
     pub fn error_bound(&self) -> Float {
-        self.error_bound_.unwrap()
+        self.error_bound_.expect("operation should succeed")
     }
 
     /// Get the eigenvalues
     pub fn eigenvalues(&self) -> &Array1<Float> {
-        self.eigenvalues_.as_ref().unwrap()
+        self.eigenvalues_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Get the approximation rank (number of significant eigenvalues)
@@ -582,8 +592,8 @@ mod tests {
         let adaptive = AdaptiveNystroem::new(Kernel::Linear)
             .min_components(1)
             .max_components(4);
-        let fitted = adaptive.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = adaptive.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 4);
         assert!(fitted.n_components_selected() >= fitted.min_components);
@@ -599,7 +609,7 @@ mod tests {
             .selection_strategy(ComponentSelectionStrategy::ErrorTolerance { tolerance: 0.5 })
             .min_components(1)
             .max_components(4);
-        let fitted = adaptive.fit(&x, &()).unwrap();
+        let fitted = adaptive.fit(&x, &()).expect("operation should succeed");
 
         assert!(fitted.error_bound() <= 0.5 || fitted.n_components_selected() == 4);
     }
@@ -610,8 +620,8 @@ mod tests {
 
         let adaptive = AdaptiveNystroem::new(Kernel::Linear)
             .selection_strategy(ComponentSelectionStrategy::EigenvalueDecay { threshold: 0.1 });
-        let fitted = adaptive.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = adaptive.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 4);
         assert!(!fitted.eigenvalues().is_empty());
@@ -623,7 +633,7 @@ mod tests {
 
         let adaptive = AdaptiveNystroem::new(Kernel::Linear)
             .selection_strategy(ComponentSelectionStrategy::RankBased { max_rank: 3 });
-        let fitted = adaptive.fit(&x, &()).unwrap();
+        let fitted = adaptive.fit(&x, &()).expect("operation should succeed");
 
         assert_eq!(fitted.n_components_selected(), 3);
     }
@@ -642,7 +652,7 @@ mod tests {
         for method in methods {
             let adaptive =
                 AdaptiveNystroem::new(Kernel::Rbf { gamma: 0.1 }).error_bound_method(method);
-            let fitted = adaptive.fit(&x, &()).unwrap();
+            let fitted = adaptive.fit(&x, &()).expect("operation should succeed");
 
             assert!(fitted.error_bound().is_finite());
             assert!(fitted.error_bound() >= 0.0);
@@ -654,12 +664,12 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0],];
 
         let adaptive1 = AdaptiveNystroem::new(Kernel::Linear).random_state(42);
-        let fitted1 = adaptive1.fit(&x, &()).unwrap();
-        let result1 = fitted1.transform(&x).unwrap();
+        let fitted1 = adaptive1.fit(&x, &()).expect("operation should succeed");
+        let result1 = fitted1.transform(&x).expect("operation should succeed");
 
         let adaptive2 = AdaptiveNystroem::new(Kernel::Linear).random_state(42);
-        let fitted2 = adaptive2.fit(&x, &()).unwrap();
-        let result2 = fitted2.transform(&x).unwrap();
+        let fitted2 = adaptive2.fit(&x, &()).expect("operation should succeed");
+        let result2 = fitted2.transform(&x).expect("operation should succeed");
 
         assert_eq!(
             fitted1.n_components_selected(),
@@ -673,7 +683,7 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0],];
 
         let adaptive = AdaptiveNystroem::new(Kernel::Linear);
-        let fitted = adaptive.fit(&x, &()).unwrap();
+        let fitted = adaptive.fit(&x, &()).expect("operation should succeed");
 
         let rank = fitted.approximation_rank(0.1);
         assert!(rank <= fitted.n_components_selected());

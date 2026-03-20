@@ -90,7 +90,7 @@ impl<T: FloatBounds> OnlineLearning<T> for OnlineLearner<T> {
             self.initialize(x.len())?;
         }
 
-        let n_features = self.n_features.unwrap();
+        let n_features = self.n_features.expect("operation should succeed");
         if x.len() != n_features {
             return Err(SklearsError::InvalidInput(format!(
                 "Expected {} features, got {}",

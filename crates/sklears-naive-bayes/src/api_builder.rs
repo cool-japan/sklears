@@ -766,8 +766,9 @@ mod tests {
         };
 
         // Serialization should work
-        let serialized = serde_json::to_string(&params).unwrap();
-        let deserialized: SerializableNBParams = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&params).expect("operation should succeed");
+        let deserialized: SerializableNBParams =
+            serde_json::from_str(&serialized).expect("operation should succeed");
 
         assert_eq!(params.model_type, deserialized.model_type);
     }

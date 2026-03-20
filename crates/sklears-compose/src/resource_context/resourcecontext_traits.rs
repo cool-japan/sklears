@@ -18,13 +18,13 @@ impl ExecutionContextTrait for ResourceContext {
         ContextType::Extension("resource".to_string())
     }
     fn state(&self) -> ContextState {
-        *self.state.read().unwrap()
+        *self.state.read().unwrap_or_else(|e| e.into_inner())
     }
     fn is_active(&self) -> bool {
         matches!(self.state(), ContextState::Active)
     }
     fn metadata(&self) -> &ContextMetadata {
-        unsafe { &*(self.metadata.read().unwrap().as_ref() as *const ContextMetadata) }
+        unsafe { &*(self.metadata.read().unwrap_or_else(|e| e.into_inner()).as_ref() as *const ContextMetadata) }
     }
     fn validate(&self) -> Result<(), ContextError> {
         self.check_resource_limits()

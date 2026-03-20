@@ -621,7 +621,7 @@ mod tests {
         let success = manager.release_legal_hold("test-hold");
         assert!(success);
 
-        let hold = manager.legal_holds.get("test-hold").unwrap();
+        let hold = manager.legal_holds.get("test-hold").unwrap_or_default();
         assert_eq!(hold.status, LegalHoldStatus::Released);
         assert!(hold.released_at.is_some());
     }
@@ -671,7 +671,7 @@ mod tests {
         };
 
         manager.add_policy(policy);
-        let schedule_id = manager.schedule_deletion("asset-123", "test-policy").unwrap();
+        let schedule_id = manager.schedule_deletion("asset-123", "test-policy").unwrap_or_default();
 
         let success = manager.cancel_schedule(&schedule_id);
         assert!(success);

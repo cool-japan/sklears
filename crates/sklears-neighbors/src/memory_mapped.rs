@@ -303,7 +303,8 @@ impl MmapNeighborIndex {
                 .map_err(|e| NeighborsError::InvalidInput(format!("Failed to seek: {}", e)))?;
 
             let row_indices = neighbor_indices.row(i);
-            let indices_bytes = cast_slice(row_indices.as_slice().unwrap());
+            let indices_bytes =
+                cast_slice(row_indices.as_slice().expect("operation should succeed"));
             writer.write_all(indices_bytes).map_err(|e| {
                 NeighborsError::InvalidInput(format!("Failed to write indices: {}", e))
             })?;
@@ -318,7 +319,8 @@ impl MmapNeighborIndex {
                 .map_err(|e| NeighborsError::InvalidInput(format!("Failed to seek: {}", e)))?;
 
             let row_distances = neighbor_distances.row(i);
-            let distances_bytes = cast_slice(row_distances.as_slice().unwrap());
+            let distances_bytes =
+                cast_slice(row_distances.as_slice().expect("operation should succeed"));
             writer.write_all(distances_bytes).map_err(|e| {
                 NeighborsError::InvalidInput(format!("Failed to write distances: {}", e))
             })?;
@@ -453,7 +455,7 @@ impl MmapNeighborIndex {
 
         // Write sample data row by row
         for sample in samples.axis_iter(scirs2_core::ndarray::Axis(0)) {
-            let sample_bytes = cast_slice(sample.as_slice().unwrap());
+            let sample_bytes = cast_slice(sample.as_slice().expect("operation should succeed"));
             writer.write_all(sample_bytes).map_err(|e| {
                 NeighborsError::InvalidInput(format!("Failed to write sample data: {}", e))
             })?;
@@ -673,10 +675,11 @@ mod tests {
     #[test]
     #[cfg(feature = "memmap")]
     fn test_mmap_neighbor_index_creation() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let file_path = temp_file.path();
 
-        let mut index = MmapNeighborIndex::new(file_path, 100, 10, 5).unwrap();
+        let mut index =
+            MmapNeighborIndex::new(file_path, 100, 10, 5).expect("operation should succeed");
         assert!(index.create().is_ok());
 
         let (n_samples, n_features, k_neighbors) = index.metadata();
@@ -688,12 +691,13 @@ mod tests {
     #[test]
     #[cfg(feature = "memmap")]
     fn test_mmap_neighbor_index_store_and_retrieve() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let file_path = temp_file.path();
 
-        let mut index = MmapNeighborIndex::new(file_path, 3, 2, 2).unwrap();
-        index.create().unwrap();
-        index.map().unwrap();
+        let mut index =
+            MmapNeighborIndex::new(file_path, 3, 2, 2).expect("operation should succeed");
+        index.create().expect("operation should succeed");
+        index.map().expect("operation should succeed");
 
         // Store some neighbor data
         let sample_indices = vec![0, 1];
@@ -702,11 +706,17 @@ mod tests {
 
         index
             .store_neighbors(&sample_indices, &neighbor_indices, &neighbor_distances)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Retrieve the data
-        let (retrieved_indices, retrieved_distances) = index.get_neighbors(0).unwrap();
-        assert_eq!(retrieved_indices.as_slice().unwrap(), &[1, 2]);
+        let (retrieved_indices, retrieved_distances) =
+            index.get_neighbors(0).expect("operation should succeed");
+        assert_eq!(
+            retrieved_indices
+                .as_slice()
+                .expect("operation should succeed"),
+            &[1, 2]
+        );
         assert!((retrieved_distances[0] - 0.5).abs() < 1e-6);
         assert!((retrieved_distances[1] - 1.0).abs() < 1e-6);
     }
@@ -714,7 +724,7 @@ mod tests {
     #[test]
     #[cfg(feature = "memmap")]
     fn test_mmap_neighbor_index_builder() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let file_path = temp_file.path();
 
         let index = MmapNeighborIndexBuilder::new()
@@ -723,7 +733,7 @@ mod tests {
             .n_features(4)
             .k_neighbors(3)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         let (n_samples, n_features, k_neighbors) = index.metadata();
         assert_eq!(n_samples, 50);
@@ -734,11 +744,12 @@ mod tests {
     #[test]
     #[cfg(feature = "memmap")]
     fn test_mmap_neighbor_index_error_cases() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let file_path = temp_file.path();
 
-        let mut index = MmapNeighborIndex::new(file_path, 2, 3, 2).unwrap();
-        index.create().unwrap();
+        let mut index =
+            MmapNeighborIndex::new(file_path, 2, 3, 2).expect("operation should succeed");
+        index.create().expect("operation should succeed");
 
         // Test invalid sample index
         assert!(index.get_neighbors(5).is_err());
@@ -760,7 +771,7 @@ mod tests {
     #[test]
     #[cfg(not(feature = "memmap"))]
     fn test_mmap_without_feature() {
-        let temp_file = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().expect("operation should succeed");
         let file_path = temp_file.path();
 
         let result = MmapNeighborIndex::new(file_path, 100, 10, 5);

@@ -166,7 +166,7 @@ impl PerformanceMonitor {
         #[cfg(not(feature = "no-std"))]
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("operation should succeed")
             .as_secs();
         #[cfg(feature = "no-std")]
         let timestamp = current_timestamp();
@@ -241,7 +241,7 @@ impl PerformanceMonitor {
         let cutoff_timestamp = {
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
+                .expect("operation should succeed")
                 .as_secs();
             let window = days_back.saturating_mul(24 * 60 * 60);
             now.saturating_sub(window)
@@ -388,7 +388,7 @@ impl PerformanceMonitor {
         #[cfg(not(feature = "no-std"))]
         let cutoff_timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("operation should succeed")
             .as_secs();
         #[cfg(feature = "no-std")]
         let cutoff_timestamp = current_timestamp() - (days_back * 24 * 60 * 60);
@@ -721,7 +721,7 @@ mod tests {
         let temp_file = "/tmp/test_perf_parsing.csv";
         let _ = fs::remove_file(temp_file);
 
-        let mut monitor = PerformanceMonitor::new(temp_file).unwrap();
+        let mut monitor = PerformanceMonitor::new(temp_file).expect("operation should succeed");
 
         let test_results = vec![BenchmarkResult {
             name: "test_op".to_string(),
@@ -744,7 +744,7 @@ mod tests {
         let temp_file = "/tmp/test_trend_analysis.csv";
         let _ = fs::remove_file(temp_file);
 
-        let monitor = PerformanceMonitor::new(temp_file).unwrap();
+        let monitor = PerformanceMonitor::new(temp_file).expect("operation should succeed");
         let trend = monitor.analyze_trends("nonexistent_op", 7);
 
         match trend {
@@ -763,7 +763,7 @@ mod tests {
         let results = CIIntegration::run_ci_benchmarks();
         assert!(results.is_ok());
 
-        let results = results.unwrap();
+        let results = results.expect("operation should succeed");
         assert!(!results.is_empty());
 
         for result in &results {

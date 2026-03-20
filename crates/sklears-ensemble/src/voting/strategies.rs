@@ -294,7 +294,7 @@ pub fn rank_based_voting(all_probabilities: &[Array2<Float>]) -> Result<Array1<F
                 .map(|(idx, &prob)| (idx, prob))
                 .collect();
 
-            indexed_probs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            indexed_probs.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             // Assign ranks
             for (rank, (class_idx, _)) in indexed_probs.iter().enumerate() {

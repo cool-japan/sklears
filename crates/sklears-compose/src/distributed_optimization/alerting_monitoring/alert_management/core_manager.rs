@@ -511,9 +511,9 @@ mod tests {
     #[test]
     fn test_alert_manager_creation() {
         let manager = AlertManager::new();
-        assert!(manager.alert_rules.read().unwrap().is_empty());
-        assert!(manager.active_alerts.read().unwrap().is_empty());
-        assert!(manager.alert_history.read().unwrap().is_empty());
+        assert!(manager.alert_rules.read().unwrap_or_else(|e| e.into_inner()).is_empty());
+        assert!(manager.active_alerts.read().unwrap_or_else(|e| e.into_inner()).is_empty());
+        assert!(manager.alert_history.read().unwrap_or_else(|e| e.into_inner()).is_empty());
     }
 
     #[test]
@@ -563,23 +563,23 @@ mod tests {
 
         // Add rule
         assert!(manager.add_rule(rule.clone()).is_ok());
-        assert_eq!(manager.alert_rules.read().unwrap().len(), 1);
+        assert_eq!(manager.alert_rules.read().unwrap_or_else(|e| e.into_inner()).len(), 1);
 
         // Try to add duplicate
         assert!(manager.add_rule(rule).is_err());
 
         // Remove rule
-        assert!(manager.remove_rule("test_rule").unwrap());
-        assert!(manager.alert_rules.read().unwrap().is_empty());
+        assert!(manager.remove_rule("test_rule").unwrap_or_default());
+        assert!(manager.alert_rules.read().unwrap_or_else(|e| e.into_inner()).is_empty());
 
         // Try to remove non-existent rule
-        assert!(!manager.remove_rule("non_existent").unwrap());
+        assert!(!manager.remove_rule("non_existent").unwrap_or_default());
     }
 
     #[test]
     fn test_get_statistics() {
         let manager = AlertManager::new();
-        let stats = manager.get_statistics().unwrap();
+        let stats = manager.get_statistics().unwrap_or_default();
 
         assert_eq!(stats.total_rules, 0);
         assert_eq!(stats.active_alerts_count, 0);

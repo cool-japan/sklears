@@ -58,7 +58,7 @@ impl FeatureImportanceScores {
             .map(|(i, &score)| (i, score))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         indexed_scores.truncate(n);
         indexed_scores
     }
@@ -97,7 +97,7 @@ impl FeatureImportanceScores {
             .map(|(i, &score)| (i, score))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
         indexed_scores.iter().map(|(idx, _)| *idx).collect()
     }
 }
@@ -316,7 +316,7 @@ impl FeatureInteractionDetector {
         }
 
         // Sort by absolute correlation
-        interactions.sort_by(|a, b| b.2.abs().partial_cmp(&a.2.abs()).unwrap());
+        interactions.sort_by(|a, b| b.2.abs().partial_cmp(&a.2.abs()).expect("operation should succeed"));
 
         // Limit number of pairs if specified
         if let Some(max_pairs) = self.max_pairs {
@@ -331,8 +331,8 @@ impl FeatureInteractionDetector {
         let col1 = x.column(idx1);
         let col2 = x.column(idx2);
 
-        let mean1 = col1.mean().unwrap();
-        let mean2 = col2.mean().unwrap();
+        let mean1 = col1.mean().expect("array should have elements for mean computation");
+        let mean2 = col2.mean().expect("array should have elements for mean computation");
 
         let mut numerator = 0.0;
         let mut sum_sq1 = 0.0;
@@ -410,7 +410,7 @@ impl RecursiveFeatureElimination {
                 .collect();
 
             // Sort by importance (ascending) to eliminate least important
-            indexed_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            indexed_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Remove least important features
             for i in 0..n_to_eliminate {
@@ -489,9 +489,9 @@ mod tests {
                 12.0, 2.0, 7.0, 14.0, 3.0, 8.0, 16.0, 1.0, 9.0, 18.0, 2.0, 10.0, 20.0, 3.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let interactions = detector.detect_interactions(&x).unwrap();
+        let interactions = detector.detect_interactions(&x).expect("operation should succeed");
         assert!(!interactions.is_empty());
 
         // Features 0 and 1 should be highly correlated
@@ -512,7 +512,7 @@ mod tests {
         let x = Array2::ones((10, 3));
         let y = Array1::ones(10);
 
-        let selected = rfe.select_features(&(), &x, &y, importance_fn).unwrap();
+        let selected = rfe.select_features(&(), &x, &y, importance_fn).expect("operation should succeed");
         assert_eq!(selected.len(), 2);
         assert!(selected.contains(&1)); // Feature 1 should be selected (highest importance)
     }

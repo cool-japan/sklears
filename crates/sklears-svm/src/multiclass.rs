@@ -2,7 +2,6 @@
 
 use crate::svc::{SvcConfig, SVC};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::Rng;
 use sklears_core::{
     error::{Result, SklearsError},
     traits::{Fit, Predict, Trained, Untrained},
@@ -231,7 +230,7 @@ impl MultiClassSVC<Untrained> {
     /// Find unique classes in the target array
     fn find_classes(y: &Array1<Float>) -> Array1<Float> {
         let mut classes: Vec<Float> = y.iter().cloned().collect();
-        classes.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        classes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         classes.dedup();
         Array1::from_vec(classes)
     }
@@ -353,7 +352,7 @@ impl MultiClassSVC<Untrained> {
                 let mut codebook = Array2::zeros((n_classes, n_bits));
                 for i in 0..n_classes {
                     for j in 0..n_bits {
-                        codebook[[i, j]] = if rng.gen::<bool>() { 1.0 } else { -1.0 };
+                        codebook[[i, j]] = if rng.random::<bool>() { 1.0 } else { -1.0 };
                     }
                 }
                 return codebook;
@@ -369,7 +368,10 @@ impl MultiClassSVC<Untrained> {
         codebook: &Array2<Float>,
     ) -> Array1<Float> {
         y.mapv(|label| {
-            let class_idx = classes.iter().position(|&c| c == label).unwrap();
+            let class_idx = classes
+                .iter()
+                .position(|&c| c == label)
+                .expect("element not found");
             codebook[[class_idx, bit_idx]]
         })
     }
@@ -509,9 +511,9 @@ impl MultiClassSVC<Untrained> {
 
         // Ensure both groups have at least one class
         if left_classes.is_empty() {
-            left_classes.push(right_classes.pop().unwrap());
+            left_classes.push(right_classes.pop().expect("empty collection"));
         } else if right_classes.is_empty() {
-            right_classes.push(left_classes.pop().unwrap());
+            right_classes.push(left_classes.pop().expect("empty collection"));
         }
 
         (left_classes, right_classes)
@@ -545,10 +547,15 @@ impl MultiClassSVC<Trained> {
     pub fn decision_function(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
 
-        if n_features != self.n_features_in_.unwrap() {
+        if n_features
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(format!(
                 "Feature mismatch: expected {} features, got {}",
-                self.n_features_in_.unwrap(),
+                self.n_features_in_
+                    .expect("n_features_in_ not available - model not fitted"),
                 n_features
             )));
         }
@@ -792,10 +799,15 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
         let (n_samples, n_features) = x.dim();
 
-        if n_features != self.n_features_in_.unwrap() {
+        if n_features
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(format!(
                 "Feature mismatch: expected {} features, got {}",
-                self.n_features_in_.unwrap(),
+                self.n_features_in_
+                    .expect("n_features_in_ not available - model not fitted"),
                 n_features
             )));
         }
@@ -832,7 +844,10 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                 }
             }
             MultiClassStrategy::OneVsOne => {
-                let pairs = self.class_pairs_.as_ref().unwrap();
+                let pairs = self
+                    .class_pairs_
+                    .as_ref()
+                    .expect("class_pairs_ not available - model not fitted");
 
                 // Vote-based prediction with improved tie handling
                 for i in 0..n_samples {
@@ -842,8 +857,8 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                     // Get votes from each binary classifier
                     for (j, &(class_a, class_b)) in pairs.iter().enumerate() {
                         let sample_view = x.row(i);
-                        let sample =
-                            Array2::from_shape_vec((1, n_features), sample_view.to_vec()).unwrap();
+                        let sample = Array2::from_shape_vec((1, n_features), sample_view.to_vec())
+                            .expect("array shape mismatch");
                         let prediction = estimators[j].predict(&sample)?;
                         let decision_score = estimators[j].decision_function(&sample)?[0];
 
@@ -854,8 +869,14 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                         };
 
                         // Find class indices for decision scores
-                        let idx_a = classes.iter().position(|&c| c == class_a).unwrap();
-                        let idx_b = classes.iter().position(|&c| c == class_b).unwrap();
+                        let idx_a = classes
+                            .iter()
+                            .position(|&c| c == class_a)
+                            .expect("element not found");
+                        let idx_b = classes
+                            .iter()
+                            .position(|&c| c == class_b)
+                            .expect("element not found");
 
                         // Accumulate decision scores
                         if decision_score > 0.0 {
@@ -874,7 +895,7 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                     }
 
                     // Find class with most votes, use decision scores for tie-breaking
-                    let max_votes = *votes.iter().max().unwrap();
+                    let max_votes = *votes.iter().max().expect("collection should not be empty");
                     let tied_classes: Vec<usize> = votes
                         .iter()
                         .enumerate()
@@ -889,7 +910,9 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                         tied_classes
                             .iter()
                             .max_by(|&&a, &&b| {
-                                decision_sums[a].partial_cmp(&decision_sums[b]).unwrap()
+                                decision_sums[a]
+                                    .partial_cmp(&decision_sums[b])
+                                    .unwrap_or(std::cmp::Ordering::Equal)
                             })
                             .copied()
                             .unwrap_or(0)
@@ -899,7 +922,10 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                 }
             }
             MultiClassStrategy::OneVsOneDecision => {
-                let pairs = self.class_pairs_.as_ref().unwrap();
+                let pairs = self
+                    .class_pairs_
+                    .as_ref()
+                    .expect("class_pairs_ not available - model not fitted");
 
                 // Decision-based prediction
                 for i in 0..n_samples {
@@ -908,13 +934,19 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                     // Accumulate decision scores for each class
                     for (j, &(class_a, class_b)) in pairs.iter().enumerate() {
                         let sample_view = x.row(i);
-                        let sample =
-                            Array2::from_shape_vec((1, n_features), sample_view.to_vec()).unwrap();
+                        let sample = Array2::from_shape_vec((1, n_features), sample_view.to_vec())
+                            .expect("array shape mismatch");
                         let decision_score = estimators[j].decision_function(&sample)?[0];
 
                         // Find class indices
-                        let idx_a = classes.iter().position(|&c| c == class_a).unwrap();
-                        let idx_b = classes.iter().position(|&c| c == class_b).unwrap();
+                        let idx_a = classes
+                            .iter()
+                            .position(|&c| c == class_a)
+                            .expect("element not found");
+                        let idx_b = classes
+                            .iter()
+                            .position(|&c| c == class_b)
+                            .expect("element not found");
 
                         // Positive score favors class_b, negative favors class_a
                         if decision_score > 0.0 {
@@ -928,7 +960,9 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                     let best_class_idx = decision_sums
                         .iter()
                         .enumerate()
-                        .max_by(|&(_, &a), &(_, &b)| a.partial_cmp(&b).unwrap())
+                        .max_by(|&(_, &a), &(_, &b)| {
+                            a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)
+                        })
                         .map(|(idx, _)| idx)
                         .unwrap_or(0);
 
@@ -936,7 +970,10 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                 }
             }
             MultiClassStrategy::Ecoc => {
-                let codebook = self.codebook_.as_ref().unwrap();
+                let codebook = self
+                    .codebook_
+                    .as_ref()
+                    .expect("codebook_ not available - model not fitted");
                 let n_bits = codebook.ncols();
 
                 // Predict using ECOC
@@ -946,8 +983,8 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                     // Get prediction from each bit classifier
                     for bit_idx in 0..n_bits {
                         let sample_view = x.row(i);
-                        let sample =
-                            Array2::from_shape_vec((1, n_features), sample_view.to_vec()).unwrap();
+                        let sample = Array2::from_shape_vec((1, n_features), sample_view.to_vec())
+                            .expect("array shape mismatch");
                         let decision_score = estimators[bit_idx].decision_function(&sample)?[0];
                         predicted_code[bit_idx] = if decision_score > 0.0 { 1.0 } else { -1.0 };
                     }
@@ -971,12 +1008,15 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiClassSVC<Trained> {
                 }
             }
             MultiClassStrategy::HierarchicalTree => {
-                let tree = self.hierarchy_tree_.as_ref().unwrap();
+                let tree = self
+                    .hierarchy_tree_
+                    .as_ref()
+                    .expect("hierarchy_tree_ not available - model not fitted");
 
                 for i in 0..n_samples {
                     let sample_view = x.row(i);
-                    let sample =
-                        Array2::from_shape_vec((1, n_features), sample_view.to_vec()).unwrap();
+                    let sample = Array2::from_shape_vec((1, n_features), sample_view.to_vec())
+                        .expect("array shape mismatch");
                     predictions[i] = tree.predict_sample(&sample)?;
                 }
             }
@@ -1013,7 +1053,7 @@ mod tests {
             .max_iter(10) // Very low iterations for tests
             .one_vs_rest()
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check fitted attributes
         assert_eq!(svc.classes().len(), 3);
@@ -1025,7 +1065,7 @@ mod tests {
             [5.0, 5.0], // Should be class 1
             [9.0, 9.0], // Should be class 2
         ];
-        let predictions = svc.predict(&x_test).unwrap();
+        let predictions = svc.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -1050,7 +1090,7 @@ mod tests {
             .max_iter(10) // Very low iterations for tests
             .one_vs_one()
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check fitted attributes
         assert_eq!(svc.classes().len(), 3);
@@ -1062,7 +1102,7 @@ mod tests {
             [5.0, 5.0], // Should be class 1
             [9.0, 9.0], // Should be class 2
         ];
-        let predictions = svc.predict(&x_test).unwrap();
+        let predictions = svc.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -1072,13 +1112,17 @@ mod tests {
         let x = array![[1.0, 1.0], [2.0, 2.0], [-1.0, -1.0], [-2.0, -2.0],];
         let y = array![1.0, 1.0, 0.0, 0.0];
 
-        let svc = MultiClassSVC::new().linear().c(1.0).fit(&x, &y).unwrap();
+        let svc = MultiClassSVC::new()
+            .linear()
+            .c(1.0)
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         assert_eq!(svc.classes().len(), 2);
         assert_eq!(svc.n_estimators(), 1); // Single binary classifier
 
         let x_test = array![[1.5, 1.5], [-1.5, -1.5]];
-        let predictions = svc.predict(&x_test).unwrap();
+        let predictions = svc.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -1129,7 +1173,7 @@ mod tests {
             .max_iter(10) // Very low iterations for tests
             .ecoc()
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check fitted attributes
         assert_eq!(svc.classes().len(), 3);
@@ -1141,7 +1185,7 @@ mod tests {
             [5.0, 5.0], // Should be class 1
             [9.0, 9.0], // Should be class 2
         ];
-        let predictions = svc.predict(&x_test).unwrap();
+        let predictions = svc.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -1192,7 +1236,7 @@ mod tests {
             .max_iter(10) // Very low iterations for tests
             .hierarchical_tree()
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check fitted attributes
         assert_eq!(svc.classes().len(), 4);
@@ -1205,7 +1249,7 @@ mod tests {
             [9.0, 9.0],   // Should be class 2
             [13.0, 13.0], // Should be class 3
         ];
-        let predictions = svc.predict(&x_test).unwrap();
+        let predictions = svc.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Check that all predictions are valid classes
@@ -1220,7 +1264,9 @@ mod tests {
         let tree = HierarchicalTree::new(TreeNode::Leaf(1.0));
 
         let sample = array![[1.0, 2.0]];
-        let path = tree.decision_path(&sample).unwrap();
+        let path = tree
+            .decision_path(&sample)
+            .expect("decision path should succeed");
 
         // For a leaf node, path should be empty
         assert_eq!(path.len(), 0);

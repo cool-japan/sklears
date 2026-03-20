@@ -235,8 +235,8 @@ fn demo_estimator_comparison_with_tuning() -> Result<(), Box<dyn std::error::Err
     // Find best overall estimator
     let best_estimator = all_results
         .iter()
-        .max_by(|(_, a), (_, b)| a.best_score.partial_cmp(&b.best_score).unwrap())
-        .unwrap();
+        .max_by(|(_, a), (_, b)| a.best_score.partial_cmp(&b.best_score).expect("operation should succeed"))
+        .expect("operation should succeed");
 
     println!(
         "\n🏅 Winner: {} with score {:.6}",
@@ -329,7 +329,7 @@ fn demo_advanced_search_strategies() -> Result<(), Box<dyn std::error::Error>> {
         // Show convergence characteristics
         let final_scores = &result.optimization_history.best_scores;
         if final_scores.len() >= 3 {
-            let improvement = final_scores.last().unwrap() - final_scores.first().unwrap();
+            let improvement = final_scores.last().expect("operation should succeed") - final_scores.first().expect("operation should succeed");
             println!("  Improvement: {:.6}", improvement);
         }
     }
@@ -438,6 +438,7 @@ fn create_sparse_covariance_data(
     n_features: usize,
 ) -> SklResult<CovarianceDataFrame> {
     use scirs2_core::random::thread_rng;
+use scirs2_core::random::RngExt;
 
     let mut rng = thread_rng();
     let mut data = Array2::zeros((n_samples, n_features));

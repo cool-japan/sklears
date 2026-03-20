@@ -685,7 +685,11 @@ fn identify_semantic_relations(
     }
 
     // Sort by similarity score
-    relations.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
+    relations.sort_by(|a, b| {
+        b.similarity
+            .partial_cmp(&a.similarity)
+            .expect("operation should succeed")
+    });
 
     Ok(relations)
 }
@@ -699,7 +703,7 @@ mod tests {
     #[test]
     fn test_tokenize_text() {
         let text = "Hello world test";
-        let tokens = tokenize_text(text).unwrap();
+        let tokens = tokenize_text(text).expect("operation should succeed");
 
         assert_eq!(tokens.len(), 3);
         assert_eq!(tokens[0].text, "Hello");
@@ -728,7 +732,7 @@ mod tests {
             },
         ];
 
-        let perturbed = generate_text_perturbation(&tokens, 0.5).unwrap();
+        let perturbed = generate_text_perturbation(&tokens, 0.5).expect("operation should succeed");
         assert_eq!(perturbed.len(), 2);
         // Some tokens might be masked as [MASK]
     }
@@ -754,7 +758,8 @@ mod tests {
         ];
 
         let config = NLPConfig::default();
-        let result = analyze_text_attention(&attention.view(), &tokens, &config).unwrap();
+        let result = analyze_text_attention(&attention.view(), &tokens, &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.token_attention.len(), 4); // 2x2 matrix
         assert_eq!(result.layer_summary.len(), 1);
@@ -788,7 +793,7 @@ mod tests {
         };
 
         let config = NLPConfig::default();
-        let html = visualize_word_importance(&result, &config).unwrap();
+        let html = visualize_word_importance(&result, &config).expect("operation should succeed");
 
         assert!(html.contains("word-importance-visualization"));
         assert!(html.contains("Hello"));
@@ -798,7 +803,8 @@ mod tests {
     #[test]
     fn test_similarity_matrix_computation() {
         let embeddings = array![[1.0, 0.0], [0.0, 1.0], [1.0, 0.0]];
-        let similarity = compute_similarity_matrix(&embeddings.view()).unwrap();
+        let similarity =
+            compute_similarity_matrix(&embeddings.view()).expect("operation should succeed");
 
         assert_eq!(similarity.shape(), &[3, 3]);
         // First and third vectors are identical
@@ -810,13 +816,15 @@ mod tests {
     #[test]
     fn test_semantic_clustering() {
         let embeddings = array![[1.0, 0.0], [1.1, 0.1], [0.0, 1.0]];
-        let similarity = compute_similarity_matrix(&embeddings.view()).unwrap();
+        let similarity =
+            compute_similarity_matrix(&embeddings.view()).expect("operation should succeed");
 
         let config = NLPConfig {
             similarity_threshold: 0.8,
             ..Default::default()
         };
-        let clusters = find_semantic_clusters(&embeddings.view(), &similarity, &config).unwrap();
+        let clusters = find_semantic_clusters(&embeddings.view(), &similarity, &config)
+            .expect("operation should succeed");
 
         assert!(!clusters.is_empty());
         // First two embeddings should be clustered together
@@ -841,7 +849,7 @@ mod tests {
             },
         ];
 
-        let tree = build_syntactic_tree(&tokens).unwrap();
+        let tree = build_syntactic_tree(&tokens).expect("operation should succeed");
 
         assert_eq!(tree.nodes.len(), 2);
         assert_eq!(tree.edges.len(), 1);
@@ -875,7 +883,8 @@ mod tests {
             Ok(array![tokens.len() as Float])
         };
 
-        let result = explain_text_with_lime(text, model_fn, &config).unwrap();
+        let result =
+            explain_text_with_lime(text, model_fn, &config).expect("operation should succeed");
 
         assert_eq!(result.tokens.len(), 2);
         assert_eq!(result.importance_scores.len(), 2);
@@ -889,7 +898,8 @@ mod tests {
             ..Default::default()
         };
 
-        let relations = identify_semantic_relations(&similarity, &config).unwrap();
+        let relations =
+            identify_semantic_relations(&similarity, &config).expect("operation should succeed");
 
         assert!(!relations.is_empty());
         // Should find the high similarity between tokens 0 and 1
@@ -925,7 +935,8 @@ mod tests {
             },
         ];
 
-        let patterns = identify_attention_patterns(&attention.view(), &tokens).unwrap();
+        let patterns = identify_attention_patterns(&attention.view(), &tokens)
+            .expect("operation should succeed");
 
         assert!(!patterns.is_empty());
         // Should identify positional pattern

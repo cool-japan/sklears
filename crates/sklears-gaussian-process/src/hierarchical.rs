@@ -643,11 +643,15 @@ mod tests {
         group_data.insert("A".to_string(), (array![[0.0], [1.0]], array![1.1, 1.9]));
         group_data.insert("B".to_string(), (array![[2.0], [3.0]], array![3.1, 3.9]));
 
-        let trained_model = model.fit(&global_x, &global_y, &group_data).unwrap();
+        let trained_model = model
+            .fit(&global_x, &global_y, &group_data)
+            .expect("model fitting should succeed");
 
         // Test predictions
         let x_test = array![[1.5]];
-        let (mean_pred, var_pred) = trained_model.predict(&x_test, "A").unwrap();
+        let (mean_pred, var_pred) = trained_model
+            .predict(&x_test, "A")
+            .expect("prediction should succeed");
 
         assert_eq!(mean_pred.len(), 1);
         assert_eq!(var_pred.len(), 1);
@@ -668,12 +672,20 @@ mod tests {
         let mut group_data = HashMap::new();
         group_data.insert("A".to_string(), (array![[0.0], [1.0]], array![0.1, 0.9]));
 
-        let trained_model = model.fit(&global_x, &global_y, &group_data).unwrap();
+        let trained_model = model
+            .fit(&global_x, &global_y, &group_data)
+            .expect("model fitting should succeed");
 
         let x_test = array![[0.5]];
-        let (global_pred, _) = trained_model.predict_global(&x_test).unwrap();
-        let (group_pred, _) = trained_model.predict_group_only(&x_test, "A").unwrap();
-        let (combined_pred, _) = trained_model.predict(&x_test, "A").unwrap();
+        let (global_pred, _) = trained_model
+            .predict_global(&x_test)
+            .expect("operation should succeed");
+        let (group_pred, _) = trained_model
+            .predict_group_only(&x_test, "A")
+            .expect("operation should succeed");
+        let (combined_pred, _) = trained_model
+            .predict(&x_test, "A")
+            .expect("prediction should succeed");
 
         // Combined prediction should be a weighted combination
         assert!(global_pred.len() == 1);
@@ -695,14 +707,18 @@ mod tests {
         group_data.insert("A".to_string(), (array![[0.0]], array![0.1]));
         group_data.insert("B".to_string(), (array![[1.0]], array![0.9]));
 
-        let trained_model = model.fit(&global_x, &global_y, &group_data).unwrap();
+        let trained_model = model
+            .fit(&global_x, &global_y, &group_data)
+            .expect("model fitting should succeed");
 
         let groups = trained_model.get_groups();
         assert_eq!(groups.len(), 2);
         assert!(groups.contains(&"A".to_string()));
         assert!(groups.contains(&"B".to_string()));
 
-        let (group_x, group_y) = trained_model.get_group_data("A").unwrap();
+        let (group_x, group_y) = trained_model
+            .get_group_data("A")
+            .expect("operation should succeed");
         assert_eq!(group_x.nrows(), 1);
         assert_eq!(group_y.len(), 1);
     }
@@ -721,8 +737,12 @@ mod tests {
         let mut group_data = HashMap::new();
         group_data.insert("A".to_string(), (array![[0.0], [1.0]], array![0.1, 0.9]));
 
-        let trained_model = model.fit(&global_x, &global_y, &group_data).unwrap();
-        let lml = trained_model.log_marginal_likelihood().unwrap();
+        let trained_model = model
+            .fit(&global_x, &global_y, &group_data)
+            .expect("model fitting should succeed");
+        let lml = trained_model
+            .log_marginal_likelihood()
+            .expect("operation should succeed");
 
         assert!(lml.is_finite());
     }
@@ -740,7 +760,9 @@ mod tests {
         let mut group_data = HashMap::new();
         group_data.insert("A".to_string(), (array![[0.0]], array![0.1]));
 
-        let trained_model = model.fit(&global_x, &global_y, &group_data).unwrap();
+        let trained_model = model
+            .fit(&global_x, &global_y, &group_data)
+            .expect("model fitting should succeed");
 
         // Test prediction for non-existent group
         let x_test = array![[0.5]];
@@ -823,12 +845,20 @@ mod tests {
         group_data.insert("B".to_string(), (array![[2.0], [3.0]], array![2.1, 1.4]));
         group_data.insert("C".to_string(), (array![[4.0]], array![2.9]));
 
-        let trained_model = model.fit(&global_x, &global_y, &group_data).unwrap();
+        let trained_model = model
+            .fit(&global_x, &global_y, &group_data)
+            .expect("model fitting should succeed");
 
         let x_test = array![[2.5]];
-        let (pred_a, _) = trained_model.predict(&x_test, "A").unwrap();
-        let (pred_b, _) = trained_model.predict(&x_test, "B").unwrap();
-        let (pred_c, _) = trained_model.predict(&x_test, "C").unwrap();
+        let (pred_a, _) = trained_model
+            .predict(&x_test, "A")
+            .expect("prediction should succeed");
+        let (pred_b, _) = trained_model
+            .predict(&x_test, "B")
+            .expect("prediction should succeed");
+        let (pred_c, _) = trained_model
+            .predict(&x_test, "C")
+            .expect("prediction should succeed");
 
         assert_eq!(pred_a.len(), 1);
         assert_eq!(pred_b.len(), 1);

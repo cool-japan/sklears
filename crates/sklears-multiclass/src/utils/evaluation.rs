@@ -376,7 +376,7 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 1, 1, 0, 2, 2];
 
-        let cm = ConfusionMatrix::new(&y_true, &y_pred).unwrap();
+        let cm = ConfusionMatrix::new(&y_true, &y_pred).expect("operation should succeed");
 
         assert_eq!(cm.n_classes(), 3);
         assert_eq!(cm.n_samples, 6);
@@ -395,7 +395,7 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 1, 1, 0, 2, 2];
 
-        let cm = ConfusionMatrix::new(&y_true, &y_pred).unwrap();
+        let cm = ConfusionMatrix::new(&y_true, &y_pred).expect("operation should succeed");
 
         // Test for class 0
         assert_eq!(cm.true_positives(0), 2);
@@ -415,7 +415,7 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 1, 1, 0, 2, 2];
 
-        let cm = ConfusionMatrix::new(&y_true, &y_pred).unwrap();
+        let cm = ConfusionMatrix::new(&y_true, &y_pred).expect("operation should succeed");
         let metrics = PerClassMetrics::from_confusion_matrix(&cm);
 
         assert_eq!(metrics.len(), 3);
@@ -433,7 +433,7 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 1, 1, 0, 2, 2];
 
-        let cm = ConfusionMatrix::new(&y_true, &y_pred).unwrap();
+        let cm = ConfusionMatrix::new(&y_true, &y_pred).expect("operation should succeed");
         let report = cm.classification_report();
 
         // Just verify the report contains expected sections

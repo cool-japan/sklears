@@ -372,7 +372,10 @@ impl OnlineLinearRegression {
     fn update_weights(&mut self, x: &Array2<Float>, y: &Array1<Float>) -> Result<Float> {
         // Get current learning rate before borrowing weights mutably
         let lr = self.get_current_learning_rate();
-        let weights = self.weights.as_mut().unwrap();
+        let weights = self
+            .weights
+            .as_mut()
+            .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
         let n_samples = x.nrows();
 
         // Compute predictions
@@ -412,24 +415,32 @@ impl OnlineLinearRegression {
                 *weights -= &(lr * &gradient);
             }
             SGDVariant::Momentum { momentum } => {
-                let momentum_buffer = self.momentum_buffer.as_mut().unwrap();
+                let momentum_buffer = self.momentum_buffer.as_mut().ok_or_else(|| {
+                    SklearsError::NumericalError("value should be present".into())
+                })?;
                 *momentum_buffer = momentum * &*momentum_buffer + &gradient;
                 *weights -= &(lr * &*momentum_buffer);
             }
             SGDVariant::Nesterov { momentum } => {
-                let momentum_buffer = self.momentum_buffer.as_mut().unwrap();
+                let momentum_buffer = self.momentum_buffer.as_mut().ok_or_else(|| {
+                    SklearsError::NumericalError("value should be present".into())
+                })?;
                 let prev_momentum = momentum_buffer.clone();
                 *momentum_buffer = momentum * &*momentum_buffer + &gradient;
                 *weights -= &(lr * (momentum * &*momentum_buffer + &prev_momentum));
             }
             SGDVariant::AdaGrad { epsilon } => {
-                let squared_gradients = self.squared_gradients.as_mut().unwrap();
+                let squared_gradients = self.squared_gradients.as_mut().ok_or_else(|| {
+                    SklearsError::NumericalError("value should be present".into())
+                })?;
                 *squared_gradients += &gradient.mapv(|g| g * g);
                 let adapted_lr = &squared_gradients.mapv(|sg| lr / (sg.sqrt() + epsilon));
                 *weights -= &(&gradient * adapted_lr);
             }
             SGDVariant::RMSprop { decay, epsilon } => {
-                let squared_gradients = self.squared_gradients.as_mut().unwrap();
+                let squared_gradients = self.squared_gradients.as_mut().ok_or_else(|| {
+                    SklearsError::NumericalError("value should be present".into())
+                })?;
                 *squared_gradients =
                     decay * &*squared_gradients + (1.0 - decay) * &gradient.mapv(|g| g * g);
                 let adapted_lr = &squared_gradients.mapv(|sg| lr / (sg.sqrt() + epsilon));
@@ -440,8 +451,12 @@ impl OnlineLinearRegression {
                 beta2,
                 epsilon,
             } => {
-                let adam_m = self.adam_m.as_mut().unwrap();
-                let adam_v = self.adam_v.as_mut().unwrap();
+                let adam_m = self.adam_m.as_mut().ok_or_else(|| {
+                    SklearsError::NumericalError("value should be present".into())
+                })?;
+                let adam_v = self.adam_v.as_mut().ok_or_else(|| {
+                    SklearsError::NumericalError("value should be present".into())
+                })?;
 
                 *adam_m = beta1 * &*adam_m + (1.0 - beta1) * &gradient;
                 *adam_v = beta2 * &*adam_v + (1.0 - beta2) * &gradient.mapv(|g| g * g);
@@ -459,7 +474,10 @@ impl OnlineLinearRegression {
         // Update intercept if needed
         if self.config.fit_intercept {
             let intercept_gradient = residuals.sum() / n_samples as Float;
-            let intercept = self.intercept.as_mut().unwrap();
+            let intercept = self
+                .intercept
+                .as_mut()
+                .ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
             *intercept -= lr * intercept_gradient;
         }
 
@@ -634,11 +652,11 @@ mod tests {
             .learning_rate(LearningRateSchedule::Constant(0.01))
             .max_iter(1000);
 
-        model.fit(&x, &y).unwrap();
+        model.fit(&x, &y).expect("model fitting should succeed");
 
         // Test predictions
         let test_x = array![[5.0, 6.0]];
-        let predictions = model.predict(&test_x).unwrap();
+        let predictions = model.predict(&test_x).expect("prediction should succeed");
 
         // Should predict close to 11.0
         assert!((predictions[0] - 11.0).abs() < 1.0);
@@ -706,11 +724,15 @@ mod tests {
         // Fit data incrementally
         let x1 = array![[1.0, 2.0]];
         let y1 = array![3.0];
-        model.partial_fit(&x1, &y1).unwrap();
+        model
+            .partial_fit(&x1, &y1)
+            .expect("operation should succeed");
 
         let x2 = array![[2.0, 3.0]];
         let y2 = array![5.0];
-        model.partial_fit(&x2, &y2).unwrap();
+        model
+            .partial_fit(&x2, &y2)
+            .expect("operation should succeed");
 
         assert!(model.weights().is_some());
         assert_eq!(model.loss_history().len(), 2);

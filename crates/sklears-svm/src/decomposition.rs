@@ -612,7 +612,9 @@ mod tests {
         };
 
         let mut solver = DecompositionSolver::new(kernel, config);
-        solver.create_initial_decomposition(250).unwrap();
+        solver
+            .create_initial_decomposition(250)
+            .expect("operation should succeed");
 
         assert_eq!(solver.working_sets.len(), 3); // 250 / 100 = 2.5 -> 3 blocks
     }
@@ -622,7 +624,9 @@ mod tests {
         let config = DecompositionConfig::default();
         let mut decomposer = HierarchicalDecomposer::new(config);
 
-        decomposer.decompose(10000).unwrap();
+        decomposer
+            .decompose(10000)
+            .expect("operation should succeed");
         assert!(!decomposer.levels.is_empty());
     }
 }

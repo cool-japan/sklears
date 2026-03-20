@@ -234,7 +234,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<Untrained> {
 
             // Xavier/Glorot initialization
             let scale = (2.0 / (input_size + output_size) as Float).sqrt();
-            let normal_dist = RandNormal::new(0.0, scale).unwrap();
+            let normal_dist = RandNormal::new(0.0, scale).expect("operation should succeed");
             let mut weight_matrix = Array2::<Float>::zeros((output_size, input_size));
             for i in 0..output_size {
                 for j in 0..input_size {
@@ -255,7 +255,7 @@ impl Fit<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<Untrained> {
         for epoch in 0..self.max_iter {
             // Forward pass
             let (activations, _) = self.forward_pass(&X_owned, &weights, &biases)?;
-            let predictions = activations.last().unwrap();
+            let predictions = activations.last().expect("collection should not be empty");
 
             // Compute loss
             let loss = self.loss_function.compute_loss(predictions, &y_owned);
@@ -313,7 +313,7 @@ impl MultiOutputMLP<Untrained> {
         let mut z_values = Vec::new();
 
         for (i, (weight, bias)) in weights.iter().zip(biases.iter()).enumerate() {
-            let current_input = activations.last().unwrap();
+            let current_input = activations.last().expect("collection should not be empty");
 
             // Linear transformation: z = X * W^T + b
             let z = current_input.dot(&weight.t()) + bias.view().insert_axis(Axis(0));
@@ -345,7 +345,7 @@ impl MultiOutputMLP<Untrained> {
         let n_samples = X.nrows() as Float;
 
         // Compute output layer error
-        let output_predictions = activations.last().unwrap();
+        let output_predictions = activations.last().expect("collection should not be empty");
         let mut delta = output_predictions - y;
 
         // Backpropagate errors
@@ -354,7 +354,9 @@ impl MultiOutputMLP<Untrained> {
 
             // Compute gradients
             let weight_gradient = delta.t().dot(current_activation) / n_samples;
-            let bias_gradient = delta.mean_axis(Axis(0)).unwrap();
+            let bias_gradient = delta
+                .mean_axis(Axis(0))
+                .expect("array should have elements for mean computation");
 
             // Add L2 regularization to weight gradient
             let regularized_weight_gradient = weight_gradient + self.alpha * &weights[i];
@@ -408,7 +410,10 @@ impl Predict<ArrayView2<'_, Float>, Array2<Float>> for MultiOutputMLP<MultiOutpu
 
         let X_owned = X.to_owned();
         let (activations, _) = self.forward_pass_trained(&X_owned)?;
-        let predictions = activations.last().unwrap().clone();
+        let predictions = activations
+            .last()
+            .expect("collection should not be empty")
+            .clone();
 
         Ok(predictions)
     }
@@ -431,7 +436,7 @@ impl MultiOutputMLP<MultiOutputMLPTrained> {
             .zip(self.state.biases.iter())
             .enumerate()
         {
-            let current_input = activations.last().unwrap();
+            let current_input = activations.last().expect("collection should not be empty");
 
             // Linear transformation: z = X * W^T + b
             let z = current_input.dot(&weight.t()) + bias.view().insert_axis(Axis(0));

@@ -1,11 +1,23 @@
 //! Neural network-based imputation methods
 //!
 //! This module provides deep learning approaches to missing data imputation.
-//! Note: Many advanced neural methods are currently stub implementations.
+//!
+//! # Note
+//!
+//! All neural imputation methods in this module are stub implementations in v0.1.0.
+//! Each method returns `Err(NotImplemented)` when called. Full implementations are
+//! planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array2, ArrayView2};
 
 /// Autoencoder Imputer
+///
+/// Uses a denoising autoencoder architecture to learn latent representations
+/// of the data and reconstruct missing values.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct AutoencoderImputer {
     /// hidden_layers
@@ -34,12 +46,23 @@ impl AutoencoderImputer {
         Self::default()
     }
 
+    /// Fit the autoencoder to the data and transform it by imputing missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("AutoencoderImputer not fully implemented yet".to_string())
+        Err("AutoencoderImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Multi-Layer Perceptron Imputer
+///
+/// Uses a multi-layer perceptron to predict missing values from observed features.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct MLPImputer {
     /// hidden_layers
@@ -68,12 +91,24 @@ impl MLPImputer {
         Self::default()
     }
 
+    /// Fit the MLP to the data and transform it by imputing missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("MLPImputer not fully implemented yet".to_string())
+        Err("MLPImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Variational Autoencoder Imputer
+///
+/// Uses a variational autoencoder to model the data distribution and impute
+/// missing values with uncertainty estimates via the learned latent space.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct VAEImputer {
     /// latent_dim
@@ -105,19 +140,39 @@ impl VAEImputer {
         Self::default()
     }
 
+    /// Fit the VAE to the data and transform it by imputing missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("VAEImputer not fully implemented yet".to_string())
+        Err("VAEImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 
+    /// Predict imputed values along with uncertainty estimates.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn predict_with_uncertainty(
         &self,
         _X: &ArrayView2<f64>,
     ) -> Result<(Array2<f64>, Array2<f64>), String> {
-        Err("VAEImputer uncertainty prediction not implemented yet".to_string())
+        Err(
+            "VAEImputer uncertainty prediction: not implemented in v0.1.0. Planned for v0.2.0."
+                .to_string(),
+        )
     }
 }
 
 /// Generative Adversarial Network Imputer
+///
+/// Uses a GAN framework (GAIN-style) where the generator imputes missing values
+/// and the discriminator distinguishes real from imputed values.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct GANImputer {
     /// generator_layers
@@ -149,12 +204,24 @@ impl GANImputer {
         Self::default()
     }
 
+    /// Fit the GAN to the data and transform it by imputing missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("GANImputer not fully implemented yet".to_string())
+        Err("GANImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Normalizing Flow Imputer
+///
+/// Uses normalizing flows to model complex data distributions and impute
+/// missing values by sampling from the learned distribution.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct NormalizingFlowImputer {
     /// n_flows
@@ -183,12 +250,24 @@ impl NormalizingFlowImputer {
         Self::default()
     }
 
+    /// Fit the normalizing flow model to the data and transform it by imputing missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("NormalizingFlowImputer not fully implemented yet".to_string())
+        Err("NormalizingFlowImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Diffusion Model Imputer
+///
+/// Uses score-based diffusion models to iteratively denoise and impute
+/// missing values through a learned reverse diffusion process.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct DiffusionImputer {
     /// n_timesteps
@@ -217,12 +296,24 @@ impl DiffusionImputer {
         Self::default()
     }
 
+    /// Fit the diffusion model to the data and transform it by imputing missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("DiffusionImputer not fully implemented yet".to_string())
+        Err("DiffusionImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 /// Neural ODE Imputer
+///
+/// Uses neural ordinary differential equations to model continuous-time
+/// dynamics of the data and impute missing values.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct NeuralODEImputer {
     /// hidden_dim
@@ -251,14 +342,26 @@ impl NeuralODEImputer {
         Self::default()
     }
 
+    /// Fit the Neural ODE model to the data and transform it by imputing missing values.
+    ///
+    /// # Note
+    ///
+    /// Not implemented in v0.1.0. Returns `Err(NotImplemented)`. Planned for v0.2.0.
     pub fn fit_transform(&self, _X: &ArrayView2<f64>) -> Result<Array2<f64>, String> {
-        Err("NeuralODEImputer not fully implemented yet".to_string())
+        Err("NeuralODEImputer: not implemented in v0.1.0. Planned for v0.2.0.".to_string())
     }
 }
 
 // Additional stub types that may be referenced
 
-/// Transformer Imputer stub
+/// Transformer Imputer
+///
+/// Uses self-attention mechanisms to capture complex dependencies between
+/// features for imputation.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct TransformerImputer {
     /// n_heads
@@ -279,7 +382,14 @@ impl Default for TransformerImputer {
     }
 }
 
-/// RNN Imputer stub
+/// RNN Imputer
+///
+/// Uses recurrent neural networks to model sequential dependencies
+/// for imputation of sequential/temporal data.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct RNNImputer {
     /// hidden_dim
@@ -300,7 +410,14 @@ impl Default for RNNImputer {
     }
 }
 
-/// LSTM Imputer stub
+/// LSTM Imputer
+///
+/// Uses Long Short-Term Memory networks for imputation, particularly
+/// suited for time-series data with long-range dependencies.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct LSTMImputer {
     /// hidden_dim
@@ -321,7 +438,13 @@ impl Default for LSTMImputer {
     }
 }
 
-/// Attention Mechanism stub
+/// Attention Mechanism
+///
+/// Attention mechanism component for use in neural imputation models.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct AttentionMechanism {
     /// attention_type
@@ -330,7 +453,13 @@ pub struct AttentionMechanism {
     pub n_heads: usize,
 }
 
-/// Sequential Imputation stub
+/// Sequential Imputation
+///
+/// Handles sequential/ordered imputation using sliding windows.
+///
+/// # Note
+///
+/// Not implemented in v0.1.0. Planned for v0.2.0.
 #[derive(Debug, Clone)]
 pub struct SequentialImputation {
     /// sequence_length

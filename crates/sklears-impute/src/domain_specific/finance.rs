@@ -5,7 +5,7 @@
 
 use crate::core::{ImputationError, ImputationResult};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, RngExt};
 use std::collections::{HashMap, VecDeque};
 
 /// Financial time series imputation with volatility clustering and regime switching
@@ -267,7 +267,7 @@ impl FinancialTimeSeriesImputer {
         // Simple mean reversion with volatility adjustment
         let mean_reversion_factor = 0.1;
         let predicted_return = -mean_reversion_factor * prev_return
-            + Random::default().gen::<f64>() * current_volatility;
+            + Random::default().random::<f64>() * current_volatility;
 
         Ok(predicted_return)
     }
@@ -322,7 +322,7 @@ impl FinancialTimeSeriesImputer {
     /// Calculate volatility threshold for regime identification
     fn calculate_volatility_threshold(&self, volatilities: &[f64]) -> f64 {
         let mut sorted_vols = volatilities.to_vec();
-        sorted_vols.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_vols.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let percentile_75 = sorted_vols.len() * 75 / 100;
         sorted_vols[percentile_75.min(sorted_vols.len() - 1)]
@@ -472,7 +472,7 @@ impl FinancialTimeSeriesImputer {
 
         // Use median instead of mean for robustness to jumps
         let mut sorted_values = recent_values.clone();
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let median_idx = sorted_values.len() / 2;
         Ok(sorted_values[median_idx])
@@ -521,7 +521,7 @@ impl FinancialTimeSeriesImputer {
 
         // Generate return using geometric Brownian motion
         let dt = 1.0; // One time step
-        let random_shock = Random::default().gen::<f64>() - 0.5; // Centered normal approximation
+        let random_shock = Random::default().random::<f64>() - 0.5; // Centered normal approximation
         let simulated_return = drift * dt + diffusion.sqrt() * random_shock;
 
         Ok(last_price * (simulated_return).exp())
@@ -763,7 +763,7 @@ impl PortfolioDataImputer {
 
                 // Size factor (high-low spread, simplified)
                 let mut sorted_returns = day_returns.clone();
-                sorted_returns.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_returns.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 let n_returns = sorted_returns.len();
                 let small_cap =
                     sorted_returns[..n_returns / 3].iter().sum::<f64>() / (n_returns / 3) as f64;
@@ -950,7 +950,7 @@ impl PortfolioDataImputer {
         let mut factors = Array2::zeros((n_time, n_components));
         for t in 0..n_time {
             for f in 0..n_components {
-                factors[[t, f]] = Random::default().gen::<f64>() - 0.5;
+                factors[[t, f]] = Random::default().random::<f64>() - 0.5;
             }
         }
 
@@ -1424,7 +1424,7 @@ impl CreditScoringImputer {
 
         // Use segment median for robustness
         let mut sorted_values = segment_values;
-        sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let median_idx = sorted_values.len() / 2;
         Ok(sorted_values[median_idx])
@@ -1619,7 +1619,7 @@ impl RiskFactorImputer {
 
             if factor_values.len() >= 20 {
                 let mut sorted_values = factor_values.clone();
-                sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                 let var_index = (confidence_level * sorted_values.len() as f64) as usize;
                 let var_threshold = sorted_values[var_index.min(sorted_values.len() - 1)];

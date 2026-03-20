@@ -647,7 +647,7 @@ mod tests {
             AlertState::Acknowledged,
             Some("user1".to_string()),
             Some("Manual ack".to_string())
-        ).unwrap();
+        ).unwrap_or_default();
 
         assert_eq!(tracker.get_alert_state("alert_1"), Some(&AlertState::Acknowledged));
         assert_eq!(tracker.state_transitions.len(), 1);

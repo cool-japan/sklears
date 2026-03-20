@@ -416,13 +416,13 @@ where
                         .classes
                         .iter()
                         .position(|&c| c == class_i)
-                        .unwrap();
+                        .expect("operation should succeed");
                     let class_j_idx = self
                         .base_estimator
                         .classes
                         .iter()
                         .position(|&c| c == class_j)
-                        .unwrap();
+                        .expect("operation should succeed");
 
                     // Vote based on prediction (>0.5 votes for class_i, <=0.5 for class_j)
                     if score > 0.5 {
@@ -437,7 +437,7 @@ where
             let max_idx = votes
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(b).unwrap())
+                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -480,13 +480,13 @@ where
                         .classes
                         .iter()
                         .position(|&c| c == class_i)
-                        .unwrap();
+                        .expect("operation should succeed");
                     let class_j_idx = self
                         .base_estimator
                         .classes
                         .iter()
                         .position(|&c| c == class_j)
-                        .unwrap();
+                        .expect("operation should succeed");
 
                     // Calculate confidence as distance from decision boundary (0.5)
                     let confidence = (score - 0.5).abs();
@@ -503,7 +503,7 @@ where
             }
 
             // Sort by confidence in descending order (most confident first)
-            pairwise_predictions.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+            pairwise_predictions.sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
 
             // Assign rank-based scores
             for (rank, &(winner_idx, _loser_idx, confidence)) in
@@ -518,7 +518,7 @@ where
             let max_idx = rank_scores
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(*b).unwrap())
+                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(*b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -559,13 +559,13 @@ where
                         .classes
                         .iter()
                         .position(|&c| c == class_i)
-                        .unwrap();
+                        .expect("operation should succeed");
                     let class_j_idx = self
                         .base_estimator
                         .classes
                         .iter()
                         .position(|&c| c == class_j)
-                        .unwrap();
+                        .expect("operation should succeed");
 
                     // Calculate distance from decision boundary (0.5)
                     // Higher distance means more confident prediction
@@ -586,7 +586,7 @@ where
             let max_idx = distance_scores
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(*b).unwrap())
+                .max_by(|(_, a): &(_, &Float), (_, b)| (**a).partial_cmp(*b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
 
@@ -633,13 +633,13 @@ where
                                 .classes
                                 .iter()
                                 .position(|&c| c == class_i)
-                                .unwrap();
+                                .expect("operation should succeed");
                             let class_j_idx = self
                                 .base_estimator
                                 .classes
                                 .iter()
                                 .position(|&c| c == class_j)
-                                .unwrap();
+                                .expect("operation should succeed");
 
                             if score > 0.5 {
                                 votes[class_i_idx] += 1.0;
@@ -670,13 +670,13 @@ where
                                 .classes
                                 .iter()
                                 .position(|&c| c == class_i)
-                                .unwrap();
+                                .expect("operation should succeed");
                             let class_j_idx = self
                                 .base_estimator
                                 .classes
                                 .iter()
                                 .position(|&c| c == class_j)
-                                .unwrap();
+                                .expect("operation should succeed");
 
                             let confidence = (score - 0.5).abs() * 2.0;
                             if score > 0.5 {
@@ -687,7 +687,7 @@ where
                         }
                     }
 
-                    pairwise_scores.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+                    pairwise_scores.sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
 
                     for (rank, &(winner_idx, _loser_idx, confidence)) in
                         pairwise_scores.iter().enumerate()
@@ -716,13 +716,13 @@ where
                                 .classes
                                 .iter()
                                 .position(|&c| c == class_i)
-                                .unwrap();
+                                .expect("operation should succeed");
                             let class_j_idx = self
                                 .base_estimator
                                 .classes
                                 .iter()
                                 .position(|&c| c == class_j)
-                                .unwrap();
+                                .expect("operation should succeed");
 
                             let distance_i = (score - 0.5).max(0.0);
                             let distance_j = (0.5 - score).max(0.0);
@@ -810,7 +810,7 @@ where
                 .row(sample_idx)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[sample_idx] = self.base_estimator.classes[max_idx];

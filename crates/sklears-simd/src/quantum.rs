@@ -634,7 +634,7 @@ mod tests {
         let result = algorithms::qpca(&data, 2, &config);
         assert!(result.is_ok());
 
-        let components = result.unwrap();
+        let components = result.expect("operation should succeed");
         assert_eq!(components.len(), 2);
         assert_eq!(components[0].len(), 3);
     }
@@ -648,7 +648,7 @@ mod tests {
         let result = algorithms::qsvm_kernel(&x1, &x2, &config);
         assert!(result.is_ok());
 
-        let kernel_value = result.unwrap();
+        let kernel_value = result.expect("operation should succeed");
         assert!(kernel_value >= 0.0);
     }
 
@@ -664,7 +664,7 @@ mod tests {
         let result = algorithms::qaoa(&cost_matrix, 2, &config);
         assert!(result.is_ok());
 
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
         assert_eq!(solution.len(), 3);
     }
 
@@ -676,14 +676,14 @@ mod tests {
         let result = algorithms::vqe(&hamiltonian, 2, &config);
         assert!(result.is_ok());
 
-        let (energy, params) = result.unwrap();
+        let (energy, params) = result.expect("operation should succeed");
         assert!(energy.is_finite());
         assert_eq!(params.len(), 4);
     }
 
     #[test]
     fn test_best_device_selection() {
-        let runtime = QuantumRuntime::new().unwrap();
+        let runtime = QuantumRuntime::new().expect("operation should succeed");
         let circuit = QuantumCircuit {
             qubits: 5,
             classical_bits: 5,
@@ -694,7 +694,7 @@ mod tests {
         let device = runtime.get_best_device(&circuit);
         assert!(device.is_some());
 
-        let dev = device.unwrap();
+        let dev = device.expect("operation should succeed");
         assert!(dev.qubits >= circuit.qubits);
     }
 }

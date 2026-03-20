@@ -751,8 +751,8 @@ mod tests {
 
         // Create test data
         let features =
-            Array::from_shape_vec((100, 4), (0..400).map(|x| x as f64).collect()).unwrap();
-        let targets = Array1::from_shape_vec(100, (0..100).map(|x| x as f64).collect()).unwrap();
+            Array::from_shape_vec((100, 4), (0..400).map(|x| x as f64).collect()).expect("shape and data length should match");
+        let targets = Array1::from_shape_vec(100, (0..100).map(|x| x as f64).collect()).expect("shape and data length should match");
 
         // Create memory-mapped dataset
         let dataset = MmapDataset::create(&path, &features, Some(&targets))?;
@@ -775,7 +775,7 @@ mod tests {
         assert_eq!(sample[0], 200.0); // 50 * 4 + 0
 
         // Test targets
-        let targets_view = dataset.targets()?.unwrap();
+        let targets_view = dataset.targets()?.expect("operation should succeed");
         assert_eq!(targets_view.len(), 100);
         assert_eq!(targets_view[50], 50.0);
 
@@ -794,7 +794,7 @@ mod tests {
         let temp_dir = env::temp_dir();
         let path = temp_dir.join("test_batch_dataset.mmap");
 
-        let features = Array::from_shape_vec((20, 3), (0..60).map(|x| x as f64).collect()).unwrap();
+        let features = Array::from_shape_vec((20, 3), (0..60).map(|x| x as f64).collect()).expect("shape and data length should match");
         let dataset = MmapDataset::create(&path, &features, None)?;
 
         let mut batch_count = 0;
@@ -867,8 +867,8 @@ mod tests {
         let mut arena = DatasetArena::new(1024);
 
         // Test allocation
-        let offset1 = arena.allocate(100).unwrap();
-        let offset2 = arena.allocate(200).unwrap();
+        let offset1 = arena.allocate(100).expect("operation should succeed");
+        let offset2 = arena.allocate(200).expect("operation should succeed");
 
         assert_eq!(offset1, 0);
         assert_eq!(offset2, 100);

@@ -1618,16 +1618,19 @@ mod tests {
 
     #[test]
     fn test_fluent_api_simple_imputation() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
 
         let pipeline = ImputationBuilder::new()
             .simple()
             .mean()
             .finish()
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let result = pipeline.fit_transform(&data.view()).unwrap();
+        let result = pipeline
+            .fit_transform(&data.view())
+            .expect("operation should succeed");
 
         // Should have no missing values
         assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -1641,7 +1644,7 @@ mod tests {
     fn test_fluent_api_knn_imputation() {
         let data =
             Array2::from_shape_vec((4, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0, 7.0, 8.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let pipeline = ImputationBuilder::new()
             .knn()
@@ -1649,9 +1652,11 @@ mod tests {
             .distance_weights()
             .finish()
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let result = pipeline.fit_transform(&data.view()).unwrap();
+        let result = pipeline
+            .fit_transform(&data.view())
+            .expect("operation should succeed");
 
         // Should have no missing values
         assert!(!result.iter().any(|&x| (x).is_nan()));
@@ -1659,37 +1664,43 @@ mod tests {
 
     #[test]
     fn test_preset_configurations() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
 
         // Test fast preset
         let pipeline = ImputationBuilder::new()
             .preset(ImputationPreset::Fast)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let result = pipeline.fit_transform(&data.view()).unwrap();
+        let result = pipeline
+            .fit_transform(&data.view())
+            .expect("operation should succeed");
         assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Test balanced preset
         let pipeline = ImputationBuilder::new()
             .preset(ImputationPreset::Balanced)
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let result = pipeline.fit_transform(&data.view()).unwrap();
+        let result = pipeline
+            .fit_transform(&data.view())
+            .expect("operation should succeed");
         assert!(!result.iter().any(|&x| (x).is_nan()));
     }
 
     #[test]
     fn test_quick_functions() {
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0]).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0])
+            .expect("shape and data length should match");
 
         // Test quick mean imputation
-        let result = quick::mean_impute(&data.view()).unwrap();
+        let result = quick::mean_impute(&data.view()).expect("operation should succeed");
         assert!(!result.iter().any(|&x| (x).is_nan()));
 
         // Test quick KNN imputation
-        let result = quick::knn_impute(&data.view(), 2).unwrap();
+        let result = quick::knn_impute(&data.view(), 2).expect("operation should succeed");
         assert!(!result.iter().any(|&x| (x).is_nan()));
     }
 

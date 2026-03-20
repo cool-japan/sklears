@@ -122,7 +122,7 @@ mod tests {
     fn test_mean_squared_log_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let msle = mean_squared_log_error(&y_true, &y_pred).unwrap();
+        let msle = mean_squared_log_error(&y_true, &y_pred).expect("operation should succeed");
         assert!((msle - 0.0).abs() < f64::EPSILON);
     }
 
@@ -130,7 +130,8 @@ mod tests {
     fn test_root_mean_squared_log_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let rmsle = root_mean_squared_log_error(&y_true, &y_pred).unwrap();
+        let rmsle =
+            root_mean_squared_log_error(&y_true, &y_pred).expect("operation should succeed");
         assert!((rmsle - 0.0).abs() < f64::EPSILON);
     }
 
@@ -138,7 +139,7 @@ mod tests {
     fn test_log_cosh_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9];
-        let log_cosh = log_cosh_error(&y_true, &y_pred).unwrap();
+        let log_cosh = log_cosh_error(&y_true, &y_pred).expect("operation should succeed");
         assert!(log_cosh >= 0.0);
     }
 
@@ -146,7 +147,7 @@ mod tests {
     fn test_log_absolute_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9];
-        let log_abs = log_absolute_error(&y_true, &y_pred).unwrap();
+        let log_abs = log_absolute_error(&y_true, &y_pred).expect("operation should succeed");
         assert!(log_abs >= 0.0);
     }
 
@@ -168,7 +169,7 @@ mod tests {
     fn test_large_values_log_cosh() {
         let y_true = array![0.0];
         let y_pred = array![1000.0]; // Large value
-        let log_cosh = log_cosh_error(&y_true, &y_pred).unwrap();
+        let log_cosh = log_cosh_error(&y_true, &y_pred).expect("operation should succeed");
         assert!(log_cosh > 0.0);
         assert!(log_cosh.is_finite());
     }

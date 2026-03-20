@@ -531,8 +531,12 @@ mod tests {
         let error1 = EnhancedError::new(UtilsError::EmptyInput);
         let error2 = EnhancedError::new(UtilsError::InvalidParameter("test".to_string()));
 
-        aggregator.add_error(error1).unwrap();
-        aggregator.add_error(error2).unwrap();
+        aggregator
+            .add_error(error1)
+            .expect("operation should succeed");
+        aggregator
+            .add_error(error2)
+            .expect("operation should succeed");
 
         assert!(aggregator.has_errors());
         assert_eq!(aggregator.error_count(), 2);
@@ -568,7 +572,7 @@ mod tests {
 
         reporter.report_error(error);
 
-        let stats = reporter.get_statistics().unwrap();
+        let stats = reporter.get_statistics().expect("operation should succeed");
         assert_eq!(stats.total_errors, 1);
         assert_eq!(stats.input_errors, 1);
     }

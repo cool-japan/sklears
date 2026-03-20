@@ -606,7 +606,7 @@ mod tests {
             .mutation_rate(0.05)
             .elitism_rate(0.2)
             .build()
-            .unwrap();
+            .unwrap_or_default();
 
         assert_eq!(params.population_size, 50);
         assert_eq!(params.max_generations, 500);

@@ -158,7 +158,7 @@ impl StreamingGraphLearning<Untrained> {
             }
 
             // Sort by similarity (descending)
-            similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, sim) in similarities.iter().take(self.k_neighbors) {
@@ -333,7 +333,7 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
             }
 
             // Sort by similarity (descending)
-            similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, sim) in similarities.iter().take(self.k_neighbors) {
@@ -458,7 +458,7 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
         }
 
         if !similarities.is_empty() {
-            similarities.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            similarities.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let median_idx = similarities.len() / 2;
             self.state.adaptive_threshold_value = similarities[median_idx] * 0.8;
         }
@@ -499,7 +499,7 @@ impl StreamingGraphLearning<StreamingGraphLearningTrained> {
             }
 
             // Sort by similarity (descending)
-            similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            similarities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             let threshold = if self.adaptive_threshold {
@@ -635,8 +635,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>>
                 let max_idx = distributions
                     .iter()
                     .enumerate()
-                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                    .unwrap()
+                    .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                    .expect("operation should succeed")
                     .0;
 
                 predictions[i] = self.state.classes[max_idx];
@@ -726,12 +726,16 @@ mod tests {
             .lambda_sparse(0.1)
             .alpha_decay(0.9)
             .update_frequency(5);
-        let fitted = sgl.fit(&X.view(), &y.view()).unwrap();
+        let fitted = sgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
 
         // Check that labeled samples maintain their labels
@@ -749,7 +753,9 @@ mod tests {
             .window_size(10)
             .update_frequency(3)
             .alpha_decay(0.95);
-        let mut fitted = sgl.fit(&X.view(), &y.view()).unwrap();
+        let mut fitted = sgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         // Initial graph size
         let initial_graph_size = fitted.state.current_graph.dim();
@@ -758,7 +764,9 @@ mod tests {
         // Add new streaming data
         let X_new = array![[5.0, 6.0], [6.0, 7.0]];
         let y_new = array![-1, 0];
-        fitted.update(&X_new.view(), &y_new.view()).unwrap();
+        fitted
+            .update(&X_new.view(), &y_new.view())
+            .expect("operation should succeed");
 
         // Check that data window is updated
         assert_eq!(fitted.state.data_window.len(), 6);
@@ -769,7 +777,9 @@ mod tests {
         assert_eq!(updated_graph_size, (6, 6));
 
         // Test predictions with updated model
-        let predictions = fitted.predict(&X_new.view()).unwrap();
+        let predictions = fitted
+            .predict(&X_new.view())
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -782,23 +792,31 @@ mod tests {
         let sgl = StreamingGraphLearning::new()
             .window_size(3) // Small window size
             .update_frequency(2);
-        let mut fitted = sgl.fit(&X.view(), &y.view()).unwrap();
+        let mut fitted = sgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         // Add more data than window size
         let X_new1 = array![[3.0, 4.0]];
         let y_new1 = array![-1];
-        fitted.update(&X_new1.view(), &y_new1.view()).unwrap();
+        fitted
+            .update(&X_new1.view(), &y_new1.view())
+            .expect("operation should succeed");
 
         let X_new2 = array![[4.0, 5.0]];
         let y_new2 = array![0];
-        fitted.update(&X_new2.view(), &y_new2.view()).unwrap();
+        fitted
+            .update(&X_new2.view(), &y_new2.view())
+            .expect("operation should succeed");
 
         // Window should maintain size limit
         assert_eq!(fitted.state.data_window.len(), 3);
         assert_eq!(fitted.state.label_window.len(), 3);
 
         // Should still be able to make predictions
-        let predictions = fitted.predict(&X_new2.view()).unwrap();
+        let predictions = fitted
+            .predict(&X_new2.view())
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 1);
     }
 
@@ -812,14 +830,18 @@ mod tests {
             .window_size(10)
             .adaptive_threshold(true)
             .similarity_threshold(0.5);
-        let mut fitted = sgl.fit(&X.view(), &y.view()).unwrap();
+        let mut fitted = sgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         let initial_threshold = fitted.state.adaptive_threshold_value;
 
         // Add new data with different characteristics
         let X_new = array![[10.0, 20.0], [20.0, 30.0]];
         let y_new = array![-1, 1];
-        fitted.update(&X_new.view(), &y_new.view()).unwrap();
+        fitted
+            .update(&X_new.view(), &y_new.view())
+            .expect("operation should succeed");
 
         // Adaptive threshold should potentially change
         // (depends on the similarity distribution)
@@ -836,7 +858,9 @@ mod tests {
             .window_size(10)
             .forgetting_factor(0.8)
             .alpha_decay(0.9);
-        let mut fitted = sgl.fit(&X.view(), &y.view()).unwrap();
+        let mut fitted = sgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         // Check initial state
         assert_eq!(fitted.state.update_count, 0);
@@ -845,7 +869,9 @@ mod tests {
         for i in 0..3 {
             let X_new = array![[3.0 + i as f64, 4.0 + i as f64]];
             let y_new = array![-1];
-            fitted.update(&X_new.view(), &y_new.view()).unwrap();
+            fitted
+                .update(&X_new.view(), &y_new.view())
+                .expect("operation should succeed");
         }
 
         // Update count should be incremented
@@ -864,16 +890,22 @@ mod tests {
         let sgl = StreamingGraphLearning::new()
             .window_size(10)
             .update_frequency(2); // Trigger full reconstruction frequently
-        let mut fitted = sgl.fit(&X.view(), &y.view()).unwrap();
+        let mut fitted = sgl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
         // Add data to trigger full reconstruction
         let X_new1 = array![[3.0, 4.0]];
         let y_new1 = array![-1];
-        fitted.update(&X_new1.view(), &y_new1.view()).unwrap();
+        fitted
+            .update(&X_new1.view(), &y_new1.view())
+            .expect("operation should succeed");
 
         let X_new2 = array![[4.0, 5.0]];
         let y_new2 = array![0];
-        fitted.update(&X_new2.view(), &y_new2.view()).unwrap();
+        fitted
+            .update(&X_new2.view(), &y_new2.view())
+            .expect("operation should succeed");
 
         // Full reconstruction should have been triggered
         // Edge ages should be cleared
@@ -883,7 +915,9 @@ mod tests {
         );
 
         // Should still be able to make predictions
-        let predictions = fitted.predict(&X_new2.view()).unwrap();
+        let predictions = fitted
+            .predict(&X_new2.view())
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 1);
     }
 }

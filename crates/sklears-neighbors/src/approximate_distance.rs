@@ -9,7 +9,7 @@ use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::essentials::Normal;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -60,13 +60,13 @@ impl ApproximateDistance {
             ));
         }
 
-        let rng_seed = seed.unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+        let rng_seed = seed.unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         // Johnson-Lindenstrauss lemma: we can project to O(log n / ε²) dimensions
         // Create random Gaussian matrix for projection
         let mut projection_matrix = Array2::zeros((n_projections, original_dim));
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
         for i in 0..n_projections {
             for j in 0..original_dim {
                 projection_matrix[[i, j]] = rng.sample(normal);
@@ -114,7 +114,7 @@ impl ApproximateDistance {
             ));
         }
 
-        let rng_seed = seed.unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+        let rng_seed = seed.unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         // Divide dimensions into subspaces
@@ -159,18 +159,18 @@ impl ApproximateDistance {
             ));
         }
 
-        let rng_seed = seed.unwrap_or_else(|| thread_rng().gen_range(0..u64::MAX));
+        let rng_seed = seed.unwrap_or_else(|| thread_rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(rng_seed);
 
         // Create random hash functions for LSH
         let mut hash_functions = Vec::new();
-        let normal = Normal::new(0.0, 1.0).unwrap();
+        let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
         for _ in 0..n_hash_functions {
             let mut random_vector = Array1::zeros(original_dim);
             for j in 0..original_dim {
                 random_vector[j] = rng.sample(normal);
             }
-            let bias = rng.gen_range(0.0..1.0);
+            let bias = rng.random_range(0.0..1.0);
             hash_functions.push((random_vector, bias));
         }
 
@@ -426,7 +426,8 @@ mod tests {
 
     #[test]
     fn test_random_projection_creation() {
-        let approx_dist = ApproximateDistance::random_projection(10, 50, Some(42)).unwrap();
+        let approx_dist = ApproximateDistance::random_projection(10, 50, Some(42))
+            .expect("operation should succeed");
 
         if let ApproximateDistance::RandomProjection {
             n_projections,
@@ -443,22 +444,25 @@ mod tests {
 
     #[test]
     fn test_random_projection_distance() {
-        let approx_dist = ApproximateDistance::random_projection(5, 3, Some(42)).unwrap();
+        let approx_dist = ApproximateDistance::random_projection(5, 3, Some(42))
+            .expect("operation should succeed");
 
         let p1 = array![1.0, 2.0, 3.0];
         let p2 = array![4.0, 5.0, 6.0];
 
         let approx_distance = approx_dist
             .approximate_distance(&p1.view(), &p2.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(approx_distance >= 0.0);
         assert!(approx_distance.is_finite());
     }
 
     #[test]
     fn test_product_quantization_creation() {
-        let data = Array2::from_shape_vec((10, 4), (0..40).map(|x| x as Float).collect()).unwrap();
-        let approx_dist = ApproximateDistance::product_quantization(2, 3, &data, Some(42)).unwrap();
+        let data = Array2::from_shape_vec((10, 4), (0..40).map(|x| x as Float).collect())
+            .expect("operation should succeed");
+        let approx_dist = ApproximateDistance::product_quantization(2, 3, &data, Some(42))
+            .expect("operation should succeed");
 
         if let ApproximateDistance::ProductQuantization {
             n_subspaces,
@@ -477,7 +481,8 @@ mod tests {
 
     #[test]
     fn test_lsh_family_creation() {
-        let approx_dist = ApproximateDistance::lsh_family(8, 10, Some(42)).unwrap();
+        let approx_dist =
+            ApproximateDistance::lsh_family(8, 10, Some(42)).expect("operation should succeed");
 
         if let ApproximateDistance::LSHFamily {
             n_hash_functions,
@@ -494,10 +499,13 @@ mod tests {
 
     #[test]
     fn test_lsh_hash_computation() {
-        let approx_dist = ApproximateDistance::lsh_family(4, 3, Some(42)).unwrap();
+        let approx_dist =
+            ApproximateDistance::lsh_family(4, 3, Some(42)).expect("operation should succeed");
 
         let point = array![1.0, -2.0, 3.0];
-        let hash_values = approx_dist.compute_hash(&point.view()).unwrap();
+        let hash_values = approx_dist
+            .compute_hash(&point.view())
+            .expect("operation should succeed");
 
         assert_eq!(hash_values.len(), 4);
         for &hash_val in &hash_values {
@@ -507,13 +515,19 @@ mod tests {
 
     #[test]
     fn test_lsh_hash_table() {
-        let mut approx_dist = ApproximateDistance::lsh_family(4, 2, Some(42)).unwrap();
+        let mut approx_dist =
+            ApproximateDistance::lsh_family(4, 2, Some(42)).expect("operation should succeed");
 
-        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
-        approx_dist.build_hash_table(&data).unwrap();
+        let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("operation should succeed");
+        approx_dist
+            .build_hash_table(&data)
+            .expect("operation should succeed");
 
         let query = array![1.5, 2.5];
-        let candidates = approx_dist.lsh_candidates(&query.view()).unwrap();
+        let candidates = approx_dist
+            .lsh_candidates(&query.view())
+            .expect("operation should succeed");
 
         // Should return some candidates (or empty if no hash collisions)
         assert!(candidates.len() <= 3);
@@ -538,7 +552,8 @@ mod tests {
     #[test]
     fn test_approximate_vs_exact_distance() {
         // Test that approximate distance is reasonably close to exact distance
-        let approx_dist = ApproximateDistance::random_projection(20, 5, Some(42)).unwrap();
+        let approx_dist = ApproximateDistance::random_projection(20, 5, Some(42))
+            .expect("operation should succeed");
 
         let p1 = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let p2 = array![2.0, 3.0, 4.0, 5.0, 6.0];
@@ -550,7 +565,7 @@ mod tests {
 
         let approx_dist_val = approx_dist
             .approximate_distance(&p1.view(), &p2.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // With enough projections, approximate distance should be reasonably close
         // This is a loose test - in practice you'd want more rigorous validation

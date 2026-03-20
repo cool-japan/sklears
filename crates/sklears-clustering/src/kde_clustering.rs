@@ -312,7 +312,7 @@ impl<X, Y> KDEClustering<X, Y> {
             })
             .collect();
 
-        peak_densities.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        peak_densities.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         if self.config.max_clusters > 0 && peak_densities.len() > self.config.max_clusters {
             peak_densities.truncate(self.config.max_clusters);
@@ -486,7 +486,7 @@ mod tests {
             .density_threshold(0.01)
             .min_samples(2)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.n_clusters() >= 1);
         assert!(model.cluster_centers().is_ok());
@@ -508,9 +508,9 @@ mod tests {
             .kernel(KernelType::Epanechnikov)
             .density_threshold(0.01)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let labels = model.predict(&x.view()).unwrap();
+        let labels = model.predict(&x.view()).expect("operation should succeed");
         assert_eq!(labels.len(), x.nrows());
     }
 
@@ -521,17 +521,17 @@ mod tests {
         let model_scott: KDEClustering<Array2<Float>, ()> = KDEClustering::new()
             .bandwidth(BandwidthMethod::Scott)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let model_silverman: KDEClustering<Array2<Float>, ()> = KDEClustering::new()
             .bandwidth(BandwidthMethod::Silverman)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let model_manual: KDEClustering<Array2<Float>, ()> = KDEClustering::new()
             .bandwidth(BandwidthMethod::Manual(0.5))
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model_scott.cluster_centers().is_ok());
         assert!(model_silverman.cluster_centers().is_ok());
@@ -553,7 +553,7 @@ mod tests {
                 .density_threshold(0.001)
                 .min_samples(1)
                 .fit(&x.view(), &Array1::zeros(0).view())
-                .unwrap();
+                .expect("operation should succeed");
 
             assert!(model.cluster_centers().is_ok());
         }
@@ -574,13 +574,13 @@ mod tests {
             .density_threshold(0.001)
             .min_samples(1)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let model_high: KDEClustering<Array2<Float>, ()> = KDEClustering::new()
             .density_threshold(0.5)
             .min_samples(1)
             .fit(&x.view(), &Array1::zeros(0).view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Lower threshold should find more clusters
         assert!(model_low.n_clusters() >= model_high.n_clusters());

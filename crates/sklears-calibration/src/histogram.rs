@@ -132,7 +132,7 @@ impl HistogramBinningCalibrator {
         if prob <= self.bin_boundaries[0] {
             return 0;
         }
-        if prob >= *self.bin_boundaries.last().unwrap() {
+        if prob >= self.bin_boundaries.last().copied().unwrap_or(0.0) {
             return self.n_bins - 1;
         }
 
@@ -217,9 +217,11 @@ mod tests {
 
         let calibrator = HistogramBinningCalibrator::new(4)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 4);
         assert_eq!(calibrator.n_bins(), 4);
@@ -242,9 +244,11 @@ mod tests {
 
         let calibrator = HistogramBinningCalibrator::new(5)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 10);
 
@@ -263,9 +267,11 @@ mod tests {
 
         let calibrator = HistogramBinningCalibrator::new(2)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 4);
 
         // All calibrated probabilities should be close to 1.0
@@ -276,7 +282,7 @@ mod tests {
         // Test with single bin
         let calibrator = HistogramBinningCalibrator::new(1)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(calibrator.n_bins(), 2); // Should be at least 2 bins
     }
@@ -289,9 +295,11 @@ mod tests {
 
         let calibrator = HistogramBinningCalibrator::new(10)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 2);
 
         // Should handle empty bins gracefully
@@ -308,9 +316,11 @@ mod tests {
 
         let calibrator = HistogramBinningCalibrator::new(3)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         // For perfectly calibrated data, histogram binning should preserve
         // the general trend
@@ -323,7 +333,9 @@ mod tests {
         let probabilities = array![0.1, 0.3, 0.7, 0.9];
         let y_true = array![0, 0, 1, 1];
 
-        let fitted = calibrator.fit(&probabilities, &y_true).unwrap();
+        let fitted = calibrator
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
         let boundaries = fitted.bin_boundaries();
 
         assert_eq!(boundaries.len(), 5); // n_bins + 1

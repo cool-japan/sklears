@@ -109,7 +109,7 @@ mod tests {
             let result = cross_validate_dummy_classifier(classifier, &x, &y, 3);
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.mean_score >= 0.0 && result.mean_score <= 1.0);
             assert!(result.std_score >= 0.0);
             assert_eq!(result.fold_scores.len(), 3);
@@ -123,7 +123,7 @@ mod tests {
             let result = cross_validate_dummy_regressor(regressor, &x, &y, 3);
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.mean_score <= 0.0); // Negative MSE
             assert!(result.std_score >= 0.0);
             assert_eq!(result.fold_scores.len(), 3);
@@ -137,7 +137,7 @@ mod tests {
             let result = stratified_cross_validate_classifier(classifier, &x, &y, 2, Some(42));
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.mean_score >= 0.0 && result.mean_score <= 1.0);
         }
 
@@ -150,7 +150,7 @@ mod tests {
             let result = comprehensive_cross_validate_classifier(classifier, &x, &y, &config);
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert_eq!(result.fold_details.len(), 2);
             assert!(result.statistical_summary.mean >= 0.0);
         }
@@ -167,7 +167,7 @@ mod tests {
             let result = bootstrap_validate_classifier(classifier, &x, &y, 10, Some(42));
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.bootstrap_scores.len() <= 10); // May be fewer due to OOB filtering
             assert!(result.mean_score >= 0.0 && result.mean_score <= 1.0);
         }
@@ -180,7 +180,7 @@ mod tests {
             let result = bootstrap_validate_regressor(regressor, &x, &y, 10, Some(42));
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.bootstrap_scores.len() <= 10);
             assert!(result.mean_score <= 0.0); // Negative MSE
         }
@@ -194,7 +194,7 @@ mod tests {
             let result = bootstrap_hypothesis_test(strategy1, strategy2, &x, &y, 5, Some(42));
             assert!(result.is_ok());
 
-            let test_result = result.unwrap();
+            let test_result = result.expect("operation should succeed");
             assert!(test_result.p_value >= 0.0 && test_result.p_value <= 1.0);
             assert!(!test_result.differences.is_empty());
         }
@@ -217,7 +217,7 @@ mod tests {
             let y_true = array![0, 1, 1, 1];
             let precision = precision_score(&predictions, &y_true);
             assert!(precision.is_ok());
-            let precision = precision.unwrap();
+            let precision = precision.expect("operation should succeed");
             assert!(precision >= 0.0 && precision <= 1.0);
         }
 
@@ -227,7 +227,7 @@ mod tests {
             let y_true = array![0, 1, 1, 1];
             let recall = recall_score(&predictions, &y_true);
             assert!(recall.is_ok());
-            let recall = recall.unwrap();
+            let recall = recall.expect("operation should succeed");
             assert!(recall >= 0.0 && recall <= 1.0);
         }
 
@@ -237,7 +237,7 @@ mod tests {
             let y_true = array![0, 1, 1, 1];
             let f1 = f1_score(&predictions, &y_true);
             assert!(f1.is_ok());
-            let f1 = f1.unwrap();
+            let f1 = f1.expect("operation should succeed");
             assert!(f1 >= 0.0 && f1 <= 1.0);
         }
 
@@ -255,7 +255,7 @@ mod tests {
             let y_true = array![1.0, 2.0, 3.0];
             let r2 = r2_score(&predictions, &y_true);
             assert!(r2.is_ok());
-            let r2 = r2.unwrap();
+            let r2 = r2.expect("operation should succeed");
             assert_abs_diff_eq!(r2, 1.0, epsilon = 1e-6);
         }
 
@@ -267,7 +267,7 @@ mod tests {
             let metrics = ClassificationMetrics::compute(&predictions, &y_true);
             assert!(metrics.is_ok());
 
-            let metrics = metrics.unwrap();
+            let metrics = metrics.expect("operation should succeed");
             assert!(metrics.accuracy >= 0.0 && metrics.accuracy <= 1.0);
             assert!(metrics.precision >= 0.0 && metrics.precision <= 1.0);
             assert!(metrics.recall >= 0.0 && metrics.recall <= 1.0);
@@ -297,7 +297,7 @@ mod tests {
             let folds = create_stratified_folds(&y, 2, Some(42));
             assert!(folds.is_ok());
 
-            let folds = folds.unwrap();
+            let folds = folds.expect("operation should succeed");
             assert_eq!(folds.len(), 2);
         }
 
@@ -317,7 +317,7 @@ mod tests {
             let split = train_test_split(100, Some(0.2), None, Some(42), true, None);
             assert!(split.is_ok());
 
-            let split = split.unwrap();
+            let split = split.expect("operation should succeed");
             assert_eq!(split.train_size + split.test_size, 100);
             assert!(split.test_size >= 15 && split.test_size <= 25); // Approximately 20%
         }
@@ -333,7 +333,7 @@ mod tests {
             let folds = strategy.split(12, None, None);
             assert!(folds.is_ok());
 
-            let folds = folds.unwrap();
+            let folds = folds.expect("operation should succeed");
             assert_eq!(folds.len(), 3);
         }
 
@@ -343,7 +343,7 @@ mod tests {
             let folds = strategy.split(5, None, None);
             assert!(folds.is_ok());
 
-            let folds = folds.unwrap();
+            let folds = folds.expect("operation should succeed");
             assert_eq!(folds.len(), 5);
             for (train_indices, test_indices) in folds {
                 assert_eq!(train_indices.len(), 4);
@@ -455,7 +455,7 @@ mod tests {
             let results = compare_dummy_strategies(&strategies, &x, &y, 2);
             assert!(results.is_ok());
 
-            let results = results.unwrap();
+            let results = results.expect("operation should succeed");
             assert_eq!(results.len(), 2);
             for result in results {
                 assert!(result.mean_score >= 0.0 && result.mean_score <= 1.0);
@@ -482,7 +482,10 @@ mod tests {
                 .collect();
             let best = find_best_strategy(&core_results[..]);
             assert!(best.is_some());
-            assert_eq!(best.unwrap().strategy, "Strategy2");
+            assert_eq!(
+                best.expect("operation should succeed").strategy,
+                "Strategy2"
+            );
         }
 
         #[test]
@@ -493,7 +496,7 @@ mod tests {
             let test = perform_paired_t_test(&scores1, &scores2, "Strategy1", "Strategy2");
             assert!(test.is_ok());
 
-            let test = test.unwrap();
+            let test = test.expect("operation should succeed");
             assert!(test.p_value >= 0.0 && test.p_value <= 1.0);
             assert!(!test.test_statistic.is_nan());
         }
@@ -510,7 +513,7 @@ mod tests {
             let result = kolmogorov_smirnov_test(&sample1, &sample2);
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.statistic >= 0.0 && result.statistic <= 1.0);
             assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
         }
@@ -521,7 +524,7 @@ mod tests {
             let result = shapiro_wilk_test(&sample);
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.statistic >= 0.0 && result.statistic <= 1.0);
             assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
         }
@@ -532,7 +535,7 @@ mod tests {
             let result = anderson_darling_test(&sample);
             assert!(result.is_ok());
 
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
             assert!(result.statistic >= 0.0);
             assert!(result.p_value >= 0.0 && result.p_value <= 1.0);
         }
@@ -586,7 +589,7 @@ mod tests {
             let result = comprehensive_cross_validate_classifier(classifier, &x, &y, &config);
 
             assert!(result.is_ok());
-            let result = result.unwrap();
+            let result = result.expect("operation should succeed");
 
             // Check that all components are present
             assert!(!result.fold_details.is_empty());

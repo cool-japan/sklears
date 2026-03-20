@@ -497,7 +497,9 @@ impl OutOfCoreLDA {
         // Process chunks in parallel for statistics
         let chunk_stats: Vec<_> = data_manager.process_chunks_parallel(|chunk| {
             let n_samples = chunk.nrows();
-            let chunk_mean = chunk.mean_axis(Axis(0)).unwrap();
+            let chunk_mean = chunk
+                .mean_axis(Axis(0))
+                .expect("mean should not fail on non-empty array");
             let centered = chunk - &chunk_mean;
             let chunk_cov = centered.t().dot(&centered) / (n_samples - 1) as Float;
 
@@ -711,15 +713,17 @@ mod tests {
             ..Default::default()
         };
 
-        let mut manager = OutOfCoreDataManager::new(config).unwrap();
+        let mut manager = OutOfCoreDataManager::new(config).expect("construction should succeed");
         let data = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]];
         let labels = array![0, 0, 1, 1];
 
-        manager.store_dataset(&data, &labels).unwrap();
+        manager
+            .store_dataset(&data, &labels)
+            .expect("operation should succeed");
 
         assert_eq!(manager.num_chunks(), 2);
 
-        let chunk0 = manager.load_chunk(0).unwrap();
+        let chunk0 = manager.load_chunk(0).expect("operation should succeed");
         assert_eq!(chunk0.nrows(), 2);
         assert_eq!(chunk0.ncols(), 2);
     }
@@ -734,8 +738,12 @@ mod tests {
         let samples2 = array![[5.0, 6.0], [7.0, 8.0]];
         let labels2 = array![0, 1];
 
-        stream.add_samples(&samples1, &labels1).unwrap();
-        stream.add_samples(&samples2, &labels2).unwrap();
+        stream
+            .add_samples(&samples1, &labels1)
+            .expect("operation should succeed");
+        stream
+            .add_samples(&samples2, &labels2)
+            .expect("operation should succeed");
 
         // Buffer should trigger training
         let test_data = array![[2.0, 3.0]];

@@ -636,7 +636,7 @@ impl ResourcePredictionEngine {
                         .partial_cmp(&b.1.confidence)
                         .unwrap_or(std::cmp::Ordering::Equal)
                 })
-                .unwrap();
+                .expect("should have predictions");
 
             Ok(best_prediction.1)
         }

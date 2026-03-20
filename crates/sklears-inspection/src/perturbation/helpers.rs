@@ -213,7 +213,7 @@ pub fn calculate_confidence_intervals(
 
         if !sample_predictions.is_empty() {
             // Sort predictions to calculate quantiles
-            sample_predictions.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sample_predictions.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
             let n_preds = sample_predictions.len();
             let lower_idx = ((n_preds - 1) as Float * lower_quantile) as usize;

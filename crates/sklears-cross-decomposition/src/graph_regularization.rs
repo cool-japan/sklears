@@ -34,7 +34,7 @@ pub mod temporal_network_analysis;
 
 use scirs2_core::error::{CoreError, ErrorContext};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, Rng, RngExt};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -291,7 +291,9 @@ impl GraphRegularizedCCA {
 
     /// Center data by removing column means
     fn center_data(&self, data: &Array2<f64>) -> Array2<f64> {
-        let means = data.mean_axis(Axis(0)).unwrap();
+        let means = data
+            .mean_axis(Axis(0))
+            .expect("mean_axis requires non-empty array");
         let mut centered = data.clone();
         for mut row in centered.rows_mut() {
             for (val, &mean) in row.iter_mut().zip(means.iter()) {
@@ -481,10 +483,12 @@ impl GraphRegularizedCCA {
         let n_components = self.config.n_components.min(n_x).min(n_y);
 
         // For simplicity, use identity matrices as starting points
-        let x_weights =
-            Array2::from_shape_simple_fn((n_x, n_components), || 0.1 * thread_rng().gen::<f64>());
-        let y_weights =
-            Array2::from_shape_simple_fn((n_y, n_components), || 0.1 * thread_rng().gen::<f64>());
+        let x_weights = Array2::from_shape_simple_fn((n_x, n_components), || {
+            0.1 * thread_rng().random::<f64>()
+        });
+        let y_weights = Array2::from_shape_simple_fn((n_y, n_components), || {
+            0.1 * thread_rng().random::<f64>()
+        });
 
         // Generate decreasing correlations
         let correlations =
@@ -706,7 +710,7 @@ impl GraphBuilder {
 
         for i in 0..n {
             for j in (i + 1)..n {
-                if thread_rng().gen::<f64>() < edge_probability {
+                if thread_rng().random::<f64>() < edge_probability {
                     adjacency[[i, j]] = 1.0;
                     adjacency[[j, i]] = 1.0;
                 }
@@ -768,7 +772,7 @@ impl GraphBuilder {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
             for (neighbor, _) in distances.iter().take(k) {
                 adjacency[[i, *neighbor]] = 1.0;
             }
@@ -852,7 +856,9 @@ mod tests {
 
         let config = GraphRegularizationConfig::default();
         let gcca = GraphRegularizedCCA::new(config);
-        let laplacian = gcca.compute_graph_laplacian(&adj).unwrap();
+        let laplacian = gcca
+            .compute_graph_laplacian(&adj)
+            .expect("operation should succeed");
 
         // Check dimensions
         assert_eq!(laplacian.dim(), (3, 3));
@@ -869,8 +875,8 @@ mod tests {
 
     #[test]
     fn test_graph_regularized_cca() {
-        let x = Array2::from_shape_simple_fn((50, 4), || thread_rng().gen::<f64>());
-        let y = Array2::from_shape_simple_fn((50, 3), || thread_rng().gen::<f64>());
+        let x = Array2::from_shape_simple_fn((50, 4), || thread_rng().random::<f64>());
+        let y = Array2::from_shape_simple_fn((50, 3), || thread_rng().random::<f64>());
 
         // Create simple graph structures
         let x_graph = GraphBuilder::complete_graph(4);
@@ -882,7 +888,7 @@ mod tests {
             .with_components(2);
 
         let gcca = GraphRegularizedCCA::new(config);
-        let results = gcca.fit(&x, &y).unwrap();
+        let results = gcca.fit(&x, &y).expect("fit should succeed");
 
         // Check output dimensions
         assert_eq!(results.x_weights.dim(), (4, 2));
@@ -894,8 +900,8 @@ mod tests {
 
     #[test]
     fn test_network_constrained_pls() {
-        let x = Array2::from_shape_simple_fn((30, 5), || thread_rng().gen::<f64>());
-        let y = Array2::from_shape_simple_fn((30, 4), || thread_rng().gen::<f64>());
+        let x = Array2::from_shape_simple_fn((30, 5), || thread_rng().random::<f64>());
+        let y = Array2::from_shape_simple_fn((30, 4), || thread_rng().random::<f64>());
 
         let x_graph = GraphBuilder::grid_graph(5, 1);
         let y_graph = GraphBuilder::random_graph(4, 0.5);
@@ -905,7 +911,7 @@ mod tests {
             .with_y_graph(y_graph);
 
         let npls = NetworkConstrainedPLS::new(config);
-        let results = npls.fit(&x, &y).unwrap();
+        let results = npls.fit(&x, &y).expect("fit should succeed");
 
         assert_eq!(results.x_weights.dim(), (5, 2));
         assert_eq!(results.y_weights.dim(), (4, 2));
@@ -913,8 +919,8 @@ mod tests {
 
     #[test]
     fn test_multi_graph_cca() {
-        let x = Array2::from_shape_simple_fn((20, 3), || thread_rng().gen::<f64>());
-        let y = Array2::from_shape_simple_fn((20, 3), || thread_rng().gen::<f64>());
+        let x = Array2::from_shape_simple_fn((20, 3), || thread_rng().random::<f64>());
+        let y = Array2::from_shape_simple_fn((20, 3), || thread_rng().random::<f64>());
 
         let x_graph1 = GraphBuilder::complete_graph(3);
         let x_graph2 = GraphBuilder::random_graph(3, 0.5);
@@ -927,7 +933,9 @@ mod tests {
         let config = GraphRegularizationConfig::new(RegularizationType::Community, 0.15);
         let mgcca = MultiGraphCCA::new(config);
 
-        let results = mgcca.fit_multi_layer(&x, &y, &x_graphs, &y_graphs).unwrap();
+        let results = mgcca
+            .fit_multi_layer(&x, &y, &x_graphs, &y_graphs)
+            .expect("operation should succeed");
 
         assert_eq!(results.x_weights.dim(), (3, 2));
         assert_eq!(results.y_weights.dim(), (3, 2));
@@ -950,15 +958,15 @@ mod tests {
         assert_eq!(random.adjacency_matrix.dim(), (6, 6));
 
         // Test kNN graph
-        let data = Array2::from_shape_simple_fn((8, 2), || thread_rng().gen::<f64>());
+        let data = Array2::from_shape_simple_fn((8, 2), || thread_rng().random::<f64>());
         let knn = GraphBuilder::knn_graph(&data, 3);
         assert_eq!(knn.adjacency_matrix.dim(), (8, 8));
     }
 
     #[test]
     fn test_different_regularization_types() {
-        let x = Array2::from_shape_simple_fn((25, 3), || thread_rng().gen::<f64>());
-        let y = Array2::from_shape_simple_fn((25, 3), || thread_rng().gen::<f64>());
+        let x = Array2::from_shape_simple_fn((25, 3), || thread_rng().random::<f64>());
+        let y = Array2::from_shape_simple_fn((25, 3), || thread_rng().random::<f64>());
         let graph = GraphBuilder::complete_graph(3);
 
         let regularization_types = [
@@ -982,7 +990,7 @@ mod tests {
                 "Failed for regularization type {:?}",
                 reg_type
             );
-            let results = results.unwrap();
+            let results = results.expect("operation should succeed");
             assert_eq!(results.x_weights.dim(), (3, 2));
             assert_eq!(results.y_weights.dim(), (3, 2));
         }

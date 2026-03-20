@@ -6,7 +6,7 @@
 
 use crate::common::CovarianceType;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
-use scirs2_core::random::{seq::SliceRandom, thread_rng, Rng, SeedableRng};
+use scirs2_core::random::{seq::SliceRandom, thread_rng, RngExt, SeedableRng};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Predict, Untrained},
@@ -562,7 +562,7 @@ impl StochasticVariationalGMM<Untrained> {
         let mut selected_indices = Vec::new();
 
         // First center: random sample
-        let first_idx = rng.gen_range(0..n_samples);
+        let first_idx = rng.random_range(0..n_samples);
         selected_indices.push(first_idx);
         global_mu_mean.row_mut(0).assign(&X.row(first_idx));
 
@@ -584,7 +584,7 @@ impl StochasticVariationalGMM<Untrained> {
             let total_dist: f64 = distances.sum();
             if total_dist > 0.0 {
                 let mut cumsum = 0.0;
-                let target = rng.gen::<f64>() * total_dist;
+                let target = rng.random::<f64>() * total_dist;
 
                 for i in 0..n_samples {
                     cumsum += distances[i];
@@ -596,7 +596,7 @@ impl StochasticVariationalGMM<Untrained> {
                 }
             } else {
                 // Fallback to random selection
-                let idx = rng.gen_range(0..n_samples);
+                let idx = rng.random_range(0..n_samples);
                 selected_indices.push(idx);
                 global_mu_mean.row_mut(k).assign(&X.row(idx));
             }
@@ -1455,7 +1455,9 @@ mod tests {
             .max_epochs(5)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 3);
         assert!(fitted.n_epochs() > 0);
         assert!(fitted.n_samples_seen() > 0);
@@ -1490,7 +1492,9 @@ mod tests {
                 .max_epochs(3)
                 .random_state(42);
 
-            let fitted = model.fit(&X.view(), &()).unwrap();
+            let fitted = model
+                .fit(&X.view(), &())
+                .expect("model fitting should succeed");
             assert_eq!(fitted.n_components, 2);
         }
     }
@@ -1515,8 +1519,12 @@ mod tests {
             .max_epochs(3)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let labels = fitted.predict(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let labels = fitted
+            .predict(&X.view())
+            .expect("prediction should succeed");
 
         assert_eq!(labels.len(), 8);
         // Check that labels are in valid range
@@ -1536,8 +1544,12 @@ mod tests {
             .max_epochs(3)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(probas.dim(), (4, 2));
 
@@ -1568,7 +1580,9 @@ mod tests {
             .max_epochs(3)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
 
         // Check weights
         let weights = fitted.weights();
@@ -1614,7 +1628,9 @@ mod tests {
             .max_epochs(3)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 2);
         assert!(!fitted.lower_bound_history().is_empty());
     }
@@ -1643,7 +1659,9 @@ mod tests {
             .max_epochs(3)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 2);
     }
 
@@ -1673,7 +1691,9 @@ mod tests {
             .max_epochs(10)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
         assert_eq!(fitted.n_components, 2);
         // Early stopping may or may not trigger depending on convergence
     }
@@ -1689,8 +1709,10 @@ mod tests {
             .max_epochs(3)
             .random_state(42);
 
-        let fitted = model.fit(&X.view(), &()).unwrap();
-        let score = fitted.score(&X.view()).unwrap();
+        let fitted = model
+            .fit(&X.view(), &())
+            .expect("model fitting should succeed");
+        let score = fitted.score(&X.view()).expect("operation should succeed");
 
         // Score should be finite
         assert!(score.is_finite());

@@ -10,7 +10,7 @@
 //! allocating computational resources across different fidelity levels.
 
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use sklears_core::types::Float;
 use std::collections::HashMap;
 
@@ -391,7 +391,11 @@ impl ProgressiveAllocator {
         let n_keep = n_keep.max(1).min(configs.len());
 
         let mut sorted_configs = configs.to_vec();
-        sorted_configs.sort_by(|a, b| b.performance.partial_cmp(&a.performance).unwrap());
+        sorted_configs.sort_by(|a, b| {
+            b.performance
+                .partial_cmp(&a.performance)
+                .expect("operation should succeed")
+        });
         sorted_configs.truncate(n_keep);
         sorted_configs
     }
@@ -715,7 +719,8 @@ impl CoarseToFineOptimizer {
             }
 
             // Select top-k regions
-            region_performances.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
+            region_performances
+                .sort_by(|a, b| b.2.partial_cmp(&a.2).expect("operation should succeed"));
             region_performances.truncate(top_k_regions);
 
             // Zoom into top regions
@@ -753,7 +758,7 @@ impl CoarseToFineOptimizer {
 
                 // Apply scale perturbation
                 for (_, value) in params.iter_mut() {
-                    let perturbation = self.rng.gen_range(-scale..scale);
+                    let perturbation = self.rng.random_range(-scale..scale);
                     *value += perturbation;
                 }
 
@@ -821,7 +826,7 @@ impl CoarseToFineOptimizer {
         let mut params = HashMap::new();
 
         for (param_name, &(min, max)) in bounds {
-            let value = self.rng.gen_range(min..max);
+            let value = self.rng.random_range(min..max);
             params.insert(param_name.clone(), value);
         }
 
@@ -837,7 +842,7 @@ impl CoarseToFineOptimizer {
 
         for (param_name, &center_value) in center {
             if let Some(&(min, max)) = self.current_bounds.get(param_name) {
-                let perturbation = self.rng.gen_range(-radius..radius);
+                let perturbation = self.rng.random_range(-radius..radius);
                 let value = (center_value + perturbation).max(min).min(max);
                 params.insert(param_name.clone(), value);
             }
@@ -1075,7 +1080,7 @@ impl AdaptiveFidelitySelector {
             };
 
             // Simple sampling (in practice would use proper Beta distribution)
-            let sample = rng.gen_range(0.0..(alpha / (alpha + beta)));
+            let sample = rng.random_range(0.0..(alpha / (alpha + beta)));
 
             if sample > best_sample {
                 best_sample = sample;
@@ -1195,7 +1200,11 @@ impl BudgetAllocator {
         ratios: &[Float],
     ) -> HashMap<usize, Float> {
         let mut sorted: Vec<_> = configs.iter().enumerate().collect();
-        sorted.sort_by(|a, b| b.1.performance.partial_cmp(&a.1.performance).unwrap());
+        sorted.sort_by(|a, b| {
+            b.1.performance
+                .partial_cmp(&a.1.performance)
+                .expect("operation should succeed")
+        });
 
         let total_ratio: Float = ratios.iter().sum();
         sorted

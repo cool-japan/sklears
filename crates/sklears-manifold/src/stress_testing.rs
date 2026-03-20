@@ -12,9 +12,9 @@ use scirs2_core::essentials::Normal;
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
+use scirs2_core::RngExt;
 use sklears_core::types::Float;
 use std::time::{Duration, Instant};
 
@@ -33,7 +33,7 @@ pub mod synthetic_data {
         let mut rng = if let Some(s) = seed {
             StdRng::seed_from_u64(s)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -50,11 +50,11 @@ pub mod synthetic_data {
             // Generate cluster center
             let mut center = vec![0.0; n_features];
             for j in 0..n_features {
-                center[j] = rng.gen_range(-5.0..5.0);
+                center[j] = rng.random_range(-5.0..5.0);
             }
 
             // Generate samples around cluster center
-            let normal = Normal::new(0.0, cluster_std).unwrap();
+            let normal = Normal::new(0.0, cluster_std).expect("operation should succeed");
             for i in start_idx..end_idx {
                 for j in 0..n_features {
                     data[(i, j)] = center[j] + normal.sample(&mut rng);
@@ -70,15 +70,15 @@ pub mod synthetic_data {
         let mut rng = if let Some(s) = seed {
             StdRng::seed_from_u64(s)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut data = Array2::zeros((n_samples, 3));
-        let normal = Normal::new(0.0, noise).unwrap();
+        let normal = Normal::new(0.0, noise).expect("operation should succeed");
 
         for i in 0..n_samples {
-            let t = 1.5 * std::f64::consts::PI * (1.0 + 2.0 * rng.gen::<f64>());
-            let height: f64 = 21.0 * rng.gen::<f64>();
+            let t = 1.5 * std::f64::consts::PI * (1.0 + 2.0 * rng.random::<f64>());
+            let height: f64 = 21.0 * rng.random::<f64>();
 
             data[(i, 0)] = t * t.cos() + normal.sample(&mut rng);
             data[(i, 1)] = height + normal.sample(&mut rng);
@@ -98,14 +98,14 @@ pub mod synthetic_data {
         let mut rng = if let Some(s) = seed {
             StdRng::seed_from_u64(s)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut data = Array2::zeros((n_samples, n_features));
 
         for i in 0..n_samples {
             for j in 0..n_features {
-                if rng.gen::<f64>() > sparsity {
+                if rng.random::<f64>() > sparsity {
                     data[(i, j)] = rng.sample(scirs2_core::StandardNormal);
                 }
             }
@@ -125,11 +125,11 @@ pub mod synthetic_data {
         let mut rng = if let Some(s) = seed {
             StdRng::seed_from_u64(s)
         } else {
-            StdRng::seed_from_u64(thread_rng().gen::<u64>())
+            StdRng::seed_from_u64(thread_rng().random::<u64>())
         };
 
         let mut data = Array2::zeros((n_samples, embedding_dim));
-        let normal = Normal::new(0.0, noise).unwrap();
+        let normal = Normal::new(0.0, noise).expect("operation should succeed");
 
         for i in 0..n_samples {
             // Generate point on unit sphere in intrinsic_dim space
@@ -502,8 +502,16 @@ pub fn generate_performance_report(results: &[PerformanceMetrics]) -> String {
         let total_time: Duration = successful_runs.iter().map(|r| r.execution_time).sum();
         let avg_throughput: f64 = successful_runs.iter().map(|r| r.throughput()).sum::<f64>()
             / successful_runs.len() as f64;
-        let max_samples = successful_runs.iter().map(|r| r.n_samples).max().unwrap();
-        let max_features = successful_runs.iter().map(|r| r.n_features).max().unwrap();
+        let max_samples = successful_runs
+            .iter()
+            .map(|r| r.n_samples)
+            .max()
+            .expect("operation should succeed");
+        let max_features = successful_runs
+            .iter()
+            .map(|r| r.n_features)
+            .max()
+            .expect("operation should succeed");
 
         report.push_str("Performance Summary:\n");
         report.push_str(&format!(

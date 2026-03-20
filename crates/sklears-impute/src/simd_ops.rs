@@ -472,7 +472,7 @@ impl SimdStatistics {
         }
 
         // Use unstable sort for better performance
-        sorted_data.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_data.sort_unstable_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
         let index = q * (sorted_data.len() - 1) as f64;
         let lower = index.floor() as usize;
@@ -507,12 +507,15 @@ impl SimdMatrixOps {
         }
 
         let mut result = Array1::zeros(n_rows);
-        let vector_slice = vector.as_slice().unwrap();
+        let vector_slice = vector.as_slice().expect("slice operation should succeed");
 
         // Parallel processing over rows
         for i in 0..n_rows {
             let row = matrix.row(i);
-            result[i] = Self::dot_product_simd(row.as_slice().unwrap(), vector_slice);
+            result[i] = Self::dot_product_simd(
+                row.as_slice().expect("matrix indexing should be valid"),
+                vector_slice,
+            );
         }
 
         Ok(result)
@@ -609,7 +612,8 @@ impl SimdMatrixOps {
 
                             // Use SIMD for inner product if block is large enough
                             let row = a.row(i);
-                            let row_slice = row.as_slice().unwrap();
+                            let row_slice =
+                                row.as_slice().expect("matrix indexing should be valid");
                             let k_slice = &row_slice[k_block..k_end];
                             let b_slice: Vec<f64> = (k_block..k_end).map(|k| b[[k, j]]).collect();
 
@@ -811,28 +815,28 @@ impl SimdImputationOps {
             "euclidean" => {
                 distances.par_extend((0..n_points).into_par_iter().map(|i| {
                     let row = data_points.row(i);
-                    let point = row.as_slice().unwrap();
+                    let point = row.as_slice().expect("matrix indexing should be valid");
                     SimdDistanceCalculator::euclidean_distance_simd(query_point, point)
                 }));
             }
             "manhattan" => {
                 distances.par_extend((0..n_points).into_par_iter().map(|i| {
                     let row = data_points.row(i);
-                    let point = row.as_slice().unwrap();
+                    let point = row.as_slice().expect("matrix indexing should be valid");
                     SimdDistanceCalculator::manhattan_distance_simd(query_point, point)
                 }));
             }
             "cosine" => {
                 distances.par_extend((0..n_points).into_par_iter().map(|i| {
                     let row = data_points.row(i);
-                    let point = row.as_slice().unwrap();
+                    let point = row.as_slice().expect("matrix indexing should be valid");
                     1.0 - SimdDistanceCalculator::cosine_similarity_simd(query_point, point)
                 }));
             }
             "nan_euclidean" => {
                 distances.par_extend((0..n_points).into_par_iter().map(|i| {
                     let row = data_points.row(i);
-                    let point = row.as_slice().unwrap();
+                    let point = row.as_slice().expect("matrix indexing should be valid");
                     SimdDistanceCalculator::nan_euclidean_distance_simd(query_point, point)
                 }));
             }
@@ -840,7 +844,7 @@ impl SimdImputationOps {
                 // Fallback to euclidean
                 distances.par_extend((0..n_points).into_par_iter().map(|i| {
                     let row = data_points.row(i);
-                    let point = row.as_slice().unwrap();
+                    let point = row.as_slice().expect("matrix indexing should be valid");
                     SimdDistanceCalculator::euclidean_distance_simd(query_point, point)
                 }));
             }
@@ -866,11 +870,14 @@ impl SimdImputationOps {
 
         // Use partial sort for better performance when k << n
         if k < indexed_distances.len() {
-            indexed_distances.select_nth_unstable_by(k, |a, b| a.1.partial_cmp(&b.1).unwrap());
+            indexed_distances.select_nth_unstable_by(k, |a, b| {
+                a.1.partial_cmp(&b.1).expect("operation should succeed")
+            });
             indexed_distances.truncate(k);
         }
 
-        indexed_distances.sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        indexed_distances
+            .sort_unstable_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
         indexed_distances
     }
 
@@ -998,7 +1005,7 @@ mod tests {
                 f64::NAN,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let optimized = CacheOptimizedData::new(&data, f64::NAN);
 
@@ -1052,7 +1059,7 @@ mod tests {
     fn test_matrix_operations() {
         let matrix =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         // Test transpose
         let transposed = SimdMatrixOps::transpose_simd(&matrix);
@@ -1063,7 +1070,8 @@ mod tests {
 
         // Test matrix-vector multiplication
         let vector = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-        let result = SimdMatrixOps::matrix_vector_multiply_simd(&matrix, &vector).unwrap();
+        let result = SimdMatrixOps::matrix_vector_multiply_simd(&matrix, &vector)
+            .expect("operation should succeed");
 
         // Expected: [1*1 + 2*2 + 3*3, 4*1 + 5*2 + 6*3, 7*1 + 8*2 + 9*3] = [14, 32, 50]
         assert_abs_diff_eq!(result[0], 14.0, epsilon = 1e-10);
@@ -1082,7 +1090,7 @@ mod tests {
                 4.0, 5.0, 6.0, // Distance sqrt(27)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let distances = SimdImputationOps::batch_distances_simd(&query, &data, "euclidean");
 
@@ -1105,7 +1113,7 @@ mod tests {
                 10.0, 11.0, 12.0, // Distance sqrt(243) (farthest)
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let knn = SimdImputationOps::find_knn_simd(&query, &data, 3, "euclidean");
 
@@ -1152,7 +1160,7 @@ mod tests {
                 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         SimdImputationOps::streaming_mean_imputation(&mut data, 2, f64::NAN);
 

@@ -416,7 +416,13 @@ mod tests {
         let mut processor = FeatureEngineeringProcessor::<f64>::new(config);
 
         processor.set_feature_names(vec!["feature1".to_string(), "feature2".to_string()]);
-        assert_eq!(processor.feature_names().unwrap().len(), 2);
+        assert_eq!(
+            processor
+                .feature_names()
+                .expect("operation should succeed")
+                .len(),
+            2
+        );
 
         processor.add_transformation_stat("mean".to_string(), 1.5);
         assert_eq!(processor.transformation_stats().get("mean"), Some(&1.5));
@@ -448,7 +454,12 @@ mod tests {
         assert_eq!(analyzer.results().get("accuracy"), Some(&0.95));
 
         analyzer.set_feature_rankings(vec![2, 0, 1]);
-        assert_eq!(analyzer.feature_rankings().unwrap(), &[2, 0, 1]);
+        assert_eq!(
+            analyzer
+                .feature_rankings()
+                .expect("operation should succeed"),
+            &[2, 0, 1]
+        );
 
         analyzer.add_quality_metric("completeness".to_string(), 0.98);
         assert_eq!(analyzer.quality_metrics().get("completeness"), Some(&0.98));

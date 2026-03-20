@@ -36,8 +36,8 @@ use std::marker::PhantomData;
 /// let Y = array![[1.5], [2.5], [3.5], [4.5]];
 ///
 /// let spls = SparsePLS::new(1, 0.1, 0.1);
-/// let fitted = spls.fit(&X, &Y).unwrap();
-/// let predictions = fitted.predict(&X).unwrap();
+/// let fitted = spls.fit(&X, &Y).expect("fit should succeed");
+/// let predictions = fitted.predict(&X).expect("predict should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct SparsePLS<State = Untrained> {
@@ -164,8 +164,12 @@ impl Fit<Array2<Float>, Array2<Float>> for SparsePLS<Untrained> {
         }
 
         // Center and scale data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
+        let y_mean = y.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
         let mut y_centered = y - &y_mean.view().insert_axis(Axis(0));
@@ -321,11 +325,21 @@ impl SparsePLS<Untrained> {
 
 impl Predict<Array2<Float>, Array2<Float>> for SparsePLS<Trained> {
     fn predict(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
-        let coef = self.coef_.as_ref().unwrap();
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_std = self.y_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let coef = self.coef_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -358,9 +372,15 @@ impl Predict<Array2<Float>, Array2<Float>> for SparsePLS<Trained> {
 
 impl Transform<Array2<Float>> for SparsePLS<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let x_rotations = self.x_rotations_.as_ref().unwrap();
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_rotations = self.x_rotations_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -381,54 +401,77 @@ impl Transform<Array2<Float>> for SparsePLS<Trained> {
 impl SparsePLS<Trained> {
     /// Get the X weights (with sparsity)
     pub fn x_weights(&self) -> &Array2<Float> {
-        self.x_weights_.as_ref().unwrap()
+        self.x_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y weights (with sparsity)
     pub fn y_weights(&self) -> &Array2<Float> {
-        self.y_weights_.as_ref().unwrap()
+        self.y_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X loadings
     pub fn x_loadings(&self) -> &Array2<Float> {
-        self.x_loadings_.as_ref().unwrap()
+        self.x_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y loadings
     pub fn y_loadings(&self) -> &Array2<Float> {
-        self.y_loadings_.as_ref().unwrap()
+        self.y_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X scores
     pub fn x_scores(&self) -> &Array2<Float> {
-        self.x_scores_.as_ref().unwrap()
+        self.x_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y scores
     pub fn y_scores(&self) -> &Array2<Float> {
-        self.y_scores_.as_ref().unwrap()
+        self.y_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the regression coefficients
     pub fn coef(&self) -> &Array2<Float> {
-        self.coef_.as_ref().unwrap()
+        self.coef_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Count the number of non-zero weights in X
     pub fn x_sparsity(&self) -> usize {
-        let x_weights = self.x_weights_.as_ref().unwrap();
+        let x_weights = self
+            .x_weights_
+            .as_ref()
+            .expect("value should be set after fitting");
         x_weights.iter().filter(|&&x| x.abs() > 1e-10).count()
     }
 
     /// Count the number of non-zero weights in Y
     pub fn y_sparsity(&self) -> usize {
-        let y_weights = self.y_weights_.as_ref().unwrap();
+        let y_weights = self
+            .y_weights_
+            .as_ref()
+            .expect("value should be set after fitting");
         y_weights.iter().filter(|&&x| x.abs() > 1e-10).count()
     }
 
     /// Get the sparsity ratio for X weights (proportion of zero weights)
     pub fn x_sparsity_ratio(&self) -> Float {
-        let x_weights = self.x_weights_.as_ref().unwrap();
+        let x_weights = self
+            .x_weights_
+            .as_ref()
+            .expect("value should be set after fitting");
         let total_weights = x_weights.len();
         let non_zero_weights = self.x_sparsity();
         1.0 - (non_zero_weights as Float / total_weights as Float)
@@ -436,7 +479,10 @@ impl SparsePLS<Trained> {
 
     /// Get the sparsity ratio for Y weights (proportion of zero weights)
     pub fn y_sparsity_ratio(&self) -> Float {
-        let y_weights = self.y_weights_.as_ref().unwrap();
+        let y_weights = self
+            .y_weights_
+            .as_ref()
+            .expect("value should be set after fitting");
         let total_weights = y_weights.len();
         let non_zero_weights = self.y_sparsity();
         1.0 - (non_zero_weights as Float / total_weights as Float)
@@ -462,8 +508,8 @@ mod tests {
         let y = array![[1.5], [2.5], [3.5], [4.5]];
 
         let spls = SparsePLS::new(1, 0.1, 0.1);
-        let fitted = spls.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = spls.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
 
         assert_eq!(predictions.shape(), &[4, 1]);
     }
@@ -481,11 +527,11 @@ mod tests {
 
         // High regularization should produce sparse weights
         let spls_high = SparsePLS::new(1, 0.5, 0.1);
-        let fitted_high = spls_high.fit(&x, &y).unwrap();
+        let fitted_high = spls_high.fit(&x, &y).expect("fit should succeed");
 
         // Low regularization should produce less sparse weights
         let spls_low = SparsePLS::new(1, 0.01, 0.01);
-        let fitted_low = spls_low.fit(&x, &y).unwrap();
+        let fitted_low = spls_low.fit(&x, &y).expect("fit should succeed");
 
         // Check sparsity
         let sparsity_high_x = fitted_high.x_sparsity();
@@ -516,10 +562,10 @@ mod tests {
 
         // Test different regularization levels
         let spls_no_reg = SparsePLS::new(1, 0.0, 0.0);
-        let fitted_no_reg = spls_no_reg.fit(&x, &y).unwrap();
+        let fitted_no_reg = spls_no_reg.fit(&x, &y).expect("fit should succeed");
 
         let spls_reg = SparsePLS::new(1, 0.3, 0.3);
-        let fitted_reg = spls_reg.fit(&x, &y).unwrap();
+        let fitted_reg = spls_reg.fit(&x, &y).expect("fit should succeed");
 
         // Regularized version should have more sparsity
         let sparsity_no_reg = fitted_no_reg.x_sparsity();
@@ -528,8 +574,8 @@ mod tests {
         assert!(sparsity_reg <= sparsity_no_reg);
 
         // Both should produce valid predictions
-        let pred_no_reg = fitted_no_reg.predict(&x).unwrap();
-        let pred_reg = fitted_reg.predict(&x).unwrap();
+        let pred_no_reg = fitted_no_reg.predict(&x).expect("predict should succeed");
+        let pred_reg = fitted_reg.predict(&x).expect("predict should succeed");
 
         assert_eq!(pred_no_reg.shape(), &[4, 1]);
         assert_eq!(pred_reg.shape(), &[4, 1]);
@@ -548,9 +594,9 @@ mod tests {
         let y = array![[1.5, 0.5], [2.5, 1.5], [3.5, 2.5], [4.5, 3.5], [5.5, 4.5]];
 
         let spls = SparsePLS::new(2, 0.1, 0.1);
-        let fitted = spls.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = spls.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(predictions.shape(), &[5, 2]);
         assert_eq!(transformed.shape(), &[5, 2]);
@@ -573,13 +619,13 @@ mod tests {
         let y = array![[1.5, 0.5], [2.5, 1.5], [3.5, 2.5], [4.5, 3.5]];
 
         let spls = SparsePLS::new(2, 0.1, 0.1);
-        let fitted = spls.fit(&x, &y).unwrap();
-        let transformed = fitted.transform(&x).unwrap();
+        let fitted = spls.fit(&x, &y).expect("fit should succeed");
+        let transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(transformed.shape(), &[4, 2]);
 
         // Transform should be consistent
-        let transformed2 = fitted.transform(&x).unwrap();
+        let transformed2 = fitted.transform(&x).expect("transform should succeed");
         for (a, b) in transformed.iter().zip(transformed2.iter()) {
             assert!((a - b).abs() < 1e-12);
         }
@@ -592,8 +638,8 @@ mod tests {
         let y = array![[1.5], [2.5], [3.5], [4.5]];
 
         let spls = SparsePLS::new(1, 0.1, 0.1).scale(false);
-        let fitted = spls.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = spls.fit(&x, &y).expect("fit should succeed");
+        let predictions = fitted.predict(&x).expect("predict should succeed");
 
         assert_eq!(predictions.shape(), &[4, 1]);
     }

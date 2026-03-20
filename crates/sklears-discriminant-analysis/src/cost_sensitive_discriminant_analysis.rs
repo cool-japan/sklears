@@ -333,7 +333,10 @@ impl CostSensitiveDiscriminantAnalysis {
         let mut total_cost = 0.0;
 
         for (i, &true_label) in y_true.iter().enumerate() {
-            let true_idx = classes.iter().position(|&c| c == true_label).unwrap();
+            let true_idx = classes
+                .iter()
+                .position(|&c| c == true_label)
+                .expect("element not found");
 
             // Make prediction based on threshold
             let pred_idx = if probas[[i, 1]] > threshold { 1 } else { 0 };
@@ -570,7 +573,11 @@ impl SimpleDiscriminantModel {
         // Compute pooled covariance matrix
         let mut covariance = Array2::zeros((n_features, n_features));
         for (i, row) in x.axis_iter(Axis(0)).enumerate() {
-            let class_idx = self.classes.iter().position(|&c| c == y[i]).unwrap();
+            let class_idx = self
+                .classes
+                .iter()
+                .position(|&c| c == y[i])
+                .expect("element not found");
             let diff = &row - &self.means.row(class_idx);
             let diff_outer = diff
                 .clone()
@@ -783,7 +790,7 @@ impl TrainedCostSensitiveDiscriminantAnalysis {
         *class_counts
             .iter()
             .max_by_key(|(_, &count)| count)
-            .unwrap()
+            .expect("value should be present")
             .0
     }
 }
@@ -886,7 +893,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedCostSensitiveDiscriminantAna
                         .iter()
                         .enumerate()
                         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                        .unwrap()
+                        .expect("value should be present")
                         .0;
                     predictions[i] = self.classes[max_idx];
                 }
@@ -939,15 +946,17 @@ mod tests {
         let csda =
             CostSensitiveDiscriminantAnalysis::new().cost_matrix(CostMatrix::Uniform { cost: 1.0 });
 
-        let fitted = csda.fit(&x, &y).unwrap();
+        let fitted = csda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
         assert_eq!(fitted.cost_matrix().dim(), (2, 2));
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probas = fitted.predict_proba(&x).unwrap();
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
         assert_eq!(probas.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -974,11 +983,11 @@ mod tests {
 
         let csda = CostSensitiveDiscriminantAnalysis::new().cost_matrix(CostMatrix::Balanced);
 
-        let fitted = csda.fit(&x, &y).unwrap();
+        let fitted = csda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 8);
     }
 
@@ -995,11 +1004,11 @@ mod tests {
             weights: custom_weights,
         });
 
-        let fitted = csda.fit(&x, &y).unwrap();
+        let fitted = csda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -1017,13 +1026,13 @@ mod tests {
             matrix: cost_matrix,
         });
 
-        let fitted = csda.fit(&x, &y).unwrap();
+        let fitted = csda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
         assert_eq!(fitted.cost_matrix()[[0, 1]], 1.0); // 2.0 / 2.0 = 1.0 (normalized)
         assert_eq!(fitted.cost_matrix()[[1, 0]], 0.5); // 1.0 / 2.0 = 0.5 (normalized)
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -1046,9 +1055,9 @@ mod tests {
                 .resampling_strategy(strategy)
                 .random_state(42);
 
-            let fitted = csda.fit(&x, &y).unwrap();
+            let fitted = csda.fit(&x, &y).expect("model fitting should succeed");
 
-            let predictions = fitted.predict(&x).unwrap();
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 6);
         }
     }
@@ -1061,12 +1070,14 @@ mod tests {
         let csda =
             CostSensitiveDiscriminantAnalysis::new().cost_matrix(CostMatrix::Uniform { cost: 1.0 });
 
-        let fitted = csda.fit(&x, &y).unwrap();
+        let fitted = csda.fit(&x, &y).expect("model fitting should succeed");
 
         let y_true = array![0, 0, 1, 1];
         let y_pred = array![0, 1, 1, 0]; // 2 correct, 2 incorrect
 
-        let expected_cost = fitted.expected_cost(&y_true, &y_pred).unwrap();
+        let expected_cost = fitted
+            .expected_cost(&y_true, &y_pred)
+            .expect("operation should succeed");
         assert_abs_diff_eq!(expected_cost, 0.5, epsilon = 1e-6); // 50% error rate
     }
 
@@ -1078,12 +1089,14 @@ mod tests {
         let csda =
             CostSensitiveDiscriminantAnalysis::new().cost_matrix(CostMatrix::Uniform { cost: 1.0 });
 
-        let fitted = csda.fit(&x, &y).unwrap();
+        let fitted = csda.fit(&x, &y).expect("model fitting should succeed");
 
         let y_true = array![0, 0, 1, 1];
         let y_pred = array![0, 0, 1, 1]; // Perfect predictions
 
-        let metrics = fitted.cost_sensitive_metrics(&y_true, &y_pred).unwrap();
+        let metrics = fitted
+            .cost_sensitive_metrics(&y_true, &y_pred)
+            .expect("operation should succeed");
 
         assert!(metrics.contains_key("expected_cost"));
         assert!(metrics.contains_key("cost_savings"));

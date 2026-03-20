@@ -40,8 +40,8 @@ use sklears_core::{
 /// let estimator = GroupLassoCovariance::new()
 ///     .alpha(0.1)
 ///     .groups(vec![0, 0, 1]); // First two variables in group 0, third in group 1
-/// let fitted = estimator.fit(&x.view(), &()).unwrap();
-/// let precision = fitted.get_precision().unwrap();
+/// let fitted = estimator.fit(&x.view(), &()).expect("model fitting should succeed");
+/// let precision = fitted.get_precision().expect("operation should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct GroupLassoCovariance<S = Untrained> {
@@ -470,7 +470,9 @@ mod tests {
             .groups(groups.clone())
             .max_iter(50);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (3, 3));
         assert!(fitted.get_precision().is_some());
@@ -485,7 +487,9 @@ mod tests {
 
         let estimator = GroupLassoCovariance::new().alpha(0.05).max_iter(30);
 
-        let fitted = estimator.fit(&x.view(), &()).unwrap();
+        let fitted = estimator
+            .fit(&x.view(), &())
+            .expect("model fitting should succeed");
 
         assert_eq!(fitted.get_covariance().dim(), (2, 2));
         assert!(fitted.get_precision().is_some());

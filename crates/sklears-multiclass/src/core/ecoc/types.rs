@@ -77,7 +77,7 @@ impl QuantizedCodeMatrix {
     /// Quantize a code matrix to 2-bit precision (-1, 0, 1 -> 0, 1, 2)
     pub fn quantize(matrix: &CodeMatrix) -> Self {
         let values = match matrix {
-            CodeMatrix::Dense(m) => m.as_slice().unwrap().to_vec(),
+            CodeMatrix::Dense(m) => m.as_slice().expect("operation should succeed").to_vec(),
             CodeMatrix::Sparse(s) => {
                 let mut dense = vec![s.default_value; s.n_rows * s.n_cols];
                 for &(row, col, val) in &s.entries {
@@ -171,7 +171,7 @@ impl CompressedCodeMatrix {
             CodeMatrix::Dense(m) => {
                 let flat_data: Vec<u8> = m
                     .as_slice()
-                    .unwrap()
+                    .expect("operation should succeed")
                     .iter()
                     .map(|&x| Self::i32_to_u8(x))
                     .collect();
@@ -596,7 +596,7 @@ impl<C> ECOCClassifier<C, Untrained> {
                     best_matrix = Some(code_matrix);
                 }
                 if best_min_distance >= target_distance {
-                    return Ok(best_matrix.unwrap());
+                    return Ok(best_matrix.expect("operation should succeed"));
                 }
             }
             code_length += target_distance;

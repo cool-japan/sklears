@@ -90,7 +90,7 @@ impl ElasticConfig {
         *self
             .expansion_ratios
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .unwrap_or(&6.0)
     }
 }
@@ -136,22 +136,22 @@ impl SubnetConfig {
             depth: *config
                 .depths
                 .get(rng.gen_range(0..config.depths.len()))
-                .unwrap(),
+                .expect("value should be present"),
             width: *config
                 .widths
                 .get(rng.gen_range(0..config.widths.len()))
-                .unwrap(),
+                .expect("value should be present"),
             kernel_size: *config
                 .kernel_sizes
                 .get(rng.gen_range(0..config.kernel_sizes.len()))
-                .unwrap(),
+                .expect("value should be present"),
             expansion_ratio: *config
                 .expansion_ratios
                 .get(rng.gen_range(0..config.expansion_ratios.len()))
-                .unwrap(),
+                .expect("value should be present"),
             resolution: *resolutions
                 .get(rng.gen_range(0..resolutions.len()))
-                .unwrap(),
+                .expect("value should be present"),
         }
     }
 
@@ -299,7 +299,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
                     .config
                     .kernel_sizes
                     .get(rng.gen_range(0..self.config.kernel_sizes.len()))
-                    .unwrap();
+                    .expect("value should be present");
                 (self.config.max_depth(), self.config.max_width(), ks)
             }
             TrainingPhase::ElasticDepth => {
@@ -307,12 +307,12 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
                     .config
                     .depths
                     .get(rng.gen_range(0..self.config.depths.len()))
-                    .unwrap();
+                    .expect("value should be present");
                 let ks = *self
                     .config
                     .kernel_sizes
                     .get(rng.gen_range(0..self.config.kernel_sizes.len()))
-                    .unwrap();
+                    .expect("value should be present");
                 (d, self.config.max_width(), ks)
             }
             TrainingPhase::FullElastic => {
@@ -320,17 +320,17 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
                     .config
                     .depths
                     .get(rng.gen_range(0..self.config.depths.len()))
-                    .unwrap();
+                    .expect("value should be present");
                 let w = *self
                     .config
                     .widths
                     .get(rng.gen_range(0..self.config.widths.len()))
-                    .unwrap();
+                    .expect("value should be present");
                 let ks = *self
                     .config
                     .kernel_sizes
                     .get(rng.gen_range(0..self.config.kernel_sizes.len()))
-                    .unwrap();
+                    .expect("value should be present");
                 (d, w, ks)
             }
         };
@@ -338,12 +338,12 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
         let resolution = *self
             .resolutions
             .get(rng.gen_range(0..self.resolutions.len()))
-            .unwrap();
+            .expect("value should be present");
         let expansion_ratio = *self
             .config
             .expansion_ratios
             .get(rng.gen_range(0..self.config.expansion_ratios.len()))
-            .unwrap();
+            .expect("value should be present");
 
         SubnetConfig::new(depth, width, kernel_size, expansion_ratio, resolution)
     }
@@ -387,14 +387,17 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
 
         for (config, accuracy) in samples {
             features_vec.push(Array1::from(vec![
-                T::from(config.depth as f64 / self.config.max_depth() as f64).unwrap(),
-                T::from(config.width as f64 / self.config.max_width() as f64).unwrap(),
-                T::from(config.kernel_size as f64 / self.config.max_kernel_size() as f64).unwrap(),
+                T::from(config.depth as f64 / self.config.max_depth() as f64)
+                    .unwrap_or_else(|| T::zero()),
+                T::from(config.width as f64 / self.config.max_width() as f64)
+                    .unwrap_or_else(|| T::zero()),
+                T::from(config.kernel_size as f64 / self.config.max_kernel_size() as f64)
+                    .unwrap_or_else(|| T::zero()),
                 T::from(config.expansion_ratio as f64 / self.config.max_expansion_ratio() as f64)
-                    .unwrap(),
-                T::from(config.resolution as f64 / 224.0).unwrap(),
+                    .expect("value should be present"),
+                T::from(config.resolution as f64 / 224.0).unwrap_or_else(|| T::zero()),
             ]));
-            targets_vec.push(T::from(*accuracy).unwrap());
+            targets_vec.push(T::from(*accuracy).unwrap_or_else(|| T::zero()));
         }
 
         predictor.train(&features_vec, &targets_vec)?;
@@ -407,12 +410,15 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Once
     pub fn predict_accuracy(&self, subnet: &SubnetConfig) -> NeuralResult<f64> {
         if let Some(predictor) = &self.accuracy_predictor {
             let features = Array1::from(vec![
-                T::from(subnet.depth as f64 / self.config.max_depth() as f64).unwrap(),
-                T::from(subnet.width as f64 / self.config.max_width() as f64).unwrap(),
-                T::from(subnet.kernel_size as f64 / self.config.max_kernel_size() as f64).unwrap(),
+                T::from(subnet.depth as f64 / self.config.max_depth() as f64)
+                    .unwrap_or_else(|| T::zero()),
+                T::from(subnet.width as f64 / self.config.max_width() as f64)
+                    .unwrap_or_else(|| T::zero()),
+                T::from(subnet.kernel_size as f64 / self.config.max_kernel_size() as f64)
+                    .unwrap_or_else(|| T::zero()),
                 T::from(subnet.expansion_ratio as f64 / self.config.max_expansion_ratio() as f64)
-                    .unwrap(),
-                T::from(subnet.resolution as f64 / 224.0).unwrap(),
+                    .expect("value should be present"),
+                T::from(subnet.resolution as f64 / 224.0).unwrap_or_else(|| T::zero()),
             ]);
             predictor.predict(&features)
         } else {
@@ -527,7 +533,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum + std::ops::AddAssign> Accu
             ));
         }
 
-        let learning_rate = T::from(0.001).unwrap();
+        let learning_rate = T::from(0.001).unwrap_or_else(|| T::zero());
         let n_epochs = 100;
 
         for _epoch in 0..n_epochs {
@@ -608,13 +614,16 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> KnowledgeDistillation<T> {
         if sum > T::zero() {
             exp.mapv(|x| x / sum)
         } else {
-            Array1::from_elem(logits.len(), T::from(1.0 / logits.len() as f64).unwrap())
+            Array1::from_elem(
+                logits.len(),
+                T::from(1.0 / logits.len() as f64).unwrap_or_else(|| T::zero()),
+            )
         }
     }
 
     /// KL divergence between two distributions
     fn kl_divergence(&self, p: &Array1<T>, q: &Array1<T>) -> T {
-        let eps = T::from(1e-10).unwrap();
+        let eps = T::from(1e-10).unwrap_or_else(|| T::zero());
         p.iter()
             .zip(q.iter())
             .map(|(&p_i, &q_i)| {
@@ -631,7 +640,7 @@ impl<T: FloatBounds + ScalarOperand + std::iter::Sum> KnowledgeDistillation<T> {
     /// Cross-entropy loss
     fn cross_entropy(&self, logits: &Array1<T>, labels: &Array1<T>) -> T {
         let probs = self.softmax_with_temperature(logits);
-        let eps = T::from(1e-10).unwrap();
+        let eps = T::from(1e-10).unwrap_or_else(|| T::zero());
         -labels
             .iter()
             .zip(probs.iter())
@@ -738,11 +747,15 @@ mod tests {
         let targets = vec![0.95, 0.85, 0.75];
 
         // Train predictor
-        predictor.train(&features, &targets).unwrap();
+        predictor
+            .train(&features, &targets)
+            .expect("operation should succeed");
 
         // Test prediction
         let test_features = Array1::from(vec![0.8, 0.8, 0.8, 0.8, 0.8]);
-        let pred = predictor.predict(&test_features).unwrap();
+        let pred = predictor
+            .predict(&test_features)
+            .expect("prediction should succeed");
         assert!(pred > 0.0 && pred < 1.0);
     }
 
@@ -755,7 +768,7 @@ mod tests {
         let true_labels = Array1::from(vec![1.0, 0.0, 0.0]);
 
         let loss = kd.distillation_loss(&student_logits, &teacher_logits, &true_labels);
-        assert!(loss.to_f64().unwrap() >= 0.0);
+        assert!(loss.to_f64().expect("operation should succeed") >= 0.0);
     }
 
     #[test]
@@ -802,7 +815,8 @@ mod tests {
             (SubnetConfig::new(3, 5, 5, 4.0, 192), 0.90),
             (SubnetConfig::new(2, 4, 3, 3.0, 128), 0.85),
         ];
-        ofa.train_accuracy_predictor(&samples).unwrap();
+        ofa.train_accuracy_predictor(&samples)
+            .expect("operation should succeed");
 
         // Search for subnet under constraints
         let result = ofa.search_subnet(

@@ -356,7 +356,13 @@ where
             })?;
 
         if let Some(names) = input_features {
-            if names.len() != self.scores.as_ref().unwrap().len() {
+            if names.len()
+                != self
+                    .scores
+                    .as_ref()
+                    .expect("operation should succeed")
+                    .len()
+            {
                 return Err(SklearsError::InvalidInput(
                     "input_features length doesn't match number of features".to_string(),
                 ));
@@ -698,7 +704,10 @@ mod tests {
 
         let p_values = Array1::from_vec(vec![0.01, 0.5, 0.02, 0.8, 0.005]);
         results.set_p_values(p_values.clone());
-        assert_eq!(results.p_values().unwrap(), &p_values);
+        assert_eq!(
+            results.p_values().expect("operation should succeed"),
+            &p_values
+        );
 
         results.add_metadata("accuracy".to_string(), 0.95);
         assert_eq!(results.selection_metadata().get("accuracy"), Some(&0.95));
@@ -714,7 +723,8 @@ mod tests {
 
     #[test]
     fn test_percentile_selector() {
-        let selector = PercentileSelector::new(25.0, "chi2".to_string()).unwrap();
+        let selector =
+            PercentileSelector::new(25.0, "chi2".to_string()).expect("operation should succeed");
         assert_eq!(selector.percentile, 25.0);
 
         // Test invalid percentile
@@ -724,7 +734,7 @@ mod tests {
 
     #[test]
     fn test_fdr_selector() {
-        let selector = FDRSelector::new(0.05).unwrap();
+        let selector = FDRSelector::new(0.05).expect("operation should succeed");
         assert_eq!(selector.alpha, 0.05);
 
         // Test invalid alpha
@@ -734,7 +744,8 @@ mod tests {
 
     #[test]
     fn test_rfe_selector() {
-        let selector = RFESelector::new("linear_svc".to_string(), Some(5), 1.0, 3).unwrap();
+        let selector = RFESelector::new("linear_svc".to_string(), Some(5), 1.0, 3)
+            .expect("operation should succeed");
         assert_eq!(selector.n_features_to_select, Some(5));
         assert_eq!(selector.step, 1.0);
         assert_eq!(selector.cv, 3);
@@ -786,22 +797,25 @@ mod tests {
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0.0, 1.0, 0.0, 1.0]);
 
         assert!(selector.fit(&x.view(), &y.view()).is_ok());
         assert!(selector.scores().is_some());
         assert!(selector.selected_features().is_some());
 
-        let transformed = selector.transform(&x.view()).unwrap();
+        let transformed = selector
+            .transform(&x.view())
+            .expect("operation should succeed");
         assert_eq!(transformed.dim(), (4, 2)); // 4 samples, 2 selected features
 
-        let support = <KBestSelector as FeatureSelector<f64>>::get_support(&selector).unwrap();
+        let support = <KBestSelector as FeatureSelector<f64>>::get_support(&selector)
+            .expect("operation should succeed");
         assert_eq!(support.len(), 3); // Original number of features
 
         let feature_names =
             <KBestSelector as FeatureSelector<f64>>::get_feature_names_out(&selector, None)
-                .unwrap();
+                .expect("operation should succeed");
         assert_eq!(feature_names.len(), 2); // Selected features
     }
 }

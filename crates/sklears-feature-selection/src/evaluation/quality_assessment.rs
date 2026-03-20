@@ -783,7 +783,7 @@ mod tests {
             Some(complexity),
             Some(interpretability),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(assessment.selection_quality.overall_quality_score >= 0.0);
         assert!(assessment.predictive_performance.is_some());
@@ -805,7 +805,7 @@ mod tests {
 
         let assessment =
             QualityAssessment::assess(X.view(), y.view(), &feature_indices, None, None, None)
-                .unwrap();
+                .expect("operation should succeed");
 
         assert!(assessment.selection_quality.overall_quality_score >= 0.0);
         assert!(assessment.predictive_performance.is_none());

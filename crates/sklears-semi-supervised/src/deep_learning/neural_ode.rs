@@ -391,8 +391,8 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for NeuralODE<Untrained> {
         Ok(NeuralODE {
             state: NeuralODETrained {
                 layers: model.layers,
-                classifier_weights: model.classifier_weights.unwrap(),
-                classifier_biases: model.classifier_biases.unwrap(),
+                classifier_weights: model.classifier_weights.expect("operation should succeed"),
+                classifier_biases: model.classifier_biases.expect("operation should succeed"),
                 classes: Array1::from(unique_classes),
                 learning_rate: model.learning_rate,
                 max_iter: model.max_iter,
@@ -496,7 +496,7 @@ mod tests {
         let result = layer.forward(&x.view());
         assert!(result.is_ok());
 
-        let output = result.unwrap();
+        let output = result.expect("operation should succeed");
         assert_eq!(output.len(), 2);
     }
 
@@ -535,19 +535,19 @@ mod tests {
         let result = node.fit(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
+        let fitted = result.expect("operation should succeed");
         assert_eq!(fitted.state.classes.len(), 2);
 
         let predictions = fitted.predict(&X.view());
         assert!(predictions.is_ok());
 
-        let pred = predictions.unwrap();
+        let pred = predictions.expect("operation should succeed");
         assert_eq!(pred.len(), 6);
 
         let probabilities = fitted.predict_proba(&X.view());
         assert!(probabilities.is_ok());
 
-        let proba = probabilities.unwrap();
+        let proba = probabilities.expect("operation should succeed");
         assert_eq!(proba.dim(), (6, 2));
 
         // Check probabilities sum to 1
@@ -596,7 +596,7 @@ mod tests {
         let result = layer.backward(&x.view(), &grad_output.view());
         assert!(result.is_ok());
 
-        let grad_input = result.unwrap();
+        let grad_input = result.expect("operation should succeed");
         assert_eq!(grad_input.len(), 2);
     }
 
@@ -632,8 +632,8 @@ mod tests {
         let result = node.fit(&X.view(), &y.view());
         assert!(result.is_ok());
 
-        let fitted = result.unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = result.expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 }

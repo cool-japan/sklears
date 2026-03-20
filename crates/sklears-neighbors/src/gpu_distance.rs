@@ -399,7 +399,7 @@ impl GpuDistanceCalculator {
 
     /// Get computation statistics
     pub fn get_stats(&self) -> GpuComputationStats {
-        self.stats.lock().unwrap().clone()
+        self.stats.lock().expect("operation should succeed").clone()
     }
 
     /// Get device information
@@ -566,7 +566,8 @@ mod tests {
     use scirs2_core::ndarray::Array2;
 
     fn create_test_data() -> Array2<Float> {
-        Array2::from_shape_vec((100, 4), (0..400).map(|x| x as Float).collect()).unwrap()
+        Array2::from_shape_vec((100, 4), (0..400).map(|x| x as Float).collect())
+            .expect("operation should succeed")
     }
 
     #[test]
@@ -598,10 +599,12 @@ mod tests {
     #[test]
     fn test_gpu_device_detection() {
         let calculator = GpuDistanceCalculator::new();
-        let device_info = calculator.detect_gpu_devices().unwrap();
+        let device_info = calculator
+            .detect_gpu_devices()
+            .expect("operation should succeed");
         assert!(device_info.is_some());
 
-        let device = device_info.unwrap();
+        let device = device_info.expect("operation should succeed");
         assert_eq!(device.backend, GpuBackend::CpuFallback);
         assert!(!device.name.is_empty());
     }
@@ -613,7 +616,7 @@ mod tests {
 
         let result = calculator
             .pairwise_distances(&data.view(), None, Distance::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.distances.shape(), &[100, 100]);
         assert_eq!(result.backend_used, GpuBackend::CpuFallback);
@@ -632,7 +635,7 @@ mod tests {
 
         let result = calculator
             .batch_pairwise_distances(&data.view(), None, Distance::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.distances.shape(), &[100, 100]);
         assert!(result.computation_time > 0.0);
@@ -647,7 +650,9 @@ mod tests {
         };
         let search = GpuKNeighborsSearch::new(5, config);
 
-        let (indices, distances) = search.kneighbors(&data.view(), None).unwrap();
+        let (indices, distances) = search
+            .kneighbors(&data.view(), None)
+            .expect("operation should succeed");
 
         assert_eq!(indices.shape(), &[100, 5]);
         assert_eq!(distances.shape(), &[100, 5]);
@@ -685,10 +690,10 @@ mod tests {
         // Perform some computations
         let _ = calculator
             .pairwise_distances(&data.view(), None, Distance::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
         let _ = calculator
             .pairwise_distances(&data.view(), None, Distance::Manhattan)
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats = calculator.get_stats();
         assert_eq!(stats.total_computations, 2);
@@ -713,7 +718,9 @@ mod tests {
                 ..Default::default()
             };
             let calculator = GpuDistanceCalculator::with_config(config);
-            let device_info = calculator.detect_gpu_devices().unwrap();
+            let device_info = calculator
+                .detect_gpu_devices()
+                .expect("operation should succeed");
 
             // At least CPU fallback should always be available
             if backend == GpuBackend::CpuFallback {
@@ -725,8 +732,10 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_gpu_shape_mismatch_error() {
-        let X = Array2::from_shape_vec((10, 4), (0..40).map(|x| x as Float).collect()).unwrap();
-        let Y = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect()).unwrap();
+        let X = Array2::from_shape_vec((10, 4), (0..40).map(|x| x as Float).collect())
+            .expect("operation should succeed");
+        let Y = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as Float).collect())
+            .expect("operation should succeed");
 
         let calculator = GpuDistanceCalculator::new();
         let result = calculator.pairwise_distances(&X.view(), Some(&Y.view()), Distance::Euclidean);
@@ -746,7 +755,7 @@ mod tests {
         // Perform computation
         let _ = calculator
             .pairwise_distances(&data.view(), None, Distance::Euclidean)
-            .unwrap();
+            .expect("operation should succeed");
 
         let stats_before = calculator.get_stats();
         assert_eq!(stats_before.total_computations, 1);

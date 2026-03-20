@@ -312,7 +312,7 @@ impl ExternalMemoryKNN {
             .into_iter()
             .map(|(d, i)| (d.0, i))
             .collect();
-        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let distances: Vec<Float> = neighbors.iter().map(|(d, _)| *d).collect();
         let indices: Vec<usize> = neighbors.iter().map(|(_, i)| *i).collect();
@@ -457,7 +457,7 @@ impl CacheObliviousNeighbors {
         indices.sort_by(|&a, &b| {
             self.data[[a, split_dim]]
                 .partial_cmp(&self.data[[b, split_dim]])
-                .unwrap()
+                .expect("operation should succeed")
         });
 
         // Split at median
@@ -524,7 +524,7 @@ impl CacheObliviousNeighbors {
             .into_iter()
             .map(|(d, i)| (d.0, i))
             .collect();
-        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
         let distances: Vec<Float> = neighbors.iter().map(|(d, _)| *d).collect();
         let indices: Vec<usize> = neighbors.iter().map(|(_, i)| *i).collect();
@@ -725,7 +725,7 @@ impl MemoryBoundedApproximateNeighbors {
             }
 
             // Sort and take top candidates
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
             let n_candidates = std::cmp::min(self.k * 2, distances.len());
 
             // Accumulate scores for candidates
@@ -741,7 +741,7 @@ impl MemoryBoundedApproximateNeighbors {
             .into_iter()
             .map(|(idx, score)| (score, idx))
             .collect();
-        final_candidates.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap()); // Sort by score descending
+        final_candidates.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("operation should succeed")); // Sort by score descending
 
         let n_results = std::cmp::min(self.k, final_candidates.len());
         let distances: Vec<Float> = final_candidates
@@ -786,16 +786,18 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_external_memory_knn() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let mut em_knn = ExternalMemoryKNN::new(2, temp_dir.path()).with_block_size(2);
 
         let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 10.0, 10.0, 11.0, 11.0])
-            .unwrap();
+            .expect("operation should succeed");
 
-        em_knn.fit(&X.view()).unwrap();
+        em_knn.fit(&X.view()).expect("operation should succeed");
 
         let query = array![1.5, 1.5];
-        let (distances, indices) = em_knn.kneighbors(&query.view()).unwrap();
+        let (distances, indices) = em_knn
+            .kneighbors(&query.view())
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         assert_eq!(indices.len(), 2);
@@ -808,12 +810,16 @@ mod tests {
         let mut co_neighbors = CacheObliviousNeighbors::new(2);
 
         let X = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 10.0, 10.0, 11.0, 11.0])
-            .unwrap();
+            .expect("operation should succeed");
 
-        co_neighbors.fit(&X.view()).unwrap();
+        co_neighbors
+            .fit(&X.view())
+            .expect("operation should succeed");
 
         let query = array![1.5, 1.5];
-        let (distances, indices) = co_neighbors.kneighbors(&query.view()).unwrap();
+        let (distances, indices) = co_neighbors
+            .kneighbors(&query.view())
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         assert_eq!(indices.len(), 2);
@@ -831,12 +837,16 @@ mod tests {
                 1.0, 1.0, 1.1, 1.1, 2.0, 2.0, 2.1, 2.1, 10.0, 10.0, 11.0, 11.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        mb_neighbors.fit(&X.view()).unwrap();
+        mb_neighbors
+            .fit(&X.view())
+            .expect("operation should succeed");
 
         let query = array![1.5, 1.5];
-        let (distances, indices) = mb_neighbors.kneighbors(&query.view()).unwrap();
+        let (distances, indices) = mb_neighbors
+            .kneighbors(&query.view())
+            .expect("operation should succeed");
 
         assert_eq!(distances.len(), 2);
         assert_eq!(indices.len(), 2);
@@ -848,7 +858,7 @@ mod tests {
 
     #[test]
     fn test_external_memory_error_cases() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("operation should succeed");
         let mut em_knn = ExternalMemoryKNN::new(2, temp_dir.path());
 
         let empty_X = Array2::<Float>::zeros((0, 2));

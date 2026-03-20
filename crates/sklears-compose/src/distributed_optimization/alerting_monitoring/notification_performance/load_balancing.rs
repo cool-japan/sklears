@@ -633,8 +633,8 @@ impl PerformanceLoadBalancer {
             .collect();
 
         // Sort by load difference from average (descending for overloaded, ascending for underloaded)
-        overloaded.sort_by(|a, b| (b.1 - avg_load).partial_cmp(&(a.1 - avg_load)).unwrap());
-        underloaded.sort_by(|a, b| (avg_load - a.1).partial_cmp(&(avg_load - b.1)).unwrap());
+        overloaded.sort_by(|a, b| (b.1 - avg_load).partial_cmp(&(a.1 - avg_load)).unwrap_or_default());
+        underloaded.sort_by(|a, b| (avg_load - a.1).partial_cmp(&(avg_load - b.1)).unwrap_or_default());
 
         // Create rebalancing actions by moving load from overloaded to underloaded targets
         for (source_id, source_load) in &overloaded {
@@ -643,7 +643,7 @@ impl PerformanceLoadBalancer {
             }
 
             let excess_load = source_load - avg_load;
-            let (dest_id, dest_load) = underloaded.first().unwrap();
+            let (dest_id, dest_load) = underloaded.first().unwrap_or_default();
             let deficit_load = avg_load - dest_load;
 
             // Move the minimum of excess and deficit

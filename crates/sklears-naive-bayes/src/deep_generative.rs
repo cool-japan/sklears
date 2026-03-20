@@ -161,7 +161,7 @@ impl VariationalAutoencoder {
     /// Sample from latent distribution using reparameterization trick
     pub fn reparameterize(&mut self, mean: &Array1<f64>, logvar: &Array1<f64>) -> Array1<f64> {
         let std_dev = logvar.mapv(|x| (0.5 * x).exp());
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
 
         let epsilon: Array1<f64> = (0..mean.len())
             .map(|_| normal.sample(&mut self.rng))
@@ -208,7 +208,7 @@ impl VariationalAutoencoder {
 
     /// Generate new samples
     pub fn generate(&mut self, n_samples: usize) -> Array2<f64> {
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let mut samples = Array2::zeros((n_samples, self.input_dim));
 
         for i in 0..n_samples {
@@ -413,7 +413,7 @@ impl NormalizingFlow {
 
     /// Sample from the flow
     pub fn sample(&mut self, n_samples: usize) -> Array2<f64> {
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let dim = self.coupling_layers[0].mask.len();
         let mut samples = Array2::zeros((n_samples, dim));
 
@@ -508,7 +508,7 @@ impl NeuralPosteriorEstimator {
         let mut samples = Array2::zeros((n_samples, param_dim));
 
         // Initialize with random sample
-        let normal = RandNormal::new(0.0, 1.0).unwrap();
+        let normal = RandNormal::new(0.0, 1.0).expect("operation should succeed");
         let mut current_params: Array1<f64> = (0..param_dim)
             .map(|_| normal.sample(&mut self.rng))
             .collect::<Vec<_>>()
@@ -524,7 +524,7 @@ impl NeuralPosteriorEstimator {
                 .iter()
                 .map(|&x| {
                     x + RandNormal::new(0.0, proposal_std)
-                        .unwrap()
+                        .expect("operation should succeed")
                         .sample(&mut self.rng)
                 })
                 .collect::<Vec<_>>()
@@ -534,7 +534,7 @@ impl NeuralPosteriorEstimator {
 
             // Accept/reject
             let log_ratio = proposal_log_prob - current_log_prob;
-            let uniform = RandUniform::new(0.0, 1.0).unwrap();
+            let uniform = RandUniform::new(0.0, 1.0).expect("operation should succeed");
             if log_ratio > 0.0 || uniform.sample(&mut self.rng) < log_ratio.exp() {
                 current_params = proposal;
                 current_log_prob = proposal_log_prob;
@@ -840,7 +840,7 @@ mod tests {
                 8.5, 9.5,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
         let result = model.fit(&x, &y);

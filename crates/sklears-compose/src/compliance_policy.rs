@@ -574,7 +574,7 @@ mod tests {
             timestamp: SystemTime::now(),
         };
 
-        let result = evaluator.evaluate(&context).unwrap();
+        let result = evaluator.evaluate(&context).unwrap_or_default();
         assert_eq!(result.decision, PolicyAction::Allow);
     }
 }

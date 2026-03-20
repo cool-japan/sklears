@@ -484,7 +484,7 @@ impl ConfigurationManager {
 
     /// Get configuration
     pub fn get_config(&self) -> GlobalRetryConfig {
-        self.config.read().unwrap().clone()
+        self.config.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Update configuration
@@ -494,7 +494,7 @@ impl ConfigurationManager {
 
         // Update configuration
         {
-            let mut config = self.config.write().unwrap();
+            let mut config = self.config.write().unwrap_or_else(|e| e.into_inner());
             *config = new_config;
         }
 
@@ -515,7 +515,7 @@ impl ConfigurationManager {
 
             // Update last modified time
             {
-                let mut last_modified = self.last_modified.write().unwrap();
+                let mut last_modified = self.last_modified.write().unwrap_or_else(|e| e.into_inner());
                 *last_modified = Some(SystemTime::now());
             }
         }
@@ -565,7 +565,7 @@ impl ConfigurationManager {
 
     /// Get configuration statistics
     pub fn get_statistics(&self) -> ConfigurationStatistics {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
         let enabled_features = config.features.values().filter(|&&enabled| enabled).count();
         let total_features = config.features.len();
         let configured_integrations = config.integrations.len();
@@ -574,7 +574,7 @@ impl ConfigurationManager {
             total_features,
             enabled_features,
             configured_integrations,
-            last_updated: self.last_modified.read().unwrap().unwrap_or(SystemTime::UNIX_EPOCH),
+            last_updated: self.last_modified.read().unwrap_or_else(|e| e.into_inner()).unwrap_or(SystemTime::UNIX_EPOCH),
             validation_passed: true, // Simplified
         }
     }
@@ -769,7 +769,7 @@ impl ConfigurationFactory {
                 max_cpu_usage: 0.5, // 50%
             })
             .build()
-            .unwrap()
+            .unwrap_or_default()
     }
 
     /// Create production configuration
@@ -811,7 +811,7 @@ impl ConfigurationFactory {
                 optimization_level: 3,
             })
             .build()
-            .unwrap()
+            .unwrap_or_default()
     }
 
     /// Create testing configuration
@@ -829,7 +829,7 @@ impl ConfigurationFactory {
                 max_cpu_usage: 0.3, // 30%
             })
             .build()
-            .unwrap()
+            .unwrap_or_default()
     }
 }
 

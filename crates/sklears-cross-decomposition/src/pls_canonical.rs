@@ -33,8 +33,8 @@ use std::marker::PhantomData;
 /// let Y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0]];
 ///
 /// let pls = PLSCanonical::new(1);
-/// let fitted = pls.fit(&X, &Y).unwrap();
-/// let X_c = fitted.transform(&X).unwrap();
+/// let fitted = pls.fit(&X, &Y).expect("fit should succeed");
+/// let X_c = fitted.transform(&X).expect("transform should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct PLSCanonical<State = Untrained> {
@@ -156,8 +156,12 @@ impl Fit<Array2<Float>, Array2<Float>> for PLSCanonical<Untrained> {
         }
 
         // Center and scale data
-        let x_mean = x.mean_axis(Axis(0)).unwrap();
-        let y_mean = y.mean_axis(Axis(0)).unwrap();
+        let x_mean = x.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
+        let y_mean = y.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+            "empty array for mean computation".to_string(),
+        ))?;
 
         let mut x_centered = x - &x_mean.view().insert_axis(Axis(0));
         let mut y_centered = y - &y_mean.view().insert_axis(Axis(0));
@@ -317,9 +321,15 @@ impl Fit<Array2<Float>, Array2<Float>> for PLSCanonical<Untrained> {
 
 impl Transform<Array2<Float>, Array2<Float>> for PLSCanonical<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
-        let x_rotations = self.x_rotations_.as_ref().unwrap();
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_rotations = self.x_rotations_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale X
         let mut x_scaled = x - &x_mean.view().insert_axis(Axis(0));
@@ -340,9 +350,15 @@ impl Transform<Array2<Float>, Array2<Float>> for PLSCanonical<Trained> {
 impl PLSCanonical<Trained> {
     /// Transform Y to canonical space
     pub fn transform_y(&self, y: &Array2<Float>) -> Result<Array2<Float>> {
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
-        let y_rotations = self.y_rotations_.as_ref().unwrap();
+        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_std = self.y_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_rotations = self.y_rotations_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         // Center and scale Y
         let mut y_scaled = y - &y_mean.view().insert_axis(Axis(0));
@@ -361,42 +377,58 @@ impl PLSCanonical<Trained> {
 
     /// Get the X weights
     pub fn x_weights(&self) -> &Array2<Float> {
-        self.x_weights_.as_ref().unwrap()
+        self.x_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y weights
     pub fn y_weights(&self) -> &Array2<Float> {
-        self.y_weights_.as_ref().unwrap()
+        self.y_weights_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X loadings
     pub fn x_loadings(&self) -> &Array2<Float> {
-        self.x_loadings_.as_ref().unwrap()
+        self.x_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y loadings
     pub fn y_loadings(&self) -> &Array2<Float> {
-        self.y_loadings_.as_ref().unwrap()
+        self.y_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X scores
     pub fn x_scores(&self) -> &Array2<Float> {
-        self.x_scores_.as_ref().unwrap()
+        self.x_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y scores
     pub fn y_scores(&self) -> &Array2<Float> {
-        self.y_scores_.as_ref().unwrap()
+        self.y_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the X rotations (orthogonal transformations)
     pub fn x_rotations(&self) -> &Array2<Float> {
-        self.x_rotations_.as_ref().unwrap()
+        self.x_rotations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the Y rotations (orthogonal transformations)
     pub fn y_rotations(&self) -> &Array2<Float> {
-        self.y_rotations_.as_ref().unwrap()
+        self.y_rotations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 }
 
@@ -413,10 +445,10 @@ mod tests {
         let y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0],];
 
         let pls = PLSCanonical::new(1);
-        let fitted = pls.fit(&x, &y).unwrap();
+        let fitted = pls.fit(&x, &y).expect("fit should succeed");
 
-        let x_canonical = fitted.transform(&x).unwrap();
-        let y_canonical = fitted.transform_y(&y).unwrap();
+        let x_canonical = fitted.transform(&x).expect("transform should succeed");
+        let y_canonical = fitted.transform_y(&y).expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 1]);
         assert_eq!(y_canonical.shape(), &[4, 1]);
@@ -435,7 +467,7 @@ mod tests {
         let y = array![[2.0, 1.0], [4.0, 3.0], [6.0, 5.0], [8.0, 7.0], [10.0, 9.0],];
 
         let pls = PLSCanonical::new(2);
-        let fitted = pls.fit(&x, &y).unwrap();
+        let fitted = pls.fit(&x, &y).expect("fit should succeed");
 
         let x_rotations = fitted.x_rotations();
 

@@ -790,8 +790,8 @@ mod tests {
         assert_eq!(vec.len(), 0);
         assert!(vec.is_empty());
 
-        vec.push(1.0).unwrap();
-        vec.push(2.0).unwrap();
+        vec.push(1.0).expect("operation should succeed");
+        vec.push(2.0).expect("operation should succeed");
         assert_eq!(vec.len(), 2);
         assert_eq!(vec.as_slice(), &[1.0, 2.0]);
     }
@@ -799,15 +799,16 @@ mod tests {
     #[test]
     fn test_fixed_vec_from_slice() {
         let data = [1.0, 2.0, 3.0, 4.0];
-        let vec: FixedVec<f32, 10> = FixedVec::from_slice(&data).unwrap();
+        let vec: FixedVec<f32, 10> =
+            FixedVec::from_slice(&data).expect("slice operation should succeed");
         assert_eq!(vec.as_slice(), &data);
     }
 
     #[test]
     fn test_fixed_vec_overflow() {
         let mut vec: FixedVec<f32, 2> = FixedVec::new();
-        vec.push(1.0).unwrap();
-        vec.push(2.0).unwrap();
+        vec.push(1.0).expect("operation should succeed");
+        vec.push(2.0).expect("operation should succeed");
         assert!(vec.push(3.0).is_err());
     }
 
@@ -815,7 +816,7 @@ mod tests {
     fn test_nostd_dot_product() {
         let x = [1.0, 2.0, 3.0, 4.0];
         let y = [2.0, 3.0, 4.0, 5.0];
-        let result = NoStdSimdOps::dot_product(&x, &y).unwrap();
+        let result = NoStdSimdOps::dot_product(&x, &y).expect("operation should succeed");
         assert_eq!(result, 40.0); // 1*2 + 2*3 + 3*4 + 4*5
     }
 
@@ -825,28 +826,28 @@ mod tests {
         let y = [4.0, 5.0, 6.0];
         let mut result = [0.0; 3];
 
-        NoStdSimdOps::add(&x, &y, &mut result).unwrap();
+        NoStdSimdOps::add(&x, &y, &mut result).expect("operation should succeed");
         assert_eq!(result, [5.0, 7.0, 9.0]);
     }
 
     #[test]
     fn test_nostd_scale() {
         let mut vec = [1.0, 2.0, 3.0];
-        NoStdSimdOps::scale(&mut vec, 2.0).unwrap();
+        NoStdSimdOps::scale(&mut vec, 2.0).expect("operation should succeed");
         assert_eq!(vec, [2.0, 4.0, 6.0]);
     }
 
     #[test]
     fn test_nostd_sum() {
         let vec = [1.0, 2.0, 3.0, 4.0];
-        let result = NoStdSimdOps::sum(&vec).unwrap();
+        let result = NoStdSimdOps::sum(&vec).expect("operation should succeed");
         assert_eq!(result, 10.0);
     }
 
     #[test]
     fn test_nostd_norm() {
         let vec = [3.0, 4.0, 0.0];
-        let result = NoStdSimdOps::norm(&vec).unwrap();
+        let result = NoStdSimdOps::norm(&vec).expect("operation should succeed");
         assert!((result - 5.0).abs() < 1e-6);
     }
 
@@ -855,7 +856,7 @@ mod tests {
         let input = [-1.0, 0.0, 1.0, 2.0];
         let mut output = [0.0; 4];
 
-        NoStdActivations::relu(&input, &mut output).unwrap();
+        NoStdActivations::relu(&input, &mut output).expect("operation should succeed");
         assert_eq!(output, [0.0, 0.0, 1.0, 2.0]);
     }
 
@@ -864,7 +865,7 @@ mod tests {
         let input = [0.0, 1.0, -1.0];
         let mut output = [0.0; 3];
 
-        NoStdActivations::sigmoid(&input, &mut output).unwrap();
+        NoStdActivations::sigmoid(&input, &mut output).expect("operation should succeed");
 
         // Check that sigmoid(0) ≈ 0.5
         assert!((output[0] - 0.5).abs() < 0.1);
@@ -896,7 +897,8 @@ mod tests {
         let vector = [2.0, 3.0, 4.0];
         let mut result = [0.0; 2];
 
-        NoStdMatrixOps::matvec_multiply(&matrix, &vector, &mut result).unwrap();
+        NoStdMatrixOps::matvec_multiply(&matrix, &vector, &mut result)
+            .expect("operation should succeed");
         assert_eq!(result, [20.0, 47.0]); // [1*2+2*3+3*4, 4*2+5*3+6*4]
     }
 
@@ -907,7 +909,7 @@ mod tests {
         let matrix = [row1.as_slice(), row2.as_slice()];
         let mut output = [FixedVec::<f32, 256>::new(); 3];
 
-        NoStdMatrixOps::transpose(&matrix, &mut output).unwrap();
+        NoStdMatrixOps::transpose(&matrix, &mut output).expect("operation should succeed");
         assert_eq!(output[0].as_slice(), &[1.0, 4.0]);
         assert_eq!(output[1].as_slice(), &[2.0, 5.0]);
         assert_eq!(output[2].as_slice(), &[3.0, 6.0]);
@@ -925,7 +927,7 @@ mod tests {
 
         let mut result = [FixedVec::<f32, 256>::new(); 2];
 
-        NoStdMatrixOps::add_matrices(&a, &b, &mut result).unwrap();
+        NoStdMatrixOps::add_matrices(&a, &b, &mut result).expect("operation should succeed");
         assert_eq!(result[0].as_slice(), &[6.0, 8.0]);
         assert_eq!(result[1].as_slice(), &[10.0, 12.0]);
     }
@@ -935,7 +937,8 @@ mod tests {
         let x = [0.0, 0.0];
         let y = [3.0, 4.0];
 
-        let result = NoStdDistanceOps::euclidean_distance(&x, &y).unwrap();
+        let result =
+            NoStdDistanceOps::euclidean_distance(&x, &y).expect("operation should succeed");
         assert!((result - 5.0).abs() < 1e-6);
     }
 
@@ -944,7 +947,8 @@ mod tests {
         let x = [1.0, 2.0];
         let y = [4.0, 6.0];
 
-        let result = NoStdDistanceOps::manhattan_distance(&x, &y).unwrap();
+        let result =
+            NoStdDistanceOps::manhattan_distance(&x, &y).expect("operation should succeed");
         assert_eq!(result, 7.0); // |1-4| + |2-6| = 3 + 4 = 7
     }
 
@@ -953,7 +957,7 @@ mod tests {
         let x = [1.0, 0.0];
         let y = [0.0, 1.0];
 
-        let result = NoStdDistanceOps::cosine_distance(&x, &y).unwrap();
+        let result = NoStdDistanceOps::cosine_distance(&x, &y).expect("operation should succeed");
         assert!((result - 1.0).abs() < 1e-6); // Orthogonal vectors
     }
 
@@ -964,7 +968,7 @@ mod tests {
         let c = [1.0, 1.0, 1.0];
         let mut result = [0.0; 3];
 
-        NoStdSimdOps::fma(&a, &b, &c, &mut result).unwrap();
+        NoStdSimdOps::fma(&a, &b, &c, &mut result).expect("operation should succeed");
         assert_eq!(result, [3.0, 7.0, 13.0]); // a[i] * b[i] + c[i]
     }
 
@@ -973,7 +977,7 @@ mod tests {
         let vector = [3.0, 4.0, 0.0];
         let mut result = [0.0; 3];
 
-        NoStdSimdOps::normalize(&vector, &mut result).unwrap();
+        NoStdSimdOps::normalize(&vector, &mut result).expect("operation should succeed");
         let expected_norm = 5.0; // sqrt(3^2 + 4^2)
         let expected = [3.0 / expected_norm, 4.0 / expected_norm, 0.0];
 
@@ -987,15 +991,22 @@ mod tests {
         let vector = [0.0, 0.0, 0.0];
         let mut result = [0.0; 3];
 
-        NoStdSimdOps::normalize(&vector, &mut result).unwrap();
+        NoStdSimdOps::normalize(&vector, &mut result).expect("operation should succeed");
         assert_eq!(result, [0.0, 0.0, 0.0]);
     }
 
     #[test]
     fn test_nostd_sqrt_scalar() {
-        assert_eq!(NoStdSimdOps::sqrt_scalar(0.0).unwrap(), 0.0);
-        assert!((NoStdSimdOps::sqrt_scalar(4.0).unwrap() - 2.0).abs() < 1e-6);
-        assert!((NoStdSimdOps::sqrt_scalar(9.0).unwrap() - 3.0).abs() < 1e-6);
+        assert_eq!(
+            NoStdSimdOps::sqrt_scalar(0.0).expect("operation should succeed"),
+            0.0
+        );
+        assert!(
+            (NoStdSimdOps::sqrt_scalar(4.0).expect("operation should succeed") - 2.0).abs() < 1e-6
+        );
+        assert!(
+            (NoStdSimdOps::sqrt_scalar(9.0).expect("operation should succeed") - 3.0).abs() < 1e-6
+        );
         assert!(NoStdSimdOps::sqrt_scalar(-1.0).is_err());
     }
 
@@ -1004,7 +1015,7 @@ mod tests {
         let x = [1.0, 2.0];
         let y = [1.0, 2.0];
 
-        let result = NoStdKernelOps::rbf_kernel(&x, &y, 1.0).unwrap();
+        let result = NoStdKernelOps::rbf_kernel(&x, &y, 1.0).expect("operation should succeed");
         assert!((result - 1.0).abs() < 0.1); // Same vectors should give ~1.0
     }
 
@@ -1013,7 +1024,7 @@ mod tests {
         let x = [1.0, 2.0, 3.0];
         let y = [2.0, 3.0, 4.0];
 
-        let result = NoStdKernelOps::linear_kernel(&x, &y).unwrap();
+        let result = NoStdKernelOps::linear_kernel(&x, &y).expect("operation should succeed");
         assert_eq!(result, 20.0); // 1*2 + 2*3 + 3*4 = 20
     }
 
@@ -1022,7 +1033,8 @@ mod tests {
         let x = [1.0, 2.0];
         let y = [2.0, 3.0];
 
-        let result = NoStdKernelOps::polynomial_kernel(&x, &y, 2, 1.0).unwrap();
+        let result =
+            NoStdKernelOps::polynomial_kernel(&x, &y, 2, 1.0).expect("operation should succeed");
         let dot = 8.0f32; // 1*2 + 2*3 = 8
         let expected = (dot + 1.0f32).powi(2); // (8 + 1)^2 = 81
         assert_eq!(result, expected);
@@ -1054,9 +1066,11 @@ mod tests {
         let x: Vec<f32> = (0..size).map(|i| i as f32).collect();
         let y: Vec<f32> = (0..size).map(|i| (i + 1) as f32).collect();
 
-        let euclidean = NoStdDistanceOps::euclidean_distance(&x, &y).unwrap();
-        let manhattan = NoStdDistanceOps::manhattan_distance(&x, &y).unwrap();
-        let cosine = NoStdDistanceOps::cosine_distance(&x, &y).unwrap();
+        let euclidean =
+            NoStdDistanceOps::euclidean_distance(&x, &y).expect("operation should succeed");
+        let manhattan =
+            NoStdDistanceOps::manhattan_distance(&x, &y).expect("operation should succeed");
+        let cosine = NoStdDistanceOps::cosine_distance(&x, &y).expect("operation should succeed");
 
         assert!(euclidean > 0.0);
         assert_eq!(manhattan, size as f32); // Each element differs by 1

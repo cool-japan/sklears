@@ -254,7 +254,7 @@ impl LanczosMethod {
 
         // Random starting vector
         let mut rng = thread_rng();
-        let uniform = RandUniform::new(-1.0, 1.0).unwrap();
+        let uniform = RandUniform::new(-1.0, 1.0).expect("operation should succeed");
         let mut q_0 = Array1::zeros(n);
         for i in 0..n {
             q_0[i] = rng.sample(uniform);
@@ -428,7 +428,8 @@ mod tests {
         let k_star_m = array![[0.5, 0.3], [0.7, 0.2]];
         let alpha = array![1.0, 2.0];
 
-        let result = ScalableInference::predict_direct(&k_star_m, &alpha).unwrap();
+        let result =
+            ScalableInference::predict_direct(&k_star_m, &alpha).expect("operation should succeed");
         let expected = array![1.1, 1.1]; // 0.5*1.0 + 0.3*2.0, 0.7*1.0 + 0.2*2.0
 
         for (a, b) in result.iter().zip(expected.iter()) {
@@ -441,7 +442,7 @@ mod tests {
         let matrix = array![[4.0, 1.0], [1.0, 3.0]];
         let precond =
             PreconditionerSetup::setup_preconditioner(&matrix, &PreconditionerType::Diagonal)
-                .unwrap();
+                .expect("operation should succeed");
 
         // Should be diag([1/4, 1/3])
         assert_abs_diff_eq!(precond[(0, 0)], 0.25, epsilon = 1e-10);
@@ -454,8 +455,8 @@ mod tests {
         let a = array![[4.0, 1.0], [1.0, 3.0]];
         let b = array![1.0, 2.0];
 
-        let solution =
-            PreconditionedCG::solve(&a, &b, 100, 1e-10, &PreconditionerType::Diagonal).unwrap();
+        let solution = PreconditionedCG::solve(&a, &b, 100, 1e-10, &PreconditionerType::Diagonal)
+            .expect("operation should succeed");
 
         // Verify A*x = b
         let residual = &b - &a.dot(&solution);
@@ -467,7 +468,8 @@ mod tests {
     fn test_lanczos_eigendecomposition() {
         let matrix = array![[3.0, 1.0], [1.0, 2.0]];
 
-        let (eigenvals, eigenvecs) = LanczosMethod::eigendecomposition(&matrix, 2, 1e-10).unwrap();
+        let (eigenvals, eigenvecs) =
+            LanczosMethod::eigendecomposition(&matrix, 2, 1e-10).expect("operation should succeed");
 
         assert_eq!(eigenvals.len(), 2);
         assert_eq!(eigenvecs.shape(), &[2, 2]);
@@ -482,8 +484,8 @@ mod tests {
         let b = array![3.0, 3.0];
         let x_initial = array![1.0, 1.0]; // Exact solution
 
-        let x_refined =
-            IterativeRefinement::refine_solution(&a, &b, &x_initial, 10, 1e-12).unwrap();
+        let x_refined = IterativeRefinement::refine_solution(&a, &b, &x_initial, 10, 1e-12)
+            .expect("operation should succeed");
 
         // Solution should remain close to initial (which is exact)
         for (a, b) in x_refined.iter().zip(x_initial.iter()) {
@@ -501,7 +503,8 @@ mod tests {
         let rhs2 = array![2.0];
         let rhs_blocks = vec![rhs1, rhs2];
 
-        let solution = SpecializedSolvers::solve_block_diagonal(&blocks, &rhs_blocks).unwrap();
+        let solution = SpecializedSolvers::solve_block_diagonal(&blocks, &rhs_blocks)
+            .expect("operation should succeed");
 
         // Expected: [2.0, 2.0, 2.0] (4/2, 6/3, 2/1)
         let expected = array![2.0, 2.0, 2.0];

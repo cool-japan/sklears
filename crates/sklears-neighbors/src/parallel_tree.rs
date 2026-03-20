@@ -390,7 +390,7 @@ impl ParallelTreeIndex {
         let initial_indices: Vec<usize> = (0..n_samples).collect();
         work_queue
             .lock()
-            .unwrap()
+            .expect("operation should succeed")
             .push_back(WorkUnit::new(initial_indices, 0, n_samples, 0, 0));
 
         // Spawn worker threads
@@ -425,7 +425,10 @@ impl ParallelTreeIndex {
         }
 
         // Collect results
-        let trees = completed_trees.lock().unwrap().clone();
+        let trees = completed_trees
+            .lock()
+            .expect("operation should succeed")
+            .clone();
         self.store_trees(trees);
 
         Ok(())
@@ -515,7 +518,7 @@ impl ParallelTreeIndex {
     ) {
         loop {
             let work_unit = {
-                let mut queue = work_queue.lock().unwrap();
+                let mut queue = work_queue.lock().expect("operation should succeed");
                 queue.pop_front()
             };
 
@@ -530,14 +533,17 @@ impl ParallelTreeIndex {
                                 leaf_size,
                                 tree_type,
                             ) {
-                                completed_trees.lock().unwrap().push(tree);
+                                completed_trees
+                                    .lock()
+                                    .expect("operation should succeed")
+                                    .push(tree);
                             }
                         }
                     } else {
                         // Split work unit and add sub-units to queue
                         if let Ok(sub_units) = Self::split_work_unit(&data, &unit, distance.clone())
                         {
-                            let mut queue = work_queue.lock().unwrap();
+                            let mut queue = work_queue.lock().expect("operation should succeed");
                             for sub_unit in sub_units {
                                 queue.push_back(sub_unit);
                             }
@@ -959,7 +965,7 @@ mod tests {
             2,
             Some(2),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert!(index.num_trees() > 0);
 
@@ -986,10 +992,12 @@ mod tests {
             2,
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let query = arr1(&[3.0, 2.0]);
-        let (neighbors, distances) = index.query_knn(query.view(), 2).unwrap();
+        let (neighbors, distances) = index
+            .query_knn(query.view(), 2)
+            .expect("operation should succeed");
 
         assert_eq!(neighbors.len(), 2);
         assert_eq!(distances.len(), 2);
@@ -1006,7 +1014,7 @@ mod tests {
             .leaf_size(5)
             .num_threads(1)
             .build(&data)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(index.num_trees() > 0);
 
@@ -1037,7 +1045,7 @@ mod tests {
             1,
             Some(1),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let memory_usage = index.memory_usage();
         assert!(memory_usage > 0);

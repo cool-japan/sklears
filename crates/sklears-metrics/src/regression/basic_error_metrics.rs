@@ -98,7 +98,7 @@ pub fn median_absolute_error(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Metr
         .map(|(t, p)| (t - p).abs())
         .collect();
 
-    errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = errors.len();
     let median = if n % 2 == 0 {
@@ -167,7 +167,7 @@ pub fn median_absolute_percentage_error(
         .map(|(t, p)| ((t - p) / t).abs())
         .collect();
 
-    errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    errors.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
     let n = errors.len();
     let median = if n % 2 == 0 {
@@ -189,7 +189,7 @@ mod tests {
     fn test_mean_absolute_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.1, 2.1, 2.9];
-        let mae = mean_absolute_error(&y_true, &y_pred).unwrap();
+        let mae = mean_absolute_error(&y_true, &y_pred).expect("operation should succeed");
         assert!((mae - 0.1).abs() < f64::EPSILON);
     }
 
@@ -197,7 +197,7 @@ mod tests {
     fn test_mean_squared_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let mse = mean_squared_error(&y_true, &y_pred).unwrap();
+        let mse = mean_squared_error(&y_true, &y_pred).expect("operation should succeed");
         assert!((mse - 0.0).abs() < f64::EPSILON);
     }
 
@@ -205,7 +205,7 @@ mod tests {
     fn test_root_mean_squared_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.0, 2.0, 3.0];
-        let rmse = root_mean_squared_error(&y_true, &y_pred).unwrap();
+        let rmse = root_mean_squared_error(&y_true, &y_pred).expect("operation should succeed");
         assert!((rmse - 0.0).abs() < f64::EPSILON);
     }
 
@@ -213,7 +213,7 @@ mod tests {
     fn test_max_error() {
         let y_true = array![1.0, 2.0, 3.0];
         let y_pred = array![1.5, 2.0, 2.5];
-        let max_err = max_error(&y_true, &y_pred).unwrap();
+        let max_err = max_error(&y_true, &y_pred).expect("operation should succeed");
         assert!((max_err - 0.5).abs() < f64::EPSILON);
     }
 

@@ -19,7 +19,7 @@ fn generate_random_matrix(rows: usize, cols: usize) -> Array2<f32> {
     let data: Vec<f32> = (0..rows * cols)
         .map(|_| rng.random_range(-1.0..1.0))
         .collect();
-    Array2::from_shape_vec((rows, cols), data).unwrap()
+    Array2::from_shape_vec((rows, cols), data).expect("shape and data length should match")
 }
 
 fn bench_distance_functions(c: &mut Criterion) {
@@ -294,13 +294,14 @@ fn bench_aligned_memory(c: &mut Criterion) {
             size,
             |bench, _| {
                 bench.iter(|| {
-                    let _alloc = AlignedAlloc::<f32>::new(black_box(*size)).unwrap();
+                    let _alloc = AlignedAlloc::<f32>::new(black_box(*size))
+                        .expect("operation should succeed");
                 });
             },
         );
 
         // Compare aligned vs unaligned access patterns
-        let aligned_alloc = AlignedAlloc::<f32>::new(*size).unwrap();
+        let aligned_alloc = AlignedAlloc::<f32>::new(*size).expect("operation should succeed");
         let regular_vec = vec![1.0f32; *size];
 
         group.bench_with_input(BenchmarkId::new("aligned_sum", size), size, |bench, _| {

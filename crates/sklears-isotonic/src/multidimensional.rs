@@ -153,8 +153,8 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiDimensionalIsotonicRegressio
             ));
         }
 
-        let training_x = self.training_x_.as_ref().unwrap();
-        let fitted_values = self.fitted_values_.as_ref().unwrap();
+        let training_x = self.training_x_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let fitted_values = self.fitted_values_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         let mut predictions = Array1::zeros(x.nrows());
 
@@ -169,7 +169,7 @@ impl Predict<Array2<Float>, Array1<Float>> for MultiDimensionalIsotonicRegressio
 impl MultiDimensionalIsotonicRegression<Trained> {
     /// Get fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 }
 
@@ -298,8 +298,8 @@ impl Predict<Array2<Float>, Array1<Float>>
             ));
         }
 
-        let training_x = self.training_x_.as_ref().unwrap();
-        let fitted_values = self.fitted_values_.as_ref().unwrap();
+        let training_x = self.training_x_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let fitted_values = self.fitted_values_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         let mut predictions = Array1::zeros(x.nrows());
 
@@ -314,7 +314,7 @@ impl Predict<Array2<Float>, Array1<Float>>
 impl SeparableMultiDimensionalIsotonicRegression<Trained> {
     /// Get fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 }
 
@@ -454,8 +454,8 @@ impl Predict<Array2<Float>, Array1<Float>>
     for NonSeparableMultiDimensionalIsotonicRegression<Trained>
 {
     fn predict(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        let training_x = self.training_x_.as_ref().unwrap();
-        let fitted_values = self.fitted_values_.as_ref().unwrap();
+        let training_x = self.training_x_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
+        let fitted_values = self.fitted_values_.as_ref().ok_or_else(|| SklearsError::NumericalError("value should be present".into()))?;
 
         let mut predictions = Array1::zeros(x.nrows());
 
@@ -470,7 +470,7 @@ impl Predict<Array2<Float>, Array1<Float>>
 impl NonSeparableMultiDimensionalIsotonicRegression<Trained> {
     /// Get fitted values
     pub fn fitted_values(&self) -> &Array1<Float> {
-        self.fitted_values_.as_ref().unwrap()
+        self.fitted_values_.as_ref().expect("value should be present")
     }
 }
 
@@ -549,7 +549,7 @@ fn fit_univariate_isotonic(
 
     // Sort indices by x values
     let mut indices: Vec<usize> = (0..x.len()).collect();
-    indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap());
+    indices.sort_by(|&a, &b| x[a].partial_cmp(&x[b]).unwrap_or(std::cmp::Ordering::Equal));
 
     let sorted_y: Vec<Float> = indices.iter().map(|&i| y[i]).collect();
 
@@ -655,7 +655,7 @@ fn interpolate_multidimensional(
     }
 
     // Sort by distance
-    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+    distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
     // Use inverse distance weighting with k nearest neighbors
     let k = (training_x.nrows().min(5)).max(1);

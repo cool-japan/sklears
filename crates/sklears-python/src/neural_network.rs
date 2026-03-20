@@ -3,8 +3,9 @@
 //! This module provides PyO3-based Python bindings for sklears neural network algorithms,
 //! including Multi-Layer Perceptron (MLP) classifiers and regressors.
 
+use crate::linear::common::{core_array1_to_py, core_array2_to_py};
 use crate::utils::{numpy_to_ndarray1, numpy_to_ndarray2};
-use numpy::{IntoPyArray, PyArray1, PyArray2};
+use numpy::{PyArray1, PyArray2};
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use sklears_core::traits::{Fit, Predict};
@@ -201,7 +202,7 @@ impl PyMLPClassifier {
         let x_array = numpy_to_ndarray2(x)?;
 
         match trained_model.predict_proba(&x_array) {
-            Ok(probabilities) => Ok(probabilities.into_pyarray(py).unbind()),
+            Ok(probabilities) => Ok(core_array2_to_py(py, &probabilities)?),
             Err(e) => Err(PyRuntimeError::new_err(format!(
                 "Probability prediction failed: {}",
                 e
@@ -411,7 +412,7 @@ impl PyMLPRegressor {
                 let predictions_1d = predictions_2d
                     .index_axis(scirs2_core::ndarray::Axis(1), 0)
                     .to_owned();
-                Ok(predictions_1d.into_pyarray(py).unbind())
+                Ok(core_array1_to_py(py, &predictions_1d))
             }
             Err(e) => Err(PyRuntimeError::new_err(format!("Prediction failed: {}", e))),
         }

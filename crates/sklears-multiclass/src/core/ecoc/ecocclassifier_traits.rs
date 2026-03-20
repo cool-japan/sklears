@@ -86,7 +86,7 @@ where
         let binary_problems: Vec<_> = (0..code_length)
             .map(|bit_idx| {
                 let binary_y: Array1<Float> = y.mapv(|label| {
-                    let class_idx = classes.iter().position(|&c| c == label).unwrap();
+                    let class_idx = classes.iter().position(|&c| c == label).expect("operation should succeed");
                     if code_matrix.get(class_idx, bit_idx) == 1 {
                         1.0
                     } else {

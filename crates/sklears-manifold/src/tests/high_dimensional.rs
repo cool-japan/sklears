@@ -20,8 +20,10 @@ fn test_johnson_lindenstrauss_basic() {
         .eps(0.5)
         .random_state(42);
 
-    let fitted = jl.fit(&x.view(), &()).unwrap();
-    let embedded = fitted.transform(&x.view()).unwrap();
+    let fitted = jl.fit(&x.view(), &()).expect("operation should succeed");
+    let embedded = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (3, 2));
     assert!(embedded.iter().all(|&x| x.is_finite()));
@@ -67,8 +69,10 @@ fn test_random_projection_basic() {
         .density(1.0)
         .random_state(42);
 
-    let fitted = rp.fit(&x.view(), &()).unwrap();
-    let embedded = fitted.transform(&x.view()).unwrap();
+    let fitted = rp.fit(&x.view(), &()).expect("operation should succeed");
+    let embedded = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (3, 2));
     assert!(embedded.iter().all(|&x| x.is_finite()));
@@ -87,8 +91,10 @@ fn test_random_projection_sparse() {
         .density(0.5)
         .random_state(42);
 
-    let fitted = rp.fit(&x.view(), &()).unwrap();
-    let embedded = fitted.transform(&x.view()).unwrap();
+    let fitted = rp.fit(&x.view(), &()).expect("operation should succeed");
+    let embedded = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (3, 2));
     assert!(embedded.iter().all(|&x| x.is_finite()));
@@ -119,8 +125,10 @@ fn test_sparse_random_projection_basic() {
         .density(0.1)
         .random_state(42);
 
-    let fitted = srp.fit(&x.view(), &()).unwrap();
-    let embedded = fitted.transform(&x.view()).unwrap();
+    let fitted = srp.fit(&x.view(), &()).expect("operation should succeed");
+    let embedded = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     assert_eq!(embedded.dim(), (3, 2));
     assert!(embedded.iter().all(|&x| x.is_finite()));
@@ -144,7 +152,7 @@ fn test_sparse_random_projection_sparsity() {
         .density(0.1)
         .random_state(42);
 
-    let fitted = srp.fit(&x.view(), &()).unwrap();
+    let fitted = srp.fit(&x.view(), &()).expect("operation should succeed");
 
     // Check that the projection matrix is indeed sparse
     // Note: projection_matrix is private, need to access through public API
@@ -161,7 +169,9 @@ fn test_sparse_random_projection_sparsity() {
     // assert!(sparsity > 0.7); // Allow some flexibility
 
     // For now, just check that we can transform data successfully
-    let result = fitted.transform(&x.view()).unwrap();
+    let result = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
     assert_eq!(result.shape(), &[10, 5]); // 10 samples projected to 5 components
 }
 
@@ -180,10 +190,14 @@ fn test_high_dimensional_methods_reproducibility() {
         .eps(0.5)
         .random_state(seed);
 
-    let fitted1 = jl1.fit(&x.view(), &()).unwrap();
-    let fitted2 = jl2.fit(&x.view(), &()).unwrap();
-    let embed1 = fitted1.transform(&x.view()).unwrap();
-    let embed2 = fitted2.transform(&x.view()).unwrap();
+    let fitted1 = jl1.fit(&x.view(), &()).expect("operation should succeed");
+    let fitted2 = jl2.fit(&x.view(), &()).expect("operation should succeed");
+    let embed1 = fitted1
+        .transform(&x.view())
+        .expect("operation should succeed");
+    let embed2 = fitted2
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let max_diff = embed1
         .iter()
@@ -202,10 +216,14 @@ fn test_high_dimensional_methods_reproducibility() {
         .density(1.0)
         .random_state(seed);
 
-    let fitted1 = rp1.fit(&x.view(), &()).unwrap();
-    let fitted2 = rp2.fit(&x.view(), &()).unwrap();
-    let embed1 = fitted1.transform(&x.view()).unwrap();
-    let embed2 = fitted2.transform(&x.view()).unwrap();
+    let fitted1 = rp1.fit(&x.view(), &()).expect("operation should succeed");
+    let fitted2 = rp2.fit(&x.view(), &()).expect("operation should succeed");
+    let embed1 = fitted1
+        .transform(&x.view())
+        .expect("operation should succeed");
+    let embed2 = fitted2
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let max_diff = embed1
         .iter()
@@ -224,10 +242,14 @@ fn test_high_dimensional_methods_reproducibility() {
         .density(0.5)
         .random_state(seed);
 
-    let fitted1 = srp1.fit(&x.view(), &()).unwrap();
-    let fitted2 = srp2.fit(&x.view(), &()).unwrap();
-    let embed1 = fitted1.transform(&x.view()).unwrap();
-    let embed2 = fitted2.transform(&x.view()).unwrap();
+    let fitted1 = srp1.fit(&x.view(), &()).expect("operation should succeed");
+    let fitted2 = srp2.fit(&x.view(), &()).expect("operation should succeed");
+    let embed1 = fitted1
+        .transform(&x.view())
+        .expect("operation should succeed");
+    let embed2 = fitted2
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let max_diff = embed1
         .iter()
@@ -262,8 +284,10 @@ fn test_high_dimensional_methods_distance_preservation() {
         .n_components(3)
         .eps(0.3)
         .random_state(42);
-    let fitted = jl.fit(&x.view(), &()).unwrap();
-    let embedded = fitted.transform(&x.view()).unwrap();
+    let fitted = jl.fit(&x.view(), &()).expect("operation should succeed");
+    let embedded = fitted
+        .transform(&x.view())
+        .expect("operation should succeed");
 
     let mut embed_distances = Vec::new();
     for i in 0..embedded.nrows() {

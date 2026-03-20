@@ -13,7 +13,6 @@ use scirs2_linalg::compat::ArrayLinalgExt;
 // Removed SVD import - using ArrayLinalgExt for both solve and svd methods
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::{Estimator, Fit, Float, Predict};
 use std::marker::PhantomData;
@@ -513,7 +512,11 @@ impl KernelRidgeRegression<Untrained> {
 
         // Sort eigenvalues and eigenvectors in descending order
         let mut indices: Vec<usize> = (0..n).collect();
-        indices.sort_by(|&i, &j| eigenvals[j].partial_cmp(&eigenvals[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvals[j]
+                .partial_cmp(&eigenvals[i])
+                .expect("operation should succeed")
+        });
 
         let mut sorted_eigenvals = Array1::zeros(n);
         let mut sorted_eigenvecs = Array2::zeros((n, n));
@@ -538,7 +541,7 @@ impl KernelRidgeRegression<Untrained> {
         let n = matrix.nrows();
 
         // Initialize random vector
-        let mut v = Array1::from_shape_fn(n, |_| thread_rng().gen::<Float>() - 0.5);
+        let mut v = Array1::from_shape_fn(n, |_| thread_rng().random::<Float>() - 0.5);
 
         // Normalize
         let norm = v.dot(&v).sqrt();
@@ -781,8 +784,8 @@ mod tests {
         };
 
         let krr = KernelRidgeRegression::new(approximation).alpha(0.1);
-        let fitted = krr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = krr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 4);
         // Check that predictions are reasonable
@@ -803,8 +806,8 @@ mod tests {
         };
 
         let krr = KernelRidgeRegression::new(approximation).alpha(1.0);
-        let fitted = krr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = krr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 3);
     }
@@ -820,8 +823,8 @@ mod tests {
         };
 
         let krr = KernelRidgeRegression::new(approximation).alpha(0.1);
-        let fitted = krr.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = krr.fit(&x, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("operation should succeed");
 
         assert_eq!(predictions.len(), 2);
     }
@@ -840,15 +843,15 @@ mod tests {
         let krr_direct = KernelRidgeRegression::new(approximation.clone())
             .solver(Solver::Direct)
             .alpha(0.1);
-        let fitted_direct = krr_direct.fit(&x, &y).unwrap();
-        let pred_direct = fitted_direct.predict(&x).unwrap();
+        let fitted_direct = krr_direct.fit(&x, &y).expect("operation should succeed");
+        let pred_direct = fitted_direct.predict(&x).expect("operation should succeed");
 
         // Test SVD solver
         let krr_svd = KernelRidgeRegression::new(approximation.clone())
             .solver(Solver::SVD)
             .alpha(0.1);
-        let fitted_svd = krr_svd.fit(&x, &y).unwrap();
-        let pred_svd = fitted_svd.predict(&x).unwrap();
+        let fitted_svd = krr_svd.fit(&x, &y).expect("operation should succeed");
+        let pred_svd = fitted_svd.predict(&x).expect("operation should succeed");
 
         // Test CG solver
         let krr_cg = KernelRidgeRegression::new(approximation)
@@ -857,8 +860,8 @@ mod tests {
                 tol: 1e-6,
             })
             .alpha(0.1);
-        let fitted_cg = krr_cg.fit(&x, &y).unwrap();
-        let pred_cg = fitted_cg.predict(&x).unwrap();
+        let fitted_cg = krr_cg.fit(&x, &y).expect("operation should succeed");
+        let pred_cg = fitted_cg.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred_direct.len(), 3);
         assert_eq!(pred_svd.len(), 3);
@@ -881,12 +884,18 @@ mod tests {
             .alpha(0.1)
             .update_frequency(2);
 
-        let fitted = online_krr.fit(&x_initial, &y_initial).unwrap();
-        let updated = fitted.partial_fit(&x_new, &y_new).unwrap();
+        let fitted = online_krr
+            .fit(&x_initial, &y_initial)
+            .expect("operation should succeed");
+        let updated = fitted
+            .partial_fit(&x_new, &y_new)
+            .expect("operation should succeed");
 
         assert_eq!(updated.update_count(), 1);
 
-        let predictions = updated.predict(&x_initial).unwrap();
+        let predictions = updated
+            .predict(&x_initial)
+            .expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -903,14 +912,14 @@ mod tests {
         let krr1 = KernelRidgeRegression::new(approximation.clone())
             .alpha(0.1)
             .random_state(42);
-        let fitted1 = krr1.fit(&x, &y).unwrap();
-        let pred1 = fitted1.predict(&x).unwrap();
+        let fitted1 = krr1.fit(&x, &y).expect("operation should succeed");
+        let pred1 = fitted1.predict(&x).expect("operation should succeed");
 
         let krr2 = KernelRidgeRegression::new(approximation)
             .alpha(0.1)
             .random_state(42);
-        let fitted2 = krr2.fit(&x, &y).unwrap();
-        let pred2 = fitted2.predict(&x).unwrap();
+        let fitted2 = krr2.fit(&x, &y).expect("operation should succeed");
+        let pred2 = fitted2.predict(&x).expect("operation should succeed");
 
         assert_eq!(pred1.len(), pred2.len());
         for i in 0..pred1.len() {

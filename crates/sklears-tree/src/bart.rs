@@ -162,8 +162,8 @@ impl BARTNode {
         if self.is_leaf() {
             self.leaf_value.unwrap_or(0.0)
         } else {
-            let feature_value = sample[self.split_feature.unwrap()];
-            let split_value = self.split_value.unwrap();
+            let feature_value = sample[self.split_feature.expect("sampling should succeed")];
+            let split_value = self.split_value.expect("operation should succeed");
 
             if feature_value <= split_value {
                 if let Some(ref left) = self.left_child {
@@ -598,7 +598,7 @@ impl BART<Untrained> {
             let posterior_variance = 1.0 / posterior_precision;
 
             // Sample new leaf value
-            let normal = Normal::new(posterior_mean, posterior_variance.sqrt()).unwrap();
+            let normal = Normal::new(posterior_mean, posterior_variance.sqrt()).expect("operation should succeed");
             leaf.leaf_value = Some(normal.sample(rng));
         }
 
@@ -615,7 +615,7 @@ impl BART<Untrained> {
         let posterior_rate = self.config.sigma_prior_rate + sum_squared_residuals / 2.0;
 
         // Sample from Gamma distribution for precision (1/sigma^2)
-        let gamma = Gamma::new(posterior_shape, 1.0 / posterior_rate).unwrap();
+        let gamma = Gamma::new(posterior_shape, 1.0 / posterior_rate).expect("operation should succeed");
         let precision = gamma.sample(rng);
 
         Ok(1.0 / precision.sqrt())
@@ -754,7 +754,7 @@ impl TrainedBART {
         }
 
         // Compute means and standard deviations
-        let means = all_predictions.mean_axis(Axis(1)).unwrap();
+        let means = all_predictions.mean_axis(Axis(1)).expect("array should have elements for mean computation");
         let mut stds = Array1::zeros(n_samples);
 
         for i in 0..n_samples {
@@ -810,7 +810,7 @@ impl TrainedBART {
 
         for i in 0..n_samples {
             let mut sample_preds: Vec<f64> = all_predictions.row(i).to_vec();
-            sample_preds.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            sample_preds.sort_by(|a, b| a.partial_cmp(b).expect("sampling should succeed"));
 
             means[i] = sample_preds.iter().sum::<f64>() / n_mcmc_samples as f64;
 
@@ -893,7 +893,7 @@ mod tests {
                 1.0, 2.0, 1.0, 2.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![2.0, 4.0, 3.0, 5.0, 4.0, 6.0, 5.0, 7.0, 6.0, 8.0]);
 
@@ -905,19 +905,19 @@ mod tests {
             .random_state(Some(42))
             .build();
 
-        let trained_bart = bart.fit(&X, &y).unwrap();
+        let trained_bart = bart.fit(&X, &y).expect("model fitting should succeed");
 
         // Test predictions
-        let predictions = trained_bart.predict(&X).unwrap();
+        let predictions = trained_bart.predict(&X).expect("prediction should succeed");
         assert_eq!(predictions.len(), 10);
 
         // Test uncertainty quantification
-        let (means, stds) = trained_bart.predict_with_uncertainty(&X).unwrap();
+        let (means, stds) = trained_bart.predict_with_uncertainty(&X).expect("operation should succeed");
         assert_eq!(means.len(), 10);
         assert_eq!(stds.len(), 10);
 
         // Test credible intervals
-        let (ci_means, lower, upper) = trained_bart.predict_credible_intervals(&X, 0.95).unwrap();
+        let (ci_means, lower, upper) = trained_bart.predict_credible_intervals(&X, 0.95).expect("operation should succeed");
         assert_eq!(ci_means.len(), 10);
         assert_eq!(lower.len(), 10);
         assert_eq!(upper.len(), 10);

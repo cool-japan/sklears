@@ -1,6 +1,11 @@
 //! Independent Component Analysis Imputer
 //!
 //! This module provides ICA-based imputation methods.
+//!
+//! # Note
+//!
+//! Not implemented in v0.1.0. `fit` and `transform` return
+//! `Err(SklearsError::NotImplemented)`. Planned for v0.2.0.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use sklears_core::{
@@ -108,25 +113,11 @@ impl Fit<ArrayView2<'_, Float>, ()> for ICAImputer<Untrained> {
         let X = X.mapv(|x| x);
         let (_n_samples, n_features) = X.dim();
 
-        // Simplified stub implementation
-        let mean = Array1::zeros(n_features);
-        let components = Array2::eye(n_features);
-        let mixing = Array2::eye(n_features);
-
-        Ok(ICAImputer {
-            state: ICAImputerTrained {
-                components_: components,
-                mixing_: mixing,
-                mean_: mean,
-                n_features_in_: n_features,
-            },
-            n_components: self.n_components,
-            algorithm: self.algorithm,
-            max_iter: self.max_iter,
-            tol: self.tol,
-            missing_values: self.missing_values,
-            random_state: self.random_state,
-        })
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = n_features;
+        Err(SklearsError::NotImplemented(
+            "ICAImputer::fit: not implemented in v0.1.0. Planned for v0.2.0.".to_string(),
+        ))
     }
 }
 
@@ -143,16 +134,10 @@ impl Transform<ArrayView2<'_, Float>, Array2<Float>> for ICAImputer<ICAImputerTr
             )));
         }
 
-        // Simplified stub - just fill with zeros
-        let mut X_imputed = X.clone();
-        for i in 0..n_samples {
-            for j in 0..n_features {
-                if X[[i, j]].is_nan() {
-                    X_imputed[[i, j]] = 0.0;
-                }
-            }
-        }
-
-        Ok(X_imputed.mapv(|x| x as Float))
+        // Not implemented in v0.1.0. Planned for v0.2.0.
+        let _ = (n_samples, n_features);
+        Err(SklearsError::NotImplemented(
+            "ICAImputer::transform: not implemented in v0.1.0. Planned for v0.2.0.".to_string(),
+        ))
     }
 }

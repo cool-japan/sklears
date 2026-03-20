@@ -289,7 +289,8 @@ impl ImageFeaturePipeline {
             if !keypoints.is_empty() {
                 let descriptors = extractor.extract_descriptors(image, &keypoints)?;
                 for row in descriptors.rows() {
-                    all_features.extend_from_slice(row.as_slice().unwrap());
+                    all_features
+                        .extend_from_slice(row.as_slice().expect("operation should succeed"));
                 }
             }
         }
@@ -300,7 +301,8 @@ impl ImageFeaturePipeline {
             if !keypoints.is_empty() {
                 let descriptors = extractor.extract_descriptors(image, &keypoints)?;
                 for row in descriptors.rows() {
-                    all_features.extend_from_slice(row.as_slice().unwrap());
+                    all_features
+                        .extend_from_slice(row.as_slice().expect("operation should succeed"));
                 }
             }
         }
@@ -308,13 +310,13 @@ impl ImageFeaturePipeline {
         // Extract wavelet features
         if let Some(ref extractor) = self.wavelet_extractor {
             let features = extractor.extract_features(image)?;
-            all_features.extend_from_slice(features.as_slice().unwrap());
+            all_features.extend_from_slice(features.as_slice().expect("operation should succeed"));
         }
 
         // Extract shape descriptors
         if let Some(ref extractor) = self.shape_extractor {
             let features = extractor.extract_features(image)?;
-            all_features.extend_from_slice(features.as_slice().unwrap());
+            all_features.extend_from_slice(features.as_slice().expect("operation should succeed"));
         }
 
         // Extract fractal dimension
@@ -326,7 +328,7 @@ impl ImageFeaturePipeline {
         // Extract Zernike moments
         if let Some(ref extractor) = self.zernike_extractor {
             let moments = extractor.extract_features(image)?;
-            all_features.extend_from_slice(moments.as_slice().unwrap());
+            all_features.extend_from_slice(moments.as_slice().expect("operation should succeed"));
         }
 
         if all_features.is_empty() {
@@ -432,8 +434,10 @@ mod tests {
 
     #[test]
     fn test_extract_patches_2d() {
-        let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect()).unwrap();
-        let patches = extract_patches_2d(&image.view(), (3, 3), Some(5), None).unwrap();
+        let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+        let patches = extract_patches_2d(&image.view(), (3, 3), Some(5), None)
+            .expect("operation should succeed");
 
         assert_eq!(patches.shape()[1], 3);
         assert_eq!(patches.shape()[2], 3);
@@ -442,9 +446,12 @@ mod tests {
 
     #[test]
     fn test_reconstruct_from_patches_2d() {
-        let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect()).unwrap();
-        let patches = extract_patches_2d(&image.view(), (3, 3), None, None).unwrap();
-        let reconstructed = reconstruct_from_patches_2d(&patches.view(), (6, 6)).unwrap();
+        let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+        let patches = extract_patches_2d(&image.view(), (3, 3), None, None)
+            .expect("operation should succeed");
+        let reconstructed =
+            reconstruct_from_patches_2d(&patches.view(), (6, 6)).expect("operation should succeed");
 
         assert_eq!(reconstructed.shape(), &[6, 6]);
     }
@@ -456,9 +463,11 @@ mod tests {
             .enable_fractal(true)
             .build();
 
-        let image =
-            Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64).collect()).unwrap();
-        let features = pipeline.extract_all_features(&image.view()).unwrap();
+        let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64).collect())
+            .expect("operation should succeed");
+        let features = pipeline
+            .extract_all_features(&image.view())
+            .expect("operation should succeed");
 
         assert!(features.len() > 0);
     }
@@ -466,7 +475,8 @@ mod tests {
     #[test]
     fn test_empty_pipeline() {
         let pipeline = ImageFeaturePipeline::builder().build();
-        let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect()).unwrap();
+        let image = Array2::from_shape_vec((10, 10), (0..100).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let result = pipeline.extract_all_features(&image.view());
         assert!(result.is_err());

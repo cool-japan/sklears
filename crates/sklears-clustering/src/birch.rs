@@ -243,7 +243,7 @@ impl CFNode {
 
         // Insert into closest child
         let split_result = {
-            let children = self.children.as_mut().unwrap();
+            let children = self.children.as_mut().expect("operation should succeed");
             children[best_idx].insert(point, threshold)?
         };
 
@@ -261,7 +261,10 @@ impl CFNode {
                         acc
                     },
                 ));
-                self.children.as_mut().unwrap().push(new_node);
+                self.children
+                    .as_mut()
+                    .expect("operation should succeed")
+                    .push(new_node);
                 Ok(None)
             } else {
                 // This node is also full, need to split
@@ -272,7 +275,10 @@ impl CFNode {
                         acc
                     },
                 ));
-                self.children.as_mut().unwrap().push(new_node);
+                self.children
+                    .as_mut()
+                    .expect("operation should succeed")
+                    .push(new_node);
                 self.split_internal()
             }
         } else {
@@ -327,20 +333,36 @@ impl CFNode {
             for (i, (cf, child)) in self.cfs.iter().zip(children.iter()).enumerate() {
                 if i == idx1 {
                     node1.cfs.push(cf.clone());
-                    node1.children.as_mut().unwrap().push(child.clone());
+                    node1
+                        .children
+                        .as_mut()
+                        .expect("operation should succeed")
+                        .push(child.clone());
                 } else if i == idx2 {
                     node2.cfs.push(cf.clone());
-                    node2.children.as_mut().unwrap().push(child.clone());
+                    node2
+                        .children
+                        .as_mut()
+                        .expect("operation should succeed")
+                        .push(child.clone());
                 } else {
                     let dist1 = cf.distance_to(&self.cfs[idx1]);
                     let dist2 = cf.distance_to(&self.cfs[idx2]);
 
                     if dist1 <= dist2 {
                         node1.cfs.push(cf.clone());
-                        node1.children.as_mut().unwrap().push(child.clone());
+                        node1
+                            .children
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .push(child.clone());
                     } else {
                         node2.cfs.push(cf.clone());
-                        node2.children.as_mut().unwrap().push(child.clone());
+                        node2
+                            .children
+                            .as_mut()
+                            .expect("operation should succeed")
+                            .push(child.clone());
                     }
                 }
             }
@@ -494,8 +516,16 @@ impl Fit<Array2<Float>, ()> for BIRCH<Untrained> {
 
                 new_root_node.cfs.push(old_root_cf);
                 new_root_node.cfs.push(new_node_cf);
-                new_root_node.children.as_mut().unwrap().push(root);
-                new_root_node.children.as_mut().unwrap().push(new_root);
+                new_root_node
+                    .children
+                    .as_mut()
+                    .expect("operation should succeed")
+                    .push(root);
+                new_root_node
+                    .children
+                    .as_mut()
+                    .expect("operation should succeed")
+                    .push(new_root);
 
                 root = new_root_node;
             }
@@ -757,7 +787,7 @@ mod tests {
             .threshold(1.0)
             .n_clusters(2)
             .fit(&data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let labels = model.labels();
         assert_eq!(labels.len(), 4);
@@ -777,14 +807,14 @@ mod tests {
             .threshold(1.0)
             .n_clusters(2)
             .fit(&train_data, &())
-            .unwrap();
+            .expect("operation should succeed");
 
         let test_data = array![
             [0.05, 0.05], // Should be close to first cluster
             [5.05, 5.05], // Should be close to second cluster
         ];
 
-        let predictions = model.predict(&test_data).unwrap();
+        let predictions = model.predict(&test_data).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
         assert_ne!(predictions[0], predictions[1]); // Should predict different clusters
     }

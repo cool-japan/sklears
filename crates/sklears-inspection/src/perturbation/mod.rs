@@ -73,7 +73,8 @@ mod tests {
             ..Default::default()
         };
 
-        let perturbed = generate_perturbations(&X.view(), &config).unwrap();
+        let perturbed =
+            generate_perturbations(&X.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 5);
         assert_eq!(perturbed[0].dim(), X.dim());
 
@@ -94,7 +95,8 @@ mod tests {
             ..Default::default()
         };
 
-        let perturbed = generate_perturbations(&X.view(), &config).unwrap();
+        let perturbed =
+            generate_perturbations(&X.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 3);
     }
 
@@ -109,7 +111,8 @@ mod tests {
             ..Default::default()
         };
 
-        let result = analyze_robustness(&simple_model, &X.view(), &config).unwrap();
+        let result = analyze_robustness(&simple_model, &X.view(), &config)
+            .expect("operation should succeed");
 
         assert_eq!(result.original_predictions.len(), 2);
         assert_eq!(result.perturbed_predictions.len(), 10);
@@ -128,7 +131,8 @@ mod tests {
             ..Default::default()
         };
 
-        let perturbed = generate_perturbations(&X.view(), &config).unwrap();
+        let perturbed =
+            generate_perturbations(&X.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 5);
     }
 
@@ -143,7 +147,8 @@ mod tests {
             ..Default::default()
         };
 
-        let perturbed = generate_perturbations(&X.view(), &config).unwrap();
+        let perturbed =
+            generate_perturbations(&X.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 5);
 
         // Check that some values are zero (dropped)
@@ -162,7 +167,8 @@ mod tests {
             ..Default::default()
         };
 
-        let perturbed = generate_perturbations(&X.view(), &config).unwrap();
+        let perturbed =
+            generate_perturbations(&X.view(), &config).expect("operation should succeed");
         assert_eq!(perturbed.len(), 3);
         assert_eq!(perturbed[0].dim(), X.dim());
     }
@@ -174,7 +180,8 @@ mod tests {
         let perturbed2 = array![[0.9, 1.9], [2.9, 3.9]];
         let perturbed_data = vec![perturbed1, perturbed2];
 
-        let stats = calculate_perturbation_stats(&original.view(), &perturbed_data).unwrap();
+        let stats = calculate_perturbation_stats(&original.view(), &perturbed_data)
+            .expect("operation should succeed");
 
         assert_eq!(stats.mean_magnitude.len(), 2);
         assert_eq!(stats.std_magnitude.len(), 2);
@@ -204,7 +211,9 @@ mod tests {
             )
             .build();
 
-        let result = pipeline.execute(&X.view()).unwrap();
+        let result = pipeline
+            .execute(&X.view())
+            .expect("operation should succeed");
 
         assert_eq!(result.stage_results.len(), 2);
         assert!(result.stage_results.contains_key("gaussian"));
@@ -245,7 +254,9 @@ mod tests {
         });
         pipeline.add_stage(stage_with_condition);
 
-        let result = pipeline.execute(&X.view()).unwrap();
+        let result = pipeline
+            .execute(&X.view())
+            .expect("operation should succeed");
 
         // Stage should be skipped due to condition
         assert_eq!(result.stage_results.len(), 0);

@@ -233,21 +233,21 @@ impl NormalizationTransformer {
         }
 
         // Store parameters
-        *self.means.lock().unwrap() = means;
-        *self.std_devs.lock().unwrap() = std_devs;
-        *self.fitted.lock().unwrap() = true;
+        *self.means.lock().unwrap_or_else(|e| e.into_inner()) = means;
+        *self.std_devs.lock().unwrap_or_else(|e| e.into_inner()) = std_devs;
+        *self.fitted.lock().unwrap_or_else(|e| e.into_inner()) = true;
     }
 }
 
 impl FeatureTransformer for NormalizationTransformer {
     fn transform(&self, features: &[f64]) -> Vec<f64> {
-        let fitted = *self.fitted.lock().unwrap();
+        let fitted = *self.fitted.lock().unwrap_or_else(|e| e.into_inner());
         if !fitted {
             return features.to_vec();
         }
 
-        let means = self.means.lock().unwrap();
-        let std_devs = self.std_devs.lock().unwrap();
+        let means = self.means.lock().unwrap_or_else(|e| e.into_inner());
+        let std_devs = self.std_devs.lock().unwrap_or_else(|e| e.into_inner());
 
         features.iter()
             .enumerate()
@@ -308,21 +308,21 @@ impl ScalingTransformer {
         }
 
         // Store parameters
-        *self.mins.lock().unwrap() = mins;
-        *self.maxs.lock().unwrap() = maxs;
-        *self.fitted.lock().unwrap() = true;
+        *self.mins.lock().unwrap_or_else(|e| e.into_inner()) = mins;
+        *self.maxs.lock().unwrap_or_else(|e| e.into_inner()) = maxs;
+        *self.fitted.lock().unwrap_or_else(|e| e.into_inner()) = true;
     }
 }
 
 impl FeatureTransformer for ScalingTransformer {
     fn transform(&self, features: &[f64]) -> Vec<f64> {
-        let fitted = *self.fitted.lock().unwrap();
+        let fitted = *self.fitted.lock().unwrap_or_else(|e| e.into_inner());
         if !fitted {
             return features.to_vec();
         }
 
-        let mins = self.mins.lock().unwrap();
-        let maxs = self.maxs.lock().unwrap();
+        let mins = self.mins.lock().unwrap_or_else(|e| e.into_inner());
+        let maxs = self.maxs.lock().unwrap_or_else(|e| e.into_inner());
 
         features.iter()
             .enumerate()
@@ -387,7 +387,7 @@ impl BinningTransformer {
                 continue;
             }
 
-            values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
             // Create bin edges
             let mut edges = Vec::with_capacity(self.num_bins + 1);
@@ -408,8 +408,8 @@ impl BinningTransformer {
             all_bin_edges.push(edges);
         }
 
-        *self.bin_edges.lock().unwrap() = all_bin_edges;
-        *self.fitted.lock().unwrap() = true;
+        *self.bin_edges.lock().unwrap_or_else(|e| e.into_inner()) = all_bin_edges;
+        *self.fitted.lock().unwrap_or_else(|e| e.into_inner()) = true;
     }
 
     /// Get bin index for value
@@ -425,12 +425,12 @@ impl BinningTransformer {
 
 impl FeatureTransformer for BinningTransformer {
     fn transform(&self, features: &[f64]) -> Vec<f64> {
-        let fitted = *self.fitted.lock().unwrap();
+        let fitted = *self.fitted.lock().unwrap_or_else(|e| e.into_inner());
         if !fitted {
             return features.to_vec();
         }
 
-        let bin_edges = self.bin_edges.lock().unwrap();
+        let bin_edges = self.bin_edges.lock().unwrap_or_else(|e| e.into_inner());
 
         features.iter()
             .enumerate()
@@ -615,7 +615,7 @@ impl FeatureSelectionAlgorithm for CorrelationSelector {
                 })
                 .collect();
 
-            correlations.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+            correlations.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             selected_indices = correlations.iter()
                 .take(5.min(feature_count))
                 .map(|(idx, _)| *idx)
@@ -681,7 +681,7 @@ impl FeatureValidation {
 
     /// Validate features
     pub fn validate_features(&self, data: &[TrainingExample]) -> SklResult<()> {
-        let mut metrics = self.metrics.lock().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         metrics.total_validations += data.len() as u64;
 
         let mut validation_failures = 0;
@@ -707,7 +707,7 @@ impl FeatureValidation {
 
     /// Get validation metrics
     pub fn get_metrics(&self) -> ValidationMetrics {
-        self.metrics.lock().unwrap().clone()
+        self.metrics.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 

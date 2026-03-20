@@ -1536,7 +1536,7 @@ mod tests {
             .author("Test Author")
             .template(ReportTemplate::Classification);
 
-        let report = builder.build().unwrap();
+        let report = builder.build().expect("operation should succeed");
         assert_eq!(report.title, "Test Report");
         assert_eq!(report.author, "Test Author");
         assert!(!report.sections.is_empty());
@@ -1549,9 +1549,9 @@ mod tests {
 
         let report = LatexReportBuilder::new()
             .add_classification_metrics(&y_true.view(), &y_pred.view())
-            .unwrap()
+            .expect("operation should succeed")
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(report.metrics.len(), 4); // accuracy, precision, recall, f1
         assert_eq!(report.tables.len(), 1); // confusion matrix
@@ -1564,9 +1564,9 @@ mod tests {
 
         let report = LatexReportBuilder::new()
             .add_regression_metrics(&y_true.view(), &y_pred.view())
-            .unwrap()
+            .expect("operation should succeed")
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(report.metrics.len(), 4); // mae, mse, rmse, r2
     }
@@ -1577,9 +1577,9 @@ mod tests {
         let report = LatexReportBuilder::new()
             .title("Test Report")
             .build()
-            .unwrap();
+            .expect("operation should succeed");
 
-        let latex_code = report.to_latex().unwrap();
+        let latex_code = report.to_latex().expect("operation should succeed");
         assert!(latex_code.contains("\\documentclass"));
         assert!(latex_code.contains("Test Report"));
         assert!(latex_code.contains("\\begin{document}"));

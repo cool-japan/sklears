@@ -111,12 +111,16 @@ mod tests {
         let lp = LabelPropagation::new()
             .kernel("rbf".to_string())
             .gamma(20.0);
-        let fitted = lp.fit(&X.view(), &y.view()).unwrap();
+        let fitted = lp
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -129,12 +133,16 @@ mod tests {
             .kernel("rbf".to_string())
             .gamma(20.0)
             .alpha(0.2);
-        let fitted = ls.fit(&X.view(), &y.view()).unwrap();
+        let fitted = ls
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -144,9 +152,11 @@ mod tests {
         let y = array![0, 1, -1, -1]; // -1 indicates unlabeled
 
         let stc = SelfTrainingClassifier::new().threshold(0.5).max_iter(5);
-        let fitted = stc.fit(&X.view(), &y.view()).unwrap();
+        let fitted = stc
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -156,7 +166,7 @@ mod tests {
     //     let lp = LabelPropagation::new().kernel("rbf".to_string()).gamma(1.0);
     //     let X = array![[1.0, 2.0], [3.0, 4.0]];
     //
-    //     let W = lp.build_affinity_matrix(&X).unwrap();
+    //     let W = lp.build_affinity_matrix(&X).expect("operation should succeed");
     //     assert_eq!(W.dim(), (2, 2));
     //     assert_eq!(W[[0, 0]], 0.0); // Diagonal should be 0
     //     assert_eq!(W[[1, 1]], 0.0);
@@ -172,7 +182,7 @@ mod tests {
     //         .n_neighbors(1);
     //     let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
     //
-    //     let W = lp.build_affinity_matrix(&X).unwrap();
+    //     let W = lp.build_affinity_matrix(&X).expect("operation should succeed");
     //     assert_eq!(W.dim(), (3, 3));
     //
     //     // Check that each row has exactly n_neighbors non-zero entries
@@ -191,9 +201,11 @@ mod tests {
             .threshold(0.6)
             .confidence_method("entropy".to_string())
             .max_iter(5);
-        let fitted = est.fit(&X.view(), &y.view()).unwrap();
+        let fitted = est
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -213,9 +225,11 @@ mod tests {
             .p(1)
             .n(1)
             .max_iter(5);
-        let fitted = ct.fit(&X.view(), &y.view()).unwrap();
+        let fitted = ct
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -225,9 +239,11 @@ mod tests {
         let y = array![0, 1, -1, -1]; // -1 indicates unlabeled
 
         let tt = TriTraining::new().max_iter(5).theta(0.2);
-        let fitted = tt.fit(&X.view(), &y.view()).unwrap();
+        let fitted = tt
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -235,7 +251,7 @@ mod tests {
     fn test_knn_graph() {
         let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let W = knn_graph(&X, 1, "connectivity").unwrap();
+        let W = knn_graph(&X, 1, "connectivity").expect("operation should succeed");
         assert_eq!(W.dim(), (3, 3));
 
         // Check that each row has at most n_neighbors non-zero entries
@@ -249,7 +265,7 @@ mod tests {
     fn test_epsilon_graph() {
         let X = array![[1.0, 2.0], [1.1, 2.1], [5.0, 6.0]];
 
-        let W = epsilon_graph(&X, 1.0, "connectivity").unwrap();
+        let W = epsilon_graph(&X, 1.0, "connectivity").expect("operation should succeed");
         assert_eq!(W.dim(), (3, 3));
 
         // Points 0 and 1 should be connected (distance < 1.0)
@@ -260,7 +276,7 @@ mod tests {
     fn test_graph_laplacian() {
         let W = array![[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]];
 
-        let L = graph_laplacian(&W, false).unwrap();
+        let L = graph_laplacian(&W, false).expect("operation should succeed");
         assert_eq!(L.dim(), (3, 3));
 
         // Check Laplacian properties
@@ -284,9 +300,11 @@ mod tests {
             .k_add(1)
             .min_agreement(2)
             .max_iter(5);
-        let fitted = dcl.fit(&X.view(), &y.view()).unwrap();
+        let fitted = dcl
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -299,12 +317,16 @@ mod tests {
             .kernel("rbf".to_string())
             .gamma(20.0)
             .max_iter(100);
-        let fitted = hf.fit(&X.view(), &y.view()).unwrap();
+        let fitted = hf
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -318,12 +340,16 @@ mod tests {
             .gamma(20.0)
             .alpha(0.99)
             .max_iter(100);
-        let fitted = lgc.fit(&X.view(), &y.view()).unwrap();
+        let fitted = lgc
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -338,9 +364,11 @@ mod tests {
             .kernel("rbf".to_string())
             .gamma(1.0)
             .max_iter(100);
-        let fitted = mr.fit(&X.view(), &y.view()).unwrap();
+        let fitted = mr
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -353,12 +381,16 @@ mod tests {
             .n_components(2)
             .max_iter(50)
             .labeled_weight(10.0);
-        let fitted = gmm.fit(&X.view(), &y.view()).unwrap();
+        let fitted = gmm
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -379,9 +411,11 @@ mod tests {
             .k_add(1)
             .confidence_threshold(0.5)
             .max_iter(5);
-        let fitted = mvct.fit(&X.view(), &y.view()).unwrap();
+        let fitted = mvct
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Check that labeled samples maintain their labels
@@ -398,12 +432,16 @@ mod tests {
             .alpha(1.0)
             .max_iter(50)
             .class_weight(1.0);
-        let fitted = nb.fit(&X.view(), &y.view()).unwrap();
+        let fitted = nb
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (4, 2));
 
         // Check that probabilities sum to 1
@@ -417,7 +455,7 @@ mod tests {
     fn test_random_walk_laplacian() {
         let W = array![[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]];
 
-        let L_rw = random_walk_laplacian(&W).unwrap();
+        let L_rw = random_walk_laplacian(&W).expect("operation should succeed");
         assert_eq!(L_rw.dim(), (3, 3));
 
         // Check that L_rw has 1s on the diagonal
@@ -430,7 +468,7 @@ mod tests {
     fn test_diffusion_matrix() {
         let W = array![[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]];
 
-        let P = diffusion_matrix(&W, 2).unwrap();
+        let P = diffusion_matrix(&W, 2).expect("operation should succeed");
         assert_eq!(P.dim(), (3, 3));
 
         // Check that probabilities are non-negative
@@ -445,7 +483,7 @@ mod tests {
     fn test_adaptive_knn_graph() {
         let X = array![[1.0, 2.0], [1.1, 2.1], [5.0, 6.0]];
 
-        let W = adaptive_knn_graph(&X, "connectivity").unwrap();
+        let W = adaptive_knn_graph(&X, "connectivity").expect("operation should succeed");
         assert_eq!(W.dim(), (3, 3));
 
         // Check symmetry
@@ -463,7 +501,7 @@ mod tests {
             [0.1, 0.3, 0.7, 0.0]
         ];
 
-        let W_sparse = sparsify_graph(&W, 0.5).unwrap();
+        let W_sparse = sparsify_graph(&W, 0.5).expect("operation should succeed");
         assert_eq!(W_sparse.dim(), (4, 4));
 
         // Count non-zero edges in original and sparse graphs
@@ -484,7 +522,7 @@ mod tests {
             [0.0, 0.0, 0.0, 1.0, 0.0]
         ];
 
-        let labels = spectral_clustering(&W, 2, true, Some(42)).unwrap();
+        let labels = spectral_clustering(&W, 2, true, Some(42)).expect("operation should succeed");
         assert_eq!(labels.len(), 5);
 
         // Check that labels are valid
@@ -497,7 +535,7 @@ mod tests {
     fn test_spectral_embedding() {
         let W = array![[0.0, 1.0, 0.1], [1.0, 0.0, 0.2], [0.1, 0.2, 0.0]];
 
-        let embedding = spectral_embedding(&W, 2, true).unwrap();
+        let embedding = spectral_embedding(&W, 2, true).expect("operation should succeed");
         assert_eq!(embedding.dim(), (3, 2));
     }
 
@@ -525,8 +563,12 @@ mod tests {
         let lp = LabelPropagation::new()
             .kernel("rbf".to_string())
             .gamma(20.0);
-        let fitted_clean = lp.fit(&X.view(), &y_true.view()).unwrap();
-        let pred_clean = fitted_clean.predict(&X.view()).unwrap();
+        let fitted_clean = lp
+            .fit(&X.view(), &y_true.view())
+            .expect("operation should succeed");
+        let pred_clean = fitted_clean
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         // Test with label noise (flip some labels)
         let mut y_noisy = y_true.clone();
@@ -536,8 +578,12 @@ mod tests {
         let lp_noisy = LabelPropagation::new()
             .kernel("rbf".to_string())
             .gamma(20.0);
-        let fitted_noisy = lp_noisy.fit(&X.view(), &y_noisy.view()).unwrap();
-        let pred_noisy = fitted_noisy.predict(&X.view()).unwrap();
+        let fitted_noisy = lp_noisy
+            .fit(&X.view(), &y_noisy.view())
+            .expect("operation should succeed");
+        let pred_noisy = fitted_noisy
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         // Calculate robustness (predictions should not change dramatically)
         let different = pred_clean
@@ -573,16 +619,24 @@ mod tests {
 
         // Test without noise
         let stc_clean = SelfTrainingClassifier::new().threshold(0.8).max_iter(10);
-        let fitted_clean = stc_clean.fit(&X.view(), &y_clean.view()).unwrap();
-        let pred_clean = fitted_clean.predict(&X.view()).unwrap();
+        let fitted_clean = stc_clean
+            .fit(&X.view(), &y_clean.view())
+            .expect("operation should succeed");
+        let pred_clean = fitted_clean
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         // Test with noise
         let mut y_noisy = y_clean.clone();
         y_noisy[1] = 0; // Flip a label
 
         let stc_noisy = SelfTrainingClassifier::new().threshold(0.8).max_iter(10);
-        let fitted_noisy = stc_noisy.fit(&X.view(), &y_noisy.view()).unwrap();
-        let pred_noisy = fitted_noisy.predict(&X.view()).unwrap();
+        let fitted_noisy = stc_noisy
+            .fit(&X.view(), &y_noisy.view())
+            .expect("operation should succeed");
+        let pred_noisy = fitted_noisy
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         // Check that algorithm still produces valid predictions
         assert!(
@@ -618,8 +672,12 @@ mod tests {
             .p(1)
             .n(1)
             .max_iter(5);
-        let fitted_clean = ct_clean.fit(&X.view(), &y_clean.view()).unwrap();
-        let pred_clean = fitted_clean.predict(&X.view()).unwrap();
+        let fitted_clean = ct_clean
+            .fit(&X.view(), &y_clean.view())
+            .expect("operation should succeed");
+        let pred_clean = fitted_clean
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         // Test with noise
         let mut y_noisy = y_clean.clone();
@@ -631,8 +689,12 @@ mod tests {
             .p(1)
             .n(1)
             .max_iter(5);
-        let fitted_noisy = ct_noisy.fit(&X.view(), &y_noisy.view()).unwrap();
-        let pred_noisy = fitted_noisy.predict(&X.view()).unwrap();
+        let fitted_noisy = ct_noisy
+            .fit(&X.view(), &y_noisy.view())
+            .expect("operation should succeed");
+        let pred_noisy = fitted_noisy
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         // Check that predictions are valid
         assert!(
@@ -674,14 +736,22 @@ mod tests {
         let lp_small = LabelPropagation::new()
             .kernel("rbf".to_string())
             .gamma(20.0);
-        let fitted_small = lp_small.fit(&X.view(), &small_labeled.view()).unwrap();
-        let pred_small = fitted_small.predict(&X.view()).unwrap();
+        let fitted_small = lp_small
+            .fit(&X.view(), &small_labeled.view())
+            .expect("operation should succeed");
+        let pred_small = fitted_small
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         let lp_large = LabelPropagation::new()
             .kernel("rbf".to_string())
             .gamma(20.0);
-        let fitted_large = lp_large.fit(&X.view(), &large_labeled.view()).unwrap();
-        let pred_large = fitted_large.predict(&X.view()).unwrap();
+        let fitted_large = lp_large
+            .fit(&X.view(), &large_labeled.view())
+            .expect("operation should succeed");
+        let pred_large = fitted_large
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         // Both should produce valid predictions
         assert!(
@@ -705,8 +775,10 @@ mod tests {
             .kernel("rbf".to_string())
             .gamma(20.0)
             .max_iter(100);
-        let fitted = hf.fit(&X.view(), &y.view()).unwrap();
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let fitted = hf
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
 
         // Check that predictions are stable and valid
         assert!(
@@ -720,8 +792,12 @@ mod tests {
             .gamma(20.0)
             .alpha(0.99)
             .max_iter(100);
-        let fitted_lgc = lgc.fit(&X.view(), &y.view()).unwrap();
-        let predictions_lgc = fitted_lgc.predict(&X.view()).unwrap();
+        let fitted_lgc = lgc
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
+        let predictions_lgc = fitted_lgc
+            .predict(&X.view())
+            .expect("operation should succeed");
 
         assert!(
             predictions_lgc.iter().all(|&p| p >= 0 && p <= 1),

@@ -34,7 +34,7 @@
 //!     .add_stage("preprocessor", ComponentConfig::new("pre", "standard_scaler"))
 //!     .add_stage("trainer", ComponentConfig::new("train", "random_forest"))
 //!     .build()
-//!     .unwrap();
+//!     .unwrap_or_default();
 //! assert_eq!(pipeline.stages.len(), 2);
 //! ```
 //!

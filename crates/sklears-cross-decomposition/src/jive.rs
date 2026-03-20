@@ -30,7 +30,7 @@ use std::marker::PhantomData;
 /// let views = vec![view1, view2];
 ///
 /// let jive = JIVE::new().joint_rank(1).individual_ranks(vec![1, 1]);
-/// let fitted = jive.fit(&views, &()).unwrap();
+/// let fitted = jive.fit(&views, &()).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct JIVE<State = Untrained> {
@@ -240,7 +240,7 @@ impl JIVE<Untrained> {
             .iter()
             .map(|v| v.ncols())
             .min()
-            .unwrap()
+            .expect("operation should succeed")
             .min(n_samples);
         if self.joint_rank > max_joint_rank {
             return Err(SklearsError::InvalidInput(format!(
@@ -351,7 +351,9 @@ impl JIVE<Untrained> {
 
         for view in views {
             let view_mean = if self.center {
-                view.mean_axis(Axis(0)).unwrap()
+                view.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                    "empty array for mean computation".to_string(),
+                ))?
             } else {
                 Array1::zeros(view.ncols())
             };
@@ -663,7 +665,7 @@ impl JIVE<Untrained> {
             .map(|(i, &val)| (val, eigenvectors.column(i).to_owned()))
             .collect();
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
         let sorted_eigenvalues: Array1<Float> = eigen_pairs.iter().map(|(val, _)| *val).collect();
         let sorted_eigenvectors: Array2<Float> = {
@@ -681,10 +683,21 @@ impl JIVE<Untrained> {
 impl Transform<Vec<Array2<Float>>, (Array2<Float>, Vec<Array2<Float>>)> for JIVE<Trained> {
     /// Transform views into joint and individual components
     fn transform(&self, views: &Vec<Array2<Float>>) -> Result<(Array2<Float>, Vec<Array2<Float>>)> {
-        let joint_scores = self.joint_scores_.as_ref().unwrap();
-        let individual_scores = self.individual_scores_.as_ref().unwrap();
-        let means = self.means_.as_ref().unwrap();
-        let stds = self.stds_.as_ref().unwrap();
+        let joint_scores = self.joint_scores_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let individual_scores =
+            self.individual_scores_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?;
+        let means = self.means_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let stds = self.stds_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         if views.len() != individual_scores.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -731,63 +744,91 @@ impl Transform<Vec<Array2<Float>>, (Array2<Float>, Vec<Array2<Float>>)> for JIVE
 impl JIVE<Trained> {
     /// Get the joint structure matrix
     pub fn joint_structure(&self) -> &Array2<Float> {
-        self.joint_structure_.as_ref().unwrap()
+        self.joint_structure_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the individual structure matrices
     pub fn individual_structures(&self) -> &Vec<Array2<Float>> {
-        self.individual_structures_.as_ref().unwrap()
+        self.individual_structures_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the joint scores
     pub fn joint_scores(&self) -> &Array2<Float> {
-        self.joint_scores_.as_ref().unwrap()
+        self.joint_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the individual scores
     pub fn individual_scores(&self) -> &Vec<Array2<Float>> {
-        self.individual_scores_.as_ref().unwrap()
+        self.individual_scores_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the joint loadings for each view
     pub fn joint_loadings(&self) -> &Vec<Array2<Float>> {
-        self.joint_loadings_.as_ref().unwrap()
+        self.joint_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the individual loadings for each view
     pub fn individual_loadings(&self) -> &Vec<Array2<Float>> {
-        self.individual_loadings_.as_ref().unwrap()
+        self.individual_loadings_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the joint explained variance
     pub fn joint_explained_variance(&self) -> Float {
-        self.joint_explained_variance_.unwrap()
+        self.joint_explained_variance_
+            .expect("value should be set after fitting")
     }
 
     /// Get the individual explained variance for each view
     pub fn individual_explained_variance(&self) -> &Array1<Float> {
-        self.individual_explained_variance_.as_ref().unwrap()
+        self.individual_explained_variance_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the total explained variance ratio
     pub fn explained_variance_ratio(&self) -> Float {
-        self.explained_variance_ratio_.unwrap()
+        self.explained_variance_ratio_
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations for convergence
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Get the reconstruction errors for each view
     pub fn reconstruction_errors(&self) -> &Array1<Float> {
-        self.reconstruction_errors_.as_ref().unwrap()
+        self.reconstruction_errors_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Reconstruct the original data for each view
     pub fn reconstruct(&self, view_idx: usize) -> Result<Array2<Float>> {
-        let joint_structure = self.joint_structure_.as_ref().unwrap();
-        let individual_structures = self.individual_structures_.as_ref().unwrap();
+        let joint_structure = self
+            .joint_structure_
+            .as_ref()
+            .ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
+        let individual_structures =
+            self.individual_structures_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?;
 
         if view_idx >= individual_structures.len() {
             return Err(SklearsError::InvalidInput(format!(
@@ -799,8 +840,12 @@ impl JIVE<Trained> {
         let reconstructed = joint_structure + &individual_structures[view_idx];
 
         // Add back mean and scaling if needed
-        let means = self.means_.as_ref().unwrap();
-        let stds = self.stds_.as_ref().unwrap();
+        let means = self.means_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let stds = self.stds_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         let mut result = reconstructed;
 
@@ -834,7 +879,7 @@ mod tests {
         let views = vec![view1, view2];
 
         let jive = JIVE::new().joint_rank(1).individual_ranks(vec![1, 1]);
-        let fitted = jive.fit_views(&views).unwrap();
+        let fitted = jive.fit_views(&views).expect("fit should succeed");
 
         // Check that structures were computed
         assert_eq!(fitted.joint_structure().shape(), &[4, 1]);
@@ -850,8 +895,9 @@ mod tests {
         let views = vec![view1.clone(), view2.clone()];
 
         let jive = JIVE::new().joint_rank(1).individual_ranks(vec![1, 1]);
-        let fitted = jive.fit_views(&views).unwrap();
-        let (joint_transformed, individual_transformed) = fitted.transform(&views).unwrap();
+        let fitted = jive.fit_views(&views).expect("fit should succeed");
+        let (joint_transformed, individual_transformed) =
+            fitted.transform(&views).expect("transform should succeed");
 
         assert_eq!(joint_transformed.shape(), &[4, 1]);
         assert_eq!(individual_transformed.len(), 2);
@@ -866,10 +912,10 @@ mod tests {
         let views = vec![view1.clone(), view2.clone()];
 
         let jive = JIVE::new().joint_rank(1).individual_ranks(vec![1, 1]);
-        let fitted = jive.fit_views(&views).unwrap();
+        let fitted = jive.fit_views(&views).expect("fit should succeed");
 
-        let reconstructed_0 = fitted.reconstruct(0).unwrap();
-        let reconstructed_1 = fitted.reconstruct(1).unwrap();
+        let reconstructed_0 = fitted.reconstruct(0).expect("operation should succeed");
+        let reconstructed_1 = fitted.reconstruct(1).expect("operation should succeed");
 
         assert_eq!(reconstructed_0.shape(), view1.shape());
         assert_eq!(reconstructed_1.shape(), view2.shape());
@@ -905,7 +951,7 @@ mod tests {
         let views = vec![view1, view2];
 
         let jive = JIVE::new().joint_rank(1).individual_ranks(vec![1, 1]);
-        let fitted = jive.fit_views(&views).unwrap();
+        let fitted = jive.fit_views(&views).expect("fit should succeed");
 
         assert!(fitted.joint_explained_variance() >= 0.0);
         assert!(fitted

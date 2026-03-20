@@ -126,8 +126,11 @@ impl<T: Eq + Hash + Clone + Ord + Send + Sync> Fit<Array1<T>, ()> for LabelBinar
 
 impl<T: Eq + Hash + Clone> Transform<Array1<T>, Array2<Float>> for LabelBinarizer<T, Trained> {
     fn transform(&self, y: &Array1<T>) -> Result<Array2<Float>> {
-        let classes = self.classes_.as_ref().unwrap();
-        let class_to_index = self.class_to_index_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
+        let class_to_index = self
+            .class_to_index_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = y.len();
         let n_classes = classes.len();
 
@@ -175,12 +178,12 @@ impl<T: Eq + Hash + Clone> Transform<Array1<T>, Array2<Float>> for LabelBinarize
 impl<T: Eq + Hash + Clone> LabelBinarizer<T, Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Vec<T> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 
     /// Transform binary matrix back to original labels
     pub fn inverse_transform(&self, y: &Array2<Float>) -> Result<Array1<T>> {
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
         let n_samples = y.nrows();
         let n_classes = classes.len();
 
@@ -323,8 +326,11 @@ impl Fit<Vec<Vec<String>>, ()> for MultiLabelBinarizer<Untrained> {
 
 impl Transform<Vec<Vec<String>>, Array2<Float>> for MultiLabelBinarizer<Trained> {
     fn transform(&self, y: &Vec<Vec<String>>) -> Result<Array2<Float>> {
-        let classes = self.classes_.as_ref().unwrap();
-        let class_to_index = self.class_to_index_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
+        let class_to_index = self
+            .class_to_index_
+            .as_ref()
+            .expect("operation should succeed");
         let n_samples = y.len();
         let n_classes = classes.len();
 
@@ -346,12 +352,12 @@ impl Transform<Vec<Vec<String>>, Array2<Float>> for MultiLabelBinarizer<Trained>
 impl MultiLabelBinarizer<Trained> {
     /// Get the classes
     pub fn classes(&self) -> &Vec<String> {
-        self.classes_.as_ref().unwrap()
+        self.classes_.as_ref().expect("operation should succeed")
     }
 
     /// Transform binary matrix back to multi-label format
     pub fn inverse_transform(&self, y: &Array2<Float>) -> Result<Vec<Vec<String>>> {
-        let classes = self.classes_.as_ref().unwrap();
+        let classes = self.classes_.as_ref().expect("operation should succeed");
         let n_samples = y.nrows();
         let n_classes = classes.len();
 
@@ -389,9 +395,13 @@ mod tests {
     fn test_label_binarizer_binary() {
         let y = array![1, 0, 1, 0, 1];
 
-        let binarizer = LabelBinarizer::new().fit(&y, &()).unwrap();
+        let binarizer = LabelBinarizer::new()
+            .fit(&y, &())
+            .expect("model fitting should succeed");
 
-        let y_bin = binarizer.transform(&y).unwrap();
+        let y_bin = binarizer
+            .transform(&y)
+            .expect("transformation should succeed");
 
         // Binary case: should have 1 column
         assert_eq!(y_bin.shape(), &[5, 1]);
@@ -404,9 +414,13 @@ mod tests {
     fn test_label_binarizer_multiclass() {
         let y = array![0, 1, 2, 1, 0];
 
-        let binarizer = LabelBinarizer::new().fit(&y, &()).unwrap();
+        let binarizer = LabelBinarizer::new()
+            .fit(&y, &())
+            .expect("model fitting should succeed");
 
-        let y_bin = binarizer.transform(&y).unwrap();
+        let y_bin = binarizer
+            .transform(&y)
+            .expect("transformation should succeed");
 
         // Multiclass case: should have 3 columns
         assert_eq!(y_bin.shape(), &[5, 3]);
@@ -422,10 +436,16 @@ mod tests {
     fn test_label_binarizer_inverse_transform() {
         let y = array!["cat", "dog", "cat", "bird", "dog"];
 
-        let binarizer = LabelBinarizer::new().fit(&y, &()).unwrap();
+        let binarizer = LabelBinarizer::new()
+            .fit(&y, &())
+            .expect("model fitting should succeed");
 
-        let y_bin = binarizer.transform(&y).unwrap();
-        let y_inv = binarizer.inverse_transform(&y_bin).unwrap();
+        let y_bin = binarizer
+            .transform(&y)
+            .expect("transformation should succeed");
+        let y_inv = binarizer
+            .inverse_transform(&y_bin)
+            .expect("operation should succeed");
 
         assert_eq!(y, y_inv);
     }
@@ -438,9 +458,11 @@ mod tests {
             .neg_label(-1)
             .pos_label(1)
             .fit(&y, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let y_bin = binarizer.transform(&y).unwrap();
+        let y_bin = binarizer
+            .transform(&y)
+            .expect("transformation should succeed");
 
         assert_eq!(y_bin[[0, 0]], 1.0); // positive class
         assert_eq!(y_bin[[1, 0]], -1.0); // negative class
@@ -454,9 +476,13 @@ mod tests {
             vec!["sci-fi".to_string(), "comedy".to_string()],
         ];
 
-        let binarizer = MultiLabelBinarizer::new().fit(&y, &()).unwrap();
+        let binarizer = MultiLabelBinarizer::new()
+            .fit(&y, &())
+            .expect("model fitting should succeed");
 
-        let y_bin = binarizer.transform(&y).unwrap();
+        let y_bin = binarizer
+            .transform(&y)
+            .expect("transformation should succeed");
 
         // Should have 3 samples, 3 classes
         assert_eq!(y_bin.shape(), &[3, 3]);
@@ -480,10 +506,16 @@ mod tests {
             vec!["red".to_string(), "green".to_string()],
         ];
 
-        let binarizer = MultiLabelBinarizer::new().fit(&y, &()).unwrap();
+        let binarizer = MultiLabelBinarizer::new()
+            .fit(&y, &())
+            .expect("model fitting should succeed");
 
-        let y_bin = binarizer.transform(&y).unwrap();
-        let y_inv = binarizer.inverse_transform(&y_bin).unwrap();
+        let y_bin = binarizer
+            .transform(&y)
+            .expect("transformation should succeed");
+        let y_inv = binarizer
+            .inverse_transform(&y_bin)
+            .expect("operation should succeed");
 
         // Check that we get back the same labels (order might differ)
         for (original, reconstructed) in y.iter().zip(y_inv.iter()) {
@@ -510,9 +542,11 @@ mod tests {
         let binarizer = MultiLabelBinarizer::new()
             .classes(classes.clone())
             .fit(&y, &())
-            .unwrap();
+            .expect("operation should succeed");
 
-        let y_bin = binarizer.transform(&y).unwrap();
+        let y_bin = binarizer
+            .transform(&y)
+            .expect("transformation should succeed");
 
         // Should have 4 columns (including 'd' which wasn't in the data)
         assert_eq!(y_bin.shape(), &[2, 4]);

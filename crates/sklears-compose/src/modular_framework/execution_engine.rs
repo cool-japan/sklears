@@ -67,8 +67,8 @@ impl CompositionExecutionEngine {
 
     /// Create a new composition context
     pub fn create_context(&self, context_id: &str) -> SklResult<Arc<RwLock<CompositionContext>>> {
-        let mut contexts = self.contexts.write().unwrap();
-        let mut stats = self.stats.lock().unwrap();
+        let mut contexts = self.contexts.write().unwrap_or_else(|e| e.into_inner());
+        let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
 
         if contexts.contains_key(context_id) && !self.config.allow_context_override {
             return Err(SklearsError::InvalidInput(format!(
@@ -81,7 +81,7 @@ impl CompositionExecutionEngine {
         stats.total_contexts_created += 1;
 
         // Emit context creation event
-        let mut event_bus = self.event_bus.write().unwrap();
+        let mut event_bus = self.event_bus.write().unwrap_or_else(|e| e.into_inner());
         let event = ComponentEvent::new("execution_engine", "context_created")
             .with_data("context_id", context_id);
         event_bus.publish(event).ok();
@@ -92,7 +92,7 @@ impl CompositionExecutionEngine {
     /// Get composition context
     #[must_use]
     pub fn get_context(&self, context_id: &str) -> Option<Arc<RwLock<CompositionContext>>> {
-        let contexts = self.contexts.read().unwrap();
+        let contexts = self.contexts.read().unwrap_or_else(|e| e.into_inner());
         contexts.get(context_id).cloned()
     }
 
@@ -105,7 +105,7 @@ impl CompositionExecutionEngine {
     ) -> SklResult<ExecutionResult> {
         let execution_start = Instant::now();
         {
-            let mut stats = self.stats.lock().unwrap();
+            let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
             stats.total_executions += 1;
         }
 
@@ -134,7 +134,7 @@ impl CompositionExecutionEngine {
             .await?;
 
         let execution_time = execution_start.elapsed();
-        let mut stats = self.stats.lock().unwrap();
+        let mut stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
 
         match &result.pipeline_result {
             Ok(_) => stats.successful_executions += 1,
@@ -240,7 +240,7 @@ impl CompositionExecutionEngine {
     /// Get execution statistics
     #[must_use]
     pub fn get_statistics(&self) -> ExecutionStatistics {
-        let stats = self.stats.lock().unwrap();
+        let stats = self.stats.lock().unwrap_or_else(|e| e.into_inner());
         stats.clone()
     }
 
@@ -252,15 +252,18 @@ impl CompositionExecutionEngine {
     /// Shutdown the execution engine
     pub async fn shutdown(&self) -> SklResult<()> {
         // Stop all running executions
-        let scheduler = self.scheduler.write().unwrap();
+        let scheduler = self.scheduler.write().unwrap_or_else(|e| e.into_inner());
         scheduler.shutdown()?;
 
         // Clean up contexts
-        let mut contexts = self.contexts.write().unwrap();
+        let mut contexts = self.contexts.write().unwrap_or_else(|e| e.into_inner());
         contexts.clear();
 
         // Release all resources
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self
+            .resource_manager
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         resource_manager.release_all_resources()?;
 
         Ok(())
@@ -271,12 +274,18 @@ impl CompositionExecutionEngine {
         &self,
         pipeline: &Pipeline,
     ) -> SklResult<ResourceAllocation> {
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self
+            .resource_manager
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         resource_manager.allocate_for_pipeline(pipeline)
     }
 
     async fn release_execution_resources(&self, allocation: ResourceAllocation) -> SklResult<()> {
-        let mut resource_manager = self.resource_manager.write().unwrap();
+        let mut resource_manager = self
+            .resource_manager
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         resource_manager.release_allocation(allocation)
     }
 
@@ -301,12 +310,12 @@ impl CompositionExecutionEngine {
         execution_plan: ExecutionPlan,
         input_data: PipelineData,
     ) -> SklResult<String> {
-        let mut scheduler = self.scheduler.write().unwrap();
+        let mut scheduler = self.scheduler.write().unwrap_or_else(|e| e.into_inner());
         scheduler.schedule_execution(context, execution_plan, input_data)
     }
 
     async fn wait_for_execution(&self, execution_id: String) -> SklResult<ExecutionResult> {
-        let scheduler = self.scheduler.read().unwrap();
+        let scheduler = self.scheduler.read().unwrap_or_else(|e| e.into_inner());
         scheduler.wait_for_execution(&execution_id)
     }
 
@@ -562,7 +571,7 @@ impl ExecutionScheduler {
 
     pub fn shutdown(&self) -> SklResult<()> {
         let (lock, cvar) = &*self.shutdown_signal;
-        let mut shutdown = lock.lock().unwrap();
+        let mut shutdown = lock.lock().unwrap_or_else(|e| e.into_inner());
         *shutdown = true;
         cvar.notify_all();
         Ok(())
@@ -1057,7 +1066,7 @@ mod tests {
             serde_json::Value::String("test_value".to_string()),
         );
         assert_eq!(
-            context.get_variable("test_var").unwrap(),
+            context.get_variable("test_var").unwrap_or_default(),
             &serde_json::Value::String("test_value".to_string())
         );
 
@@ -1114,7 +1123,7 @@ mod tests {
         let allocation = manager.allocate_for_pipeline(&pipeline);
         assert!(allocation.is_ok());
 
-        let allocation = allocation.unwrap();
+        let allocation = allocation.expect("operation should succeed");
         let release_result = manager.release_allocation(allocation);
         assert!(release_result.is_ok());
     }

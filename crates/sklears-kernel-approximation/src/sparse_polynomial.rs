@@ -281,7 +281,11 @@ impl SparseMatrix {
                 SparsityStrategy::TopK(k) => {
                     if map.len() > *k {
                         let mut values: Vec<_> = map.iter().collect();
-                        values.sort_by(|a, b| b.1.abs().partial_cmp(&a.1.abs()).unwrap());
+                        values.sort_by(|a, b| {
+                            b.1.abs()
+                                .partial_cmp(&a.1.abs())
+                                .expect("operation should succeed")
+                        });
 
                         let new_map: HashMap<_, _> =
                             values.into_iter().take(*k).map(|(k, v)| (*k, *v)).collect();
@@ -290,7 +294,7 @@ impl SparseMatrix {
                 }
                 SparsityStrategy::Percentile(percentile) => {
                     let mut abs_values: Vec<Float> = map.values().map(|v| v.abs()).collect();
-                    abs_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    abs_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
 
                     if !abs_values.is_empty() {
                         let idx = ((percentile / 100.0) * abs_values.len() as Float) as usize;
@@ -542,9 +546,9 @@ impl SparsePolynomialFeatures<Untrained> {
 impl Transform<Array2<Float>, Array2<Float>> for SparsePolynomialFeatures<Trained> {
     fn transform(&self, x: &Array2<Float>) -> Result<Array2<Float>> {
         let (n_samples, n_features) = x.dim();
-        let n_input_features = self.n_input_features_.unwrap();
-        let n_output_features = self.n_output_features_.unwrap();
-        let powers = self.powers_.as_ref().unwrap();
+        let n_input_features = self.n_input_features_.expect("operation should succeed");
+        let n_output_features = self.n_output_features_.expect("operation should succeed");
+        let powers = self.powers_.as_ref().expect("operation should succeed");
 
         if n_features != n_input_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -584,30 +588,32 @@ impl Transform<Array2<Float>, Array2<Float>> for SparsePolynomialFeatures<Traine
 impl SparsePolynomialFeatures<Trained> {
     /// Get the number of input features
     pub fn n_input_features(&self) -> usize {
-        self.n_input_features_.unwrap()
+        self.n_input_features_.expect("operation should succeed")
     }
 
     /// Get the number of output features
     pub fn n_output_features(&self) -> usize {
-        self.n_output_features_.unwrap()
+        self.n_output_features_.expect("operation should succeed")
     }
 
     /// Get the powers for each feature
     pub fn powers(&self) -> &[Vec<u32>] {
-        self.powers_.as_ref().unwrap()
+        self.powers_.as_ref().expect("operation should succeed")
     }
 
     /// Get the feature indices mapping
     pub fn feature_indices(&self) -> &HashMap<Vec<u32>, usize> {
-        self.feature_indices_.as_ref().unwrap()
+        self.feature_indices_
+            .as_ref()
+            .expect("operation should succeed")
     }
 
     /// Transform and return as sparse matrix (more efficient for sparse data)
     pub fn transform_sparse(&self, x: &Array2<Float>) -> Result<SparseMatrix> {
         let (n_samples, n_features) = x.dim();
-        let n_input_features = self.n_input_features_.unwrap();
-        let n_output_features = self.n_output_features_.unwrap();
-        let powers = self.powers_.as_ref().unwrap();
+        let n_input_features = self.n_input_features_.expect("operation should succeed");
+        let n_output_features = self.n_output_features_.expect("operation should succeed");
+        let powers = self.powers_.as_ref().expect("operation should succeed");
 
         if n_features != n_input_features {
             return Err(SklearsError::InvalidInput(format!(
@@ -708,8 +714,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let sparse_poly = SparsePolynomialFeatures::new(2);
-        let fitted = sparse_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
         // Features: [1, a, b, a^2, ab, b^2] = 6 features
@@ -729,8 +735,8 @@ mod tests {
 
         for strategy in strategies {
             let sparse_poly = SparsePolynomialFeatures::new(2).sparsity_strategy(strategy);
-            let fitted = sparse_poly.fit(&x, &()).unwrap();
-            let x_transformed = fitted.transform(&x).unwrap();
+            let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
+            let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(x_transformed.nrows(), 2);
             assert!(x_transformed.ncols() > 0);
@@ -742,8 +748,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let sparse_poly = SparsePolynomialFeatures::new(2).interaction_only(true);
-        let fitted = sparse_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
         // Should exclude pure powers like a^2, b^2
@@ -755,8 +761,8 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let sparse_poly = SparsePolynomialFeatures::new(2).include_bias(false);
-        let fitted = sparse_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         assert_eq!(x_transformed.nrows(), 2);
         // Features: [a, b, a^2, ab, b^2] = 5 features (no bias)
@@ -768,8 +774,10 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
 
         let sparse_poly = SparsePolynomialFeatures::new(2);
-        let fitted = sparse_poly.fit(&x, &()).unwrap();
-        let sparse_result = fitted.transform_sparse(&x).unwrap();
+        let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
+        let sparse_result = fitted
+            .transform_sparse(&x)
+            .expect("operation should succeed");
 
         assert_eq!(sparse_result.nrows, 2);
         assert_eq!(sparse_result.ncols, 6);
@@ -782,9 +790,11 @@ mod tests {
 
         let sparse_poly =
             SparsePolynomialFeatures::new(2).sparsity_strategy(SparsityStrategy::Absolute(0.01));
-        let fitted = sparse_poly.fit(&x, &()).unwrap();
+        let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
 
-        let (nnz, total, sparsity_ratio) = fitted.memory_efficiency(&x).unwrap();
+        let (nnz, total, sparsity_ratio) = fitted
+            .memory_efficiency(&x)
+            .expect("operation should succeed");
 
         assert!(nnz < total);
         assert!(sparsity_ratio > 0.0);
@@ -803,8 +813,8 @@ mod tests {
 
         for format in formats {
             let sparse_poly = SparsePolynomialFeatures::new(2).sparse_format(format);
-            let fitted = sparse_poly.fit(&x, &()).unwrap();
-            let x_transformed = fitted.transform(&x).unwrap();
+            let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
+            let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
             assert_eq!(x_transformed.nrows(), 1);
             assert_eq!(x_transformed.ncols(), 6);
@@ -817,7 +827,9 @@ mod tests {
         let x_test = array![[1.0, 2.0, 3.0]]; // Different number of features
 
         let sparse_poly = SparsePolynomialFeatures::new(2);
-        let fitted = sparse_poly.fit(&x_train, &()).unwrap();
+        let fitted = sparse_poly
+            .fit(&x_train, &())
+            .expect("operation should succeed");
         let result = fitted.transform(&x_test);
         assert!(result.is_err());
     }
@@ -854,8 +866,8 @@ mod tests {
         let x = array![[2.0], [3.0]];
 
         let sparse_poly = SparsePolynomialFeatures::new(3);
-        let fitted = sparse_poly.fit(&x, &()).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = sparse_poly.fit(&x, &()).expect("operation should succeed");
+        let x_transformed = fitted.transform(&x).expect("operation should succeed");
 
         // Features: [1, a, a^2, a^3] = 4 features
         assert_eq!(x_transformed.shape(), &[2, 4]);

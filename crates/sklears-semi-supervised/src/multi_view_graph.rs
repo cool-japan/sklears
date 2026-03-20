@@ -143,7 +143,7 @@ impl MultiViewGraphLearning {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
                 let weight = (-dist.powi(2) / 2.0).exp(); // RBF kernel
@@ -539,7 +539,7 @@ impl TemporalGraphLearning {
             }
 
             // Sort by distance and take k nearest neighbors
-            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
 
             for (dist, j) in distances.iter().take(self.k_neighbors.min(distances.len())) {
                 let weight = (-dist.powi(2) / 2.0).exp(); // RBF kernel
@@ -666,7 +666,7 @@ mod tests {
         let result = mvgl.fit(&views);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
 
         // Check that diagonal is zero (no self-loops)
@@ -693,7 +693,7 @@ mod tests {
         let result = mvgl.fit(&views);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
     }
 
@@ -712,7 +712,7 @@ mod tests {
         let result = mvgl.fit(&views);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
     }
 
@@ -730,7 +730,7 @@ mod tests {
         let result = hgl.fit(&data);
         assert!(result.is_ok());
 
-        let embeddings = result.unwrap();
+        let embeddings = result.expect("operation should succeed");
         assert!(embeddings.contains_key("type1"));
         assert!(embeddings.contains_key("type2"));
         assert_eq!(embeddings["type1"].dim(), (2, 2));
@@ -753,7 +753,7 @@ mod tests {
         let result = tgl.fit(&snapshots);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
 
         // Check that diagonal is zero (no self-loops)
@@ -775,7 +775,7 @@ mod tests {
         let result = tgl.fit(&snapshots);
         assert!(result.is_ok());
 
-        let graph = result.unwrap();
+        let graph = result.expect("operation should succeed");
         assert_eq!(graph.dim(), (3, 3));
     }
 

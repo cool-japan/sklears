@@ -620,16 +620,28 @@ impl RankingSVM<Untrained> {
 impl RankingSVM<Trained> {
     /// Score items for ranking
     pub fn score(&self, x: &Array2<Float>) -> Result<Array1<Float>> {
-        if x.ncols() != self.n_features_in_.unwrap() {
+        if x.ncols()
+            != self
+                .n_features_in_
+                .expect("n_features_in_ not available - model not fitted")
+        {
             return Err(SklearsError::InvalidInput(
                 "Feature mismatch: X has different number of features than training data"
                     .to_string(),
             ));
         }
 
-        let support_vectors = self.support_vectors_.as_ref().unwrap();
-        let alpha = self.alpha_.as_ref().unwrap();
-        let intercept = self.intercept_.unwrap();
+        let support_vectors = self
+            .support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted");
+        let alpha = self
+            .alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted");
+        let intercept = self
+            .intercept_
+            .expect("intercept_ not available - model not fitted");
         let kernel = match &self.config.kernel {
             KernelType::Linear => Box::new(crate::kernels::LinearKernel) as Box<dyn Kernel>,
             KernelType::Rbf { gamma } => {
@@ -698,27 +710,34 @@ impl RankingSVM<Trained> {
 
     /// Get the support vectors
     pub fn support_vectors(&self) -> &Array2<Float> {
-        self.support_vectors_.as_ref().unwrap()
+        self.support_vectors_
+            .as_ref()
+            .expect("support_vectors_ not available - model not fitted")
     }
 
     /// Get the support vector coefficients (alpha values)
     pub fn alpha(&self) -> &Array1<Float> {
-        self.alpha_.as_ref().unwrap()
+        self.alpha_
+            .as_ref()
+            .expect("alpha_ not available - model not fitted")
     }
 
     /// Get the intercept term
     pub fn intercept(&self) -> Float {
-        self.intercept_.unwrap()
+        self.intercept_
+            .expect("intercept_ not available - model not fitted")
     }
 
     /// Get the number of features
     pub fn n_features_in(&self) -> usize {
-        self.n_features_in_.unwrap()
+        self.n_features_in_
+            .expect("n_features_in_ not available - model not fitted")
     }
 
     /// Get the number of iterations performed during training
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_
+            .expect("n_iter_ not available - model not fitted")
     }
 }
 
@@ -754,7 +773,8 @@ mod tests {
             "q2".to_string(),
         ];
 
-        let ranking_data = RankingData::from_arrays(features, relevance_scores, query_ids).unwrap();
+        let ranking_data = RankingData::from_arrays(features, relevance_scores, query_ids)
+            .expect("operation should succeed");
 
         assert_eq!(ranking_data.queries.len(), 2);
         assert_eq!(ranking_data.total_items(), 4);
@@ -802,7 +822,8 @@ mod tests {
             "q2".to_string(),
         ];
 
-        let ranking_data = RankingData::from_arrays(features, relevance_scores, query_ids).unwrap();
+        let ranking_data = RankingData::from_arrays(features, relevance_scores, query_ids)
+            .expect("operation should succeed");
 
         let rsvm = RankingSVM::new()
             .c(1.0)
@@ -813,7 +834,9 @@ mod tests {
             .learning_rate(0.01)
             .random_state(42);
 
-        let fitted_model = rsvm.fit_ranking(&ranking_data).unwrap();
+        let fitted_model = rsvm
+            .fit_ranking(&ranking_data)
+            .expect("operation should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert!(fitted_model.n_iter() > 0);
@@ -821,15 +844,21 @@ mod tests {
         // Test scoring
         let test_features = array![[1.5, 2.5], [4.5, 4.0],];
 
-        let scores = fitted_model.score(&test_features).unwrap();
+        let scores = fitted_model
+            .score(&test_features)
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 2);
 
         // Test ranking
-        let rankings = fitted_model.rank(&test_features).unwrap();
+        let rankings = fitted_model
+            .rank(&test_features)
+            .expect("operation should succeed");
         assert_eq!(rankings.len(), 2);
 
         // Test argsort
-        let sorted_indices = fitted_model.argsort(&test_features).unwrap();
+        let sorted_indices = fitted_model
+            .argsort(&test_features)
+            .expect("operation should succeed");
         assert_eq!(sorted_indices.len(), 2);
 
         // Scores should be finite
@@ -850,8 +879,8 @@ mod tests {
             "q1".to_string(),
         ];
 
-        let ranking_data =
-            RankingData::from_arrays(features.clone(), relevance_scores, query_ids).unwrap();
+        let ranking_data = RankingData::from_arrays(features.clone(), relevance_scores, query_ids)
+            .expect("operation should succeed");
 
         let rsvm = RankingSVM::new()
             .c(1.0)
@@ -861,12 +890,16 @@ mod tests {
             .learning_rate(0.01)
             .random_state(42);
 
-        let fitted_model = rsvm.fit_ranking(&ranking_data).unwrap();
+        let fitted_model = rsvm
+            .fit_ranking(&ranking_data)
+            .expect("operation should succeed");
 
         assert_eq!(fitted_model.n_features_in(), 2);
         assert!(fitted_model.n_iter() > 0);
 
-        let scores = fitted_model.score(&features).unwrap();
+        let scores = fitted_model
+            .score(&features)
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 4);
 
         // Scores should generally increase with relevance

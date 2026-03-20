@@ -433,7 +433,7 @@ where
             let X_subset = X.select(Axis(1), subset);
 
             // Apply simple PCA (mean centering and covariance-based rotation)
-            let mean = X_subset.mean_axis(Axis(0)).unwrap();
+            let mean = X_subset.mean_axis(Axis(0)).expect("operation should succeed");
             let centered = &X_subset - &mean.insert_axis(Axis(0));
 
             // Compute covariance matrix
@@ -524,7 +524,7 @@ where
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = self.base_estimator.classes[max_idx];

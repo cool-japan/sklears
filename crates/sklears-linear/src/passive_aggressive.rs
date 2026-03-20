@@ -691,10 +691,10 @@ mod tests {
             .c(1.0)
             .max_iter(100)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
-        let accuracy = model.score(&x, &y).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
 
         // Should achieve perfect classification on this simple data
         assert!(accuracy > 0.9);
@@ -717,9 +717,9 @@ mod tests {
             .c(1.0)
             .max_iter(200)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let accuracy = model.score(&x, &y).unwrap();
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
         assert!(accuracy > 0.8);
 
         // Check that we have the right number of classes
@@ -738,16 +738,16 @@ mod tests {
             .epsilon(0.1)
             .max_iter(100)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let _predictions = model.predict(&x).unwrap();
-        let r2 = model.score(&x, &y).unwrap();
+        let _predictions = model.predict(&x).expect("prediction should succeed");
+        let r2 = model.score(&x, &y).expect("scoring should succeed");
 
         assert!(r2 > 0.9);
 
         // Test prediction on new data
         let x_test = array![[2.5], [4.5]];
-        let predictions_test = model.predict(&x_test).unwrap();
+        let predictions_test = model.predict(&x_test).expect("prediction should succeed");
         assert!(predictions_test[0] > 4.0 && predictions_test[0] < 6.0);
         assert!(predictions_test[1] > 8.0 && predictions_test[1] < 10.0);
     }
@@ -760,9 +760,12 @@ mod tests {
         let model = PassiveAggressiveRegressor::new()
             .fit_intercept(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        assert_abs_diff_eq!(model.intercept().unwrap(), 0.0);
+        assert_abs_diff_eq!(
+            model.intercept().expect("intercept should be available"),
+            0.0
+        );
     }
 
     #[test]
@@ -773,9 +776,9 @@ mod tests {
         let model = PassiveAggressiveClassifier::new()
             .loss(PassiveAggressiveLoss::SquaredHinge)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let accuracy = model.score(&x, &y).unwrap();
+        let accuracy = model.score(&x, &y).expect("scoring should succeed");
         assert!(accuracy > 0.8);
     }
 }

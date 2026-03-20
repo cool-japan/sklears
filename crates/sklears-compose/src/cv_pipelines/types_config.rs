@@ -956,13 +956,13 @@ mod tests {
     #[test]
     fn test_serialization() {
         let data_type = ImageDataType::Float32;
-        let serialized = serde_json::to_string(&data_type).unwrap();
-        let deserialized: ImageDataType = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&data_type).unwrap_or_default();
+        let deserialized: ImageDataType = serde_json::from_str(&serialized).unwrap_or_default();
         assert_eq!(data_type, deserialized);
 
         let color_space = ColorSpace::HSV;
-        let serialized = serde_json::to_string(&color_space).unwrap();
-        let deserialized: ColorSpace = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&color_space).unwrap_or_default();
+        let deserialized: ColorSpace = serde_json::from_str(&serialized).unwrap_or_default();
         assert_eq!(color_space, deserialized);
     }
 }

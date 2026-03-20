@@ -250,9 +250,11 @@ mod tests {
 
         let calibrator = BBQCalibrator::new(2, 4)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 4);
         assert!(calibrator.n_models() > 0);
@@ -278,9 +280,11 @@ mod tests {
 
         let calibrator = BBQCalibrator::new(2, 8)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.len(), 20);
         assert!(calibrator.n_models() > 0);
@@ -298,9 +302,11 @@ mod tests {
 
         let calibrator = BBQCalibrator::new(2, 3)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 8);
 
         // Test with all same labels
@@ -309,9 +315,11 @@ mod tests {
 
         let calibrator = BBQCalibrator::new(2, 3)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
         assert_eq!(calibrated.len(), 4);
 
         // All calibrated probabilities should be high since all labels are 1
@@ -330,7 +338,7 @@ mod tests {
 
         let calibrator = BBQCalibrator::new(3, 6)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(calibrator.n_models() >= 2);
 

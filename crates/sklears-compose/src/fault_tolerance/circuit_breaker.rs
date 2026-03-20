@@ -319,11 +319,11 @@ impl CircuitBreaker {
                 }
             },
             CircuitBreakerState::HalfOpen => {
-                let current_requests = *self.half_open_requests.read().unwrap();
+                let current_requests = *self.half_open_requests.read().unwrap_or_else(|e| e.into_inner());
                 if current_requests >= self.config.recovery_strategy.half_open_max_requests {
                     Err(CircuitBreakerError::HalfOpenLimitExceeded)
                 } else {
-                    *self.half_open_requests.write().unwrap() += 1;
+                    *self.half_open_requests.write().unwrap_or_else(|e| e.into_inner()) += 1;
                     Ok(())
                 }
             }
@@ -341,7 +341,7 @@ impl CircuitBreaker {
 
         // Add to request history
         {
-            let mut history = self.request_history.write().unwrap();
+            let mut history = self.request_history.write().unwrap_or_else(|e| e.into_inner());
             history.push(record);
 
             // Clean old records based on detection strategy window
@@ -353,7 +353,7 @@ impl CircuitBreaker {
 
         // Update metrics
         {
-            let mut metrics = self.metrics.write().unwrap();
+            let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
             metrics.total_requests += 1;
 
             if success {
@@ -373,15 +373,15 @@ impl CircuitBreaker {
 
     /// Record rejected request (circuit open)
     async fn record_rejection(&self) {
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.rejected_requests += 1;
         metrics.total_requests += 1;
     }
 
     /// Calculate current metrics from request history
     async fn calculate_metrics(&self) {
-        let history = self.request_history.read().unwrap();
-        let mut metrics = self.metrics.write().unwrap();
+        let history = self.request_history.read().unwrap_or_else(|e| e.into_inner());
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
 
         if !history.is_empty() {
             let total_requests = history.len() as f64;
@@ -394,7 +394,7 @@ impl CircuitBreaker {
         }
 
         let now = Instant::now();
-        let last_change = *self.last_state_change.read().unwrap();
+        let last_change = *self.last_state_change.read().unwrap_or_else(|e| e.into_inner());
         metrics.time_in_current_state = now - last_change;
         metrics.last_state_change = last_change;
     }
@@ -428,15 +428,15 @@ impl CircuitBreaker {
     async fn should_open_circuit(&self) -> bool {
         match &self.config.detection_strategy {
             FailureDetectionStrategy::FailureCount { threshold } => {
-                let metrics = self.metrics.read().unwrap();
+                let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
                 metrics.failed_requests >= *threshold as u64
             },
             FailureDetectionStrategy::FailureRate { threshold, .. } => {
-                let metrics = self.metrics.read().unwrap();
+                let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
                 metrics.failure_rate >= *threshold
             },
             FailureDetectionStrategy::ResponseTime { threshold } => {
-                let metrics = self.metrics.read().unwrap();
+                let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
                 metrics.average_response_time >= *threshold
             },
             FailureDetectionStrategy::Hybrid {
@@ -445,7 +445,7 @@ impl CircuitBreaker {
                 response_time_threshold,
                 ..
             } => {
-                let metrics = self.metrics.read().unwrap();
+                let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
                 metrics.failed_requests >= *failure_count_threshold as u64
                     || metrics.failure_rate >= *failure_rate_threshold
                     || metrics.average_response_time >= *response_time_threshold
@@ -459,7 +459,7 @@ impl CircuitBreaker {
             return false;
         }
 
-        let metrics = self.metrics.read().unwrap();
+        let metrics = self.metrics.read().unwrap_or_else(|e| e.into_inner());
         metrics.half_open_success_streak >= self.config.recovery_strategy.success_threshold
     }
 
@@ -469,29 +469,29 @@ impl CircuitBreaker {
             return false;
         }
 
-        let last_change = *self.last_state_change.read().unwrap();
+        let last_change = *self.last_state_change.read().unwrap_or_else(|e| e.into_inner());
         let elapsed = Instant::now() - last_change;
         elapsed >= self.config.recovery_strategy.timeout
     }
 
     /// Transition circuit to Open state
     async fn transition_to_open(&self) {
-        *self.state.write().unwrap() = CircuitBreakerState::Open;
-        *self.last_state_change.write().unwrap() = Instant::now();
-        *self.half_open_requests.write().unwrap() = 0;
+        *self.state.write().unwrap_or_else(|e| e.into_inner()) = CircuitBreakerState::Open;
+        *self.last_state_change.write().unwrap_or_else(|e| e.into_inner()) = Instant::now();
+        *self.half_open_requests.write().unwrap_or_else(|e| e.into_inner()) = 0;
 
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.current_state = CircuitBreakerState::Open;
         metrics.half_open_success_streak = 0;
     }
 
     /// Transition circuit to Closed state
     async fn transition_to_closed(&self) {
-        *self.state.write().unwrap() = CircuitBreakerState::Closed;
-        *self.last_state_change.write().unwrap() = Instant::now();
-        *self.half_open_requests.write().unwrap() = 0;
+        *self.state.write().unwrap_or_else(|e| e.into_inner()) = CircuitBreakerState::Closed;
+        *self.last_state_change.write().unwrap_or_else(|e| e.into_inner()) = Instant::now();
+        *self.half_open_requests.write().unwrap_or_else(|e| e.into_inner()) = 0;
 
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.current_state = CircuitBreakerState::Closed;
         metrics.half_open_success_streak = 0;
 
@@ -502,24 +502,24 @@ impl CircuitBreaker {
 
     /// Transition circuit to Half-Open state
     async fn transition_to_half_open(&self) {
-        *self.state.write().unwrap() = CircuitBreakerState::HalfOpen;
-        *self.last_state_change.write().unwrap() = Instant::now();
-        *self.half_open_requests.write().unwrap() = 0;
+        *self.state.write().unwrap_or_else(|e| e.into_inner()) = CircuitBreakerState::HalfOpen;
+        *self.last_state_change.write().unwrap_or_else(|e| e.into_inner()) = Instant::now();
+        *self.half_open_requests.write().unwrap_or_else(|e| e.into_inner()) = 0;
 
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.current_state = CircuitBreakerState::HalfOpen;
         metrics.half_open_success_streak = 0;
     }
 
     /// Get current circuit state
     pub async fn get_current_state(&self) -> CircuitBreakerState {
-        self.state.read().unwrap().clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get current circuit breaker metrics
     pub async fn get_metrics(&self) -> CircuitBreakerMetrics {
         self.calculate_metrics().await;
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Get circuit breaker configuration
@@ -532,11 +532,11 @@ impl CircuitBreaker {
         self.transition_to_closed().await;
 
         // Clear request history
-        self.request_history.write().unwrap().clear();
+        self.request_history.write().unwrap_or_else(|e| e.into_inner()).clear();
 
         // Reset metrics
         let now = Instant::now();
-        let mut metrics = self.metrics.write().unwrap();
+        let mut metrics = self.metrics.write().unwrap_or_else(|e| e.into_inner());
         metrics.total_requests = 0;
         metrics.successful_requests = 0;
         metrics.failed_requests = 0;
@@ -595,7 +595,7 @@ impl CircuitBreakerSystem {
     /// Get or create circuit breaker
     pub async fn get_circuit_breaker(&self, circuit_id: &str) -> Arc<CircuitBreaker> {
         {
-            let breakers = self.circuit_breakers.read().unwrap();
+            let breakers = self.circuit_breakers.read().unwrap_or_else(|e| e.into_inner());
             if let Some(breaker) = breakers.get(circuit_id) {
                 return breaker.clone();
             }
@@ -607,7 +607,7 @@ impl CircuitBreakerSystem {
 
         let breaker = Arc::new(CircuitBreaker::new(config));
 
-        let mut breakers = self.circuit_breakers.write().unwrap();
+        let mut breakers = self.circuit_breakers.write().unwrap_or_else(|e| e.into_inner());
         breakers.insert(circuit_id.to_string(), breaker.clone());
 
         breaker
@@ -615,14 +615,14 @@ impl CircuitBreakerSystem {
 
     /// Remove circuit breaker
     pub async fn remove_circuit_breaker(&self, circuit_id: &str) -> bool {
-        let mut breakers = self.circuit_breakers.write().unwrap();
+        let mut breakers = self.circuit_breakers.write().unwrap_or_else(|e| e.into_inner());
         breakers.remove(circuit_id).is_some()
     }
 
     /// Get all circuit breaker metrics
     pub async fn get_all_metrics(&self) -> HashMap<String, CircuitBreakerMetrics> {
         let mut all_metrics = HashMap::new();
-        let breakers = self.circuit_breakers.read().unwrap();
+        let breakers = self.circuit_breakers.read().unwrap_or_else(|e| e.into_inner());
 
         for (id, breaker) in breakers.iter() {
             let metrics = breaker.get_metrics().await;
@@ -634,7 +634,7 @@ impl CircuitBreakerSystem {
 
     /// Reset all circuit breakers
     pub async fn reset_all(&self) {
-        let breakers = self.circuit_breakers.read().unwrap();
+        let breakers = self.circuit_breakers.read().unwrap_or_else(|e| e.into_inner());
         for breaker in breakers.values() {
             breaker.reset().await;
         }
@@ -645,7 +645,7 @@ impl CircuitBreakerSystem {
         let mut status = HashMap::new();
         status.insert("system_id".to_string(), self.system_id.clone());
 
-        let breakers = self.circuit_breakers.read().unwrap();
+        let breakers = self.circuit_breakers.read().unwrap_or_else(|e| e.into_inner());
         status.insert("total_circuits".to_string(), breakers.len().to_string());
 
         let mut open_count = 0;
@@ -784,7 +784,7 @@ mod tests {
         assert!(all_metrics.contains_key("circuit2"));
 
         let health = system.get_health_status().await;
-        assert_eq!(health.get("total_circuits").unwrap(), "2");
+        assert_eq!(health.get("total_circuits").unwrap_or_default(), "2");
     }
 
     #[tokio::test]
@@ -814,7 +814,7 @@ mod tests {
         let results: Vec<bool> = futures::future::join_all(handles)
             .await
             .into_iter()
-            .map(|r| r.unwrap())
+            .map(|r| r.unwrap_or_default())
             .collect();
 
         // All operations should succeed

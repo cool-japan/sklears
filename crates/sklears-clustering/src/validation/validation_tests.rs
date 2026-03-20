@@ -138,7 +138,7 @@ mod tests {
 
         let result = validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Well-separated clusters should have good scores
         assert!(result.silhouette_score > 0.5);
@@ -167,7 +167,7 @@ mod tests {
 
         let result = validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Overlapping clusters should have lower scores
         assert!(result.silhouette_score >= -1.0 && result.silhouette_score <= 1.0);
@@ -188,14 +188,16 @@ mod tests {
         let internal_validator = ClusteringValidator::euclidean();
         let silhouette = internal_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let ch_index = internal_validator
             .calinski_harabasz_index(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let db_index = internal_validator
             .davies_bouldin_index(&data, &labels)
-            .unwrap();
-        let dunn_index = internal_validator.dunn_index(&data, &labels).unwrap();
+            .expect("operation should succeed");
+        let dunn_index = internal_validator
+            .dunn_index(&data, &labels)
+            .expect("operation should succeed");
 
         assert!(silhouette.mean_silhouette > 0.0);
         assert!(ch_index > 0.0);
@@ -204,8 +206,12 @@ mod tests {
 
         // Test coherence and separation
         let cs_analyzer = coherence_separation::CoherenceSeparationAnalyzer::euclidean();
-        let coherence = cs_analyzer.cluster_coherence(&data, &labels).unwrap();
-        let separation = cs_analyzer.cluster_separation(&data, &labels).unwrap();
+        let coherence = cs_analyzer
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
+        let separation = cs_analyzer
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
 
         assert!(coherence.overall_coherence > 0.0);
         assert!(separation.avg_centroid_separation > 0.0);
@@ -216,11 +222,11 @@ mod tests {
         let ari = external_validator
             .internal_validator
             .adjusted_rand_index(&labels, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let nmi = external_validator
             .internal_validator
             .normalized_mutual_information(&labels, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!((ari - 1.0).abs() < 1e-10); // Perfect match with itself
         assert!((nmi - 1.0).abs() < 1e-10); // Perfect match with itself
@@ -241,7 +247,7 @@ mod tests {
 
         let result = gap_analyzer
             .gap_statistic(&data, 1..6, Some(10), simple_clustering)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(result.k_values, vec![1, 2, 3, 4, 5]);
         assert_eq!(result.gap_values.len(), 5);
@@ -282,7 +288,7 @@ mod tests {
         // Test subsample stability
         let subsample_result = stability_analyzer
             .subsample_stability(&data, simple_clustering, 0.7, 5)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(subsample_result.mean_stability >= 0.0 && subsample_result.mean_stability <= 1.0);
         assert!(subsample_result.std_stability >= 0.0);
@@ -294,7 +300,7 @@ mod tests {
 
         let consensus_result = stability_analyzer
             .consensus_stability(seeded_clustering, &data, 5, None)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(consensus_result.mean_stability >= 0.0 && consensus_result.mean_stability <= 1.0);
         assert!(consensus_result.n_successful_runs >= 2);
@@ -303,7 +309,7 @@ mod tests {
         // Test cross-validation stability
         let cv_result = stability_analyzer
             .cross_validation_stability(simple_clustering, &data, 3, 2)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(cv_result.mean_stability >= 0.0 && cv_result.mean_stability <= 1.0);
         assert_eq!(cv_result.k_folds, 3);
@@ -322,13 +328,13 @@ mod tests {
 
         let euc_result = euclidean_validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
         let man_result = manhattan_validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
         let cos_result = cosine_validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
 
         // All metrics should produce valid results
         assert!(euc_result.internal_quality_score >= 0.0);
@@ -348,7 +354,7 @@ mod tests {
 
         let silhouette = internal_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should handle noise points (label -1) correctly
         assert_eq!(silhouette.sample_silhouettes.len(), data.nrows());
@@ -474,7 +480,7 @@ mod tests {
         let start = std::time::Instant::now();
         let silhouette = internal_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let duration = start.elapsed();
 
         assert!(duration.as_secs() < 5); // Should complete within 5 seconds
@@ -487,8 +493,12 @@ mod tests {
         let (data, labels) = generate_elongated_clusters();
         let cs_analyzer = coherence_separation::CoherenceSeparationAnalyzer::euclidean();
 
-        let coherence = cs_analyzer.cluster_coherence(&data, &labels).unwrap();
-        let separation = cs_analyzer.cluster_separation(&data, &labels).unwrap();
+        let coherence = cs_analyzer
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
+        let separation = cs_analyzer
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
 
         // Elongated clusters should have lower shape regularity
         assert!(coherence.overall_shape_regularity < 0.9);
@@ -511,10 +521,10 @@ mod tests {
         for _ in 0..5 {
             let silhouette = internal_validator
                 .silhouette_analysis(&data, &labels)
-                .unwrap();
+                .expect("operation should succeed");
             let ch_index = internal_validator
                 .calinski_harabasz_index(&data, &labels)
-                .unwrap();
+                .expect("operation should succeed");
 
             silhouette_scores.push(silhouette.mean_silhouette);
             ch_scores.push(ch_index);
@@ -539,13 +549,17 @@ mod tests {
         let internal_validator = ClusteringValidator::euclidean();
         let silhouette = internal_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!(silhouette.mean_silhouette > 0.5);
 
         // Step 2: Coherence and separation analysis
         let cs_analyzer = coherence_separation::CoherenceSeparationAnalyzer::euclidean();
-        let coherence = cs_analyzer.cluster_coherence(&data, &labels).unwrap();
-        let separation = cs_analyzer.cluster_separation(&data, &labels).unwrap();
+        let coherence = cs_analyzer
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
+        let separation = cs_analyzer
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
         assert!(coherence.overall_coherence > 0.5);
         assert!(separation.gap_ratio > 1.0);
 
@@ -554,7 +568,7 @@ mod tests {
         let ari = external_validator
             .internal_validator
             .adjusted_rand_index(&labels, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         assert!((ari - 1.0).abs() < 1e-10);
 
         // Step 4: Automated comprehensive validation
@@ -562,7 +576,7 @@ mod tests {
         let config = automated_validation::AutomatedValidationConfig::fast();
         let result = automated_validator
             .automated_cluster_validation(&data, &labels, &config)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(matches!(
             result.overall_quality,
@@ -632,25 +646,29 @@ mod tests {
         // Run all validation methods
         let silhouette = internal_validator
             .silhouette_analysis(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let ch_index = internal_validator
             .calinski_harabasz_index(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let db_index = internal_validator
             .davies_bouldin_index(&data, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
         let ari = external_validator
             .internal_validator
             .adjusted_rand_index(&labels, &labels)
-            .unwrap();
+            .expect("operation should succeed");
         let nmi = external_validator
             .internal_validator
             .normalized_mutual_information(&labels, &labels)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let coherence = cs_analyzer.cluster_coherence(&data, &labels).unwrap();
-        let separation = cs_analyzer.cluster_separation(&data, &labels).unwrap();
+        let coherence = cs_analyzer
+            .cluster_coherence(&data, &labels)
+            .expect("operation should succeed");
+        let separation = cs_analyzer
+            .cluster_separation(&data, &labels)
+            .expect("operation should succeed");
 
         // Simple clustering function for gap statistic
         let simple_clustering = |data: &Array2<f64>, k: usize| -> Result<Vec<i32>> {
@@ -660,7 +678,7 @@ mod tests {
 
         let gap_result = gap_analyzer
             .gap_statistic(&data, 2..5, Some(5), simple_clustering)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Verify all results are reasonable
         assert!(silhouette.mean_silhouette > 0.0);

@@ -422,9 +422,9 @@ unsafe fn bitonic_sort_4_sse2(arr: &mut [f32], ascending: bool) {
     let mut sorted = temp;
     sorted.sort_by(|a, b| {
         if ascending {
-            a.partial_cmp(b).unwrap()
+            a.partial_cmp(b).expect("operation should succeed")
         } else {
-            b.partial_cmp(a).unwrap()
+            b.partial_cmp(a).expect("operation should succeed")
         }
     });
 
@@ -521,9 +521,9 @@ unsafe fn bitonic_sort_8_avx2(arr: &mut [f32], ascending: bool) {
     let mut sorted = temp;
     sorted.sort_by(|a, b| {
         if ascending {
-            a.partial_cmp(b).unwrap()
+            a.partial_cmp(b).expect("operation should succeed")
         } else {
-            b.partial_cmp(a).unwrap()
+            b.partial_cmp(a).expect("operation should succeed")
         }
     });
 
@@ -718,7 +718,7 @@ mod tests {
 
         // Sort to verify
         let mut sorted = arr.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         assert_eq!(third_smallest, sorted[2]);
     }
 

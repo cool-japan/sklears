@@ -1091,7 +1091,7 @@ mod tests {
             ..Default::default()
         };
 
-        let superpixels = generate_superpixels(&image, &config).unwrap();
+        let superpixels = generate_superpixels(&image, &config).expect("operation should succeed");
 
         assert_eq!(superpixels.len(), 4);
         for superpixel in &superpixels {
@@ -1107,9 +1107,10 @@ mod tests {
             n_superpixels: 4,
             ..Default::default()
         };
-        let superpixels = generate_superpixels(&image, &config).unwrap();
+        let superpixels = generate_superpixels(&image, &config).expect("operation should succeed");
 
-        let (perturbed, active) = generate_image_perturbation(&image, &superpixels, 0.5).unwrap();
+        let (perturbed, active) = generate_image_perturbation(&image, &superpixels, 0.5)
+            .expect("operation should succeed");
 
         assert_eq!(perturbed.shape(), image.data.shape());
         assert_eq!(active.len(), superpixels.len());
@@ -1118,7 +1119,7 @@ mod tests {
     #[test]
     fn test_gradcam_stats() {
         let heatmap = array![[0.1, 0.8], [0.3, 0.9]];
-        let stats = compute_gradcam_stats(&heatmap).unwrap();
+        let stats = compute_gradcam_stats(&heatmap).expect("operation should succeed");
 
         assert_eq!(stats.max_activation, 0.9);
         assert!(stats.mean_activation > 0.0);
@@ -1130,7 +1131,7 @@ mod tests {
     #[test]
     fn test_smoothing() {
         let heatmap = array![[1.0, 0.0], [0.0, 1.0]];
-        let smoothed = apply_smoothing(&heatmap, 1.0).unwrap();
+        let smoothed = apply_smoothing(&heatmap, 1.0).expect("operation should succeed");
 
         assert_eq!(smoothed.shape(), heatmap.shape());
         // Smoothed values should be different from original (except edges)
@@ -1141,7 +1142,8 @@ mod tests {
         let feature_maps = Array3::ones((2, 2, 3));
         let gradients = Array3::ones((2, 2, 3));
 
-        let activation_map = compute_class_activation_map(&feature_maps, &gradients).unwrap();
+        let activation_map = compute_class_activation_map(&feature_maps, &gradients)
+            .expect("operation should succeed");
 
         assert_eq!(activation_map.shape(), &[2, 2]);
         // All values should be positive due to ReLU
@@ -1157,11 +1159,12 @@ mod tests {
             n_superpixels: 4,
             ..Default::default()
         };
-        let superpixels = generate_superpixels(&image, &config).unwrap();
+        let superpixels = generate_superpixels(&image, &config).expect("operation should succeed");
         let importance_scores = Array1::from_vec(vec![0.5, -0.3, 0.8, -0.1]);
 
         let (explanation_mask, positive_mask, negative_mask) =
-            generate_explanation_masks(&image, &superpixels, &importance_scores).unwrap();
+            generate_explanation_masks(&image, &superpixels, &importance_scores)
+                .expect("operation should succeed");
 
         assert_eq!(explanation_mask.shape(), &[4, 4]);
         assert_eq!(positive_mask.shape(), &[4, 4]);
@@ -1186,7 +1189,8 @@ mod tests {
         let bbox = (1.0, 1.0, 2.0, 2.0);
         let explanation = Array2::ones((4, 4));
 
-        let features = extract_key_features(&image, &bbox, &explanation).unwrap();
+        let features =
+            extract_key_features(&image, &bbox, &explanation).expect("operation should succeed");
 
         assert!(!features.is_empty());
         // Should have at least center feature
@@ -1198,8 +1202,8 @@ mod tests {
         let segmentation = array![[0, 0, 1, 1], [0, 0, 1, 1], [2, 2, 3, 3], [2, 2, 3, 3]];
         let pixel_explanations = Array2::ones((4, 4));
 
-        let boundary_importance =
-            compute_boundary_importance(&segmentation, &pixel_explanations).unwrap();
+        let boundary_importance = compute_boundary_importance(&segmentation, &pixel_explanations)
+            .expect("operation should succeed");
 
         assert_eq!(boundary_importance.shape(), &[4, 4]);
         // Boundary pixels should have non-zero importance
@@ -1220,7 +1224,8 @@ mod tests {
             Ok(array![image_data.sum()])
         };
 
-        let result = explain_image_with_lime(&image, model_fn, &config).unwrap();
+        let result =
+            explain_image_with_lime(&image, model_fn, &config).expect("operation should succeed");
 
         assert_eq!(result.superpixels.len(), 4);
         assert_eq!(result.importance_scores.len(), 4);

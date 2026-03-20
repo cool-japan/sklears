@@ -27,7 +27,7 @@
 use std::collections::HashMap;
 
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::{thread_rng, Rng, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 
@@ -590,7 +590,9 @@ mod tests {
         ];
 
         let eac = EvidenceAccumulationClustering::with_n_clusterings(3);
-        let result = eac.combine_clusterings(&partitions, 3).unwrap();
+        let result = eac
+            .combine_clusterings(&partitions, 3)
+            .expect("operation should succeed");
 
         assert_eq!(result.labels.len(), 6);
         assert_eq!(result.n_clusters, 3);
@@ -607,7 +609,9 @@ mod tests {
         ];
 
         let voting = VotingEnsemble::new(EnsembleConfig::default());
-        let result = voting.combine_clusterings(&partitions).unwrap();
+        let result = voting
+            .combine_clusterings(&partitions)
+            .expect("operation should succeed");
 
         assert_eq!(result.labels.len(), 6);
         assert!(result.n_clusters > 0);
@@ -622,7 +626,9 @@ mod tests {
                 .build(),
         );
 
-        let samples = bagging.generate_bootstrap_samples(100).unwrap();
+        let samples = bagging
+            .generate_bootstrap_samples(100)
+            .expect("operation should succeed");
         assert_eq!(samples.len(), 5);
         assert_eq!(samples[0].len(), 100);
     }

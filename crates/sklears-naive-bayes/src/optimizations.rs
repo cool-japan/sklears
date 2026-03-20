@@ -134,7 +134,8 @@ pub mod parallel {
                             .reduce_with(|a, b| a + b)
                             .unwrap_or(T::zero());
 
-                        class_means[feature_idx] = feature_sum / T::from(n_samples).unwrap();
+                        class_means[feature_idx] =
+                            feature_sum / T::from(n_samples).expect("operation should succeed");
                     }
 
                     // Compute variances for this class
@@ -149,7 +150,8 @@ pub mod parallel {
                             .reduce_with(|a, b| a + b)
                             .unwrap_or(T::zero());
 
-                        class_variances[feature_idx] = variance_sum / T::from(n_samples).unwrap();
+                        class_variances[feature_idx] =
+                            variance_sum / T::from(n_samples).expect("operation should succeed");
                     }
                 }
 
@@ -347,10 +349,11 @@ pub mod numerical_stability {
             return T::neg_infinity();
         }
 
-        let two_pi = T::from(2.0 * std::f64::consts::PI).unwrap();
+        let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
         let diff = x - mean;
-        let log_norm = -T::from(0.5).unwrap() * two_pi.ln() - T::from(0.5).unwrap() * variance.ln();
-        let log_exp = -T::from(0.5).unwrap() * (diff * diff) / variance;
+        let log_norm = -T::from(0.5).expect("operation should succeed") * two_pi.ln()
+            - T::from(0.5).expect("operation should succeed") * variance.ln();
+        let log_exp = -T::from(0.5).expect("operation should succeed") * (diff * diff) / variance;
 
         log_norm + log_exp
     }
@@ -361,7 +364,7 @@ pub mod numerical_stability {
             return T::neg_infinity();
         }
 
-        let k_f = T::from(k).unwrap();
+        let k_f = T::from(k).expect("operation should succeed");
         let log_factorial = log_factorial_stirling(k);
 
         k_f * lambda.ln() - lambda - log_factorial
@@ -373,18 +376,19 @@ pub mod numerical_stability {
             return T::zero();
         }
 
-        let n_f = T::from(n).unwrap();
-        let two_pi = T::from(2.0 * std::f64::consts::PI).unwrap();
+        let n_f = T::from(n).expect("operation should succeed");
+        let two_pi = T::from(2.0 * std::f64::consts::PI).expect("operation should succeed");
 
         if n < 10 {
             // Use exact computation for small values
             (1..=n)
-                .map(|i| T::from(i).unwrap().ln())
+                .map(|i| T::from(i).expect("operation should succeed").ln())
                 .reduce(|a, b| a + b)
                 .unwrap_or(T::zero())
         } else {
             // Use Stirling's approximation for larger values
-            T::from(0.5).unwrap() * (two_pi * n_f).ln() + n_f * n_f.ln() - n_f
+            T::from(0.5).expect("operation should succeed") * (two_pi * n_f).ln() + n_f * n_f.ln()
+                - n_f
         }
     }
 }
@@ -483,7 +487,7 @@ pub mod memory_efficient {
         pub fn update(&mut self, value: T) {
             self.count += 1;
             let delta = value - self.mean;
-            self.mean = self.mean + delta / T::from(self.count).unwrap();
+            self.mean = self.mean + delta / T::from(self.count).expect("operation should succeed");
             let delta2 = value - self.mean;
             self.m2 = self.m2 + delta * delta2;
         }
@@ -496,7 +500,7 @@ pub mod memory_efficient {
             if self.count < 2 {
                 T::zero()
             } else {
-                self.m2 / T::from(self.count - 1).unwrap()
+                self.m2 / T::from(self.count - 1).expect("operation should succeed")
             }
         }
 
@@ -1216,7 +1220,8 @@ pub mod profile_guided_optimization {
                         .map(|row| row[feature_idx])
                         .fold(T::zero(), |acc, val| acc + val);
 
-                    means[[class_idx, feature_idx]] = feature_sum / T::from(n_samples).unwrap();
+                    means[[class_idx, feature_idx]] =
+                        feature_sum / T::from(n_samples).expect("operation should succeed");
                 }
 
                 // Compute variances
@@ -1231,7 +1236,7 @@ pub mod profile_guided_optimization {
                         .fold(T::zero(), |acc, val| acc + val);
 
                     variances[[class_idx, feature_idx]] =
-                        variance_sum / T::from(n_samples).unwrap();
+                        variance_sum / T::from(n_samples).expect("operation should succeed");
                 }
             }
         }
@@ -1305,8 +1310,8 @@ mod tests {
 
     #[test]
     fn test_parallel_gaussian_estimation() {
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 1, 1]);
 
         let (means, variances) = parallel::estimate_gaussian_params_parallel(&data, &labels, 2);
@@ -1352,8 +1357,8 @@ mod tests {
 
     #[test]
     fn test_profile_guided_optimization_strategies() {
-        let test_data =
-            Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f64).collect()).unwrap();
+        let test_data = Array2::from_shape_vec((10, 5), (0..50).map(|x| x as f64).collect())
+            .expect("operation should succeed");
         let labels = Array1::from_vec(vec![0, 0, 0, 0, 0, 1, 1, 1, 1, 1]);
 
         // Test conservative strategy
@@ -1463,7 +1468,7 @@ mod tests {
         let profile = optimizer.export_profile();
         assert!(profile.is_some());
 
-        let exported = profile.unwrap();
+        let exported = profile.expect("operation should succeed");
         assert!(exported.operation_counts.get("log_sum_exp").is_some());
 
         // Reset profile

@@ -664,9 +664,11 @@ mod tests {
         // Create stable matrix
         let stable_matrix =
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-                .unwrap();
+                .expect("operation should succeed");
 
-        let report = analyzer.analyze_matrix(&stable_matrix).unwrap();
+        let report = analyzer
+            .analyze_matrix(&stable_matrix)
+            .expect("operation should succeed");
         // Note: This matrix might have high condition number due to being rank deficient
         // so we just check that analysis runs
         assert!(report.frobenius_norm > 0.0);
@@ -677,9 +679,12 @@ mod tests {
         let mut analyzer = NumericalStabilityAnalyzer::new();
 
         // Create matrix with NaN
-        let bad_matrix = Array2::from_shape_vec((2, 2), vec![1.0, Float::NAN, 3.0, 4.0]).unwrap();
+        let bad_matrix = Array2::from_shape_vec((2, 2), vec![1.0, Float::NAN, 3.0, 4.0])
+            .expect("shape and data length should match");
 
-        let report = analyzer.analyze_matrix(&bad_matrix).unwrap();
+        let report = analyzer
+            .analyze_matrix(&bad_matrix)
+            .expect("operation should succeed");
         assert!(!report.stable);
         assert_eq!(report.nan_count, 1);
     }
@@ -689,10 +694,12 @@ mod tests {
         let mut analyzer = NumericalStabilityAnalyzer::new();
 
         // Create matrix with Inf
-        let bad_matrix =
-            Array2::from_shape_vec((2, 2), vec![1.0, Float::INFINITY, 3.0, 4.0]).unwrap();
+        let bad_matrix = Array2::from_shape_vec((2, 2), vec![1.0, Float::INFINITY, 3.0, 4.0])
+            .expect("shape and data length should match");
 
-        let report = analyzer.analyze_matrix(&bad_matrix).unwrap();
+        let report = analyzer
+            .analyze_matrix(&bad_matrix)
+            .expect("operation should succeed");
         assert!(!report.stable);
         assert_eq!(report.inf_count, 1);
     }

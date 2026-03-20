@@ -29,7 +29,7 @@ use super::common::{Trained, Untrained};
 ///
 /// let mut tensor = Array3::ones((10, 8, 6));
 /// let completion = TensorCompletion::new(3);
-/// let fitted = completion.fit(&tensor, &()).unwrap();
+/// let fitted = completion.fit(&tensor, &()).expect("fit should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct TensorCompletion<State = Untrained> {
@@ -322,10 +322,23 @@ impl TensorCompletion<Untrained> {
 impl Transform<Array3<Float>, Array3<Float>> for TensorCompletion<Trained> {
     /// Complete missing entries in a new tensor
     fn transform(&self, tensor: &Array3<Float>) -> Result<Array3<Float>> {
-        let factors = self.factor_matrices_.as_ref().unwrap();
+        let factors = self
+            .factor_matrices_
+            .as_ref()
+            .ok_or(SklearsError::NotFitted {
+                operation: "accessing model attribute".to_string(),
+            })?;
         let shape = tensor.shape();
 
-        if shape != self.original_shape_.as_ref().unwrap().as_slice() {
+        if shape
+            != self
+                .original_shape_
+                .as_ref()
+                .ok_or(SklearsError::NotFitted {
+                    operation: "accessing model attribute".to_string(),
+                })?
+                .as_slice()
+        {
             return Err(SklearsError::InvalidInput(
                 "Tensor shape must match training shape".to_string(),
             ));
@@ -338,22 +351,27 @@ impl Transform<Array3<Float>, Array3<Float>> for TensorCompletion<Trained> {
 impl TensorCompletion<Trained> {
     /// Get the factor matrices
     pub fn factor_matrices(&self) -> &Vec<Array2<Float>> {
-        self.factor_matrices_.as_ref().unwrap()
+        self.factor_matrices_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the reconstruction error
     pub fn reconstruction_error(&self) -> Float {
-        self.reconstruction_error_.unwrap()
+        self.reconstruction_error_
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Get the missing value mask
     pub fn missing_mask(&self) -> &Array3<bool> {
-        self.missing_mask_.as_ref().unwrap()
+        self.missing_mask_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Helper method for completion
@@ -397,7 +415,7 @@ mod tests {
         tensor[[1, 1, 1]] = Float::NAN;
 
         let completion = TensorCompletion::new(1);
-        let fitted = completion.fit(&tensor, &()).unwrap();
+        let fitted = completion.fit(&tensor, &()).expect("fit should succeed");
 
         assert_eq!(fitted.n_factors, 1);
         assert!(fitted.reconstruction_error() >= 0.0);
@@ -411,7 +429,7 @@ mod tests {
         tensor[[1, 1, 1]] = 0.0005; // Below threshold
 
         let completion = TensorCompletion::new(1).missing_threshold(0.01);
-        let fitted = completion.fit(&tensor, &()).unwrap();
+        let fitted = completion.fit(&tensor, &()).expect("fit should succeed");
 
         assert_eq!(fitted.n_factors, 1);
         assert!(fitted.reconstruction_error() >= 0.0);
@@ -426,7 +444,7 @@ mod tests {
             .tol(1e-5)
             .regularization(0.05);
 
-        let fitted = completion.fit(&tensor, &()).unwrap();
+        let fitted = completion.fit(&tensor, &()).expect("fit should succeed");
         assert_eq!(fitted.n_factors, 2);
         assert!(fitted.n_iter() <= 50);
     }
@@ -435,12 +453,14 @@ mod tests {
     fn test_tensor_completion_transform() {
         let tensor = Array3::ones((3, 3, 3));
         let completion = TensorCompletion::new(1);
-        let fitted = completion.fit(&tensor, &()).unwrap();
+        let fitted = completion.fit(&tensor, &()).expect("fit should succeed");
 
         let mut test_tensor = Array3::ones((3, 3, 3));
         test_tensor[[0, 0, 0]] = Float::NAN;
 
-        let completed = fitted.transform(&test_tensor).unwrap();
+        let completed = fitted
+            .transform(&test_tensor)
+            .expect("transform should succeed");
         assert_eq!(completed.shape(), &[3, 3, 3]);
     }
 
@@ -448,7 +468,7 @@ mod tests {
     fn test_tensor_completion_wrong_shape() {
         let tensor = Array3::ones((3, 3, 3));
         let completion = TensorCompletion::new(1);
-        let fitted = completion.fit(&tensor, &()).unwrap();
+        let fitted = completion.fit(&tensor, &()).expect("fit should succeed");
 
         let wrong_tensor = Array3::ones((4, 4, 4));
         assert!(fitted.transform(&wrong_tensor).is_err());

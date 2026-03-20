@@ -5,7 +5,7 @@
 //! Gaussian cluster detection.
 
 use scirs2_core::ndarray::{Array2, ArrayView1};
-use scirs2_core::random::{Random, Rng};
+use scirs2_core::random::{Random, Rng, RngExt};
 use sklears_core::error::{Result, SklearsError};
 use sklears_core::prelude::*;
 
@@ -111,7 +111,7 @@ impl KMeans {
         let mut centroids = Array2::<f64>::zeros((self.config.n_clusters, n_features));
 
         // Choose first centroid randomly
-        let first_idx = rng.gen_range(0..n_samples);
+        let first_idx = rng.random_range(0..n_samples);
         centroids.row_mut(0).assign(&X.row(first_idx));
 
         // Choose remaining centroids
@@ -136,7 +136,7 @@ impl KMeans {
 
             // Choose next centroid with probability proportional to squared distance
             let chosen_idx = if total_distance <= f64::EPSILON {
-                rng.gen_range(0..n_samples)
+                rng.random_range(0..n_samples)
             } else {
                 let target = rng.random_range(0.0..total_distance);
                 let mut cumulative = 0.0;
@@ -595,7 +595,7 @@ mod tests {
             (6, 2),
             vec![1.0, 2.0, 1.5, 1.8, 5.0, 8.0, 8.0, 8.0, 1.0, 0.6, 9.0, 11.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 2,
@@ -607,7 +607,7 @@ mod tests {
 
         let kmeans = KMeans::new(config);
         let dummy_y = Array1::<f64>::zeros(X.nrows());
-        let fitted = kmeans.fit(&X, &dummy_y).unwrap();
+        let fitted = kmeans.fit(&X, &dummy_y).expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 6);
         assert_eq!(fitted.centroids.nrows(), 2);
@@ -621,7 +621,7 @@ mod tests {
     fn test_kmeans_predict() {
         let X_train =
             Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 2.0, 10.0, 10.0, 10.0, 11.0])
-                .unwrap();
+                .expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 2,
@@ -631,11 +631,14 @@ mod tests {
 
         let kmeans = KMeans::new(config);
         let dummy_y = Array1::<f64>::zeros(X_train.nrows());
-        let fitted = kmeans.fit(&X_train, &dummy_y).unwrap();
+        let fitted = kmeans
+            .fit(&X_train, &dummy_y)
+            .expect("operation should succeed");
 
-        let X_test = Array2::from_shape_vec((2, 2), vec![1.5, 1.5, 9.5, 10.5]).unwrap();
+        let X_test = Array2::from_shape_vec((2, 2), vec![1.5, 1.5, 9.5, 10.5])
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X_test).unwrap();
+        let predictions = fitted.predict(&X_test).expect("operation should succeed");
         assert_eq!(predictions.len(), 2);
     }
 
@@ -643,7 +646,7 @@ mod tests {
     #[allow(non_snake_case)]
     fn test_kmeans_plus_plus_init() {
         let X = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         let config = KMeansConfig {
             n_clusters: 2,
@@ -654,7 +657,7 @@ mod tests {
 
         let kmeans = KMeans::new(config);
         let dummy_y = Array1::<f64>::zeros(X.nrows());
-        let fitted = kmeans.fit(&X, &dummy_y).unwrap();
+        let fitted = kmeans.fit(&X, &dummy_y).expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 4);
         assert!(fitted.inertia >= 0.0);
@@ -670,7 +673,7 @@ mod tests {
                 9.8,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let config = XMeansConfig {
             k_min: 1,
@@ -681,7 +684,7 @@ mod tests {
 
         let xmeans = XMeans::new(config);
         let dummy_y = Array1::<f64>::zeros(X.nrows());
-        let fitted = xmeans.fit(&X, &dummy_y).unwrap();
+        let fitted = xmeans.fit(&X, &dummy_y).expect("operation should succeed");
 
         assert_eq!(fitted.labels.len(), 8);
         assert!(fitted.config.n_clusters >= 1);

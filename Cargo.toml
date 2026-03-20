@@ -40,7 +40,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0-rc.1"
+version = "0.1.0"
 authors = ["COOLJAPAN OU (Team KitaSan)"]
 license = "Apache-2.0"
 edition = "2021"
@@ -52,35 +52,32 @@ keywords = ["machine-learning", "ml", "scikit-learn", "data-science", "rust"]
 categories = ["science", "mathematics", "algorithms"]
 
 [workspace.dependencies]
-# Core dependencies from existing crates - LATEST AVAILABLE VERSIONS
-polars = { version = "0.52", default-features = false, features = ["lazy", "ndarray"] }
-
 # Essential SciRS2 dependencies for Sklears (SciRS2 Policy compliance) - v0.1.5 from crates.io
-scirs2-core = { version = "0.2.0", default-features = false, features = ["random", "linalg", "serialization"] }
+scirs2-core = { version = "0.3.4", default-features = false, features = ["random", "linalg", "serialization"] }
 
 # TRANSITIONAL: Keep scirs2-autograd during migration (will be removed when all crates use scirs2_core::ndarray)
-scirs2-autograd = { version = "0.2.0", default-features = false }
+scirs2-autograd = { version = "0.3.4", default-features = false }
 
 # HIGHLY LIKELY REQUIRED SciRS2 crates from crates.io
-scirs2-optimize = { version = "0.2.0", default-features = false }
-scirs2-linalg = { version = "0.2.0", default-features = false }
-scirs2-stats = { version = "0.2.0", default-features = false }
-scirs2-cluster = { version = "0.2.0", default-features = false }
-scirs2-metrics = { version = "0.2.0", default-features = false }
+scirs2-optimize = { version = "0.3.4", default-features = false }
+scirs2-linalg = { version = "0.3.4", default-features = false }
+scirs2-stats = { version = "0.3.4", default-features = false }
+scirs2-cluster = { version = "0.3.4", default-features = false }
+scirs2-metrics = { version = "0.3.4", default-features = false }
 
 # CONDITIONALLY REQUIRED SciRS2 crates from crates.io
-scirs2-datasets = { version = "0.2.0", default-features = false }
-scirs2-sparse = { version = "0.2.0", default-features = false }
-scirs2-neural = { version = "0.2.0", default-features = false }
+scirs2-datasets = { version = "0.3.4", default-features = false }
+scirs2-sparse = { version = "0.3.4", default-features = false }
+scirs2-neural = { version = "0.3.4", default-features = false }
 
 # SPECIALIZED DOMAIN-SPECIFIC SciRS2 crates from crates.io
-scirs2-special = { version = "0.2.0", default-features = false }
-scirs2-spatial = { version = "0.2.0", default-features = false }
-scirs2-signal = { version = "0.2.0", default-features = false }
-scirs2-series = { version = "0.2.0", default-features = false }  # For time series
-scirs2-text = { version = "0.2.0", default-features = false }    # For text processing
-scirs2-fft = { version = "0.2.0", default-features = false }      # For FFT operations
-scirs2-graph = { version = "0.2.0", default-features = false }  # For graph neural networks
+scirs2-special = { version = "0.3.4", default-features = false }
+scirs2-spatial = { version = "0.3.4", default-features = false }
+scirs2-signal = { version = "0.3.4", default-features = false }
+scirs2-series = { version = "0.3.4", default-features = false }  # For time series
+scirs2-text = { version = "0.3.4", default-features = false }    # For text processing
+scirs2-fft = { version = "0.3.4", default-features = false }      # For FFT operations
+scirs2-graph = { version = "0.3.4", default-features = false }  # For graph neural networks
 
 # ✅ APPROVED Numerical dependencies (compatible with SciRS2)
 approx = { version = "0.5" }
@@ -102,20 +99,20 @@ syn = { version = "2.0", features = ["full", "derive", "parsing", "printing"] }
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
-oxicode = { version = "0.1.1" }
+oxicode = { version = "0.2" }
 
 # COOLJAPAN Pure Rust implementations
 oxifft = { version = "0.1.3" }  # Pure Rust FFT (COOLJAPAN Policy - replaces rustfft)
 
 # Testing and benchmarking
 criterion = { version = "0.8" }
-proptest = { version = "1.7" }
+proptest = { version = "1.10" }
 divan = { version = "0.1" }
-tempfile = { version = "3.26" }
+tempfile = { version = "3.27" }
 
 # Logging
 log = { version = "0.4" }
-env_logger = { version = "0.10" }
+env_logger = { version = "0.11" }
 
 # Memory layout and zero-copy
 bytemuck = { version = "1.25", features = ["derive"] }
@@ -131,7 +128,7 @@ lazy_static = { version = "1.5" }
 futures-core = { version = "0.3" }
 futures = { version = "0.3" }
 futures-intrusive = { version = "0.5" }
-tokio = { version = "1.47", features = ["full"] }
+tokio = { version = "1.50", features = ["full"] }
 tokio-stream = { version = "0.1" }
 async-trait = { version = "0.1" }
 
@@ -140,33 +137,33 @@ chrono = { version = "0.4" }
 regex = { version = "1.12" }
 rustc_version_runtime = { version = "0.3" }
 lru = { version = "0.16" }
-uuid = { version = "1.20" }
+uuid = { version = "1.22" }
 fastrand = { version = "2.3" }
 statrs = { version = "0.18" }
 itertools = { version = "0.14" }
 
 # Optional format support dependencies
 serde_yaml = { version = "0.9" }
-toml = { version = "0.9" }
-serde_with = { version = "3.12" }
+toml = { version = "1.0" }
+serde_with = { version = "3.18" }
 quick-xml = { version = "0.39", features = ["serialize"] }
 flate2 = { version = "1.1" }
-sysinfo = { version = "0.30" }
+sysinfo = { version = "0.38" }
 rmp-serde = { version = "1.3" }
 zstd = { version = "0.13" }
 hdf5 = { version = "0.8" }
-arrow = { version = "54.3", default-features = false }
-arrow-csv = { version = "54" }
-arrow-ipc = { version = "54" }
-parquet = { version = "54.3" }
+arrow = { version = "58.0", default-features = false }
+arrow-csv = { version = "58" }
+arrow-ipc = { version = "58" }
+parquet = { version = "58.0" }
 
 # Python bindings
-pyo3 = { version = "0.27", features = ["extension-module", "chrono", "indexmap"] }
-numpy = { version = "0.27" }
+pyo3 = { version = "0.28", features = ["extension-module", "chrono", "indexmap"] }
+numpy = { version = "0.28" }
 
 # GPU and performance
-wgpu = { version = "24.0" }
-wide = { version = "1.1" }
+wgpu = { version = "28.0" }
+wide = { version = "1.2" }
 half = { version = "2.7" }
 
 # Web and WASM support
@@ -181,7 +178,7 @@ plotters-backend = { version = "0.3" }
 tinytemplate = { version = "1.2" }
 
 # Other utilities
-libloading = { version = "0.8" }
+libloading = { version = "0.9" }
 libm = { version = "0.2" }
 spin = { version = "0.10" }
 url = { version = "2.5" }
@@ -193,46 +190,46 @@ parking_lot = { version = "0.12" }
 
 # Cloud storage (optional)
 aws-config = { version = "1.8" }
-aws-sdk-s3 = { version = "1.79" }
-google-cloud-storage = { version = "0.25" }
+aws-sdk-s3 = { version = "1.126" }
+google-cloud-storage = { version = "1.9" }
 
 # Internal crates
-sklears = { version = "0.1.0-rc.1", path = "crates/sklears" }
-sklears-core = { version = "0.1.0-rc.1", path = "crates/sklears-core" }
-sklears-clustering = { version = "0.1.0-rc.1", path = "crates/sklears-clustering" }
-sklears-linear = { version = "0.1.0-rc.1", path = "crates/sklears-linear" }
-sklears-ensemble = { version = "0.1.0-rc.1", path = "crates/sklears-ensemble" }
-sklears-svm = { version = "0.1.0-rc.1", path = "crates/sklears-svm" }
-sklears-tree = { version = "0.1.0-rc.1", path = "crates/sklears-tree" }
-sklears-neighbors = { version = "0.1.0-rc.1", path = "crates/sklears-neighbors" }
-sklears-decomposition = { version = "0.1.0-rc.1", path = "crates/sklears-decomposition" }
-sklears-preprocessing = { version = "0.1.0-rc.1", path = "crates/sklears-preprocessing" }
-sklears-model-selection = { version = "0.1.0-rc.1", path = "crates/sklears-model-selection" }
-sklears-metrics = { version = "0.1.0-rc.1", path = "crates/sklears-metrics" }
-sklears-utils = { version = "0.1.0-rc.1", path = "crates/sklears-utils" }
-sklears-neural = { version = "0.1.0-rc.1", path = "crates/sklears-neural" }
-sklears-simd = { version = "0.1.0-rc.1", path = "crates/sklears-simd" }
-sklears-datasets = { version = "0.1.0-rc.1", path = "crates/sklears-datasets" }
-sklears-feature-selection = { version = "0.1.0-rc.1", path = "crates/sklears-feature-selection" }
-sklears-naive-bayes = { version = "0.1.0-rc.1", path = "crates/sklears-naive-bayes" }
-sklears-gaussian-process = { version = "0.1.0-rc.1", path = "crates/sklears-gaussian-process" }
-sklears-discriminant-analysis = { version = "0.1.0-rc.1", path = "crates/sklears-discriminant-analysis" }
-sklears-manifold = { version = "0.1.0-rc.1", path = "crates/sklears-manifold" }
-sklears-semi-supervised = { version = "0.1.0-rc.1", path = "crates/sklears-semi-supervised" }
-sklears-feature-extraction = { version = "0.1.0-rc.1", path = "crates/sklears-feature-extraction" }
-sklears-covariance = { version = "0.1.0-rc.1", path = "crates/sklears-covariance" }
-sklears-cross-decomposition = { version = "0.1.0-rc.1", path = "crates/sklears-cross-decomposition" }
-sklears-isotonic = { version = "0.1.0-rc.1", path = "crates/sklears-isotonic" }
-sklears-kernel-approximation = { version = "0.1.0-rc.1", path = "crates/sklears-kernel-approximation" }
-sklears-dummy = { version = "0.1.0-rc.1", path = "crates/sklears-dummy" }
-sklears-calibration = { version = "0.1.0-rc.1", path = "crates/sklears-calibration" }
-sklears-multiclass = { version = "0.1.0-rc.1", path = "crates/sklears-multiclass" }
-sklears-multioutput = { version = "0.1.0-rc.1", path = "crates/sklears-multioutput" }
-sklears-compose = { version = "0.1.0-rc.1", path = "crates/sklears-compose" }
-sklears-impute = { version = "0.1.0-rc.1", path = "crates/sklears-impute" }
-sklears-inspection = { version = "0.1.0-rc.1", path = "crates/sklears-inspection" }
-sklears-mixture = { version = "0.1.0-rc.1", path = "crates/sklears-mixture" }
-sklears-python = { version = "0.1.0-rc.1", path = "crates/sklears-python" }
+sklears = { version = "0.1.0", path = "crates/sklears" }
+sklears-core = { version = "0.1.0", path = "crates/sklears-core" }
+sklears-clustering = { version = "0.1.0", path = "crates/sklears-clustering" }
+sklears-linear = { version = "0.1.0", path = "crates/sklears-linear" }
+sklears-ensemble = { version = "0.1.0", path = "crates/sklears-ensemble" }
+sklears-svm = { version = "0.1.0", path = "crates/sklears-svm" }
+sklears-tree = { version = "0.1.0", path = "crates/sklears-tree" }
+sklears-neighbors = { version = "0.1.0", path = "crates/sklears-neighbors" }
+sklears-decomposition = { version = "0.1.0", path = "crates/sklears-decomposition" }
+sklears-preprocessing = { version = "0.1.0", path = "crates/sklears-preprocessing" }
+sklears-model-selection = { version = "0.1.0", path = "crates/sklears-model-selection" }
+sklears-metrics = { version = "0.1.0", path = "crates/sklears-metrics" }
+sklears-utils = { version = "0.1.0", path = "crates/sklears-utils" }
+sklears-neural = { version = "0.1.0", path = "crates/sklears-neural" }
+sklears-simd = { version = "0.1.0", path = "crates/sklears-simd" }
+sklears-datasets = { version = "0.1.0", path = "crates/sklears-datasets" }
+sklears-feature-selection = { version = "0.1.0", path = "crates/sklears-feature-selection" }
+sklears-naive-bayes = { version = "0.1.0", path = "crates/sklears-naive-bayes" }
+sklears-gaussian-process = { version = "0.1.0", path = "crates/sklears-gaussian-process" }
+sklears-discriminant-analysis = { version = "0.1.0", path = "crates/sklears-discriminant-analysis" }
+sklears-manifold = { version = "0.1.0", path = "crates/sklears-manifold" }
+sklears-semi-supervised = { version = "0.1.0", path = "crates/sklears-semi-supervised" }
+sklears-feature-extraction = { version = "0.1.0", path = "crates/sklears-feature-extraction" }
+sklears-covariance = { version = "0.1.0", path = "crates/sklears-covariance" }
+sklears-cross-decomposition = { version = "0.1.0", path = "crates/sklears-cross-decomposition" }
+sklears-isotonic = { version = "0.1.0", path = "crates/sklears-isotonic" }
+sklears-kernel-approximation = { version = "0.1.0", path = "crates/sklears-kernel-approximation" }
+sklears-dummy = { version = "0.1.0", path = "crates/sklears-dummy" }
+sklears-calibration = { version = "0.1.0", path = "crates/sklears-calibration" }
+sklears-multiclass = { version = "0.1.0", path = "crates/sklears-multiclass" }
+sklears-multioutput = { version = "0.1.0", path = "crates/sklears-multioutput" }
+sklears-compose = { version = "0.1.0", path = "crates/sklears-compose" }
+sklears-impute = { version = "0.1.0", path = "crates/sklears-impute" }
+sklears-inspection = { version = "0.1.0", path = "crates/sklears-inspection" }
+sklears-mixture = { version = "0.1.0", path = "crates/sklears-mixture" }
+sklears-python = { version = "0.1.0", path = "crates/sklears-python" }
 
 [workspace.lints.rust]
 # Code quality and consistency

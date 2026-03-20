@@ -29,11 +29,6 @@ impl Features {
         cfg!(feature = "binary")
     }
 
-    /// Check if Polars integration is enabled
-    pub const fn has_polars() -> bool {
-        cfg!(feature = "polars")
-    }
-
     /// Check if Arrow integration is enabled
     pub const fn has_arrow() -> bool {
         cfg!(feature = "arrow")
@@ -143,7 +138,6 @@ impl Features {
         features.insert("binary", Self::has_binary());
 
         // Data format support
-        features.insert("polars", Self::has_polars());
         features.insert("arrow", Self::has_arrow());
 
         // Performance features
@@ -204,7 +198,6 @@ impl Features {
                 binary: Self::has_binary(),
             },
             data_formats: DataFormatFeatures {
-                polars: Self::has_polars(),
                 arrow: Self::has_arrow(),
             },
             performance: PerformanceFeatures {
@@ -271,7 +264,6 @@ pub struct SerializationFeatures {
 /// Data format support features
 #[derive(Debug, Clone)]
 pub struct DataFormatFeatures {
-    pub polars: bool,
     pub arrow: bool,
 }
 

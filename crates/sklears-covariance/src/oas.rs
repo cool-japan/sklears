@@ -42,7 +42,7 @@ pub struct OASConfig {
 /// let X = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 ///
 /// let oas = OAS::new();
-/// let fitted = oas.fit(&X.view(), &()).unwrap();
+/// let fitted = oas.fit(&X.view(), &()).expect("model fitting should succeed");
 /// let covariance = fitted.get_covariance();
 /// let shrinkage = fitted.get_shrinkage();
 /// ```

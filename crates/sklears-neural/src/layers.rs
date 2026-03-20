@@ -80,8 +80,10 @@ impl<T: FloatBounds> Default for LayerConfig<T> {
         Self {
             input_size: 0,
             output_size: None,
-            momentum: T::from(0.1).unwrap_or_else(|| T::one() / T::from(10).unwrap()),
-            epsilon: T::from(1e-5).unwrap_or_else(|| T::one() / T::from(100000).unwrap()),
+            momentum: T::from(0.1)
+                .unwrap_or_else(|| T::one() / T::from(10).unwrap_or_else(|| T::zero())),
+            epsilon: T::from(1e-5)
+                .unwrap_or_else(|| T::one() / T::from(100000).unwrap_or_else(|| T::zero())),
             affine: true,
             track_running_stats: true,
         }

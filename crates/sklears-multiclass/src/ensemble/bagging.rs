@@ -542,7 +542,7 @@ where
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|(_, a): &(_, &f64), (_, b): &(_, &f64)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a): &(_, &f64), (_, b): &(_, &f64)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = trained_data.classes[class_idx];

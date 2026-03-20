@@ -266,9 +266,9 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>> for GaussianProcessClassifier<Gpc
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("operation should succeed");
                 self.state.classes[max_idx]
             })
             .collect();
@@ -671,9 +671,9 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>>
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("operation should succeed");
                 self.state.classes[max_idx]
             })
             .collect();
@@ -1001,9 +1001,9 @@ impl Predict<ArrayView2<'_, f64>, Array1<i32>>
                 let max_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("operation should succeed");
                 self.state.classes[max_idx]
             })
             .collect();

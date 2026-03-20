@@ -329,8 +329,12 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCausalDiscoveryBaseline> for CausalDisc
 impl CausalDiscoveryBaseline {
     fn compute_correlation(&self, x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> f64 {
         let n = x.len() as f64;
-        let mean_x = x.mean().unwrap();
-        let mean_y = y.mean().unwrap();
+        let mean_x = x
+            .mean()
+            .expect("array should have elements for mean computation");
+        let mean_y = y
+            .mean()
+            .expect("array should have elements for mean computation");
 
         let numerator: f64 = x
             .iter()
@@ -501,7 +505,9 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCounterfactualBaseline> for Counterfact
             }
             CounterfactualStrategy::PropensityScoreMatching { matching_tolerance } => {
                 // Compute propensity scores (probability of treatment)
-                let treatment_mean = treatment.mean().unwrap();
+                let treatment_mean = treatment
+                    .mean()
+                    .expect("array should have elements for mean computation");
 
                 for i in 0..x.nrows() {
                     let feature_sum: f64 = x.row(i).iter().sum();
@@ -519,7 +525,9 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCounterfactualBaseline> for Counterfact
             }
             CounterfactualStrategy::DoublyRobust { propensity_weight } => {
                 // Doubly robust estimation combining outcome modeling and propensity scoring
-                let treatment_mean = treatment.mean().unwrap();
+                let treatment_mean = treatment
+                    .mean()
+                    .expect("array should have elements for mean computation");
 
                 // Compute propensity scores
                 for i in 0..x.nrows() {
@@ -546,7 +554,9 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCounterfactualBaseline> for Counterfact
             }
             CounterfactualStrategy::InverseProbabilityWeighting { weight_truncation } => {
                 // IPW estimation
-                let treatment_mean = treatment.mean().unwrap();
+                let treatment_mean = treatment
+                    .mean()
+                    .expect("array should have elements for mean computation");
 
                 for i in 0..x.nrows() {
                     let feature_sum: f64 = x.row(i).iter().sum();
@@ -564,7 +574,9 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCounterfactualBaseline> for Counterfact
             }
             CounterfactualStrategy::TargetedMLE { targeting_steps } => {
                 // Simplified TMLE
-                let treatment_mean = treatment.mean().unwrap();
+                let treatment_mean = treatment
+                    .mean()
+                    .expect("array should have elements for mean computation");
 
                 for i in 0..x.nrows() {
                     let feature_sum: f64 = x.row(i).iter().sum();
@@ -596,8 +608,12 @@ impl Fit<Array2<f64>, Array1<f64>, FittedCounterfactualBaseline> for Counterfact
 impl CounterfactualBaseline {
     fn compute_correlation(&self, x: &ArrayView1<f64>, y: &ArrayView1<f64>) -> f64 {
         let n = x.len() as f64;
-        let mean_x = x.mean().unwrap();
-        let mean_y = y.mean().unwrap();
+        let mean_x = x
+            .mean()
+            .expect("array should have elements for mean computation");
+        let mean_y = y
+            .mean()
+            .expect("array should have elements for mean computation");
 
         let numerator: f64 = x
             .iter()
@@ -835,12 +851,12 @@ mod tests {
             (4, 3),
             vec![1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 4.0, 5.0, 6.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let discovery =
             CausalDiscoveryBaseline::new(CausalDiscoveryStrategy::Correlation { threshold: 0.5 });
-        let fitted = discovery.fit(&x, &y).unwrap();
+        let fitted = discovery.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.causal_graph.shape(), &[3, 3]);
         assert_eq!(fitted.feature_names.len(), 3);
@@ -852,7 +868,7 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 2.0, 2.0, 1.0, 3.0, 3.0, 0.0, 4.0, 4.0, 1.0, 5.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let counterfactual = CounterfactualBaseline::new(
@@ -862,8 +878,10 @@ mod tests {
             1, // treatment column
             2, // outcome column
         );
-        let fitted = counterfactual.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = counterfactual
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
         assert!(fitted.treatment_effect.is_finite());
@@ -871,8 +889,8 @@ mod tests {
 
     #[test]
     fn test_causal_discovery_strategies() {
-        let x =
-            Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0]).unwrap();
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0])
+            .expect("shape and data length should match");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let strategies = vec![
@@ -889,7 +907,7 @@ mod tests {
 
         for strategy in strategies {
             let discovery = CausalDiscoveryBaseline::new(strategy);
-            let fitted = discovery.fit(&x, &y).unwrap();
+            let fitted = discovery.fit(&x, &y).expect("model fitting should succeed");
             assert_eq!(fitted.causal_graph.shape(), &[2, 2]);
         }
     }
@@ -900,7 +918,7 @@ mod tests {
             (4, 3),
             vec![1.0, 0.0, 2.0, 2.0, 1.0, 3.0, 3.0, 0.0, 4.0, 4.0, 1.0, 5.0],
         )
-        .unwrap();
+        .expect("operation should succeed");
         let y = array![1.0, 2.0, 3.0, 4.0];
 
         let strategies = vec![
@@ -921,8 +939,10 @@ mod tests {
 
         for strategy in strategies {
             let counterfactual = CounterfactualBaseline::new(strategy, 1, 2);
-            let fitted = counterfactual.fit(&x, &y).unwrap();
-            let predictions = fitted.predict(&x).unwrap();
+            let fitted = counterfactual
+                .fit(&x, &y)
+                .expect("model fitting should succeed");
+            let predictions = fitted.predict(&x).expect("prediction should succeed");
             assert_eq!(predictions.len(), 4);
         }
     }

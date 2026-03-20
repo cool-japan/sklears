@@ -388,7 +388,8 @@ impl Fit<Array2<Float>, Array1<i32>> for RecursiveFeatureElimination {
                 .collect();
 
             // Sort by importance (ascending - we want to eliminate least important)
-            feature_importance_pairs.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            feature_importance_pairs
+                .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
             // Eliminate the least important features
             let mut eliminated_features = Vec::new();
@@ -535,7 +536,7 @@ mod tests {
             .n_features_to_select(2)
             .step(1);
 
-        let fitted = rfe.fit(&x, &y).unwrap();
+        let fitted = rfe.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 2);
         assert_eq!(fitted.support().len(), 4);
@@ -559,8 +560,8 @@ mod tests {
 
         let rfe = RecursiveFeatureElimination::new().n_features_to_select(2);
 
-        let fitted = rfe.fit(&x, &y).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = rfe.fit(&x, &y).expect("model fitting should succeed");
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(x_transformed.ncols(), 2);
         assert_eq!(x_transformed.nrows(), 4);
@@ -578,8 +579,8 @@ mod tests {
 
         let rfe = RecursiveFeatureElimination::new().n_features_to_select(2);
 
-        let fitted = rfe.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = rfe.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -601,7 +602,7 @@ mod tests {
             .cv(2)
             .step(1);
 
-        let fitted = rfe.fit(&x, &y).unwrap();
+        let fitted = rfe.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
 
@@ -628,7 +629,7 @@ mod tests {
                 .n_features_to_select(2)
                 .importance_method(method);
 
-            let fitted = rfe.fit(&x, &y).unwrap();
+            let fitted = rfe.fit(&x, &y).expect("model fitting should succeed");
             assert_eq!(fitted.n_features(), 2);
         }
     }
@@ -645,7 +646,7 @@ mod tests {
 
         let rfe = RecursiveFeatureElimination::new().n_features_to_select(3);
 
-        let fitted = rfe.fit(&x, &y).unwrap();
+        let fitted = rfe.fit(&x, &y).expect("model fitting should succeed");
         let support_indices = fitted.get_support_indices();
 
         assert_eq!(support_indices.len(), 3);

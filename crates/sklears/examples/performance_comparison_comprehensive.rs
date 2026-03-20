@@ -46,7 +46,7 @@ fn generate_classification_data(
     use scirs2_core::random::{rngs::StdRng, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     let mut X = Array2::zeros((n_samples, n_features));
     let mut y = Array1::zeros(n_samples);
@@ -80,7 +80,7 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
     use scirs2_core::random::{rngs::StdRng, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     let mut X = Array2::zeros((n_samples, n_features));
     for i in 0..n_samples {
@@ -95,7 +95,7 @@ fn generate_regression_data(n_samples: usize, n_features: usize) -> (Array2<f64>
     }
 
     let mut y = X.dot(&true_coef);
-    let noise_normal = Normal::new(0.0, 0.1).unwrap();
+    let noise_normal = Normal::new(0.0, 0.1).expect("operation should succeed");
     for i in 0..n_samples {
         y[i] += noise_normal.sample(&mut rng);
     }

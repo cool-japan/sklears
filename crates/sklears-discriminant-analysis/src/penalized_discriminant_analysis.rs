@@ -172,7 +172,9 @@ impl PenalizedDiscriminantAnalysis {
             return (x.clone(), means, stds);
         }
 
-        let means = x.mean_axis(Axis(0)).unwrap();
+        let means = x
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
         let mut stds = Array1::zeros(x.ncols());
 
         for j in 0..x.ncols() {
@@ -255,7 +257,8 @@ impl PenalizedDiscriminantAnalysis {
                 let l1_term = w.iter().map(|&x| x.abs()).sum::<Float>();
                 let mut fusion_term = 0.0;
                 for i in 1..w.len() {
-                    let diff = w.iter().nth(i).unwrap() - w.iter().nth(i - 1).unwrap();
+                    let diff = w.iter().nth(i).expect("value should be present")
+                        - w.iter().nth(i - 1).expect("value should be present");
                     fusion_term += diff.abs();
                 }
                 lambda1 * l1_term + lambda2 * fusion_term
@@ -270,7 +273,7 @@ impl PenalizedDiscriminantAnalysis {
         match &self.config.penalty {
             PenaltyType::L1 { lambda } => {
                 for (i, &val) in w.iter().enumerate() {
-                    grad.as_slice_mut().unwrap()[i] = lambda * val.signum();
+                    grad.as_slice_mut().expect("non-contiguous array")[i] = lambda * val.signum();
                 }
             }
             PenaltyType::L2 { lambda } => {
@@ -278,7 +281,7 @@ impl PenalizedDiscriminantAnalysis {
             }
             PenaltyType::ElasticNet { lambda, alpha } => {
                 for (i, &val) in w.iter().enumerate() {
-                    grad.as_slice_mut().unwrap()[i] =
+                    grad.as_slice_mut().expect("non-contiguous array")[i] =
                         lambda * (alpha * val.signum() + (1.0 - alpha) * 2.0 * val);
                 }
             }
@@ -293,7 +296,8 @@ impl PenalizedDiscriminantAnalysis {
                     if group_norm > 0.0 {
                         for &idx in group {
                             if let Some(val) = w.iter().nth(idx) {
-                                grad.as_slice_mut().unwrap()[idx] = lambda * val / group_norm;
+                                grad.as_slice_mut().expect("non-contiguous array")[idx] =
+                                    lambda * val / group_norm;
                             }
                         }
                     }
@@ -309,7 +313,7 @@ impl PenalizedDiscriminantAnalysis {
                     } else {
                         0.0
                     };
-                    grad.as_slice_mut().unwrap()[i] = grad_val;
+                    grad.as_slice_mut().expect("non-contiguous array")[i] = grad_val;
                 }
             }
             PenaltyType::MCP { lambda, gamma } => {
@@ -320,19 +324,20 @@ impl PenalizedDiscriminantAnalysis {
                     } else {
                         0.0
                     };
-                    grad.as_slice_mut().unwrap()[i] = grad_val;
+                    grad.as_slice_mut().expect("non-contiguous array")[i] = grad_val;
                 }
             }
             PenaltyType::AdaptiveLasso { lambda, weights } => {
                 for (i, &val) in w.iter().enumerate() {
                     let weight = weights.get(i % weights.len()).unwrap_or(&1.0);
-                    grad.as_slice_mut().unwrap()[i] = lambda * weight * val.signum();
+                    grad.as_slice_mut().expect("non-contiguous array")[i] =
+                        lambda * weight * val.signum();
                 }
             }
             PenaltyType::FusedLasso { lambda1, lambda2 } => {
                 // L1 gradient
                 for (i, &val) in w.iter().enumerate() {
-                    grad.as_slice_mut().unwrap()[i] += lambda1 * val.signum();
+                    grad.as_slice_mut().expect("non-contiguous array")[i] += lambda1 * val.signum();
                 }
 
                 // Fusion gradient
@@ -352,7 +357,7 @@ impl PenalizedDiscriminantAnalysis {
                         fusion_grad -= lambda2 * diff.signum();
                     }
 
-                    grad.as_slice_mut().unwrap()[i] += fusion_grad;
+                    grad.as_slice_mut().expect("non-contiguous array")[i] += fusion_grad;
                 }
             }
         }
@@ -416,7 +421,10 @@ impl PenalizedDiscriminantAnalysis {
         // Convert labels to one-hot encoding (for binary classification, use single column)
         let mut y_encoded = Array2::zeros((n_samples, n_classes - 1));
         for (i, &label) in y.iter().enumerate() {
-            let class_idx = classes.iter().position(|&c| c == label).unwrap();
+            let class_idx = classes
+                .iter()
+                .position(|&c| c == label)
+                .expect("element not found");
             if class_idx < n_classes - 1 {
                 y_encoded[[i, class_idx]] = 1.0;
             }
@@ -519,7 +527,9 @@ impl PenalizedDiscriminantAnalysis {
         // Compute gradients
         let residuals = &probas - y_true;
         let w_grad = x.t().dot(&residuals) / n_samples as Float;
-        let intercept_grad = residuals.mean_axis(Axis(0)).unwrap();
+        let intercept_grad = residuals
+            .mean_axis(Axis(0))
+            .expect("mean should not fail on non-empty array");
 
         Ok((loss, w_grad, intercept_grad))
     }
@@ -722,7 +732,7 @@ impl Predict<Array2<Float>, Array1<i32>> for TrainedPenalizedDiscriminantAnalysi
                 .iter()
                 .enumerate()
                 .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap()
+                .expect("value should be present")
                 .0;
             predictions[i] = self.classes[max_idx];
         }
@@ -845,16 +855,18 @@ mod tests {
             .penalty(PenaltyType::L1 { lambda: 0.1 })
             .max_iter(100);
 
-        let fitted = pda.fit(&x, &y).unwrap();
+        let fitted = pda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
         assert!(fitted.sparsity() >= 0.0);
         assert!(fitted.sparsity() <= 1.0);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probas = fitted.predict_proba(&x).unwrap();
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
         assert_eq!(probas.dim(), (6, 2));
 
         // Check that probabilities sum to 1
@@ -881,14 +893,16 @@ mod tests {
             })
             .max_iter(50);
 
-        let fitted = pda.fit(&x, &y).unwrap();
+        let fitted = pda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
-        let probas = fitted.predict_proba(&x).unwrap();
+        let probas = fitted
+            .predict_proba(&x)
+            .expect("probability prediction should succeed");
         assert_eq!(probas.dim(), (4, 2));
     }
 
@@ -904,11 +918,11 @@ mod tests {
             })
             .max_iter(50);
 
-        let fitted = pda.fit(&x, &y).unwrap();
+        let fitted = pda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -924,11 +938,11 @@ mod tests {
             })
             .max_iter(50);
 
-        let fitted = pda.fit(&x, &y).unwrap();
+        let fitted = pda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -950,11 +964,11 @@ mod tests {
             })
             .max_iter(50);
 
-        let fitted = pda.fit(&x, &y).unwrap();
+        let fitted = pda.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.classes().len(), 2);
 
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
     }
 
@@ -973,11 +987,11 @@ mod tests {
             .n_components(Some(1)) // For binary classification, max 1 component
             .max_iter(50);
 
-        let fitted = pda.fit(&x, &y).unwrap();
+        let fitted = pda.fit(&x, &y).expect("model fitting should succeed");
 
         assert!(fitted.components().is_some());
 
-        let transformed = fitted.transform(&x).unwrap();
+        let transformed = fitted.transform(&x).expect("transform should succeed");
         assert_eq!(transformed.dim(), (4, 1)); // 4 samples, 1 component
     }
 
@@ -995,7 +1009,7 @@ mod tests {
             .penalty(PenaltyType::L1 { lambda: 0.1 })
             .max_iter(50);
 
-        let fitted = pda.fit(&x, &y).unwrap();
+        let fitted = pda.fit(&x, &y).expect("model fitting should succeed");
 
         let importance = fitted.feature_importance();
         assert_eq!(importance.len(), 3);
@@ -1012,14 +1026,16 @@ mod tests {
             .penalty(PenaltyType::L1 { lambda: 1.0 })
             .max_iter(100);
 
-        let fitted_sparse = pda_sparse.fit(&x, &y).unwrap();
+        let fitted_sparse = pda_sparse
+            .fit(&x, &y)
+            .expect("model fitting should succeed");
 
         // Low penalty should lead to less sparse solution
         let pda_dense = PenalizedDiscriminantAnalysis::new()
             .penalty(PenaltyType::L1 { lambda: 0.001 })
             .max_iter(100);
 
-        let fitted_dense = pda_dense.fit(&x, &y).unwrap();
+        let fitted_dense = pda_dense.fit(&x, &y).expect("model fitting should succeed");
 
         // Sparse model should have higher sparsity
         assert!(fitted_sparse.sparsity() >= fitted_dense.sparsity());

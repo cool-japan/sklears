@@ -18,8 +18,8 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
 
         let iso = IsotonicRegression::new();
-        let fitted = iso.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -33,8 +33,8 @@ mod tests {
         let y = array![5.0, 3.0, 4.0, 2.0, 1.0];
 
         let iso = IsotonicRegression::new().increasing(false);
-        let fitted = iso.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are decreasing
         for i in 0..predictions.len() - 1 {
@@ -60,8 +60,10 @@ mod tests {
         let weights = array![1.0, 1.0, 10.0, 1.0, 1.0]; // Heavy weight on the third point
 
         let iso = IsotonicRegression::new();
-        let fitted = iso.fit_weighted(&x, &y, Some(&weights)).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso
+            .fit_weighted(&x, &y, Some(&weights))
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -112,8 +114,10 @@ mod tests {
         let y = array![1.0, 100.0, 2.0, 4.0, 5.0]; // Contains outlier
 
         let iso = IsotonicRegression::new().loss(LossFunction::AbsoluteLoss);
-        let fitted = iso.fit_weighted(&x, &y, None).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso
+            .fit_weighted(&x, &y, None)
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -130,8 +134,10 @@ mod tests {
         let y = array![1.0, 100.0, 2.0, 4.0, 5.0]; // Contains outlier
 
         let iso = IsotonicRegression::new().loss(LossFunction::HuberLoss { delta: 1.0 });
-        let fitted = iso.fit_weighted(&x, &y, None).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso
+            .fit_weighted(&x, &y, None)
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -149,8 +155,10 @@ mod tests {
 
         // Test median regression (quantile = 0.5)
         let iso = IsotonicRegression::new().loss(LossFunction::QuantileLoss { quantile: 0.5 });
-        let fitted = iso.fit_weighted(&x, &y, None).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso
+            .fit_weighted(&x, &y, None)
+            .expect("operation should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing
         for i in 0..predictions.len() - 1 {
@@ -167,8 +175,8 @@ mod tests {
         let y = array![-1.0, 3.0, 2.0, 4.0, 10.0];
 
         let iso = IsotonicRegression::new().bounds(0.0, 8.0);
-        let fitted = iso.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Check that predictions are increasing and within bounds
         for i in 0..predictions.len() - 1 {
@@ -207,8 +215,8 @@ mod tests {
         let y = array![2.0];
 
         let iso = IsotonicRegression::new();
-        let fitted = iso.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions[0], 2.0);
     }
@@ -219,8 +227,8 @@ mod tests {
         let y = array![1.0, 2.0, 3.0, 4.0, 5.0]; // Already increasing
 
         let iso = IsotonicRegression::new();
-        let fitted = iso.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = iso.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         // Should be very close to the original values
         for i in 0..predictions.len() {
@@ -269,7 +277,7 @@ mod tests {
             MonotonicityConstraint::Global { increasing: true },
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
         for i in 0..result.len() - 1 {
             assert!(result[i] <= result[i + 1]);
         }
@@ -280,7 +288,7 @@ mod tests {
             MonotonicityConstraint::Global { increasing: false },
             None,
         )
-        .unwrap();
+        .expect("operation should succeed");
         for i in 0..result.len() - 1 {
             assert!(result[i] >= result[i + 1]);
         }
@@ -291,16 +299,16 @@ mod tests {
         let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // 2*x
 
-        let corr = pearson_correlation(&x, &y).unwrap();
+        let corr = pearson_correlation(&x, &y).expect("operation should succeed");
         assert_abs_diff_eq!(corr, 1.0, epsilon = 1e-10);
 
-        let spearman_corr = spearman_correlation(&x, &y).unwrap();
+        let spearman_corr = spearman_correlation(&x, &y).expect("operation should succeed");
         assert_abs_diff_eq!(spearman_corr, 1.0, epsilon = 1e-10);
 
-        let max_idx = argmax(&y).unwrap();
+        let max_idx = argmax(&y).expect("operation should succeed");
         assert_eq!(max_idx, 4); // Last element
 
-        let mse = mean_squared_error(&x, &y).unwrap();
+        let mse = mean_squared_error(&x, &y).expect("operation should succeed");
         assert!(mse > 0.0);
     }
 

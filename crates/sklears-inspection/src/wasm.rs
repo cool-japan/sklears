@@ -1273,7 +1273,7 @@ mod tests {
         let result = WasmStreamingComputer::new();
         assert!(result.is_ok());
 
-        let computer = result.unwrap();
+        let computer = result.expect("operation should succeed");
         assert_eq!(computer.chunks_processed, 0);
         assert_eq!(computer.samples_processed, 0);
     }
@@ -1322,7 +1322,7 @@ mod tests {
         let result = computer.finalize();
         assert!(result.is_ok());
 
-        let importance = result.unwrap();
+        let importance = result.expect("operation should succeed");
         assert_eq!(importance.len(), 2);
     }
 
@@ -1340,7 +1340,7 @@ mod tests {
         let result = ProgressiveExplainer::new(5);
         assert!(result.is_ok());
 
-        let explainer = result.unwrap();
+        let explainer = result.expect("operation should succeed");
         assert_eq!(explainer.get_progress(), 0.0);
     }
 
@@ -1357,7 +1357,7 @@ mod tests {
         let result = explainer.process_next_chunk(&chunk, &predictions);
         assert!(result.is_ok());
 
-        let progress_result = result.unwrap();
+        let progress_result = result.expect("operation should succeed");
         assert_eq!(progress_result.chunk_index, 0);
         assert!(!progress_result.is_complete);
         assert_eq!(progress_result.chunk_importance.len(), 3);
@@ -1392,7 +1392,7 @@ mod tests {
         let final_result = explainer.finalize();
         assert!(final_result.is_ok());
 
-        let importance = final_result.unwrap();
+        let importance = final_result.expect("operation should succeed");
         assert_eq!(importance.len(), 2);
     }
 
@@ -1419,7 +1419,7 @@ mod tests {
         let result = WasmWorkerManager::new();
         assert!(result.is_ok());
 
-        let manager = result.unwrap();
+        let manager = result.expect("operation should succeed");
         assert_eq!(manager.get_completion_percentage(), 0.0);
     }
 
@@ -1453,7 +1453,7 @@ mod tests {
         let results = manager.process_tasks();
         assert!(results.is_ok());
 
-        let results_vec = results.unwrap();
+        let results_vec = results.expect("operation should succeed");
         assert_eq!(results_vec.len(), 2);
         assert_eq!(results_vec[0].task_id, 1);
         assert_eq!(results_vec[1].task_id, 2);

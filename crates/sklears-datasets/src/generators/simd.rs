@@ -12,7 +12,7 @@ use scirs2_core::simd::SimdOps;
 use scirs2_core::ndarray::{Array1, Array2, ShapeBuilder};
 #[cfg(feature = "simd")]
 use scirs2_core::random::Random;
-use scirs2_core::random::{Distribution, RandNormal};
+use scirs2_core::random::{Distribution, RandNormal, RngExt};
 use thiserror::Error;
 
 // Helper function for generating normal random values
@@ -21,7 +21,7 @@ fn gen_normal_value<R>(rng: &mut R, mean: f64, std: f64) -> f64
 where
     R: scirs2_core::random::Rng,
 {
-    let dist = RandNormal::new(mean, std).unwrap();
+    let dist = RandNormal::new(mean, std).expect("operation should succeed");
     dist.sample(rng)
 }
 
@@ -110,7 +110,7 @@ fn make_simd_classification_accelerated<R: scirs2_core::random::Rng>(
 
     // Generate class assignments using SciRS2 random
     let targets: Array1<i32> =
-        Array1::from_shape_fn(n_samples, |_| rng.gen_range(0..n_classes) as i32);
+        Array1::from_shape_fn(n_samples, |_| rng.random_range(0..n_classes) as i32);
 
     // SIMD-optimized feature generation
     // Use column-major (F-order) so columns are contiguous in memory for SIMD operations
@@ -129,7 +129,9 @@ fn make_simd_classification_accelerated<R: scirs2_core::random::Rng>(
         if n_samples >= simd_width * 4 {
             // Use SIMD for large datasets
             fill_feature_column_simd(
-                feature_column.as_slice_mut().unwrap(),
+                feature_column
+                    .as_slice_mut()
+                    .expect("matrix indexing should be valid"),
                 &targets,
                 &class_means,
                 rng,
@@ -139,7 +141,9 @@ fn make_simd_classification_accelerated<R: scirs2_core::random::Rng>(
         } else {
             // Standard implementation for smaller datasets
             fill_feature_column_standard(
-                feature_column.as_slice_mut().unwrap(),
+                feature_column
+                    .as_slice_mut()
+                    .expect("matrix indexing should be valid"),
                 &targets,
                 &class_means,
                 rng,
@@ -172,7 +176,7 @@ fn fill_feature_column_simd<R: scirs2_core::random::Rng>(
     chunk_size: usize,
 ) -> SimdResult<()> {
     let n_samples = column.len();
-    let targets_slice = targets.as_slice().unwrap();
+    let targets_slice = targets.as_slice().expect("slice operation should succeed");
 
     // Process in SIMD-friendly chunks
     for chunk_start in (0..n_samples).step_by(chunk_size) {
@@ -218,7 +222,7 @@ fn fill_feature_column_standard<R: scirs2_core::random::Rng>(
     class_means: &[f64],
     rng: &mut R,
 ) -> SimdResult<()> {
-    let targets_slice = targets.as_slice().unwrap();
+    let targets_slice = targets.as_slice().expect("slice operation should succeed");
 
     for (i, &target) in targets_slice.iter().enumerate() {
         let class_mean = class_means[target as usize];
@@ -265,7 +269,7 @@ fn make_classification_standard<R: scirs2_core::random::Rng>(
 ) -> SimdResult<(Array2<f64>, Array1<i32>)> {
     // Fallback to standard implementation
     let targets: Array1<i32> =
-        Array1::from_shape_fn(n_samples, |_| rng.gen_range(0..n_classes) as i32);
+        Array1::from_shape_fn(n_samples, |_| rng.random_range(0..n_classes) as i32);
 
     // Use column-major (F-order) for contiguous columns
     let mut features = Array2::<f64>::zeros((n_samples, n_features).f());
@@ -357,7 +361,8 @@ fn make_simd_regression_accelerated<R: scirs2_core::random::Rng>(
     }
 
     // Generate random coefficients
-    let coefficients: Array1<f64> = Array1::from_shape_fn(n_features, |_| rng.gen_range(-1.0..1.0));
+    let coefficients: Array1<f64> =
+        Array1::from_shape_fn(n_features, |_| rng.random_range(-1.0..1.0));
 
     // Compute targets using SIMD dot product operations
     let mut targets = Array1::<f64>::zeros(n_samples);
@@ -368,8 +373,12 @@ fn make_simd_regression_accelerated<R: scirs2_core::random::Rng>(
         // Use SIMD dot product when available
         if feature_row.len() >= simd_width {
             *target = simd_dot_product_fallback(
-                feature_row.as_slice().unwrap(),
-                coefficients.as_slice().unwrap(),
+                feature_row
+                    .as_slice()
+                    .expect("matrix indexing should be valid"),
+                coefficients
+                    .as_slice()
+                    .expect("slice operation should succeed"),
             );
         } else {
             *target = feature_row
@@ -411,7 +420,8 @@ fn make_regression_standard<R: scirs2_core::random::Rng>(
     }
 
     // Generate random coefficients
-    let coefficients: Array1<f64> = Array1::from_shape_fn(n_features, |_| rng.gen_range(-1.0..1.0));
+    let coefficients: Array1<f64> =
+        Array1::from_shape_fn(n_features, |_| rng.random_range(-1.0..1.0));
 
     // Compute targets
     let mut targets = Array1::<f64>::zeros(n_samples);
@@ -517,7 +527,7 @@ mod tests {
         let result = make_simd_classification(100, 4, 3, Some(3), Some(42), Some(config));
         assert!(result.is_ok());
 
-        let (features, targets) = result.unwrap();
+        let (features, targets) = result.expect("operation should succeed");
         assert_eq!(features.dim(), (100, 4));
         assert_eq!(targets.len(), 100);
         assert!(targets.iter().all(|&t| t >= 0 && t < 3));
@@ -534,7 +544,7 @@ mod tests {
         let result = make_simd_regression(100, 5, 0.1, Some(42), Some(config));
         assert!(result.is_ok());
 
-        let (features, targets) = result.unwrap();
+        let (features, targets) = result.expect("operation should succeed");
         assert_eq!(features.dim(), (100, 5));
         assert_eq!(targets.len(), 100);
     }

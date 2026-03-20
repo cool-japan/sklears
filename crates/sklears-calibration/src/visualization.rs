@@ -622,7 +622,8 @@ mod tests {
         let y_prob = array![0.1, 0.2, 0.6, 0.8, 0.9];
         let config = CalibrationVisualizationConfig::default();
 
-        let curve = generate_calibration_curve(&y_true, &y_prob, &config).unwrap();
+        let curve = generate_calibration_curve(&y_true, &y_prob, &config)
+            .expect("operation should succeed");
 
         assert!(!curve.bin_centers.is_empty());
         assert_eq!(curve.bin_centers.len(), curve.bin_frequencies.len());
@@ -640,7 +641,8 @@ mod tests {
         let y_prob = array![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95];
         let config = CalibrationVisualizationConfig::default();
 
-        let diagram = generate_reliability_diagram(&y_true, &y_prob, &config).unwrap();
+        let diagram = generate_reliability_diagram(&y_true, &y_prob, &config)
+            .expect("operation should succeed");
 
         assert!(diagram.statistics.ece >= 0.0);
         assert!(diagram.statistics.mce >= 0.0);
@@ -663,7 +665,8 @@ mod tests {
                 ..Default::default()
             };
 
-            let curve = generate_calibration_curve(&y_true, &y_prob, &config).unwrap();
+            let curve = generate_calibration_curve(&y_true, &y_prob, &config)
+                .expect("operation should succeed");
             assert!(!curve.bin_centers.is_empty());
         }
     }
@@ -673,7 +676,8 @@ mod tests {
         let y_true = array![0, 0, 1, 1, 1];
         let y_prob = array![0.1, 0.2, 0.6, 0.8, 0.9];
 
-        let residuals = generate_calibration_residuals(&y_true, &y_prob).unwrap();
+        let residuals =
+            generate_calibration_residuals(&y_true, &y_prob).expect("operation should succeed");
 
         assert_eq!(residuals.residuals.len(), 5);
         assert_eq!(residuals.standardized_residuals.len(), 5);
@@ -697,7 +701,7 @@ mod tests {
             &method_predictions,
             &CalibrationVisualizationConfig::default(),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(diagnostics.calibration_curves.len(), 2);
         assert_eq!(diagnostics.comparison_stats.method_names.len(), 2);
@@ -723,7 +727,7 @@ mod tests {
 
         // Test quantile bins
         let y_prob = array![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
-        let quantile_bins = create_quantile_bins(&y_prob, 5).unwrap();
+        let quantile_bins = create_quantile_bins(&y_prob, 5).expect("operation should succeed");
         assert_eq!(quantile_bins.len(), 6);
         assert_eq!(quantile_bins[0], 0.0);
         assert_eq!(quantile_bins[5], 1.0);

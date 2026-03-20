@@ -681,7 +681,9 @@ mod tests {
         let targets = array![1.1, 1.8, 3.2, 3.9];
 
         let score = AbsoluteResidualScore;
-        let conformity_scores = score.compute(&predictions, &targets).unwrap();
+        let conformity_scores = score
+            .compute(&predictions, &targets)
+            .expect("operation should succeed");
 
         assert_eq!(conformity_scores.len(), 4);
         assert!((conformity_scores[0] - 0.1).abs() < 1e-10);
@@ -697,7 +699,9 @@ mod tests {
         let sigmas = array![0.1, 0.2, 0.1, 0.1];
 
         let score = NormalizedResidualScore::new(sigmas);
-        let conformity_scores = score.compute(&predictions, &targets).unwrap();
+        let conformity_scores = score
+            .compute(&predictions, &targets)
+            .expect("operation should succeed");
 
         assert_eq!(conformity_scores.len(), 4);
         assert!((conformity_scores[0] - 1.0).abs() < 1e-10); // 0.1 / 0.1
@@ -716,8 +720,12 @@ mod tests {
         let mut predictor =
             ConformalPredictor::new(ConformalMethod::Split, conformity_score).alpha(0.2); // 80% coverage
 
-        predictor.fit(&cal_predictions, &cal_targets).unwrap();
-        let result = predictor.predict(&test_predictions).unwrap();
+        predictor
+            .fit(&cal_predictions, &cal_targets)
+            .expect("fit should succeed");
+        let result = predictor
+            .predict(&test_predictions)
+            .expect("predict should succeed");
 
         assert_eq!(result.intervals.nrows(), 2);
         assert_eq!(result.intervals.ncols(), 2);
@@ -741,7 +749,7 @@ mod tests {
             conformity_score,
             0.5, // 50% train, 50% calibration
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.intervals.nrows(), 2);
         assert_eq!(result.intervals.ncols(), 2);
@@ -769,7 +777,7 @@ mod tests {
             conformity_score,
             3, // 3-fold CV
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         assert_eq!(result.intervals.nrows(), 2);
         assert_eq!(result.intervals.ncols(), 2);
@@ -787,11 +795,13 @@ mod tests {
         let intervals = array![[1.0, 3.0], [2.0, 4.0], [3.0, 5.0]];
         let targets = array![2.0, 3.0, 4.0];
 
-        let coverage = compute_marginal_coverage(&intervals, &targets).unwrap();
+        let coverage =
+            compute_marginal_coverage(&intervals, &targets).expect("operation should succeed");
         assert!((coverage - 1.0).abs() < 1e-10); // All targets should be covered
 
         let targets_outside = array![0.5, 1.5, 6.0];
-        let coverage_outside = compute_marginal_coverage(&intervals, &targets_outside).unwrap();
+        let coverage_outside = compute_marginal_coverage(&intervals, &targets_outside)
+            .expect("operation should succeed");
         assert!(coverage_outside < 1.0); // Not all targets should be covered
     }
 
@@ -808,7 +818,8 @@ mod tests {
         let targets = array![2.0, 3.0, 4.0, 7.0];
         let groups = array![0, 0, 1, 1];
 
-        let coverage = compute_conditional_coverage(&intervals, &targets, &groups).unwrap();
+        let coverage = compute_conditional_coverage(&intervals, &targets, &groups)
+            .expect("operation should succeed");
 
         assert_eq!(coverage.len(), 2);
         assert!((coverage[&0] - 1.0).abs() < 1e-10); // Group 0: both covered

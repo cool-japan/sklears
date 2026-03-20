@@ -1121,7 +1121,7 @@ mod tests {
         let result = compute_shap_sequential(model, &X.view(), &baseline.view());
         assert!(result.is_ok());
 
-        let shap_values = result.unwrap();
+        let shap_values = result.expect("operation should succeed");
         assert_eq!(shap_values.shape(), &[2, 2]);
     }
 
@@ -1138,7 +1138,7 @@ mod tests {
         let result = compute_shap_parallel(model, &X.view(), &baseline.view(), &config);
         assert!(result.is_ok());
 
-        let shap_values = result.unwrap();
+        let shap_values = result.expect("operation should succeed");
         assert_eq!(shap_values.shape(), &[3, 2]);
     }
 
@@ -1152,7 +1152,7 @@ mod tests {
         let result = compute_shap_single_instance(model, &instance.view(), &baseline.view());
         assert!(result.is_ok());
 
-        let shap_values = result.unwrap();
+        let shap_values = result.expect("operation should succeed");
         assert_eq!(shap_values.len(), 2);
     }
 
@@ -1266,7 +1266,7 @@ mod tests {
             process_batches_optimized(&data, &batch_config, &parallel_config, processor, None);
 
         assert!(result.is_ok());
-        let (results, stats) = result.unwrap();
+        let (results, stats) = result.expect("operation should succeed");
         assert_eq!(results.len(), 1000);
         assert_eq!(results[0], 0);
         assert_eq!(results[999], 1998);
@@ -1287,7 +1287,7 @@ mod tests {
         let progress_callback = Box::new(move |completed: usize, total: usize| {
             progress_calls_clone
                 .lock()
-                .unwrap()
+                .expect("operation should succeed")
                 .push((completed, total));
         });
 
@@ -1303,11 +1303,11 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        let (results, _stats) = result.unwrap();
+        let (results, _stats) = result.expect("operation should succeed");
         assert_eq!(results.len(), 500);
 
         // Check that progress was tracked
-        let calls = progress_calls.lock().unwrap();
+        let calls = progress_calls.lock().expect("operation should succeed");
         assert!(!calls.is_empty());
     }
 
@@ -1330,7 +1330,7 @@ mod tests {
         let result = processor.process_buffer(process_fn);
         assert!(result.is_ok());
 
-        let batch_results = result.unwrap();
+        let batch_results = result.expect("operation should succeed");
         assert_eq!(batch_results.len(), 100);
         assert_eq!(batch_results[0], 0);
         assert_eq!(batch_results[99], 198);
@@ -1380,7 +1380,7 @@ mod tests {
         let result = processor.process_buffer(process_fn);
         assert!(result.is_ok());
 
-        let batch_results = result.unwrap();
+        let batch_results = result.expect("operation should succeed");
         assert!(batch_results.is_empty());
     }
 
@@ -1468,7 +1468,7 @@ mod tests {
         let result = processor.process_adaptive(&data, process_fn);
         assert!(result.is_ok());
 
-        let results = result.unwrap();
+        let results = result.expect("operation should succeed");
         assert_eq!(results.len(), 100);
         assert_eq!(results[0], 0);
         assert_eq!(results[99], 198);

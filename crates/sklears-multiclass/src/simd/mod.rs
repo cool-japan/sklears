@@ -267,7 +267,9 @@ mod tests {
         let ops = SimdVotingOps::new(SimdConfig::default());
         let votes = array![[1.0, 2.0, 0.0], [0.0, 1.0, 3.0], [2.0, 1.0, 1.0]];
 
-        let predictions = ops.aggregate_votes(&votes, None).unwrap();
+        let predictions = ops
+            .aggregate_votes(&votes, None)
+            .expect("operation should succeed");
         assert_eq!(predictions[0], 1); // Max at index 1
         assert_eq!(predictions[1], 2); // Max at index 2
         assert_eq!(predictions[2], 0); // Max at index 0
@@ -279,7 +281,9 @@ mod tests {
         let votes = array![[1.0, 2.0, 0.0]];
         let weights = array![2.0, 0.5, 1.0];
 
-        let predictions = ops.aggregate_votes(&votes, Some(&weights)).unwrap();
+        let predictions = ops
+            .aggregate_votes(&votes, Some(&weights))
+            .expect("operation should succeed");
         // class0=1.0*2.0=2.0, class1=2.0*0.5=1.0, class2=0.0*1.0=0.0
         assert_eq!(predictions[0], 0);
     }
@@ -290,7 +294,9 @@ mod tests {
         let values = vec![1.0, 2.0, 3.0, 4.0];
         let weights = vec![0.1, 0.2, 0.3, 0.4];
 
-        let result = ops.weighted_sum(&values, &weights).unwrap();
+        let result = ops
+            .weighted_sum(&values, &weights)
+            .expect("operation should succeed");
         let expected = 1.0 * 0.1 + 2.0 * 0.2 + 3.0 * 0.3 + 4.0 * 0.4;
         assert!((result - expected).abs() < 1e-10);
     }
@@ -301,7 +307,9 @@ mod tests {
         let values: Vec<f64> = (0..100).map(|i| i as f64).collect();
         let weights: Vec<f64> = vec![1.0; 100];
 
-        let result = ops.weighted_sum(&values, &weights).unwrap();
+        let result = ops
+            .weighted_sum(&values, &weights)
+            .expect("operation should succeed");
         let expected: f64 = (0..100).map(|i| i as f64).sum();
         assert!((result - expected).abs() < 1e-8);
     }
@@ -312,7 +320,9 @@ mod tests {
         let a = vec![1.0, 2.0, 3.0];
         let b = vec![4.0, 5.0, 6.0];
 
-        let distance = ops.euclidean_distances(&a, &b).unwrap();
+        let distance = ops
+            .euclidean_distances(&a, &b)
+            .expect("operation should succeed");
         let expected = ((3.0_f64).powi(2) * 3.0).sqrt(); // sqrt(9+9+9) = sqrt(27)
         assert!((distance - expected).abs() < 1e-10);
     }
@@ -323,7 +333,9 @@ mod tests {
         let a: Vec<f64> = (0..100).map(|i| i as f64).collect();
         let b: Vec<f64> = (0..100).map(|i| (i + 1) as f64).collect();
 
-        let distance = ops.euclidean_distances(&a, &b).unwrap();
+        let distance = ops
+            .euclidean_distances(&a, &b)
+            .expect("operation should succeed");
         let expected = 10.0; // sqrt(100 * 1^2) = 10
         assert!((distance - expected).abs() < 1e-10);
     }

@@ -40,7 +40,7 @@ pub fn estimate_mi_dc(
 
     // Find unique discrete values
     let mut x_vals: Vec<f64> = x_discrete.to_vec();
-    x_vals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    x_vals.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
     x_vals.dedup();
 
     // Bin continuous variable

@@ -1,6 +1,6 @@
 use scirs2_core::ndarray::{Array1, Array2, Array3, Axis, ScalarOperand};
 use scirs2_core::numeric::{Float, One, ToPrimitive};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use std::fmt::Debug;
 
 use crate::activation::Activation;
@@ -112,7 +112,8 @@ pub struct CrossValidationResults<T: Float> {
 impl<T: Float + std::iter::Sum> CrossValidationResults<T> {
     /// Create from fold scores
     pub fn from_scores(scores: Vec<T>) -> Self {
-        let mean_score = scores.iter().cloned().sum::<T>() / T::from(scores.len()).unwrap();
+        let mean_score =
+            scores.iter().cloned().sum::<T>() / T::from(scores.len()).unwrap_or_else(|| T::zero());
 
         let variance = scores
             .iter()
@@ -121,21 +122,21 @@ impl<T: Float + std::iter::Sum> CrossValidationResults<T> {
                 diff * diff
             })
             .sum::<T>()
-            / T::from(scores.len()).unwrap();
+            / T::from(scores.len()).unwrap_or_else(|| T::zero());
 
         let std_score = variance.sqrt();
 
         let best_fold = scores
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
         let worst_fold = scores
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
             .map(|(idx, _)| idx)
             .unwrap_or(0);
 
@@ -173,14 +174,14 @@ impl<T: Float> Default for GridSearchConfig<T> {
         Self {
             hidden_layer_sizes: vec![vec![100], vec![50, 50], vec![100, 50], vec![100, 100]],
             learning_rates: vec![
-                T::from(0.001).unwrap(),
-                T::from(0.01).unwrap(),
-                T::from(0.1).unwrap(),
+                T::from(0.001).unwrap_or_else(|| T::zero()),
+                T::from(0.01).unwrap_or_else(|| T::zero()),
+                T::from(0.1).unwrap_or_else(|| T::zero()),
             ],
             alphas: vec![
-                T::from(0.0001).unwrap(),
-                T::from(0.001).unwrap(),
-                T::from(0.01).unwrap(),
+                T::from(0.0001).unwrap_or_else(|| T::zero()),
+                T::from(0.001).unwrap_or_else(|| T::zero()),
+                T::from(0.01).unwrap_or_else(|| T::zero()),
             ],
             activations: vec![Activation::Relu, Activation::Tanh, Activation::Logistic],
             max_iters: vec![200, 500, 1000],
@@ -256,8 +257,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
             let classifier = MLPClassifier::new()
                 .hidden_layer_sizes(hidden_layer_sizes)
                 .activation(activation.clone())
-                .learning_rate_init(learning_rate.to_f64().unwrap())
-                .alpha(alpha.to_f64().unwrap())
+                .learning_rate_init(learning_rate.to_f64().unwrap_or(0.0))
+                .alpha(alpha.to_f64().unwrap_or(0.0))
                 .max_iter(max_iter);
 
             // Convert T arrays to f64 for neural network models
@@ -269,7 +270,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
 
             // Compute accuracy
             let accuracy = self.compute_accuracy(&predictions, &y_val);
-            scores.push(T::from(accuracy).unwrap());
+            scores.push(T::from(accuracy).unwrap_or_else(|| T::zero()));
         }
 
         Ok(CrossValidationResults::from_scores(scores))
@@ -300,8 +301,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
             let regressor = MLPRegressor::new()
                 .hidden_layer_sizes(hidden_layer_sizes)
                 .activation(activation.clone())
-                .learning_rate_init(learning_rate.to_f64().unwrap())
-                .alpha(alpha.to_f64().unwrap())
+                .learning_rate_init(learning_rate.to_f64().unwrap_or(0.0))
+                .alpha(alpha.to_f64().unwrap_or(0.0))
                 .max_iter(max_iter);
 
             // Convert T arrays to f64 for neural network models
@@ -322,7 +323,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
 
             // Compute R² score
             let r2_score = self.compute_r2_score(&predictions_1d, &y_val);
-            scores.push(T::from(r2_score).unwrap());
+            scores.push(T::from(r2_score).unwrap_or_else(|| T::zero()));
         }
 
         Ok(CrossValidationResults::from_scores(scores))
@@ -384,8 +385,8 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
         let final_classifier = MLPClassifier::new()
             .hidden_layer_sizes(&best_params.hidden_layer_sizes)
             .activation(best_params.activation.clone())
-            .learning_rate_init(best_params.learning_rate.to_f64().unwrap())
-            .alpha(best_params.alpha.to_f64().unwrap())
+            .learning_rate_init(best_params.learning_rate.to_f64().unwrap_or(0.0))
+            .alpha(best_params.alpha.to_f64().unwrap_or(0.0))
             .max_iter(best_params.max_iter);
 
         // Convert to f64 for neural network model
@@ -417,8 +418,11 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
         self.results.extend(models);
 
         // Sort by validation score (descending)
-        self.results
-            .sort_by(|a, b| b.validation_score.partial_cmp(&a.validation_score).unwrap());
+        self.results.sort_by(|a, b| {
+            b.validation_score
+                .partial_cmp(&a.validation_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         self.results.clone()
     }
@@ -443,7 +447,7 @@ impl<T: FloatBounds + ScalarOperand + ToPrimitive + std::iter::Sum> ModelSelecto
             if let Some(seed) = self.cv_config.random_seed {
                 let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
                 for i in (1..indices.len()).rev() {
-                    let j = rng.gen_range(0..i + 1);
+                    let j = rng.random_range(0..i + 1);
                     indices.swap(i, j);
                 }
             }
@@ -638,9 +642,9 @@ impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
             let val_accuracy = self.compute_accuracy(&val_pred, y_val);
 
             self.train_scores
-                .push(vec![T::from(train_accuracy).unwrap()]);
+                .push(vec![T::from(train_accuracy).unwrap_or_else(|| T::zero())]);
             self.validation_scores
-                .push(vec![T::from(val_accuracy).unwrap()]);
+                .push(vec![T::from(val_accuracy).unwrap_or_else(|| T::zero())]);
         }
 
         Ok(())
@@ -651,7 +655,10 @@ impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
         let train_means: Vec<T> = self
             .train_scores
             .iter()
-            .map(|scores| scores.iter().cloned().sum::<T>() / T::from(scores.len()).unwrap())
+            .map(|scores| {
+                scores.iter().cloned().sum::<T>()
+                    / T::from(scores.len()).unwrap_or_else(|| T::zero())
+            })
             .collect();
 
         let train_stds: Vec<T> = self
@@ -666,7 +673,7 @@ impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
                         diff * diff
                     })
                     .sum::<T>()
-                    / T::from(scores.len()).unwrap();
+                    / T::from(scores.len()).unwrap_or_else(|| T::zero());
                 variance.sqrt()
             })
             .collect();
@@ -674,7 +681,10 @@ impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
         let val_means: Vec<T> = self
             .validation_scores
             .iter()
-            .map(|scores| scores.iter().cloned().sum::<T>() / T::from(scores.len()).unwrap())
+            .map(|scores| {
+                scores.iter().cloned().sum::<T>()
+                    / T::from(scores.len()).unwrap_or_else(|| T::zero())
+            })
             .collect();
 
         let val_stds: Vec<T> = self
@@ -689,7 +699,7 @@ impl<T: Float + std::iter::Sum> LearningCurveAnalyzer<T> {
                         diff * diff
                     })
                     .sum::<T>()
-                    / T::from(scores.len()).unwrap();
+                    / T::from(scores.len()).unwrap_or_else(|| T::zero());
                 variance.sqrt()
             })
             .collect();
@@ -758,8 +768,10 @@ mod tests {
         };
         let selector = ModelSelector::<f32>::new(cv_config);
 
-        let X = Array2::from_shape_vec((9, 2), vec![1.0; 18]).unwrap();
-        let folds = selector.create_folds(&X, None).unwrap();
+        let X = Array2::from_shape_vec((9, 2), vec![1.0; 18]).expect("array shape mismatch");
+        let folds = selector
+            .create_folds(&X, None)
+            .expect("operation should succeed");
 
         assert_eq!(folds.len(), 3);
         assert_eq!(folds[0].1.len(), 3); // First fold validation size

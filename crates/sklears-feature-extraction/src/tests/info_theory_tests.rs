@@ -26,7 +26,9 @@ fn test_topological_persistence_diagram() {
         .max_dimension(1)
         .threshold(2.0);
 
-    let persistence = tda.compute_persistence(&points).unwrap();
+    let persistence = tda
+        .compute_persistence(&points)
+        .expect("operation should succeed");
 
     // Should have birth-death pairs for 0-dimensional and 1-dimensional features
     assert!(persistence.len() > 0);
@@ -54,7 +56,9 @@ fn test_topological_betti_numbers() {
         .max_dimension(2)
         .threshold(1.5);
 
-    let persistence = tda.compute_persistence(&points).unwrap();
+    let persistence = tda
+        .compute_persistence(&points)
+        .expect("operation should succeed");
     let betti = tda.compute_betti_numbers(&persistence);
 
     // Should have Betti numbers for dimensions 0, 1, 2
@@ -77,7 +81,9 @@ fn test_persistence_entropy() {
         .max_dimension(1)
         .threshold(2.0);
 
-    let entropy = tda.persistence_entropy(&points).unwrap();
+    let entropy = tda
+        .persistence_entropy(&points)
+        .expect("operation should succeed");
 
     // Entropy should be finite and non-negative
     assert!(entropy.is_finite());
@@ -93,7 +99,9 @@ fn test_bottleneck_distance() {
         .max_dimension(1)
         .threshold(2.0);
 
-    let distance = tda.bottleneck_distance(&points1, &points2).unwrap();
+    let distance = tda
+        .bottleneck_distance(&points1, &points2)
+        .expect("operation should succeed");
 
     // Distance should be finite and non-negative
     assert!(distance.is_finite());
@@ -114,7 +122,9 @@ fn test_protein_sequence_features() {
         .include_dipeptide_composition(true)
         .include_physicochemical_properties(true);
 
-    let features = extractor.extract_features(sequence).unwrap();
+    let features = extractor
+        .extract_features(sequence)
+        .expect("operation should succeed");
 
     // Should have features for:
     // - 20 amino acids
@@ -141,7 +151,9 @@ fn test_dna_sequence_features() {
         .include_dinucleotide_composition(true)
         .include_trinucleotide_composition(true);
 
-    let features = extractor.extract_features(sequence).unwrap();
+    let features = extractor
+        .extract_features(sequence)
+        .expect("operation should succeed");
 
     // Should have features for:
     // - 4 nucleotides
@@ -168,7 +180,9 @@ fn test_gc_content_features() {
         .window_size(10)
         .step_size(5);
 
-    let features = extractor.extract_features(sequence).unwrap();
+    let features = extractor
+        .extract_features(sequence)
+        .expect("operation should succeed");
 
     // Should have GC content values for overlapping windows
     let expected_windows = (sequence.len() - 10) / 5 + 1;
@@ -185,27 +199,32 @@ fn test_gc_content_features() {
 
 #[test]
 fn test_patch_extractor() {
-    let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect()).unwrap();
+    let image = Array2::from_shape_vec((6, 6), (0..36).map(|x| x as f64).collect())
+        .expect("operation should succeed");
 
     let extractor = image::PatchExtractor::new()
         .patch_size((3, 3))
         .max_patches(Some(4));
 
-    let patches = extractor.extract(&image.view()).unwrap();
+    let patches = extractor
+        .extract(&image.view())
+        .expect("operation should succeed");
     assert_eq!(patches.dim(), (4, 3, 3));
 }
 
 #[test]
 fn test_wavelet_feature_extractor() {
-    let image =
-        Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect()).unwrap();
+    let image = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64 / 1024.0).collect())
+        .expect("operation should succeed");
 
     let wavelet = image::WaveletFeatureExtractor::new()
         .wavelet_levels(3)
         .wavelet_type(image::WaveletType::Haar)
         .feature_type(WaveletFeatureType::Basic);
 
-    let features = wavelet.extract_features(&image.view()).unwrap();
+    let features = wavelet
+        .extract_features(&image.view())
+        .expect("operation should succeed");
 
     // Should have features for each decomposition level + approximation
     // Each level contributes 4 features (mean, std, energy, entropy) for 3 detail bands
@@ -217,7 +236,9 @@ fn test_wavelet_feature_extractor() {
         .wavelet_levels(2)
         .feature_type(WaveletFeatureType::Extended);
 
-    let features_extended = wavelet_extended.extract_features(&image.view()).unwrap();
+    let features_extended = wavelet_extended
+        .extract_features(&image.view())
+        .expect("operation should succeed");
 
     // Extended features include 8 features per band instead of 4
     // (2 levels * 3 bands + 1 approx) * 8 features = 56 features
@@ -231,7 +252,7 @@ fn test_polynomial_features() {
     let X = array![[1.0, 2.0], [3.0, 4.0]];
 
     let poly = crate::basic_features::PolynomialFeatures::new().degree(2);
-    let features = poly.transform(&X.view()).unwrap();
+    let features = poly.transform(&X.view()).expect("operation should succeed");
 
     // Should include: bias, x1, x2, x1^2, x1*x2, x2^2
     assert_eq!(features.ncols(), 6);
@@ -247,7 +268,9 @@ fn test_rbf_sampler() {
         .n_components(10)
         .random_state(Some(42));
 
-    let features = rbf_sampler.fit_transform(&X.view()).unwrap();
+    let features = rbf_sampler
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(features.dim(), (4, 10)); // 4 samples, 10 components
 
@@ -259,7 +282,9 @@ fn test_rbf_sampler() {
 
     // Test transform on new data
     let X_new = array![[2.0, 3.0], [4.0, 5.0]];
-    let features_new = rbf_sampler.transform(&X_new.view()).unwrap();
+    let features_new = rbf_sampler
+        .transform(&X_new.view())
+        .expect("operation should succeed");
     assert_eq!(features_new.dim(), (2, 10));
 }
 
@@ -273,13 +298,17 @@ fn test_nystroem() {
         .n_components(3)
         .random_state(Some(42));
 
-    let features = nystroem.fit_transform(&X.view()).unwrap();
+    let features = nystroem
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(features.dim(), (5, 3)); // 5 samples, 3 components
 
     // Test transform on new data
     let X_new = array![[2.0, 3.0], [6.0, 7.0]];
-    let features_new = nystroem.transform(&X_new.view()).unwrap();
+    let features_new = nystroem
+        .transform(&X_new.view())
+        .expect("operation should succeed");
     assert_eq!(features_new.dim(), (2, 3));
 
     // Test different kernels
@@ -290,7 +319,9 @@ fn test_nystroem() {
         .coef0(1.0)
         .n_components(3);
 
-    let features_poly = nystroem_poly.fit_transform(&X.view()).unwrap();
+    let features_poly = nystroem_poly
+        .fit_transform(&X.view())
+        .expect("operation should succeed");
     assert_eq!(features_poly.dim(), (5, 3));
 }
 
@@ -302,7 +333,9 @@ fn test_additive_chi2_sampler() {
         .sample_steps(2)
         .sample_interval(0.5);
 
-    let features = sampler.transform(&X.view()).unwrap();
+    let features = sampler
+        .transform(&X.view())
+        .expect("operation should succeed");
 
     // Number of features: 2 features * 2 steps * 2 (cos + sin) = 8
     let expected_features = sampler.get_n_output_features(2);
@@ -334,8 +367,12 @@ fn test_neural_autoencoder() {
         .learning_rate(0.01)
         .n_epochs(10); // Reduced for testing
 
-    let fitted = autoencoder.fit(&X.view(), &()).unwrap();
-    let encoded = fitted.transform(&X.view()).unwrap();
+    let fitted = autoencoder
+        .fit(&X.view(), &())
+        .expect("operation should succeed");
+    let encoded = fitted
+        .transform(&X.view())
+        .expect("operation should succeed");
 
     assert_eq!(encoded.dim(), (4, 2)); // Bottleneck dimension
 
@@ -345,7 +382,9 @@ fn test_neural_autoencoder() {
     }
 
     // Test reconstruction
-    let reconstructed = fitted.inverse_transform(&encoded.view()).unwrap();
+    let reconstructed = fitted
+        .inverse_transform(&encoded.view())
+        .expect("operation should succeed");
     assert_eq!(reconstructed.dim(), X.dim());
 
     for &val in reconstructed.iter() {
@@ -380,7 +419,9 @@ fn test_tda_single_point() {
         .max_dimension(1)
         .threshold(1.0);
 
-    let diagrams = tda.compute_persistence(&single_point).unwrap();
+    let diagrams = tda
+        .compute_persistence(&single_point)
+        .expect("operation should succeed");
     let betti = tda.compute_betti_numbers(&diagrams);
 
     // Single point should have β_0 = 1, β_1 = 0
@@ -398,7 +439,9 @@ fn test_engineering_error_cases() {
     assert!(result.is_err()); // Should fail when not fitted
 
     // Test dimension mismatch
-    rbf_sampler.fit(&X.view()).unwrap();
+    rbf_sampler
+        .fit(&X.view())
+        .expect("operation should succeed");
     let X_wrong = array![[1.0, 2.0, 3.0]]; // Wrong number of features
     let result = rbf_sampler.transform(&X_wrong.view());
     assert!(result.is_err()); // Should fail with dimension mismatch
@@ -412,14 +455,17 @@ fn test_tda_performance_large_dataset() {
     let n_points = 100;
     let points: Vec<f64> = (0..n_points * 2).map(|i| (i as f64 * 0.1) % 10.0).collect();
 
-    let points_array = Array2::from_shape_vec((n_points, 2), points).unwrap();
+    let points_array =
+        Array2::from_shape_vec((n_points, 2), points).expect("operation should succeed");
 
     let tda = information_theory::TopologicalDataAnalysis::new()
         .max_dimension(1)
         .threshold(2.0);
 
     let start = std::time::Instant::now();
-    let features = tda.extract_topological_features(&points_array).unwrap();
+    let features = tda
+        .extract_topological_features(&points_array)
+        .expect("operation should succeed");
     let duration = start.elapsed();
 
     // Should complete in reasonable time (less than 10 seconds for this size)
@@ -443,8 +489,12 @@ fn test_tda_features_consistency() {
         .threshold(2.0);
 
     // Extract features multiple times
-    let features1 = tda.extract_topological_features(&points).unwrap();
-    let features2 = tda.extract_topological_features(&points).unwrap();
+    let features1 = tda
+        .extract_topological_features(&points)
+        .expect("operation should succeed");
+    let features2 = tda
+        .extract_topological_features(&points)
+        .expect("operation should succeed");
 
     // Results should be consistent
     assert_eq!(features1.len(), features2.len());
@@ -468,18 +518,25 @@ fn test_multi_domain_integration() {
     // 1. Start with biological sequence
     let sequence = "ATCGATCGATCG";
     let bio_extractor = biological::DNASequenceFeatures::new().include_nucleotide_composition(true);
-    let bio_features = bio_extractor.extract_features(sequence).unwrap();
+    let bio_features = bio_extractor
+        .extract_features(sequence)
+        .expect("operation should succeed");
 
     // 2. Use biological features for polynomial expansion
-    let bio_array = Array2::from_shape_vec((1, bio_features.len()), bio_features).unwrap();
+    let bio_array = Array2::from_shape_vec((1, bio_features.len()), bio_features)
+        .expect("operation should succeed");
     let poly = crate::basic_features::PolynomialFeatures::new().degree(2);
-    let poly_features = poly.transform(&bio_array.view()).unwrap();
+    let poly_features = poly
+        .transform(&bio_array.view())
+        .expect("operation should succeed");
 
     // 3. Apply RBF sampling to polynomial features
     let mut rbf = engineering::RBFSampler::new()
         .n_components(8)
         .random_state(Some(42));
-    let rbf_features = rbf.fit_transform(&poly_features.view()).unwrap();
+    let rbf_features = rbf
+        .fit_transform(&poly_features.view())
+        .expect("operation should succeed");
 
     // All results should be finite and well-formed
     assert!(rbf_features.nrows() > 0);
@@ -497,20 +554,26 @@ fn test_comprehensive_feature_pipeline() {
 
     // 1. Polynomial features
     let poly = crate::basic_features::PolynomialFeatures::new().degree(2);
-    let poly_features = poly.transform(&data.view()).unwrap();
+    let poly_features = poly
+        .transform(&data.view())
+        .expect("operation should succeed");
 
     // 2. RBF sampling on polynomial features
     let mut rbf = engineering::RBFSampler::new()
         .n_components(20)
         .random_state(Some(123));
-    let rbf_features = rbf.fit_transform(&poly_features.view()).unwrap();
+    let rbf_features = rbf
+        .fit_transform(&poly_features.view())
+        .expect("operation should succeed");
 
     // 3. Additive chi-squared sampling on subset
     let subset = rbf_features.slice(s![.., ..10]).to_owned();
     let chi2 = engineering::AdditiveChi2Sampler::new()
         .sample_steps(3)
         .sample_interval(1.0);
-    let chi2_features = chi2.transform(&subset.view()).unwrap();
+    let chi2_features = chi2
+        .transform(&subset.view())
+        .expect("operation should succeed");
 
     // Verify pipeline produces valid results
     assert!(chi2_features.nrows() == data.nrows());

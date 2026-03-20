@@ -5,8 +5,8 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use scirs2_linalg::compat::{ArrayLinalgExt, UPLO};
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
@@ -228,7 +228,7 @@ impl HierarchicalManifold<Untrained> {
         let n_features = x.ncols();
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean.insert_axis(Axis(0));
 
         // Compute covariance matrix with scaling
@@ -241,7 +241,11 @@ impl HierarchicalManifold<Untrained> {
 
         // Sort by eigenvalues (descending)
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         // Project data onto top eigenvectors
         let mut projection_matrix = Array2::zeros((n_features, self.n_components));
@@ -417,7 +421,7 @@ impl HierarchicalManifold<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             // Connect to k nearest neighbors
             for &(j, dist) in distances.iter().take(k) {
@@ -454,9 +458,13 @@ impl HierarchicalManifold<Untrained> {
 
         // Double centering
         let mut gram = Array2::zeros((n, n));
-        let mean_row = distances.mean_axis(Axis(1)).unwrap();
-        let mean_col = distances.mean_axis(Axis(0)).unwrap();
-        let mean_all = distances.mean().unwrap();
+        let mean_row = distances
+            .mean_axis(Axis(1))
+            .expect("operation should succeed");
+        let mean_col = distances
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
+        let mean_all = distances.mean().expect("operation should succeed");
 
         for i in 0..n {
             for j in 0..n {
@@ -472,7 +480,11 @@ impl HierarchicalManifold<Untrained> {
 
         // Sort eigenvalues and eigenvectors
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         // Create embedding
         let mut embedding = Array2::zeros((n, self.n_components));
@@ -501,7 +513,7 @@ impl HierarchicalManifold<Untrained> {
                 }
             }
 
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             let point_neighbors: Vec<usize> =
                 distances.iter().take(k).map(|&(idx, _)| idx).collect();
             neighbors.push(point_neighbors);
@@ -580,7 +592,11 @@ impl HierarchicalManifold<Untrained> {
 
         // Sort eigenvalues (ascending for LLE)
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[i].partial_cmp(&eigenvalues[j]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[i]
+                .partial_cmp(&eigenvalues[j])
+                .expect("operation should succeed")
+        });
 
         // Skip the first eigenvector (constant) and take the next n_components
         let mut embedding = Array2::zeros((n_samples, self.n_components));
@@ -727,7 +743,10 @@ impl Fit<ArrayView2<'_, f64>, ArrayView1<'_, ()>> for MultiScaleEmbedding<Untrai
             scale_embeddings.push(embedding);
 
             // Compute quality weight for this scale
-            let weight = self.compute_scale_weight(x, scale_embeddings.last().unwrap())?;
+            let weight = self.compute_scale_weight(
+                x,
+                scale_embeddings.last().expect("operation should succeed"),
+            )?;
             scale_weights.push(weight);
         }
 
@@ -780,7 +799,7 @@ impl MultiScaleEmbedding<Untrained> {
         let n_samples = x.nrows();
 
         // Center the data
-        let mean = x.mean_axis(Axis(0)).unwrap();
+        let mean = x.mean_axis(Axis(0)).expect("operation should succeed");
         let centered = x - &mean.insert_axis(Axis(0));
 
         // Apply scale to covariance computation
@@ -794,7 +813,11 @@ impl MultiScaleEmbedding<Untrained> {
 
         // Sort by eigenvalues (descending)
         let mut indices: Vec<usize> = (0..eigenvalues.len()).collect();
-        indices.sort_by(|&i, &j| eigenvalues[j].partial_cmp(&eigenvalues[i]).unwrap());
+        indices.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .expect("operation should succeed")
+        });
 
         // Project data
         let mut projection_matrix = Array2::zeros((x.ncols(), self.n_components));
@@ -1120,11 +1143,11 @@ impl AdaptiveResolutionManifold<Untrained> {
                 let mut random_scales: Vec<f64> = (0..levels)
                     .map(|i| {
                         let base = (i + 1) as f64 / levels as f64;
-                        let noise = rng.gen_range(-0.2..0.2);
+                        let noise = rng.random_range(-0.2..0.2);
                         (base + noise).max(0.1).min(1.0)
                     })
                     .collect();
-                random_scales.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                random_scales.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                 candidates.push((levels, random_scales));
             }
         }
@@ -1210,7 +1233,7 @@ impl AdaptiveResolutionManifold<Untrained> {
             let mut hd_distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             let hd_neighbors: Vec<usize> = hd_distances
                 .iter()
                 .take(k + 1)
@@ -1230,7 +1253,7 @@ impl AdaptiveResolutionManifold<Untrained> {
                     )
                 })
                 .collect();
-            ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             let ld_neighbors: Vec<usize> = ld_distances
                 .iter()
                 .take(k + 1)
@@ -1273,7 +1296,7 @@ impl AdaptiveResolutionManifold<Untrained> {
                     )
                 })
                 .collect();
-            ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             let ld_neighbors: Vec<usize> = ld_distances
                 .iter()
                 .take(k + 1)
@@ -1285,7 +1308,7 @@ impl AdaptiveResolutionManifold<Untrained> {
             let mut hd_distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             let mut rank_sum = 0.0;
             for &neighbor in &ld_neighbors {
@@ -1315,7 +1338,7 @@ impl AdaptiveResolutionManifold<Untrained> {
             let mut hd_distances: Vec<(usize, f64)> = (0..n_samples)
                 .map(|j| (j, (&x.row(i) - &x.row(j)).mapv(|x: f64| x * x).sum().sqrt()))
                 .collect();
-            hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            hd_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
             let hd_neighbors: Vec<usize> = hd_distances
                 .iter()
                 .take(k + 1)
@@ -1335,7 +1358,7 @@ impl AdaptiveResolutionManifold<Untrained> {
                     )
                 })
                 .collect();
-            ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            ld_distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("operation should succeed"));
 
             let mut rank_sum = 0.0;
             for &neighbor in &hd_neighbors {
@@ -1533,8 +1556,12 @@ mod tests {
             .base_method("pca".to_string())
             .random_state(42);
 
-        let fitted = hierarchical.fit(&x.view(), &dummy_y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = hierarchical
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1557,8 +1584,12 @@ mod tests {
             .combination_method("weighted".to_string())
             .random_state(42);
 
-        let fitted = multi_scale.fit(&x.view(), &dummy_y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = multi_scale
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 3]); // May differ based on combination method
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1576,8 +1607,12 @@ mod tests {
                 .refinement_steps(10)
                 .random_state(42);
 
-            let fitted = hierarchical.fit(&x.view(), &dummy_y.view()).unwrap();
-            let transformed = fitted.transform(&x.view()).unwrap();
+            let fitted = hierarchical
+                .fit(&x.view(), &dummy_y.view())
+                .expect("operation should succeed");
+            let transformed = fitted
+                .transform(&x.view())
+                .expect("operation should succeed");
 
             assert_eq!(transformed.shape(), [4, 2]);
             assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1603,8 +1638,12 @@ mod tests {
             .adaptation_method("combined".to_string())
             .random_state(42);
 
-        let fitted = adaptive.fit(&x.view(), &dummy_y.view()).unwrap();
-        let transformed = fitted.transform(&x.view()).unwrap();
+        let fitted = adaptive
+            .fit(&x.view(), &dummy_y.view())
+            .expect("operation should succeed");
+        let transformed = fitted
+            .transform(&x.view())
+            .expect("operation should succeed");
 
         assert_eq!(transformed.shape(), [4, 2]);
         assert!(transformed.iter().all(|&x| x.is_finite()));
@@ -1632,8 +1671,12 @@ mod tests {
                 .adaptation_method(method.to_string())
                 .random_state(42);
 
-            let fitted = adaptive.fit(&x.view(), &dummy_y.view()).unwrap();
-            let transformed = fitted.transform(&x.view()).unwrap();
+            let fitted = adaptive
+                .fit(&x.view(), &dummy_y.view())
+                .expect("operation should succeed");
+            let transformed = fitted
+                .transform(&x.view())
+                .expect("operation should succeed");
 
             assert_eq!(transformed.shape(), [4, 2]);
             assert!(transformed.iter().all(|&x| x.is_finite()));

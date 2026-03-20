@@ -211,7 +211,7 @@ mod tests {
         let y_true = array![0, 1, 2, 0, 1, 2];
         let y_pred = array![0, 2, 1, 0, 0, 1];
 
-        let cm = confusion_matrix(&y_true, &y_pred, None).unwrap();
+        let cm = confusion_matrix(&y_true, &y_pred, None).expect("operation should succeed");
 
         // Expected confusion matrix:
         // [2, 0, 0]  (class 0: 2 correct, 0 misclassified as 1, 0 as 2)
@@ -228,7 +228,8 @@ mod tests {
         let y_true = array![1, 1, 0, 0, 1, 0];
         let y_pred = array![1, 0, 0, 1, 1, 0];
 
-        let (tp, fp, tn, fn_count) = binary_confusion_matrix_stats(&y_true, &y_pred, 1).unwrap();
+        let (tp, fp, tn, fn_count) =
+            binary_confusion_matrix_stats(&y_true, &y_pred, 1).expect("operation should succeed");
 
         assert_eq!(tp, 2); // positions 0, 4
         assert_eq!(fp, 1); // position 3

@@ -12,7 +12,7 @@ mod test_metrics;
 // Common test utilities
 pub mod common {
     use scirs2_autograd::ndarray::{Array1, Array2};
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::thread_rng;
 
     /// Generate synthetic regression data for testing
     pub fn generate_regression_data(
@@ -22,9 +22,9 @@ pub mod common {
     ) -> (Array2<f64>, Array1<f64>, Array1<f64>) {
         let mut rng = thread_rng();
 
-        let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.gen::<f64>());
-        let true_coef = Array1::from_shape_fn(n_features, |_| rng.gen::<f64>());
-        let noise = Array1::from_shape_fn(n_samples, |_| rng.gen::<f64>() * noise_scale);
+        let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<f64>());
+        let true_coef = Array1::from_shape_fn(n_features, |_| rng.random::<f64>());
+        let noise = Array1::from_shape_fn(n_samples, |_| rng.random::<f64>() * noise_scale);
         let y = x.dot(&true_coef) + noise;
 
         (x, y, true_coef)
@@ -38,17 +38,17 @@ pub mod common {
         let mut rng = thread_rng();
 
         let y_true: Vec<i32> = (0..n_samples)
-            .map(|_| (rng.gen::<f64>() * n_classes as f64).floor() as i32)
+            .map(|_| (rng.random::<f64>() * n_classes as f64).floor() as i32)
             .collect();
 
         // Generate predictions with some accuracy
         let y_pred: Vec<i32> = y_true
             .iter()
             .map(|&true_label| {
-                if rng.gen::<f64>() < 0.8 {
+                if rng.random::<f64>() < 0.8 {
                     true_label
                 } else {
-                    (rng.gen::<f64>() * n_classes as f64).floor() as i32
+                    (rng.random::<f64>() * n_classes as f64).floor() as i32
                 }
             })
             .collect();
@@ -65,7 +65,8 @@ pub mod common {
         let mut rng = thread_rng();
 
         // Generate cluster centers
-        let centers = Array2::from_shape_fn((n_clusters, n_features), |_| rng.gen::<f64>() * 10.0);
+        let centers =
+            Array2::from_shape_fn((n_clusters, n_features), |_| rng.random::<f64>() * 10.0);
 
         let mut data = Vec::new();
         let mut labels = Vec::new();
@@ -84,7 +85,8 @@ pub mod common {
 
             for _ in 0..cluster_samples {
                 // Generate point near cluster center
-                let noise = Array1::from_shape_fn(n_features, |_| (rng.gen::<f64>() - 0.5) * 0.5);
+                let noise =
+                    Array1::from_shape_fn(n_features, |_| (rng.random::<f64>() - 0.5) * 0.5);
                 let point = center.to_owned() + noise;
                 data.push(point);
                 labels.push(cluster_id as i32);

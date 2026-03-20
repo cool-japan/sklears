@@ -202,18 +202,18 @@ impl ResourceScheduler {
     }
     /// Submit scheduling request
     pub fn submit_request(&self, request: SchedulingRequest) -> ContextResult<()> {
-        let mut queue = self.queue.lock().unwrap();
+        let mut queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
         queue.push_back(request);
-        let mut metrics = self.metrics.lock().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         metrics.total_requests += 1;
         metrics.queue_length = queue.len();
         Ok(())
     }
     /// Get next request from queue
     pub fn get_next_request(&self) -> ContextResult<Option<SchedulingRequest>> {
-        let mut queue = self.queue.lock().unwrap();
+        let mut queue = self.queue.lock().unwrap_or_else(|e| e.into_inner());
         let request = queue.pop_front();
-        let mut metrics = self.metrics.lock().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         metrics.queue_length = queue.len();
         Ok(request)
     }
@@ -735,13 +735,13 @@ impl QuotaManager {
     }
     /// Create quota
     pub fn create_quota(&self, quota: Quota) -> ContextResult<()> {
-        let mut quotas = self.quotas.write().unwrap();
+        let mut quotas = self.quotas.write().unwrap_or_else(|e| e.into_inner());
         quotas.insert(quota.quota_id.clone(), quota);
         Ok(())
     }
     /// Update quota usage
     pub fn update_usage(&self, quota_id: &str, usage_delta: f64) -> ContextResult<()> {
-        let mut usage = self.usage.lock().unwrap();
+        let mut usage = self.usage.lock().unwrap_or_else(|e| e.into_inner());
         let quota_usage = usage
             .entry(quota_id.to_string())
             .or_insert_with(QuotaUsage::default);
@@ -757,8 +757,8 @@ impl QuotaManager {
     }
     /// Check quota limits
     pub fn check_quota(&self, quota_id: &str) -> ContextResult<bool> {
-        let quotas = self.quotas.read().unwrap();
-        let usage = self.usage.lock().unwrap();
+        let quotas = self.quotas.read().unwrap_or_else(|e| e.into_inner());
+        let usage = self.usage.lock().unwrap_or_else(|e| e.into_inner());
         if let (Some(quota), Some(quota_usage)) = (
             quotas.get(quota_id),
             usage.get(quota_id),
@@ -824,14 +824,14 @@ impl ResourceMonitor {
     }
     /// Get current usage
     pub fn get_current_usage(&self) -> ContextResult<ResourceUsage> {
-        let usage = self.current_usage.lock().unwrap();
+        let usage = self.current_usage.lock().unwrap_or_else(|e| e.into_inner());
         Ok(usage.clone())
     }
     /// Update current usage
     pub fn update_usage(&self, usage: ResourceUsage) -> ContextResult<()> {
-        let mut current = self.current_usage.lock().unwrap();
+        let mut current = self.current_usage.lock().unwrap_or_else(|e| e.into_inner());
         *current = usage.clone();
-        let mut history = self.usage_history.lock().unwrap();
+        let mut history = self.usage_history.lock().unwrap_or_else(|e| e.into_inner());
         history
             .push_back(ResourceUsageSnapshot {
                 usage,
@@ -848,7 +848,7 @@ impl ResourceMonitor {
         &self,
         limit: Option<usize>,
     ) -> ContextResult<Vec<ResourceUsageSnapshot>> {
-        let history = self.usage_history.lock().unwrap();
+        let history = self.usage_history.lock().unwrap_or_else(|e| e.into_inner());
         match limit {
             Some(n) => Ok(history.iter().rev().take(n).cloned().collect()),
             None => Ok(history.iter().cloned().collect()),
@@ -1091,7 +1091,7 @@ impl ResourceContext {
             metadata: Arc::new(RwLock::new(ContextMetadata::default())),
             metrics: Arc::new(Mutex::new(ResourceMetrics::default())),
         };
-        *context.state.write().unwrap() = ContextState::Active;
+        *context.state.write().unwrap_or_else(|e| e.into_inner()) = ContextState::Active;
         Ok(context)
     }
     /// Create resource context with custom configuration
@@ -1100,7 +1100,7 @@ impl ResourceContext {
         config: ResourceConfig,
     ) -> ContextResult<Self> {
         let mut context = Self::new(context_id)?;
-        *context.config.write().unwrap() = config;
+        *context.config.write().unwrap_or_else(|e| e.into_inner()) = config;
         Ok(context)
     }
     /// Allocate resources
@@ -1120,18 +1120,18 @@ impl ResourceContext {
     }
     /// Get resource metrics
     pub fn get_resource_metrics(&self) -> ContextResult<ResourceMetrics> {
-        let metrics = self.metrics.lock().unwrap();
+        let metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         Ok(metrics.clone())
     }
     /// Create resource pool
     pub fn create_pool(&self, pool_id: String, pool: ResourcePool) -> ContextResult<()> {
-        let mut pools = self.pools.write().unwrap();
+        let mut pools = self.pools.write().unwrap_or_else(|e| e.into_inner());
         pools.insert(pool_id, pool);
         Ok(())
     }
     /// Get resource pool
     pub fn get_pool(&self, pool_id: &str) -> ContextResult<Option<ResourcePool>> {
-        let pools = self.pools.read().unwrap();
+        let pools = self.pools.read().unwrap_or_else(|e| e.into_inner());
         Ok(pools.get(pool_id).cloned())
     }
     /// Update resource configuration
@@ -1139,17 +1139,17 @@ impl ResourceContext {
     where
         F: FnOnce(&mut ResourceConfig) -> ContextResult<()>,
     {
-        let mut config = self.config.write().unwrap();
+        let mut config = self.config.write().unwrap_or_else(|e| e.into_inner());
         updater(&mut *config)
     }
     /// Get resource configuration
     pub fn get_config(&self) -> ContextResult<ResourceConfig> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
         Ok(config.clone())
     }
     /// Check resource limits
     pub fn check_resource_limits(&self) -> ContextResult<()> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read().unwrap_or_else(|e| e.into_inner());
         let usage = self.monitor.get_current_usage()?;
         if let Some(max_cores) = config.limits.cpu.max_cores {
             if usage.cpu_usage > max_cores {
@@ -1236,7 +1236,7 @@ impl ResourceManager {
         requirements: ResourceRequirement,
     ) -> ContextResult<String> {
         let allocation_id = Uuid::new_v4().to_string();
-        let available = self.available_resources.read().unwrap();
+        let available = self.available_resources.read().unwrap_or_else(|e| e.into_inner());
         if let Some(cpu_req) = requirements.cpu_cores {
             if available.cpu_cores < cpu_req {
                 return Err(
@@ -1272,33 +1272,33 @@ impl ResourceManager {
             priority: ContextPriority::Normal,
             status: AllocationStatus::Active,
         };
-        let mut allocations = self.allocations.write().unwrap();
+        let mut allocations = self.allocations.write().unwrap_or_else(|e| e.into_inner());
         allocations.insert(allocation_id.clone(), allocation.clone());
-        let mut available = self.available_resources.write().unwrap();
+        let mut available = self.available_resources.write().unwrap_or_else(|e| e.into_inner());
         available.cpu_cores -= allocation.cpu_cores;
         available.memory -= allocation.memory;
         available.storage -= allocation.storage;
         available.network_bandwidth -= allocation.network_bandwidth;
         available.gpu_devices -= allocation.gpu_devices;
         available.last_updated = SystemTime::now();
-        let mut metrics = self.metrics.lock().unwrap();
+        let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
         metrics.total_allocations += 1;
         metrics.active_allocations += 1;
         Ok(allocation_id)
     }
     /// Release allocation
     pub fn release(&self, allocation_id: &str) -> ContextResult<()> {
-        let mut allocations = self.allocations.write().unwrap();
+        let mut allocations = self.allocations.write().unwrap_or_else(|e| e.into_inner());
         if let Some(mut allocation) = allocations.remove(allocation_id) {
             allocation.status = AllocationStatus::Released;
-            let mut available = self.available_resources.write().unwrap();
+            let mut available = self.available_resources.write().unwrap_or_else(|e| e.into_inner());
             available.cpu_cores += allocation.cpu_cores;
             available.memory += allocation.memory;
             available.storage += allocation.storage;
             available.network_bandwidth += allocation.network_bandwidth;
             available.gpu_devices += allocation.gpu_devices;
             available.last_updated = SystemTime::now();
-            let mut metrics = self.metrics.lock().unwrap();
+            let mut metrics = self.metrics.lock().unwrap_or_else(|e| e.into_inner());
             metrics.active_allocations -= 1;
             Ok(())
         } else {
@@ -1310,12 +1310,12 @@ impl ResourceManager {
         &self,
         allocation_id: &str,
     ) -> ContextResult<Option<ResourceAllocation>> {
-        let allocations = self.allocations.read().unwrap();
+        let allocations = self.allocations.read().unwrap_or_else(|e| e.into_inner());
         Ok(allocations.get(allocation_id).cloned())
     }
     /// Get available resources
     pub fn get_available_resources(&self) -> ContextResult<AvailableResources> {
-        let available = self.available_resources.read().unwrap();
+        let available = self.available_resources.read().unwrap_or_else(|e| e.into_inner());
         Ok(available.clone())
     }
 }

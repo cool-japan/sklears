@@ -140,6 +140,13 @@
 //!
 //! See individual module documentation for detailed examples.
 //!
+//! ## Known Limitations
+//!
+//! The following test modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `property_tests` - Property-based tests requiring trait bound simplification
+//! - `test_utilities` - Test utilities requiring trait bound simplification
+//!
 //! ## Integration
 //!
 //! This crate is re-exported by the main `sklears` crate, so you typically don't
@@ -239,12 +246,12 @@ pub mod code_coverage;
 // Input sanitization for untrusted data
 pub mod input_sanitization;
 
-// TODO: HRTB issues - needs trait bound simplification
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // #[allow(non_snake_case)]
 // #[cfg(test)]
 // pub mod property_tests;
 
-// TODO: HRTB issues - needs trait bound simplification
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // #[allow(non_snake_case)]
 // #[cfg(test)]
 // pub mod test_utilities;

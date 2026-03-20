@@ -8,7 +8,7 @@ use rayon::prelude::*;
 
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Rng;
+use scirs2_core::random::RngExt;
 use scirs2_core::random::{thread_rng, SeedableRng};
 use scirs2_linalg::compat::ArrayLinalgExt;
 use sklears_core::{
@@ -327,7 +327,7 @@ impl ParameterLearner {
         let mut rng = if let Some(seed) = self.config.random_seed {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::from_seed(thread_rng().gen())
+            StdRng::from_seed(thread_rng().random())
         };
 
         let mut parameter_history = Vec::new();
@@ -347,7 +347,7 @@ impl ParameterLearner {
                 self.config.parameter_bounds.gamma_bounds.1,
             );
 
-            let n_components = rng.gen_range(
+            let n_components = rng.random_range(
                 self.config.parameter_bounds.n_components_bounds.0
                     ..=self.config.parameter_bounds.n_components_bounds.1,
             );
@@ -389,7 +389,7 @@ impl ParameterLearner {
         let mut rng = if let Some(seed) = self.config.random_seed {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::from_seed(thread_rng().gen())
+            StdRng::from_seed(thread_rng().random())
         };
 
         let mut parameter_history = Vec::new();
@@ -409,7 +409,7 @@ impl ParameterLearner {
                 self.config.parameter_bounds.gamma_bounds.1,
             );
 
-            let n_components = rng.gen_range(
+            let n_components = rng.random_range(
                 self.config.parameter_bounds.n_components_bounds.0
                     ..=self.config.parameter_bounds.n_components_bounds.1,
             );
@@ -597,7 +597,7 @@ impl ParameterLearner {
         let mut rng = if let Some(seed) = self.config.random_seed {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::from_seed(thread_rng().gen())
+            StdRng::from_seed(thread_rng().random())
         };
 
         let mut parameter_history = Vec::new();
@@ -616,7 +616,7 @@ impl ParameterLearner {
                 self.config.parameter_bounds.gamma_bounds.1,
             );
 
-            let n_components = rng.gen_range(
+            let n_components = rng.random_range(
                 self.config.parameter_bounds.n_components_bounds.0
                     ..=self.config.parameter_bounds.n_components_bounds.1,
             );
@@ -894,7 +894,7 @@ impl ParameterLearner {
     fn sample_log_uniform(&self, rng: &mut StdRng, min_val: f64, max_val: f64) -> f64 {
         let log_min = min_val.ln();
         let log_max = max_val.ln();
-        let log_val = rng.gen_range(log_min..log_max);
+        let log_val = rng.random_range(log_min..log_max);
         log_val.exp()
     }
 
@@ -924,7 +924,7 @@ impl ParameterLearner {
                 self.config.parameter_bounds.gamma_bounds.1,
             );
 
-            let n_components = rng.gen_range(
+            let n_components = rng.random_range(
                 self.config.parameter_bounds.n_components_bounds.0
                     ..=self.config.parameter_bounds.n_components_bounds.1,
             );
@@ -1086,8 +1086,8 @@ mod tests {
 
     #[test]
     fn test_parameter_learner_grid_search() {
-        let x =
-            Array2::from_shape_vec((50, 5), (0..250).map(|i| i as f64 * 0.01).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 5), (0..250).map(|i| i as f64 * 0.01).collect())
+            .expect("operation should succeed");
 
         let config = ParameterLearningConfig {
             search_strategy: SearchStrategy::GridSearch { n_points: 3 },
@@ -1101,7 +1101,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_rbf_parameters(&x, None).unwrap();
+        let result = learner
+            .optimize_rbf_parameters(&x, None)
+            .expect("operation should succeed");
 
         assert!(result.best_score > 0.0);
         assert!(result.best_parameters.gamma >= 0.1);
@@ -1114,8 +1116,8 @@ mod tests {
 
     #[test]
     fn test_parameter_learner_random_search() {
-        let x =
-            Array2::from_shape_vec((30, 4), (0..120).map(|i| i as f64 * 0.05).collect()).unwrap();
+        let x = Array2::from_shape_vec((30, 4), (0..120).map(|i| i as f64 * 0.05).collect())
+            .expect("operation should succeed");
 
         let config = ParameterLearningConfig {
             search_strategy: SearchStrategy::RandomSearch { n_samples: 5 },
@@ -1129,7 +1131,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_rbf_parameters(&x, None).unwrap();
+        let result = learner
+            .optimize_rbf_parameters(&x, None)
+            .expect("operation should succeed");
 
         assert!(result.best_score > 0.0);
         assert_eq!(result.parameter_history.len(), 5);
@@ -1138,7 +1142,8 @@ mod tests {
 
     #[test]
     fn test_parameter_learner_bayesian_optimization() {
-        let x = Array2::from_shape_vec((25, 3), (0..75).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((25, 3), (0..75).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let config = ParameterLearningConfig {
             search_strategy: SearchStrategy::BayesianOptimization {
@@ -1156,7 +1161,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_rbf_parameters(&x, None).unwrap();
+        let result = learner
+            .optimize_rbf_parameters(&x, None)
+            .expect("operation should succeed");
 
         assert!(result.best_score > 0.0);
         assert_eq!(result.parameter_history.len(), 5); // 3 initial + 2 iterations
@@ -1165,8 +1172,8 @@ mod tests {
 
     #[test]
     fn test_parameter_learner_coordinate_descent() {
-        let x =
-            Array2::from_shape_vec((40, 6), (0..240).map(|i| i as f64 * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((40, 6), (0..240).map(|i| i as f64 * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = ParameterLearningConfig {
             search_strategy: SearchStrategy::CoordinateDescent {
@@ -1182,7 +1189,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_rbf_parameters(&x, None).unwrap();
+        let result = learner
+            .optimize_rbf_parameters(&x, None)
+            .expect("operation should succeed");
 
         assert!(result.best_score > 0.0);
         assert!(result.parameter_history.len() >= 1);
@@ -1191,8 +1200,8 @@ mod tests {
 
     #[test]
     fn test_parameter_learner_nystroem() {
-        let x =
-            Array2::from_shape_vec((35, 4), (0..140).map(|i| i as f64 * 0.03).collect()).unwrap();
+        let x = Array2::from_shape_vec((35, 4), (0..140).map(|i| i as f64 * 0.03).collect())
+            .expect("operation should succeed");
 
         let config = ParameterLearningConfig {
             search_strategy: SearchStrategy::GridSearch { n_points: 2 },
@@ -1205,7 +1214,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_nystroem_parameters(&x, None).unwrap();
+        let result = learner
+            .optimize_nystroem_parameters(&x, None)
+            .expect("operation should succeed");
 
         assert!(result.best_score > 0.0);
         assert_eq!(result.parameter_history.len(), 4); // 2x2 grid
@@ -1213,8 +1224,8 @@ mod tests {
 
     #[test]
     fn test_cross_validation_objective() {
-        let x =
-            Array2::from_shape_vec((50, 3), (0..150).map(|i| i as f64 * 0.01).collect()).unwrap();
+        let x = Array2::from_shape_vec((50, 3), (0..150).map(|i| i as f64 * 0.01).collect())
+            .expect("operation should succeed");
         let y = Array1::from_shape_fn(50, |i| (i as f64 * 0.1).sin());
 
         let config = ParameterLearningConfig {
@@ -1224,7 +1235,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_rbf_parameters(&x, Some(&y)).unwrap();
+        let result = learner
+            .optimize_rbf_parameters(&x, Some(&y))
+            .expect("operation should succeed");
 
         assert!(result.best_score >= 0.0);
         assert!(result.parameter_history.len() > 0);
@@ -1232,8 +1245,8 @@ mod tests {
 
     #[test]
     fn test_effective_rank_objective() {
-        let x =
-            Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64 * 0.02).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64 * 0.02).collect())
+            .expect("operation should succeed");
 
         let config = ParameterLearningConfig {
             search_strategy: SearchStrategy::RandomSearch { n_samples: 2 },
@@ -1248,7 +1261,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_rbf_parameters(&x, None).unwrap();
+        let result = learner
+            .optimize_rbf_parameters(&x, None)
+            .expect("operation should succeed");
 
         assert!(result.best_score > 0.0);
         assert_eq!(result.parameter_history.len(), 2);
@@ -1275,7 +1290,8 @@ mod tests {
 
     #[test]
     fn test_optimization_result() {
-        let x = Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64 * 0.1).collect()).unwrap();
+        let x = Array2::from_shape_vec((20, 3), (0..60).map(|i| i as f64 * 0.1).collect())
+            .expect("operation should succeed");
 
         let config = ParameterLearningConfig {
             search_strategy: SearchStrategy::GridSearch { n_points: 2 },
@@ -1283,7 +1299,9 @@ mod tests {
         };
 
         let learner = ParameterLearner::new(config);
-        let result = learner.optimize_rbf_parameters(&x, None).unwrap();
+        let result = learner
+            .optimize_rbf_parameters(&x, None)
+            .expect("operation should succeed");
 
         // Verify result structure
         assert!(result.best_score > 0.0);

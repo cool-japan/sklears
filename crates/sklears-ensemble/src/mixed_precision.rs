@@ -688,7 +688,7 @@ mod tests {
         let a = MixedPrecisionArray::Full(array![[1.0, 2.0], [3.0, 4.0]]);
         let b = MixedPrecisionArray::Full(array![[5.0, 6.0], [7.0, 8.0]]);
 
-        let result = a.add(&b).unwrap();
+        let result = a.add(&b).expect("operation should succeed");
         match result {
             MixedPrecisionArray::Full(arr) => {
                 assert_eq!(arr, array![[6.0, 8.0], [10.0, 12.0]]);
@@ -704,8 +704,12 @@ mod tests {
         let grad1 = MixedPrecisionArray::Full(array![[1.0, 2.0], [3.0, 4.0]]);
         let grad2 = MixedPrecisionArray::Full(array![[2.0, 3.0], [4.0, 5.0]]);
 
-        accumulator.accumulate("layer1", &grad1).unwrap();
-        accumulator.accumulate("layer1", &grad2).unwrap();
+        accumulator
+            .accumulate("layer1", &grad1)
+            .expect("operation should succeed");
+        accumulator
+            .accumulate("layer1", &grad2)
+            .expect("operation should succeed");
 
         let averaged = accumulator.get_averaged_gradients();
         let layer1_grads = &averaged["layer1"];

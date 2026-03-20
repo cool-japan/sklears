@@ -758,7 +758,7 @@ impl TheoreticalCalibrationValidator {
             method_name,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .unwrap_or_default()
                 .as_secs(),
             self.config.confidence_level * 100.0,
             self.config.proof_precision
@@ -883,7 +883,7 @@ mod tests {
 
         let bounds = validator
             .compute_theoretical_bounds(BoundType::CalibrationErrorUpper)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(bounds.bound_value > 0.0);
         assert!(bounds.tightness >= 0.0 && bounds.tightness <= 1.0);
@@ -898,7 +898,9 @@ mod tests {
         };
         let validator = TheoreticalCalibrationValidator::new(config);
 
-        let convergence_verified = validator.verify_convergence_conditions("sigmoid").unwrap();
+        let convergence_verified = validator
+            .verify_convergence_conditions("sigmoid")
+            .expect("operation should succeed");
         // Should pass basic convergence conditions
         assert!(convergence_verified);
     }
@@ -967,7 +969,7 @@ mod tests {
 
         let bounds = validator
             .compute_theoretical_bounds(BoundType::InformationTheoreticLower)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Information-theoretic bounds should be tight
         assert_eq!(bounds.tightness, 1.0);
@@ -979,7 +981,9 @@ mod tests {
     fn test_convergence_rate_analysis() {
         let validator = TheoreticalCalibrationValidator::default();
 
-        let rate_bound = validator.compute_convergence_rate_bound().unwrap();
+        let rate_bound = validator
+            .compute_convergence_rate_bound()
+            .expect("operation should succeed");
 
         // Convergence rate should be positive and decrease with sample size
         assert!(rate_bound > 0.0);
@@ -991,11 +995,15 @@ mod tests {
         let validator = TheoreticalCalibrationValidator::default();
 
         // Sigmoid should be monotonic
-        let sigmoid_monotonic = validator.verify_monotonicity("sigmoid").unwrap();
+        let sigmoid_monotonic = validator
+            .verify_monotonicity("sigmoid")
+            .expect("operation should succeed");
         assert!(sigmoid_monotonic);
 
         // Isotonic should be monotonic
-        let isotonic_monotonic = validator.verify_monotonicity("isotonic").unwrap();
+        let isotonic_monotonic = validator
+            .verify_monotonicity("isotonic")
+            .expect("operation should succeed");
         assert!(isotonic_monotonic);
     }
 
@@ -1005,7 +1013,7 @@ mod tests {
 
         let bounds = validator
             .compute_theoretical_bounds(BoundType::MinimaxOptimal)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Check ultra-precision representation (allow for precision conversion differences)
         let ultra_value = bounds.ultra_precision_bound.to_float();

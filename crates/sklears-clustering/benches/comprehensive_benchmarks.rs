@@ -14,7 +14,7 @@ use std::hint::black_box;
 /// Generate synthetic clustered data with Gaussian blobs
 fn generate_clustered_data(n_samples: usize, n_features: usize, n_clusters: usize) -> Array2<f64> {
     let mut rng = thread_rng();
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
     let mut data = Array2::zeros((n_samples, n_features));
 
     let samples_per_cluster = n_samples / n_clusters;

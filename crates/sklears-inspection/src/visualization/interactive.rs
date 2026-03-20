@@ -268,7 +268,9 @@ mod tests {
         let mut updater = RealTimePlotUpdater::new(config);
 
         let data = array![[1.0, 2.0], [3.0, 4.0]];
-        updater.add_data("test_series".to_string(), data).unwrap();
+        updater
+            .add_data("test_series".to_string(), data)
+            .expect("operation should succeed");
 
         assert_eq!(updater.get_buffer_data().len(), 1);
         assert!(updater.get_buffer_data().contains_key("test_series"));

@@ -565,10 +565,10 @@ mod tests {
         let y = array![1.0, 3.0, 2.0, 4.0, 5.0];
 
         let model = StreamingIsotonicRegression::new().batch_size(3);
-        let mut fitted = model.fit(&x, &y).unwrap();
+        let mut fitted = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Test prediction
-        let predictions = fitted.predict(&x).unwrap();
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), 5);
 
         // Check monotonicity
@@ -577,8 +577,8 @@ mod tests {
         }
 
         // Test incremental updates
-        fitted.update_single(6.0, 6.0).unwrap();
-        fitted.flush_buffer().unwrap();
+        fitted.update_single(6.0, 6.0).expect("operation should succeed");
+        fitted.flush_buffer().expect("operation should succeed");
 
         assert_eq!(fitted.n_samples(), 6);
         assert_eq!(fitted.n_updates(), 2);
@@ -589,13 +589,13 @@ mod tests {
         let mut model = StreamingIsotonicRegression::new()
             .batch_size(2)
             .fit(&array![1.0, 2.0], &array![1.0, 2.0])
-            .unwrap();
+            .expect("operation should succeed");
 
         // Add data points one by one
-        model.update_single(3.0, 3.5).unwrap();
-        model.update_single(4.0, 3.0).unwrap(); // This should trigger batch update
+        model.update_single(3.0, 3.5).expect("operation should succeed");
+        model.update_single(4.0, 3.0).expect("operation should succeed"); // This should trigger batch update
 
-        let predictions = model.predict(&array![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let predictions = model.predict(&array![1.0, 2.0, 3.0, 4.0]).expect("prediction should succeed");
 
         // Check monotonicity
         for i in 0..predictions.len() - 1 {
@@ -609,15 +609,15 @@ mod tests {
             .batch_size(2)
             .forget_factor(0.9);
 
-        let mut fitted = model.fit(&array![1.0, 2.0], &array![1.0, 2.0]).unwrap();
+        let mut fitted = model.fit(&array![1.0, 2.0], &array![1.0, 2.0]).expect("model fitting should succeed");
 
         // Add multiple batches
         fitted
             .update_multiple(array![3.0, 4.0].view(), array![3.0, 4.0].view())
-            .unwrap();
+            .expect("operation should succeed");
         fitted
             .update_multiple(array![5.0, 6.0].view(), array![5.0, 6.0].view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(fitted.n_updates() >= 2);
     }
@@ -628,22 +628,22 @@ mod tests {
             .constraint(MonotonicityConstraint::Global { increasing: true });
 
         // Add data points
-        model.update(1.0, 1.0).unwrap();
-        model.update(2.0, 3.0).unwrap();
-        model.update(3.0, 2.0).unwrap();
+        model.update(1.0, 1.0).expect("operation should succeed");
+        model.update(2.0, 3.0).expect("operation should succeed");
+        model.update(3.0, 2.0).expect("operation should succeed");
 
         assert_eq!(model.current_window_size(), 3);
 
         // Test prediction
-        let predictions = model.predict(array![1.0, 2.0, 3.0].view()).unwrap();
+        let predictions = model.predict(array![1.0, 2.0, 3.0].view()).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
 
         // Add another point (should remove first)
-        model.update(4.0, 4.0).unwrap();
+        model.update(4.0, 4.0).expect("operation should succeed");
         assert_eq!(model.current_window_size(), 3);
 
         // Check monotonicity
-        let new_predictions = model.predict(array![2.0, 3.0, 4.0].view()).unwrap();
+        let new_predictions = model.predict(array![2.0, 3.0, 4.0].view()).expect("prediction should succeed");
         for i in 0..new_predictions.len() - 1 {
             assert!(new_predictions[i] <= new_predictions[i + 1]);
         }
@@ -655,12 +655,12 @@ mod tests {
             .constraint(MonotonicityConstraint::Global { increasing: false })
             .batch_size(2);
 
-        let mut fitted = model.fit(&array![1.0, 2.0], &array![3.0, 2.0]).unwrap();
+        let mut fitted = model.fit(&array![1.0, 2.0], &array![3.0, 2.0]).expect("model fitting should succeed");
 
-        fitted.update_single(3.0, 1.0).unwrap();
-        fitted.flush_buffer().unwrap();
+        fitted.update_single(3.0, 1.0).expect("operation should succeed");
+        fitted.flush_buffer().expect("operation should succeed");
 
-        let predictions = fitted.predict(&array![1.0, 2.0, 3.0]).unwrap();
+        let predictions = fitted.predict(&array![1.0, 2.0, 3.0]).expect("prediction should succeed");
 
         // Check decreasing monotonicity
         for i in 0..predictions.len() - 1 {
@@ -680,9 +680,9 @@ mod tests {
             2,
             Some(0.95),
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = model.predict(&x).unwrap();
+        let predictions = model.predict(&x).expect("prediction should succeed");
 
         // Check monotonicity
         for i in 0..predictions.len() - 1 {
@@ -693,9 +693,9 @@ mod tests {
     #[test]
     fn test_streaming_isotonic_regression_reset() {
         let model = StreamingIsotonicRegression::new().batch_size(2);
-        let mut fitted = model.fit(&array![1.0, 2.0], &array![1.0, 2.0]).unwrap();
+        let mut fitted = model.fit(&array![1.0, 2.0], &array![1.0, 2.0]).expect("model fitting should succeed");
 
-        fitted.update_single(3.0, 3.0).unwrap();
+        fitted.update_single(3.0, 3.0).expect("operation should succeed");
         assert_eq!(fitted.n_samples(), 2);
 
         fitted.reset();
@@ -709,12 +709,12 @@ mod tests {
             .loss(LossFunction::HuberLoss { delta: 1.0 })
             .batch_size(2);
 
-        let mut fitted = model.fit(&array![1.0, 2.0], &array![1.0, 100.0]).unwrap(); // outlier
+        let mut fitted = model.fit(&array![1.0, 2.0], &array![1.0, 100.0]).expect("model fitting should succeed"); // outlier
 
-        fitted.update_single(3.0, 3.0).unwrap();
-        fitted.flush_buffer().unwrap();
+        fitted.update_single(3.0, 3.0).expect("operation should succeed");
+        fitted.flush_buffer().expect("operation should succeed");
 
-        let predictions = fitted.predict(&array![1.0, 2.0, 3.0]).unwrap();
+        let predictions = fitted.predict(&array![1.0, 2.0, 3.0]).expect("prediction should succeed");
 
         // Should handle outlier gracefully
         println!("Predictions: {:?}", predictions);

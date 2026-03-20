@@ -8,10 +8,9 @@
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Float;
 // SciRS2 Policy Compliance - Use scirs2-core for random functionality
-use scirs2_core::random::Rng;
 // SciRS2 Policy Compliance - Use scirs2-core for random distributions
 use scirs2_core::random::essentials::Normal as RandNormal;
-use scirs2_core::random::Distribution;
+use scirs2_core::random::{Distribution, RngExt};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use thiserror::Error;
@@ -121,21 +120,28 @@ impl KernelType {
                     return Ok(F::one());
                 }
 
-                let sqrt_nu = (F::from(2.0).unwrap() * nu_f).sqrt();
+                let sqrt_nu = (F::from(2.0).expect("operation should succeed") * nu_f).sqrt();
                 let scaled_distance = sqrt_nu * distance / length_scale_f;
 
                 // Simplified Matern for common cases
-                if (nu_f - F::from(0.5).unwrap()).abs() < F::from(1e-10).unwrap() {
+                if (nu_f - F::from(0.5).expect("operation should succeed")).abs()
+                    < F::from(1e-10).expect("operation should succeed")
+                {
                     // Matern 1/2 (Exponential)
                     Ok((-scaled_distance).exp())
-                } else if (nu_f - F::from(1.5).unwrap()).abs() < F::from(1e-10).unwrap() {
+                } else if (nu_f - F::from(1.5).expect("operation should succeed")).abs()
+                    < F::from(1e-10).expect("operation should succeed")
+                {
                     // Matern 3/2
                     Ok((F::one() + scaled_distance) * (-scaled_distance).exp())
-                } else if (nu_f - F::from(2.5).unwrap()).abs() < F::from(1e-10).unwrap() {
+                } else if (nu_f - F::from(2.5).expect("operation should succeed")).abs()
+                    < F::from(1e-10).expect("operation should succeed")
+                {
                     // Matern 5/2
                     let term = F::one()
                         + scaled_distance
-                        + scaled_distance * scaled_distance / F::from(3.0).unwrap();
+                        + scaled_distance * scaled_distance
+                            / F::from(3.0).expect("operation should succeed");
                     Ok(term * (-scaled_distance).exp())
                 } else {
                     // General case (simplified)
@@ -233,7 +239,7 @@ impl BandwidthMethod {
                 let std_data = data.std_axis(Axis(0), 0.0);
                 let median_std = {
                     let mut std_vec: Vec<f64> = std_data.iter().cloned().collect();
-                    std_vec.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    std_vec.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
                     std_vec[std_vec.len() / 2]
                 };
                 median_std * n_samples.powf(-1.0 / (n_features + 4.0))
@@ -292,7 +298,10 @@ impl KernelDensityEstimator {
             return Err(KernelError::InvalidParameters("KDE not fitted".to_string()));
         }
 
-        let training_data = self.training_data.as_ref().unwrap();
+        let training_data = self
+            .training_data
+            .as_ref()
+            .expect("operation should succeed");
         let n_training = training_data.nrows() as f64;
         let n_features = training_data.ncols() as f64;
 
@@ -326,12 +335,19 @@ impl KernelDensityEstimator {
     }
 
     /// Sample from the fitted density
-    pub fn sample(&self, n_samples: usize, rng: &mut impl Rng) -> Result<Array2<f64>, KernelError> {
+    pub fn sample(
+        &self,
+        n_samples: usize,
+        rng: &mut impl RngExt,
+    ) -> Result<Array2<f64>, KernelError> {
         if !self.fitted {
             return Err(KernelError::InvalidParameters("KDE not fitted".to_string()));
         }
 
-        let training_data = self.training_data.as_ref().unwrap();
+        let training_data = self
+            .training_data
+            .as_ref()
+            .expect("operation should succeed");
         let n_training = training_data.nrows();
         let n_features = training_data.ncols();
 
@@ -342,7 +358,7 @@ impl KernelDensityEstimator {
 
         for i in 0..n_samples {
             // Select random training sample
-            let idx = rng.gen_range(0..n_training);
+            let idx = rng.random_range(0..n_training);
             let base_sample = training_data.row(idx);
 
             // Add noise
@@ -399,8 +415,14 @@ impl GaussianProcess {
             return Err(KernelError::InvalidParameters("GP not fitted".to_string()));
         }
 
-        let x_train = self.training_inputs.as_ref().unwrap();
-        let y_train = self.training_outputs.as_ref().unwrap();
+        let x_train = self
+            .training_inputs
+            .as_ref()
+            .expect("operation should succeed");
+        let y_train = self
+            .training_outputs
+            .as_ref()
+            .expect("operation should succeed");
 
         // Compute kernel matrices
         let k_train_train = self.kernel.compute_matrix(x_train, None)?;
@@ -1010,7 +1032,8 @@ impl<F: Float + 'static> ReproducingKernelHilbertSpace<F> {
             for j in 0..gram_matrix.ncols() {
                 row_sum = row_sum + gram_matrix[[i, j]].abs();
             }
-            eigenvalues[i] = row_sum / F::from(gram_matrix.ncols()).unwrap();
+            eigenvalues[i] =
+                row_sum / F::from(gram_matrix.ncols()).expect("operation should succeed");
         }
 
         Ok(eigenvalues)
@@ -1076,7 +1099,7 @@ impl<F: Float + 'static> RKHSFeatureSelector<F> {
             .map(|(i, &val)| (i, val))
             .collect();
 
-        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_indices.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         self.selected_features = feature_indices
             .into_iter()
@@ -1115,16 +1138,19 @@ mod tests {
         let x = Array1::from_vec(vec![1.0, 2.0]);
         let y = Array1::from_vec(vec![1.0, 2.0]);
 
-        let result = kernel.compute(&x, &y).unwrap();
+        let result = kernel.compute(&x, &y).expect("operation should succeed");
         assert_abs_diff_eq!(result, 1.0, epsilon = 1e-10);
     }
 
     #[test]
     fn test_kernel_matrix() {
         let kernel = KernelType::Linear;
-        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let x = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0])
+            .expect("operation should succeed");
 
-        let matrix = kernel.compute_matrix(&x, None).unwrap();
+        let matrix = kernel
+            .compute_matrix(&x, None)
+            .expect("operation should succeed");
         assert_eq!(matrix.shape(), &[2, 2]);
         assert_abs_diff_eq!(matrix[[0, 0]], 5.0, epsilon = 1e-10); // [1,2] · [1,2] = 5
         assert_abs_diff_eq!(matrix[[1, 1]], 25.0, epsilon = 1e-10); // [3,4] · [3,4] = 25
@@ -1135,14 +1161,17 @@ mod tests {
         let config = KDEConfig::default();
         let mut kde = KernelDensityEstimator::new(config);
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
 
-        kde.fit(&data).unwrap();
+        kde.fit(&data).expect("operation should succeed");
 
-        let test_data = Array2::from_shape_vec((2, 2), vec![2.5, 2.5, 1.5, 1.5]).unwrap();
+        let test_data = Array2::from_shape_vec((2, 2), vec![2.5, 2.5, 1.5, 1.5])
+            .expect("operation should succeed");
 
-        let scores = kde.score_samples(&test_data).unwrap();
+        let scores = kde
+            .score_samples(&test_data)
+            .expect("operation should succeed");
         assert_eq!(scores.len(), 2);
         assert!(scores[0].is_finite());
         assert!(scores[1].is_finite());
@@ -1164,11 +1193,11 @@ mod tests {
                 5.2, 5.2, // class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
-        classifier.fit(&x, &y).unwrap();
+        classifier.fit(&x, &y).expect("operation should succeed");
 
         let test_x = Array2::from_shape_vec(
             (2, 2),
@@ -1177,9 +1206,11 @@ mod tests {
                 5.05, 5.05, // Should be class 1
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
-        let predictions = classifier.predict(&test_x).unwrap();
+        let predictions = classifier
+            .predict(&test_x)
+            .expect("operation should succeed");
         assert_eq!(predictions[0], 0);
         assert_eq!(predictions[1], 1);
     }
@@ -1189,13 +1220,16 @@ mod tests {
         let kernel = KernelType::RBF { gamma: 1.0 };
         let mut gp = GaussianProcess::new(kernel, 0.1);
 
-        let x_train = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
+        let x_train =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).expect("operation should succeed");
         let y_train = Array1::from_vec(vec![1.0, 4.0, 9.0]); // y = x^2
 
-        gp.fit(&x_train, &y_train).unwrap();
+        gp.fit(&x_train, &y_train)
+            .expect("operation should succeed");
 
-        let x_test = Array2::from_shape_vec((2, 1), vec![1.5, 2.5]).unwrap();
-        let (mean, variance) = gp.predict(&x_test).unwrap();
+        let x_test =
+            Array2::from_shape_vec((2, 1), vec![1.5, 2.5]).expect("operation should succeed");
+        let (mean, variance) = gp.predict(&x_test).expect("operation should succeed");
 
         assert_eq!(mean.len(), 2);
         assert_eq!(variance.len(), 2);
@@ -1204,7 +1238,8 @@ mod tests {
 
     #[test]
     fn test_bandwidth_methods() {
-        let data = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).unwrap();
+        let data = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect())
+            .expect("operation should succeed");
 
         let scott_bw = BandwidthMethod::Scott.compute_bandwidth(&data);
         let silverman_bw = BandwidthMethod::Silverman.compute_bandwidth(&data);
@@ -1230,11 +1265,13 @@ mod tests {
             (6, 2),
             vec![1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 5.0, 5.0, 5.1, 5.1, 5.2, 5.2],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![0, 0, 0, 1, 1, 1]);
 
-        let best_kernel = learner.find_best_kernel(&x, &y).unwrap();
+        let best_kernel = learner
+            .find_best_kernel(&x, &y)
+            .expect("operation should succeed");
 
         // Should find a reasonable kernel
         match best_kernel {
@@ -1249,13 +1286,13 @@ mod tests {
         let config = KDEConfig::default();
         let mut kde = KernelDensityEstimator::new(config);
 
-        let data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+        let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+            .expect("operation should succeed");
 
-        kde.fit(&data).unwrap();
+        kde.fit(&data).expect("operation should succeed");
 
         let mut rng = scirs2_core::random::CoreRandom::seed_from_u64(42);
-        let samples = kde.sample(10, &mut rng).unwrap();
+        let samples = kde.sample(10, &mut rng).expect("operation should succeed");
 
         assert_eq!(samples.shape(), &[10, 2]);
         assert!(samples.iter().all(|&x| x.is_finite()));
@@ -1266,14 +1303,17 @@ mod tests {
         let kernel = KernelType::RBF { gamma: 1.0 };
         let mut rkhs = ReproducingKernelHilbertSpace::new(kernel, 0.01);
 
-        let training_data =
-            Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let training_data = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
 
-        rkhs.set_training_data(&training_data).unwrap();
+        rkhs.set_training_data(&training_data)
+            .expect("operation should succeed");
 
         // Test feature map
         let test_point = Array1::from_vec(vec![2.5, 2.5]);
-        let feature_map = rkhs.feature_map(&test_point).unwrap();
+        let feature_map = rkhs
+            .feature_map(&test_point)
+            .expect("operation should succeed");
         assert_eq!(feature_map.len(), 3);
         assert!(feature_map.iter().all(|&x| x.is_finite()));
     }
@@ -1283,24 +1323,30 @@ mod tests {
         let kernel = KernelType::Linear;
         let mut rkhs = ReproducingKernelHilbertSpace::new(kernel, 0.1);
 
-        let training_data = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
+        let training_data = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0])
+            .expect("operation should succeed");
 
-        rkhs.set_training_data(&training_data).unwrap();
+        rkhs.set_training_data(&training_data)
+            .expect("operation should succeed");
 
         let alpha = Array1::from_vec(vec![1.0, 1.0]);
         let beta = Array1::from_vec(vec![1.0, -1.0]);
 
         // Test inner product
-        let inner_prod = rkhs.inner_product(&alpha, &beta).unwrap();
+        let inner_prod = rkhs
+            .inner_product(&alpha, &beta)
+            .expect("operation should succeed");
         assert!(inner_prod.is_finite());
 
         // Test norm
-        let norm_alpha = rkhs.norm(&alpha).unwrap();
+        let norm_alpha = rkhs.norm(&alpha).expect("operation should succeed");
         assert!(norm_alpha > 0.0);
         assert!(norm_alpha.is_finite());
 
         // Test regularized norm
-        let reg_norm = rkhs.regularized_norm(&alpha).unwrap();
+        let reg_norm = rkhs
+            .regularized_norm(&alpha)
+            .expect("operation should succeed");
         assert!(reg_norm >= norm_alpha);
     }
 
@@ -1309,13 +1355,18 @@ mod tests {
         let kernel = KernelType::RBF { gamma: 0.5 };
         let mut rkhs = ReproducingKernelHilbertSpace::new(kernel, 0.01);
 
-        let training_data = Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap();
-        rkhs.set_training_data(&training_data).unwrap();
+        let training_data =
+            Array2::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).expect("operation should succeed");
+        rkhs.set_training_data(&training_data)
+            .expect("operation should succeed");
 
         let coeffs = Array1::from_vec(vec![1.0, -0.5, 0.2]);
-        let eval_points = Array2::from_shape_vec((2, 1), vec![1.5, 2.5]).unwrap();
+        let eval_points =
+            Array2::from_shape_vec((2, 1), vec![1.5, 2.5]).expect("operation should succeed");
 
-        let evaluations = rkhs.evaluate_function(&coeffs, &eval_points).unwrap();
+        let evaluations = rkhs
+            .evaluate_function(&coeffs, &eval_points)
+            .expect("operation should succeed");
         assert_eq!(evaluations.len(), 2);
         assert!(evaluations.iter().all(|&x| x.is_finite()));
     }
@@ -1327,11 +1378,15 @@ mod tests {
         let mut rkhs = ReproducingKernelHilbertSpace::new(kernel1, 0.1);
 
         let training_data =
-            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0]).unwrap();
+            Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0])
+                .expect("operation should succeed");
 
-        rkhs.set_training_data(&training_data).unwrap();
+        rkhs.set_training_data(&training_data)
+            .expect("operation should succeed");
 
-        let alignment = rkhs.kernel_alignment(&kernel2).unwrap();
+        let alignment = rkhs
+            .kernel_alignment(&kernel2)
+            .expect("operation should succeed");
         assert!(alignment >= -1.0 && alignment <= 1.0);
         assert!(alignment.is_finite());
     }
@@ -1341,12 +1396,15 @@ mod tests {
         let kernel = KernelType::RBF { gamma: 1.0 };
         let mut rkhs = ReproducingKernelHilbertSpace::new(kernel, 0.1);
 
-        let training_data =
-            Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let training_data = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
 
-        rkhs.set_training_data(&training_data).unwrap();
+        rkhs.set_training_data(&training_data)
+            .expect("operation should succeed");
 
-        let eff_dim = rkhs.effective_dimension().unwrap();
+        let eff_dim = rkhs
+            .effective_dimension()
+            .expect("operation should succeed");
         assert!(eff_dim > 0.0);
         assert!(eff_dim.is_finite());
     }
@@ -1363,11 +1421,13 @@ mod tests {
                 2.0, 4.0, 6.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0,
             ],
         )
-        .unwrap();
+        .expect("operation should succeed");
 
         let y = Array1::from_vec(vec![3.0, 6.0, 9.0, 12.0]); // y = x2 (feature 2)
 
-        let selected = selector.select_features(&x, &y, 2).unwrap();
+        let selected = selector
+            .select_features(&x, &y, 2)
+            .expect("operation should succeed");
         assert_eq!(selected.len(), 2);
         assert!(selected.contains(&2)); // Feature 2 should be selected
 
@@ -1381,19 +1441,24 @@ mod tests {
         let kernel = KernelType::RBF { gamma: 1.0 };
         let mut rkhs = ReproducingKernelHilbertSpace::new(kernel, 0.01);
 
-        let training_data =
-            Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0]).unwrap();
+        let training_data = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("operation should succeed");
 
-        rkhs.set_training_data(&training_data).unwrap();
+        rkhs.set_training_data(&training_data)
+            .expect("operation should succeed");
 
         let target_values = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-        let solution = rkhs.representer_theorem_solution(&target_values).unwrap();
+        let solution = rkhs
+            .representer_theorem_solution(&target_values)
+            .expect("operation should succeed");
 
         assert_eq!(solution.len(), 3);
         assert!(solution.iter().all(|&x| x.is_finite()));
 
         // Test that solution gives reasonable reconstruction
-        let reconstructed = rkhs.evaluate_function(&solution, &training_data).unwrap();
+        let reconstructed = rkhs
+            .evaluate_function(&solution, &training_data)
+            .expect("operation should succeed");
         assert_eq!(reconstructed.len(), 3);
 
         // Check that reconstruction is close to target (within reasonable tolerance)

@@ -513,7 +513,7 @@ where
             let max_idx = row
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             predictions[i] = self.base_estimator.classes[max_idx];
@@ -603,7 +603,7 @@ where
             distances.push((distance, i));
         }
 
-        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        distances.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("operation should succeed"));
         let neighbor_indices: Vec<usize> = distances
             .iter()
             .take(self.config.k_neighbors.min(distances.len()))
@@ -691,7 +691,7 @@ where
                 if let Some((best_idx, _)) = competence_scores
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 {
                     vec![best_idx]
                 } else {
@@ -706,7 +706,7 @@ where
                     .map(|(i, &score)| (i, score))
                     .collect();
 
-                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
                 indexed_scores
                     .iter()
                     .take(*k)

@@ -207,7 +207,12 @@ impl PluginRegistry {
         let name = plugin.name().to_string();
 
         // Check for name conflicts
-        if self.plugins.read().unwrap().contains_key(&name) {
+        if self
+            .plugins
+            .read()
+            .expect("operation should succeed")
+            .contains_key(&name)
+        {
             return Err(SklearsError::InvalidInput(format!(
                 "Plugin '{}' already registered",
                 name
@@ -215,21 +220,33 @@ impl PluginRegistry {
         }
 
         // Register plugin
-        self.plugins.write().unwrap().insert(name.clone(), plugin);
+        self.plugins
+            .write()
+            .expect("operation should succeed")
+            .insert(name.clone(), plugin);
         self.plugin_configs
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(name.clone(), config);
-        self.active_plugins.write().unwrap().insert(name, false);
+        self.active_plugins
+            .write()
+            .expect("operation should succeed")
+            .insert(name, false);
 
         Ok(())
     }
 
     /// Activate a plugin
     pub fn activate_plugin(&self, name: &str) -> Result<()> {
-        let plugins = self.plugins.read().unwrap();
-        let plugin_configs = self.plugin_configs.write().unwrap();
-        let mut active_plugins = self.active_plugins.write().unwrap();
+        let plugins = self.plugins.read().expect("operation should succeed");
+        let plugin_configs = self
+            .plugin_configs
+            .write()
+            .expect("operation should succeed");
+        let mut active_plugins = self
+            .active_plugins
+            .write()
+            .expect("operation should succeed");
 
         if let Some(plugin) = plugins.get(name) {
             if let Some(config) = plugin_configs.get(name) {
@@ -252,7 +269,10 @@ impl PluginRegistry {
 
     /// Deactivate a plugin
     pub fn deactivate_plugin(&self, name: &str) -> Result<()> {
-        let mut active_plugins = self.active_plugins.write().unwrap();
+        let mut active_plugins = self
+            .active_plugins
+            .write()
+            .expect("operation should succeed");
 
         if active_plugins.contains_key(name) {
             active_plugins.insert(name.to_string(), false);
@@ -267,14 +287,19 @@ impl PluginRegistry {
 
     /// List all registered plugins
     pub fn list_plugins(&self) -> Vec<String> {
-        self.plugins.read().unwrap().keys().cloned().collect()
+        self.plugins
+            .read()
+            .expect("operation should succeed")
+            .keys()
+            .cloned()
+            .collect()
     }
 
     /// Get active plugins
     pub fn get_active_plugins(&self) -> Vec<String> {
         self.active_plugins
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .iter()
             .filter_map(|(name, &active)| if active { Some(name.clone()) } else { None })
             .collect()
@@ -282,8 +307,11 @@ impl PluginRegistry {
 
     /// Check plugin compatibility with data
     pub fn find_compatible_plugins(&self, data_info: &DataInfo) -> Vec<String> {
-        let plugins = self.plugins.read().unwrap();
-        let active_plugins = self.active_plugins.read().unwrap();
+        let plugins = self.plugins.read().expect("operation should succeed");
+        let active_plugins = self
+            .active_plugins
+            .read()
+            .expect("operation should succeed");
 
         plugins
             .iter()
@@ -424,42 +452,60 @@ impl HookSystem {
 
     /// Add pre-fit hook
     pub fn add_pre_fit_hook(&self, hook: Box<dyn PreFitHook>) {
-        let mut hooks = self.pre_fit_hooks.lock().unwrap();
+        let mut hooks = self
+            .pre_fit_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         hooks.push(hook);
         hooks.sort_by_key(|h| -h.priority()); // Higher priority first
     }
 
     /// Add post-fit hook
     pub fn add_post_fit_hook(&self, hook: Box<dyn PostFitHook>) {
-        let mut hooks = self.post_fit_hooks.lock().unwrap();
+        let mut hooks = self
+            .post_fit_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         hooks.push(hook);
         hooks.sort_by_key(|h| -h.priority());
     }
 
     /// Add pre-predict hook
     pub fn add_pre_predict_hook(&self, hook: Box<dyn PrePredictHook>) {
-        let mut hooks = self.pre_predict_hooks.lock().unwrap();
+        let mut hooks = self
+            .pre_predict_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         hooks.push(hook);
         hooks.sort_by_key(|h| -h.priority());
     }
 
     /// Add post-predict hook
     pub fn add_post_predict_hook(&self, hook: Box<dyn PostPredictHook>) {
-        let mut hooks = self.post_predict_hooks.lock().unwrap();
+        let mut hooks = self
+            .post_predict_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         hooks.push(hook);
         hooks.sort_by_key(|h| -h.priority());
     }
 
     /// Add error hook
     pub fn add_error_hook(&self, hook: Box<dyn ErrorHook>) {
-        let mut hooks = self.error_hooks.lock().unwrap();
+        let mut hooks = self
+            .error_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         hooks.push(hook);
         hooks.sort_by_key(|h| -h.priority());
     }
 
     /// Execute pre-fit hooks
     pub fn execute_pre_fit_hooks(&self, context: &mut FitContext) -> Result<()> {
-        let hooks = self.pre_fit_hooks.lock().unwrap();
+        let hooks = self
+            .pre_fit_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         for hook in hooks.iter() {
             hook.execute(context)?;
         }
@@ -468,7 +514,10 @@ impl HookSystem {
 
     /// Execute post-fit hooks
     pub fn execute_post_fit_hooks(&self, context: &FitContext, result: &FitResult) -> Result<()> {
-        let hooks = self.post_fit_hooks.lock().unwrap();
+        let hooks = self
+            .post_fit_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         for hook in hooks.iter() {
             hook.execute(context, result)?;
         }
@@ -477,7 +526,10 @@ impl HookSystem {
 
     /// Execute pre-predict hooks
     pub fn execute_pre_predict_hooks(&self, context: &mut PredictContext) -> Result<()> {
-        let hooks = self.pre_predict_hooks.lock().unwrap();
+        let hooks = self
+            .pre_predict_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         for hook in hooks.iter() {
             hook.execute(context)?;
         }
@@ -490,7 +542,10 @@ impl HookSystem {
         context: &PredictContext,
         predictions: &mut Array1<f64>,
     ) -> Result<()> {
-        let hooks = self.post_predict_hooks.lock().unwrap();
+        let hooks = self
+            .post_predict_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         for hook in hooks.iter() {
             hook.execute(context, predictions)?;
         }
@@ -499,7 +554,10 @@ impl HookSystem {
 
     /// Execute error hooks
     pub fn execute_error_hooks(&self, context: &ErrorContext) -> Result<()> {
-        let hooks = self.error_hooks.lock().unwrap();
+        let hooks = self
+            .error_hooks
+            .lock()
+            .expect("lock should not be poisoned");
         for hook in hooks.iter() {
             hook.execute(context)?;
         }
@@ -935,7 +993,7 @@ impl CustomStrategyRegistry {
         if self
             .classification_strategies
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .contains_key(&name)
         {
             return Err(SklearsError::InvalidInput(format!(
@@ -947,11 +1005,11 @@ impl CustomStrategyRegistry {
         // Register strategy
         self.classification_strategies
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(name.clone(), strategy);
         self.strategy_metadata
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(name, metadata);
 
         Ok(())
@@ -976,7 +1034,7 @@ impl CustomStrategyRegistry {
         if self
             .regression_strategies
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .contains_key(&name)
         {
             return Err(SklearsError::InvalidInput(format!(
@@ -988,11 +1046,11 @@ impl CustomStrategyRegistry {
         // Register strategy
         self.regression_strategies
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(name.clone(), strategy);
         self.strategy_metadata
             .write()
-            .unwrap()
+            .expect("operation should succeed")
             .insert(name, metadata);
 
         Ok(())
@@ -1002,7 +1060,7 @@ impl CustomStrategyRegistry {
     pub fn list_classification_strategies(&self) -> Vec<String> {
         self.classification_strategies
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .keys()
             .cloned()
             .collect()
@@ -1012,7 +1070,7 @@ impl CustomStrategyRegistry {
     pub fn list_regression_strategies(&self) -> Vec<String> {
         self.regression_strategies
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .keys()
             .cloned()
             .collect()
@@ -1020,7 +1078,11 @@ impl CustomStrategyRegistry {
 
     /// Get strategy metadata
     pub fn get_strategy_metadata(&self, name: &str) -> Option<StrategyMetadata> {
-        self.strategy_metadata.read().unwrap().get(name).cloned()
+        self.strategy_metadata
+            .read()
+            .expect("index should be valid")
+            .get(name)
+            .cloned()
     }
 
     /// Get classification strategy by name
@@ -1033,7 +1095,7 @@ impl CustomStrategyRegistry {
         if self
             .classification_strategies
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .contains_key(name)
         {
             // Would return actual strategy reference
@@ -1050,7 +1112,7 @@ impl CustomStrategyRegistry {
         if self
             .regression_strategies
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .contains_key(name)
         {
             // Would return actual strategy reference
@@ -1062,15 +1124,24 @@ impl CustomStrategyRegistry {
 
     /// Remove a strategy from registry
     pub fn unregister_strategy(&self, name: &str) -> Result<()> {
-        let mut metadata = self.strategy_metadata.write().unwrap();
+        let mut metadata = self
+            .strategy_metadata
+            .write()
+            .expect("operation should succeed");
 
         if let Some(meta) = metadata.remove(name) {
             match meta.task_type {
                 TaskType::Classification => {
-                    self.classification_strategies.write().unwrap().remove(name);
+                    self.classification_strategies
+                        .write()
+                        .expect("operation should succeed")
+                        .remove(name);
                 }
                 TaskType::Regression => {
-                    self.regression_strategies.write().unwrap().remove(name);
+                    self.regression_strategies
+                        .write()
+                        .expect("operation should succeed")
+                        .remove(name);
                 }
                 _ => {
                     return Err(SklearsError::InvalidInput(
@@ -1384,7 +1455,7 @@ mod tests {
         });
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.success);
     }
 

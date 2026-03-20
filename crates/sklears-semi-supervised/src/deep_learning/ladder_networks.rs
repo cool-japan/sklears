@@ -322,7 +322,10 @@ impl LadderNetworks<Untrained> {
         {
             if layer_idx < self.denoising_cost_weights.len() {
                 let diff = clean - reconstructed;
-                let mse = diff.mapv(|x| x * x).mean().unwrap();
+                let mse = diff
+                    .mapv(|x| x * x)
+                    .mean()
+                    .expect("operation should succeed");
                 total_cost += self.denoising_cost_weights[layer_idx] * mse;
             }
         }
@@ -441,8 +444,13 @@ impl LadderNetworks<Untrained> {
         let noisy_encoder_output = self.forward_encoder(x, weights, true);
 
         // Forward pass through decoder
-        let decoder_outputs =
-            self.forward_decoder(noisy_encoder_output.activations.last().unwrap(), weights);
+        let decoder_outputs = self.forward_decoder(
+            noisy_encoder_output
+                .activations
+                .last()
+                .expect("operation should succeed"),
+            weights,
+        );
 
         // Initialize gradients
         let mut gradient_weights = LadderWeights {
@@ -506,11 +514,21 @@ impl LadderNetworks<Untrained> {
         // Forward pass
         let clean_encoder_output = self.forward_encoder(x, weights, false);
         let noisy_encoder_output = self.forward_encoder(x, weights, true);
-        let decoder_outputs =
-            self.forward_decoder(noisy_encoder_output.activations.last().unwrap(), weights);
+        let decoder_outputs = self.forward_decoder(
+            noisy_encoder_output
+                .activations
+                .last()
+                .expect("operation should succeed"),
+            weights,
+        );
 
         // Supervised cost
-        let predictions = self.softmax(noisy_encoder_output.activations.last().unwrap());
+        let predictions = self.softmax(
+            noisy_encoder_output
+                .activations
+                .last()
+                .expect("operation should succeed"),
+        );
         let supervised_cost = self.compute_supervised_cost(&predictions, targets);
 
         // Unsupervised denoising cost
@@ -646,7 +664,12 @@ impl Fit<ArrayView2<'_, Float>, ArrayView1<'_, i32>> for LadderNetworks<Untraine
 
         // Final forward pass to get label distributions
         let final_encoder_output = self.forward_encoder(&X, &weights, false);
-        let final_predictions = self.softmax(final_encoder_output.activations.last().unwrap());
+        let final_predictions = self.softmax(
+            final_encoder_output
+                .activations
+                .last()
+                .expect("operation should succeed"),
+        );
 
         Ok(LadderNetworks {
             state: LadderNetworksTrained {
@@ -752,7 +775,12 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for LadderNetworks<LadderNetwor
     fn predict(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array1<i32>> {
         let X = X.to_owned();
         let encoder_output = self.forward_encoder(&X, &self.state.weights, false);
-        let predictions = self.softmax(encoder_output.activations.last().unwrap());
+        let predictions = self.softmax(
+            encoder_output
+                .activations
+                .last()
+                .expect("operation should succeed"),
+        );
 
         let mut result = Array1::zeros(X.nrows());
         for i in 0..X.nrows() {
@@ -760,8 +788,8 @@ impl Predict<ArrayView2<'_, Float>, Array1<i32>> for LadderNetworks<LadderNetwor
                 .row(i)
                 .iter()
                 .enumerate()
-                .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                .unwrap()
+                .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                .expect("operation should succeed")
                 .0;
             result[i] = self.state.classes[max_idx];
         }
@@ -775,7 +803,12 @@ impl PredictProba<ArrayView2<'_, Float>, Array2<f64>> for LadderNetworks<LadderN
     fn predict_proba(&self, X: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let X = X.to_owned();
         let encoder_output = self.forward_encoder(&X, &self.state.weights, false);
-        let predictions = self.softmax(encoder_output.activations.last().unwrap());
+        let predictions = self.softmax(
+            encoder_output
+                .activations
+                .last()
+                .expect("operation should succeed"),
+        );
         Ok(predictions)
     }
 }
@@ -820,12 +853,16 @@ mod tests {
             .lambda_unsupervised(0.5)
             .lambda_supervised(1.0)
             .max_iter(5); // Reduced for testing
-        let fitted = ln.fit(&X.view(), &y.view()).unwrap();
+        let fitted = ln
+            .fit(&X.view(), &y.view())
+            .expect("operation should succeed");
 
-        let predictions = fitted.predict(&X.view()).unwrap();
+        let predictions = fitted.predict(&X.view()).expect("operation should succeed");
         assert_eq!(predictions.len(), 6);
 
-        let probas = fitted.predict_proba(&X.view()).unwrap();
+        let probas = fitted
+            .predict_proba(&X.view())
+            .expect("operation should succeed");
         assert_eq!(probas.dim(), (6, 2));
 
         // Check that probabilities sum to approximately 1

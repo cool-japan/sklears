@@ -572,9 +572,9 @@ impl Predict<Array2<f64>, Array1<i32>> for TrainedSparseSVM {
                 let best_class_idx = row
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(idx, _)| idx)
-                    .unwrap();
+                    .expect("value should be present");
                 predictions[i] = self.classes_[best_class_idx];
             }
             Ok(predictions)
@@ -700,9 +700,11 @@ mod tests {
             .with_c(0.1)
             .with_max_iter(1000)
             .with_verbose(true);
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X).unwrap();
+        let predictions = trained_model
+            .predict(&X)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 4);
 
         // Test that some features are selected
@@ -710,7 +712,9 @@ mod tests {
         assert!(trained_model.sparsity_ratio() >= 0.0);
 
         // Test decision function
-        let scores = trained_model.decision_function(&X).unwrap();
+        let scores = trained_model
+            .decision_function(&X)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (4, 1));
     }
 
@@ -726,7 +730,7 @@ mod tests {
         let y = array![0, 1, 1, 0];
 
         let model = SparseSVM::new().with_c(0.1).with_max_iter(1000);
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("model fitting should succeed");
 
         // Should select fewer than all features due to sparsity
         assert!(trained_model.n_selected_features() <= X.ncols());
@@ -746,7 +750,7 @@ mod tests {
             .with_positive(true)
             .with_max_iter(1000);
 
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("model fitting should succeed");
 
         // All coefficients should be non-negative
         for &coef in trained_model.coef().iter() {
@@ -792,13 +796,17 @@ mod tests {
         let y = array![0, 0, 1, 1, 2, 2];
 
         let model = SparseSVM::new().with_c(0.5).with_max_iter(1000);
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("model fitting should succeed");
 
-        let predictions = trained_model.predict(&X).unwrap();
+        let predictions = trained_model
+            .predict(&X)
+            .expect("prediction should succeed");
         assert_eq!(predictions.len(), 6);
 
         // Test decision function for multiclass
-        let scores = trained_model.decision_function(&X).unwrap();
+        let scores = trained_model
+            .decision_function(&X)
+            .expect("decision function should succeed");
         assert_eq!(scores.dim(), (6, 3)); // 6 samples, 3 classes
 
         // Test sparsity reporting
@@ -836,7 +844,7 @@ mod tests {
         let y = array![0, 1, 1, 0];
 
         let model = SparseSVM::new().with_c(0.1).with_max_iter(1000);
-        let trained_model = model.fit(&X, &y).unwrap();
+        let trained_model = model.fit(&X, &y).expect("model fitting should succeed");
 
         // Test sparse coefficient representation
         let sparse_coef = trained_model.sparse_coef();

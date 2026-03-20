@@ -634,7 +634,7 @@ mod tests {
             .n_features_to_select(3)
             .cv(2);
 
-        let fitted = sfs.fit(&x, &y).unwrap();
+        let fitted = sfs.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
         assert_eq!(fitted.support().len(), 5);
@@ -659,7 +659,7 @@ mod tests {
             .n_features_to_select(3)
             .cv(2);
 
-        let fitted = sfs.fit(&x, &y).unwrap();
+        let fitted = sfs.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
         assert_eq!(fitted.support().len(), 5);
@@ -680,8 +680,8 @@ mod tests {
             .direction(SelectionDirection::Forward)
             .n_features_to_select(2);
 
-        let fitted = sfs.fit(&x, &y).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = sfs.fit(&x, &y).expect("model fitting should succeed");
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(x_transformed.ncols(), 2);
         assert_eq!(x_transformed.nrows(), 4);
@@ -701,8 +701,8 @@ mod tests {
             .direction(SelectionDirection::Forward)
             .n_features_to_select(2);
 
-        let fitted = sfs.fit(&x, &y).unwrap();
-        let predictions = fitted.predict(&x).unwrap();
+        let fitted = sfs.fit(&x, &y).expect("model fitting should succeed");
+        let predictions = fitted.predict(&x).expect("prediction should succeed");
 
         assert_eq!(predictions.len(), 4);
     }
@@ -721,7 +721,7 @@ mod tests {
             .direction(SelectionDirection::Forward)
             .n_features_fraction(0.6); // Should select 3 out of 5 features
 
-        let fitted = sfs.fit(&x, &y).unwrap();
+        let fitted = sfs.fit(&x, &y).expect("model fitting should succeed");
 
         assert_eq!(fitted.n_features(), 3);
     }
@@ -744,7 +744,7 @@ mod tests {
                 .n_features_to_select(2)
                 .scoring(method);
 
-            let fitted = sfs.fit(&x, &y).unwrap();
+            let fitted = sfs.fit(&x, &y).expect("model fitting should succeed");
             assert_eq!(fitted.n_features(), 2);
         }
     }
@@ -763,7 +763,7 @@ mod tests {
             .direction(SelectionDirection::Forward)
             .n_features_to_select(3);
 
-        let fitted = sfs.fit(&x, &y).unwrap();
+        let fitted = sfs.fit(&x, &y).expect("model fitting should succeed");
         let support_indices = fitted.get_support_indices();
 
         assert_eq!(support_indices.len(), 3);

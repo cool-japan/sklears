@@ -36,7 +36,7 @@ impl GpuVotingOps for CpuVotingOps {
             let max_idx = weighted_votes
                 .iter()
                 .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
                 .map(|(idx, _)| idx)
                 .ok_or_else(|| SklearsError::InvalidInput("Empty votes".to_string()))?;
 
@@ -207,9 +207,11 @@ mod tests {
         let ops = CpuVotingOps;
         let votes = array![[1.0, 2.0, 0.0], [0.0, 1.0, 3.0], [2.0, 1.0, 1.0]];
         let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).unwrap();
+        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
-        let predictions = ops.aggregate_votes_gpu(&votes, None, &ctx).unwrap();
+        let predictions = ops
+            .aggregate_votes_gpu(&votes, None, &ctx)
+            .expect("operation should succeed");
         assert_eq!(predictions[0], 1); // Max at index 1
         assert_eq!(predictions[1], 2); // Max at index 2
         assert_eq!(predictions[2], 0); // Max at index 0
@@ -221,11 +223,11 @@ mod tests {
         let votes = array![[1.0, 2.0, 0.0], [1.0, 1.0, 1.0]];
         let weights = array![2.0, 0.5, 1.0];
         let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).unwrap();
+        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let predictions = ops
             .aggregate_votes_gpu(&votes, Some(&weights), &ctx)
-            .unwrap();
+            .expect("operation should succeed");
         // First sample: class0=1.0*2.0=2.0, class1=2.0*0.5=1.0, class2=0.0*1.0=0.0
         // Max is class 0
         assert_eq!(predictions[0], 0);
@@ -237,9 +239,11 @@ mod tests {
         let matrix = array![[1.0, 2.0], [3.0, 4.0]];
         let vector = array![1.0, 2.0];
         let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).unwrap();
+        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
-        let result = ops.matmul_gpu(&matrix, &vector, &ctx).unwrap();
+        let result = ops
+            .matmul_gpu(&matrix, &vector, &ctx)
+            .expect("operation should succeed");
         assert_eq!(result[0], 5.0); // 1*1 + 2*2
         assert_eq!(result[1], 11.0); // 3*1 + 4*2
     }
@@ -250,11 +254,11 @@ mod tests {
         let predictions = array![[1.0, 1.0], [0.0, 0.0]];
         let code_matrix = array![[1i8, 1i8], [0i8, 0i8]];
         let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).unwrap();
+        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let distances = ops
             .compute_distances_gpu(&predictions, &code_matrix, &ctx)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(distances.dim(), (2, 2));
         // First sample matches first class perfectly
         assert!((distances[[0, 0]] - 0.0).abs() < 1e-10);
@@ -267,11 +271,11 @@ mod tests {
         let probs2 = array![[0.6, 0.4], [0.5, 0.5]];
         let probabilities = vec![probs1, probs2];
         let config = super::super::GpuConfig::default();
-        let ctx = super::super::GpuContext::new(config).unwrap();
+        let ctx = super::super::GpuContext::new(config).expect("operation should succeed");
 
         let aggregated = ops
             .aggregate_probabilities_gpu(&probabilities, None, &ctx)
-            .unwrap();
+            .expect("operation should succeed");
         assert_eq!(aggregated.dim(), (2, 2));
 
         // Check normalization

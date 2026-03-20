@@ -93,7 +93,8 @@ where
             .collect::<Vec<_>>();
 
         let median_pred = quantile_preds[quantile_preds.len() / 2];
-        let iqr = quantile_preds.last().unwrap() - quantile_preds.first().unwrap();
+        let iqr = quantile_preds.last().expect("operation should succeed")
+            - quantile_preds.first().expect("operation should succeed");
         let variance = (iqr / 1.35).powi(2); // Approximation
 
         predictions[i] = median_pred;

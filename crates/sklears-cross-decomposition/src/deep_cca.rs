@@ -91,8 +91,8 @@ impl ActivationFunction {
 ///     .learning_rate(0.001)
 ///     .max_iter(1000);
 ///
-/// let fitted = deep_cca.fit(&X, &Y).unwrap();
-/// let X_transformed = fitted.transform(&X).unwrap();
+/// let fitted = deep_cca.fit(&X, &Y).expect("fit should succeed");
+/// let X_transformed = fitted.transform(&X).expect("transform should succeed");
 /// ```
 #[derive(Debug, Clone)]
 pub struct DeepCCA<State = Untrained> {
@@ -231,47 +231,63 @@ impl DeepCCA<Untrained> {
 impl DeepCCA<Trained> {
     /// Get the learned weights for X view network
     pub fn weights_x(&self) -> &Vec<Array2<Float>> {
-        self.weights_x_.as_ref().unwrap()
+        self.weights_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the learned biases for X view network
     pub fn biases_x(&self) -> &Vec<Array1<Float>> {
-        self.biases_x_.as_ref().unwrap()
+        self.biases_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the learned weights for Y view network
     pub fn weights_y(&self) -> &Vec<Array2<Float>> {
-        self.weights_y_.as_ref().unwrap()
+        self.weights_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the learned biases for Y view network
     pub fn biases_y(&self) -> &Vec<Array1<Float>> {
-        self.biases_y_.as_ref().unwrap()
+        self.biases_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical weights for X
     pub fn canonical_weights_x(&self) -> &Array2<Float> {
-        self.canonical_weights_x_.as_ref().unwrap()
+        self.canonical_weights_x_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical weights for Y
     pub fn canonical_weights_y(&self) -> &Array2<Float> {
-        self.canonical_weights_y_.as_ref().unwrap()
+        self.canonical_weights_y_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the canonical correlations
     pub fn correlations(&self) -> &Array1<Float> {
-        self.correlations_.as_ref().unwrap()
+        self.correlations_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Get the number of iterations used
     pub fn n_iter(&self) -> usize {
-        self.n_iter_.unwrap()
+        self.n_iter_.expect("value should be set after fitting")
     }
 
     /// Get the loss history
     pub fn loss_history(&self) -> &Vec<Float> {
-        self.loss_history_.as_ref().unwrap()
+        self.loss_history_
+            .as_ref()
+            .expect("value should be set after fitting")
     }
 
     /// Forward pass through X network
@@ -340,8 +356,12 @@ impl DeepCCA<Trained> {
             return Ok(x.clone());
         }
 
-        let x_mean = self.x_mean_.as_ref().unwrap();
-        let x_std = self.x_std_.as_ref().unwrap();
+        let x_mean = self.x_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let x_std = self.x_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         let mut x_scaled = x.clone();
         for (mut row, (mean, std)) in x_scaled
@@ -363,8 +383,12 @@ impl DeepCCA<Trained> {
             return Ok(y.clone());
         }
 
-        let y_mean = self.y_mean_.as_ref().unwrap();
-        let y_std = self.y_std_.as_ref().unwrap();
+        let y_mean = self.y_mean_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
+        let y_std = self.y_std_.as_ref().ok_or(SklearsError::NotFitted {
+            operation: "accessing model attribute".to_string(),
+        })?;
 
         let mut y_scaled = y.clone();
         for (mut row, (mean, std)) in y_scaled
@@ -399,8 +423,12 @@ impl Fit<Array2<Float>, Array2<Float>> for DeepCCA<Untrained> {
 
         // Scale data if requested
         let (x_processed, y_processed) = if self.scale {
-            let x_mean = x.mean_axis(Axis(0)).unwrap();
-            let y_mean = y.mean_axis(Axis(0)).unwrap();
+            let x_mean = x.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
+            let y_mean = y.mean_axis(Axis(0)).ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
 
             let x_std = x.std_axis(Axis(0), 1.0);
             let y_std = y.std_axis(Axis(0), 1.0);
@@ -582,8 +610,14 @@ impl DeepCCA<Untrained> {
     fn forward_x_training(&self, x: &Array2<Float>) -> Array2<Float> {
         let mut output = x.clone();
 
-        let weights_x = self.weights_x_.as_ref().unwrap();
-        let biases_x = self.biases_x_.as_ref().unwrap();
+        let weights_x = self
+            .weights_x_
+            .as_ref()
+            .expect("value should be set after fitting");
+        let biases_x = self
+            .biases_x_
+            .as_ref()
+            .expect("value should be set after fitting");
 
         for (i, (weights, bias)) in weights_x.iter().zip(biases_x.iter()).enumerate() {
             output = output.dot(weights) + bias;
@@ -601,8 +635,14 @@ impl DeepCCA<Untrained> {
     fn forward_y_training(&self, y: &Array2<Float>) -> Array2<Float> {
         let mut output = y.clone();
 
-        let weights_y = self.weights_y_.as_ref().unwrap();
-        let biases_y = self.biases_y_.as_ref().unwrap();
+        let weights_y = self
+            .weights_y_
+            .as_ref()
+            .expect("value should be set after fitting");
+        let biases_y = self
+            .biases_y_
+            .as_ref()
+            .expect("value should be set after fitting");
 
         for (i, (weights, bias)) in weights_y.iter().zip(biases_y.iter()).enumerate() {
             output = output.dot(weights) + bias;
@@ -625,8 +665,16 @@ impl DeepCCA<Untrained> {
         let n_samples = x_hidden.nrows() as Float;
 
         // Center the hidden representations
-        let x_mean = x_hidden.mean_axis(Axis(0)).unwrap();
-        let y_mean = y_hidden.mean_axis(Axis(0)).unwrap();
+        let x_mean = x_hidden
+            .mean_axis(Axis(0))
+            .ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
+        let y_mean = y_hidden
+            .mean_axis(Axis(0))
+            .ok_or(SklearsError::InvalidInput(
+                "empty array for mean computation".to_string(),
+            ))?;
 
         let x_centered = x_hidden - &x_mean;
         let y_centered = y_hidden - &y_mean;
@@ -718,8 +766,8 @@ mod tests {
 
         let deep_cca = DeepCCA::new(vec![5], vec![4], 2).max_iter(10);
 
-        let fitted = deep_cca.fit(&x, &y).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = deep_cca.fit(&x, &y).expect("fit should succeed");
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 2]);
         assert!(fitted.n_iter() <= 10);
@@ -756,8 +804,8 @@ mod tests {
 
         let deep_cca = DeepCCA::new(vec![3], vec![3], 1).scale(true).max_iter(5);
 
-        let fitted = deep_cca.fit(&x, &y).unwrap();
-        let x_transformed = fitted.transform(&x).unwrap();
+        let fitted = deep_cca.fit(&x, &y).expect("fit should succeed");
+        let x_transformed = fitted.transform(&x).expect("transform should succeed");
 
         assert_eq!(x_transformed.shape(), &[4, 1]);
     }
@@ -769,8 +817,10 @@ mod tests {
 
         let deep_cca = DeepCCA::new(vec![3], vec![3], 2).max_iter(5);
 
-        let fitted = deep_cca.fit(&x, &y).unwrap();
-        let (x_canonical, y_canonical) = fitted.transform_both(&x, &y).unwrap();
+        let fitted = deep_cca.fit(&x, &y).expect("fit should succeed");
+        let (x_canonical, y_canonical) = fitted
+            .transform_both(&x, &y)
+            .expect("operation should succeed");
 
         assert_eq!(x_canonical.shape(), &[4, 2]);
         assert_eq!(y_canonical.shape(), &[4, 2]);
@@ -799,7 +849,7 @@ mod tests {
                 .max_iter(3);
 
             if let Ok(fitted) = deep_cca.fit(&x, &y) {
-                let x_transformed = fitted.transform(&x).unwrap();
+                let x_transformed = fitted.transform(&x).expect("transform should succeed");
 
                 // Check output dimensions
                 prop_assert_eq!(x_transformed.shape(), &[n_samples, output_dim]);

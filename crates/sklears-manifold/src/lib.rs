@@ -25,9 +25,9 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::thread_rng;
-use scirs2_core::random::Rng;
 use scirs2_core::random::SeedableRng;
 use scirs2_core::Distribution;
+use scirs2_core::RngExt;
 use sklears_core::{
     error::{Result as SklResult, SklearsError},
     traits::{Estimator, Fit, Transform, Untrained},
@@ -238,8 +238,12 @@ impl Fit<ArrayView2<'_, Float>, ()> for SparseCoding<Untrained> {
 
         // Convert to f64 and center the data
         let x_f64 = x.mapv(|v| v);
-        let mean = x_f64.mean_axis(Axis(0)).unwrap();
-        let x_centered = &x_f64 - &mean.view().broadcast(x_f64.dim()).unwrap();
+        let mean = x_f64.mean_axis(Axis(0)).expect("operation should succeed");
+        let x_centered = &x_f64
+            - &mean
+                .view()
+                .broadcast(x_f64.dim())
+                .expect("operation should succeed");
 
         let mut rng = if let Some(seed) = self.random_state {
             StdRng::seed_from_u64(seed)
@@ -339,7 +343,13 @@ impl Transform<ArrayView2<'_, Float>, Array2<f64>> for SparseCoding<SCTrained> {
     fn transform(&self, x: &ArrayView2<'_, Float>) -> SklResult<Array2<f64>> {
         let (n_samples, _) = x.dim();
         let x_f64 = x.mapv(|v| v);
-        let x_centered = &x_f64 - &self.state.mean.view().broadcast(x_f64.dim()).unwrap();
+        let x_centered = &x_f64
+            - &self
+                .state
+                .mean
+                .view()
+                .broadcast(x_f64.dim())
+                .expect("operation should succeed");
 
         // Compute sparse codes using coordinate descent
         let mut codes = Array2::zeros((n_samples, self.n_components));

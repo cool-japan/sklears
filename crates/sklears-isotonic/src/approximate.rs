@@ -567,10 +567,10 @@ mod tests {
             .n_bins(5)
             .method(ApproximationMethod::UniformBinning);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that bin values are monotonic
-        let bin_values = fitted_model.bin_values().unwrap();
+        let bin_values = fitted_model.bin_values().expect("operation should succeed");
         if bin_values.len() > 1 {
             for i in 0..bin_values.len() - 1 {
                 assert!(bin_values[i] <= bin_values[i + 1]);
@@ -579,7 +579,7 @@ mod tests {
 
         // Test prediction
         let x_test = Array1::from(vec![2.5, 5.5, 8.5]);
-        let predictions = fitted_model.predict(&x_test).unwrap();
+        let predictions = fitted_model.predict(&x_test).expect("prediction should succeed");
         assert_eq!(predictions.len(), 3);
     }
 
@@ -593,10 +593,10 @@ mod tests {
             .n_bins(4)
             .method(ApproximationMethod::QuantileBinning);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Check that bin values are monotonic
-        let bin_values = fitted_model.bin_values().unwrap();
+        let bin_values = fitted_model.bin_values().expect("operation should succeed");
         if bin_values.len() > 1 {
             for i in 0..bin_values.len() - 1 {
                 assert!(bin_values[i] <= bin_values[i + 1]);
@@ -604,7 +604,7 @@ mod tests {
         }
 
         // Test prediction
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.len());
     }
 
@@ -619,10 +619,10 @@ mod tests {
             .method(ApproximationMethod::RandomSampling)
             .random_seed(123);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
         // Test that we can get predictions
-        let predictions = fitted_model.predict(&x).unwrap();
+        let predictions = fitted_model.predict(&x).expect("prediction should succeed");
         assert_eq!(predictions.len(), x.len());
     }
 
@@ -637,9 +637,9 @@ mod tests {
             .method(ApproximationMethod::HierarchicalBinning)
             .tolerance(0.1);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let bin_values = fitted_model.bin_values().unwrap();
+        let bin_values = fitted_model.bin_values().expect("operation should succeed");
         if bin_values.len() > 1 {
             for i in 0..bin_values.len() - 1 {
                 assert!(bin_values[i] <= bin_values[i + 1]);
@@ -657,9 +657,9 @@ mod tests {
             .n_bins(5)
             .method(ApproximationMethod::StreamingApproximation);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let bin_values = fitted_model.bin_values().unwrap();
+        let bin_values = fitted_model.bin_values().expect("operation should succeed");
         if bin_values.len() > 1 {
             for i in 0..bin_values.len() - 1 {
                 assert!(bin_values[i] <= bin_values[i + 1]);
@@ -676,7 +676,7 @@ mod tests {
             approximate_isotonic_regression(&x, &y, ApproximationMethod::QuantileBinning, 3, true);
         assert!(result.is_ok());
 
-        let (x_bins, y_fitted) = result.unwrap();
+        let (x_bins, y_fitted) = result.expect("operation should succeed");
         assert_eq!(x_bins.len(), 3);
         assert_eq!(y_fitted.len(), 3);
 
@@ -696,9 +696,9 @@ mod tests {
             .n_bins(3)
             .method(ApproximationMethod::QuantileBinning);
 
-        let fitted_model = model.fit(&x, &y).unwrap();
+        let fitted_model = model.fit(&x, &y).expect("model fitting should succeed");
 
-        let bin_values = fitted_model.bin_values().unwrap();
+        let bin_values = fitted_model.bin_values().expect("operation should succeed");
         if bin_values.len() > 1 {
             for i in 0..bin_values.len() - 1 {
                 assert!(bin_values[i] >= bin_values[i + 1]);

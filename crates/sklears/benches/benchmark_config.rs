@@ -11,8 +11,7 @@ pub fn generate_benchmark_data(
     n_features: usize,
 ) -> (Array2<Float>, Array1<Float>) {
     use scirs2_core::random::rngs::StdRng;
-    use scirs2_core::random::Rng;
-    use scirs2_core::random::SeedableRng;
+    use scirs2_core::random::{RngExt, SeedableRng};
     let mut rng = StdRng::seed_from_u64(42);
 
     let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<Float>() * 10.0);
@@ -28,8 +27,7 @@ pub fn generate_multiclass_data(
     n_classes: usize,
 ) -> (Array2<Float>, Array1<i32>) {
     use scirs2_core::random::rngs::StdRng;
-    use scirs2_core::random::Rng;
-    use scirs2_core::random::SeedableRng;
+    use scirs2_core::random::{RngExt, SeedableRng};
     let mut rng = StdRng::seed_from_u64(42);
 
     let x = Array2::from_shape_fn((n_samples, n_features), |_| rng.random::<Float>() * 10.0);
@@ -89,7 +87,7 @@ macro_rules! benchmark_algorithm {
                 });
 
                 // Benchmark prediction if model supports it
-                let model = $fit_method(&x, &y).unwrap();
+                let model = $fit_method(&x, &y).expect("operation should succeed");
                 group.bench_with_input(BenchmarkId::new("predict", size), &x, |b, x| {
                     b.iter(|| {
                         let predictions = $predict_method(&model, black_box(x));

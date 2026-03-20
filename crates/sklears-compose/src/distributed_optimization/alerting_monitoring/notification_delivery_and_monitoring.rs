@@ -1145,7 +1145,7 @@ mod tests {
         let result = monitor.perform_health_check("test-channel");
         assert!(result.is_some());
 
-        let result = result.unwrap();
+        let result = result.unwrap_or_default();
         assert!(result.success);
         assert!(result.health_score > 0.0);
 

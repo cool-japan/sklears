@@ -494,7 +494,7 @@ impl LoadBalancer {
             ),
             auto_scaler: config
                 .scaling_config
-                .map(|sc| Arc::new(Mutex::new(AutoScaler::new(sc).unwrap()))),
+                .map(|sc| Arc::new(Mutex::new(AutoScaler::new(sc).unwrap_or_default()))),
             load_predictor: Arc::new(Mutex::new(LoadPredictor::new()?)),
             traffic_shaper: Arc::new(
                 Mutex::new(TrafficShaper::new(config.traffic_config)?),
@@ -506,20 +506,20 @@ impl LoadBalancer {
     }
     /// Initialize the load balancer
     pub fn initialize(&mut self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.active = true;
         state.phase = LoadBalancerPhase::Initializing;
         Ok(())
     }
     /// Add a backend
     pub fn add_backend(&mut self, backend: Backend) -> SklResult<()> {
-        let mut backends = self.backends.write().unwrap();
+        let mut backends = self.backends.write().unwrap_or_else(|e| e.into_inner());
         backends.insert(backend.id.clone(), backend);
         Ok(())
     }
     /// Remove a backend
     pub fn remove_backend(&mut self, backend_id: &str) -> SklResult<()> {
-        let mut backends = self.backends.write().unwrap();
+        let mut backends = self.backends.write().unwrap_or_else(|e| e.into_inner());
         backends.remove(backend_id);
         Ok(())
     }
@@ -528,7 +528,7 @@ impl LoadBalancer {
         &self,
         request: &LoadBalancingRequest,
     ) -> SklResult<Option<String>> {
-        let backends = self.backends.read().unwrap();
+        let backends = self.backends.read().unwrap_or_else(|e| e.into_inner());
         let healthy_backends: Vec<Backend> = backends
             .values()
             .filter(|b| b.health_status == HealthStatus::Healthy)
@@ -537,29 +537,29 @@ impl LoadBalancer {
         if healthy_backends.is_empty() {
             return Ok(None);
         }
-        let mut algorithm = self.algorithm.lock().unwrap();
+        let mut algorithm = self.algorithm.lock().unwrap_or_else(|e| e.into_inner());
         algorithm.select_backend(request, &healthy_backends)
     }
     /// Start the load balancer
     pub async fn start(&mut self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.phase = LoadBalancerPhase::Active;
         Ok(())
     }
     /// Stop the load balancer
     pub fn stop(&mut self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.phase = LoadBalancerPhase::Stopping;
         state.active = false;
         Ok(())
     }
     /// Get load balancer status
     pub fn get_status(&self) -> LoadBalancerState {
-        self.state.read().unwrap().clone()
+        self.state.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
     /// Get metrics
     pub fn get_metrics(&self) -> LoadBalancingMetrics {
-        self.metrics.lock().unwrap().clone()
+        self.metrics.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 /// Failback configuration

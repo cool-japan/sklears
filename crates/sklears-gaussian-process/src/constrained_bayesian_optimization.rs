@@ -536,7 +536,7 @@ impl ConstrainedBayesianOptimizer {
                 (all_points.len(), all_points[0].len()),
                 all_points.into_iter().flatten().collect(),
             )
-            .unwrap(),
+            .expect("operation should succeed"),
             all_values: Array1::from_vec(all_values),
             n_iterations: n_iterations,
         })

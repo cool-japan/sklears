@@ -258,7 +258,7 @@ impl HealthMonitoringSystem {
         // Initialize system if enabled
         if config.enabled {
             {
-                let mut state = system.state.write().unwrap();
+                let mut state = system.state.write().unwrap_or_else(|e| e.into_inner());
                 state.status = HealthStatus::Healthy;
                 state.started_at = SystemTime::now();
             }
@@ -276,25 +276,25 @@ impl HealthMonitoringSystem {
 
         // Add to active sessions
         {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.insert(session_id.to_string(), session_monitor);
         }
 
         // Initialize session in global assessor
         {
-            let mut assessor = self.global_assessor.write().unwrap();
+            let mut assessor = self.global_assessor.write().unwrap_or_else(|e| e.into_inner());
             assessor.initialize_session(session_id)?;
         }
 
         // Initialize session in component tracker
         {
-            let mut tracker = self.component_tracker.write().unwrap();
+            let mut tracker = self.component_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.initialize_session(session_id)?;
         }
 
         // Initialize predictive analysis
         {
-            let mut analyzer = self.predictive_analyzer.write().unwrap();
+            let mut analyzer = self.predictive_analyzer.write().unwrap_or_else(|e| e.into_inner());
             analyzer.initialize_session(session_id)?;
         }
 
@@ -303,7 +303,7 @@ impl HealthMonitoringSystem {
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count += 1;
             state.total_sessions_started += 1;
         }
@@ -321,7 +321,7 @@ impl HealthMonitoringSystem {
 
         // Remove from active sessions
         let monitor = {
-            let mut sessions = self.active_sessions.write().unwrap();
+            let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
             sessions.remove(session_id)
         };
 
@@ -332,19 +332,19 @@ impl HealthMonitoringSystem {
 
         // Finalize session in global assessor
         {
-            let mut assessor = self.global_assessor.write().unwrap();
+            let mut assessor = self.global_assessor.write().unwrap_or_else(|e| e.into_inner());
             assessor.finalize_session(session_id)?;
         }
 
         // Finalize session in component tracker
         {
-            let mut tracker = self.component_tracker.write().unwrap();
+            let mut tracker = self.component_tracker.write().unwrap_or_else(|e| e.into_inner());
             tracker.finalize_session(session_id)?;
         }
 
         // Update system state
         {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.active_sessions_count = state.active_sessions_count.saturating_sub(1);
             state.total_sessions_stopped += 1;
         }
@@ -354,7 +354,7 @@ impl HealthMonitoringSystem {
 
     /// Get current health for session
     pub fn get_current_health(&self, session_id: &str) -> SklResult<CurrentHealthStatus> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(monitor) = sessions.get(session_id) {
             Ok(monitor.get_current_health())
         } else {
@@ -372,7 +372,7 @@ impl HealthMonitoringSystem {
         self.validate_session_exists(session_id)?;
 
         // Perform assessment through global assessor
-        let assessor = self.global_assessor.read().unwrap();
+        let assessor = self.global_assessor.read().unwrap_or_else(|e| e.into_inner());
         assessor.perform_assessment(session_id, assessment_type).await
     }
 
@@ -386,7 +386,7 @@ impl HealthMonitoringSystem {
         self.validate_session_exists(session_id)?;
 
         // Run diagnostics through diagnostic engine
-        let diagnostic_engine = self.diagnostic_engine.read().unwrap();
+        let diagnostic_engine = self.diagnostic_engine.read().unwrap_or_else(|e| e.into_inner());
         diagnostic_engine.run_diagnostics(session_id, diagnostic_scope).await
     }
 
@@ -400,7 +400,7 @@ impl HealthMonitoringSystem {
         self.validate_session_exists(session_id)?;
 
         // Trigger recovery through recovery manager
-        let mut recovery_mgr = self.recovery_manager.write().unwrap();
+        let mut recovery_mgr = self.recovery_manager.write().unwrap_or_else(|e| e.into_inner());
         recovery_mgr.trigger_recovery(session_id, recovery_type).await
     }
 
@@ -414,7 +414,7 @@ impl HealthMonitoringSystem {
         self.validate_session_exists(session_id)?;
 
         // Get trends through trend analyzer
-        let trend_analyzer = self.trend_analyzer.read().unwrap();
+        let trend_analyzer = self.trend_analyzer.read().unwrap_or_else(|e| e.into_inner());
         trend_analyzer.analyze_trends(session_id, time_range).await
     }
 
@@ -428,7 +428,7 @@ impl HealthMonitoringSystem {
         self.validate_session_exists(session_id)?;
 
         // Get predictions through predictive analyzer
-        let analyzer = self.predictive_analyzer.read().unwrap();
+        let analyzer = self.predictive_analyzer.read().unwrap_or_else(|e| e.into_inner());
         analyzer.predict_health(session_id, prediction_horizon).await
     }
 
@@ -442,7 +442,7 @@ impl HealthMonitoringSystem {
         self.validate_session_exists(session_id)?;
 
         // Get component health through component tracker
-        let tracker = self.component_tracker.read().unwrap();
+        let tracker = self.component_tracker.read().unwrap_or_else(|e| e.into_inner());
         tracker.get_component_health(session_id, component_id)
     }
 
@@ -452,7 +452,7 @@ impl HealthMonitoringSystem {
         session_id: &str,
         thresholds: HealthThresholds,
     ) -> SklResult<()> {
-        let mut sessions = self.active_sessions.write().unwrap();
+        let mut sessions = self.active_sessions.write().unwrap_or_else(|e| e.into_inner());
         if let Some(monitor) = sessions.get_mut(session_id) {
             monitor.configure_thresholds(thresholds).await
         } else {
@@ -462,7 +462,7 @@ impl HealthMonitoringSystem {
 
     /// Get health monitoring statistics
     pub fn get_health_statistics(&self, session_id: Option<&str>) -> SklResult<HealthStatistics> {
-        let collector = self.statistics_collector.read().unwrap();
+        let collector = self.statistics_collector.read().unwrap_or_else(|e| e.into_inner());
         collector.get_statistics(session_id)
     }
 
@@ -476,14 +476,14 @@ impl HealthMonitoringSystem {
         self.validate_session_exists(session_id)?;
 
         // Generate report through report generator
-        let generator = self.report_generator.read().unwrap();
+        let generator = self.report_generator.read().unwrap_or_else(|e| e.into_inner());
         generator.generate_report(session_id, report_config).await
     }
 
     /// Get system health status
     pub fn get_health_status(&self) -> SubsystemHealth {
-        let state = self.state.read().unwrap();
-        let self_monitor = self.self_monitor.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
+        let self_monitor = self.self_monitor.read().unwrap_or_else(|e| e.into_inner());
 
         SubsystemHealth {
             status: state.status.clone(),
@@ -496,7 +496,7 @@ impl HealthMonitoringSystem {
 
     /// Get monitoring system statistics
     pub fn get_monitoring_statistics(&self) -> SklResult<HealthMonitoringStatistics> {
-        let state = self.state.read().unwrap();
+        let state = self.state.read().unwrap_or_else(|e| e.into_inner());
 
         Ok(HealthMonitoringStatistics {
             total_health_checks: state.total_health_checks,
@@ -512,7 +512,7 @@ impl HealthMonitoringSystem {
     async fn start_session_health_tasks(&self, session_id: &str) -> SklResult<()> {
         // Start periodic health checks
         // Note: In real implementation, would spawn background tasks
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if let Some(_monitor) = sessions.get(session_id) {
             // Background health check task would be started here
         }
@@ -526,7 +526,7 @@ impl HealthMonitoringSystem {
     }
 
     async fn generate_final_health_report(&self, session_id: &str) -> SklResult<FinalHealthReport> {
-        let generator = self.report_generator.read().unwrap();
+        let generator = self.report_generator.read().unwrap_or_else(|e| e.into_inner());
         let report_config = HealthReportConfig::comprehensive();
         let report = generator.generate_report(session_id, report_config).await?;
 
@@ -538,7 +538,7 @@ impl HealthMonitoringSystem {
     }
 
     fn validate_session_exists(&self, session_id: &str) -> SklResult<()> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if !sessions.contains_key(session_id) {
             return Err(SklearsError::NotFound(format!("Session {} not found", session_id)));
         }
@@ -546,7 +546,7 @@ impl HealthMonitoringSystem {
     }
 
     fn calculate_average_health_score(&self) -> SklResult<f64> {
-        let sessions = self.active_sessions.read().unwrap();
+        let sessions = self.active_sessions.read().unwrap_or_else(|e| e.into_inner());
         if sessions.is_empty() {
             return Ok(1.0);
         }
@@ -620,8 +620,8 @@ impl SessionHealthMonitor {
             return HealthTrend::Stable;
         }
 
-        let first_score = recent_scores.last().unwrap();
-        let last_score = recent_scores.first().unwrap();
+        let first_score = recent_scores.last().unwrap_or_default();
+        let last_score = recent_scores.first().unwrap_or_default();
         let difference = last_score - first_score;
 
         if difference > 0.1 {
@@ -1028,7 +1028,7 @@ mod tests {
     #[test]
     fn test_health_trend_calculation() {
         let config = HealthMonitoringConfig::default();
-        let monitor = SessionHealthMonitor::new("test_session".to_string(), &config).unwrap();
+        let monitor = SessionHealthMonitor::new("test_session".to_string(), &config).unwrap_or_default();
         let trend = monitor.calculate_health_trend();
         assert!(matches!(trend, HealthTrend::Stable));
     }
@@ -1036,7 +1036,7 @@ mod tests {
     #[tokio::test]
     async fn test_session_initialization() {
         let config = HealthMonitoringConfig::default();
-        let mut system = HealthMonitoringSystem::new(&config).unwrap();
+        let mut system = HealthMonitoringSystem::new(&config).unwrap_or_default();
 
         let result = system.start_health_checks("test_session").await;
         assert!(result.is_ok());

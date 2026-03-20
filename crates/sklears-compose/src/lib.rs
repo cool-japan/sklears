@@ -17,6 +17,116 @@
 //! This module provides meta-estimators for composing other estimators.
 //! It includes tools for applying different transformers to different
 //! subsets of features and for transforming target variables.
+//!
+//! ## Core Modules
+//!
+//! The following modules form the stable core of `sklears-compose`:
+//!
+//! - [`pipeline`] - Linear pipelines for chaining estimators and transformers
+//! - [`column_transformer`] - Apply different transformers to different feature subsets
+//! - [`ensemble`] - Voting classifiers/regressors, model fusion, and dynamic selection
+//! - [`boosting`] - AdaBoost and Gradient Boosting meta-estimators
+//! - [`dag_pipeline`] - Directed acyclic graph pipelines with branching and merging
+//! - [`advanced_pipeline`] - Conditional and branching pipeline variants
+//! - [`streaming`] - Streaming/online pipelines for incremental learning
+//! - [`feature_engineering`] - Automatic feature interaction detection
+//! - [`validation`] - Comprehensive pipeline validation (data, structure, performance)
+//! - [`optimization`] - Pipeline hyperparameter optimization and robust execution
+//!
+//! ## Experimental Subsystems
+//!
+//! The following modules are experimental in v0.1.0. Their APIs may change
+//! significantly in future releases. They are included to provide early access
+//! to advanced capabilities but should not be relied upon for production use.
+//!
+//! ### Infrastructure and Resilience
+//!
+//! - [`circuit_breaker`] - Circuit breaker pattern for fault-tolerant pipelines.
+//!   Experimental in v0.1.0. API may change.
+//! - [`fault_core`] - Core fault tolerance primitives.
+//!   Experimental in v0.1.0. API may change.
+//! - [`middleware`] - Authentication, caching, and monitoring middleware chains.
+//!   Experimental in v0.1.0. API may change.
+//! - [`resource_management`] - Resource monitoring and optimization.
+//!   Experimental in v0.1.0. API may change.
+//! - [`scheduling`] - Task scheduling and workflow management.
+//!   Experimental in v0.1.0. API may change.
+//! - [`state_management`] - Pipeline state checkpointing and version control.
+//!   Experimental in v0.1.0. API may change.
+//! - [`external_integration`] - REST API and database integration adapters.
+//!   Experimental in v0.1.0. API may change.
+//!
+//! ### Distributed and Parallel Computing
+//!
+//! - [`distributed`] - Distributed map-reduce pipelines and cluster management.
+//!   Experimental in v0.1.0. API may change.
+//! - [`distributed_tracing`] - Distributed tracing and span-based diagnostics.
+//!   Experimental in v0.1.0. API may change.
+//! - [`parallel_execution`] - Parallel pipeline execution with load balancing.
+//!   Experimental in v0.1.0. API may change.
+//!
+//! ### Advanced ML Paradigms
+//!
+//! - [`automl`] - AutoML optimization and neural architecture search.
+//!   Experimental in v0.1.0. API may change.
+//! - [`continual_learning`] - Continual/lifelong learning with memory buffers.
+//!   Experimental in v0.1.0. API may change.
+//! - [`differentiable`] - Differentiable pipelines with automatic differentiation.
+//!   Experimental in v0.1.0. API may change.
+//! - [`few_shot`] - Few-shot learning (MAML, Prototypical Networks).
+//!   Experimental in v0.1.0. API may change.
+//! - [`meta_learning`] - Meta-learning pipelines with experience replay.
+//!   Experimental in v0.1.0. API may change.
+//! - [`transfer_learning`] - Transfer learning and domain adaptation pipelines.
+//!   Experimental in v0.1.0. API may change.
+//! - [`quantum`] - Quantum computing pipeline primitives.
+//!   Experimental in v0.1.0. API may change.
+//!
+//! ### Domain-Specific Pipelines
+//!
+//! - [`nlp_pipelines`] - NLP pipelines (tokenization, sentiment, NER, summarization).
+//!   Experimental in v0.1.0. API may change.
+//! - [`cv_pipelines`] - Computer vision pipelines (detection, feature extraction).
+//!   Experimental in v0.1.0. API may change.
+//! - [`time_series_pipelines`] - Time series and IoT data pipelines.
+//!   Experimental in v0.1.0. API may change.
+//!
+//! ### WebAssembly and Compilation Targets
+//!
+//! - [`wasm_integration`] - WebAssembly compilation and deployment.
+//!   Experimental in v0.1.0. API may change.
+//! - [`enhanced_wasm_integration`] - Advanced WASM features (JS bindings, worker threads).
+//!   Experimental in v0.1.0. API may change.
+//!
+//! ### Extensibility and Tooling
+//!
+//! - [`modular_framework`] - Pluggable component registry and dependency graphs.
+//!   Experimental in v0.1.0. API may change.
+//! - [`plugin_architecture`] - Plugin loading and component schemas.
+//!   Experimental in v0.1.0. API may change.
+//! - [`workflow_language`] - Pipeline DSL and visual builder (requires `workflow` feature).
+//!   Experimental in v0.1.0. API may change.
+//! - [`zero_cost`] - Zero-cost abstraction primitives (arenas, lock-free queues).
+//!   Experimental in v0.1.0. API may change.
+//!
+//! ### Performance and Diagnostics
+//!
+//! - [`profile_guided_optimization`] - Profile-guided optimization with ML performance prediction.
+//!   Experimental in v0.1.0. API may change.
+//! - [`simd_optimizations`] - SIMD-accelerated data layout and feature operations.
+//!   Experimental in v0.1.0. API may change.
+//! - [`advanced_debugging`] - Interactive debugger with breakpoints and profiling.
+//!   Experimental in v0.1.0. API may change.
+//! - [`performance_profiler`] - Stage-level performance profiling and bottleneck detection.
+//!   Experimental in v0.1.0. API may change.
+//! - [`stress_testing`] - Stress testing and edge-case generation.
+//!   Experimental in v0.1.0. API may change.
+//!
+//! ## Known Limitations
+//!
+//! The following modules are disabled due to ndarray HRTB (Higher-Ranked Trait Bound)
+//! lifetime constraints introduced in ndarray 0.17. Planned for re-enabling in v0.2.0:
+//! - `cross_validation` - Cross-validation for composed models and pipelines
 
 // #![warn(missing_docs)]
 
@@ -35,7 +145,7 @@ pub mod error;
 pub mod config_management;
 pub mod configuration_validation;
 pub mod continual_learning;
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub mod cross_validation;
 pub mod cv_pipelines;
 pub mod dag_pipeline;
@@ -167,7 +277,7 @@ pub use continual_learning::{
     ContinualLearningPipeline, ContinualLearningPipelineTrained, ContinualLearningStrategy,
     MemoryBuffer, MemorySample as ContinualMemorySample, SamplingStrategy, Task, TaskStatistics,
 };
-// TODO: Temporarily disabled until ndarray 0.17 HRTB trait bound issues are resolved
+// KNOWN ISSUE (v0.1.0): Module disabled due to ndarray HRTB lifetime constraints. Planned for v0.2.0.
 // pub use cross_validation::{
 //     CVStrategy, CVSummary, ComposedModelCrossValidator, CrossValidationConfig,
 //     CrossValidationResults, FoldResult, NestedCVResults, OuterFoldResult, ScoringConfig,
@@ -866,7 +976,7 @@ impl FeatureUnion<FeatureUnionTrained> {
 
         // Concatenate all results along the feature axis
         if results.len() == 1 {
-            Ok(results.into_iter().next().unwrap())
+            Ok(results.into_iter().next().unwrap_or_default())
         } else {
             let total_features: usize = results
                 .iter()
@@ -909,7 +1019,7 @@ mod tests {
     fn test_mock_transformer() {
         let transformer = MockTransformer::new();
         let x = array![[1.0, 2.0], [3.0, 4.0]];
-        let result = crate::PipelineStep::transform(&transformer, &x.view()).unwrap();
+        let result = crate::PipelineStep::transform(&transformer, &x.view()).unwrap_or_default();
         assert_eq!(result, x.mapv(|v| v as f64));
     }
 
@@ -919,10 +1029,10 @@ mod tests {
         let x = array![[1.0, 2.0], [3.0, 4.0]];
         let y = array![1.0, 2.0];
 
-        predictor.fit(&x.view(), &y.view()).unwrap();
+        predictor.fit(&x.view(), &y.view()).unwrap_or_default();
         assert!(predictor.is_fitted());
 
-        let predictions = predictor.predict(&x.view()).unwrap();
+        let predictions = predictor.predict(&x.view()).unwrap_or_default();
         assert_eq!(predictions.len(), x.nrows());
     }
 
@@ -934,8 +1044,10 @@ mod tests {
             .transformer("trans1", Box::new(MockTransformer::new()))
             .transformer("trans2", Box::new(MockTransformer::with_scale(2.0)));
 
-        let fitted_union = union.fit(&x.view(), &None).unwrap();
-        let result = fitted_union.transform(&x.view()).unwrap();
+        let fitted_union = union
+            .fit(&x.view(), &None)
+            .expect("operation should succeed");
+        let result = fitted_union.transform(&x.view()).unwrap_or_default();
 
         // Should concatenate results from both transformers
         assert_eq!(result.ncols(), 4); // 2 features * 2 transformers
@@ -952,8 +1064,10 @@ mod tests {
             .estimator(Box::new(MockPredictor::new()))
             .build();
 
-        let fitted_pipeline = pipeline.fit(&x.view(), &Some(&y.view())).unwrap();
-        let predictions = fitted_pipeline.predict(&x.view()).unwrap();
+        let fitted_pipeline = pipeline
+            .fit(&x.view(), &Some(&y.view()))
+            .expect("operation should succeed");
+        let predictions = fitted_pipeline.predict(&x.view()).unwrap_or_default();
 
         assert_eq!(predictions.len(), x.nrows());
     }

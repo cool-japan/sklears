@@ -403,22 +403,26 @@ impl Default for MetricRegistry {
 /// Get the global metric registry
 pub fn get_global_registry() -> Arc<RwLock<MetricRegistry>> {
     {
-        let registry = METRIC_REGISTRY.read().unwrap();
+        let registry = METRIC_REGISTRY.read().expect("operation should succeed");
         if registry.is_some() {
-            return Arc::new(RwLock::new(registry.as_ref().unwrap().clone()));
+            return Arc::new(RwLock::new(
+                registry.as_ref().expect("operation should succeed").clone(),
+            ));
         }
     }
 
-    let mut registry = METRIC_REGISTRY.write().unwrap();
+    let mut registry = METRIC_REGISTRY.write().expect("operation should succeed");
     if registry.is_none() {
         *registry = Some(MetricRegistry::new());
     }
-    Arc::new(RwLock::new(registry.as_ref().unwrap().clone()))
+    Arc::new(RwLock::new(
+        registry.as_ref().expect("operation should succeed").clone(),
+    ))
 }
 
 /// Initialize the global metric registry
 pub fn init_global_registry() {
-    let mut registry = METRIC_REGISTRY.write().unwrap();
+    let mut registry = METRIC_REGISTRY.write().expect("operation should succeed");
     *registry = Some(MetricRegistry::new());
 }
 
@@ -556,7 +560,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0];
         let y = array![4.0, 5.0, 6.0];
 
-        let dist = metric.distance(x.view(), y.view()).unwrap();
+        let dist = metric
+            .distance(x.view(), y.view())
+            .expect("operation should succeed");
         let expected = ((3.0_f64).powi(2) + (3.0_f64).powi(2) + (3.0_f64).powi(2)).sqrt();
         assert!((dist - expected).abs() < 1e-10);
     }
@@ -567,7 +573,9 @@ mod tests {
         let x = array![1.0, 2.0, 3.0];
         let y = array![4.0, 5.0, 6.0];
 
-        let dist = metric.distance(x.view(), y.view()).unwrap();
+        let dist = metric
+            .distance(x.view(), y.view())
+            .expect("operation should succeed");
         assert_eq!(dist, 9.0);
     }
 
@@ -577,29 +585,37 @@ mod tests {
         let x = array![1.0, 0.0, 0.0];
         let y = array![0.0, 1.0, 0.0];
 
-        let dist = metric.distance(x.view(), y.view()).unwrap();
+        let dist = metric
+            .distance(x.view(), y.view())
+            .expect("operation should succeed");
         assert!((dist - 1.0).abs() < 1e-10); // Orthogonal vectors
 
         let x = array![1.0, 0.0, 0.0];
         let y = array![1.0, 0.0, 0.0];
 
-        let dist = metric.distance(x.view(), y.view()).unwrap();
+        let dist = metric
+            .distance(x.view(), y.view())
+            .expect("operation should succeed");
         assert!(dist.abs() < 1e-10); // Same vectors
     }
 
     #[test]
     fn test_minkowski_distance() {
         // Test p=1 (Manhattan)
-        let metric = MinkowskiDistance::new(1.0).unwrap();
+        let metric = MinkowskiDistance::new(1.0).expect("operation should succeed");
         let x = array![1.0, 2.0, 3.0];
         let y = array![4.0, 5.0, 6.0];
 
-        let dist = metric.distance(x.view(), y.view()).unwrap();
+        let dist = metric
+            .distance(x.view(), y.view())
+            .expect("operation should succeed");
         assert_eq!(dist, 9.0);
 
         // Test p=2 (Euclidean)
-        let metric = MinkowskiDistance::new(2.0).unwrap();
-        let dist = metric.distance(x.view(), y.view()).unwrap();
+        let metric = MinkowskiDistance::new(2.0).expect("operation should succeed");
+        let dist = metric
+            .distance(x.view(), y.view())
+            .expect("operation should succeed");
         let expected = ((3.0_f64).powi(2) + (3.0_f64).powi(2) + (3.0_f64).powi(2)).sqrt();
         assert!((dist - expected).abs() < 1e-10);
     }
@@ -619,7 +635,7 @@ mod tests {
         assert!(registry.contains("custom_chebyshev"));
 
         // Test metric retrieval
-        let metric = registry.get("euclidean").unwrap();
+        let metric = registry.get("euclidean").expect("operation should succeed");
         assert_eq!(metric.name(), "euclidean");
 
         // Test listing metrics
@@ -630,12 +646,12 @@ mod tests {
 
     #[test]
     fn test_metric_creation() {
-        let metric = create_metric("euclidean", None).unwrap();
+        let metric = create_metric("euclidean", None).expect("operation should succeed");
         assert_eq!(metric.name(), "euclidean");
 
         let mut params = HashMap::new();
         params.insert("p".to_string(), 3.0);
-        let metric = create_metric("minkowski", Some(params)).unwrap();
+        let metric = create_metric("minkowski", Some(params)).expect("operation should succeed");
         assert_eq!(metric.name(), "minkowski");
 
         // Test unknown metric
@@ -659,7 +675,9 @@ mod tests {
         let metric = EuclideanDistance;
         let x = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
 
-        let distances = metric.pairwise_distances(x.view()).unwrap();
+        let distances = metric
+            .pairwise_distances(x.view())
+            .expect("operation should succeed");
         assert_eq!(distances.shape(), &[3, 3]);
 
         // Diagonal should be zero

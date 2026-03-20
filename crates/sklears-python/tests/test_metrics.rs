@@ -92,7 +92,7 @@ mod metric_properties {
             prop_assert!(mae < 1e-10);
 
             // R² score should be 1.0 for perfect predictions (if variance > 0)
-            let y_mean = y_true_arr.mean().unwrap();
+            let y_mean = y_true_arr.mean().expect("array should have elements for mean computation");
             let ss_tot: f64 = y_true_arr.iter().map(|&y| (y - y_mean).powi(2)).sum();
 
             if ss_tot > 1e-10 { // Avoid division by zero

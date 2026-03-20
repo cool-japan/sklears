@@ -60,7 +60,7 @@ mod tests {
         let error = SklearsComposeError::InvalidConfiguration("Test error".to_string());
         let result = enhancer.enhance_error(&error);
         assert!(result.is_ok());
-        let enhanced = result.unwrap();
+        let enhanced = result.expect("operation should succeed");
         assert!(!enhanced.enhanced_message.is_empty());
         assert!(!enhanced.original_error.is_empty());
     }
@@ -105,7 +105,7 @@ mod tests {
         let context = EnhancedErrorContext::default();
         let result = analyzer.analyze_error(&error, &context);
         assert!(result.is_ok());
-        let classification = result.unwrap();
+        let classification = result.unwrap_or_default();
         assert!(matches!(classification.category, ErrorCategory::DataError));
     }
     #[test]
@@ -120,7 +120,7 @@ mod tests {
         let context = EnhancedErrorContext::default();
         let result = advisor.generate_recovery_strategies(&error, &context);
         assert!(result.is_ok());
-        let strategies = result.unwrap();
+        let strategies = result.unwrap_or_default();
         assert!(!strategies.is_empty());
     }
     #[test]
@@ -136,7 +136,7 @@ mod tests {
         let suggestions = Vec::new();
         let result = formatter.format_error(&error, &context, &suggestions);
         assert!(result.is_ok());
-        let formatted = result.unwrap();
+        let formatted = result.unwrap_or_default();
         assert!(formatted.contains("ERROR:"));
         assert!(formatted.contains("test error"));
     }
@@ -152,7 +152,7 @@ mod tests {
         let enhancer = ErrorMessageEnhancer::new();
         let result = enhancer.export_statistics();
         assert!(result.is_ok());
-        let stats = result.unwrap();
+        let stats = result.expect("operation should succeed");
         assert!(stats.success_rate >= 0.0 && stats.success_rate <= 1.0);
     }
     #[test]
@@ -161,7 +161,7 @@ mod tests {
         let error = SklearsComposeError::InvalidConfiguration("test".to_string());
         let result = provider.collect_context(&error);
         assert!(result.is_ok());
-        let context = result.unwrap();
+        let context = result.unwrap_or_default();
         assert!(context.contains_key("os"));
         assert_eq!(provider.context_type(), ContextType::Environment);
     }
@@ -174,7 +174,7 @@ mod tests {
         let context = EnhancedErrorContext::default();
         let result = generator.generate_suggestions(&error, &context);
         assert!(result.is_ok());
-        let suggestions = result.unwrap();
+        let suggestions = result.unwrap_or_default();
         assert!(!suggestions.is_empty());
         assert_eq!(generator.error_types(), vec!["DataError".to_string()]);
     }

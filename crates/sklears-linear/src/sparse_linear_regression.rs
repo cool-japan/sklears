@@ -416,10 +416,10 @@ mod tests {
         let model = SparseLinearRegression::new()
             .fit_intercept(true)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let coeffs = model.coefficients().unwrap();
-        let intercept = model.intercept().unwrap();
+        let coeffs = model.coefficients().expect("operation should succeed");
+        let intercept = model.intercept().expect("intercept should be available");
 
         // Should recover the true parameters
         assert_abs_diff_eq!(coeffs[0], 2.0, epsilon = 1e-10);
@@ -428,13 +428,13 @@ mod tests {
 
         // Test prediction
         let x_test = array![[1.5, 0.5]];
-        let y_pred = model.predict(&x_test).unwrap();
+        let y_pred = model.predict(&x_test).expect("prediction should succeed");
         let expected = 2.0 * 1.5 + 3.0 * 0.5 + 1.0; // 5.5
         assert_abs_diff_eq!(y_pred[0], expected, epsilon = 1e-10);
     }
 
     #[test]
-    #[ignore = "Waiting for SciRS2-sparse v0.1.0-rc.2 to be published to crates.io"]
+    #[ignore = "Requires SciRS2-sparse to be published to crates.io"]
     fn test_sparse_linear_regression_sparse_input() {
         // Create sparse design matrix
         let triplets = vec![
@@ -447,28 +447,31 @@ mod tests {
             (3, 0, 2.0),
             (3, 1, 1.0),
         ];
-        let x_sparse = SparseMatrixCSR::from_triplets(4, 2, &triplets).unwrap();
+        let x_sparse =
+            SparseMatrixCSR::from_triplets(4, 2, &triplets).expect("operation should succeed");
         let y = array![3.0, 4.0, 6.0, 8.0];
 
         let model = SparseLinearRegression::new()
             .fit_intercept(true)
             .fit(&x_sparse, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(model.is_sparse_fitted());
 
-        let coeffs = model.coefficients().unwrap();
+        let coeffs = model.coefficients().expect("operation should succeed");
         assert_eq!(coeffs.len(), 2);
 
         // Test sparse prediction
-        let x_test_sparse =
-            SparseMatrixCSR::from_triplets(1, 2, &[(0, 0, 1.5), (0, 1, 0.5)]).unwrap();
-        let y_pred = model.predict(&x_test_sparse).unwrap();
+        let x_test_sparse = SparseMatrixCSR::from_triplets(1, 2, &[(0, 0, 1.5), (0, 1, 0.5)])
+            .expect("operation should succeed");
+        let y_pred = model
+            .predict(&x_test_sparse)
+            .expect("prediction should succeed");
         assert_eq!(y_pred.len(), 1);
     }
 
     #[test]
-    #[ignore = "Waiting for SciRS2-sparse v0.1.0-rc.2 to be published to crates.io"]
+    #[ignore = "Requires SciRS2-sparse to be published to crates.io"]
     fn test_sparse_linear_regression_auto_conversion() {
         // Create a very sparse matrix
         let mut x = Array2::zeros((10, 5));
@@ -483,7 +486,7 @@ mod tests {
             .auto_sparse_conversion(true)
             .min_sparsity_ratio(0.8) // Should trigger sparse conversion
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should use sparse algorithms for very sparse data
         assert!(model.is_sparse_fitted());
@@ -504,7 +507,7 @@ mod tests {
         let model = SparseLinearRegression::new()
             .auto_sparse_conversion(false)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
         // Should use dense algorithms when auto conversion is disabled
         assert!(!model.is_sparse_fitted());
@@ -542,9 +545,11 @@ mod tests {
         let model = SparseLinearRegression::new()
             .sparsity_threshold(1e-3)
             .fit(&x, &y)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let sparsity = model.coefficient_sparsity().unwrap();
+        let sparsity = model
+            .coefficient_sparsity()
+            .expect("operation should succeed");
         assert!((0.0..=1.0).contains(&sparsity));
     }
 }

@@ -200,7 +200,8 @@ impl ProjectedGradientIsotonicRegressor {
 
             // Merge with previous blocks if necessary
             while !blocks.is_empty() {
-                let (block_start, _block_end, block_value, block_weight) = blocks.last().unwrap();
+                let (block_start, _block_end, block_value, block_weight) =
+                    blocks.last().expect("operation should succeed");
 
                 if current_value >= *block_value {
                     // No violation, add new block
@@ -340,7 +341,7 @@ mod tests {
     fn test_projected_gradient_simple_case() {
         let y = array![3.0, 1.0, 2.0, 4.0];
         let regressor = ProjectedGradientIsotonicRegressor::new().increasing(true);
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check monotonicity
         for i in 1..result.len() {
@@ -352,7 +353,7 @@ mod tests {
     fn test_projected_gradient_decreasing() {
         let y = array![1.0, 3.0, 2.0, 4.0];
         let regressor = ProjectedGradientIsotonicRegressor::new().increasing(false);
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check monotonicity (decreasing)
         for i in 1..result.len() {
@@ -381,7 +382,7 @@ mod tests {
         let result = isotonic_regression_projected_gradient(&y, None, true);
 
         assert!(result.is_ok());
-        let solution = result.unwrap();
+        let solution = result.expect("operation should succeed");
 
         // Check monotonicity
         for i in 1..solution.len() {
@@ -396,7 +397,7 @@ mod tests {
             .increasing(true)
             .bounds(Some(1.0), Some(2.0));
 
-        let result = regressor.solve(&y, None).unwrap();
+        let result = regressor.solve(&y, None).expect("solve should succeed");
 
         // Check bounds are respected
         for &val in result.iter() {
@@ -410,7 +411,9 @@ mod tests {
         let y = array![1.0, 3.0, 2.0];
         let weights = array![1.0, 10.0, 1.0]; // High weight on middle point
         let regressor = ProjectedGradientIsotonicRegressor::new().increasing(true);
-        let result = regressor.solve(&y, Some(&weights)).unwrap();
+        let result = regressor
+            .solve(&y, Some(&weights))
+            .expect("solve should succeed");
 
         // Result should be influenced by the high-weight middle point
         assert!(result.len() == 3);

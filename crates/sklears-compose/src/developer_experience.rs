@@ -211,7 +211,10 @@ impl PipelineDebugger {
         println!(
             "🔴 Breakpoint added: {} at {}",
             id,
-            self.breakpoints.last().unwrap().location
+            self.breakpoints
+                .last()
+                .map(|b| b.location.as_str())
+                .unwrap_or("unknown")
         );
         id
     }
@@ -233,7 +236,11 @@ impl PipelineDebugger {
         self.execution_trace.push(entry);
 
         // Check if we hit any breakpoints
-        let current_component = self.execution_trace.last().unwrap().component.clone();
+        let current_component = self
+            .execution_trace
+            .last()
+            .map(|t| t.component.clone())
+            .unwrap_or_default();
         if let Some(breakpoint) = self.check_breakpoints(&current_component) {
             self.pause_at_breakpoint(breakpoint);
         }

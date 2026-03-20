@@ -725,7 +725,7 @@ impl FairDecisionTreeBuilder {
                 .iter()
                 .map(|&idx| x[[idx, feature_idx]])
                 .collect();
-            feature_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            feature_values.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             feature_values.dedup_by(|a, b| (*a - *b).abs() < 1e-10);
 
             // Try different thresholds
@@ -898,8 +898,8 @@ impl FairDecisionTree {
         if node.is_leaf {
             Ok(node.prediction.unwrap_or(0))
         } else {
-            let feature_idx = node.feature_idx.unwrap();
-            let threshold = node.threshold.unwrap();
+            let feature_idx = node.feature_idx.expect("operation should succeed");
+            let threshold = node.threshold.expect("operation should succeed");
 
             if sample[feature_idx] <= threshold {
                 if let Some(ref left_child) = node.left_child {
@@ -953,7 +953,7 @@ impl FairDecisionTree {
             )?;
 
             self.fairness_metrics = Some(metrics);
-            Ok(self.fairness_metrics.as_ref().unwrap())
+            Ok(self.fairness_metrics.as_ref().expect("operation should succeed"))
         } else {
             Err(sklears_core::error::SklearsError::InvalidData {
                 reason: "No protected attributes defined".to_string(),
@@ -997,7 +997,7 @@ mod tests {
         let metrics = FairnessMetrics::calculate(&y_true, &y_pred, None, &protected, 1);
 
         assert!(metrics.is_ok());
-        let metrics = metrics.unwrap();
+        let metrics = metrics.expect("operation should succeed");
         assert!(metrics.demographic_parity >= 0.0);
     }
 

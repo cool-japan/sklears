@@ -1096,9 +1096,15 @@ mod tests {
         let model_id = model_node.id.clone();
         let explanation_id = explanation_node.id.clone();
 
-        lineage.add_node(data_node).unwrap();
-        lineage.add_node(model_node).unwrap();
-        lineage.add_node(explanation_node).unwrap();
+        lineage
+            .add_node(data_node)
+            .expect("operation should succeed");
+        lineage
+            .add_node(model_node)
+            .expect("operation should succeed");
+        lineage
+            .add_node(explanation_node)
+            .expect("operation should succeed");
 
         // Data -> Model
         let relation1 = LineageRelation::new(
@@ -1107,7 +1113,9 @@ mod tests {
             "trains".to_string(),
             OperationType::ModelTraining,
         );
-        lineage.add_relation(relation1).unwrap();
+        lineage
+            .add_relation(relation1)
+            .expect("operation should succeed");
 
         // Model -> Explanation
         let relation2 = LineageRelation::new(
@@ -1116,7 +1124,9 @@ mod tests {
             "generates".to_string(),
             OperationType::ExplanationGeneration,
         );
-        lineage.add_relation(relation2).unwrap();
+        lineage
+            .add_relation(relation2)
+            .expect("operation should succeed");
 
         // Test ancestor/descendant relationships
         let ancestors = lineage.get_ancestors(&explanation_id);
@@ -1126,7 +1136,9 @@ mod tests {
         assert_eq!(descendants.len(), 2); // Model and explanation
 
         // Test lineage path
-        let path = lineage.get_lineage_path(&data_id, &explanation_id).unwrap();
+        let path = lineage
+            .get_lineage_path(&data_id, &explanation_id)
+            .expect("operation should succeed");
         assert_eq!(path.len(), 3); // Data -> Model -> Explanation
     }
 
@@ -1169,7 +1181,10 @@ mod tests {
         // Add model node first
         let model_node = LineageNode::new("model".to_string(), "Test model".to_string());
         let model_id = model_node.id.clone();
-        tracker.lineage.add_node(model_node).unwrap();
+        tracker
+            .lineage
+            .add_node(model_node)
+            .expect("operation should succeed");
 
         let target_node =
             LineageNode::new("explanation".to_string(), "Test explanation".to_string());
@@ -1186,7 +1201,7 @@ mod tests {
                 target_node,
                 event,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(tracker.audit_trail().total_events(), 1);
         assert_eq!(tracker.lineage().node_count(), 2);

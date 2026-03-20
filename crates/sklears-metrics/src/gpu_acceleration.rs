@@ -802,8 +802,9 @@ mod tests {
     #[cfg(feature = "serde")]
     fn test_gpu_metric_type_serialization() {
         let metric = GpuMetricType::Accuracy;
-        let serialized = serde_json::to_string(&metric).unwrap();
-        let deserialized: GpuMetricType = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&metric).expect("operation should succeed");
+        let deserialized: GpuMetricType =
+            serde_json::from_str(&serialized).expect("operation should succeed");
         assert_eq!(metric, deserialized);
     }
 

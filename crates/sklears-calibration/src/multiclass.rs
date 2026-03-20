@@ -138,8 +138,14 @@ impl OneVsOneCalibrator {
             let mut votes: Array1<Float> = Array1::zeros(n_classes);
 
             for ((class_i, class_j), calibrator) in calibrators.iter() {
-                let i = classes.iter().position(|&x| x == *class_i).unwrap();
-                let j = classes.iter().position(|&x| x == *class_j).unwrap();
+                let i = classes
+                    .iter()
+                    .position(|&x| x == *class_i)
+                    .ok_or(SklearsError::InvalidInput("element not found".to_string()))?;
+                let j = classes
+                    .iter()
+                    .position(|&x| x == *class_j)
+                    .ok_or(SklearsError::InvalidInput("element not found".to_string()))?;
 
                 let p_i = probabilities[[sample_idx, i]];
                 let p_j = probabilities[[sample_idx, j]];
@@ -587,9 +593,11 @@ mod tests {
 
         let calibrator = MulticlassTemperatureScaling::new()
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.dim(), (4, 3));
 
@@ -613,9 +621,13 @@ mod tests {
         ];
         let y_true = array![0, 1, 2, 0];
 
-        let calibrator = MatrixScaling::new().fit(&probabilities, &y_true).unwrap();
+        let calibrator = MatrixScaling::new()
+            .fit(&probabilities, &y_true)
+            .expect("fit should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.dim(), (4, 3));
 
@@ -643,9 +655,11 @@ mod tests {
         let calibrator = DirichletCalibration::new()
             .concentration(2.0)
             .fit(&probabilities, &y_true)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.dim(), (4, 3));
 
@@ -657,7 +671,7 @@ mod tests {
 
         // Check that alpha parameters are fitted
         assert!(calibrator.alpha_params().is_some());
-        let alphas = calibrator.alpha_params().unwrap();
+        let alphas = calibrator.alpha_params().expect("operation should succeed");
         assert!(alphas.iter().all(|&x| x > 0.0));
     }
 
@@ -676,9 +690,11 @@ mod tests {
 
         let calibrator = OneVsOneCalibrator::new()
             .fit(&probabilities, &y_true, calibrator_fn)
-            .unwrap();
+            .expect("operation should succeed");
 
-        let calibrated = calibrator.predict_proba(&probabilities).unwrap();
+        let calibrated = calibrator
+            .predict_proba(&probabilities)
+            .expect("predict_proba should succeed");
 
         assert_eq!(calibrated.dim(), (4, 3));
 

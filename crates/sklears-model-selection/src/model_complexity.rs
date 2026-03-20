@@ -519,9 +519,9 @@ impl OverfittingDetector {
         let min_val_idx = val_scores
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .min_by(|(_, a), (_, b)| a.partial_cmp(b).expect("operation should succeed"))
             .map(|(idx, _)| idx)
-            .unwrap();
+            .expect("operation should succeed");
 
         let optimal_param = param_values[min_val_idx];
         let min_val_score = val_scores[min_val_idx];
@@ -628,7 +628,7 @@ mod tests {
         let result = analyzer.analyze(&estimator, &x_train, &y_train, &x_val, &y_val);
 
         assert!(result.is_ok());
-        let result = result.unwrap();
+        let result = result.expect("operation should succeed");
         assert!(result.train_error >= 0.0);
         assert!(result.validation_error >= 0.0);
         assert!(result.complexity_score >= 0.0);
@@ -655,7 +655,7 @@ mod tests {
         let result =
             detector.detect_from_validation_curve(&param_values, &train_scores, &val_scores);
         assert!(result.is_ok());
-        let (_overfitting, optimal_param) = result.unwrap();
+        let (_overfitting, optimal_param) = result.expect("operation should succeed");
         assert!(optimal_param.is_some());
     }
 

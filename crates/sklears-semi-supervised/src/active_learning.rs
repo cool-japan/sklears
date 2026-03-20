@@ -137,7 +137,7 @@ impl UncertaintySampling {
             .collect();
 
         // Sort by uncertainty (descending)
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Apply diversity if weight > 0
         let selected_indices = if self.diversity_weight > 0.0 {
@@ -192,7 +192,7 @@ impl UncertaintySampling {
 
         for (i, row) in probas.axis_iter(Axis(0)).enumerate() {
             let mut sorted_probs: Vec<f64> = row.iter().cloned().collect();
-            sorted_probs.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            sorted_probs.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
             if sorted_probs.len() >= 2 {
                 margins[i] = -(sorted_probs[0] - sorted_probs[1]); // Negative for ascending order
@@ -413,7 +413,7 @@ impl QueryByCommittee {
             .map(|(i, &score)| (i, score))
             .collect();
 
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_indices: Vec<usize> = indexed_scores
             .iter()
@@ -441,8 +441,8 @@ impl QueryByCommittee {
                 let predicted_class = sample_probas
                     .iter()
                     .enumerate()
-                    .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-                    .unwrap()
+                    .max_by(|a, b| a.1.partial_cmp(b.1).expect("operation should succeed"))
+                    .expect("operation should succeed")
                     .0;
                 class_votes[predicted_class] += 1.0;
             }
@@ -713,7 +713,7 @@ impl ExpectedModelChange {
             .collect();
 
         // Sort by expected change (descending)
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Apply diversity if weight > 0
         let selected_indices = if self.diversity_weight > 0.0 {
@@ -772,7 +772,9 @@ impl ExpectedModelChange {
         let mut scores = Array1::zeros(n_samples);
 
         // Compute mean gradient across samples
-        let mean_gradient = gradients.mean_axis(Axis(0)).unwrap();
+        let mean_gradient = gradients
+            .mean_axis(Axis(0))
+            .expect("operation should succeed");
 
         for i in 0..n_samples {
             let gradient = gradients.row(i);
@@ -1054,7 +1056,7 @@ impl InformationDensity {
             .collect();
 
         // Sort by combined score (descending)
-        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        indexed_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         let selected_indices: Vec<usize> = indexed_scores
             .into_iter()
@@ -1116,7 +1118,7 @@ impl InformationDensity {
         for i in 0..n_samples {
             let row = probas.row(i);
             let mut sorted_probs: Vec<f64> = row.iter().cloned().collect();
-            sorted_probs.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            sorted_probs.sort_by(|a, b| b.partial_cmp(a).expect("operation should succeed"));
 
             let margin = if sorted_probs.len() >= 2 {
                 sorted_probs[0] - sorted_probs[1] // largest - second largest
@@ -1162,7 +1164,7 @@ impl InformationDensity {
             }
 
             // Sort distances and take k-th nearest neighbor distance
-            distances.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            distances.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
             let k_distance = if self.k_neighbors <= distances.len() {
                 distances[self.k_neighbors - 1]
             } else {
@@ -1284,7 +1286,9 @@ mod tests {
         let us = UncertaintySampling::new()
             .strategy("entropy".to_string())
             .n_samples(2);
-        let selected = us.select_samples(&probas.view()).unwrap();
+        let selected = us
+            .select_samples(&probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Most uncertain sample should be selected first (index 2: [0.5, 0.5])
@@ -1303,7 +1307,9 @@ mod tests {
         let us = UncertaintySampling::new()
             .strategy("margin".to_string())
             .n_samples(2);
-        let selected = us.select_samples(&probas.view()).unwrap();
+        let selected = us
+            .select_samples(&probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Sample with smallest margin should be selected (index 2)
@@ -1322,7 +1328,9 @@ mod tests {
         let us = UncertaintySampling::new()
             .strategy("least_confident".to_string())
             .n_samples(2);
-        let selected = us.select_samples(&probas.view()).unwrap();
+        let selected = us
+            .select_samples(&probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Least confident sample should be selected (index 2)
@@ -1358,7 +1366,9 @@ mod tests {
         let qbc = QueryByCommittee::new()
             .disagreement_measure("vote_entropy".to_string())
             .n_samples(2);
-        let selected = qbc.select_samples(&committee_probas).unwrap();
+        let selected = qbc
+            .select_samples(&committee_probas)
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should select samples where committee members disagree most
@@ -1374,7 +1384,9 @@ mod tests {
         let qbc = QueryByCommittee::new()
             .disagreement_measure("kl_divergence".to_string())
             .n_samples(1);
-        let selected = qbc.select_samples(&committee_probas).unwrap();
+        let selected = qbc
+            .select_samples(&committee_probas)
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 1);
     }
@@ -1390,7 +1402,9 @@ mod tests {
         let qbc = QueryByCommittee::new()
             .disagreement_measure("variance".to_string())
             .n_samples(1);
-        let selected = qbc.select_samples(&committee_probas).unwrap();
+        let selected = qbc
+            .select_samples(&committee_probas)
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 1);
     }
@@ -1408,7 +1422,9 @@ mod tests {
             .strategy("entropy".to_string())
             .diversity_weight(0.5)
             .n_samples(2);
-        let selected = us.select_samples(&probas.view()).unwrap();
+        let selected = us
+            .select_samples(&probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should select diverse uncertain samples
@@ -1419,7 +1435,9 @@ mod tests {
         // Test with n_samples >= total samples
         let probas = array![[0.7, 0.3], [0.6, 0.4]];
         let us = UncertaintySampling::new().n_samples(5);
-        let selected = us.select_samples(&probas.view()).unwrap();
+        let selected = us
+            .select_samples(&probas.view())
+            .expect("operation should succeed");
         assert_eq!(selected.len(), 2);
         assert_eq!(selected, vec![0, 1]);
 
@@ -1492,7 +1510,9 @@ mod tests {
         let emc = ExpectedModelChange::new()
             .approximation_method("gradient_norm".to_string())
             .n_samples(2);
-        let selected = emc.select_samples(&X.view(), &gradients.view()).unwrap();
+        let selected = emc
+            .select_samples(&X.view(), &gradients.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Sample with largest gradient should be selected first (index 1)
@@ -1508,7 +1528,9 @@ mod tests {
         let emc = ExpectedModelChange::new()
             .approximation_method("fisher_information".to_string())
             .n_samples(2);
-        let selected = emc.select_samples(&X.view(), &gradients.view()).unwrap();
+        let selected = emc
+            .select_samples(&X.view(), &gradients.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Check that valid indices are selected
@@ -1531,7 +1553,9 @@ mod tests {
         let emc = ExpectedModelChange::new()
             .approximation_method("parameter_variance".to_string())
             .n_samples(2);
-        let selected = emc.select_samples(&X.view(), &gradients.view()).unwrap();
+        let selected = emc
+            .select_samples(&X.view(), &gradients.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Samples with high variance should be selected
@@ -1558,7 +1582,9 @@ mod tests {
             .approximation_method("gradient_norm".to_string())
             .diversity_weight(0.5)
             .n_samples(2);
-        let selected = emc.select_samples(&X.view(), &gradients.view()).unwrap();
+        let selected = emc
+            .select_samples(&X.view(), &gradients.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should balance gradient magnitude with diversity
@@ -1574,7 +1600,9 @@ mod tests {
 
         // Test with n_samples >= total samples
         let emc = ExpectedModelChange::new().n_samples(5);
-        let selected = emc.select_samples(&X.view(), &gradients.view()).unwrap();
+        let selected = emc
+            .select_samples(&X.view(), &gradients.view())
+            .expect("operation should succeed");
         assert_eq!(selected.len(), 2);
         assert_eq!(selected, vec![0, 1]);
 
@@ -1602,14 +1630,14 @@ mod tests {
             .n_samples(2);
         let selected_norm = emc_normalized
             .select_samples(&X.view(), &gradients.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let emc_unnormalized = ExpectedModelChange::new()
             .normalize_scores(false)
             .n_samples(2);
         let selected_unnorm = emc_unnormalized
             .select_samples(&X.view(), &gradients.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         // Both should select same samples (highest gradients)
         assert_eq!(selected_norm.len(), 2);
@@ -1655,7 +1683,9 @@ mod tests {
             .density_weight(0.5)
             .k_neighbors(2)
             .n_samples(2);
-        let selected = id.select_samples(&X.view(), &probas.view()).unwrap();
+        let selected = id
+            .select_samples(&X.view(), &probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should prefer uncertain samples in dense regions
@@ -1679,7 +1709,9 @@ mod tests {
             .density_weight(0.7)
             .bandwidth(1.0)
             .n_samples(2);
-        let selected = id.select_samples(&X.view(), &probas.view()).unwrap();
+        let selected = id
+            .select_samples(&X.view(), &probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should favor dense regions with high weight on density
@@ -1706,7 +1738,9 @@ mod tests {
             .density_measure("cosine_similarity".to_string())
             .density_weight(0.3)
             .n_samples(2);
-        let selected = id.select_samples(&X.view(), &probas.view()).unwrap();
+        let selected = id
+            .select_samples(&X.view(), &probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should select based on both uncertainty and cosine similarity
@@ -1728,7 +1762,9 @@ mod tests {
             .density_measure("knn_density".to_string())
             .density_weight(0.0) // Pure uncertainty
             .n_samples(2);
-        let selected = id.select_samples(&X.view(), &probas.view()).unwrap();
+        let selected = id
+            .select_samples(&X.view(), &probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should select samples with smallest margins (most uncertain)
@@ -1751,7 +1787,9 @@ mod tests {
             .density_measure("knn_density".to_string())
             .density_weight(0.0) // Pure uncertainty
             .n_samples(2);
-        let selected = id.select_samples(&X.view(), &probas.view()).unwrap();
+        let selected = id
+            .select_samples(&X.view(), &probas.view())
+            .expect("operation should succeed");
 
         assert_eq!(selected.len(), 2);
         // Should select least confident samples
@@ -1772,7 +1810,7 @@ mod tests {
             .n_samples(2);
         let selected_low = id_low_temp
             .select_samples(&X.view(), &probas.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         let id_high_temp = InformationDensity::new()
             .temperature(2.0) // Smoother probabilities
@@ -1780,7 +1818,7 @@ mod tests {
             .n_samples(2);
         let selected_high = id_high_temp
             .select_samples(&X.view(), &probas.view())
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(selected_low.len(), 2);
         assert_eq!(selected_high.len(), 2);
@@ -1794,7 +1832,9 @@ mod tests {
 
         // Test with n_samples >= total samples
         let id = InformationDensity::new().n_samples(5);
-        let selected = id.select_samples(&X.view(), &probas.view()).unwrap();
+        let selected = id
+            .select_samples(&X.view(), &probas.view())
+            .expect("operation should succeed");
         assert_eq!(selected.len(), 2);
         assert_eq!(selected, vec![0, 1]);
 
@@ -1838,7 +1878,7 @@ mod tests {
         let id_uncertainty = InformationDensity::new().density_weight(0.0).n_samples(2);
         let selected_unc = id_uncertainty
             .select_samples(&X.view(), &probas.view())
-            .unwrap();
+            .expect("operation should succeed");
         assert!(selected_unc.contains(&0)); // High uncertainty
         assert!(selected_unc.contains(&2)); // High uncertainty
 
@@ -1849,7 +1889,7 @@ mod tests {
             .n_samples(2);
         let selected_den = id_density
             .select_samples(&X.view(), &probas.view())
-            .unwrap();
+            .expect("operation should succeed");
         // Should prefer samples in denser regions
         assert_eq!(selected_den.len(), 2);
     }

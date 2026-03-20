@@ -52,7 +52,7 @@ use scirs2_core::rand_prelude::SliceRandom;
 use scirs2_core::random::Distribution;
 // Normal distribution available via RandNormal per SciRS2 policy
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::collections::HashMap;
 
 /// Configuration for the validation framework
@@ -169,7 +169,7 @@ impl SyntheticDataGenerator {
     /// Generate perfect predictions (no error)
     pub fn generate_perfect_predictions(&mut self, n_samples: usize) -> (Array1<f64>, Array1<f64>) {
         let y_true: Array1<f64> = (0..n_samples)
-            .map(|_| self.rng.gen_range(0.0..10.0))
+            .map(|_| self.rng.random_range(0.0..10.0))
             .collect();
         let y_pred = y_true.clone();
         (y_true, y_pred)
@@ -182,10 +182,11 @@ impl SyntheticDataGenerator {
         noise_std: f64,
     ) -> (Array1<f64>, Array1<f64>) {
         let y_true: Array1<f64> = (0..n_samples)
-            .map(|_| self.rng.gen_range(0.0..10.0))
+            .map(|_| self.rng.random_range(0.0..10.0))
             .collect();
 
-        let noise_dist = scirs2_core::random::RandNormal::new(0.0, noise_std).unwrap();
+        let noise_dist =
+            scirs2_core::random::RandNormal::new(0.0, noise_std).expect("operation should succeed");
         let y_pred: Array1<f64> = y_true
             .iter()
             .map(|&true_val| true_val + noise_dist.sample(&mut self.rng))
@@ -200,7 +201,7 @@ impl SyntheticDataGenerator {
         n_samples: usize,
     ) -> (Array1<f64>, Array1<f64>) {
         let y_true: Array1<f64> = (0..n_samples)
-            .map(|_| if self.rng.gen::<bool>() { 1.0 } else { 0.0 })
+            .map(|_| if self.rng.random::<bool>() { 1.0 } else { 0.0 })
             .collect();
 
         // Predictions are opposite of true values
@@ -216,7 +217,7 @@ impl SyntheticDataGenerator {
         target_accuracy: f64,
     ) -> (Array1<i32>, Array1<i32>) {
         let y_true: Array1<i32> = (0..n_samples)
-            .map(|_| if self.rng.gen::<bool>() { 1 } else { 0 })
+            .map(|_| if self.rng.random::<bool>() { 1 } else { 0 })
             .collect();
 
         let n_correct = (target_accuracy * n_samples as f64).round() as usize;
@@ -241,7 +242,7 @@ impl SyntheticDataGenerator {
         target_r2: f64,
     ) -> (Array1<f64>, Array1<f64>) {
         let y_true: Array1<f64> = (0..n_samples)
-            .map(|_| self.rng.gen_range(0.0..10.0))
+            .map(|_| self.rng.random_range(0.0..10.0))
             .collect();
 
         let _true_mean = y_true.mean().unwrap_or(0.0);
@@ -251,7 +252,8 @@ impl SyntheticDataGenerator {
         let noise_var = true_var * (1.0 - target_r2) / target_r2;
         let noise_std = noise_var.sqrt();
 
-        let noise_dist = scirs2_core::random::RandNormal::new(0.0, noise_std).unwrap();
+        let noise_dist =
+            scirs2_core::random::RandNormal::new(0.0, noise_std).expect("operation should succeed");
         let y_pred: Array1<f64> = y_true
             .iter()
             .map(|&true_val| true_val + noise_dist.sample(&mut self.rng))
@@ -306,7 +308,7 @@ impl SyntheticDataGenerator {
         outlier_magnitude: f64,
     ) -> (Array1<f64>, Array1<f64>) {
         let y_true: Vec<f64> = (0..n_samples)
-            .map(|_| self.rng.gen_range(0.0..10.0))
+            .map(|_| self.rng.random_range(0.0..10.0))
             .collect();
 
         let mut y_pred = y_true.clone();
@@ -318,7 +320,7 @@ impl SyntheticDataGenerator {
         shuffled_indices.shuffle(&mut self.rng);
 
         for &idx in shuffled_indices.iter().take(n_outliers) {
-            y_pred[idx] += outlier_magnitude * if self.rng.gen::<bool>() { 1.0 } else { -1.0 };
+            y_pred[idx] += outlier_magnitude * if self.rng.random::<bool>() { 1.0 } else { -1.0 };
         }
 
         (Array1::from_vec(y_true), Array1::from_vec(y_pred))
@@ -473,7 +475,7 @@ impl MetricValidator {
         for _ in 0..self.config.bootstrap_samples {
             // Bootstrap sampling
             let n = y_true.len();
-            let indices: Vec<usize> = (0..n).map(|_| rng.gen_range(0..n)).collect();
+            let indices: Vec<usize> = (0..n).map(|_| rng.random_range(0..n)).collect();
 
             let y_true_boot: Array1<f64> = indices.iter().map(|&i| y_true[i]).collect();
             let y_pred_boot: Array1<f64> = indices.iter().map(|&i| y_pred[i]).collect();
@@ -492,7 +494,7 @@ impl MetricValidator {
         let std_dev = variance.sqrt();
 
         // Calculate confidence interval
-        bootstrap_results.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        bootstrap_results.sort_by(|a, b| a.partial_cmp(b).expect("operation should succeed"));
         let ci_lower_idx = (0.025 * bootstrap_results.len() as f64) as usize;
         let ci_upper_idx = (0.975 * bootstrap_results.len() as f64) as usize;
         let confidence_interval = (
@@ -840,7 +842,8 @@ mod tests {
 
         // Test classification with specific accuracy
         let (y_true_cls, y_pred_cls) = generator.generate_classification_with_accuracy(100, 0.8);
-        let actual_accuracy = accuracy_score(&y_true_cls, &y_pred_cls).unwrap();
+        let actual_accuracy =
+            accuracy_score(&y_true_cls, &y_pred_cls).expect("operation should succeed");
         assert!((actual_accuracy - 0.8).abs() < 0.05); // Allow some tolerance
     }
 
@@ -858,7 +861,7 @@ mod tests {
             .validate_metric("perfect_accuracy", |y_true, y_pred| {
                 accuracy_score(y_true, y_pred).unwrap_or(0.0)
             })
-            .unwrap();
+            .expect("operation should succeed");
 
         assert!(result.passed);
         assert_relative_eq!(result.expected, 1.0, epsilon = 1e-10);
@@ -889,7 +892,8 @@ mod tests {
 
         // Validate a specific case
         let perfect_case = &mse_cases[0];
-        let computed_mse = mean_squared_error(&perfect_case.y_true, &perfect_case.y_pred).unwrap();
+        let computed_mse = mean_squared_error(&perfect_case.y_true, &perfect_case.y_pred)
+            .expect("operation should succeed");
         assert_relative_eq!(
             computed_mse,
             perfect_case.expected_value,

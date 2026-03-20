@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use sklears_core::error::{Result as SklResult, SklearsError};
 type Result<T> = SklResult<T>;
-use scirs2_core::random::{thread_rng, Rng};
+use scirs2_core::random::thread_rng;
 
 impl From<CrossValidationError> for SklearsError {
     fn from(err: CrossValidationError) -> Self {
@@ -305,7 +305,7 @@ impl NestedCrossValidation {
     /// Simple shuffle implementation
     fn shuffle_indices(&self, indices: &mut [usize]) {
         for i in (1..indices.len()).rev() {
-            let j = (thread_rng().gen::<f64>() * (i + 1) as f64) as usize;
+            let j = (thread_rng().random::<f64>() * (i + 1) as f64) as usize;
             indices.swap(i, j);
         }
     }
@@ -390,7 +390,8 @@ impl NestedCrossValidation {
             })
             .collect();
 
-        feature_frequencies.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        feature_frequencies
+            .sort_by(|a, b| b.1.partial_cmp(&a.1).expect("operation should succeed"));
 
         // Intersection stability (features selected in all folds)
         let all_features: std::collections::HashSet<_> = feature_selections[0].iter().collect();
@@ -512,7 +513,7 @@ impl StratifiedKFold {
 
     fn shuffle_indices(&self, indices: &mut [usize]) {
         for i in (1..indices.len()).rev() {
-            let j = (thread_rng().gen::<f64>() * (i + 1) as f64) as usize;
+            let j = (thread_rng().random::<f64>() * (i + 1) as f64) as usize;
             indices.swap(i, j);
         }
     }
@@ -707,7 +708,7 @@ impl RepeatedKFold {
 
     fn shuffle_indices(&self, indices: &mut [usize]) {
         for i in (1..indices.len()).rev() {
-            let j = (thread_rng().gen::<f64>() * (i + 1) as f64) as usize;
+            let j = (thread_rng().random::<f64>() * (i + 1) as f64) as usize;
             indices.swap(i, j);
         }
     }
@@ -853,7 +854,7 @@ mod tests {
         _features: &[usize],
     ) -> Result<f64> {
         // Return random score between 0.7 and 0.9
-        Ok(0.7 + thread_rng().gen::<f64>() * 0.2)
+        Ok(0.7 + thread_rng().random::<f64>() * 0.2)
     }
 
     #[test]
@@ -879,7 +880,7 @@ mod tests {
                 mock_feature_selector,
                 mock_performance_evaluator,
             )
-            .unwrap();
+            .expect("operation should succeed");
 
         assert_eq!(results.outer_scores.len(), 3);
         assert_eq!(results.inner_cv_results.len(), 3);
@@ -905,7 +906,9 @@ mod tests {
         let y = array![0.0, 0.0, 1.0, 1.0, 0.0, 1.0];
 
         let skf = StratifiedKFold::new(3, true, Some(42));
-        let splits = skf.split(X.view(), y.view()).unwrap();
+        let splits = skf
+            .split(X.view(), y.view())
+            .expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -919,7 +922,7 @@ mod tests {
     #[test]
     fn test_time_series_split() {
         let ts_split = TimeSeriesSplit::new(3, None, Some(2));
-        let splits = ts_split.split(10).unwrap();
+        let splits = ts_split.split(10).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -929,8 +932,8 @@ mod tests {
 
             // Verify temporal order
             if !train_idx.is_empty() && !test_idx.is_empty() {
-                let max_train = train_idx.iter().max().unwrap();
-                let min_test = test_idx.iter().min().unwrap();
+                let max_train = train_idx.iter().max().expect("operation should succeed");
+                let min_test = test_idx.iter().min().expect("operation should succeed");
                 assert!(max_train < min_test);
             }
         }
@@ -940,7 +943,7 @@ mod tests {
     fn test_group_k_fold() {
         let groups = vec![0, 0, 1, 1, 2, 2];
         let gkf = GroupKFold::new(3);
-        let splits = gkf.split(&groups).unwrap();
+        let splits = gkf.split(&groups).expect("operation should succeed");
 
         assert_eq!(splits.len(), 3);
 
@@ -954,7 +957,7 @@ mod tests {
     #[test]
     fn test_repeated_k_fold() {
         let rkf = RepeatedKFold::new(3, 2, Some(42));
-        let splits = rkf.split(9).unwrap();
+        let splits = rkf.split(9).expect("operation should succeed");
 
         assert_eq!(splits.len(), 6); // 3 folds * 2 repeats
 

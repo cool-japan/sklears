@@ -456,7 +456,7 @@ pub struct CustomManifoldWrapper {
 impl CustomManifoldWrapper {
     /// Create a new wrapper for a custom manifold learner
     pub fn new(plugin_name: &str, params: Option<&PluginParameters>) -> SklResult<Self> {
-        let registry = PLUGIN_REGISTRY.read().unwrap();
+        let registry = PLUGIN_REGISTRY.read().expect("operation should succeed");
         let learner = registry.create_instance(plugin_name, params)?;
 
         Ok(Self {
@@ -525,17 +525,26 @@ pub mod utils {
 
     /// Register a plugin globally
     pub fn register_plugin(plugin: Arc<dyn ManifoldPlugin>) -> SklResult<()> {
-        PLUGIN_REGISTRY.write().unwrap().register_plugin(plugin)
+        PLUGIN_REGISTRY
+            .write()
+            .expect("operation should succeed")
+            .register_plugin(plugin)
     }
 
     /// Unregister a plugin globally
     pub fn unregister_plugin(name: &str) -> SklResult<()> {
-        PLUGIN_REGISTRY.write().unwrap().unregister_plugin(name)
+        PLUGIN_REGISTRY
+            .write()
+            .expect("operation should succeed")
+            .unregister_plugin(name)
     }
 
     /// List all registered plugins
     pub fn list_plugins() -> Vec<String> {
-        PLUGIN_REGISTRY.read().unwrap().list_plugins()
+        PLUGIN_REGISTRY
+            .read()
+            .expect("operation should succeed")
+            .list_plugins()
     }
 
     /// Get plugin metadata
@@ -543,14 +552,17 @@ pub mod utils {
         /// PLUGIN_REGISTRY
         PLUGIN_REGISTRY
             .read()
-            .unwrap()
+            .expect("operation should succeed")
             .get_plugin(name)
             .map(|p| p.metadata())
     }
 
     /// Get all plugin metadata
     pub fn get_all_plugin_metadata() -> Vec<PluginMetadata> {
-        PLUGIN_REGISTRY.read().unwrap().get_all_metadata()
+        PLUGIN_REGISTRY
+            .read()
+            .expect("operation should succeed")
+            .get_all_metadata()
     }
 
     /// Create a new instance of a plugin
@@ -563,7 +575,7 @@ pub mod utils {
 
     /// Validate parameters against plugin schema
     pub fn validate_parameters(plugin_name: &str, params: &PluginParameters) -> SklResult<()> {
-        let registry = PLUGIN_REGISTRY.read().unwrap();
+        let registry = PLUGIN_REGISTRY.read().expect("operation should succeed");
         let plugin = registry.get_plugin(plugin_name).ok_or_else(|| {
             SklearsError::InvalidInput(format!("Plugin '{}' not found", plugin_name))
         })?;
@@ -576,7 +588,7 @@ pub mod utils {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::{Array2, ArrayView2};
-    use scirs2_core::random::{thread_rng, Rng};
+    use scirs2_core::random::{thread_rng, RngExt};
 
     /// Example plugin implementation for testing
     #[derive(Debug)]
@@ -709,7 +721,7 @@ mod tests {
             let mut rng = thread_rng();
             let mut embedding = Array2::zeros((n_samples, self.n_components));
             for elem in embedding.iter_mut() {
-                *elem = rng.gen();
+                *elem = rng.random();
             }
 
             self.embedding = Some(embedding);
@@ -764,25 +776,25 @@ mod tests {
         assert!(plugins.contains(&"ExamplePlugin".to_string()));
 
         // Clean up
-        utils::unregister_plugin("ExamplePlugin").unwrap();
+        utils::unregister_plugin("ExamplePlugin").expect("operation should succeed");
     }
 
     #[test]
     fn test_plugin_instance_creation() {
         let plugin = Arc::new(ExamplePlugin);
-        utils::register_plugin(plugin).unwrap();
+        utils::register_plugin(plugin).expect("operation should succeed");
 
         let wrapper = utils::create_plugin_instance("ExamplePlugin", None);
         assert!(wrapper.is_ok());
 
         // Clean up
-        utils::unregister_plugin("ExamplePlugin").unwrap();
+        utils::unregister_plugin("ExamplePlugin").expect("operation should succeed");
     }
 
     #[test]
     fn test_parameter_validation() {
         let plugin = Arc::new(ExamplePlugin);
-        utils::register_plugin(plugin).unwrap();
+        utils::register_plugin(plugin).expect("operation should succeed");
 
         let mut params = PluginParameters::new();
         params.set("n_components", 5i64);
@@ -796,6 +808,6 @@ mod tests {
         assert!(result.is_err());
 
         // Clean up
-        utils::unregister_plugin("ExamplePlugin").unwrap();
+        utils::unregister_plugin("ExamplePlugin").expect("operation should succeed");
     }
 }

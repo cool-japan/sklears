@@ -1104,7 +1104,7 @@ mod tests {
 
         assert_eq!(runtime.id, "test-runtime");
         assert_eq!(runtime.runtime_type, RuntimeType::Native);
-        assert!(matches!(runtime.get_state().unwrap(), RuntimeState::Initializing));
+        assert!(matches!(runtime.get_state().unwrap_or_default(), RuntimeState::Initializing));
     }
 
     #[test]

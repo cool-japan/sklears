@@ -6,7 +6,7 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::Normal;
+use scirs2_core::random::{Normal, RngExt};
 use sklears_core::error::{Result, SklearsError};
 
 /// A/B test configuration
@@ -46,7 +46,7 @@ pub fn make_ab_testing_simulation(
 
     // Generate user features
     let mut X = Array2::zeros((n_samples, n_features));
-    let normal = Normal::new(0.0, 1.0).unwrap();
+    let normal = Normal::new(0.0, 1.0).expect("operation should succeed");
 
     for i in 0..n_samples {
         for j in 0..n_features {
@@ -83,7 +83,7 @@ pub fn make_ab_testing_simulation(
             base_rate
         };
 
-        let converted = rng.gen::<f64>() < conversion_probability.max(0.0).min(1.0);
+        let converted = rng.random::<f64>() < conversion_probability.max(0.0).min(1.0);
         conversion[i] = if converted { 1 } else { 0 };
 
         // Outcome value (e.g., revenue) - higher for conversions
@@ -94,7 +94,9 @@ pub fn make_ab_testing_simulation(
             } else {
                 0.0
             };
-            baseline_value + treatment_bonus + rng.sample(Normal::new(0.0, 2.0).unwrap())
+            baseline_value
+                + treatment_bonus
+                + rng.sample(Normal::new(0.0, 2.0).expect("sampling should succeed"))
         } else {
             0.0
         };
@@ -119,7 +121,7 @@ mod tests {
         };
 
         let (X, groups, outcomes, conversions) =
-            make_ab_testing_simulation(config, 200, 3, Some(42)).unwrap();
+            make_ab_testing_simulation(config, 200, 3, Some(42)).expect("operation should succeed");
 
         assert_eq!(X.shape(), &[200, 3]);
         assert_eq!(groups.len(), 200);

@@ -1375,7 +1375,10 @@ impl ExecutionStrategy for BatchExecutionStrategy {
     }
 
     fn metrics(&self) -> StrategyMetrics {
-        self.metrics.lock().unwrap().clone()
+        self.metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     fn shutdown(&mut self) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
@@ -1560,7 +1563,7 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
 
     fn initialize(&mut self) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
         Box::pin(async move {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.initialized = true;
             state.running = true;
             Ok(())
@@ -1671,12 +1674,15 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
     }
 
     fn metrics(&self) -> StrategyMetrics {
-        self.metrics.lock().unwrap().clone()
+        self.metrics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     fn shutdown(&mut self) -> Pin<Box<dyn Future<Output = SklResult<()>> + Send + '_>> {
         Box::pin(async move {
-            let mut state = self.state.write().unwrap();
+            let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
             state.running = false;
             state.initialized = false;
             Ok(())
@@ -1684,13 +1690,13 @@ impl ExecutionStrategy for SequentialExecutionStrategy {
     }
 
     fn pause(&mut self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.paused = true;
         Ok(())
     }
 
     fn resume(&mut self) -> SklResult<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write().unwrap_or_else(|e| e.into_inner());
         state.paused = false;
         Ok(())
     }
@@ -1949,7 +1955,7 @@ mod tests {
         let result = strategy.execute_task(task).await;
         assert!(result.is_ok());
 
-        let task_result = result.unwrap();
+        let task_result = result.expect("operation should succeed");
         assert_eq!(task_result.status, TaskStatus::Completed);
         assert!(task_result.metrics.duration.is_some());
     }

@@ -465,51 +465,51 @@ mod tests {
 
     #[test]
     fn test_pava_basic() {
-        ReferenceTests::test_pava_basic().unwrap();
+        ReferenceTests::test_pava_basic().expect("operation should succeed");
     }
 
     #[test]
     fn test_monotonicity_preservation() {
-        ReferenceTests::test_monotonicity_preservation().unwrap();
+        ReferenceTests::test_monotonicity_preservation().expect("operation should succeed");
     }
 
     #[test]
     fn test_algorithm_consistency() {
-        ReferenceTests::test_algorithm_consistency().unwrap();
+        ReferenceTests::test_algorithm_consistency().expect("operation should succeed");
     }
 
     #[test]
     fn test_loss_functions() {
-        ReferenceTests::test_loss_functions().unwrap();
+        ReferenceTests::test_loss_functions().expect("operation should succeed");
     }
 
     #[test]
     fn test_outlier_robustness() {
-        ReferenceTests::test_outlier_robustness().unwrap();
+        ReferenceTests::test_outlier_robustness().expect("operation should succeed");
     }
 
     #[test]
     fn test_edge_cases() {
-        ReferenceTests::test_edge_cases().unwrap();
+        ReferenceTests::test_edge_cases().expect("operation should succeed");
     }
 
     #[test]
     fn test_regularization_effects() {
-        ReferenceTests::test_regularization_effects().unwrap();
+        ReferenceTests::test_regularization_effects().expect("operation should succeed");
     }
 
     #[test]
     fn test_numerical_stability() {
-        ReferenceTests::test_numerical_stability().unwrap();
+        ReferenceTests::test_numerical_stability().expect("operation should succeed");
     }
 
     #[test]
     fn test_weighted_regression() {
-        ReferenceTests::test_weighted_regression().unwrap();
+        ReferenceTests::test_weighted_regression().expect("operation should succeed");
     }
 
     #[test]
     fn test_all_reference_tests() {
-        ReferenceTests::run_all_tests().unwrap();
+        ReferenceTests::run_all_tests().expect("operation should succeed");
     }
 }
