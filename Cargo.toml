@@ -1,0 +1,306 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sklears",
+    "crates/sklears-core", 
+    "crates/sklears-clustering",
+    "crates/sklears-linear",
+    "crates/sklears-ensemble",
+    "crates/sklears-svm",
+    "crates/sklears-tree",
+    "crates/sklears-neighbors",
+    "crates/sklears-decomposition",
+    "crates/sklears-preprocessing",
+    "crates/sklears-model-selection",
+    "crates/sklears-metrics",
+    "crates/sklears-utils",
+    "crates/sklears-neural",
+    "crates/sklears-simd",
+    "crates/sklears-datasets",
+    "crates/sklears-feature-selection",
+    "crates/sklears-naive-bayes",
+    "crates/sklears-gaussian-process",
+    "crates/sklears-discriminant-analysis",
+    "crates/sklears-manifold",
+    "crates/sklears-semi-supervised",
+    "crates/sklears-feature-extraction",
+    "crates/sklears-covariance",
+    "crates/sklears-cross-decomposition",
+    "crates/sklears-isotonic",
+    "crates/sklears-kernel-approximation",
+    "crates/sklears-dummy",
+    "crates/sklears-calibration",
+    "crates/sklears-multiclass",
+    "crates/sklears-multioutput",
+    "crates/sklears-compose",
+    "crates/sklears-impute",
+    "crates/sklears-inspection",
+    "crates/sklears-mixture",  # Re-enabled after fixing BLAS linking issues
+    "crates/sklears-python",   # Re-enabled after fixing dependencies and implementing features
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["COOLJAPAN OU (Team KitaSan)"]
+license = "Apache-2.0"
+edition = "2021"
+rust-version = "1.70"
+repository = "https://github.com/cool-japan/sklears"
+homepage = "https://github.com/cool-japan/sklears"
+readme = "README.md"
+keywords = ["machine-learning", "ml", "scikit-learn", "data-science", "rust"]
+categories = ["science", "mathematics", "algorithms"]
+
+[workspace.dependencies]
+# Essential SciRS2 dependencies for Sklears (SciRS2 Policy compliance) - v0.1.5 from crates.io
+scirs2-core = { version = "0.3.4", default-features = false, features = ["random", "linalg", "serialization"] }
+
+# TRANSITIONAL: Keep scirs2-autograd during migration (will be removed when all crates use scirs2_core::ndarray)
+scirs2-autograd = { version = "0.3.4", default-features = false }
+
+# HIGHLY LIKELY REQUIRED SciRS2 crates from crates.io
+scirs2-optimize = { version = "0.3.4", default-features = false }
+scirs2-linalg = { version = "0.3.4", default-features = false }
+scirs2-stats = { version = "0.3.4", default-features = false }
+scirs2-cluster = { version = "0.3.4", default-features = false }
+scirs2-metrics = { version = "0.3.4", default-features = false }
+
+# CONDITIONALLY REQUIRED SciRS2 crates from crates.io
+scirs2-datasets = { version = "0.3.4", default-features = false }
+scirs2-sparse = { version = "0.3.4", default-features = false }
+scirs2-neural = { version = "0.3.4", default-features = false }
+
+# SPECIALIZED DOMAIN-SPECIFIC SciRS2 crates from crates.io
+scirs2-special = { version = "0.3.4", default-features = false }
+scirs2-spatial = { version = "0.3.4", default-features = false }
+scirs2-signal = { version = "0.3.4", default-features = false }
+scirs2-series = { version = "0.3.4", default-features = false }  # For time series
+scirs2-text = { version = "0.3.4", default-features = false }    # For text processing
+scirs2-fft = { version = "0.3.4", default-features = false }      # For FFT operations
+scirs2-graph = { version = "0.3.4", default-features = false }  # For graph neural networks
+
+# ✅ APPROVED Numerical dependencies (compatible with SciRS2)
+approx = { version = "0.5" }
+
+# Parallelism and performance
+# NOTE: Consider migrating to scirs2_core::rayon when available (SciRS2 Policy)
+rayon = { version = "1.11" }
+num_cpus = { version = "1.17" }
+
+# Error handling
+thiserror = { version = "2.0" }
+anyhow = { version = "1.0" }
+
+# Proc macros for derive
+proc-macro2 = { version = "1.0" }
+quote = { version = "1.0" }
+syn = { version = "2.0", features = ["full", "derive", "parsing", "printing"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+oxicode = { version = "0.2" }
+
+# COOLJAPAN Pure Rust implementations
+oxifft = { version = "0.1.3" }  # Pure Rust FFT (COOLJAPAN Policy - replaces rustfft)
+
+# Testing and benchmarking
+criterion = { version = "0.8" }
+proptest = { version = "1.10" }
+divan = { version = "0.1" }
+tempfile = { version = "3.27" }
+
+# Logging
+log = { version = "0.4" }
+env_logger = { version = "0.11" }
+
+# Memory layout and zero-copy
+bytemuck = { version = "1.25", features = ["derive"] }
+memmap2 = { version = "0.9" }
+libc = { version = "0.2" }
+winapi = { version = "0.3", features = ["handleapi", "memoryapi", "winnt"] }
+
+# Lazy statics and thread-safe initialization
+once_cell = { version = "1.21" }
+lazy_static = { version = "1.5" }
+
+# Async traits and utilities
+futures-core = { version = "0.3" }
+futures = { version = "0.3" }
+futures-intrusive = { version = "0.5" }
+tokio = { version = "1.50", features = ["full"] }
+tokio-stream = { version = "0.1" }
+async-trait = { version = "0.1" }
+
+# Utilities
+chrono = { version = "0.4" }
+regex = { version = "1.12" }
+rustc_version_runtime = { version = "0.3" }
+lru = { version = "0.16" }
+uuid = { version = "1.22" }
+fastrand = { version = "2.3" }
+statrs = { version = "0.18" }
+itertools = { version = "0.14" }
+
+# Optional format support dependencies
+serde_yaml = { version = "0.9" }
+toml = { version = "1.0" }
+serde_with = { version = "3.18" }
+quick-xml = { version = "0.39", features = ["serialize"] }
+flate2 = { version = "1.1" }
+sysinfo = { version = "0.38" }
+rmp-serde = { version = "1.3" }
+zstd = { version = "0.13" }
+hdf5 = { version = "0.8" }
+arrow = { version = "58.0", default-features = false }
+arrow-csv = { version = "58" }
+arrow-ipc = { version = "58" }
+parquet = { version = "58.0" }
+
+# Python bindings
+pyo3 = { version = "0.28", features = ["extension-module", "chrono", "indexmap"] }
+numpy = { version = "0.28" }
+
+# GPU and performance
+wgpu = { version = "28.0" }
+wide = { version = "1.2" }
+half = { version = "2.7" }
+
+# Web and WASM support
+wasm-bindgen = { version = "0.2" }
+js-sys = { version = "0.3" }
+web-sys = { version = "0.3" }
+console_error_panic_hook = { version = "0.1" }
+
+# Visualization
+plotters = { version = "0.3" }
+plotters-backend = { version = "0.3" }
+tinytemplate = { version = "1.2" }
+
+# Other utilities
+libloading = { version = "0.9" }
+libm = { version = "0.2" }
+spin = { version = "0.10" }
+url = { version = "2.5" }
+mpi = { version = "0.8", default-features = false }
+cudarc = { version = "0.19", default-features = false, features = ["cuda-version-from-build-system", "dynamic-linking", "driver"] }
+candle-core = { version = "0.9", default-features = false }
+dashmap = { version = "6.1" }
+parking_lot = { version = "0.12" }
+
+# Cloud storage (optional)
+aws-config = { version = "1.8" }
+aws-sdk-s3 = { version = "1.126" }
+google-cloud-storage = { version = "1.9" }
+
+# Internal crates
+sklears = { version = "0.1.0", path = "crates/sklears" }
+sklears-core = { version = "0.1.0", path = "crates/sklears-core" }
+sklears-clustering = { version = "0.1.0", path = "crates/sklears-clustering" }
+sklears-linear = { version = "0.1.0", path = "crates/sklears-linear" }
+sklears-ensemble = { version = "0.1.0", path = "crates/sklears-ensemble" }
+sklears-svm = { version = "0.1.0", path = "crates/sklears-svm" }
+sklears-tree = { version = "0.1.0", path = "crates/sklears-tree" }
+sklears-neighbors = { version = "0.1.0", path = "crates/sklears-neighbors" }
+sklears-decomposition = { version = "0.1.0", path = "crates/sklears-decomposition" }
+sklears-preprocessing = { version = "0.1.0", path = "crates/sklears-preprocessing" }
+sklears-model-selection = { version = "0.1.0", path = "crates/sklears-model-selection" }
+sklears-metrics = { version = "0.1.0", path = "crates/sklears-metrics" }
+sklears-utils = { version = "0.1.0", path = "crates/sklears-utils" }
+sklears-neural = { version = "0.1.0", path = "crates/sklears-neural" }
+sklears-simd = { version = "0.1.0", path = "crates/sklears-simd" }
+sklears-datasets = { version = "0.1.0", path = "crates/sklears-datasets" }
+sklears-feature-selection = { version = "0.1.0", path = "crates/sklears-feature-selection" }
+sklears-naive-bayes = { version = "0.1.0", path = "crates/sklears-naive-bayes" }
+sklears-gaussian-process = { version = "0.1.0", path = "crates/sklears-gaussian-process" }
+sklears-discriminant-analysis = { version = "0.1.0", path = "crates/sklears-discriminant-analysis" }
+sklears-manifold = { version = "0.1.0", path = "crates/sklears-manifold" }
+sklears-semi-supervised = { version = "0.1.0", path = "crates/sklears-semi-supervised" }
+sklears-feature-extraction = { version = "0.1.0", path = "crates/sklears-feature-extraction" }
+sklears-covariance = { version = "0.1.0", path = "crates/sklears-covariance" }
+sklears-cross-decomposition = { version = "0.1.0", path = "crates/sklears-cross-decomposition" }
+sklears-isotonic = { version = "0.1.0", path = "crates/sklears-isotonic" }
+sklears-kernel-approximation = { version = "0.1.0", path = "crates/sklears-kernel-approximation" }
+sklears-dummy = { version = "0.1.0", path = "crates/sklears-dummy" }
+sklears-calibration = { version = "0.1.0", path = "crates/sklears-calibration" }
+sklears-multiclass = { version = "0.1.0", path = "crates/sklears-multiclass" }
+sklears-multioutput = { version = "0.1.0", path = "crates/sklears-multioutput" }
+sklears-compose = { version = "0.1.0", path = "crates/sklears-compose" }
+sklears-impute = { version = "0.1.0", path = "crates/sklears-impute" }
+sklears-inspection = { version = "0.1.0", path = "crates/sklears-inspection" }
+sklears-mixture = { version = "0.1.0", path = "crates/sklears-mixture" }
+sklears-python = { version = "0.1.0", path = "crates/sklears-python" }
+
+[workspace.lints.rust]
+# Code quality and consistency
+unused_imports = "warn"
+unused_variables = "warn"
+dead_code = "warn"
+missing_docs = "warn"
+
+# Allow reasonable flexibility for ML/scientific code
+non_camel_case_types = "allow"  # For ML conventions like gRPC, mTLS, PCI_DSS
+non_snake_case = "allow"  # For mathematical variables
+ambiguous_glob_reexports = "allow"  # Sometimes needed for ML API design
+
+[workspace.lints.clippy]
+# Performance and correctness (with lower priority to allow overrides)
+all = { level = "warn", priority = -1 }
+# pedantic = { level = "warn", priority = -1 }  # Disabled: too many stylistic warnings for ML code
+
+# Allow common patterns in ML code
+incompatible_msrv = "allow"  # MSRV is managed separately (move to top for non-pedantic)
+too_many_arguments = "allow"  # ML functions often need many parameters
+not_unsafe_ptr_arg_deref = "allow"  # Some math operations need raw pointers
+needless_range_loop = "allow"  # Sometimes range loops are clearer for indexing
+nonminimal_bool = "allow"  # Sometimes explicit logic is clearer
+eq_op = "allow"  # Sometimes used for testing/assertions
+ifs_same_cond = "allow"  # Sometimes needed for completeness
+missing_safety_doc = "allow"  # Focus on primary functionality docs first
+excessive_precision = "allow"  # High precision constants are intentional in ML
+manual_clamp = "allow"  # Sometimes explicit min/max is clearer
+deref_addrof = "allow"  # Sometimes explicit ref/deref is clearer
+match_like_matches_macro = "allow"  # Sometimes match is clearer
+manual_slice_size_calculation = "allow"  # Sometimes explicit is clearer
+module_name_repetitions = "allow"  # Common in structured ML libraries
+similar_names = "allow"  # Mathematical variables often have similar names
+cast_precision_loss = "allow"  # Precision casts are common in ML
+cast_possible_truncation = "allow"  # Type conversions are common
+cast_sign_loss = "allow"  # Common in ML type conversions
+
+# Style flexibility for large codebase
+mixed_attributes_style = "allow"  # Allow both inner and outer attributes
+missing_errors_doc = "allow"  # Focus on primary functionality docs first
+missing_panics_doc = "allow"  # Focus on primary functionality docs first
+
+# Memory and performance
+large_enum_variant = "warn"
+large_stack_arrays = "warn"
+
+# Documentation (encourage but don't enforce strictly)
+missing_docs_in_private_items = "allow"
+
+# Development profile optimizations for faster builds
+[profile.dev]
+incremental = true
+debug = 1              # Reduce debug info from 2 to 1 (smaller binaries, faster builds)
+split-debuginfo = "packed"  # Separate debug info into a separate file
+
+[profile.dev.package."*"]
+debug = 0              # Disable debug info for dependency crates
+
+# Additional optimizations for CUDA builds
+[profile.dev.build-override]
+opt-level = 0
+debug = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.bench]
+opt-level = 3
+lto = true
+codegen-units = 1
+

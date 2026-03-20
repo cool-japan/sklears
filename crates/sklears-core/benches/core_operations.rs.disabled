@@ -1,0 +1,548 @@
+#![cfg(feature = "incomplete-benchmarks")]
+
+//! Comprehensive benchmarks for core sklears operations
+//!
+//! These benchmarks measure performance of fundamental operations to ensure
+//! we meet our target of 3-100x performance improvement over Python equivalents.
+
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use ndarray::{Array1, Array2};
+use rayon::prelude::*;
+use sklears_core::parallel::{ParallelConfig, ParallelMatrixOps};
+use sklears_core::types::{FloatBounds, Numeric};
+use sklears_core::validation::ml;
+use std::time::Duration;
+
+/// Benchmark matrix operations with different sizes
+fn bench_matrix_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("matrix_operations");
+    group.measurement_time(Duration::from_secs(10));
+
+    for size in [50, 100, 200, 500, 1000].iter() {
+        let matrix_a =
+            Array2::<f64>::from_shape_fn((*size, *size), |(i, j)| (i as f64 + j as f64) / 100.0);
+        let matrix_b =
+            Array2::<f64>::from_shape_fn((*size, *size), |(i, j)| (i as f64 - j as f64) / 100.0);
+
+        group.throughput(Throughput::Elements((*size * *size * *size) as u64));
+
+        // Benchmark sequential matrix multiplication
+        group.bench_with_input(BenchmarkId::new("matmul_sequential", size), size, |b, _| {
+            b.iter(|| {
+                let result = black_box(&matrix_a).dot(black_box(&matrix_b));
+                black_box(result)
+            });
+        });
+
+        // Benchmark parallel matrix multiplication
+        let parallel_config = ParallelConfig {
+            enabled: true,
+            min_parallel_batch_size: 50,
+            num_threads: None,
+        };
+
+        group.bench_with_input(BenchmarkId::new("matmul_parallel", size), size, |b, _| {
+            b.iter(|| {
+                let result = ParallelMatrixOps::matrix_multiply_parallel(
+                    black_box(&matrix_a),
+                    black_box(&matrix_b),
+                    &parallel_config,
+                );
+                black_box(result)
+            });
+        });
+
+        // Benchmark element-wise operations
+        group.bench_with_input(
+            BenchmarkId::new("elementwise_add_sequential", size),
+            size,
+            |b, _| {
+                b.iter(|| {
+                    let result = black_box(&matrix_a) + black_box(&matrix_b);
+                    black_box(result)
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("elementwise_add_parallel", size),
+            size,
+            |b, _| {
+                b.iter(|| {
+                    let result = ParallelMatrixOps::elementwise_op_parallel(
+                        black_box(&matrix_a),
+                        black_box(&matrix_b),
+                        |x, y| x + y,
+                        &parallel_config,
+                    );
+                    black_box(result)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmark type system operations
+fn bench_type_system(c: &mut Criterion) {
+    let mut group = c.benchmark_group("type_system");
+
+    // Benchmark numeric trait operations
+    group.bench_function("numeric_operations_f32", |b| {
+        let values: Vec<f32> = (0..10000).map(|i| i as f32 / 100.0).collect();
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(val.is_near_zero(black_box(1e-6)));
+                let _ = black_box(val.is_safe_for_computation());
+                let _ = black_box(val.clamp_safe());
+            }
+        });
+    });
+
+    group.bench_function("numeric_operations_f64", |b| {
+        let values: Vec<f64> = (0..10000).map(|i| i as f64 / 100.0).collect();
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(val.is_near_zero(black_box(1e-12)));
+                let _ = black_box(val.is_safe_for_computation());
+                let _ = black_box(val.clamp_safe());
+            }
+        });
+    });
+
+    // Benchmark newtype wrapper operations
+    group.bench_function("probability_validation", |b| {
+        let values: Vec<f64> = (0..1000).map(|i| i as f64 / 1000.0).collect();
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(
+                    sklears_core::types::Probability::new(val)
+                        .map(|p| p.value())
+                        .unwrap_or(0.0),
+                );
+            }
+        });
+    });
+
+    group.bench_function("learning_rate_validation", |b| {
+        let values: Vec<f64> = (1..1000).map(|i| i as f64 / 10000.0).collect();
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(
+                    sklears_core::types::LearningRate::new(val)
+                        .map(|lr| lr.get())
+                        .unwrap_or(0.001),
+                );
+            }
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark validation operations
+fn bench_validation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validation");
+
+    // Benchmark ML-specific validation functions
+    group.bench_function("validate_learning_rate", |b| {
+        let values: Vec<f64> = (1..10000).map(|i| i as f64 / 100000.0).collect();
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(ml::validate_learning_rate(val));
+            }
+        });
+    });
+
+    group.bench_function("validate_regularization", |b| {
+        let values: Vec<f64> = (0..10000).map(|i| i as f64 / 10000.0).collect();
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(ml::validate_regularization(val));
+            }
+        });
+    });
+
+    group.bench_function("validate_supervised_data", |b| {
+        let x = Array2::<f64>::zeros((1000, 50));
+        let y = Array1::<f64>::zeros(1000);
+        b.iter(|| {
+            let _ = black_box(ml::validate_supervised_data(black_box(&x), black_box(&y)));
+        });
+    });
+
+    // Benchmark complex validation rules
+    group.bench_function("validation_rules_complex", |b| {
+        use sklears_core::validation::{ValidationRule, ValidationRules};
+
+        let rules = ValidationRules::new("test_param")
+            .add_rule(ValidationRule::Positive)
+            .add_rule(ValidationRule::Finite)
+            .add_rule(ValidationRule::Range { min: 0.0, max: 1.0 });
+
+        let values: Vec<f64> = (1..1000).map(|i| i as f64 / 1000.0).collect();
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(rules.validate_numeric(&val));
+            }
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark array operations and memory patterns
+fn bench_array_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("array_operations");
+
+    for size in [1000, 10000, 100000].iter() {
+        group.throughput(Throughput::Elements(*size as u64));
+
+        // Benchmark array creation patterns
+        group.bench_with_input(
+            BenchmarkId::new("array_creation_zeros", size),
+            size,
+            |b, &s| {
+                b.iter(|| {
+                    let arr = Array1::<f64>::zeros(black_box(s));
+                    black_box(arr)
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("array_creation_from_fn", size),
+            size,
+            |b, &s| {
+                b.iter(|| {
+                    let arr = Array1::<f64>::from_shape_fn(black_box(s), |i| i as f64);
+                    black_box(arr)
+                });
+            },
+        );
+
+        // Benchmark iteration patterns
+        let arr = Array1::<f64>::from_shape_fn(*size, |i| i as f64);
+
+        group.bench_with_input(
+            BenchmarkId::new("array_iter_sequential", size),
+            size,
+            |b, _| {
+                b.iter(|| {
+                    let sum: f64 = black_box(&arr).iter().sum();
+                    black_box(sum)
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("array_iter_parallel", size),
+            size,
+            |b, _| {
+                b.iter(|| {
+                    let sum: f64 = black_box(&arr).par_iter().sum();
+                    black_box(sum)
+                });
+            },
+        );
+
+        // Benchmark reduce operations
+        group.bench_with_input(BenchmarkId::new("array_mean", size), size, |b, _| {
+            b.iter(|| {
+                let mean = black_box(&arr).mean().unwrap();
+                black_box(mean)
+            });
+        });
+
+        group.bench_with_input(BenchmarkId::new("array_std", size), size, |b, _| {
+            b.iter(|| {
+                let std = black_box(&arr).std(0.0);
+                black_box(std)
+            });
+        });
+    }
+
+    group.finish();
+}
+
+/// Benchmark parallel operations with different configurations
+fn bench_parallel_config(c: &mut Criterion) {
+    let mut group = c.benchmark_group("parallel_config");
+
+    let matrix = Array2::<f64>::from_shape_fn((1000, 1000), |(i, j)| (i + j) as f64);
+
+    // Benchmark different parallel configurations
+    for min_batch_size in [100, 500, 1000, 2000].iter() {
+        let config = ParallelConfig {
+            enabled: true,
+            min_parallel_batch_size: *min_batch_size,
+            num_threads: None,
+        };
+
+        group.bench_with_input(
+            BenchmarkId::new("row_operations", min_batch_size),
+            min_batch_size,
+            |b, _| {
+                b.iter(|| {
+                    let result = ParallelMatrixOps::apply_row_parallel(
+                        black_box(&matrix),
+                        |row| row.sum(),
+                        &config,
+                    );
+                    black_box(result)
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("column_operations", min_batch_size),
+            min_batch_size,
+            |b, _| {
+                b.iter(|| {
+                    let result = ParallelMatrixOps::apply_column_parallel(
+                        black_box(&matrix),
+                        |col| col.mean().unwrap_or(0.0),
+                        &config,
+                    );
+                    black_box(result)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmark dataset operations
+fn bench_dataset_operations(c: &mut Criterion) {
+    let mut group = c.benchmark_group("dataset_operations");
+
+    // Benchmark dataset creation patterns
+    group.bench_function("dataset_builder_pattern", |b| {
+        let x = Array2::<f64>::from_shape_fn((1000, 10), |(i, j)| (i + j) as f64);
+        let y = Array1::<f64>::from_shape_fn(1000, |i| i as f64);
+
+        b.iter(|| {
+            let dataset = sklears_core::dataset::Dataset::builder()
+                .data(black_box(x.clone()))
+                .target(black_box(y.clone()))
+                .feature_names(vec!["feat".to_string(); 10])
+                .description("benchmark dataset")
+                .build();
+            black_box(dataset)
+        });
+    });
+
+    group.bench_function("dataset_direct_construction", |b| {
+        let x = Array2::<f64>::from_shape_fn((1000, 10), |(i, j)| (i + j) as f64);
+        let y = Array1::<f64>::from_shape_fn(1000, |i| i as f64);
+
+        b.iter(|| {
+            let dataset =
+                sklears_core::dataset::Dataset::new(black_box(x.clone()), black_box(y.clone()))
+                    .with_feature_names(vec!["feat".to_string(); 10])
+                    .with_description("benchmark dataset".to_string());
+            black_box(dataset)
+        });
+    });
+
+    // Benchmark synthetic data generation
+    for (n_samples, n_features) in [(100, 5), (1000, 10), (5000, 20)].iter() {
+        group.bench_with_input(
+            BenchmarkId::new("make_regression", format!("{n_samples}x{n_features}")),
+            &(*n_samples, *n_features),
+            |b, &(samples, features)| {
+                b.iter(|| {
+                    let dataset = sklears_core::dataset::make_regression(
+                        black_box(samples),
+                        black_box(features),
+                        black_box(0.1),
+                    )
+                    .unwrap();
+                    black_box(dataset)
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("make_blobs", format!("{n_samples}x{n_features}")),
+            &(*n_samples, *n_features),
+            |b, &(samples, features)| {
+                b.iter(|| {
+                    let dataset = sklears_core::dataset::make_blobs(
+                        black_box(samples),
+                        black_box(features),
+                        black_box(3),
+                        black_box(1.0),
+                    )
+                    .unwrap();
+                    black_box(dataset)
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+/// Benchmark memory usage patterns
+fn bench_memory_patterns(c: &mut Criterion) {
+    let mut group = c.benchmark_group("memory_patterns");
+
+    // Benchmark different allocation patterns
+    group.bench_function("stack_vs_heap_small", |b| {
+        use sklears_core::types::{FixedFeatures, FixedSamples};
+
+        b.iter(|| {
+            // Stack allocation with const generics
+            let fixed_features = FixedFeatures::<f64, 10>::new([1.0; 10]);
+            let fixed_samples = FixedSamples::<f64, 5, 10>::new([[1.0; 10]; 5]);
+
+            black_box((fixed_features, fixed_samples))
+        });
+    });
+
+    group.bench_function("heap_allocation_small", |b| {
+        b.iter(|| {
+            let features = Array1::<f64>::ones(black_box(10));
+            let samples = Array2::<f64>::ones(black_box((5, 10)));
+
+            black_box((features, samples))
+        });
+    });
+
+    // Benchmark copy vs view operations
+    let large_array = Array2::<f64>::from_shape_fn((1000, 1000), |(i, j)| (i + j) as f64);
+
+    group.bench_function("array_copy", |b| {
+        b.iter(|| {
+            let copy = black_box(&large_array).to_owned();
+            black_box(copy)
+        });
+    });
+
+    group.bench_function("array_view", |b| {
+        b.iter(|| {
+            let view = black_box(&large_array).view();
+            let sum = view.sum();
+            black_box(sum)
+        });
+    });
+
+    // Benchmark chunking strategies
+    group.bench_function("chunk_processing_sequential", |b| {
+        b.iter(|| {
+            let sum: f64 = black_box(&large_array)
+                .axis_chunks_iter(Axis(0), 100)
+                .map(|chunk| chunk.sum())
+                .sum();
+            black_box(sum)
+        });
+    });
+
+    group.bench_function("chunk_processing_parallel", |b| {
+        b.iter(|| {
+            let sum: f64 = black_box(&large_array)
+                .axis_chunks_iter(Axis(0), 100)
+                .collect::<Vec<_>>()
+                .par_iter()
+                .map(|chunk| chunk.sum())
+                .sum();
+            black_box(sum)
+        });
+    });
+
+    group.finish();
+}
+
+/// Benchmark error handling performance
+fn bench_error_handling(c: &mut Criterion) {
+    let mut group = c.benchmark_group("error_handling");
+
+    // Benchmark different error handling patterns
+    group.bench_function("result_unwrap_success", |b| {
+        let results: Vec<Result<f64, String>> = (0..1000).map(|i| Ok(i as f64)).collect();
+
+        b.iter(|| {
+            let sum: f64 = black_box(&results)
+                .iter()
+                .map(|r| r.as_ref().unwrap())
+                .sum();
+            black_box(sum)
+        });
+    });
+
+    group.bench_function("result_unwrap_or_default", |b| {
+        let results: Vec<Result<f64, String>> = (0..1000)
+            .map(|i| {
+                if i % 100 == 0 {
+                    Err("error".to_string())
+                } else {
+                    Ok(i as f64)
+                }
+            })
+            .collect();
+
+        b.iter(|| {
+            let sum: f64 = black_box(&results)
+                .iter()
+                .map(|r| r.as_ref().unwrap_or(&0.0))
+                .sum();
+            black_box(sum)
+        });
+    });
+
+    group.bench_function("error_context_creation", |b| {
+        use sklears_core::error::ErrorContext;
+
+        b.iter(|| {
+            let result: Result<f64, std::io::Error> = Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "test error",
+            ));
+
+            let _with_context = black_box(result)
+                .context("operation failed")
+                .with_operation("benchmark")
+                .with_location("bench.rs", 42);
+
+            black_box(_with_context)
+        });
+    });
+
+    // Benchmark validation overhead
+    group.bench_function("validation_overhead", |b| {
+        let values: Vec<f64> = (0..1000).map(|i| i as f64 / 1000.0).collect();
+
+        b.iter(|| {
+            for &val in black_box(&values) {
+                let _ = black_box(ml::validate_learning_rate(val));
+                let _ = black_box(ml::validate_regularization(val * 2.0));
+                let _ = black_box(ml::validate_probability(val));
+            }
+        });
+    });
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_matrix_operations,
+    bench_type_system,
+    bench_validation,
+    bench_array_operations,
+    bench_parallel_config,
+    bench_dataset_operations,
+    bench_memory_patterns,
+    bench_error_handling
+);
+
+criterion_main!(benches);
+
+
+#[cfg(not(feature = "incomplete-benchmarks"))]
+fn main() {
+    eprintln!("This benchmark is disabled. Enable with --features incomplete-benchmarks");
+}

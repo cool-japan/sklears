@@ -1,0 +1,72 @@
+[package]
+name = "sklears-datasets"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+description = "Dataset utilities and generation for sklears"
+keywords = ["machine-learning", "datasets", "data-generation"]
+categories = ["science", "mathematics"]
+
+[dependencies]
+# SciRS2 Policy Compliant Dependencies
+sklears-core = { workspace = true }
+scirs2-core = { workspace = true }
+scirs2-datasets = { workspace = true }  # For dataset generation and utilities
+
+# ❌ REMOVED: Legacy dependencies (SciRS2 Policy violations)
+# ❌ scirs2-autograd - use scirs2_core::ndarray instead
+# ❌ rand - use scirs2_core::random instead
+# ❌ rand_distr - use scirs2_core::random instead
+thiserror = { workspace = true }
+memmap2 = { workspace = true }
+lazy_static = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+num_cpus = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+tempfile = { workspace = true }
+rayon = { workspace = true }
+
+# Cloud storage dependencies (optional, behind feature flags)
+tokio = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+
+# AWS S3 support
+aws-config = { workspace = true, optional = true }
+aws-sdk-s3 = { workspace = true, optional = true }  # TODO: Upgrade to 1.118+ in Phase 4 (breaking changes)
+
+# Google Cloud Storage support
+google-cloud-storage = { workspace = true, optional = true }  # TODO: Upgrade to 1.5+ in Phase 4 (breaking changes)
+
+# Parquet support
+parquet = { workspace = true, optional = true }
+arrow = { workspace = true, optional = true }
+
+# HDF5 support
+hdf5 = { workspace = true, optional = true }
+
+# Visualization support
+plotters = { workspace = true, optional = true }
+plotters-backend = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[features]
+default = ["serde"]
+serde = []
+simd = []  # SIMD optimizations (uses scirs2-core SIMD support)
+parquet = ["dep:parquet", "dep:arrow"]
+hdf5 = ["dep:hdf5"]
+cloud-storage = ["dep:tokio", "dep:futures", "dep:url"]
+cloud-s3 = ["cloud-storage", "dep:aws-config", "dep:aws-sdk-s3"]
+cloud-gcs = ["cloud-storage", "dep:google-cloud-storage"]
+visualization = ["dep:plotters", "dep:plotters-backend"]

@@ -1,0 +1,10 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 3001ec3035b2eeea8c76b364b70844f594fcd05276de80f47f27d875098f910d # shrinks to probabilities = [0.00954472504850172, 0.00954472504850172, 0.00954472504850172, 0.00954472504850172, 0.00954472504850172, 0.00954472504850172, 0.00954472504850172, 0.00954472504850172, 0.00954472504850172, 0.9140974745634844], shape=[10], strides=[1], layout=CFcf (0xf), const ndim=1, targets = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], shape=[10], strides=[1], layout=CFcf (0xf), const ndim=1, scale_factor = 0.1
+cc 6132d33cc0402af331a1c57f53331f14a717cb7b441d5d7a2ddfbc5fd2b0240e # shrinks to size = 5, min_bins = 3, max_bins = 5
+cc c618ef47a72f7439b0f061b1f726c48f0935743d56376f25fff3390e9c13912b # shrinks to probabilities = [0.012815508339808428, 0.012815508339808428, 0.6432208543347869, 0.012815508339808428, 0.3183326206457877], shape=[5], strides=[1], layout=CFcf (0xf), const ndim=1, targets = [1, 0, 1, 1, 1], shape=[5], strides=[1], layout=CFcf (0xf), const ndim=1
+cc 5304581dcc9abea87aebeb8cb415fb4d5d08eea659b81cd7ffca929b20e7338f # shrinks to size = 5, min_bins = 3, max_bins = 5

@@ -1,0 +1,456 @@
+/// Tests for streaming algorithms: Hoeffding trees and online gradient boosting
+use approx::assert_abs_diff_eq;
+use scirs2_core::ndarray::{array, Array1, Array2};
+use sklears_core::traits::{Fit, Predict};
+use sklears_tree::incremental::{
+    HoeffdingTree, HoeffdingTreeConfig, IncrementalDecisionTree, IncrementalTreeConfig,
+    OnlineGradientBoosting, OnlineGradientBoostingConfig, OnlineLossFunction, StreamingTreeModel,
+};
+
+#[test]
+fn test_hoeffding_tree_config() {
+    let config = HoeffdingTreeConfig::default();
+    assert_eq!(config.confidence, 0.95);
+    assert_eq!(config.tie_threshold, 0.05);
+    assert_eq!(config.min_samples_split, 30);
+    assert_eq!(config.grace_period, 200);
+    assert!(config.enable_prepruning);
+    assert_eq!(config.memory_limit, Some(100000));
+
+    let custom_config = HoeffdingTreeConfig {
+        confidence: 0.99,
+        tie_threshold: 0.01,
+        min_samples_split: 50,
+        max_depth: Some(10),
+        grace_period: 100,
+        enable_prepruning: false,
+        memory_limit: Some(50000),
+        ..Default::default()
+    };
+    assert_eq!(custom_config.confidence, 0.99);
+    assert_eq!(custom_config.max_depth, Some(10));
+    assert!(!custom_config.enable_prepruning);
+}
+
+#[test]
+fn test_hoeffding_tree_creation() {
+    let config = HoeffdingTreeConfig::default();
+    let n_features = 3;
+    let tree = HoeffdingTree::new(config, n_features);
+
+    let stats = tree.get_stats();
+    assert_eq!(stats.n_nodes, 1); // Should start with root node
+    assert_eq!(stats.n_leaves, 1);
+    assert_eq!(stats.total_samples, 0);
+    assert_eq!(stats.max_depth, 0);
+    assert!(stats.memory_usage > 0);
+}
+
+#[test]
+fn test_hoeffding_tree_single_sample_update() {
+    let config = HoeffdingTreeConfig::default();
+    let n_features = 2;
+    let mut tree = HoeffdingTree::new(config, n_features);
+
+    // Test regression update
+    let x = vec![1.0, 2.0];
+    let y = 3.5;
+    assert!(tree.update(&x, y, None).is_ok());
+
+    let stats = tree.get_stats();
+    assert_eq!(stats.total_samples, 1);
+
+    // Test prediction
+    let prediction = tree.predict_single(&x).unwrap();
+    assert_abs_diff_eq!(prediction, y, epsilon = 1e-6);
+
+    // Test classification update
+    let y_class = 1.0;
+    assert!(tree.update(&x, y_class, Some(1)).is_ok());
+
+    let stats_after = tree.get_stats();
+    assert_eq!(stats_after.total_samples, 2);
+}
+
+#[test]
+fn test_hoeffding_tree_batch_operations() {
+    let config = HoeffdingTreeConfig {
+        min_samples_split: 5,
+        grace_period: 10,
+        ..Default::default()
+    };
+    let mut tree = HoeffdingTree::new(config, 2);
+
+    // Create simple dataset
+    let x = array![[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0], [5.0, 5.0]];
+    let y = array![1.0, 2.0, 3.0, 4.0, 5.0];
+    let weights = Array1::ones(5);
+
+    // Test batch update through StreamingTreeModel trait (using the trait method)
+    use sklears_tree::incremental::StreamingTreeModel;
+    assert!(StreamingTreeModel::update(&mut tree, &x, &y, &weights).is_ok());
+
+    let stats = tree.get_stats();
+    assert_eq!(stats.total_samples, 5);
+
+    // Test batch prediction
+    let predictions = tree.predict(&x).unwrap();
+    assert_eq!(predictions.len(), 5);
+
+    // Test accuracy computation
+    let accuracy = tree.get_accuracy(&x, &y).unwrap();
+    assert!(accuracy >= 0.0 && accuracy <= 1.0);
+}
+
+#[test]
+fn test_hoeffding_tree_classification() {
+    let config = HoeffdingTreeConfig {
+        min_samples_split: 10,
+        grace_period: 15,
+        ..Default::default()
+    };
+    let mut tree = HoeffdingTree::new(config, 2);
+
+    // Create binary classification dataset
+    let x = array![
+        [1.0, 1.0],
+        [1.5, 1.5],
+        [2.0, 2.0], // Class 0
+        [4.0, 4.0],
+        [4.5, 4.5],
+        [5.0, 5.0], // Class 1
+        [1.2, 1.3],
+        [1.8, 1.7],
+        [2.1, 1.9], // Class 0
+        [4.2, 4.3],
+        [4.8, 4.7],
+        [5.1, 4.9], // Class 1
+    ];
+    let y = array![0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+    let weights = Array1::ones(12);
+
+    // Test with StreamingTreeModel trait
+    use sklears_tree::incremental::StreamingTreeModel;
+    assert!(StreamingTreeModel::update(&mut tree, &x, &y, &weights).is_ok());
+
+    let predictions = tree.predict(&x).unwrap();
+    assert_eq!(predictions.len(), 12);
+
+    // Check that predictions are reasonable (0 or 1 for classification)
+    for &pred in predictions.iter() {
+        assert!(pred >= 0.0 && pred <= 1.0);
+    }
+
+    let accuracy = tree.get_accuracy(&x, &y).unwrap();
+    assert!(accuracy >= 0.0);
+}
+
+#[test]
+fn test_online_gradient_boosting_config() {
+    let config = OnlineGradientBoostingConfig::default();
+    assert_eq!(config.n_estimators, 10);
+    assert_eq!(config.learning_rate, 0.1);
+    assert_eq!(config.min_samples_per_estimator, 100);
+    assert_eq!(config.max_memory_usage, Some(100_000_000));
+
+    match config.loss_function {
+        OnlineLossFunction::SquaredLoss => {} // Expected default
+        _ => panic!("Expected SquaredLoss as default"),
+    }
+
+    let custom_config = OnlineGradientBoostingConfig {
+        n_estimators: 5,
+        learning_rate: 0.05,
+        loss_function: OnlineLossFunction::LogisticLoss,
+        min_samples_per_estimator: 50,
+        max_memory_usage: Some(50_000_000),
+        ..Default::default()
+    };
+    assert_eq!(custom_config.n_estimators, 5);
+    assert_eq!(custom_config.learning_rate, 0.05);
+    match custom_config.loss_function {
+        OnlineLossFunction::LogisticLoss => {} // Expected
+        _ => panic!("Expected LogisticLoss"),
+    }
+}
+
+#[test]
+fn test_online_gradient_boosting_creation() {
+    let config = OnlineGradientBoostingConfig::default();
+    let n_features = 3;
+    let gb = OnlineGradientBoosting::new(config, n_features);
+
+    let stats = gb.get_ensemble_stats();
+    assert_eq!(stats.n_estimators, 0); // Should start empty
+    assert_eq!(stats.total_nodes, 0);
+    assert_eq!(stats.total_samples, 0);
+    assert_eq!(stats.avg_tree_depth, 0.0);
+}
+
+#[test]
+fn test_online_gradient_boosting_single_update() {
+    let config = OnlineGradientBoostingConfig {
+        n_estimators: 3,
+        learning_rate: 0.1,
+        ..Default::default()
+    };
+    let mut gb = OnlineGradientBoosting::new(config, 2);
+
+    // Test single sample update
+    let x = vec![1.0, 2.0];
+    let y = 3.0;
+    assert!(gb.update_single(&x, y).is_ok());
+
+    let stats = gb.get_ensemble_stats();
+    assert_eq!(stats.n_estimators, 1);
+    assert!(stats.total_nodes >= 1);
+
+    // Test prediction
+    let prediction = gb.predict_single(&x).unwrap();
+    assert!(prediction.is_finite());
+
+    // Add more samples to trigger additional estimators
+    for i in 1..5 {
+        let x_new = vec![i as f64, (i * 2) as f64];
+        let y_new = (i * 3) as f64;
+        assert!(gb.update_single(&x_new, y_new).is_ok());
+    }
+
+    let final_stats = gb.get_ensemble_stats();
+    assert!(final_stats.n_estimators > 1);
+    assert!(final_stats.total_samples > 1);
+}
+
+#[test]
+fn test_online_gradient_boosting_batch_operations() {
+    let config = OnlineGradientBoostingConfig {
+        n_estimators: 3,
+        learning_rate: 0.1,
+        loss_function: OnlineLossFunction::SquaredLoss,
+        ..Default::default()
+    };
+    let mut gb = OnlineGradientBoosting::new(config, 2);
+
+    // Create regression dataset
+    let x = array![[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0], [5.0, 5.0]];
+    let y = array![2.0, 4.0, 6.0, 8.0, 10.0]; // y = 2*x1
+    let weights = Array1::ones(5);
+
+    // Test batch update through StreamingTreeModel trait
+    assert!(gb.update(&x, &y, &weights).is_ok());
+
+    let stats = gb.get_ensemble_stats();
+    assert!(stats.n_estimators > 0);
+
+    // Test batch prediction
+    let predictions = gb.predict(&x).unwrap();
+    assert_eq!(predictions.len(), 5);
+
+    // Test accuracy computation
+    let accuracy = gb.get_accuracy(&x, &y).unwrap();
+    assert!(accuracy >= 0.0 && accuracy <= 1.0);
+}
+
+#[test]
+fn test_online_gradient_boosting_classification() {
+    let config = OnlineGradientBoostingConfig {
+        n_estimators: 3,
+        learning_rate: 0.1,
+        loss_function: OnlineLossFunction::LogisticLoss,
+        ..Default::default()
+    };
+    let mut gb = OnlineGradientBoosting::new(config, 2);
+
+    // Create binary classification dataset
+    let x = array![
+        [1.0, 1.0],
+        [1.5, 1.5],
+        [2.0, 2.0], // Class 0
+        [4.0, 4.0],
+        [4.5, 4.5],
+        [5.0, 5.0], // Class 1
+    ];
+    let y = array![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+    let weights = Array1::ones(6);
+
+    assert!(gb.update(&x, &y, &weights).is_ok());
+
+    let predictions = gb.predict(&x).unwrap();
+    assert_eq!(predictions.len(), 6);
+
+    // Test classification accuracy
+    let accuracy = gb.get_accuracy(&x, &y).unwrap();
+    assert!(accuracy >= 0.0 && accuracy <= 1.0);
+}
+
+#[test]
+fn test_online_gradient_boosting_rebuild() {
+    let config = OnlineGradientBoostingConfig::default();
+    let mut gb = OnlineGradientBoosting::new(config, 2);
+
+    let x = array![[1.0, 2.0], [3.0, 4.0]];
+    let y = array![1.0, 2.0];
+    let weights = Array1::ones(2);
+
+    // Train the model
+    assert!(gb.update(&x, &y, &weights).is_ok());
+    let stats_before = gb.get_ensemble_stats();
+    assert!(stats_before.n_estimators > 0);
+
+    // Rebuild the model
+    assert!(gb.rebuild(&x, &y, &weights).is_ok());
+    let stats_after = gb.get_ensemble_stats();
+
+    // Model should be retrained
+    assert!(stats_after.total_samples >= stats_before.total_samples);
+
+    // Should still be able to predict
+    let predictions = gb.predict(&x).unwrap();
+    assert_eq!(predictions.len(), 2);
+}
+
+#[test]
+fn test_loss_function_gradients() {
+    let config = OnlineGradientBoostingConfig::default();
+    let gb = OnlineGradientBoosting::new(config, 2);
+
+    let y_true = 1.0;
+    let y_pred = 0.5;
+
+    // Test squared loss gradient: 2 * (y_pred - y_true)
+    let gradient = gb.compute_gradient(y_true, y_pred);
+    let expected_gradient = 2.0 * (y_pred - y_true);
+    assert_abs_diff_eq!(gradient, expected_gradient, epsilon = 1e-6);
+
+    // Test with different loss function
+    let config_logistic = OnlineGradientBoostingConfig {
+        loss_function: OnlineLossFunction::LogisticLoss,
+        ..Default::default()
+    };
+    let gb_logistic = OnlineGradientBoosting::new(config_logistic, 2);
+
+    let gradient_logistic = gb_logistic.compute_gradient(y_true, y_pred);
+    // For logistic loss: sigmoid(y_pred) - y_true
+    let prob = 1.0 / (1.0 + (-y_pred as f64).exp());
+    let expected_logistic = prob - y_true;
+    assert_abs_diff_eq!(gradient_logistic, expected_logistic, epsilon = 1e-6);
+}
+
+#[test]
+fn test_incremental_decision_tree_integration() {
+    let config = IncrementalTreeConfig::default();
+    let mut inc_tree = IncrementalDecisionTree::new(config);
+
+    // Test adding samples one by one
+    for i in 0..10 {
+        let x = vec![i as f64, (i * 2) as f64];
+        let y = (i * 3) as f64;
+        assert!(inc_tree.add_sample(x, y, Some(1.0), None).is_ok());
+    }
+
+    let stats = inc_tree.get_performance_stats().unwrap();
+    assert_eq!(stats.samples_processed, 10);
+    assert!(stats.buffer_size > 0);
+}
+
+#[test]
+fn test_streaming_tree_model_trait() {
+    // Test that both HoeffdingTree and OnlineGradientBoosting implement StreamingTreeModel
+    let hoeffding_config = HoeffdingTreeConfig::default();
+    let mut hoeffding = HoeffdingTree::new(hoeffding_config, 2);
+
+    let gb_config = OnlineGradientBoostingConfig::default();
+    let mut gb = OnlineGradientBoosting::new(gb_config, 2);
+
+    let x = array![[1.0, 2.0], [3.0, 4.0]];
+    let y = array![1.0, 2.0];
+    let weights = Array1::ones(2);
+
+    // Both should implement the same interface
+    fn test_streaming_model<T: StreamingTreeModel>(
+        model: &mut T,
+        x: &Array2<f64>,
+        y: &Array1<f64>,
+        weights: &Array1<f64>,
+    ) {
+        assert!(model.update(x, y, weights).is_ok());
+        assert!(model.predict(x).is_ok());
+        assert!(model.get_accuracy(x, y).is_ok());
+        assert!(model.rebuild(x, y, weights).is_ok());
+    }
+
+    test_streaming_model(&mut hoeffding, &x, &y, &weights);
+    test_streaming_model(&mut gb, &x, &y, &weights);
+}
+
+#[test]
+fn test_hoeffding_bound_calculation() {
+    let config = HoeffdingTreeConfig::default();
+    let tree = HoeffdingTree::new(config.clone(), 2);
+
+    // Access root node (this would require making methods public or adding test utilities)
+    // For now, test through the public interface
+    let x = vec![1.0, 2.0];
+    let mut tree = tree;
+
+    // Add samples to trigger Hoeffding bound calculations
+    for i in 0..50 {
+        let y = if i % 2 == 0 { 0.0 } else { 1.0 };
+        let class = Some(y as i32);
+        assert!(tree.update(&x, y, class).is_ok());
+    }
+
+    let stats = tree.get_stats();
+    assert!(stats.total_samples >= 50);
+
+    // The tree may or may not have split depending on the data distribution
+    // But it should be able to handle the Hoeffding bound calculations
+}
+
+#[test]
+fn test_memory_management() {
+    let config = HoeffdingTreeConfig {
+        memory_limit: Some(1000), // Very small limit
+        ..Default::default()
+    };
+    let mut tree = HoeffdingTree::new(config, 10);
+
+    // Add many samples to test memory management
+    for i in 0..100 {
+        let x: Vec<f64> = (0..10).map(|j| (i * j) as f64).collect();
+        let y = (i % 3) as f64;
+        assert!(tree.update(&x, y, Some(y as i32)).is_ok());
+    }
+
+    let stats = tree.get_stats();
+    assert!(stats.memory_usage > 0);
+    assert_eq!(stats.total_samples, 100);
+}
+
+#[test]
+fn test_edge_cases() {
+    // Test with single feature
+    let config = HoeffdingTreeConfig::default();
+    let mut tree = HoeffdingTree::new(config, 1);
+
+    let x = vec![1.0];
+    let y = 1.0;
+    assert!(tree.update(&x, y, None).is_ok());
+
+    let prediction = tree.predict_single(&x).unwrap();
+    assert_abs_diff_eq!(prediction, y, epsilon = 1e-6);
+
+    // Test with zero features (should handle gracefully)
+    let empty_tree = HoeffdingTree::new(HoeffdingTreeConfig::default(), 0);
+    let stats = empty_tree.get_stats();
+    assert_eq!(stats.n_nodes, 1);
+
+    // Test empty prediction
+    let empty_x = Array2::<f64>::zeros((0, 2));
+    let empty_y = Array1::<f64>::zeros(0);
+    let empty_weights = Array1::<f64>::zeros(0);
+
+    let mut test_tree = HoeffdingTree::new(HoeffdingTreeConfig::default(), 2);
+    let predictions = test_tree.predict(&empty_x).unwrap();
+    assert_eq!(predictions.len(), 0);
+}

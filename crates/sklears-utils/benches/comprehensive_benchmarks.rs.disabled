@@ -1,0 +1,517 @@
+#![cfg(feature = "incomplete-benchmarks")]
+
+//! Comprehensive benchmarks for enhanced utility functions
+//!
+//! This benchmark suite covers new format support, data structures,
+//! performance utilities, and includes performance regression testing.
+
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use scirs2_core::ndarray::{s, Array1, Array2};
+use sklears_utils::{
+    data_structures::{
+        AtomicCounter, BinarySearchTree, BlockMatrix, ConcurrentHashMap, Graph, RingBuffer,
+        WeightedGraph, WorkQueue,
+    },
+    file_io::{EfficientFileReader, EfficientFileWriter, FormatConverter},
+    linear_algebra::{EigenDecomposition, MatrixDecomposition, MatrixNorms},
+    math_utils::{NumericalPrecision, RobustArrayOps, SpecialFunctions},
+    memory::{MemoryPool, TrackingAllocator},
+    parallel::{ParallelIterator, ParallelReducer, ThreadPool},
+    performance::{Benchmark, Profiler, RegressionDetector, Timer},
+    probabilistic::{BloomFilter, CountMinSketch, HyperLogLog},
+    spatial::{KdTree, Point, QuadTree, Rectangle, SpatialHash},
+    statistical::{CorrelationAnalysis, StatisticalTests},
+    text_processing::{StringSimilarity, TextNormalizer, TextParser},
+    time_series::{SlidingWindow, TemporalAggregator, TimeSeries, TimeSeriesPoint, Timestamp},
+};
+use std::time::Duration;
+
+// === FORMAT CONVERSION BENCHMARKS ===
+
+fn bench_format_conversion(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Format Conversion");
+
+    // Create test data
+    let test_array =
+        Array2::from_shape_vec((1000, 10), (0..10000).map(|i| i as f64).collect()).unwrap();
+
+    let json_data = r#"{
+        "features": [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]],
+        "targets": [[10.0], [11.0], [12.0]]
+    }"#;
+
+    // CSV conversion benchmarks
+    group.bench_function("arrays_to_csv", |b| {
+        b.iter(|| {
+            let header = vec!["f1".to_string(), "f2".to_string(), "f3".to_string()];
+            black_box(
+                FormatConverter::arrays_to_csv(
+                    "/tmp/test_bench.csv",
+                    &test_array.slice(s![..3, ..3]).to_owned(),
+                    Some(&header),
+                    ',',
+                )
+                .unwrap(),
+            )
+        })
+    });
+
+    // JSON conversion benchmarks
+    group.bench_function("json_to_arrays", |b| {
+        b.iter(|| black_box(FormatConverter::json_to_arrays(json_data).unwrap()))
+    });
+
+    let mut arrays_map = HashMap::new();
+    let small_array = test_array.slice(s![..3, ..3]).to_owned();
+    arrays_map.insert("features".to_string(), &small_array);
+
+    group.bench_function("arrays_to_json", |b| {
+        b.iter(|| black_box(FormatConverter::arrays_to_json(&arrays_map).unwrap()))
+    });
+
+    group.finish();
+}
+
+// === DATA STRUCTURES BENCHMARKS ===
+
+fn bench_data_structures(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Data Structures");
+
+    let sizes = vec![100, 500, 1000, 5000];
+
+    for &size in &sizes {
+        // Binary Search Tree
+        group.bench_with_input(
+            BenchmarkId::new("bst_insertions", size),
+            &size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut bst = BinarySearchTree::new();
+                    for i in 0..size {
+                        black_box(bst.insert(i));
+                    }
+                })
+            },
+        );
+
+        // Graph operations
+        group.bench_with_input(
+            BenchmarkId::new("graph_add_edges", size),
+            &size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut graph = Graph::new();
+                    for i in 0..size {
+                        graph.add_vertex(i);
+                        if i > 0 {
+                            black_box(graph.add_edge(&(i - 1), &i));
+                        }
+                    }
+                })
+            },
+        );
+
+        // Ring Buffer
+        group.bench_with_input(
+            BenchmarkId::new("ring_buffer_ops", size),
+            &size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut buffer = RingBuffer::new(size);
+                    for i in 0..size {
+                        black_box(buffer.push(i));
+                    }
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+// === SPATIAL DATA STRUCTURES BENCHMARKS ===
+
+fn bench_spatial_structures(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Spatial Structures");
+
+    let point_counts = vec![100, 500, 1000, 2000];
+
+    for &n_points in &point_counts {
+        let points: Vec<_> = (0..n_points)
+            .map(|i| {
+                let x = (i as f64 * 0.1) % 100.0;
+                let y = ((i * 7) as f64 * 0.1) % 100.0;
+                (x, y)
+            })
+            .collect();
+
+        // KdTree construction
+        group.bench_with_input(
+            BenchmarkId::new("kdtree_construction", n_points),
+            &points,
+            |b, points| {
+                b.iter(|| {
+                    let mut kdtree = KdTree::new(2);
+                    for (i, &(x, y)) in points.iter().enumerate() {
+                        let point = Point::new(vec![x, y]);
+                        black_box(kdtree.insert(point, i));
+                    }
+                })
+            },
+        );
+
+        // Spatial Hash construction
+        group.bench_with_input(
+            BenchmarkId::new("spatial_hash_construction", n_points),
+            &points,
+            |b, points| {
+                b.iter(|| {
+                    let bounds = Rectangle::new(vec![0.0, 0.0], vec![100.0, 100.0]);
+                    let mut spatial_hash = SpatialHash::new(bounds, 10.0);
+                    for (i, &(x, y)) in points.iter().enumerate() {
+                        let point = Point::new(vec![x, y]);
+                        black_box(spatial_hash.insert(point, i));
+                    }
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+// === LINEAR ALGEBRA BENCHMARKS ===
+
+fn bench_linear_algebra(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Linear Algebra");
+
+    let matrix_sizes = vec![10, 50, 100, 200];
+
+    for &size in &matrix_sizes {
+        let matrix = Array2::from_shape_fn((size, size), |(i, j)| {
+            if i == j {
+                2.0
+            } else if (i as i32 - j as i32).abs() == 1 {
+                -1.0
+            } else {
+                0.0
+            }
+        });
+
+        group.bench_with_input(
+            BenchmarkId::new("lu_decomposition", size),
+            &matrix,
+            |b, matrix| {
+                b.iter(|| black_box(MatrixDecomposition::lu_decomposition(matrix).unwrap()))
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("matrix_norms", size),
+            &matrix,
+            |b, matrix| {
+                b.iter(|| {
+                    black_box((
+                        MatrixNorms::frobenius_norm(matrix),
+                        MatrixNorms::spectral_norm(matrix),
+                        MatrixNorms::nuclear_norm(matrix),
+                    ))
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+// === PROBABILISTIC DATA STRUCTURES BENCHMARKS ===
+
+fn bench_probabilistic_structures(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Probabilistic Structures");
+
+    let item_counts = vec![1000, 5000, 10000, 50000];
+
+    for &n_items in &item_counts {
+        let items: Vec<String> = (0..n_items).map(|i| format!("item_{}", i)).collect();
+
+        // Bloom Filter
+        group.bench_with_input(
+            BenchmarkId::new("bloom_filter_insertions", n_items),
+            &items,
+            |b, items| {
+                b.iter(|| {
+                    let mut bloom = BloomFilter::new(n_items, 0.01);
+                    for item in items {
+                        black_box(bloom.insert(item));
+                    }
+                })
+            },
+        );
+
+        // Count-Min Sketch
+        group.bench_with_input(
+            BenchmarkId::new("count_min_sketch_insertions", n_items),
+            &items,
+            |b, items| {
+                b.iter(|| {
+                    let mut cms = CountMinSketch::new(1000, 10);
+                    for item in items {
+                        black_box(cms.increment(item));
+                    }
+                })
+            },
+        );
+
+        // HyperLogLog
+        group.bench_with_input(
+            BenchmarkId::new("hyperloglog_insertions", n_items),
+            &items,
+            |b, items| {
+                b.iter(|| {
+                    let mut hll = HyperLogLog::new(12);
+                    for item in items {
+                        black_box(hll.add(item));
+                    }
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+// === PARALLEL PROCESSING BENCHMARKS ===
+
+fn bench_parallel_processing(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Parallel Processing");
+
+    let data_sizes = vec![1000, 5000, 10000, 50000];
+
+    for &size in &data_sizes {
+        let data: Vec<i32> = (0..size).collect();
+
+        // ThreadPool execution
+        group.bench_with_input(
+            BenchmarkId::new("thread_pool_execution", size),
+            &data,
+            |b, data| {
+                b.iter(|| {
+                    let pool = ThreadPool::new(4).unwrap();
+                    let mut results = Vec::new();
+                    for &x in data {
+                        let _ = pool.execute(move || {
+                            black_box(x * x);
+                        });
+                        results.push(x * x);
+                    }
+                    black_box(results)
+                })
+            },
+        );
+
+        // Parallel reduction
+        group.bench_with_input(
+            BenchmarkId::new("parallel_reduction", size),
+            &data,
+            |b, data| {
+                b.iter(|| {
+                    let sum = ParallelReducer::reduce(data.clone(), 0, |acc, x| acc + x);
+                    black_box(sum)
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+// === TEXT PROCESSING BENCHMARKS ===
+
+fn bench_text_processing(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Text Processing");
+
+    let text_lengths = vec![100, 500, 1000, 5000];
+
+    for &length in &text_lengths {
+        let text = "The quick brown fox jumps over the lazy dog. ".repeat(length / 45);
+        let text2 = "The quick brown fox jumps over a lazy dog. ".repeat(length / 45);
+
+        group.bench_with_input(
+            BenchmarkId::new("text_tokenization", length),
+            &text,
+            |b, text| {
+                b.iter(|| black_box(TextParser::tokenize(text, &[' ', '\t', '\n', '.', ','])))
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("string_similarity", length),
+            &(&text, &text2),
+            |b, (text1, text2)| {
+                b.iter(|| {
+                    black_box((
+                        StringSimilarity::levenshtein_distance(text1, text2),
+                        StringSimilarity::jaccard_similarity(text1, text2, 2),
+                        StringSimilarity::cosine_similarity(text1, text2),
+                    ))
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+// === TIME SERIES BENCHMARKS ===
+
+fn bench_time_series(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Time Series");
+
+    let series_lengths = vec![100, 500, 1000, 5000];
+
+    for &length in &series_lengths {
+        let timestamps: Vec<_> = (0..length).map(|i| i as f64).collect();
+        let values: Vec<_> = (0..length).map(|i| (i as f64).sin()).collect();
+
+        group.bench_with_input(
+            BenchmarkId::new("time_series_creation", length),
+            &(&timestamps, &values),
+            |b, (timestamps, values)| {
+                b.iter(|| {
+                    let mut ts = TimeSeries::new();
+                    for (&t, &v) in timestamps.iter().zip(values.iter()) {
+                        let timestamp = Timestamp::from_secs(t as i64);
+                        black_box(ts.insert(timestamp, v));
+                    }
+                })
+            },
+        );
+
+        let ts = {
+            let mut ts = TimeSeries::new();
+            for (&t, &v) in timestamps.iter().zip(values.iter()) {
+                let timestamp = Timestamp::from_secs(t as i64);
+                ts.insert(timestamp, v);
+            }
+            ts
+        };
+
+        group.bench_with_input(BenchmarkId::new("sliding_window", length), &ts, |b, _ts| {
+            b.iter(|| {
+                let mut window = SlidingWindow::new(Duration::from_secs(10));
+                for i in 0..length {
+                    let timestamp = Timestamp::from_secs(i as i64);
+                    let point = TimeSeriesPoint::new(timestamp, (i as f64).sin());
+                    black_box(window.add(point));
+                }
+            })
+        });
+    }
+
+    group.finish();
+}
+
+// === STATISTICAL FUNCTIONS BENCHMARKS ===
+
+fn bench_statistical_functions(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Statistical Functions");
+
+    let sample_sizes = vec![100, 500, 1000, 5000];
+
+    for &size in &sample_sizes {
+        let data1: Array1<f64> = Array1::from_vec(
+            (0..size)
+                .map(|i| i as f64 + rand::random::<f64>())
+                .collect(),
+        );
+        let data2: Array1<f64> = Array1::from_vec(
+            (0..size)
+                .map(|i| (i as f64 + rand::random::<f64>()) * 0.8)
+                .collect(),
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("correlation_analysis", size),
+            &(&data1, &data2),
+            |b, (data1, data2)| {
+                b.iter(|| {
+                    black_box((
+                        CorrelationAnalysis::pearson_correlation(data1, data2).unwrap(),
+                        CorrelationAnalysis::spearman_correlation(data1, data2).unwrap(),
+                        CorrelationAnalysis::kendall_tau(data1, data2).unwrap(),
+                    ))
+                })
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("statistical_tests", size),
+            &(&data1, &data2),
+            |b, (data1, data2)| {
+                b.iter(|| {
+                    black_box((
+                        StatisticalTests::one_sample_ttest(data1, 0.0, 0.05).unwrap(),
+                        StatisticalTests::two_sample_ttest(data1, data2, 0.05).unwrap(),
+                    ))
+                })
+            },
+        );
+    }
+
+    group.finish();
+}
+
+// === PERFORMANCE REGRESSION BENCHMARKS ===
+
+fn bench_performance_regression(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Performance Regression");
+
+    // Test regression detection itself
+    group.bench_function("regression_detector", |b| {
+        b.iter(|| {
+            let mut detector = RegressionDetector::new();
+
+            // Simulate baseline measurements
+            for i in 0..50 {
+                detector
+                    .record_baseline("test_function".to_string(), Duration::from_millis(100 + i));
+            }
+
+            // Simulate current measurements (with slight regression)
+            for i in 0..10 {
+                black_box(
+                    detector.check_regression("test_function", Duration::from_millis(110 + i)),
+                );
+            }
+        })
+    });
+
+    // Test performance monitoring overhead
+    group.bench_function("timer_overhead", |b| {
+        b.iter(|| {
+            let mut timer = Timer::new();
+            timer.start();
+            // Simulate some work
+            black_box((0..1000).fold(0, |acc, x| acc + x));
+            let _ = timer.stop();
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(
+    comprehensive_benches,
+    bench_format_conversion,
+    bench_data_structures,
+    bench_spatial_structures,
+    bench_linear_algebra,
+    bench_probabilistic_structures,
+    bench_parallel_processing,
+    bench_text_processing,
+    bench_time_series,
+    bench_statistical_functions,
+    bench_performance_regression,
+);
+
+criterion_main!(comprehensive_benches);

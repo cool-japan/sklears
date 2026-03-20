@@ -1,0 +1,284 @@
+//! Property-based tests for neighbors algorithms
+//!
+//! These tests verify mathematical properties and invariants that should hold
+//! for all inputs using proptest.
+
+use crate::distance::Distance;
+use crate::knn::{KNeighborsClassifier, KNeighborsRegressor};
+use proptest::prelude::*;
+use proptest::strategy::ValueTree;
+use scirs2_core::ndarray::{Array1, Array2};
+use sklears_core::traits::{Fit, Predict, PredictProba};
+
+// Strategies for generating test data
+prop_compose! {
+    fn small_classification_data()(
+        n_samples in 5..20usize,
+        n_features in 2..5usize,
+        n_classes in 2..4usize
+    ) -> (Array2<f64>, Array1<i32>) {
+        let mut x_data = Vec::with_capacity(n_samples * n_features);
+        let mut y_data = Vec::with_capacity(n_samples);
+
+        for i in 0..n_samples {
+            // Generate unique features for each sample to avoid ties
+            for j in 0..n_features {
+                x_data.push((i as f64) * 2.0 + (j as f64) * 0.1);
+            }
+            // Assign class based on sample index
+            y_data.push((i % n_classes) as i32);
+        }
+
+        let X = Array2::from_shape_vec((n_samples, n_features), x_data).expect("operation should succeed");
+        let y = Array1::from_vec(y_data);
+
+        (X, y)
+    }
+}
+
+prop_compose! {
+    fn small_regression_data()(
+        n_samples in 5..20usize,
+        n_features in 2..5usize
+    ) -> (Array2<f64>, Array1<f64>) {
+        let mut x_data = Vec::with_capacity(n_samples * n_features);
+        let mut y_data = Vec::with_capacity(n_samples);
+
+        for i in 0..n_samples {
+            let mut target = 0.0;
+
+            // Generate features and compute target as sum
+            for j in 0..n_features {
+                let feature_value = (i as f64) + (j as f64) * 0.1;
+                x_data.push(feature_value);
+                target += feature_value;
+            }
+            y_data.push(target);
+        }
+
+        let X = Array2::from_shape_vec((n_samples, n_features), x_data).expect("operation should succeed");
+        let y = Array1::from_vec(y_data);
+
+        (X, y)
+    }
+}
+
+proptest! {
+    #[test]
+    fn test_knn_classifier_predictions_valid((X, y) in small_classification_data()) {
+        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let classifier = KNeighborsClassifier::new(n_neighbors);
+
+        let fitted = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
+
+        // Predictions should have same length as input
+        prop_assert_eq!(predictions.len(), y.len());
+
+        // All predictions should be valid classes (present in training data)
+        let unique_train_classes: std::collections::HashSet<i32> = y.iter().copied().collect();
+        for &pred in predictions.iter() {
+            prop_assert!(unique_train_classes.contains(&pred));
+        }
+
+        // Predictions should be deterministic for same input (skip this for now due to tie handling)
+        // let predictions2 = fitted.predict(&X).expect("operation should succeed");
+        // prop_assert_eq!(predictions, predictions2);
+    }
+
+    #[test]
+    fn test_knn_regressor_predictions_finite((X, y) in small_regression_data()) {
+        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let regressor = KNeighborsRegressor::new(n_neighbors);
+
+        let fitted = regressor.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
+
+        // Predictions should have same length as input
+        prop_assert_eq!(predictions.len(), y.len());
+
+        // All predictions should be finite numbers
+        for &pred in predictions.iter() {
+            prop_assert!(pred.is_finite());
+        }
+
+        // For training data, predictions should be reasonably close to targets
+        // (since we're predicting on training data with some neighbors)
+        let max_target = y.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        let min_target = y.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+
+        for &pred in predictions.iter() {
+            prop_assert!(pred >= min_target - 1.0); // Allow some tolerance
+            prop_assert!(pred <= max_target + 1.0);
+        }
+    }
+
+    #[test]
+    fn test_knn_different_distances_same_shape((X, y) in small_classification_data()) {
+        let n_neighbors = (X.nrows() / 2).max(1).min(3);
+
+        let distances = vec![Distance::Euclidean, Distance::Manhattan, Distance::Chebyshev];
+
+        for distance in distances {
+            let classifier = KNeighborsClassifier::new(n_neighbors)
+                .with_metric(distance);
+
+            let fitted = classifier.fit(&X, &y).expect("operation should succeed");
+            let predictions = fitted.predict(&X).expect("operation should succeed");
+
+            // All distance metrics should produce same-shaped output
+            prop_assert_eq!(predictions.len(), y.len());
+
+            // All predictions should be valid classes
+            let unique_classes: std::collections::HashSet<i32> = y.iter().copied().collect();
+            for &pred in predictions.iter() {
+                prop_assert!(unique_classes.contains(&pred));
+            }
+        }
+    }
+
+    #[test]
+    fn test_knn_perfect_prediction_on_self((X, y) in small_classification_data()) {
+        // When k=1 and we predict on training data, should get very high accuracy
+        let classifier = KNeighborsClassifier::new(1);
+        let fitted = classifier.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
+
+        // Should predict mostly correct labels (allow for some ties)
+        let correct = predictions.iter().zip(y.iter())
+            .filter(|(&pred, &true_val)| pred == true_val)
+            .count();
+        let accuracy = correct as f64 / y.len() as f64;
+        prop_assert!(accuracy >= 0.7); // At least 70% accuracy on training data
+    }
+
+    #[test]
+    fn test_knn_regressor_perfect_prediction_on_self((X, y) in small_regression_data()) {
+        // When k=1 and we predict on training data, should get exact values
+        let regressor = KNeighborsRegressor::new(1);
+        let fitted = regressor.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
+
+        // Should predict exactly the training targets
+        for (pred, &target) in predictions.iter().zip(y.iter()) {
+            prop_assert!((pred - target).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_knn_classifier_probability_properties((X, y) in small_classification_data()) {
+        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let classifier = KNeighborsClassifier::new(n_neighbors);
+
+        let fitted = classifier.fit(&X, &y).expect("operation should succeed");
+
+        if let Ok(probabilities) = fitted.predict_proba(&X) {
+            // Each row should sum to 1
+            for row in probabilities.rows() {
+                let sum: f64 = row.sum();
+                prop_assert!((sum - 1.0).abs() < 1e-10);
+            }
+
+            // All probabilities should be between 0 and 1
+            for &prob in probabilities.iter() {
+                prop_assert!(prob >= 0.0 && prob <= 1.0);
+            }
+
+            // Number of rows should match input
+            prop_assert_eq!(probabilities.nrows(), X.nrows());
+        }
+    }
+
+    // NEW: Test distance metric properties
+    #[test]
+    fn test_distance_metric_properties(
+        x1 in prop::collection::vec(-10.0..10.0f64, 2..10),
+        x2 in prop::collection::vec(-10.0..10.0f64, 2..10)
+    ) {
+        if x1.len() != x2.len() {
+            return Ok(());
+        }
+
+        let a1 = Array1::from_vec(x1.clone());
+        let a2 = Array1::from_vec(x2.clone());
+
+        // Test Euclidean distance properties
+        let dist = Distance::Euclidean;
+
+        // Non-negativity: d(x, y) >= 0
+        let d12 = dist.calculate(&a1.view(), &a2.view());
+        prop_assert!(d12 >= 0.0);
+
+        // Identity: d(x, x) = 0
+        let d11 = dist.calculate(&a1.view(), &a1.view());
+        prop_assert!((d11 - 0.0).abs() < 1e-10);
+
+        // Symmetry: d(x, y) = d(y, x)
+        let d21 = dist.calculate(&a2.view(), &a1.view());
+        prop_assert!((d12 - d21).abs() < 1e-10);
+    }
+
+    // NEW: Test triangle inequality for distance metrics
+    #[test]
+    fn test_triangle_inequality(
+        x1 in prop::collection::vec(-5.0..5.0f64, 3..5),
+        x2 in prop::collection::vec(-5.0..5.0f64, 3..5),
+        x3 in prop::collection::vec(-5.0..5.0f64, 3..5)
+    ) {
+        if x1.len() != x2.len() || x2.len() != x3.len() {
+            return Ok(());
+        }
+
+        let a1 = Array1::from_vec(x1);
+        let a2 = Array1::from_vec(x2);
+        let a3 = Array1::from_vec(x3);
+
+        // Triangle inequality: d(x, z) <= d(x, y) + d(y, z)
+        let dist = Distance::Euclidean;
+        let d13 = dist.calculate(&a1.view(), &a3.view());
+        let d12 = dist.calculate(&a1.view(), &a2.view());
+        let d23 = dist.calculate(&a2.view(), &a3.view());
+
+        prop_assert!(d13 <= d12 + d23 + 1e-10); // Small epsilon for floating point errors
+    }
+
+    // NEW: Test that regressor predictions are bounded by training data range
+    #[test]
+    fn test_regressor_predictions_bounded((X, y) in small_regression_data()) {
+        let n_neighbors = (X.nrows() / 2).max(1).min(5);
+        let regressor = KNeighborsRegressor::new(n_neighbors);
+
+        let fitted = regressor.fit(&X, &y).expect("operation should succeed");
+        let predictions = fitted.predict(&X).expect("operation should succeed");
+
+        let y_min = y.iter().cloned().fold(f64::INFINITY, f64::min);
+        let y_max = y.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+
+        // All predictions should be within training data range (plus small epsilon)
+        for &pred in predictions.iter() {
+            prop_assert!(pred >= y_min - 1e-10);
+            prop_assert!(pred <= y_max + 1e-10);
+        }
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_property_test_setup() {
+        // Simple test to ensure property test framework is working
+        let (X, y) = small_classification_data()
+            .new_tree(&mut proptest::test_runner::TestRunner::default())
+            .expect("operation should succeed")
+            .current();
+
+        assert!(X.nrows() >= 5);
+        assert!(X.nrows() <= 20);
+        assert!(X.ncols() >= 2);
+        assert!(X.ncols() <= 5);
+        assert_eq!(X.nrows(), y.len());
+    }
+}

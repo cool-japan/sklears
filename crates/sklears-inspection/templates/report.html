@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{TITLE}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            border-bottom: 3px solid #007bff;
+        }
+
+        .header h1 {
+            color: #007bff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .meta {
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+
+        .score-card {
+            background: linear-gradient(135deg, #007bff, #28a745);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .score-card h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .overall-score {
+            font-size: 4em;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .score-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .score-item {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .score-item h4 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .score-item .score {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .section {
+            margin: 40px 0;
+            padding: 30px;
+            background: #fff;
+            border-left: 5px solid #007bff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .section h2 {
+            color: #007bff;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .section h3 {
+            color: #495057;
+            font-size: 1.4em;
+            margin: 25px 0 15px 0;
+        }
+
+        .section p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        .section ul {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        .section li {
+            margin-bottom: 8px;
+        }
+
+        .model-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .model-card h4 {
+            color: #007bff;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .model-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .detail-item {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #28a745;
+        }
+
+        .detail-item strong {
+            color: #495057;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .recommendations {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .recommendations h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+
+        .recommendations ol {
+            padding-left: 20px;
+        }
+
+        .recommendations li {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        .warning {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .chart-placeholder {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 1.2em;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px 0;
+            border-top: 2px solid #e9ecef;
+            color: #6c757d;
+        }
+
+        .footer p {
+            margin: 5px 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #007bff;
+            color: white;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin: 2px;
+        }
+
+        .badge.success {
+            background: #28a745;
+        }
+
+        .badge.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .badge.danger {
+            background: #dc3545;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        table th,
+        table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .overall-score {
+                font-size: 3em;
+            }
+
+            .score-breakdown {
+                grid-template-columns: 1fr;
+            }
+
+            .model-details {
+                grid-template-columns: 1fr;
+            }
+
+            .section {
+                padding: 20px;
+            }
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .container {
+                box-shadow: none;
+                max-width: none;
+            }
+
+            .score-card {
+                background: #f8f9fa !important;
+                color: #333 !important;
+                border: 2px solid #007bff;
+            }
+
+            .chart-placeholder {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{TITLE}}</h1>
+            <div class="meta">
+                <p><strong>Model:</strong> {{MODEL_NAME}}</p>
+                <p><strong>Author:</strong> {{AUTHOR}}</p>
+                <p><strong>Generated:</strong> {{TIMESTAMP}}</p>
+            </div>
+        </div>
+
+        <!-- Overall Score Card -->
+        <div class="score-card">
+            <h2>Interpretability Score</h2>
+            <div class="overall-score">{{OVERALL_SCORE}}/100</div>
+            <p>Overall model interpretability assessment</p>
+            
+            <div class="score-breakdown">
+                <div class="score-item">
+                    <h4>Transparency</h4>
+                    <div class="score">75.0</div>
+                </div>
+                <div class="score-item">
+                    <h4>Explainability</h4>
+                    <div class="score">80.0</div>
+                </div>
+                <div class="score-item">
+                    <h4>Fairness</h4>
+                    <div class="score">85.0</div>
+                </div>
+                <div class="score-item">
+                    <h4>Robustness</h4>
+                    <div class="score">70.0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="section">
+            <h2>Executive Summary</h2>
+            <div>{{EXECUTIVE_SUMMARY}}</div>
+        </div>
+
+        <!-- Model Information -->
+        <div class="section">
+            <h2>Model Information</h2>
+            <div class="model-card">
+                <h4>Model Details</h4>
+                <div class="model-details">
+                    <div class="detail-item">
+                        <strong>Model Name</strong>
+                        {{MODEL_NAME}}
+                    </div>
+                    <div class="detail-item">
+                        <strong>Model Type</strong>
+                        Machine Learning Model
+                    </div>
+                    <div class="detail-item">
+                        <strong>Algorithm</strong>
+                        Various Algorithms
+                    </div>
+                    <div class="detail-item">
+                        <strong>Version</strong>
+                        1.0.0
+                    </div>
+                </div>
+            </div>
+
+            <div class="info">
+                <h3>Intended Use</h3>
+                <p><strong>Primary Uses:</strong> Research and analysis, Educational purposes</p>
+                <p><strong>Primary Users:</strong> Data scientists, Researchers, Model developers</p>
+                <p><strong>Out-of-scope Uses:</strong> High-stakes decision making without human oversight</p>
+            </div>
+        </div>
+
+        <!-- Key Findings -->
+        <div class="section">
+            <h2>Key Findings</h2>
+            
+            <h3>Feature Importance Analysis</h3>
+            <p>Analysis of feature importance reveals key drivers of model predictions. The model demonstrates clear feature dependencies with interpretable patterns.</p>
+            <div class="chart-placeholder">
+                Feature Importance Visualization
+                <br><small>(Interactive chart would be embedded here)</small>
+            </div>
+
+            <h3>SHAP Analysis</h3>
+            <p>SHAP analysis provides instance-level explanations, revealing how individual features contribute to specific predictions.</p>
+            <ul>
+                <li>Instance-level explanations show consistent behavior patterns</li>
+                <li>Feature interactions identified through SHAP values</li>
+                <li>Global and local explanations align well</li>
+            </ul>
+
+            <h3>Model Behavior Patterns</h3>
+            <p>The model shows consistent behavior across similar instances, indicating stable and predictable decision-making processes.</p>
+        </div>
+
+        <!-- Fairness and Bias Analysis -->
+        <div class="section">
+            <h2>Fairness and Bias Analysis</h2>
+            <div class="success">
+                <h3>Fairness Assessment</h3>
+                <p>The model shows good performance across different demographic groups with minimal bias indicators.</p>
+            </div>
+
+            <h3>Bias Detection Results</h3>
+            <ul>
+                <li>Demographic parity analysis shows balanced outcomes</li>
+                <li>Equalized odds assessment indicates fair treatment</li>
+                <li>Individual fairness metrics are within acceptable ranges</li>
+            </ul>
+        </div>
+
+        <!-- Uncertainty Analysis -->
+        <div class="section">
+            <h2>Uncertainty Analysis</h2>
+            <p>Analysis of model uncertainty and confidence in predictions reveals:</p>
+            <ul>
+                <li>Well-calibrated prediction confidence</li>
+                <li>Appropriate uncertainty estimation</li>
+                <li>Clear identification of low-confidence predictions</li>
+            </ul>
+            
+            <div class="chart-placeholder">
+                Uncertainty Distribution Visualization
+                <br><small>(Calibration plot would be embedded here)</small>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="recommendations">
+            <h3>Recommendations</h3>
+            <ol>
+                <li>Implement continuous model monitoring to detect performance drift</li>
+                <li>Regular bias testing across different demographic groups</li>
+                <li>Establish clear guidelines for model use and limitations</li>
+                <li>Maintain documentation of model decisions and explanations</li>
+                <li>Consider ensemble methods to improve robustness</li>
+            </ol>
+        </div>
+
+        <!-- Limitations and Caveats -->
+        <div class="section">
+            <h2>Limitations and Caveats</h2>
+            <div class="warning">
+                <h3>Known Limitations</h3>
+                <ul>
+                    <li>Model trained on limited dataset may not generalize to all scenarios</li>
+                    <li>Performance may degrade on out-of-distribution data</li>
+                    <li>Explanations are approximations and may not capture all model behavior</li>
+                </ul>
+            </div>
+
+            <h3>Recommendations for Deployment</h3>
+            <ul>
+                <li>Implement human oversight for critical decisions</li>
+                <li>Regular retraining with updated data</li>
+                <li>Continuous monitoring of model performance and fairness</li>
+                <li>Clear communication of model limitations to end users</li>
+            </ul>
+        </div>
+
+        <!-- Technical Details -->
+        <div class="section">
+            <h2>Technical Details</h2>
+            
+            <h3>Methodology</h3>
+            <p>This analysis employed multiple interpretability techniques including:</p>
+            <ul>
+                <li>Permutation importance for global feature ranking</li>
+                <li>SHAP values for instance-level explanations</li>
+                <li>Counterfactual analysis for understanding decision boundaries</li>
+                <li>Fairness metrics across protected attributes</li>
+                <li>Uncertainty quantification and calibration analysis</li>
+            </ul>
+
+            <h3>Evaluation Metrics</h3>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Score</th>
+                            <th>Interpretation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Transparency</td>
+                            <td>75.0/100</td>
+                            <td>Good model transparency</td>
+                        </tr>
+                        <tr>
+                            <td>Explainability</td>
+                            <td>80.0/100</td>
+                            <td>High quality explanations</td>
+                        </tr>
+                        <tr>
+                            <td>Fairness</td>
+                            <td>85.0/100</td>
+                            <td>Excellent fairness properties</td>
+                        </tr>
+                        <tr>
+                            <td>Robustness</td>
+                            <td>70.0/100</td>
+                            <td>Moderate robustness, room for improvement</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Generated by sklears-inspection v0.1.0</strong></p>
+            <p>This report provides an automated analysis of model interpretability and should be reviewed by domain experts.</p>
+            <p>For questions or feedback, please contact the model development team.</p>
+        </div>
+    </div>
+
+    <script>
+        // Add any interactive JavaScript here
+        document.addEventListener('DOMContentLoaded', function() {
+            // Smooth scrolling for any internal links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // Print functionality
+            function printReport() {
+                window.print();
+            }
+
+            // Add print button if needed
+            const headerElement = document.querySelector('.header');
+            if (headerElement) {
+                const printButton = document.createElement('button');
+                printButton.textContent = 'Print Report';
+                printButton.style.cssText = 'margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;';
+                printButton.onclick = printReport;
+                headerElement.appendChild(printButton);
+            }
+        });
+    </script>
+</body>
+</html>

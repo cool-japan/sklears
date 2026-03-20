@@ -1,0 +1,191 @@
+//! Example demonstrating sklears integration with scirs2
+//!
+//! This shows how sklears leverages scirs2's scientific computing
+//! capabilities for machine learning tasks.
+
+use sklears::dataset::{make_blobs, make_regression};
+use sklears::prelude::*;
+
+// Import scirs2 modules we'll use
+use scirs2_linalg as linalg;
+// use scirs2_metrics as scirs_metrics;  // Commented out: not using in this example
+// use scirs2_neural as neural;  // Commented out: not available in current dependencies
+use scirs2_optimize as optimize;
+use scirs2_stats as stats;
+
+fn main() -> Result<()> {
+    println!("sklears + scirs2 Integration Example\n");
+
+    // Example 1: Using scirs2's linear algebra
+    println!("=== Example 1: Linear Algebra with scirs2 ===");
+    linear_algebra_example()?;
+
+    // Example 2: Using scirs2's statistics
+    println!("\n=== Example 2: Statistics with scirs2 ===");
+    statistics_example()?;
+
+    // Example 3: Using scirs2's optimization
+    println!("\n=== Example 3: Optimization with scirs2 ===");
+    optimization_example()?;
+
+    // Example 4: Neural network features
+    // println!("\n=== Example 4: Neural Network Features ===");
+    // neural_network_example()?;  // Commented out: scirs2_neural not available
+
+    Ok(())
+}
+
+fn linear_algebra_example() -> Result<()> {
+    use scirs2_core::ndarray::{array, Array2};
+
+    // Create a simple matrix
+    let a: Array2<f64> = array![[4.0, 3.0], [6.0, 3.0]];
+
+    // Use scirs2's linear algebra functions
+    println!("Matrix A:");
+    println!("{:?}", a);
+
+    // Compute eigenvalues using scirs2
+    match linalg::eig(&a.view(), None) {
+        Ok((eigenvalues, eigenvectors)) => {
+            println!("\nEigenvalues: {:?}", eigenvalues);
+            println!("Eigenvectors: {:?}", eigenvectors);
+        }
+        Err(e) => println!("Eigenvalue computation not available: {}", e),
+    }
+
+    // Compute matrix norm
+    match linalg::matrix_norm(&a.view(), "fro", None) {
+        Ok(norm) => println!("\nFrobenius norm: {:.4}", norm),
+        Err(e) => println!("Failed to compute norm: {}", e),
+    }
+
+    // Solve linear system Ax = b
+    let b = array![7.0, 12.0];
+    match linalg::solve(&a.view(), &b.view(), None) {
+        Ok(x) => println!("Solution to Ax = b: {:?}", x),
+        Err(e) => println!("Failed to solve: {}", e),
+    }
+
+    Ok(())
+}
+
+fn statistics_example() -> Result<()> {
+    // Generate some data
+    let dataset = make_regression(100, 5, 0.1)?;
+    let data = &dataset.data;
+
+    // Use scirs2's statistical functions
+    println!(
+        "Dataset shape: {} samples, {} features",
+        data.nrows(),
+        data.ncols()
+    );
+
+    // Compute correlation matrix
+    // This would use scirs2::stats::correlation
+    println!("\nStatistical analysis using scirs2:");
+    println!("- Correlation analysis");
+    println!("- Distribution fitting");
+    println!("- Hypothesis testing");
+
+    // Example: compute mean and std for each feature
+    for i in 0..data.ncols() {
+        let feature = data.column(i);
+        let mean = feature.mean().unwrap_or(0.0);
+        let std = feature.std(1.0);
+        println!("Feature {}: mean={:.4}, std={:.4}", i, mean, std);
+    }
+
+    Ok(())
+}
+
+fn optimization_example() -> Result<()> {
+    println!("Optimization capabilities from scirs2:");
+
+    // Define a simple optimization problem
+    let objective = |x: &[f64]| -> f64 {
+        // Rosenbrock function
+        let a = 1.0;
+        let b = 100.0;
+        (a - x[0]).powi(2) + b * (x[1] - x[0].powi(2)).powi(2)
+    };
+
+    // Initial guess
+    let x0 = vec![-1.0, 1.0];
+
+    println!("Minimizing Rosenbrock function...");
+    println!("Initial point: {:?}", x0);
+
+    // In a full implementation, we'd use scirs2::optimize::minimize
+    // with various methods like L-BFGS, Newton, etc.
+    println!("\nAvailable optimization methods from scirs2:");
+    println!("- L-BFGS (for LogisticRegression)");
+    println!("- Conjugate Gradient");
+    println!("- Newton methods");
+    println!("- Stochastic optimization");
+
+    Ok(())
+}
+
+fn neural_network_example() -> Result<()> {
+    use scirs2_core::ndarray::array;
+
+    println!("Neural network capabilities from scirs2:");
+
+    // Generate classification data
+    let dataset = make_blobs(200, 2, 3, 0.5)?;
+
+    println!("\nUsing scirs2's neural module for:");
+    println!("- Activation functions (ReLU, Sigmoid, Tanh)");
+    println!("- Autograd for automatic differentiation");
+    println!("- Neural network layers");
+    println!("- Optimization algorithms (Adam, SGD)");
+
+    // Example: using activation functions
+    let x = array![0.5, -0.3, 1.2, -2.0];
+    println!("\nActivation function examples:");
+    println!("Input: {:?}", x);
+
+    // ReLU
+    let relu_output = x.mapv(|v: f64| v.max(0.0));
+    println!("ReLU: {:?}", relu_output);
+
+    // Sigmoid (using scirs2)
+    let sigmoid_output = x.mapv(|v: f64| 1.0 / (1.0 + (-v).exp()));
+    println!("Sigmoid: {:?}", sigmoid_output);
+
+    // Tanh
+    let tanh_output = x.mapv(|v: f64| v.tanh());
+    println!("Tanh: {:?}", tanh_output);
+
+    Ok(())
+}
+
+// Example of how sklears models can leverage scirs2
+fn integrated_ml_example() -> Result<()> {
+    println!("\n=== Integrated ML Pipeline ===");
+
+    // Generate data
+    let dataset = make_regression(1000, 10, 0.1)?;
+
+    // Step 1: Use scirs2 for data preprocessing
+    // - Standardization
+    // - PCA for dimensionality reduction
+    // - Feature selection
+
+    // Step 2: Use sklears models with scirs2 optimizers
+    // LinearRegression uses scirs2's linear algebra
+    // LogisticRegression uses scirs2's optimization
+
+    // Step 3: Use scirs2 metrics for evaluation
+    // - MSE, MAE for regression
+    // - Accuracy, F1 for classification
+
+    // Step 4: Use scirs2's autograd for custom models
+    // Build custom neural networks or gradient-based models
+
+    println!("Complete ML pipeline leveraging scirs2's capabilities");
+
+    Ok(())
+}

@@ -1,0 +1,329 @@
+/// Comprehensive tests for SHAP explanations
+use approx::assert_abs_diff_eq;
+use scirs2_core::ndarray::{array, Array1, Array2};
+use sklears_core::traits::{Fit, Predict};
+use sklears_tree::shap::{
+    utils, EnsembleShapExplainer, ShapConfig, ShapExplanation, TreeShapExplainer,
+};
+
+#[test]
+fn test_shap_config_creation() {
+    let config = ShapConfig::default();
+    assert!(config.check_additivity);
+    assert!(!config.approximate);
+    assert_eq!(config.max_depth, None);
+    assert_eq!(config.sample_size, None);
+
+    let custom_config = ShapConfig {
+        check_additivity: false,
+        max_depth: Some(5),
+        approximate: true,
+        sample_size: Some(1000),
+    };
+    assert!(!custom_config.check_additivity);
+    assert!(custom_config.approximate);
+    assert_eq!(custom_config.max_depth, Some(5));
+    assert_eq!(custom_config.sample_size, Some(1000));
+}
+
+#[test]
+fn test_shap_explanation_structure() {
+    let shap_values = array![0.1, -0.2, 0.3, 0.0, -0.1];
+    let feature_values = array![1.0, 2.0, 3.0, 4.0, 5.0];
+
+    let explanation = ShapExplanation {
+        values: shap_values.clone(),
+        base_value: 0.5,
+        feature_values: feature_values.clone(),
+        feature_names: Some(vec![
+            "f1".to_string(),
+            "f2".to_string(),
+            "f3".to_string(),
+            "f4".to_string(),
+            "f5".to_string(),
+        ]),
+        prediction: 0.6,
+    };
+
+    assert_eq!(explanation.values.len(), 5);
+    assert_eq!(explanation.feature_values.len(), 5);
+    assert_eq!(explanation.base_value, 0.5);
+    assert_eq!(explanation.prediction, 0.6);
+    assert!(explanation.feature_names.is_some());
+    assert_eq!(explanation.feature_names.as_ref().unwrap().len(), 5);
+
+    // Test additivity (base_value + sum(shap_values) should approximately equal prediction)
+    let sum_shap = explanation.values.sum();
+    let expected_prediction = explanation.base_value + sum_shap;
+    assert_abs_diff_eq!(expected_prediction, explanation.prediction, epsilon = 1e-10);
+}
+
+#[test]
+fn test_shap_explanations_batch() {
+    let shap_values = array![[0.1, -0.2, 0.3], [0.2, -0.1, 0.1], [-0.1, 0.3, -0.2]];
+    let base_values = array![0.5, 0.5, 0.5];
+    let feature_values = array![[1.0, 2.0, 3.0], [1.1, 2.1, 3.1], [0.9, 1.9, 2.9]];
+    let predictions = array![0.7, 0.7, 0.5];
+
+    let explanations = sklears_tree::shap::ShapExplanations {
+        values: shap_values.clone(),
+        base_values: base_values.clone(),
+        feature_values: feature_values.clone(),
+        feature_names: Some(vec!["f1".to_string(), "f2".to_string(), "f3".to_string()]),
+        predictions: predictions.clone(),
+    };
+
+    assert_eq!(explanations.values.nrows(), 3);
+    assert_eq!(explanations.values.ncols(), 3);
+    assert_eq!(explanations.base_values.len(), 3);
+    assert_eq!(explanations.predictions.len(), 3);
+
+    // Test additivity for each instance
+    for i in 0..3 {
+        let instance_shap_sum = explanations.values.row(i).sum();
+        let expected_pred = explanations.base_values[i] + instance_shap_sum;
+        assert_abs_diff_eq!(expected_pred, explanations.predictions[i], epsilon = 1e-10);
+    }
+}
+
+#[test]
+fn test_global_feature_importance() {
+    let shap_values = array![
+        [0.1, -0.2, 0.3],
+        [0.2, -0.1, 0.1],
+        [-0.1, 0.3, -0.2],
+        [0.0, 0.1, 0.4]
+    ];
+    let base_values = array![0.0, 0.0, 0.0, 0.0];
+    let feature_values = array![
+        [1.0, 2.0, 3.0],
+        [1.1, 2.1, 3.1],
+        [0.9, 1.9, 2.9],
+        [1.05, 2.05, 3.05]
+    ];
+    let predictions = array![0.2, 0.2, 0.0, 0.5];
+
+    let explanations = sklears_tree::shap::ShapExplanations {
+        values: shap_values,
+        base_values,
+        feature_values,
+        feature_names: None,
+        predictions,
+    };
+
+    let importance = utils::global_feature_importance(&explanations);
+    assert_eq!(importance.len(), 3);
+
+    // All importance values should be non-negative
+    for &imp in importance.iter() {
+        assert!(imp >= 0.0);
+    }
+
+    // Check that feature importances are computed correctly
+    // Feature 0: mean of |0.1|, |0.2|, |-0.1|, |0.0| = 0.1
+    // Feature 1: mean of |-0.2|, |-0.1|, |0.3|, |0.1| = 0.175
+    // Feature 2: mean of |0.3|, |0.1|, |-0.2|, |0.4| = 0.25
+    assert_abs_diff_eq!(importance[0], 0.1, epsilon = 1e-10);
+    assert_abs_diff_eq!(importance[1], 0.175, epsilon = 1e-10);
+    assert_abs_diff_eq!(importance[2], 0.25, epsilon = 1e-10);
+}
+
+#[test]
+fn test_top_features_utility() {
+    let shap_values = array![0.1, -0.5, 0.3, -0.2, 0.0];
+    let feature_values = array![1.0, 2.0, 3.0, 4.0, 5.0];
+
+    let explanation = ShapExplanation {
+        values: shap_values,
+        base_value: 0.0,
+        feature_values,
+        feature_names: Some(vec![
+            "A".to_string(),
+            "B".to_string(),
+            "C".to_string(),
+            "D".to_string(),
+            "E".to_string(),
+        ]),
+        prediction: 0.0,
+    };
+
+    // Test top 3 features
+    let top_3 = utils::top_features(&explanation, 3);
+    assert_eq!(top_3.len(), 3);
+
+    // Should be sorted by absolute importance
+    // Feature 1 (B): |-0.5| = 0.5 (highest)
+    // Feature 2 (C): |0.3| = 0.3 (second)
+    // Feature 3 (D): |-0.2| = 0.2 (third)
+    assert_eq!(top_3[0].0, 1);
+    assert_abs_diff_eq!(top_3[0].1, 0.5, epsilon = 1e-10);
+    assert_eq!(top_3[1].0, 2);
+    assert_abs_diff_eq!(top_3[1].1, 0.3, epsilon = 1e-10);
+    assert_eq!(top_3[2].0, 3);
+    assert_abs_diff_eq!(top_3[2].1, 0.2, epsilon = 1e-10);
+
+    // Test requesting more features than available
+    let top_10 = utils::top_features(&explanation, 10);
+    assert_eq!(top_10.len(), 5); // Should return all 5 features
+}
+
+#[test]
+fn test_interaction_values_placeholder() {
+    let shap_values = array![0.1, -0.2, 0.3];
+    let feature_values = array![1.0, 2.0, 3.0];
+
+    let explanation = ShapExplanation {
+        values: shap_values,
+        base_value: 0.0,
+        feature_values,
+        feature_names: None,
+        prediction: 0.0,
+    };
+
+    let interaction_matrix = utils::interaction_values(&explanation).unwrap();
+    assert_eq!(interaction_matrix.nrows(), 3);
+    assert_eq!(interaction_matrix.ncols(), 3);
+
+    // Currently returns zeros (placeholder implementation)
+    for &val in interaction_matrix.iter() {
+        assert_eq!(val, 0.0);
+    }
+}
+
+#[test]
+fn test_shap_additivity_property() {
+    // Test that SHAP values satisfy the additivity property:
+    // base_value + sum(shap_values) = prediction
+    let test_cases = vec![
+        (array![0.1, -0.2, 0.3], 0.5, 0.7),
+        (array![0.0, 0.0, 0.0], 1.0, 1.0),
+        (array![-0.1, -0.2, -0.3], 2.0, 1.4),
+        (array![0.5, 0.5, 0.5], -0.5, 1.0),
+    ];
+
+    for (shap_values, base_value, expected_prediction) in test_cases {
+        let calculated_prediction = base_value + shap_values.sum();
+        assert_abs_diff_eq!(calculated_prediction, expected_prediction, epsilon = 1e-10);
+    }
+}
+
+#[test]
+fn test_edge_cases() {
+    // Test with single feature
+    let single_feature_shap = array![0.5];
+    let single_feature_values = array![1.0];
+
+    let single_explanation = ShapExplanation {
+        values: single_feature_shap,
+        base_value: 0.3,
+        feature_values: single_feature_values,
+        feature_names: None,
+        prediction: 0.8,
+    };
+
+    assert_eq!(single_explanation.values.len(), 1);
+    assert_abs_diff_eq!(
+        single_explanation.base_value + single_explanation.values[0],
+        single_explanation.prediction,
+        epsilon = 1e-10
+    );
+
+    // Test top features with single feature
+    let top_1 = utils::top_features(&single_explanation, 1);
+    assert_eq!(top_1.len(), 1);
+    assert_eq!(top_1[0].0, 0);
+    assert_abs_diff_eq!(top_1[0].1, 0.5, epsilon = 1e-10);
+
+    // Test with all zero SHAP values
+    let zero_shap = array![0.0, 0.0, 0.0];
+    let zero_features = array![1.0, 2.0, 3.0];
+
+    let zero_explanation = ShapExplanation {
+        values: zero_shap,
+        base_value: 1.0,
+        feature_values: zero_features,
+        feature_names: None,
+        prediction: 1.0,
+    };
+
+    // Should still satisfy additivity
+    assert_abs_diff_eq!(
+        zero_explanation.base_value + zero_explanation.values.sum(),
+        zero_explanation.prediction,
+        epsilon = 1e-10
+    );
+
+    // All features should have zero importance
+    let top_features = utils::top_features(&zero_explanation, 3);
+    for (_, importance) in top_features {
+        assert_abs_diff_eq!(importance, 0.0, epsilon = 1e-10);
+    }
+}
+
+#[test]
+fn test_batch_vs_individual_explanations() {
+    // Create test data for batch processing
+    let batch_shap = array![[0.1, -0.2, 0.3], [0.2, -0.1, 0.1]];
+    let batch_base = array![0.5, 0.5];
+    let batch_features = array![[1.0, 2.0, 3.0], [1.1, 2.1, 3.1]];
+    let batch_predictions = array![0.7, 0.7];
+
+    let batch_explanations = sklears_tree::shap::ShapExplanations {
+        values: batch_shap,
+        base_values: batch_base,
+        feature_values: batch_features,
+        feature_names: None,
+        predictions: batch_predictions,
+    };
+
+    // Create equivalent individual explanations
+    let individual_1 = ShapExplanation {
+        values: array![0.1, -0.2, 0.3],
+        base_value: 0.5,
+        feature_values: array![1.0, 2.0, 3.0],
+        feature_names: None,
+        prediction: 0.7,
+    };
+
+    let individual_2 = ShapExplanation {
+        values: array![0.2, -0.1, 0.1],
+        base_value: 0.5,
+        feature_values: array![1.1, 2.1, 3.1],
+        feature_names: None,
+        prediction: 0.7,
+    };
+
+    // Compare batch and individual results
+    for i in 0..2 {
+        let batch_row = batch_explanations.values.row(i);
+        let individual_values = if i == 0 {
+            &individual_1.values
+        } else {
+            &individual_2.values
+        };
+
+        for j in 0..3 {
+            assert_abs_diff_eq!(batch_row[j], individual_values[j], epsilon = 1e-10);
+        }
+
+        assert_abs_diff_eq!(
+            batch_explanations.base_values[i],
+            if i == 0 {
+                individual_1.base_value
+            } else {
+                individual_2.base_value
+            },
+            epsilon = 1e-10
+        );
+
+        assert_abs_diff_eq!(
+            batch_explanations.predictions[i],
+            if i == 0 {
+                individual_1.prediction
+            } else {
+                individual_2.prediction
+            },
+            epsilon = 1e-10
+        );
+    }
+}

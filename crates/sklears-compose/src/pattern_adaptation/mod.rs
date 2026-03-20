@@ -1,0 +1,56 @@
+//! Auto-generated module structure
+
+pub mod experiencereplay_traits;
+pub mod regularizationconfig_traits;
+pub mod rewardshaping_traits;
+pub mod rewardfunction_traits;
+pub mod actionspace_traits;
+pub mod geneticoperators_traits;
+pub mod modelregistry_traits;
+pub mod hyperparameteroptimizer_traits;
+pub mod policynetwork_traits;
+pub mod reinforcementlearningagent_traits;
+pub mod valuenetwork_traits;
+pub mod knowledgebase_traits;
+pub mod paretofront_traits;
+pub mod rlhyperparameters_traits;
+pub mod optimizerconfig_traits;
+pub mod searchspace_traits;
+pub mod adaptationsystem_traits;
+pub mod evolutionaryoptimizer_traits;
+pub mod explorationstrategy_traits;
+pub mod neuralnetworkmanager_traits;
+pub mod multiobjectiveoptimizer_traits;
+pub mod networkarchitecture_traits;
+pub mod adaptationimpact_traits;
+pub mod normalizationconfig_traits;
+pub mod types;
+pub mod functions;
+
+// Re-export all types
+pub use experiencereplay_traits::*;
+pub use regularizationconfig_traits::*;
+pub use rewardshaping_traits::*;
+pub use rewardfunction_traits::*;
+pub use actionspace_traits::*;
+pub use geneticoperators_traits::*;
+pub use modelregistry_traits::*;
+pub use hyperparameteroptimizer_traits::*;
+pub use policynetwork_traits::*;
+pub use reinforcementlearningagent_traits::*;
+pub use valuenetwork_traits::*;
+pub use knowledgebase_traits::*;
+pub use paretofront_traits::*;
+pub use rlhyperparameters_traits::*;
+pub use optimizerconfig_traits::*;
+pub use searchspace_traits::*;
+pub use adaptationsystem_traits::*;
+pub use evolutionaryoptimizer_traits::*;
+pub use explorationstrategy_traits::*;
+pub use neuralnetworkmanager_traits::*;
+pub use multiobjectiveoptimizer_traits::*;
+pub use networkarchitecture_traits::*;
+pub use adaptationimpact_traits::*;
+pub use normalizationconfig_traits::*;
+pub use types::*;
+pub use functions::*;
